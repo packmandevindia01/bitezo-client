@@ -72,99 +72,107 @@ export default defineConfig([
 ])
 ```
 
+
 src/
-│
-├── app/                         # App-level setup
-│   ├── store.ts
-│   ├── hooks.ts
-│
-├── assets/                      # images, icons, logos
-│
-├── components/                  # reusable UI (global)
+├── assets/
+│   ├── hero.png
+│   ├── react.svg
+│   └── vite.svg
+├── components/
 │   ├── common/
-│   │   FormInput.tsx
-│   │   SelectInput.tsx
-│   │   Button.tsx
-│   │   Checkbox.tsx
-│   │   Table.tsx
-│   │   StatusBadge.tsx
-│   │   Modal.tsx
-│   │   Loader.tsx
-│   │   EmptyState.tsx
-│   │   Pagination.tsx
-│   │   SearchBar.tsx
-│   │
-│   ├── layout/
-│   │   Sidebar.tsx
-│   │   SidebarItem.tsx
-│   │   SidebarDropdown.tsx
-│   │   Topbar.tsx
-│   │   Navbar.tsx
-│   │   MainLayout.tsx
-│
-├── features/                    # 🔥 DOMAIN-BASED STRUCTURE
-│
-│   ├── auth/                   # 🔐 AUTH MODULE
-│   │   ├── pages/
-│   │   │   LoginPage.tsx
-│   │   │   ForgotPassword.tsx
-│   │   │   VerifyOtp.tsx
-│   │   │   ResetPassword.tsx
-│   │   │
+│   │   ├── Button.tsx
+│   │   ├── Checkbox.tsx
+│   │   ├── EmptyState.tsx
+│   │   ├── FormInput.tsx
+│   │   ├── index.ts
+│   │   ├── Loader.tsx
+│   │   ├── Modal.tsx
+│   │   ├── Pagination.tsx
+│   │   ├── SearchBar.tsx
+│   │   ├── SelectInput.tsx
+│   │   ├── StatusBadge.tsx
+│   │   └── Table.tsx
+│   └── layout/
+│       ├── MainLayout.tsx
+│       ├── Navbar.tsx
+│       ├── Sidebar.tsx
+│       ├── SidebarDropdown.tsx
+│       ├── SidebarItem.tsx
+│       └── Topbar.tsx
+├── context/
+│   └── ToastContext.tsx
+├── features/
+│   ├── auth/
 │   │   ├── components/
-│   │   │   LoginForm.tsx
-│   │   │   EmailForm.tsx        # reusable email input
-│   │   │   OtpForm.tsx          # reusable OTP input
-│   │   │   ResetPasswordForm.tsx
-│   │   │
+│   │   │   ├── EmailForm.tsx
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── OtpForm.tsx
+│   │   │   ├── OtpInput.tsx
+│   │   │   └── ResetPasswordForm.tsx
+│   │   ├── hooks/
+│   │   │   └── useAuth.ts
+│   │   ├── pages/
+│   │   │   ├── ForgotPasswordPage.tsx
+│   │   │   ├── LoginPage.tsx
+│   │   │   ├── ResetPasswordPage.tsx
+│   │   │   └── VerifyOtpPage.tsx
 │   │   ├── services/
-│   │   │   authApi.ts           # login / otp / reset
-│   │   │
-│   │   ├── hooks/              # (optional but powerful)
-│   │   │   useAuth.ts
-│   │   │
-│   │   ├── types.ts
-│   │   └── constants.ts
-│   │
+│   │   │   └── authApi.ts
+│   │   ├── constants.ts
+│   │   └── types.ts
+│   ├── branches/
+│   │   ├── components/
+│   │   │   ├── BranchBasicInfo.tsx
+│   │   │   ├── BranchForm.tsx
+│   │   │   ├── FontModal.tsx
+│   │   │   ├── PrintSection.tsx
+│   │   │   ├── ReceiptPreview.tsx
+│   │   │   └── SortableRow.tsx
+│   │   ├── hooks/
+│   │   │   ├── useBranchLines.ts
+│   │   │   └── useDragAndDrop.ts
+│   │   ├── pages/
+│   │   │   └── BranchCreationPage.tsx
+│   │   ├── utils/
+│   │   │   └── lineHelpers.ts
+│   │   └── types.ts
 │   ├── company/
-│   │   ├── pages/
-│   │   │   CompanyRegistration.tsx
 │   │   ├── components/
-│   │   │   CompanyForm.tsx     
-│   │   ├── services/
-│   │   │   companyApi.ts
-│   │   └── types.ts
-│   │
-│   ├── user/
+│   │   │   └── CompanyForm.tsx
 │   │   ├── pages/
-│   │   │   UserCreation.tsx
-│   │   │   UserList.tsx
-│   │   ├── components/
-│   │   │   UserForm.tsx         # 🔥 reusable
-│   │   │   UserTable.tsx
+│   │   │   └── CompanyRegistrationPage.tsx
 │   │   ├── services/
-│   │   │   userApi.ts
+│   │   │   └── companyApi.ts
+│   │   ├── utils/
+│   │   │   ├── countryMapper.ts
+│   │   │   └── formatters.ts
 │   │   └── types.ts
-│   │
-│   ├── sales/
-│   ├── purchase/
-│   ├── reports/
-│   └── inventory/
-│
+│   ├── dashboard/
+│   │   ├── components/
+│   │   │   ├── PurchaseChart.tsx
+│   │   │   ├── SalesChart.tsx
+│   │   │   └── StatCard.tsx
+│   │   ├── pages/
+│   │   │   └── DashboardPage.tsx
+│   │   └── types.ts
+│   └── user/
+│       ├── components/
+│       │   ├── UserForm.tsx
+│       │   └── UserTable.tsx
+│       ├── pages/
+│       │   ├── UserCreationPage.tsx
+│       │   └── UserList.tsx
+│       ├── servies/
+│       └── types.ts
+├── pages/
 ├── routes/
-│   └── AppRoutes.tsx
-│
-├── services/
-│   └── axiosInstance.ts
-│
-├── types/
-│   └── index.ts
-│
+│   ├── Approutes.tsx
+│   └── ProtectedRoute.tsx
 ├── utils/
-│   ├── constants.ts
-│   ├── helpers.ts
-│   └── validators.ts           # 🔥 important
-│
+│   └── validators.ts
+├── App.css
 ├── App.tsx
+├── hooks.ts
+├── index.css
 ├── main.tsx
-└── index.css
+└── store.ts

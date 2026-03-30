@@ -10,9 +10,12 @@ interface Props {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   error?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   autoComplete?: string;
+  autoFocus?: boolean;
 }
 
 const FormInput = ({
@@ -25,9 +28,12 @@ const FormInput = ({
   value,
   onChange,
   onBlur,
+  onKeyDown,
   error,
   disabled,
+  readOnly, // ✅ add here
   autoComplete,
+  autoFocus,
 }: Props) => {
   const inputId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
@@ -53,19 +59,23 @@ const FormInput = ({
         value={value}
         onChange={onChange}
         onBlur={onBlur}
+        onKeyDown={onKeyDown}
         disabled={disabled}
+        readOnly={readOnly} // ✅ THIS FIXES EVERYTHING
         autoComplete={autoComplete}
+        autoFocus={autoFocus}
         placeholder={placeholder || (required ? "Enter value" : "")}
         className={`
-          w-full px-3 md:px-4 py-2
-          text-sm md:text-base
-          rounded-md border outline-none transition
+    w-full px-3 md:px-4 py-2
+    text-sm md:text-base
+    rounded-md border outline-none transition
 
-          ${error ? "border-red-500" : "border-gray-300"}
-          ${disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"}
+    ${error ? "border-red-500" : "border-gray-300"}
+    ${disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"}
+    ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""}  // ✅ optional UX
 
-          focus: focus:border-[#49293e]
-        `}
+    focus: focus:border-[#49293e]
+  `}
       />
 
       {/* ERROR */}

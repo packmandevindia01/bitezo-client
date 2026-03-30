@@ -1,4 +1,4 @@
-export const createCustomer = async (data: any) => {
+export const createCompany = async (data: any) => {
   const res = await fetch("http://84.255.173.131:8088/api/admin/customer", {
     method: "POST",
     headers: {

@@ -70,12 +70,21 @@ const Sidebar = ({ isOpen, onClose }: Props) => {
 
           <div
             onClick={() => {
-              navigate("/dashboard/create-customer");
+              navigate("/dashboard/create-company");
               onClose();
             }}
             className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
           >
             Customer
+          </div>
+            <div
+            onClick={() => {
+              navigate("/dashboard/create-branch");
+              onClose();
+            }}
+            className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+          >
+            Branch
           </div>
         </SidebarDropdown>
 
