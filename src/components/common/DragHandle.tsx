@@ -3,8 +3,8 @@ import { GripVertical } from "lucide-react";
 interface Props {
   size?: number;
   className?: string;
-  listeners?: Record<string, any>;
-  attributes?: Record<string, any>;
+  listeners?: React.HTMLAttributes<HTMLButtonElement>;
+  attributes?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }
 
 const DragHandle = ({ size = 15, className, listeners, attributes }: Props) => (

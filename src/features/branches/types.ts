@@ -52,3 +52,9 @@ export interface BranchPayload {
   branchName: string;
   lines: LineItem[];
 }
+
+export interface BranchRecord {
+  id: number;
+  branchName: string;
+  lines: LineItem[];
+}

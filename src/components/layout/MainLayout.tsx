@@ -11,7 +11,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50">
 
   {/* Sidebar */}
   <div
@@ -28,19 +28,19 @@ const MainLayout = () => {
   {/* Overlay */}
   {sidebarOpen && (
     <div
-      className="fixed inset-0 bg-black/30 md:hidden"
+      className="fixed inset-0 z-30 bg-black/30 md:hidden"
       onClick={() => setSidebarOpen(false)}
     />
   )}
 
   {/* RIGHT SIDE */}
-  <div className="flex flex-col flex-1 min-w-0">
+  <div className="flex min-w-0 flex-1 flex-col">
 
     {/* ✅ FIX: REMOVE background from parent */}
     <Topbar toggleSidebar={toggleSidebar} />
 
     {/* ✅ Apply background ONLY here */}
-    <main className="flex-1 p-4 md:p-6 bg-gray-50 overflow-y-auto">
+    <main className="flex-1 overflow-x-hidden p-3 sm:p-4 md:p-6">
       <Outlet />
     </main>
 

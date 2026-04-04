@@ -1,22 +1,10 @@
-import { createContext, useContext, useState } from "react";
-
-type ToastType = "success" | "error";
-
-interface Toast {
-  message: string;
-  type: ToastType;
-}
-
-interface ToastContextType {
-  showToast: (message: string, type?: ToastType) => void;
-}
-
-const ToastContext = createContext<ToastContextType | null>(null);
+import { useState } from "react";
+import { ToastContext, type Toast } from "./toast";
 
 export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   const [toast, setToast] = useState<Toast | null>(null);
 
-  const showToast = (message: string, type: ToastType = "success") => {
+  const showToast = (message: string, type: Toast["type"] = "success") => {
     setToast({ message, type });
 
     setTimeout(() => {
@@ -30,18 +18,13 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
 
       {toast && (
         <div
-          className={`fixed top-5 right-5 px-4 py-3 rounded-lg text-white shadow-lg z-50
-          ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
+          className={`fixed top-5 right-5 z-50 rounded-lg px-4 py-3 text-white shadow-lg ${
+            toast.type === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
         >
           {toast.message}
         </div>
       )}
     </ToastContext.Provider>
   );
-};
-
-export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) throw new Error("useToast must be used within ToastProvider");
-  return context;
 };

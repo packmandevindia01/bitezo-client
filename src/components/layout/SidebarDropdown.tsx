@@ -5,26 +5,34 @@ interface Props {
   icon?: React.ReactNode;
   label: string;
   children: React.ReactNode;
+  nested?: boolean;
+  defaultOpen?: boolean;
 }
 
-const SidebarDropdown = ({ icon, label, children }: Props) => {
-  const [open, setOpen] = useState(false);
+const SidebarDropdown = ({
+  icon,
+  label,
+  children,
+  nested = false,
+  defaultOpen = false,
+}: Props) => {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <div>
-      {/* HEADER */}
       <div
         onClick={() => setOpen(!open)}
         className={`
-          flex justify-between items-center px-4 py-3 cursor-pointer
+          flex justify-between items-center cursor-pointer
           transition-all duration-200
           hover:bg-gray-100
+          ${nested ? "mx-2 rounded-md px-4 py-2 text-sm" : "px-4 py-3"}
           ${open ? "bg-gray-100 text-[#49293e]" : ""}
         `}
       >
-        <div className="flex items-center gap-3">
-          {icon}
-          <span className="font-medium">{label}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0">{icon}</span>
+          <span className="min-w-0 break-words font-medium">{label}</span>
         </div>
 
         <ChevronDown
@@ -36,17 +44,18 @@ const SidebarDropdown = ({ icon, label, children }: Props) => {
         />
       </div>
 
-      {/* DROPDOWN CONTENT */}
       <div
         className={`
           overflow-hidden transition-all duration-300
-          ${open ? "max-h-40" : "max-h-0"}
+          ${open ? (nested ? "max-h-80" : "max-h-[32rem]") : "max-h-0"}
         `}
       >
-        <div className="ml-8 flex flex-col text-sm text-gray-600">
-
+        <div
+          className={`flex flex-col text-gray-600 ${
+            nested ? "ml-4 border-l border-gray-200 pl-2 text-sm md:ml-5" : "ml-6 text-sm md:ml-8"
+          }`}
+        >
           {children}
-
         </div>
       </div>
     </div>

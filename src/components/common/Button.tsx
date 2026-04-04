@@ -47,7 +47,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         className={`
           rounded-md font-medium transition
-          flex items-center justify-center gap-2
+          inline-flex items-center justify-center gap-2
           ${variants[variant]}
           ${sizes[size]}
           ${fullWidth ? "w-full" : ""}

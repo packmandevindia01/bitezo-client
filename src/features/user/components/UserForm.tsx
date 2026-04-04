@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { FormInput, Button, Checkbox } from "../../../components/common";
+import { useState } from "react";
+import { Button, Checkbox, FormInput } from "../../../components/common";
 import { isRequired } from "../../../utils/validators";
 import type { User, UserFormData } from "../types";
 
@@ -10,57 +10,45 @@ interface Props {
   onDelete?: () => void;
 }
 
-const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
-  const [form, setForm] = useState<UserFormData>({
-    name: "",
-    password: "",
-    confirmPassword: "",
-    email: "",
-    branch: "",
-    active: false,
-    isMaster: false,
-  });
+const createInitialForm = (initialData?: User | null): UserFormData => ({
+  name: initialData?.name ?? "",
+  password: "",
+  confirmPassword: "",
+  email: initialData?.email ?? "",
+  branch: initialData?.branch ?? "",
+  active: initialData?.active ?? false,
+  isMaster: initialData?.isMaster ?? false,
+});
 
+const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
+  const [form, setForm] = useState<UserFormData>(() => createInitialForm(initialData));
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
 
-  useEffect(() => {
-    if (initialData) {
-      setForm((prev) => ({
-        ...prev,
-        name: initialData.name,
-        email: initialData.email ?? "",
-        branch: initialData.branch,
-        active: initialData.active,
-        isMaster: initialData.isMaster,
-      }));
-    }
-  }, [initialData]);
-
-  const handleChange = (key: keyof UserFormData, value: any) => {
+  const handleChange = <K extends keyof UserFormData>(key: K, value: UserFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
   const handleClear = () => {
-    setForm({
-      name: "",
-      password: "",
-      confirmPassword: "",
-      email: "",
-      branch: "",
-      active: false,
-      isMaster: false,
-    });
+    setForm(createInitialForm(initialData));
     setErrors({});
   };
 
   const validate = () => {
     const newErrors: typeof errors = {};
+    const requiresPassword = !initialData;
 
     if (!isRequired(form.name)) newErrors.name = "User name is required";
-    if (!isRequired(form.password)) newErrors.password = "Password is required";
-    if (!isRequired(form.confirmPassword)) newErrors.confirmPassword = "Confirm password is required";
-    if (form.password !== form.confirmPassword) newErrors.confirmPassword = "Passwords do not match";
+    if (requiresPassword && !isRequired(form.password)) newErrors.password = "Password is required";
+    if (requiresPassword && !isRequired(form.confirmPassword)) {
+      newErrors.confirmPassword = "Confirm password is required";
+    }
+    if (
+      (requiresPassword || form.password || form.confirmPassword) &&
+      form.password !== form.confirmPassword
+    ) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
     if (!isRequired(form.branch)) newErrors.branch = "Branch is required";
 
     setErrors(newErrors);
@@ -69,18 +57,23 @@ const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
 
   const handleSubmit = () => {
     if (!validate()) return;
-    const { confirmPassword, ...rest } = form;
-    onSubmit(rest);
+
+    const payload: Omit<User, "id"> = {
+      name: form.name,
+      email: form.email,
+      branch: form.branch,
+      active: form.active,
+      isMaster: form.isMaster,
+    };
+
+    onSubmit(payload);
   };
 
   return (
     <>
-      {/* TITLE */}
-      <h2 className="text-center font-bold text-lg mb-6">USER CREATION</h2>
+      <h2 className="mb-6 text-center text-lg font-bold">USER CREATION</h2>
 
-      {/* FORM */}
-      <div className="flex flex-col gap-4 max-w-sm">
-
+      <div className="flex max-w-sm flex-col gap-4">
         <FormInput
           label="User Name"
           required
@@ -91,9 +84,15 @@ const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
         />
 
         <FormInput
+          label="Email"
+          value={form.email}
+          onChange={(e) => handleChange("email", e.target.value)}
+        />
+
+        <FormInput
           label="Password"
           type="password"
-          required
+          required={!initialData}
           value={form.password}
           onChange={(e) => handleChange("password", e.target.value)}
           error={errors.password}
@@ -102,7 +101,7 @@ const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
         <FormInput
           label="Confirm Pwd"
           type="password"
-          required
+          required={!initialData}
           value={form.confirmPassword}
           onChange={(e) => handleChange("confirmPassword", e.target.value)}
           error={errors.confirmPassword}
@@ -116,8 +115,7 @@ const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
           error={errors.branch}
         />
 
-        {/* CHECKBOXES */}
-        <div className="flex gap-4 mt-1">
+        <div className="mt-1 flex gap-4">
           <Checkbox
             label="Active/not"
             checked={form.active}
@@ -129,18 +127,20 @@ const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
             onChange={(e) => handleChange("isMaster", e.target.checked)}
           />
         </div>
-
       </div>
 
-      {/* BUTTONS */}
-      <div className="flex gap-3 mt-6">
+      <div className="mt-6 flex gap-3">
         <Button variant="secondary" onClick={handleClear}>
           Clear
         </Button>
 
-        <Button onClick={handleSubmit}>
-          Save
-        </Button>
+        {onCancel && (
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+
+        <Button onClick={handleSubmit}>Save</Button>
 
         {onDelete && (
           <Button variant="danger" onClick={onDelete}>

@@ -1,12 +1,44 @@
-import BranchForm from "../components/BranchForm";
+import { PageShell } from "../../../components/common";
+import BranchModal from "../components/BranchModal";
+import BranchTable from "../components/BranchTable";
+import { useBranchManager } from "../hooks/useBranchManager";
 
-const BranchCreationPage = () => (
-  <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-6">
-    <div className="w-full max-w-6xl bg-white p-5 sm:p-6 md:p-8 rounded-xl shadow-md">
-      <BranchForm />
+const BranchCreationPage = () => {
+  const {
+    search,
+    setSearch,
+    open,
+    editingBranch,
+    handleSave,
+    handleEdit,
+    handleDelete,
+    openCreateModal,
+    closeModal,
+    filteredBranches,
+  } = useBranchManager();
 
-    </div>
-  </div>
-);
+  return (
+    <PageShell
+      title="Branch Creation"
+      description="Branches keep the same list-first pattern while sharing the reusable page shell and record card components with the other sidebar features."
+    >
+      <BranchTable
+        branches={filteredBranches}
+        search={search}
+        onSearchChange={setSearch}
+        onAdd={openCreateModal}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      <BranchModal
+        isOpen={open}
+        editingBranch={editingBranch}
+        onClose={closeModal}
+        onSave={handleSave}
+      />
+    </PageShell>
+  );
+};
 
 export default BranchCreationPage;

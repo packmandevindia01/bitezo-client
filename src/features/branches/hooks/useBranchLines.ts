@@ -3,11 +3,13 @@ import { makeLines } from "../utils/lineHelpers";
 import type { LineItem } from "../types";
 import { arrayMove } from "@dnd-kit/sortable";
 
-export const useBranchLines = () => {
-  const [allLines, setAllLines] = useState<LineItem[]>(() => [
-    ...makeLines("header"),
-    ...makeLines("footer"),
-  ]);
+const buildInitialLines = (initialLines?: LineItem[]) =>
+  initialLines && initialLines.length > 0
+    ? initialLines.map((line) => ({ ...line }))
+    : [...makeLines("header"), ...makeLines("footer")];
+
+export const useBranchLines = (initialLines?: LineItem[]) => {
+  const [allLines, setAllLines] = useState<LineItem[]>(() => buildInitialLines(initialLines));
 
   // ✅ Memoized (prevents unnecessary recalculation)
   const headerLines = useMemo(
@@ -53,11 +55,7 @@ export const useBranchLines = () => {
   };
 
   // ✅ Reset with stable init
-  const resetLines = () =>
-    setAllLines([
-      ...makeLines("header"),
-      ...makeLines("footer"),
-    ]);
+  const resetLines = (nextLines?: LineItem[]) => setAllLines(buildInitialLines(nextLines));
 
   return {
     allLines,

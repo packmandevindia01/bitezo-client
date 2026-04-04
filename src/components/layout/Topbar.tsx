@@ -2,7 +2,7 @@ import { Menu, Plus, Download, LogOut } from "lucide-react";
 import { Button, Modal } from "../common";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useToast } from "../../context/ToastContext";
+import { useToast } from "../../context/useToast";
 
 interface TopbarProps {
   toggleSidebar: () => void;
@@ -24,7 +24,7 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
 
   return (
     <>
-      <div className="w-full flex justify-between items-center bg-white px-4 md:px-6 h-18 md:h-20 border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-20 flex w-full flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4 md:px-6">
 
         {/* LEFT */}
         <div className="flex items-center gap-2 sm:gap-4">
@@ -35,20 +35,20 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
             <Menu size={20} />
           </button>
 
-          <h2 className="hidden sm:block font-semibold text-sm md:text-base text-gray-800">
+          <h2 className="hidden text-sm font-semibold text-gray-800 sm:block md:text-base">
             Dashboard
           </h2>
         </div>
 
         {/* RIGHT */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-3">
 
-          <Button size="sm" className="flex items-center gap-1 sm:gap-2">
+          <Button size="sm" className="min-w-[44px] gap-1 sm:gap-2">
             <Plus size={14} />
             <span className="hidden sm:inline">Add</span>
           </Button>
 
-          <Button variant="secondary" size="sm" className="flex items-center gap-1 sm:gap-2">
+          <Button variant="secondary" size="sm" className="min-w-[44px] gap-1 sm:gap-2">
             <Download size={14} />
             <span className="hidden sm:inline">Export</span>
           </Button>
@@ -58,7 +58,7 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
             variant="danger"
             size="sm"
             onClick={() => setShowLogoutModal(true)}
-            className="flex items-center gap-1 sm:gap-2"
+            className="min-w-[44px] gap-1 sm:gap-2"
           >
             <LogOut size={14} />
             <span className="hidden sm:inline">Logout</span>

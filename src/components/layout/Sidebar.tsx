@@ -4,6 +4,21 @@ import {
   BarChart3,
   Package,
   Settings,
+  Layers3,
+  ShieldUser,
+  Users,
+  UserCog,
+  PackageSearch,
+  Store,
+  Tags,
+  Boxes,
+  Grid2x2,
+  Ruler,
+  SlidersHorizontal,
+  PackagePlus,
+  Ticket,
+  Shapes,
+  ListTree,
   X,
 } from "lucide-react";
 
@@ -21,7 +36,7 @@ const Sidebar = ({ isOpen, onClose }: Props) => {
   return (
     <div
       className={`
-        fixed md:static top-0 left-0 h-full w-64
+        fixed top-0 left-0 h-dvh w-[280px] max-w-[85vw] md:static md:h-auto md:w-64
         bg-white flex flex-col z-50
         border-r border-gray-200
         transform
@@ -41,7 +56,7 @@ const Sidebar = ({ isOpen, onClose }: Props) => {
       </div>
 
       {/* MENU */}
-      <div className="flex flex-col text-sm md:text-base flex-1 overflow-y-auto py-2">
+      <div className="flex flex-1 flex-col overflow-y-auto py-2 text-sm md:text-base">
 
         {/* Dashboard */}
         <SidebarItem
@@ -58,34 +73,196 @@ const Sidebar = ({ isOpen, onClose }: Props) => {
 
         {/* Master */}
         <SidebarDropdown icon={<Package size={18} />} label="Master">
-          <div
-            onClick={() => {
-              navigate("/dashboard/users");
-              onClose();
-            }}
-            className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
-          >
-            User
-          </div>
-
-          <div
-            onClick={() => {
-              navigate("/dashboard/create-company");
-              onClose();
-            }}
-            className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
-          >
-            Customer
-          </div>
+          <SidebarDropdown label="General" icon={<Layers3 size={14} />} nested defaultOpen>
             <div
-            onClick={() => {
-              navigate("/dashboard/create-branch");
-              onClose();
-            }}
-            className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+              onClick={() => {
+                navigate("/dashboard/users");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldUser size={14} />
+                <span>Users</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/customers");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Users size={14} />
+                <span>Customers</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/employees");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <UserCog size={14} />
+                <span>Employees</span>
+              </div>
+            </div>
+          </SidebarDropdown>
+
+          <SidebarDropdown
+            label="Inventory"
+            icon={<PackageSearch size={14} />}
+            nested
+            defaultOpen
           >
-            Branch
-          </div>
+            <div
+              onClick={() => {
+                navigate("/dashboard/branches");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Store size={14} />
+                <span>Branch</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/categories");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Tags size={14} />
+                <span>Category</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/sub-categories");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Boxes size={14} />
+                <span>Sub Category</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/groups");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Grid2x2 size={14} />
+                <span>Group</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/units");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Ruler size={14} />
+                <span>Unit</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/extras-type");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ListTree size={14} />
+                <span>Extras Type</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/extras-master");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Shapes size={14} />
+                <span>Extras Master</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/modifier-type");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={14} />
+                <span>Modifier Type</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/modifiers");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={14} />
+                <span>Modifier</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/products");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <PackagePlus size={14} />
+                <span>Product</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/voucher-series");
+                onClose();
+              }}
+              className="px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Ticket size={14} />
+                <span>Voucher Series</span>
+              </div>
+            </div>
+          </SidebarDropdown>
         </SidebarDropdown>
 
         {/* Reports */}

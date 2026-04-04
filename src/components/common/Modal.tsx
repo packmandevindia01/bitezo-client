@@ -6,7 +6,7 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   showClose?: boolean;
   footer?: React.ReactNode;
 }
@@ -44,11 +44,13 @@ useEffect(() => {
     sm: "max-w-sm",
     md: "max-w-md",
     lg: "max-w-lg",
+    xl: "max-w-4xl",
+    "2xl": "max-w-6xl",
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -63,18 +65,18 @@ useEffect(() => {
       <div
         className={`
           relative w-full ${sizes[size]}
-          bg-white rounded-xl shadow-lg p-6 z-10
+          max-h-[92vh] overflow-y-auto rounded-xl bg-white p-4 shadow-lg z-10 sm:max-h-[90vh] sm:p-6
           animate-[fadeIn_0.2s_ease-in-out]
         `}
         onClick={(e) => e.stopPropagation()}
       >
 
         {/* HEADER */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-4 flex items-start justify-between gap-3">
           {title && (
             <h2
               id="modal-title"
-              className="text-base md:text-lg font-semibold"
+              className="text-base font-semibold md:text-lg"
             >
               {title}
             </h2>
@@ -97,7 +99,7 @@ useEffect(() => {
 
         {/* FOOTER */}
         {footer && (
-          <div className="mt-6 flex justify-end gap-3">
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
             {footer}
           </div>
         )}

@@ -1,12 +1,12 @@
-import { useState, useRef } from "react";
-import { FormInput, Button, SelectInput, Loader } from "../../../components/common";
+import { useRef, useState } from "react";
+import type { CountryCode } from "libphonenumber-js";
+import { Button, FormInput, Loader, SelectInput } from "../../../components/common";
+import { useToast } from "../../../context/useToast";
+import { isNumber, isRequired, isValidEmail, isValidMobile } from "../../../utils/validators";
 import { createCompany } from "../services/companyApi";
 import type { CompanyFormData } from "../types";
-import { useToast } from "../../../context/ToastContext";
-import type { CountryCode } from "libphonenumber-js";
 import { mapCountry } from "../utils/countryMapper";
 import { formatPhone } from "../utils/formatters";
-import { isRequired, isValidMobile, isNumber, isValidEmail } from "../../../utils/validators";
 
 const initialState: CompanyFormData = {
   custName: "",
@@ -44,19 +44,51 @@ const mobilePlaceholders: Record<string, string> = {
   TH: "+66 812345678",
 };
 
+const countryOptions = [
+  { label: "India", value: "India" },
+  { label: "UAE", value: "UAE" },
+  { label: "Saudi Arabia", value: "Saudi Arabia" },
+  { label: "Bahrain", value: "Bahrain" },
+  { label: "Oman", value: "Oman" },
+  { label: "Qatar", value: "Qatar" },
+  { label: "Kuwait", value: "Kuwait" },
+  { label: "Singapore", value: "Singapore" },
+  { label: "Malaysia", value: "Malaysia" },
+  { label: "Thailand", value: "Thailand" },
+];
+
+const currencyOptions = [
+  { label: "INR - Indian Rupee", value: "INR" },
+  { label: "AED - UAE Dirham", value: "AED" },
+  { label: "SAR - Saudi Riyal", value: "SAR" },
+  { label: "BHD - Bahraini Dinar", value: "BHD" },
+  { label: "OMR - Omani Rial", value: "OMR" },
+  { label: "QAR - Qatari Riyal", value: "QAR" },
+  { label: "KWD - Kuwaiti Dinar", value: "KWD" },
+  { label: "SGD - Singapore Dollar", value: "SGD" },
+  { label: "MYR - Malaysian Ringgit", value: "MYR" },
+  { label: "THB - Thai Baht", value: "THB" },
+];
+
+const resetCompanyForm = () => ({
+  ...initialState,
+  startDate: new Date().toISOString(),
+});
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  return "Something went wrong";
+};
+
 const CompanyForm = () => {
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const [form, setForm] = useState<CompanyFormData>({
-    ...initialState,
-    startDate: new Date().toISOString(),
-  });
-
+  const [form, setForm] = useState<CompanyFormData>(resetCompanyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyFormData, string>>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (key: keyof CompanyFormData, value: any) => {
+  const handleChange = <K extends keyof CompanyFormData>(key: K, value: CompanyFormData[K]) => {
     if (submitting) return;
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
@@ -66,19 +98,23 @@ const CompanyForm = () => {
     const newErrors: typeof errors = {};
 
     if (!isRequired(form.custName)) newErrors.custName = "Company name is required";
-    if (!isRequired(form.crNo)) newErrors.crNo = "CR No is required";
+    if (!isRequired(form.crNo ?? "")) newErrors.crNo = "CR No is required";
+
     if (!isRequired(form.custMob)) {
       newErrors.custMob = "Mobile number is required";
-    } else if (!isValidMobile(form.custMob, mapCountry(form.country))) {
+    } else if (!isValidMobile(form.custMob)) {
       newErrors.custMob = "Invalid mobile number";
     }
+
     if (!isRequired(form.country)) newErrors.country = "Country is required";
     if (!isRequired(form.currency)) newErrors.currency = "Currency is required";
     if (!isRequired(form.decimals)) newErrors.decimals = "Decimals is required";
     if (!isRequired(form.customerId)) newErrors.customerId = "Customer ID is required";
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email)) {
+
+    if (form.email && !isValidEmail(form.email)) {
       newErrors.email = "Invalid email";
     }
+
     if (!form.branchCount || !isNumber(form.branchCount.toString())) {
       newErrors.branchCount = "Branch count must be a number";
     }
@@ -89,7 +125,7 @@ const CompanyForm = () => {
 
   const handleSubmit = async () => {
     if (!validate()) {
-      showToast("Please fill all required fields ❌", "error");
+      showToast("Please fill all required fields", "error");
       return;
     }
 
@@ -98,19 +134,15 @@ const CompanyForm = () => {
     try {
       await createCompany({
         ...form,
-        custMob: formatPhone(form.custMob?.trim() || "", mapCountry(form.country) as CountryCode),
+        custMob: formatPhone(form.custMob.trim(), mapCountry(form.country) as CountryCode),
         startDate: new Date().toISOString(),
       });
 
-      showToast("Company created successfully 🎉", "success");
-
-      const regId = form.regId; // preserve regId if needed
-      setForm({ ...initialState, startDate: new Date().toISOString() });
-
-    } catch (err: any) {
-      console.error(err);
-      const message = err?.response?.data?.message || err?.message || "Something went wrong";
-      showToast(message + " ❌", "error");
+      showToast("Company created successfully", "success");
+      setForm(resetCompanyForm());
+    } catch (error) {
+      console.error(error);
+      showToast(getErrorMessage(error), "error");
     } finally {
       setSubmitting(false);
     }
@@ -118,18 +150,13 @@ const CompanyForm = () => {
 
   return (
     <>
-      {/* FULL SCREEN LOADER */}
       {submitting && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <Loader />
         </div>
       )}
 
-    
-
-      {/* FORM GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormInput
           label="Company Name"
           required
@@ -190,18 +217,7 @@ const CompanyForm = () => {
           required
           value={form.country}
           onChange={(e) => handleChange("country", e.target.value)}
-          options={[
-            { label: "India", value: "India" },
-            { label: "UAE", value: "UAE" },
-            { label: "Saudi Arabia", value: "Saudi Arabia" },
-            { label: "Bahrain", value: "Bahrain" },
-            { label: "Oman", value: "Oman" },
-            { label: "Qatar", value: "Qatar" },
-            { label: "Kuwait", value: "Kuwait" },
-            { label: "Singapore", value: "Singapore" },
-            { label: "Malaysia", value: "Malaysia" },
-            { label: "Thailand", value: "Thailand" },
-          ]}
+          options={countryOptions}
           error={errors.country}
           disabled={submitting}
         />
@@ -211,18 +227,7 @@ const CompanyForm = () => {
           required
           value={form.currency}
           onChange={(e) => handleChange("currency", e.target.value)}
-          options={[
-            { label: "INR - Indian Rupee", value: "INR" },
-            { label: "AED - UAE Dirham", value: "AED" },
-            { label: "SAR - Saudi Riyal", value: "SAR" },
-            { label: "BHD - Bahraini Dinar", value: "BHD" },
-            { label: "OMR - Omani Rial", value: "OMR" },
-            { label: "QAR - Qatari Riyal", value: "QAR" },
-            { label: "KWD - Kuwaiti Dinar", value: "KWD" },
-            { label: "SGD - Singapore Dollar", value: "SGD" },
-            { label: "MYR - Malaysian Ringgit", value: "MYR" },
-            { label: "THB - Thai Baht", value: "THB" },
-          ]}
+          options={currencyOptions}
           error={errors.currency}
           disabled={submitting}
         />
@@ -275,7 +280,7 @@ const CompanyForm = () => {
 
         <FormInput
           label="Flat No"
-          value={form.flatNo ?? ""}
+          value={form.flatNo}
           onChange={(e) => handleChange("flatNo", e.target.value)}
           disabled={submitting}
           onKeyDown={(e) => {
@@ -285,23 +290,17 @@ const CompanyForm = () => {
             }
           }}
         />
-
       </div>
 
-      {/* BUTTONS */}
       <div className="mt-6 flex justify-end gap-3">
-        <Button
-          variant="secondary"
-          onClick={() => setForm({ ...initialState, startDate: new Date().toISOString() })}
-          disabled={submitting}
-        >
+        <Button variant="secondary" onClick={() => setForm(resetCompanyForm())} disabled={submitting}>
           Clear
         </Button>
 
         <Button ref={saveBtnRef} onClick={handleSubmit} disabled={submitting}>
           {submitting ? (
             <span className="flex items-center gap-2">
-              <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               Saving...
             </span>
           ) : (

@@ -9,26 +9,43 @@ import {
 } from "@dnd-kit/core";
 
 import { Button, DragHandle, Loader } from "../../../components/common";
-import { useToast } from "../../../context/ToastContext";
+import { useToast } from "../../../context/useToast";
 import { useBranchLines } from "../hooks/useBranchLines";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
-import type { FontModalState } from "../types";
+import type { BranchPayload, FontModalState } from "../types";
 import { getLineStyle } from "../utils/lineHelpers";
 import BranchBasicInfo from "./BranchBasicInfo";
 import FontModal from "./FontModal";
 import PrintSection from "./PrintSection";
 import ReceiptPreview from "./ReceiptPreview";
 
-const BranchForm = () => {
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  return "Something went wrong";
+};
+
+interface Props {
+  initialData?: BranchPayload | null;
+  onSubmit?: (payload: BranchPayload) => void | Promise<void>;
+  onCancel?: () => void;
+  showTitle?: boolean;
+}
+
+const BranchForm = ({
+  initialData = null,
+  onSubmit,
+  onCancel,
+  showTitle = true,
+}: Props) => {
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const [branchName, setBranchName] = useState("");
+  const [branchName, setBranchName] = useState(initialData?.branchName ?? "");
   const [branchNameError, setBranchNameError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const { allLines, headerLines, footerLines, updateLine, moveLine, reorderLines, resetLines } =
-    useBranchLines();
+    useBranchLines(initialData?.lines);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -73,13 +90,23 @@ const BranchForm = () => {
     setSubmitting(true);
 
     try {
-      // await createBranch({ branchName, lines: allLines });
-      showToast("Branch created successfully", "success");
+      const payload = {
+        branchName: branchName.trim(),
+        lines: allLines.map((line) => ({ ...line })),
+      };
+
+      if (onSubmit) {
+        await onSubmit(payload);
+      } else {
+        // await createBranch(payload);
+        showToast("Branch created successfully", "success");
+      }
+
       setBranchName("");
       setBranchNameError("");
       resetLines();
-    } catch (err: any) {
-      showToast(err?.response?.data?.message || "Something went wrong", "error");
+    } catch (error) {
+      showToast(getErrorMessage(error), "error");
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +134,7 @@ const BranchForm = () => {
         onClose={() => setFontModal((prev) => ({ ...prev, open: false }))}
       />
 
-      <h2 className="mb-6 text-center text-lg font-bold">BRANCH CREATION</h2>
+      {showTitle && <h2 className="mb-6 text-center text-lg font-bold">BRANCH CREATION</h2>}
 
       <DndContext
         sensors={sensors}
@@ -158,12 +185,18 @@ const BranchForm = () => {
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
+              {onCancel && (
+                <Button variant="secondary" onClick={onCancel} disabled={submitting}>
+                  Cancel
+                </Button>
+              )}
+
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setBranchName("");
+                  setBranchName(initialData?.branchName ?? "");
                   setBranchNameError("");
-                  resetLines();
+                  resetLines(initialData?.lines);
                 }}
                 disabled={submitting}
               >
