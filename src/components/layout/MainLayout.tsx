@@ -7,45 +7,34 @@ const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    setSidebarOpen((current) => !current);
   };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[85vw] transform transition-transform duration-300 md:static md:w-64 md:max-w-none md:translate-x-0 md:shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      </div>
 
-  {/* Sidebar */}
-  <div
-    className={`fixed md:static z-40 inset-y-0 left-0 transform 
-    ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-    md:translate-x-0 transition-transform duration-300`}
-  >
-    <Sidebar 
-  isOpen={sidebarOpen} 
-  onClose={() => setSidebarOpen(false)} 
-/>
-  </div>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-  {/* Overlay */}
-  {sidebarOpen && (
-    <div
-      className="fixed inset-0 z-30 bg-black/30 md:hidden"
-      onClick={() => setSidebarOpen(false)}
-    />
-  )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar toggleSidebar={toggleSidebar} />
 
-  {/* RIGHT SIDE */}
-  <div className="flex min-w-0 flex-1 flex-col">
-
-    {/* ✅ FIX: REMOVE background from parent */}
-    <Topbar toggleSidebar={toggleSidebar} />
-
-    {/* ✅ Apply background ONLY here */}
-    <main className="flex-1 overflow-x-hidden p-3 sm:p-4 md:p-6">
-      <Outlet />
-    </main>
-
-  </div>
-</div>
+        <main className="flex-1 overflow-x-hidden p-3 sm:p-4 md:p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
   );
 };
 
