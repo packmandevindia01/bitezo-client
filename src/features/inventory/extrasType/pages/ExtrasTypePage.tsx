@@ -30,9 +30,7 @@ const ExtrasTypePage = () => {
 
   return (
     <PageShell
-      title="Extras Type"
-      description="Extras type now matches the same page shell, record table, modal entry form, and confirmation pattern used by your Users screen."
-    >
+      title="Extras Type" >
       <RecordTableCard
         title="Saved Extras Type List"
         search={search}

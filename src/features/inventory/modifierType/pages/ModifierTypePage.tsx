@@ -30,9 +30,7 @@ const ModifierTypePage = () => {
 
   return (
     <PageShell
-      title="Modifier Type"
-      description="Modifier type now uses the same Users-style master page layout so the newly added screens stay visually consistent with the rest of the app."
-    >
+      title="Modifier Type">
       <RecordTableCard
         title="Saved Modifier Type List"
         search={search}

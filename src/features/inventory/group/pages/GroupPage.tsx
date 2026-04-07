@@ -19,9 +19,7 @@ const GroupPage = () => {
 
   return (
     <PageShell
-      title="Group Master"
-      description="Groups now follow the same list-first and modal-based workflow used in your Users feature, so the experience stays consistent across the dashboard."
-    >
+      title="Group Master" >
       <RecordTableCard
         title="Saved Group List"
         search={search}

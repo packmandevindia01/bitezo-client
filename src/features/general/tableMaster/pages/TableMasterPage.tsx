@@ -28,9 +28,7 @@ const TableMasterPage = () => {
 
   return (
     <PageShell
-      title="Table Master"
-      description="Table master is now moved into its own feature folder and keeps the same modal-based workflow as the rest of your project while preserving the section and table picker interaction."
-    >
+      title="Table Master" >
       <RecordTableCard
         title="Saved Table List"
         search={search}

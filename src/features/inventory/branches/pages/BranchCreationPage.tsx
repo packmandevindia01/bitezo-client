@@ -19,9 +19,7 @@ const BranchCreationPage = () => {
 
   return (
     <PageShell
-      title="Branch Creation"
-      description="Branches keep the same list-first pattern while sharing the reusable page shell and record card components with the other sidebar features."
-    >
+      title="Branch Creation">
       <BranchTable
         branches={filteredBranches}
         search={search}

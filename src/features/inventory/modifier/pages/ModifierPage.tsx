@@ -22,9 +22,7 @@ const ModifierPage = () => {
 
   return (
     <PageShell
-      title="Modifier Master"
-      description="This screen follows your existing page style and keeps only the required fields from the prototype while fitting your current feature-based structure."
-    >
+      title="Modifier Master">
       <ModifierListCard
         records={filteredModifiers}
         search={search}

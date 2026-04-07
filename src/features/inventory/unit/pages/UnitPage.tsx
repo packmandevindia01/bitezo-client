@@ -19,9 +19,7 @@ const UnitPage = () => {
 
   return (
     <PageShell
-      title="Unit Master"
-      description="Units now use the same table card and modal entry pattern as the Users feature, keeping the master area visually and behaviorally consistent."
-    >
+      title="Unit Master" >
       <RecordTableCard
         title="Saved Unit List"
         search={search}

@@ -22,9 +22,7 @@ const EmployeePage = () => {
 
   return (
     <PageShell
-      title="Employee Creation"
-      description="Employees now live inside their own feature folder and use the same reusable list-card and modal building blocks as the rest of the sidebar features."
-    >
+      title="Employee Creation">
       <EmployeeTable
         employees={filteredEmployees}
         search={search}

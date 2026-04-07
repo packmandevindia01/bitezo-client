@@ -1,6 +1,6 @@
 interface PageShellProps {
   title: string;
-  description: string;
+  description?: string;
   children: React.ReactNode;
 }
 

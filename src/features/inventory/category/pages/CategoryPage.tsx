@@ -28,9 +28,7 @@ const CategoryPage = () => {
 
   return (
     <PageShell
-      title="Category Master"
-      description="Categories are now organized under their own feature folder and use the shared table-first workflow with a consistent add or edit modal."
-    >
+      title="Category Master">
       <CategoryTable
         categories={filteredCategories}
         search={search}

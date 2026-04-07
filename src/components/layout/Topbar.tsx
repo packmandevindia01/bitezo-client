@@ -2,7 +2,7 @@ import { Menu, Plus, Download, LogOut } from "lucide-react";
 import { Button, Modal } from "../common";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useToast } from "../../context/useToast";
+import { useToast } from "../../app/providers/useToast";
 
 interface TopbarProps {
   toggleSidebar: () => void;

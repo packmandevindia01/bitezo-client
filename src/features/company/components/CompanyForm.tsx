@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import type { CountryCode } from "libphonenumber-js";
 import { Button, FormInput, Loader, SelectInput } from "../../../components/common";
-import { useToast } from "../../../context/useToast";
-import { isNumber, isRequired, isValidEmail, isValidMobile } from "../../../utils/validators";
+import { useToast } from "../../../app/providers/useToast";
+import { isNumber, isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
 import { createCompany } from "../services/companyApi";
 import type { CompanyFormData } from "../types";
 import { mapCountry } from "../utils/countryMapper";

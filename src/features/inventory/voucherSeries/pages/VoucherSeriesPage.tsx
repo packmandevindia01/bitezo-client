@@ -30,9 +30,7 @@ const VoucherSeriesPage = () => {
 
   return (
     <PageShell
-      title="Voucher Series"
-      description="Voucher series now follows the same table-first master layout as Users, with add or edit handled inside a shared modal workflow."
-    >
+      title="Voucher Series" >
       <RecordTableCard
         title="Saved Voucher Series"
         search={search}

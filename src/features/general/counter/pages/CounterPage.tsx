@@ -21,10 +21,7 @@ const CounterPage = () => {
   } = useCounterManager();
 
   return (
-    <PageShell
-      title="Counter Master"
-      description="Counter now uses the same dedicated feature-folder setup and the same modal-driven record workflow already used in the rest of your project."
-    >
+    <PageShell title="Counter Master">
       <RecordTableCard
         title="Saved Counter List"
         search={search}

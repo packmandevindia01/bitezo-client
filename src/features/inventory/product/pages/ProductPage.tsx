@@ -30,9 +30,7 @@ const ProductPage = () => {
 
   return (
     <PageShell
-      title="Product Master"
-      description="This page uses your current shared UI patterns while implementing the required prototype fields, alternative list section, and action workflow."
-    >
+      title="Product Master">
       <ProductListCard
         records={filteredProducts}
         search={search}

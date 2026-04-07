@@ -53,9 +53,7 @@ const UserList = () => {
 
   return (
     <PageShell
-      title="User Management"
-      description="Users are now aligned with the same shared page shell, record table, and confirm dialog patterns used across the rest of the master features."
-    >
+      title="User Management">
       <RecordTableCard
         title="Saved User List"
         search={search}

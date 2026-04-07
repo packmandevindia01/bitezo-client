@@ -24,9 +24,7 @@ const SubCategoryPage = () => {
 
   return (
     <PageShell
-      title="Sub Category Master"
-      description="Sub categories are now isolated inside their own feature folder and share the same table-first add workflow as the rest of the master area."
-    >
+      title="Sub Category Master" >
       <SubCategoryTable
         subCategories={filteredSubCategories}
         search={search}

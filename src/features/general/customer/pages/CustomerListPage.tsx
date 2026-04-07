@@ -44,10 +44,7 @@ const CustomerListPage = () => {
   };
 
   return (
-    <PageShell
-      title="Customer Registration"
-      description="Customers now have their own feature folder and keep the same list-first experience. Because the form is longer, add and edit open the dedicated full-page form."
-    >
+    <PageShell title="Customer Registration"  >
       <RecordTableCard
         title="Saved Customer List"
         search={search}

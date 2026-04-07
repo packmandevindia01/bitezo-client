@@ -30,9 +30,7 @@ const ExtrasMasterPage = () => {
 
   return (
     <PageShell
-      title="Extras Master"
-      description="Extras master now uses the same Users-style table card, modal form, and delete confirmation flow used across your current master setup."
-    >
+      title="Extras Master" >
       <RecordTableCard
         title="Saved Extras List"
         search={search}

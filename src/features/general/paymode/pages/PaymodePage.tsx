@@ -22,9 +22,7 @@ const PaymodePage = () => {
 
   return (
     <PageShell
-      title="Paymode Master"
-      description="Paymode now follows the same feature-based structure and the same list-first modal pattern used across the existing master pages in your project."
-    >
+      title="Paymode Master" >
       <RecordTableCard
         title="Saved Paymode List"
         search={search}

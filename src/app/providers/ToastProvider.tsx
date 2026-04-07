@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ToastContext, type Toast } from "./toast";
+import { ToastContext, type Toast } from "./toast-context";
 
 export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   const [toast, setToast] = useState<Toast | null>(null);

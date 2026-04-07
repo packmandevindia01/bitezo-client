@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Checkbox, FormInput } from "../../../../components/common";
-import { isRequired } from "../../../../utils/validators";
+import { isRequired } from "../../../../lib/validators";
 import type { User, UserFormData } from "../types";
 
 interface Props {
@@ -153,4 +153,3 @@ const UserForm = ({ initialData, onSubmit, onCancel, onDelete }: Props) => {
 };
 
 export default UserForm;
-

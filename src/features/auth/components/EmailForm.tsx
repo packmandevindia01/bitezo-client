@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FormInput, Button } from "../../../components/common";
-import { isValidEmail } from "../../../utils/validators";
+import { isValidEmail } from "../../../lib/validators";
 
 interface Props {
   onSubmit: (email: string) => void;

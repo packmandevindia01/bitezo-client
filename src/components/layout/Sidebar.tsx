@@ -20,6 +20,7 @@ import {
   Shapes,
   ListTree,
   X,
+  MonitorCog,
 } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";
@@ -146,6 +147,19 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
               <div className="flex items-center gap-2">
                 <Grid2x2 size={14} />
                 <span>Table Master</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/pos-terminal");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <MonitorCog size={14} />
+                <span>POS Terminal</span>
               </div>
             </div>
           </SidebarDropdown>

@@ -22,9 +22,7 @@ const SectionPage = () => {
 
   return (
     <PageShell
-      title="Section Master"
-      description="Section is now organized as its own feature module and follows the same route, page, modal, and hook structure used elsewhere in your project."
-    >
+      title="Section Master" >
       <RecordTableCard
         title="Saved Section List"
         search={search}

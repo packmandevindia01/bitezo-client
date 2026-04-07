@@ -79,7 +79,7 @@ export const MasterScreen = <T,>({
   showListSection = true,
 }: MasterScreenProps<T>) => {
   return (
-    <section className="rounded-[2rem] bg-white px-4 py-6 shadow-sm ring-1 ring-gray-100 md:px-8 md:py-10">
+    <section className="rounded-4xl bg-white px-4 py-6 shadow-sm ring-1 ring-gray-100 md:px-8 md:py-10">
       <div className="mx-auto max-w-5xl">
         <h1 className="text-center text-2xl font-semibold uppercase tracking-wide text-[#49293e] md:text-4xl">
           {title}
@@ -89,7 +89,7 @@ export const MasterScreen = <T,>({
 
         {showListSection ? (
           <div className="mx-auto mt-10 max-w-4xl">
-            <div className="w-full max-w-[220px] rounded-t-2xl border border-b-0 border-[#d7c1ce] bg-white px-4 py-2">
+            <div className="w-full max-w-55 rounded-t-2xl border border-b-0 border-[#d7c1ce] bg-white px-4 py-2">
               <label className="relative block">
                 <Search
                   size={16}
@@ -105,9 +105,9 @@ export const MasterScreen = <T,>({
               </label>
             </div>
 
-            <div className="min-h-[280px] overflow-hidden rounded-b-[2rem] rounded-tr-[2rem] border border-[#d7c1ce] bg-white">
+            <div className="min-h-70 overflow-hidden rounded-b-4xl rounded-tr-4xl border border-[#d7c1ce] bg-white">
               {data.length === 0 ? (
-                <div className="flex min-h-[280px] items-center justify-center px-6 text-center text-lg font-medium uppercase tracking-wide text-[#6d4259]">
+                <div className="flex min-h-70 items-center justify-center px-6 text-center text-lg font-medium uppercase tracking-wide text-[#6d4259]">
                   {listEmptyLabel}
                 </div>
               ) : (
@@ -164,7 +164,7 @@ export const MasterFieldRow = ({ label, children, action }: MasterFieldRowProps)
     <div className={gridClassName}>
       <label className="text-sm font-semibold uppercase tracking-wide text-[#5d3b4f]">{label}</label>
       {children}
-      {action ? <div className="md:w-[110px]">{action}</div> : null}
+      {action ? <div className="md:w-27.5">{action}</div> : null}
     </div>
   );
 };
