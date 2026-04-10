@@ -1,26 +1,37 @@
-export const loginApi = async (username: string, password: string) => {
-  try {
-    const res = await fetch(
-      `/api/admin/user/check?userName=${encodeURIComponent(username)}&userPwd=${encodeURIComponent(password)}`,
-      {
-        method: "GET",
-        headers: {
-          "Accept": "*/*",
-        },
-        credentials: "include",
-      }
-    );
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  session?: {
+    expiresAt?: string;
+  };
+  user?: {
+    userId: number;
+    userName: string;
+    isMaster: boolean;
+  };
+  tenantId?: string;
+}
 
-    if (!res.ok) {
-      console.error("Status:", res.status);
-      throw new Error(`HTTP error: ${res.status}`);
+export const loginApi = async (username: string, password: string, clientDb = "app_db") => {
+  const res = await fetch(
+    `http://84.255.173.131:8068/api/auth/login?clientDb=${encodeURIComponent(clientDb)}`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "*/*",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        password,
+      }),
     }
+  );
 
-    const data = await res.json();
-    return data;
-
-  } catch (error) {
-    console.error("Login API error:", error);
-    throw error;
+  if (!res.ok) {
+    const message = (await res.text().catch(() => "")) || `HTTP error: ${res.status}`;
+    throw new Error(message);
   }
+
+  return (await res.json()) as LoginResponse;
 };

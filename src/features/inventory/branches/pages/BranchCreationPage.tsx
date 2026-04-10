@@ -1,4 +1,4 @@
-import { PageShell } from "../../../../components/common";
+import { Loader, PageShell } from "../../../../components/common";
 import BranchModal from "../components/BranchModal";
 import BranchTable from "../components/BranchTable";
 import { useBranchManager } from "../hooks/useBranchManager";
@@ -9,9 +9,9 @@ const BranchCreationPage = () => {
     setSearch,
     open,
     editingBranch,
+    loading,
     handleSave,
     handleEdit,
-    handleDelete,
     openCreateModal,
     closeModal,
     filteredBranches,
@@ -20,13 +20,14 @@ const BranchCreationPage = () => {
   return (
     <PageShell
       title="Branch Creation">
+      {loading ? <Loader className="py-8" text="Loading branches..." /> : null}
+
       <BranchTable
         branches={filteredBranches}
         search={search}
         onSearchChange={setSearch}
         onAdd={openCreateModal}
         onEdit={handleEdit}
-        onDelete={handleDelete}
       />
 
       <BranchModal
@@ -40,4 +41,3 @@ const BranchCreationPage = () => {
 };
 
 export default BranchCreationPage;
-

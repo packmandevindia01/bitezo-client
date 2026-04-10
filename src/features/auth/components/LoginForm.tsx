@@ -8,47 +8,44 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [email, setEmail] = useState("");
+  const [clientDb, setClientDb] = useState("app_db");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 🔥 Basic validation
-    if (!email || !password) {
-      showToast("Please enter username and password", "error");
+    if (!clientDb || !username || !password) {
+      showToast("Please enter client DB, username and password", "error");
       return;
     }
 
     try {
       setLoading(true);
 
-      const data = await loginApi(email, password);
+      const data = await loginApi(username, password, clientDb);
 
-      if (data?.userId) {
-        // ✅ Save login
-        localStorage.setItem("userId", data.userId);
+      if (data?.accessToken && data?.user?.userId) {
+        localStorage.setItem("userId", String(data.user.userId));
+        localStorage.setItem("accessToken", data.accessToken);
+        localStorage.setItem("refreshToken", data.refreshToken);
+        localStorage.setItem("tenantId", data.tenantId ?? clientDb);
+        localStorage.setItem("userName", data.user.userName);
+        localStorage.setItem("isMaster", String(Boolean(data.user.isMaster)));
 
-        showToast("Login successful 🎉", "success");
-
+        showToast("Login successful", "success");
         navigate("/dashboard");
-      } else {
-        // ❌ Invalid credentials
-        showToast("Invalid username or password ❌", "error");
-
-        // 🔥 Clear fields
-        setEmail("");
-        setPassword("");
+        return;
       }
 
+      showToast("Invalid username or password", "error");
+      setUsername("");
+      setPassword("");
     } catch (error) {
-      console.error(error);
-
-      showToast("Login failed. Try again ❌", "error");
-
-      // 🔥 Clear fields
-      setEmail("");
+      const message = error instanceof Error ? error.message : "Login failed. Try again.";
+      showToast(message, "error");
+      setUsername("");
       setPassword("");
     } finally {
       setLoading(false);
@@ -58,22 +55,24 @@ const LoginForm = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-md bg-white p-6 sm:p-8 rounded-xl shadow-md mx-auto"
+      className="mx-auto w-full max-w-md rounded-xl bg-white p-6 shadow-md sm:p-8"
     >
-      {/* TITLE */}
-      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center text-[#49293e]">
-        Login
-      </h2>
+      <h2 className="mb-6 text-center text-xl font-bold text-[#49293e] sm:text-2xl">Login</h2>
 
-      {/* USERNAME */}
+      <FormInput
+        type="text"
+        placeholder="Client DB"
+        value={clientDb}
+        onChange={(e) => setClientDb(e.target.value)}
+      />
+
       <FormInput
         type="text"
         placeholder="Username"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
       />
 
-      {/* PASSWORD */}
       <FormInput
         type="password"
         placeholder="Password"
@@ -81,15 +80,13 @@ const LoginForm = () => {
         onChange={(e) => setPassword(e.target.value)}
       />
 
-      {/* FORGOT PASSWORD */}
       <p
         onClick={() => navigate("/forgot-password")}
-        className="text-sm text-right mt-2 mb-4 text-gray-600 cursor-pointer hover:underline"
+        className="mt-2 mb-4 cursor-pointer text-right text-sm text-gray-600 hover:underline"
       >
         Forgot Password?
       </p>
 
-      {/* BUTTON */}
       <Button type="submit" size="lg" fullWidth disabled={loading}>
         {loading ? "Logging in..." : "Login"}
       </Button>

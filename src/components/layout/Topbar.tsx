@@ -16,21 +16,23 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
 
   const handleLogout = () => {
     localStorage.removeItem("userId");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("tenantId");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("isMaster");
 
-    showToast("Logged out successfully 👋", "success");
-
+    showToast("Logged out successfully", "success");
     navigate("/", { replace: true });
   };
 
   return (
     <>
       <div className="sticky top-0 z-20 flex w-full flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4 md:px-6">
-
-        {/* LEFT */}
         <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={toggleSidebar}
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition"
+            className="rounded-lg p-2 transition hover:bg-gray-100 md:hidden"
           >
             <Menu size={20} />
           </button>
@@ -40,9 +42,7 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
           </h2>
         </div>
 
-        {/* RIGHT */}
         <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-3">
-
           <Button size="sm" className="min-w-[44px] gap-1 sm:gap-2">
             <Plus size={14} />
             <span className="hidden sm:inline">Add</span>
@@ -53,7 +53,6 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
             <span className="hidden sm:inline">Export</span>
           </Button>
 
-          {/* 🔥 Logout */}
           <Button
             variant="danger"
             size="sm"
@@ -63,11 +62,9 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
             <LogOut size={14} />
             <span className="hidden sm:inline">Logout</span>
           </Button>
-
         </div>
       </div>
 
-      {/* 🔥 LOGOUT CONFIRM MODAL */}
       {showLogoutModal && (
         <Modal
           isOpen={showLogoutModal}

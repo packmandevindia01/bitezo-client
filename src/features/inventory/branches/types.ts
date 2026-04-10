@@ -57,4 +57,5 @@ export interface BranchRecord {
   id: number;
   branchName: string;
   lines: LineItem[];
+  detailsLoaded: boolean;
 }

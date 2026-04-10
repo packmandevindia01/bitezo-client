@@ -7,6 +7,7 @@ const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("../../features/auth/pages/ForgotPasswordPage"));
 const VerifyOtpPage = lazy(() => import("../../features/auth/pages/VerifyOtpPage"));
 const ResetPasswordPage = lazy(() => import("../../features/auth/pages/ResetPasswordPage"));
+const CompanyOnboardingPage = lazy(() => import("../../features/company/pages/CompanyOnboardingPage"));
 const DashboardPage = lazy(() => import("../../features/dashboard/pages/DashboardPage"));
 const UserList = lazy(() => import("../../features/general/user/pages/UserList"));
 const CustomerListPage = lazy(() => import("../../features/general/customer/pages/CustomerListPage"));
@@ -63,6 +64,7 @@ const AppRoutes = () => {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/company/onboarding" element={<CompanyOnboardingPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

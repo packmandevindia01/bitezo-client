@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CountryCode } from "libphonenumber-js";
 import { Button, FormInput, Loader, SelectInput } from "../../../components/common";
 import { useToast } from "../../../app/providers/useToast";
-import { isNumber, isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
-import { createCompany } from "../services/companyApi";
-import type { CompanyFormData } from "../types";
+import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
+import { createCompany, fetchCompanyMasterload } from "../services/companyApi";
+import type { CompanyFormData, CompanyMasterOption } from "../types";
 import { mapCountry } from "../utils/countryMapper";
 import { formatPhone } from "../utils/formatters";
 
@@ -44,30 +44,30 @@ const mobilePlaceholders: Record<string, string> = {
   TH: "+66 812345678",
 };
 
-const countryOptions = [
-  { label: "India", value: "India" },
-  { label: "UAE", value: "UAE" },
-  { label: "Saudi Arabia", value: "Saudi Arabia" },
-  { label: "Bahrain", value: "Bahrain" },
-  { label: "Oman", value: "Oman" },
-  { label: "Qatar", value: "Qatar" },
-  { label: "Kuwait", value: "Kuwait" },
-  { label: "Singapore", value: "Singapore" },
-  { label: "Malaysia", value: "Malaysia" },
-  { label: "Thailand", value: "Thailand" },
+const fallbackCountries: CompanyMasterOption[] = [
+  { id: 1, name: "India", code: "IN" },
+  { id: 2, name: "UAE", code: "AE" },
+  { id: 3, name: "Saudi Arabia", code: "SA" },
+  { id: 4, name: "Bahrain", code: "BH" },
+  { id: 5, name: "Oman", code: "OM" },
+  { id: 6, name: "Qatar", code: "QA" },
+  { id: 7, name: "Kuwait", code: "KW" },
+  { id: 8, name: "Singapore", code: "SG" },
+  { id: 9, name: "Malaysia", code: "MY" },
+  { id: 10, name: "Thailand", code: "TH" },
 ];
 
-const currencyOptions = [
-  { label: "INR - Indian Rupee", value: "INR" },
-  { label: "AED - UAE Dirham", value: "AED" },
-  { label: "SAR - Saudi Riyal", value: "SAR" },
-  { label: "BHD - Bahraini Dinar", value: "BHD" },
-  { label: "OMR - Omani Rial", value: "OMR" },
-  { label: "QAR - Qatari Riyal", value: "QAR" },
-  { label: "KWD - Kuwaiti Dinar", value: "KWD" },
-  { label: "SGD - Singapore Dollar", value: "SGD" },
-  { label: "MYR - Malaysian Ringgit", value: "MYR" },
-  { label: "THB - Thai Baht", value: "THB" },
+const fallbackCurrencies: CompanyMasterOption[] = [
+  { id: 1, name: "INR - Indian Rupee", code: "INR" },
+  { id: 2, name: "AED - UAE Dirham", code: "AED" },
+  { id: 3, name: "SAR - Saudi Riyal", code: "SAR" },
+  { id: 4, name: "BHD - Bahraini Dinar", code: "BHD" },
+  { id: 5, name: "OMR - Omani Rial", code: "OMR" },
+  { id: 6, name: "QAR - Qatari Riyal", code: "QAR" },
+  { id: 7, name: "KWD - Kuwaiti Dinar", code: "KWD" },
+  { id: 8, name: "SGD - Singapore Dollar", code: "SGD" },
+  { id: 9, name: "MYR - Malaysian Ringgit", code: "MYR" },
+  { id: 10, name: "THB - Thai Baht", code: "THB" },
 ];
 
 const resetCompanyForm = () => ({
@@ -80,13 +80,82 @@ const getErrorMessage = (error: unknown) => {
   return "Something went wrong";
 };
 
-const CompanyForm = () => {
+interface CompanyFormProps {
+  initialValues?: Partial<CompanyFormData>;
+  lockedFields?: (keyof CompanyFormData)[];
+  submitLabel?: string;
+  onSuccess?: () => void;
+  clientDb?: string;
+  tempToken?: string;
+}
+
+const CompanyForm = ({
+  initialValues,
+  lockedFields = [],
+  submitLabel = "Save",
+  onSuccess,
+  clientDb = "",
+  tempToken = "",
+}: CompanyFormProps) => {
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const [form, setForm] = useState<CompanyFormData>(resetCompanyForm);
+  const createFormState = (): CompanyFormData => ({
+    ...resetCompanyForm(),
+    ...initialValues,
+  });
+
+  const [form, setForm] = useState<CompanyFormData>(createFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyFormData, string>>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [loadingMasterData, setLoadingMasterData] = useState(true);
+  const [countryMaster, setCountryMaster] = useState<CompanyMasterOption[]>(fallbackCountries);
+  const [currencyMaster, setCurrencyMaster] = useState<CompanyMasterOption[]>(fallbackCurrencies);
+
+  const isLocked = (field: keyof CompanyFormData) => lockedFields.includes(field);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMasterData = async () => {
+      try {
+        setLoadingMasterData(true);
+        const response = await fetchCompanyMasterload();
+        const countries = response.data?.countries ?? response.data?.countryList ?? [];
+        const currencies =
+          response.data?.currencies ??
+          response.data?.currencyList ??
+          response.data?.currency ??
+          [];
+
+        if (cancelled) return;
+
+        if (countries.length > 0) {
+          setCountryMaster(countries);
+        }
+
+        if (currencies.length > 0) {
+          setCurrencyMaster(currencies);
+        }
+      } catch {
+        if (!cancelled) {
+          setCountryMaster(fallbackCountries);
+          setCurrencyMaster(fallbackCurrencies);
+          showToast("Company master data is unavailable, so demo fallback values are being used.", "error");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingMasterData(false);
+        }
+      }
+    };
+
+    void loadMasterData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showToast]);
 
   const handleChange = <K extends keyof CompanyFormData>(key: K, value: CompanyFormData[K]) => {
     if (submitting) return;
@@ -108,20 +177,26 @@ const CompanyForm = () => {
 
     if (!isRequired(form.country)) newErrors.country = "Country is required";
     if (!isRequired(form.currency)) newErrors.currency = "Currency is required";
-    if (!isRequired(form.decimals)) newErrors.decimals = "Decimals is required";
-    if (!isRequired(form.customerId)) newErrors.customerId = "Customer ID is required";
 
     if (form.email && !isValidEmail(form.email)) {
       newErrors.email = "Invalid email";
     }
 
-    if (!form.branchCount || !isNumber(form.branchCount.toString())) {
-      newErrors.branchCount = "Branch count must be a number";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  const selectedCountry = countryMaster.find((item) => item.id.toString() === form.country);
+  const countryLabel = selectedCountry?.name ?? "India";
+  const countryCode = (selectedCountry?.code || mapCountry(countryLabel)) as CountryCode;
+  const countryOptions = countryMaster.map((item) => ({
+    label: item.name,
+    value: item.id.toString(),
+  }));
+  const currencyOptions = currencyMaster.map((item) => ({
+    label: item.name,
+    value: item.id.toString(),
+  }));
 
   const handleSubmit = async () => {
     if (!validate()) {
@@ -132,14 +207,19 @@ const CompanyForm = () => {
     setSubmitting(true);
 
     try {
-      await createCompany({
-        ...form,
-        custMob: formatPhone(form.custMob.trim(), mapCountry(form.country) as CountryCode),
-        startDate: new Date().toISOString(),
-      });
+      await createCompany(
+        {
+          ...form,
+          custMob: formatPhone(form.custMob.trim(), countryCode),
+          startDate: new Date().toISOString(),
+        },
+        clientDb,
+        tempToken
+      );
 
       showToast("Company created successfully", "success");
-      setForm(resetCompanyForm());
+      setForm(createFormState());
+      onSuccess?.();
     } catch (error) {
       console.error(error);
       showToast(getErrorMessage(error), "error");
@@ -156,7 +236,22 @@ const CompanyForm = () => {
         </div>
       )}
 
+      {loadingMasterData && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Loading company master data...
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FormInput
+          label="Registration ID"
+          required
+          value={form.regId}
+          onChange={(e) => handleChange("regId", e.target.value)}
+          disabled={submitting}
+          readOnly={isLocked("regId")}
+        />
+
         <FormInput
           label="Company Name"
           required
@@ -165,6 +260,7 @@ const CompanyForm = () => {
           onChange={(e) => handleChange("custName", e.target.value)}
           error={errors.custName}
           disabled={submitting}
+          readOnly={isLocked("custName")}
         />
 
         <FormInput
@@ -174,6 +270,7 @@ const CompanyForm = () => {
           onChange={(e) => handleChange("crNo", e.target.value)}
           error={errors.crNo}
           disabled={submitting}
+          readOnly={isLocked("crNo")}
         />
 
         <FormInput
@@ -181,13 +278,14 @@ const CompanyForm = () => {
           required
           placeholder={
             form.country
-              ? mobilePlaceholders[mapCountry(form.country)] ?? "+91 9876543210"
+              ? mobilePlaceholders[countryCode] ?? "+91 9876543210"
               : "Select country first"
           }
           value={form.custMob}
           onChange={(e) => handleChange("custMob", e.target.value)}
           error={errors.custMob}
           disabled={submitting}
+          readOnly={isLocked("custMob")}
         />
 
         <FormInput
@@ -196,6 +294,7 @@ const CompanyForm = () => {
           onChange={(e) => handleChange("email", e.target.value)}
           error={errors.email}
           disabled={submitting}
+          readOnly={isLocked("email")}
         />
 
         <FormInput
@@ -203,6 +302,7 @@ const CompanyForm = () => {
           value={form.custMob2}
           onChange={(e) => handleChange("custMob2", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("custMob2")}
         />
 
         <FormInput
@@ -210,6 +310,7 @@ const CompanyForm = () => {
           value={form.taxRegNo}
           onChange={(e) => handleChange("taxRegNo", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("taxRegNo")}
         />
 
         <SelectInput
@@ -237,15 +338,15 @@ const CompanyForm = () => {
           value={form.block}
           onChange={(e) => handleChange("block", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("block")}
         />
 
         <FormInput
           label="Decimals"
-          required
           value={form.decimals}
           onChange={(e) => handleChange("decimals", e.target.value)}
-          error={errors.decimals}
           disabled={submitting}
+          readOnly={isLocked("decimals")}
         />
 
         <FormInput
@@ -253,15 +354,15 @@ const CompanyForm = () => {
           value={form.area}
           onChange={(e) => handleChange("area", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("area")}
         />
 
         <FormInput
           label="Customer ID"
-          required
           value={form.customerId}
           onChange={(e) => handleChange("customerId", e.target.value)}
-          error={errors.customerId}
           disabled={submitting}
+          readOnly={isLocked("customerId")}
         />
 
         <FormInput
@@ -269,6 +370,7 @@ const CompanyForm = () => {
           value={form.building}
           onChange={(e) => handleChange("building", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("building")}
         />
 
         <FormInput
@@ -276,6 +378,7 @@ const CompanyForm = () => {
           value={form.road}
           onChange={(e) => handleChange("road", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("road")}
         />
 
         <FormInput
@@ -283,6 +386,7 @@ const CompanyForm = () => {
           value={form.flatNo}
           onChange={(e) => handleChange("flatNo", e.target.value)}
           disabled={submitting}
+          readOnly={isLocked("flatNo")}
           onKeyDown={(e) => {
             if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
               e.preventDefault();
@@ -293,7 +397,7 @@ const CompanyForm = () => {
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
-        <Button variant="secondary" onClick={() => setForm(resetCompanyForm())} disabled={submitting}>
+        <Button variant="secondary" onClick={() => setForm(createFormState())} disabled={submitting}>
           Clear
         </Button>
 
@@ -304,7 +408,7 @@ const CompanyForm = () => {
               Saving...
             </span>
           ) : (
-            "Save"
+            submitLabel
           )}
         </Button>
       </div>
