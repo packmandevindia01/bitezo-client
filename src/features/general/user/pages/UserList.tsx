@@ -182,7 +182,6 @@ const UserList = () => {
           user.branchName ?? "",
           String(user.branchId),
           user.statusLabel ?? "",
-          user.isMaster ? "yes" : "no",
         ].some((value) => value.toLowerCase().includes(query));
       }),
     [users, search]
@@ -215,11 +214,6 @@ const UserList = () => {
               header: "Status",
               accessor: "isActive",
               render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} />,
-            },
-            {
-              header: "Master",
-              accessor: "isMaster",
-              render: (row) => <span>{row.isMaster ? "Yes" : "No"}</span>,
             },
             {
               header: "Actions",

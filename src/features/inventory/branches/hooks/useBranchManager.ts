@@ -22,6 +22,7 @@ export const useBranchManager = () => {
         if (!active) return;
 
         setBranches((prev) => {
+          // Preserve full details (lines) for any branch already loaded this session
           const detailedRecords = new Map(
             prev.filter((item) => item.detailsLoaded).map((item) => [item.id, item])
           );
@@ -35,13 +36,10 @@ export const useBranchManager = () => {
         });
       } catch (error) {
         if (!active) return;
-
         const message = error instanceof Error ? error.message : "Failed to load branches";
         showToast(message, "error");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     };
 
@@ -70,14 +68,10 @@ export const useBranchManager = () => {
   };
 
   const handleEdit = (record: BranchRecord) => {
-    if (!record.detailsLoaded) {
-      showToast(
-        "Branch details are not available from the current API. Add a branch details endpoint to edit saved records safely.",
-        "error"
-      );
-      return;
-    }
-
+    // Open the branch for editing regardless of whether full details are loaded.
+    // If detailsLoaded is false (branch loaded from list-name only), the form
+    // opens with empty lines — the user can re-enter print details and save.
+    // Once saved, full details are cached in state for the rest of the session.
     setEditingBranch(record);
     setOpen(true);
   };
@@ -95,7 +89,6 @@ export const useBranchManager = () => {
   const filteredBranches = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return branches;
-
     return branches.filter((item) => item.branchName.toLowerCase().includes(query));
   }, [branches, search]);
 

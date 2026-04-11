@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Checkbox, FormInput } from "../../../../components/common";
 import { isRequired } from "../../../../lib/validators";
 import type { User, UserFormData, UserPayload } from "../types";
+
+interface Branch {
+  branchId: number;
+  branchName: string;
+}
 
 interface Props {
   initialData?: User | null;
@@ -18,7 +23,7 @@ const createInitialForm = (initialData?: User | null): UserFormData => ({
   confirmPassword: "",
   branchId: initialData?.branchId ? String(initialData.branchId) : "",
   isActive: initialData?.isActive ?? false,
-  isMaster: initialData?.isMaster ?? false,
+  isMaster: false,
 });
 
 const UserForm = ({
@@ -31,6 +36,40 @@ const UserForm = ({
 }: Props) => {
   const [form, setForm] = useState<UserFormData>(() => createInitialForm(initialData));
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setBranchesLoading(true);
+        const token = localStorage.getItem("accessToken") ?? "";
+        const tenantId = localStorage.getItem("tenantId") ?? "app_db";
+
+        const res = await fetch(
+          `http://84.255.173.131:8068/api/Branch/list-name?clientDb=${encodeURIComponent(tenantId)}`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "*/*",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) throw new Error("Failed to load branches");
+
+        const json = await res.json();
+        setBranches(json?.data ?? []);
+      } catch {
+        setBranches([]);
+      } finally {
+        setBranchesLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
 
   const handleChange = <K extends keyof UserFormData>(key: K, value: UserFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -59,14 +98,13 @@ const UserForm = ({
     }
 
     if (!isRequired(form.branchId)) {
-      newErrors.branchId = "Branch ID is required";
-    } else if (!Number.isInteger(Number(form.branchId)) || Number(form.branchId) <= 0) {
-      newErrors.branchId = "Branch ID must be a positive number";
+      newErrors.branchId = "Branch is required";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const handleSubmit = async () => {
     if (!validate()) return;
 
@@ -74,7 +112,7 @@ const UserForm = ({
       name: form.name.trim(),
       branchId: Number(form.branchId),
       isActive: form.isActive,
-      isMaster: form.isMaster,
+      isMaster: false,
     };
 
     if (!initialData && form.password) {
@@ -122,25 +160,38 @@ const UserForm = ({
           </>
         )}
 
-        <FormInput
-          label="Branch ID"
-          required
-          type="number"
-          value={form.branchId}
-          onChange={(e) => handleChange("branchId", e.target.value)}
-          error={errors.branchId}
-        />
+        {/* Branch select */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-slate-700">
+            Branch <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={form.branchId}
+            onChange={(e) => handleChange("branchId", e.target.value)}
+            disabled={branchesLoading}
+            className={`rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
+              errors.branchId ? "border-red-400" : "border-slate-300"
+            }`}
+          >
+            <option value="">
+              {branchesLoading ? "Loading branches..." : "Select a branch"}
+            </option>
+            {branches.map((branch) => (
+              <option key={branch.branchId} value={String(branch.branchId)}>
+                {branch.branchName}
+              </option>
+            ))}
+          </select>
+          {errors.branchId && (
+            <p className="text-xs text-red-500">{errors.branchId}</p>
+          )}
+        </div>
 
         <div className="mt-1 flex gap-4">
           <Checkbox
             label="Active/not"
             checked={form.isActive}
             onChange={(e) => handleChange("isActive", e.target.checked)}
-          />
-          <Checkbox
-            label="Is Master"
-            checked={form.isMaster}
-            onChange={(e) => handleChange("isMaster", e.target.checked)}
           />
         </div>
       </div>

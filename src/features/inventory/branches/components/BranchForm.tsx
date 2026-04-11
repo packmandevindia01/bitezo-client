@@ -8,7 +8,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 
-import { Button, DragHandle, Loader } from "../../../../components/common";
+import { Button, Checkbox, DragHandle, Loader } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import { useBranchLines } from "../hooks/useBranchLines";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
@@ -42,6 +42,7 @@ const BranchForm = ({
 
   const [branchName, setBranchName] = useState(initialData?.branchName ?? "");
   const [branchNameError, setBranchNameError] = useState("");
+  const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [submitting, setSubmitting] = useState(false);
 
   const { allLines, headerLines, footerLines, updateLine, moveLine, reorderLines, resetLines } =
@@ -90,26 +91,34 @@ const BranchForm = ({
     setSubmitting(true);
 
     try {
-      const payload = {
+      const payload: BranchPayload = {
         branchName: branchName.trim(),
         lines: allLines.map((line) => ({ ...line })),
+        isActive,
       };
 
       if (onSubmit) {
         await onSubmit(payload);
       } else {
-        // await createBranch(payload);
         showToast("Branch created successfully", "success");
       }
 
       setBranchName("");
       setBranchNameError("");
+      setIsActive(true);
       resetLines();
     } catch (error) {
       showToast(getErrorMessage(error), "error");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleClear = () => {
+    setBranchName(initialData?.branchName ?? "");
+    setBranchNameError("");
+    setIsActive(initialData?.isActive ?? true);
+    resetLines(initialData?.lines);
   };
 
   const sampleText = fontModal.lineId
@@ -184,22 +193,22 @@ const BranchForm = ({
               />
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            {/* Action row: Active checkbox + buttons */}
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-4">
+              <Checkbox
+                label="Active"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                disabled={submitting}
+              />
+
               {onCancel && (
                 <Button variant="secondary" onClick={onCancel} disabled={submitting}>
                   Cancel
                 </Button>
               )}
 
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setBranchName(initialData?.branchName ?? "");
-                  setBranchNameError("");
-                  resetLines(initialData?.lines);
-                }}
-                disabled={submitting}
-              >
+              <Button variant="secondary" onClick={handleClear} disabled={submitting}>
                 Clear
               </Button>
 
@@ -241,4 +250,3 @@ const BranchForm = ({
 };
 
 export default BranchForm;
-

@@ -127,10 +127,22 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
 
   const json = await response.json().catch(() => null);
 
+  // 400 = bad request / regId mismatch — hard error
   if (response.status === 400) {
     throw new Error(json?.message ?? "Registration ID mismatch.");
   }
 
+  // 404 = "Company not created yet" — this is the HAPPY PATH for new customers
+  // We treat it as exists: false so the caller opens the creation form
+  if (response.status === 404) {
+    return {
+      exists: false,
+      data: null,
+      message: json?.message ?? "Company not found. Proceed to create the company.",
+    };
+  }
+
+  // 409 = company already exists
   if (response.status === 409) {
     return {
       exists: true,
@@ -139,21 +151,24 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
     };
   }
 
+  // Any other non-OK status → hard error
   if (!response.ok) {
     throw new Error(json?.message ?? "Failed to verify company registration.");
   }
 
-  if (!json?.isSuccess || !json?.data) {
+  // 200 with data = company found
+  if (json?.isSuccess && json?.data) {
     return {
-      exists: false,
-      data: null,
-      message: json?.message ?? "Company not found",
+      exists: true,
+      data: json.data as { regId: string; name: string },
+      message: json.message ?? "Company found",
     };
   }
 
+  // 200 but no data = treat as not found
   return {
-    exists: true,
-    data: json.data as { regId: string; name: string },
-    message: json.message ?? "Company found",
+    exists: false,
+    data: null,
+    message: json?.message ?? "Company not found.",
   };
 };

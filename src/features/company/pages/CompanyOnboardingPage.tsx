@@ -14,7 +14,7 @@ import {
 import type { CompanyOnboardingState } from "../types";
 import { isValidEmail } from "../../../lib/validators";
 
-type OnboardingStage = "identify" | "verify" | "form" | "registered";
+type OnboardingStage = "identify" | "verify" | "form";
 
 const initialState: CompanyOnboardingState = {
   regId: "",
@@ -32,7 +32,6 @@ const CompanyOnboardingPage = () => {
   const [errors, setErrors] = useState({ regId: "", email: "", otp: "" });
   const [timer, setTimer] = useState(30);
   const [loading, setLoading] = useState(false);
-  const [registeredMessage, setRegisteredMessage] = useState("");
   const [formNotice, setFormNotice] = useState("");
   const [clientDatabase, setClientDatabase] = useState("");
   const [tempToken, setTempToken] = useState("");
@@ -82,9 +81,6 @@ const CompanyOnboardingPage = () => {
       await sendCompanyOtp(formState.regId.trim(), formState.email.trim());
       setStage("verify");
       setTimer(30);
-      setFormNotice("");
-      setClientDatabase("");
-      setTempToken("");
       showToast("OTP sent successfully", "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to send OTP";
@@ -94,44 +90,55 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  const checkRegistration = async (otpToken: string) => {
-    const result = await fetchCompanyRegistration(
-      {
-        regId: formState.regId.trim(),
-        email: formState.email.trim(),
-      },
+  /**
+   * After OTP is verified we get back an otpToken.
+   * We then call fetchCompanyRegistration to get the clientDb and tempToken.
+   * With those, we call checkCompanyExists:
+   *   - Company exists  → redirect to login with a message
+   *   - Company missing → open the company creation form
+   */
+  const handlePostOtpFlow = async (otpToken: string) => {
+    // Step 1: fetch the client database and temp token tied to this registration
+    const registration = await fetchCompanyRegistration(
+      { regId: formState.regId.trim(), email: formState.email.trim() },
       otpToken
     );
 
-    if (result.isRegistered) {
-      setRegisteredMessage(result.message || "This customer is already available in the system.");
-      setStage("registered");
-      return;
-    }
+    const clientDb = registration.database?.trim() ?? "";
+    const token = registration.tempToken ?? "";
 
-    const clientDb = result.database?.trim() ?? "";
     setClientDatabase(clientDb);
-    setTempToken(result.tempToken ?? "");
+    setTempToken(token);
 
+    // Step 2: if we have no clientDb yet, go straight to company creation
     if (!clientDb) {
-      setFormNotice("No client database exists for this registration yet. Continue to create the company.");
+      setFormNotice(
+        registration.message ||
+          "No client database found. Continue to create the company."
+      );
       setStage("form");
       return;
     }
 
+    // Step 3: check whether a company already exists for this clientDb + regId
     const companyCheck = await checkCompanyExists(clientDb, formState.regId.trim());
 
     if (companyCheck.exists) {
+      // Company already registered → redirect to login
       showToast(
-        `Company "${companyCheck.data?.name}" is already registered. Redirecting to login...`,
+        companyCheck.data?.name
+          ? `Company "${companyCheck.data.name}" is already registered. Redirecting to login…`
+          : (companyCheck.message || "Company already registered. Redirecting to login…"),
         "success"
       );
       setTimeout(() => navigate("/"), 1500);
       return;
     }
 
+    // Company not found (404) → open company creation form
     setFormNotice(
-      companyCheck.message || `Client database "${clientDb}" is available. Continue to create the company.`
+      companyCheck.message ||
+        `Client database "${clientDb}" is ready. Complete the form to create your company.`
     );
     setStage("form");
   };
@@ -153,13 +160,13 @@ const CompanyOnboardingPage = () => {
       );
 
       if (!verification.otpToken) {
-        throw new Error("OTP verified, but no OTP token was returned by the server.");
+        throw new Error("OTP verified, but no token was returned by the server.");
       }
 
       setField("otpToken", verification.otpToken);
       showToast("OTP verified successfully", "success");
 
-      await checkRegistration(verification.otpToken);
+      await handlePostOtpFlow(verification.otpToken);
     } catch (error) {
       const message = error instanceof Error ? error.message : "OTP verification failed";
       showToast(message, "error");
@@ -187,51 +194,43 @@ const CompanyOnboardingPage = () => {
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+        {/* ── Sidebar ── */}
         <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#49293e] via-[#5c3450] to-[#7b556c] p-6 text-white shadow-lg sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/65">
             Customer Onboarding
           </p>
           <h1 className="mt-3 text-3xl font-bold leading-tight">Verify and Create Company</h1>
           <p className="mt-4 text-sm leading-6 text-white/80">
-            This flow is for customers who are not yet registered. We first validate the email
-            with OTP, then check the registration status, and only after that open the company
-            setup form.
+            This flow validates your email with an OTP, checks your registration status, and
+            then opens the company setup form if needed.
           </p>
 
           <div className="mt-8 space-y-4">
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <Mail size={18} />
-                <div>
-                  <p className="text-sm font-semibold">Step 1</p>
-                  <p className="text-sm text-white/75">Enter registration ID and email</p>
+            {[
+              { Icon: Mail,         step: "Step 1", label: "Enter registration ID and email" },
+              { Icon: ShieldCheck,  step: "Step 2", label: "Verify OTP and validate access" },
+              { Icon: UserRoundPlus,step: "Step 3", label: "Complete the company registration form" },
+            ].map(({ Icon, step, label }) => (
+              <div
+                key={step}
+                className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <Icon size={18} />
+                  <div>
+                    <p className="text-sm font-semibold">{step}</p>
+                    <p className="text-sm text-white/75">{label}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <ShieldCheck size={18} />
-                <div>
-                  <p className="text-sm font-semibold">Step 2</p>
-                  <p className="text-sm text-white/75">Verify OTP and validate customer access</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <UserRoundPlus size={18} />
-                <div>
-                  <p className="text-sm font-semibold">Step 3</p>
-                  <p className="text-sm text-white/75">Complete the company registration form</p>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
+        {/* ── Main panel ── */}
         <section className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+
+          {/* Stage: identify */}
           {stage === "identify" && (
             <div className="mx-auto max-w-2xl">
               <h2 className="text-2xl font-semibold text-slate-900">Customer Verification</h2>
@@ -252,7 +251,6 @@ const CompanyOnboardingPage = () => {
                   error={errors.regId}
                   disabled={loading}
                 />
-
                 <FormInput
                   label="Email Address"
                   type="email"
@@ -269,7 +267,7 @@ const CompanyOnboardingPage = () => {
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Button onClick={handleSendOtp} disabled={loading}>
-                  {loading ? "Sending OTP..." : "Send OTP"}
+                  {loading ? "Sending OTP…" : "Send OTP"}
                 </Button>
                 <Button variant="secondary" onClick={() => navigate("/")} disabled={loading}>
                   Back to Login
@@ -278,11 +276,13 @@ const CompanyOnboardingPage = () => {
             </div>
           )}
 
+          {/* Stage: verify */}
           {stage === "verify" && (
             <div className="mx-auto max-w-xl text-center">
               <h2 className="text-2xl font-semibold text-slate-900">Verify OTP</h2>
               <p className="mt-2 text-sm text-slate-500">
-                We sent a 6-digit OTP to <span className="font-medium">{formState.email}</span>
+                We sent a 6-digit OTP to{" "}
+                <span className="font-medium">{formState.email}</span>
               </p>
 
               <div className="mt-8">
@@ -299,7 +299,7 @@ const CompanyOnboardingPage = () => {
 
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <Button onClick={handleVerifyOtp} disabled={loading}>
-                  {loading ? "Verifying..." : "Verify OTP"}
+                  {loading ? "Verifying…" : "Verify OTP"}
                 </Button>
                 <Button
                   variant="secondary"
@@ -327,37 +327,24 @@ const CompanyOnboardingPage = () => {
             </div>
           )}
 
-          {stage === "registered" && (
-            <div className="mx-auto max-w-2xl text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                <CheckCircle2 size={32} />
-              </div>
-              <h2 className="mt-6 text-2xl font-semibold text-slate-900">
-                Customer Already Registered
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-500">
-                {registeredMessage || "This customer is already available in the system."}
-              </p>
-
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <Button onClick={() => navigate("/")}>Go to Login</Button>
-                <Button variant="secondary" onClick={() => setStage("identify")}>
-                  Check Another Customer
-                </Button>
-              </div>
-            </div>
-          )}
-
+          {/* Stage: form (company creation) */}
           {stage === "form" && (
             <div>
               <div className="mb-8 flex flex-col gap-3 rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-emerald-800">Customer not registered</p>
+                  <p className="text-sm font-semibold text-emerald-800">
+                    Company not yet registered
+                  </p>
                   <p className="mt-1 text-sm text-emerald-700">
-                    {formNotice || "OTP is verified. You can now complete the company registration form."}
+                    {formNotice ||
+                      "OTP verified. Complete the form below to create your company."}
                   </p>
                 </div>
-                <Button variant="secondary" onClick={() => setStage("identify")} disabled={loading}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setStage("identify")}
+                  disabled={loading}
+                >
                   Start Over
                 </Button>
               </div>
@@ -375,9 +362,11 @@ const CompanyOnboardingPage = () => {
                 onSuccess={() =>
                   navigate("/", {
                     state: {
-                      username: formState.email.trim(),
+                      clientDb: clientDatabase,
+                      username: "Admin",
                       password: "1",
-                      message: "Company created successfully. Use the default Admin login with password 1.",
+                      message:
+                        "Company created successfully. Logging you in with default Admin credentials.",
                     },
                   })
                 }

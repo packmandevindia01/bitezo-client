@@ -25,14 +25,13 @@ export interface BranchFormData {
   headerFontAlign: FontAlignSettings[];
 }
 
-
 export interface LineItem {
   id: string;
   value: string;
   fontFamily: string;
   fontStyle: string;
   fontSize: string;
-   offsetX: number; 
+  offsetX: number;
   section: "header" | "footer";
 }
 
@@ -51,11 +50,13 @@ export interface FontModalState {
 export interface BranchPayload {
   branchName: string;
   lines: LineItem[];
+  isActive: boolean;
 }
 
 export interface BranchRecord {
   id: number;
   branchName: string;
   lines: LineItem[];
+  isActive: boolean;
   detailsLoaded: boolean;
 }

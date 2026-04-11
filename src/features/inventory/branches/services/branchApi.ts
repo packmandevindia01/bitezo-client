@@ -14,11 +14,13 @@ interface BranchIdResponse {
 interface BranchListItem {
   branchId?: number;
   branchName?: string;
+  isActive?: boolean;
 }
 
 interface BranchRequestBody {
   branchId?: number;
   name: string;
+  isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
   header1: string;
@@ -70,7 +72,6 @@ const getAccessToken = () => {
   if (!token) {
     throw new Error("Access token not found. Please log in again.");
   }
-
   return token;
 };
 
@@ -84,9 +85,8 @@ const getErrorMessage = async (response: Response, fallbackMessage: string) => {
     const json = (await response.json()) as ApiResponse<unknown>;
     if (json.message) return json.message;
   } catch {
-    // Fall back to plain text when the API does not return JSON.
+    // fall through to text
   }
-
   return (await response.text().catch(() => "")) || fallbackMessage;
 };
 
@@ -99,14 +99,21 @@ const serializeFont = (line?: LineItem) =>
     fontSize: line?.fontSize ?? "12",
   });
 
-const buildBranchRequestBody = (payload: BranchPayload, branchId?: number): BranchRequestBody => {
+const buildBranchRequestBody = (
+  payload: BranchPayload,
+  branchId?: number
+): BranchRequestBody => {
   const headerLines = payload.lines.filter((line) => line.section === "header");
   const footerLines = payload.lines.filter((line) => line.section === "footer");
 
   return {
-    ...(branchId ? { branchId } : {}),
+    // Only include branchId in body for updates (PUT), not for creates (POST)
+    ...(branchId !== undefined ? { branchId } : {}),
     name: payload.branchName,
-    ...(branchId ? { updatedAt: new Date().toISOString() } : { createdAt: new Date().toISOString() }),
+    isActive: payload.isActive,
+    ...(branchId !== undefined
+      ? { updatedAt: new Date().toISOString() }
+      : { createdAt: new Date().toISOString() }),
     header1: headerLines[0]?.value ?? "",
     headerLeftAlign1: Math.round(headerLines[0]?.offsetX ?? 0),
     headerFont1: serializeFont(headerLines[0]),
@@ -168,13 +175,14 @@ export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
     ? json.data.map((item) => ({
         id: item.branchId ?? 0,
         branchName: item.branchName ?? "",
+        isActive: item.isActive ?? true,
         lines: [],
         detailsLoaded: false,
       }))
     : [];
 };
 
-export const createBranch = async (payload: BranchPayload) => {
+export const createBranch = async (payload: BranchPayload): Promise<BranchRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/Branch`, {
     method: "POST",
     headers: {
@@ -198,12 +206,16 @@ export const createBranch = async (payload: BranchPayload) => {
   return {
     id,
     branchName: payload.branchName,
+    isActive: payload.isActive,
     lines: cloneLines(payload.lines),
     detailsLoaded: true,
-  } satisfies BranchRecord;
+  };
 };
 
-export const updateBranch = async (branchId: number, payload: BranchPayload) => {
+export const updateBranch = async (
+  branchId: number,
+  payload: BranchPayload
+): Promise<BranchRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/Branch/${branchId}`, {
     method: "PUT",
     headers: {
@@ -217,12 +229,14 @@ export const updateBranch = async (branchId: number, payload: BranchPayload) => 
     throw new Error(await getErrorMessage(response, "Failed to update branch"));
   }
 
+  // The API always returns id: 0 on update — use the branchId we sent
   await response.json().catch(() => null);
 
   return {
     id: branchId,
     branchName: payload.branchName,
+    isActive: payload.isActive,
     lines: cloneLines(payload.lines),
     detailsLoaded: true,
-  } satisfies BranchRecord;
+  };
 };
