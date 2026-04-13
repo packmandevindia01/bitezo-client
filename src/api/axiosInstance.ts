@@ -14,7 +14,9 @@ axiosInstance.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  config.headers["clientDb"] = clientDb;
+  if (clientDb) {
+    config.headers["clientDb"] = clientDb;
+  }
 
   return config;
 });

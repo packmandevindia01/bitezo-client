@@ -1,14 +1,15 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
-import type { SubCategoryRecord } from "../types";
+import type { SubCategoryListItem } from "../types/subCategoryApiTypes";
 
 interface Props {
-  subCategories: SubCategoryRecord[];
+  subCategories: SubCategoryListItem[];
   search: string;
   onSearchChange: (value: string) => void;
   onAdd: () => void;
-  onEdit: (record: SubCategoryRecord) => void;
-  onDelete: (id: number) => void;
+  onEdit: (record: SubCategoryListItem) => void;
+  onDelete: (record: SubCategoryListItem) => void;
+  loading?: boolean;
 }
 
 const SubCategoryTable = ({
@@ -18,6 +19,7 @@ const SubCategoryTable = ({
   onAdd,
   onEdit,
   onDelete,
+  loading = false,
 }: Props) => {
   return (
     <RecordTableCard
@@ -28,10 +30,21 @@ const SubCategoryTable = ({
       data={subCategories}
       actionLabel="+ Add Sub Category"
       onAction={onAdd}
+      loading={loading}
       columns={[
         { header: "Code", accessor: "code" },
         { header: "Sub Category", accessor: "name" },
+        {
+          header: "Arabic",
+          accessor: "arabicName",
+          render: (row) => row.arabicName || "-",
+        },
         { header: "Category", accessor: "categoryName" },
+        {
+          header: "Status",
+          accessor: "isActive",
+          render: (row) => (row.isActive ? "Active" : "Inactive"),
+        },
         {
           header: "Actions",
           accessor: "id",
@@ -46,7 +59,7 @@ const SubCategoryTable = ({
               </button>
               <button
                 type="button"
-                onClick={() => onDelete(row.id)}
+                onClick={() => onDelete(row)}
                 className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
               >
                 <Trash2 size={16} />
@@ -60,4 +73,3 @@ const SubCategoryTable = ({
 };
 
 export default SubCategoryTable;
-

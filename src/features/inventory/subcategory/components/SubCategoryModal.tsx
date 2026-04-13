@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import {
   Button,
   FormInput,
@@ -9,7 +10,9 @@ import {
 interface SubCategoryFormState {
   code: string;
   name: string;
-  categoryId: string;
+  arabicName: string;
+  categoryId: number | "";
+  isActive: boolean;
   image: string;
 }
 
@@ -17,7 +20,8 @@ interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: SubCategoryFormState;
-  categoryOptions: { label: string; value: string }[];
+  categoryOptions: { label: string; value: number }[];
+  saving: boolean;
   onClose: () => void;
   onImageSelect: (file: File | null) => void;
   onChange: (patch: Partial<SubCategoryFormState>) => void;
@@ -30,6 +34,7 @@ const SubCategoryModal = ({
   editingId,
   form,
   categoryOptions,
+  saving,
   onClose,
   onImageSelect,
   onChange,
@@ -68,21 +73,64 @@ const SubCategoryModal = ({
               />
 
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Arabic Name
+              </p>
+              <div dir="rtl">
+                <FormInput
+                  value={form.arabicName}
+                  onChange={(e) => onChange({ arabicName: e.target.value })}
+                  placeholder="أدخل اسم الفئة الفرعية"
+                />
+              </div>
+
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
                 Category Name
               </p>
               <SelectInput
                 options={categoryOptions}
                 value={form.categoryId}
-                onChange={(e) => onChange({ categoryId: e.target.value })}
+                onChange={(e) => onChange({ categoryId: Number(e.target.value) })}
                 placeholder="Choose category"
               />
+
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Active
+              </p>
+              <label className="flex cursor-pointer items-center gap-2">
+                <div
+                  role="switch"
+                  aria-checked={form.isActive}
+                  onClick={() => onChange({ isActive: !form.isActive })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    form.isActive ? "bg-[#49293e]" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      form.isActive ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </div>
+                <span className="text-sm text-gray-700">
+                  {form.isActive ? "Active" : "Inactive"}
+                </span>
+              </label>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={onClear}>
+              <Button variant="secondary" onClick={onClear} disabled={saving}>
                 Clear
               </Button>
-              <Button onClick={onSave}>Save</Button>
+              <Button onClick={onSave} disabled={saving}>
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={15} className="animate-spin" />
+                    Saving…
+                  </span>
+                ) : (
+                  "Save"
+                )}
+              </Button>
             </div>
           </div>
         </div>
@@ -92,4 +140,3 @@ const SubCategoryModal = ({
 };
 
 export default SubCategoryModal;
-
