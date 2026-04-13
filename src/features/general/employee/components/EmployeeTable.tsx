@@ -8,7 +8,8 @@ interface Props {
   onSearchChange: (value: string) => void;
   onAdd: () => void;
   onEdit: (record: EmployeeRecord) => void;
-  onDelete: (id: number) => void;
+  onDelete: (record: EmployeeRecord) => void;
+  loading?: boolean;
 }
 
 const EmployeeTable = ({
@@ -18,6 +19,7 @@ const EmployeeTable = ({
   onAdd,
   onEdit,
   onDelete,
+  loading = false,
 }: Props) => {
   return (
     <RecordTableCard
@@ -28,6 +30,7 @@ const EmployeeTable = ({
       data={employees}
       actionLabel="+ Add Employee"
       onAction={onAdd}
+      loading={loading}
       columns={[
         { header: "Name", accessor: "name" },
         { header: "Code", accessor: "code" },
@@ -51,7 +54,7 @@ const EmployeeTable = ({
               </button>
               <button
                 type="button"
-                onClick={() => onDelete(row.id)}
+                onClick={() => onDelete(row)}
                 className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
               >
                 <Trash2 size={16} />

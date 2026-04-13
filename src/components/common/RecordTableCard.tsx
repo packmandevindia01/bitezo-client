@@ -17,6 +17,7 @@ interface RecordTableCardProps<T> {
   rowKey: keyof T;
   actionLabel?: string;
   onAction?: () => void;
+  loading?: boolean;
 }
 
 const RecordTableCard = <T,>({
@@ -28,6 +29,7 @@ const RecordTableCard = <T,>({
   rowKey,
   actionLabel,
   onAction,
+  loading = false,
 }: RecordTableCardProps<T>) => {
   return (
     <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
@@ -56,7 +58,7 @@ const RecordTableCard = <T,>({
         </div>
       </div>
 
-      <Table columns={columns} data={data} rowKey={rowKey} />
+      <Table columns={columns} data={data} rowKey={rowKey} loading={loading} />
     </section>
   );
 };

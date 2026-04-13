@@ -1,10 +1,10 @@
-import { Button, Checkbox, FormInput, Modal, SelectInput } from "../../../../components/common";
-import { employeeBranchOptions } from "../constants";
+import { Button, Checkbox, FormInput, Modal } from "../../../../components/common";
+import type { BranchOption } from "../services/employeeService";
 
 interface EmployeeFormState {
   name: string;
   code: string;
-  branch: string;
+  branchId: string;
   driver: boolean;
   active: boolean;
   isMaster: boolean;
@@ -14,13 +14,25 @@ interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: EmployeeFormState;
+  branches: BranchOption[];
+  saving?: boolean;
   onChange: (patch: Partial<EmployeeFormState>) => void;
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
 }
 
-const EmployeeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onSave }: Props) => {
+const EmployeeModal = ({
+  isOpen,
+  editingId,
+  form,
+  branches,
+  saving = false,
+  onChange,
+  onClose,
+  onClear,
+  onSave,
+}: Props) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -47,12 +59,20 @@ const EmployeeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, on
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
             Branch Name
           </p>
-          <SelectInput
-            options={employeeBranchOptions}
-            value={form.branch}
-            onChange={(e) => onChange({ branch: e.target.value })}
-            placeholder="Choose branch"
-          />
+          <select
+            value={form.branchId}
+            onChange={(e) => onChange({ branchId: e.target.value })}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
+          >
+            <option value="">
+              {branches.length === 0 ? "Loading branches…" : "Select a branch"}
+            </option>
+            {branches.map((b) => (
+              <option key={b.branchId} value={String(b.branchId)}>
+                {b.branchName}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
@@ -74,10 +94,12 @@ const EmployeeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, on
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={onClear}>
+          <Button variant="secondary" onClick={onClear} disabled={saving}>
             Clear
           </Button>
-          <Button onClick={onSave}>Save</Button>
+          <Button onClick={onSave} loading={saving}>
+            Save
+          </Button>
         </div>
       </div>
     </Modal>
@@ -85,4 +107,3 @@ const EmployeeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, on
 };
 
 export default EmployeeModal;
-
