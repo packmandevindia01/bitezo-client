@@ -1,17 +1,26 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
-import type { CategoryRecord } from "../types";
+import type { CategoryListItem } from "../types/categoryApiTypes";
 
 interface Props {
-  categories: CategoryRecord[];
+  categories: CategoryListItem[];
   search: string;
   onSearchChange: (value: string) => void;
   onAdd: () => void;
-  onEdit: (record: CategoryRecord) => void;
-  onDelete: (id: number) => void;
+  onEdit: (record: CategoryListItem) => void;
+  onDelete: (record: CategoryListItem) => void;
+  loading?: boolean;
 }
 
-const CategoryTable = ({ categories, search, onSearchChange, onAdd, onEdit, onDelete }: Props) => {
+const CategoryTable = ({
+  categories,
+  search,
+  onSearchChange,
+  onAdd,
+  onEdit,
+  onDelete,
+  loading = false,
+}: Props) => {
   return (
     <RecordTableCard
       title="Saved Category List"
@@ -21,13 +30,19 @@ const CategoryTable = ({ categories, search, onSearchChange, onAdd, onEdit, onDe
       data={categories}
       actionLabel="+ Add Category"
       onAction={onAdd}
+      loading={loading}
       columns={[
         { header: "Code", accessor: "code" },
         { header: "Category Name", accessor: "name" },
         {
-          header: "Branches",
-          accessor: "branches",
-          render: (row) => row.branches.join(", ") || "Not allocated",
+          header: "Arabic",
+          accessor: "arabic",
+          render: (row) => row.arabic || "-",
+        },
+        {
+          header: "Status",
+          accessor: "isActive",
+          render: (row) => (row.isActive ? "Active" : "Inactive"),
         },
         {
           header: "Actions",
@@ -43,7 +58,7 @@ const CategoryTable = ({ categories, search, onSearchChange, onAdd, onEdit, onDe
               </button>
               <button
                 type="button"
-                onClick={() => onDelete(row.id)}
+                onClick={() => onDelete(row)}
                 className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
               >
                 <Trash2 size={16} />
@@ -57,4 +72,3 @@ const CategoryTable = ({ categories, search, onSearchChange, onAdd, onEdit, onDe
 };
 
 export default CategoryTable;
-

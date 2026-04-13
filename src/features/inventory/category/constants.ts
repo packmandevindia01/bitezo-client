@@ -1,4 +1,4 @@
-import type { CategoryRecord } from "./types";
+import type { CategoryRecord } from "./types/types";
 
 export const initialCategories: CategoryRecord[] = [
   {

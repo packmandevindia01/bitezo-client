@@ -32,6 +32,7 @@ const SearchBar = ({
         placeholder={placeholder}
         disabled={disabled}
         aria-label="Search"
+        autoComplete="off"
         className={`
           w-full pl-9 pr-9 py-2
           text-sm md:text-base

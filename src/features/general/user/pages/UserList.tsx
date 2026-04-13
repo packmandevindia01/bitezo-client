@@ -251,11 +251,11 @@ const UserList = () => {
         />
       )}
 
-      <Modal isOpen={open} onClose={closeModal} >
+      <Modal isOpen={open} onClose={closeModal} title="  " >
         {detailLoading ? (
           <div className="py-8">
             <Loader text="Loading user details..." />
-          </div>
+          </div> 
         ) : (
           <UserForm
             key={editUser?.id ?? "new-user"}

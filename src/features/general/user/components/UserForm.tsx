@@ -135,6 +135,7 @@ const UserForm = ({
           value={form.name}
           onChange={(e) => handleChange("name", e.target.value)}
           error={errors.name}
+          autoComplete="new-username"
         />
 
         {!initialData && (
@@ -146,6 +147,7 @@ const UserForm = ({
               value={form.password}
               onChange={(e) => handleChange("password", e.target.value)}
               error={errors.password}
+              autoComplete="new-password"
             />
 
             <FormInput
@@ -155,6 +157,7 @@ const UserForm = ({
               value={form.confirmPassword}
               onChange={(e) => handleChange("confirmPassword", e.target.value)}
               error={errors.confirmPassword}
+              autoComplete="new-password"
             />
           </>
         )}
@@ -168,9 +171,8 @@ const UserForm = ({
             value={form.branchId}
             onChange={(e) => handleChange("branchId", e.target.value)}
             disabled={branchesLoading}
-            className={`rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
-              errors.branchId ? "border-red-400" : "border-slate-300"
-            }`}
+            className={`rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${errors.branchId ? "border-red-400" : "border-slate-300"
+              }`}
           >
             <option value="">
               {branchesLoading ? "Loading branches..." : "Select a branch"}
@@ -195,12 +197,12 @@ const UserForm = ({
         </div>
       </div>
 
-      <div className="mt-6 flex justify-center gap-3">
-        <Button variant="secondary" onClick={handleClear}>
+      <div className="mt-6 flex justify-end  gap-3">
+        <Button variant="secondary" className="h-10 w-20" onClick={handleClear}>
           Clear
         </Button>
 
-        <Button onClick={handleSubmit} loading={submitting}>
+        <Button className="h-10 w-20" onClick={handleSubmit} loading={submitting}>
           Save
         </Button>
 
