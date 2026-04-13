@@ -4,7 +4,6 @@ import type {
   BranchOption,
   CategoryDetailResponse,
   CategoryListItem,
-  CategoryListResponse,
   CreateCategoryPayload,
   UpdateCategoryPayload,
 } from "../types/categoryApiTypes";

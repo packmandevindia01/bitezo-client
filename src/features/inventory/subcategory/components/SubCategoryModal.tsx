@@ -87,8 +87,8 @@ const SubCategoryModal = ({
                 Category Name
               </p>
               <SelectInput
-                options={categoryOptions}
-                value={form.categoryId}
+                options={categoryOptions.map(opt => ({ label: opt.label, value: String(opt.value) }))}
+                value={String(form.categoryId)}
                 onChange={(e) => onChange({ categoryId: Number(e.target.value) })}
                 placeholder="Choose category"
               />
