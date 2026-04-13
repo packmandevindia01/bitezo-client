@@ -1,4 +1,4 @@
-import { Loader, PageShell } from "../../../../components/common";
+import { ConfirmDialog, Loader, PageShell } from "../../../../components/common";
 import BranchModal from "../components/BranchModal";
 import BranchTable from "../components/BranchTable";
 import { useBranchManager } from "../hooks/useBranchManager";
@@ -9,17 +9,20 @@ const BranchCreationPage = () => {
     setSearch,
     open,
     editingBranch,
+    deleteCandidate,
+    setDeleteCandidate,
+    deleting,
     loading,
     handleSave,
     handleEdit,
+    handleDelete,
     openCreateModal,
     closeModal,
     filteredBranches,
   } = useBranchManager();
 
   return (
-    <PageShell
-      title="Branch Creation">
+    <PageShell title="Branch Creation">
       {loading ? <Loader className="py-8" text="Loading branches..." /> : null}
 
       <BranchTable
@@ -28,6 +31,7 @@ const BranchCreationPage = () => {
         onSearchChange={setSearch}
         onAdd={openCreateModal}
         onEdit={handleEdit}
+        onDelete={setDeleteCandidate}
       />
 
       <BranchModal
@@ -35,6 +39,18 @@ const BranchCreationPage = () => {
         editingBranch={editingBranch}
         onClose={closeModal}
         onSave={handleSave}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteCandidate !== null}
+        title="Delete Branch"
+        message={`Are you sure you want to delete "${deleteCandidate?.branchName ?? "this branch"}"?`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={() => void handleDelete()}
+        onCancel={() => {
+          if (!deleting) setDeleteCandidate(null);
+        }}
       />
     </PageShell>
   );

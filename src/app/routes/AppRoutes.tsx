@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Loader } from "../../components/common";
+import RegistrationGuard from "./RegistrationGuard";
+import ProtectedRoute from "./ProtectedRoute";
 
 const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
 const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
@@ -34,38 +36,43 @@ const AppRoutes = () => {
   return (
     <BrowserRouter>
       <Suspense fallback={<Loader fullScreen text="Loading page..." />}>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
+        <RegistrationGuard>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/verify-otp" element={<VerifyOtpPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/company/onboarding" element={<CompanyOnboardingPage />} />
 
-          <Route path="/dashboard" element={<MainLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="users" element={<UserList />} />
-            <Route path="customers" element={<CustomerListPage />} />
-            <Route path="customers/new" element={<CustomerFormPage />} />
-            <Route path="employees" element={<EmployeePage />} />
-            <Route path="paymodes" element={<PaymodePage />} />
-            <Route path="counters" element={<CounterPage />} />
-            <Route path="sections" element={<SectionPage />} />
-            <Route path="tables" element={<TableMasterPage />} />
-            <Route path="pos-terminal" element={<PosTerminalPage />} />
-            <Route path="branches" element={<BranchCreationPage />} />
-            <Route path="categories" element={<CategoryPage />} />
-            <Route path="sub-categories" element={<SubCategoryPage />} />
-            <Route path="groups" element={<GroupPage />} />
-            <Route path="units" element={<UnitPage />} />
-            <Route path="modifiers" element={<ModifierPage />} />
-            <Route path="products" element={<ProductPage />} />
-            <Route path="voucher-series" element={<VoucherSeriesPage />} />
-            <Route path="extras-master" element={<ExtrasMasterPage />} />
-            <Route path="extras-type" element={<ExtrasTypePage />} />
-            <Route path="modifier-type" element={<ModifierTypePage />} />
-          </Route>
-
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/verify-otp" element={<VerifyOtpPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/company/onboarding" element={<CompanyOnboardingPage />} />
-        </Routes>
+            {/* Protected routes — redirects to "/" if userId not in localStorage */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<MainLayout />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="users" element={<UserList />} />
+                <Route path="customers" element={<CustomerListPage />} />
+                <Route path="customers/new" element={<CustomerFormPage />} />
+                <Route path="employees" element={<EmployeePage />} />
+                <Route path="paymodes" element={<PaymodePage />} />
+                <Route path="counters" element={<CounterPage />} />
+                <Route path="sections" element={<SectionPage />} />
+                <Route path="tables" element={<TableMasterPage />} />
+                <Route path="pos-terminal" element={<PosTerminalPage />} />
+                <Route path="branches" element={<BranchCreationPage />} />
+                <Route path="categories" element={<CategoryPage />} />
+                <Route path="sub-categories" element={<SubCategoryPage />} />
+                <Route path="groups" element={<GroupPage />} />
+                <Route path="units" element={<UnitPage />} />
+                <Route path="modifiers" element={<ModifierPage />} />
+                <Route path="products" element={<ProductPage />} />
+                <Route path="voucher-series" element={<VoucherSeriesPage />} />
+                <Route path="extras-master" element={<ExtrasMasterPage />} />
+                <Route path="extras-type" element={<ExtrasTypePage />} />
+                <Route path="modifier-type" element={<ModifierTypePage />} />
+              </Route>
+            </Route>
+          </Routes>
+        </RegistrationGuard>
       </Suspense>
     </BrowserRouter>
   );

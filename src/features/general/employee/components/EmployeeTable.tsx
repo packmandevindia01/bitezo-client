@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
-import type { EmployeeRecord } from "../types";
+import type { EmployeeRecord } from "../types/types";
 
 interface Props {
   employees: EmployeeRecord[];

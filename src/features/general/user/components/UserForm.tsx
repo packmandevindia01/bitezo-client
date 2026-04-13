@@ -29,7 +29,6 @@ const createInitialForm = (initialData?: User | null): UserFormData => ({
 const UserForm = ({
   initialData,
   onSubmit,
-  onCancel,
   submitting = false,
   onDelete,
   deleting = false,
@@ -196,16 +195,10 @@ const UserForm = ({
         </div>
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex justify-center gap-3">
         <Button variant="secondary" onClick={handleClear}>
           Clear
         </Button>
-
-        {onCancel && (
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
 
         <Button onClick={handleSubmit} loading={submitting}>
           Save

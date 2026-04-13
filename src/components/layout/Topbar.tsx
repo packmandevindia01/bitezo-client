@@ -1,35 +1,91 @@
-import { Menu, Plus, Download, LogOut } from "lucide-react";
-import { Button, Modal } from "../common";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Menu, LogOut, ChevronRight, User, ChevronDown } from "lucide-react";
+import { Modal, Button } from "../common";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "../../app/providers/useToast";
 
 interface TopbarProps {
   toggleSidebar: () => void;
 }
 
+const getPageTitle = (pathname: string): string => {
+  const map: Record<string, string> = {
+    "/dashboard": "Dashboard",
+    "/dashboard/users": "Users",
+    "/dashboard/customers": "Customers",
+    "/dashboard/customers/new": "New Customer",
+    "/dashboard/employees": "Employees",
+    "/dashboard/paymodes": "Pay Modes",
+    "/dashboard/counters": "Counters",
+    "/dashboard/sections": "Sections",
+    "/dashboard/tables": "Table Master",
+    "/dashboard/pos-terminal": "POS Terminal",
+    "/dashboard/branches": "Branch Creation",
+    "/dashboard/categories": "Categories",
+    "/dashboard/sub-categories": "Sub Categories",
+    "/dashboard/groups": "Groups",
+    "/dashboard/units": "Units",
+    "/dashboard/modifiers": "Modifiers",
+    "/dashboard/products": "Products",
+    "/dashboard/voucher-series": "Voucher Series",
+    "/dashboard/extras-master": "Extras Master",
+    "/dashboard/extras-type": "Extras Type",
+    "/dashboard/modifier-type": "Modifier Type",
+  };
+  return map[pathname] ?? "Dashboard";
+};
+
+const AUTH_KEYS = [
+  "accessToken",
+  "refreshToken",
+  "userId",
+  "userName",
+  "tenantId",
+  "isMaster",
+  "sessionExpiresAt",
+];
+
 const Topbar = ({ toggleSidebar }: TopbarProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
 
+  const username = localStorage.getItem("userName") ?? "Admin";
+  const pageTitle = getPageTitle(location.pathname);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const initials = username
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("userId");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("tenantId");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("isMaster");
-
+    AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     showToast("Logged out successfully", "success");
     navigate("/", { replace: true });
   };
 
   return (
     <>
-      <div className="sticky top-0 z-20 flex w-full flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4 md:px-6">
-        <div className="flex items-center gap-2 sm:gap-4">
+      <div className="sticky top-0 z-20 flex w-full items-center justify-between border-b border-gray-100 bg-white px-4 shadow-sm md:px-6" style={{ height: "64px" }}>
+
+        {/* LEFT — hamburger + breadcrumb */}
+        <div className="flex items-center gap-3">
           <button
             onClick={toggleSidebar}
             className="rounded-lg p-2 transition hover:bg-gray-100 md:hidden"
@@ -37,53 +93,95 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
             <Menu size={20} />
           </button>
 
-          <h2 className="hidden text-sm font-semibold text-gray-800 sm:block md:text-base">
-            Dashboard
-          </h2>
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="hidden text-gray-400 sm:block">Bitezo</span>
+            <ChevronRight size={13} className="hidden text-gray-300 sm:block" />
+            <span className="font-semibold text-gray-700">{pageTitle}</span>
+          </div>
         </div>
 
-        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-3">
-          <Button size="sm" className="min-w-[44px] gap-1 sm:gap-2">
-            <Plus size={14} />
-            <span className="hidden sm:inline">Add</span>
-          </Button>
-
-          <Button variant="secondary" size="sm" className="min-w-[44px] gap-1 sm:gap-2">
-            <Download size={14} />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
-
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => setShowLogoutModal(true)}
-            className="min-w-[44px] gap-1 sm:gap-2"
+        {/* RIGHT — profile dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowDropdown((prev) => !prev)}
+            className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-3 transition hover:bg-gray-100"
           >
-            <LogOut size={14} />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#49293e]">
+              <span className="text-[10px] font-bold text-white">{initials}</span>
+            </div>
+            <span className="hidden text-sm font-medium text-gray-700 sm:block">{username}</span>
+            <ChevronDown size={13} className="hidden text-gray-400 sm:block" />
+          </button>
+
+          {/* Dropdown menu */}
+          {showDropdown && (
+            <div className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
+
+              {/* User info header */}
+              <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#49293e]">
+                  <span className="text-xs font-bold text-white">{initials}</span>
+                </div>
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-semibold text-gray-800">{username}</span>
+                  <span className="text-xs text-gray-400">Administrator</span>
+                </div>
+              </div>
+
+              {/* Profile */}
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                  navigate("/dashboard/settings");
+                }}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50"
+              >
+                <User size={15} className="text-gray-400" />
+                Profile
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                  setShowLogoutModal(true);
+                }}
+                className="flex w-full items-center gap-2.5 border-t border-gray-100 px-4 py-2.5 text-sm text-red-500 transition hover:bg-red-50"
+              >
+                <LogOut size={15} />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {showLogoutModal && (
-        <Modal
-          isOpen={showLogoutModal}
-          onClose={() => setShowLogoutModal(false)}
-          title="Confirm Logout"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowLogoutModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={handleLogout}>
-                Logout
-              </Button>
-            </>
-          }
-        >
-          Are you sure you want to logout?
-        </Modal>
-      )}
+      {/* Logout confirm modal */}
+      <Modal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        title="Confirm Logout"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowLogoutModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleLogout}>
+              Logout
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center gap-3 py-2">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+            <LogOut size={22} className="text-red-400" />
+          </div>
+          <p className="text-center text-sm text-gray-600">
+            Are you sure you want to logout,{" "}
+            <span className="font-semibold text-gray-800">{username}</span>?
+          </p>
+        </div>
+      </Modal>
     </>
   );
 };

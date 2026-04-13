@@ -251,7 +251,7 @@ const UserList = () => {
         />
       )}
 
-      <Modal isOpen={open} onClose={closeModal} title="User">
+      <Modal isOpen={open} onClose={closeModal} >
         {detailLoading ? (
           <div className="py-8">
             <Loader text="Loading user details..." />

@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
 import type { BranchRecord } from "../types";
 
@@ -8,9 +8,10 @@ interface Props {
   onSearchChange: (value: string) => void;
   onAdd: () => void;
   onEdit: (record: BranchRecord) => void;
+  onDelete: (record: BranchRecord) => void;
 }
 
-const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit }: Props) => {
+const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit, onDelete }: Props) => {
   return (
     <RecordTableCard
       title="Saved Branch List"
@@ -32,13 +33,17 @@ const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit }: Props)
                 type="button"
                 onClick={() => onEdit(row)}
                 className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                title={
-                  row.detailsLoaded
-                    ? "Edit branch"
-                    : "Branch detail endpoint is required to edit existing records"
-                }
+                aria-label={`Edit ${row.branchName}`}
               >
                 <Pencil size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(row)}
+                className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                aria-label={`Delete ${row.branchName}`}
+              >
+                <Trash2 size={16} />
               </button>
             </div>
           ),
@@ -49,4 +54,3 @@ const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit }: Props)
 };
 
 export default BranchTable;
-

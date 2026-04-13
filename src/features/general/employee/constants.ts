@@ -1,4 +1,4 @@
-import type { EmployeeRecord } from "./types";
+import type { EmployeeRecord } from "./types/types";
 
 export const employeeBranchOptions = [
   { label: "Main Branch", value: "Main Branch" },

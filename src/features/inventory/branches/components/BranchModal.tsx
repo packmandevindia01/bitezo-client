@@ -24,6 +24,7 @@ const BranchModal = ({ isOpen, editingBranch, onClose, onSave }: Props) => {
             ? {
                 branchName: editingBranch.branchName,
                 lines: editingBranch.lines,
+                isActive: editingBranch.isActive,
               }
             : null
         }
@@ -36,4 +37,3 @@ const BranchModal = ({ isOpen, editingBranch, onClose, onSave }: Props) => {
 };
 
 export default BranchModal;
-

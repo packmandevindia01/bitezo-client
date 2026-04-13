@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
+import { Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, FormInput } from "../../../components/common";
 import OtpInput from "../../auth/components/OtpInput";
@@ -90,15 +90,7 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  /**
-   * After OTP is verified we get back an otpToken.
-   * We then call fetchCompanyRegistration to get the clientDb and tempToken.
-   * With those, we call checkCompanyExists:
-   *   - Company exists  → redirect to login with a message
-   *   - Company missing → open the company creation form
-   */
   const handlePostOtpFlow = async (otpToken: string) => {
-    // Step 1: fetch the client database and temp token tied to this registration
     const registration = await fetchCompanyRegistration(
       { regId: formState.regId.trim(), email: formState.email.trim() },
       otpToken
@@ -110,32 +102,27 @@ const CompanyOnboardingPage = () => {
     setClientDatabase(clientDb);
     setTempToken(token);
 
-    // Step 2: if we have no clientDb yet, go straight to company creation
     if (!clientDb) {
       setFormNotice(
-        registration.message ||
-          "No client database found. Continue to create the company."
+        registration.message || "No client database found. Continue to create the company."
       );
       setStage("form");
       return;
     }
 
-    // Step 3: check whether a company already exists for this clientDb + regId
     const companyCheck = await checkCompanyExists(clientDb, formState.regId.trim());
 
     if (companyCheck.exists) {
-      // Company already registered → redirect to login
       showToast(
         companyCheck.data?.name
           ? `Company "${companyCheck.data.name}" is already registered. Redirecting to login…`
-          : (companyCheck.message || "Company already registered. Redirecting to login…"),
+          : companyCheck.message || "Company already registered. Redirecting to login…",
         "success"
       );
       setTimeout(() => navigate("/"), 1500);
       return;
     }
 
-    // Company not found (404) → open company creation form
     setFormNotice(
       companyCheck.message ||
         `Client database "${clientDb}" is ready. Complete the form to create your company.`
@@ -207,9 +194,9 @@ const CompanyOnboardingPage = () => {
 
           <div className="mt-8 space-y-4">
             {[
-              { Icon: Mail,         step: "Step 1", label: "Enter registration ID and email" },
-              { Icon: ShieldCheck,  step: "Step 2", label: "Verify OTP and validate access" },
-              { Icon: UserRoundPlus,step: "Step 3", label: "Complete the company registration form" },
+              { Icon: Mail, step: "Step 1", label: "Enter registration ID and email" },
+              { Icon: ShieldCheck, step: "Step 2", label: "Verify OTP and validate access" },
+              { Icon: UserRoundPlus, step: "Step 3", label: "Complete the company registration form" },
             ].map(({ Icon, step, label }) => (
               <div
                 key={step}
@@ -336,8 +323,7 @@ const CompanyOnboardingPage = () => {
                     Company not yet registered
                   </p>
                   <p className="mt-1 text-sm text-emerald-700">
-                    {formNotice ||
-                      "OTP verified. Complete the form below to create your company."}
+                    {formNotice || "OTP verified. Complete the form below to create your company."}
                   </p>
                 </div>
                 <Button
@@ -359,7 +345,8 @@ const CompanyOnboardingPage = () => {
                 submitLabel="Create Company"
                 clientDb={clientDatabase}
                 tempToken={tempToken}
-                onSuccess={() =>
+                onSuccess={() => {
+                  localStorage.setItem("companyRegistered", "true");
                   navigate("/", {
                     state: {
                       clientDb: clientDatabase,
@@ -368,8 +355,8 @@ const CompanyOnboardingPage = () => {
                       message:
                         "Company created successfully. Logging you in with default Admin credentials.",
                     },
-                  })
-                }
+                  });
+                }}
               />
             </div>
           )}

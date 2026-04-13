@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
-import { createBranch, fetchBranchNames, updateBranch } from "../services/branchApi";
+import { createBranch, deleteBranch, fetchBranchNames, updateBranch } from "../services/branchApi";
 import type { BranchPayload, BranchRecord } from "../types";
 
 export const useBranchManager = () => {
@@ -9,29 +9,26 @@ export const useBranchManager = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchRecord | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<BranchRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     const loadBranches = async () => {
       setLoading(true);
-
       try {
         const records = await fetchBranchNames();
         if (!active) return;
 
         setBranches((prev) => {
-          // Preserve full details (lines) for any branch already loaded this session
           const detailedRecords = new Map(
             prev.filter((item) => item.detailsLoaded).map((item) => [item.id, item])
           );
-
           return records.map((record) => {
-            const detailedRecord = detailedRecords.get(record.id);
-            return detailedRecord
-              ? { ...detailedRecord, branchName: record.branchName }
-              : record;
+            const detailed = detailedRecords.get(record.id);
+            return detailed ? { ...detailed, branchName: record.branchName } : record;
           });
         });
       } catch (error) {
@@ -44,10 +41,7 @@ export const useBranchManager = () => {
     };
 
     void loadBranches();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [showToast]);
 
   const handleSave = async (payload: BranchPayload) => {
@@ -62,16 +56,27 @@ export const useBranchManager = () => {
       setBranches((prev) => [...prev, createdRecord]);
       showToast("Branch created successfully", "success");
     }
-
     setOpen(false);
     setEditingBranch(null);
   };
 
+  const handleDelete = async () => {
+    if (!deleteCandidate) return;
+    try {
+      setDeleting(true);
+      await deleteBranch(deleteCandidate.id);
+      setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
+      showToast("Branch deleted successfully", "success");
+      setDeleteCandidate(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete branch";
+      showToast(message, "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleEdit = (record: BranchRecord) => {
-    // Open the branch for editing regardless of whether full details are loaded.
-    // If detailsLoaded is false (branch loaded from list-name only), the form
-    // opens with empty lines — the user can re-enter print details and save.
-    // Once saved, full details are cached in state for the rest of the session.
     setEditingBranch(record);
     setOpen(true);
   };
@@ -97,8 +102,12 @@ export const useBranchManager = () => {
     setSearch,
     open,
     editingBranch,
+    deleteCandidate,
+    setDeleteCandidate,
+    deleting,
     handleSave,
     handleEdit,
+    handleDelete,
     openCreateModal,
     closeModal,
     filteredBranches,
