@@ -1,16 +1,4 @@
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  session?: {
-    expiresAt?: string;
-  };
-  user?: {
-    userId: number;
-    userName: string;
-    isMaster: boolean;
-  };
-  tenantId?: string;
-}
+import type { LoginResponse } from "../types";
 
 export const loginApi = async (username: string, password: string, clientDb = "app_db") => {
   const res = await fetch(

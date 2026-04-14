@@ -1,5 +1,5 @@
 import { Button, Checkbox, FormInput, Modal } from "../../../../components/common";
-import type { BranchOption } from "../services/employeeService";
+import type { BranchOption } from "../types";
 
 interface EmployeeFormState {
   name: string;

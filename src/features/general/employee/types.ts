@@ -1,3 +1,4 @@
+// --- From employeeApiTypes.ts ---
 export interface CreateEmployeePayload {
   code: string;
   name: string;
@@ -38,3 +39,22 @@ export interface EmployeeListResponse {
   branch: string;
   isActive: string;
 }
+
+// --- From types.ts ---
+export interface EmployeeRecord {
+  id: number;
+  name: string;
+  code: string;
+  branch: string;
+  branchId?: number;
+  driver: boolean;
+  active: boolean;
+  isMaster: boolean;
+}
+
+export interface BranchOption {
+  branchId: number;
+  branchName: string;
+}
+
+

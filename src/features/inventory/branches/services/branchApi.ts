@@ -173,3 +173,10 @@ export const deleteBranch = async (branchId: number): Promise<void> => {
     throw new Error(await getErrorMessage(response, "Failed to delete branch"));
   }
 };
+
+export const branchApi = {
+  fetchBranchNames,
+  createBranch,
+  updateBranch,
+  deleteBranch,
+} as const;

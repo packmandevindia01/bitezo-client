@@ -4,7 +4,7 @@ import type {
   CreateSubCategoryPayload,
   SubCategoryListItem,
   UpdateSubCategoryPayload,
-} from "../types/subCategoryApiTypes";
+} from "../types";
 
 // ── GET List ─────────────────────────────────────────────────────────────────
 export const getSubCategories = async (
@@ -89,3 +89,11 @@ export const deleteSubCategory = async (id: number): Promise<ApiResponse<unknown
   const { data } = await axiosInstance.delete<ApiResponse<unknown>>(`/subcategory/${id}`);
   return data;
 };
+
+export const subCategoryService = {
+  getSubCategories,
+  getSubCategoryById,
+  createSubCategory,
+  updateSubCategory,
+  deleteSubCategory,
+} as const;

@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
-import type { CategoryListItem } from "../types/categoryApiTypes";
+import type { CategoryListItem } from "../types";
 
 interface Props {
   categories: CategoryListItem[];

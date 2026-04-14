@@ -45,7 +45,7 @@ const SelectInput = ({
           className="text-xs md:text-sm font-medium text-gray-700"
         >
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
         </label>
       )}
 
@@ -61,12 +61,11 @@ const SelectInput = ({
           w-full px-3 md:px-4 py-2
           text-sm md:text-base
           rounded-md border outline-none transition
-          bg-white
+          
+          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
+          ${disabled ? "bg-gray-100 cursor-not-allowed opacity-50" : ""}
 
-          ${error ? "border-red-500" : "border-gray-300"}
-          ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}
-
-          focus:ring-2 focus:ring-[#49293e] focus:border-[#49293e]
+          focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
         `}
       >
         {/* Placeholder */}
@@ -84,9 +83,10 @@ const SelectInput = ({
 
       {/* ERROR */}
       {error && (
-        <span className="text-xs text-red-500 mt-1">
-          {error}
-        </span>
+        <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-red-600 font-semibold animate-in fade-in slide-in-from-top-1">
+          <span className="shrink-0">⚠️</span>
+          <span>{error}</span>
+        </div>
       )}
 
     </div>

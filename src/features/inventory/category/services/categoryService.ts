@@ -6,7 +6,7 @@ import type {
   CategoryListItem,
   CreateCategoryPayload,
   UpdateCategoryPayload,
-} from "../types/categoryApiTypes";
+} from "../types";
 
 // ── Category endpoints ────────────────────────────────────────────────────────
 
@@ -96,3 +96,12 @@ export const getBranches = async (): Promise<BranchOption[]> => {
   const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list");
   return (data.data ?? []).map((b) => ({ id: Number(b.branchId), name: b.branchName }));
 };
+
+export const categoryService = {
+  getCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getBranches,
+} as const;

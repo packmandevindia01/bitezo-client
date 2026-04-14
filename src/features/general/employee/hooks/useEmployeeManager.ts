@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useToast } from "../../../../app/providers/useToast";
 import { emptyEmployeeForm } from "../constants";
-import type { EmployeeRecord } from "../types/types";
+import type { EmployeeRecord } from "../types";
 import {
   createEmployee,
   deleteEmployee,
@@ -24,6 +25,7 @@ export const useEmployeeManager = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   // ── Fetch list ──────────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
@@ -133,13 +135,12 @@ export const useEmployeeManager = () => {
       }
 
       await fetchEmployees();
+      showToast(editingId !== null ? "Employee updated successfully" : "Employee created successfully", "success");
       closeModal();
-    } catch {
-      setError(
-        editingId
-          ? "Failed to update employee. Please try again."
-          : "Failed to create employee. Please try again."
-      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : (editingId ? "Failed to update employee" : "Failed to create employee");
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -153,9 +154,12 @@ export const useEmployeeManager = () => {
       setError(null);
       await deleteEmployee(deleteCandidate.id);
       await fetchEmployees();
+      showToast("Employee deleted successfully", "success");
       setDeleteCandidate(null);
-    } catch {
-      setError("Failed to delete employee. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete employee";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setDeleting(false);
     }

@@ -1,6 +1,6 @@
 import { Building2, Loader2 } from "lucide-react";
 import { Button, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
-import type { BranchOption } from "../types/categoryApiTypes";
+import type { BranchOption } from "../types";
 
 interface CategoryFormState {
   code: string;

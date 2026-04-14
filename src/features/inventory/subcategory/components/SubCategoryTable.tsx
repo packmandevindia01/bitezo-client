@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
-import type { SubCategoryListItem } from "../types/subCategoryApiTypes";
+import type { SubCategoryListItem } from "../types";
 
 interface Props {
   subCategories: SubCategoryListItem[];

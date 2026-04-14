@@ -7,7 +7,8 @@ import {
   updateCategory,
   getCategoryById,
 } from "../services/categoryService";
-import type { BranchOption, CategoryListItem } from "../types/categoryApiTypes";
+import { useToast } from "../../../../app/providers/useToast";
+import type { BranchOption, CategoryListItem } from "../types";
 
 // ── Local form shape ──────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ export const useCategoryManager = () => {
   const [branchAllocOpen, setBranchAllocOpen] = useState(false);
   const [selectedBranchIds, setSelectedBranchIds] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
+  const { showToast } = useToast();
 
   // ── async flags ─────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
@@ -137,9 +139,12 @@ export const useCategoryManager = () => {
         });
       }
       await fetchCategories();
+      showToast(editingId ? "Category updated successfully" : "Category created successfully", "success");
       closeModal();
     } catch (err) {
-      setError("Failed to save category. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to save category";
+      setError(msg);
+      showToast(msg, "error");
       console.error(err);
     } finally {
       setSaving(false);
@@ -195,10 +200,13 @@ export const useCategoryManager = () => {
     try {
       await deleteCategory(deleteCandidate.id);
       await fetchCategories();
+      showToast("Category deleted successfully", "success");
       setDeleteCandidate(null);
       if (editingId === deleteCandidate.id) closeModal();
     } catch (err) {
-      setError("Failed to delete category. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to delete category";
+      setError(msg);
+      showToast(msg, "error");
       console.error(err);
     } finally {
       setDeleting(null);

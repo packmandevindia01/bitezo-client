@@ -7,7 +7,8 @@ import {
   getSubCategoryById,
   updateSubCategory,
 } from "../services/subCategoryService";
-import type { SubCategoryListItem } from "../types/subCategoryApiTypes";
+import { useToast } from "../../../../app/providers/useToast";
+import type { SubCategoryListItem } from "../types";
 
 export interface SubCategoryFormState {
   code: string;
@@ -35,6 +36,7 @@ export const useSubCategoryManager = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const { showToast } = useToast();
 
   // Async flags
   const [loading, setLoading] = useState(false);
@@ -124,9 +126,12 @@ export const useSubCategoryManager = () => {
         });
       }
       await fetchInitData();
+      showToast(editingId ? "Sub Category updated successfully" : "Sub Category created successfully", "success");
       closeModal();
     } catch (err) {
-      setError("Failed to save Sub Category. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to save Sub Category";
+      setError(msg);
+      showToast(msg, "error");
       console.error(err);
     } finally {
       setSaving(false);
@@ -192,10 +197,13 @@ export const useSubCategoryManager = () => {
     try {
       await deleteSubCategory(deleteCandidate.id);
       await fetchInitData();
+      showToast("Sub Category deleted successfully", "success");
       setDeleteCandidate(null);
       if (editingId === deleteCandidate.id) closeModal();
     } catch (err) {
-      setError("Failed to delete. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to delete sub category";
+      setError(msg);
+      showToast(msg, "error");
       console.error(err);
     } finally {
       setDeleting(null);

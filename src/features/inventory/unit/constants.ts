@@ -1,37 +1,15 @@
-import type { UnitForm, UnitRecord } from "./types";
+import type { UnitFormState } from "./types";
 
 export const unitCategoryOptions = [
-  { label: "Inventory", value: "Inventory" },
-  { label: "Sales", value: "Sales" },
-  { label: "Purchase", value: "Purchase" },
+  { label: "Quantity", value: "Quantity" },
+  { label: "Weight", value: "Weight" },
+  { label: "Volume", value: "Volume" },
 ];
 
-export const initialParentUnitOptions = [
-  { label: "Piece", value: "Piece" },
-  { label: "Box", value: "Box" },
-  { label: "Packet", value: "Packet" },
-];
-
-export const emptyUnitForm: UnitForm = {
-  category: "",
+export const emptyUnitForm: UnitFormState = {
   name: "",
-  parentUnit: "",
-  conversion: "",
+  category: "Quantity",
+  conversion: 1,
+  currentValue: 0,
+  parentId: 0,
 };
-
-export const initialUnits: UnitRecord[] = [
-  {
-    id: 1,
-    category: "Inventory",
-    name: "Carton",
-    parentUnit: "Box",
-    conversion: "12",
-  },
-  {
-    id: 2,
-    category: "Sales",
-    name: "Bundle",
-    parentUnit: "Piece",
-    conversion: "6",
-  },
-];

@@ -1,3 +1,4 @@
+// --- From categoryApiTypes.ts ---
 // ── Branch ────────────────────────────────────────────────────────────────────
 
 export interface BranchOption {
@@ -59,3 +60,14 @@ export interface UpdateCategoryPayload {
   updatedAt?: string;
   branchIds: number[];
 }
+
+// --- From types.ts ---
+export interface CategoryRecord {
+  id: number;
+  code: string;
+  name: string;
+  image?: string;
+  branches: string[];
+}
+
+

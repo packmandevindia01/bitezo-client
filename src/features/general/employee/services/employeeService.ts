@@ -4,12 +4,10 @@ import type {
   EmployeeDetailResponse,
   EmployeeListResponse,
   UpdateEmployeePayload,
-} from "../types/employeeApiTypes";
+  BranchOption,
+} from "../types";
 
-export interface BranchOption {
-  branchId: number;
-  branchName: string;
-}
+export type { BranchOption };
 
 // ── List ──────────────────────────────────────────────────────────────────────
 export const getEmployees = async (): Promise<EmployeeListResponse[]> => {
@@ -51,3 +49,12 @@ export const getBranches = async (): Promise<BranchOption[]> => {
   const res = await axiosInstance.get("/Branch/list-name");
   return res.data?.data ?? [];
 };
+
+export const employeeService = {
+  getEmployees,
+  getEmployeeById,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+  getBranches,
+} as const;
