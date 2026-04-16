@@ -1,178 +1,80 @@
-# React + TypeScript + Vite
+# Bitezo Admin Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Bitezo Admin is a modern, high-performance Point of Sale (POS) and Enterprise Dashboard application built to manage company onboarding, complex inventory matrices, employee routing, and daily analytics.
 
-Currently, two official plugins are available:
+## 🚀 Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework:** [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
+- **State Management:** [Redux Toolkit (RTK)](https://redux-toolkit.js.org/)
+- **Routing:** [React Router v7](https://reactrouter.com/)
+- **Icons:** [Lucide React](https://lucide.dev/)
 
-## React Compiler
+## ✨ Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Authentication & Onboarding:** Secure JWT-based login flows with device-based guards (`RegistrationGuard`) connecting multi-tenant databases.
+- **Inventory & Product Master:** Advanced Excel-style data grids to manage generic products and their barcode-specific branch variations (Alternatives).
+- **Global Master Data Caching:** High-speed Redux architecture that caches foundational options (Categories, Subcategories, Units, VAT) for 0ms form rendering latencies.
+- **Internationalization Ready:** Built-in multi-lingual column support (e.g., Native Arabic text mapping via RTL inputs).
+- **Responsive Layout:** Dynamic UI optimized across devices using a customized Tailwind design system.
 
-## Expanding the ESLint configuration
+## 📁 Project Architecture
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The architecture follows a strict **Feature-Sliced Design**. Code is decoupled into specific domains rather than grouping by file type.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-
+```text
 src/
-├── assets/
-│   ├── hero.png
-│   ├── react.svg
-│   └── vite.svg
-├── components/
-│   ├── common/
-│   │   ├── Button.tsx
-│   │   ├── Checkbox.tsx
-│   │   ├── EmptyState.tsx
-│   │   ├── FormInput.tsx
-│   │   ├── index.ts
-│   │   ├── Loader.tsx
-│   │   ├── Modal.tsx
-│   │   ├── Pagination.tsx
-│   │   ├── SearchBar.tsx
-│   │   ├── SelectInput.tsx
-│   │   ├── StatusBadge.tsx
-│   │   └── Table.tsx
-│   └── layout/
-│       ├── MainLayout.tsx
-│       ├── Navbar.tsx
-│       ├── Sidebar.tsx
-│       ├── SidebarDropdown.tsx
-│       ├── SidebarItem.tsx
-│       └── Topbar.tsx
-├── context/
-│   └── ToastContext.tsx
-├── features/
-│   ├── auth/
-│   │   ├── components/
-│   │   │   ├── EmailForm.tsx
-│   │   │   ├── LoginForm.tsx
-│   │   │   ├── OtpForm.tsx
-│   │   │   ├── OtpInput.tsx
-│   │   │   └── ResetPasswordForm.tsx
-│   │   ├── hooks/
-│   │   │   └── useAuth.ts
-│   │   ├── pages/
-│   │   │   ├── ForgotPasswordPage.tsx
-│   │   │   ├── LoginPage.tsx
-│   │   │   ├── ResetPasswordPage.tsx
-│   │   │   └── VerifyOtpPage.tsx
-│   │   ├── services/
-│   │   │   └── authApi.ts
-│   │   ├── constants.ts
-│   │   └── types.ts
-│   ├── branches/
-│   │   ├── components/
-│   │   │   ├── BranchBasicInfo.tsx
-│   │   │   ├── BranchForm.tsx
-│   │   │   ├── FontModal.tsx
-│   │   │   ├── PrintSection.tsx
-│   │   │   ├── ReceiptPreview.tsx
-│   │   │   └── SortableRow.tsx
-│   │   ├── hooks/
-│   │   │   ├── useBranchLines.ts
-│   │   │   └── useDragAndDrop.ts
-│   │   ├── pages/
-│   │   │   └── BranchCreationPage.tsx
-│   │   ├── utils/
-│   │   │   └── lineHelpers.ts
-│   │   └── types.ts
-│   ├── company/
-│   │   ├── components/
-│   │   │   └── CompanyForm.tsx
-│   │   ├── pages/
-│   │   │   └── CompanyRegistrationPage.tsx
-│   │   ├── services/
-│   │   │   └── companyApi.ts
-│   │   ├── utils/
-│   │   │   ├── countryMapper.ts
-│   │   │   └── formatters.ts
-│   │   └── types.ts
-│   ├── dashboard/
-│   │   ├── components/
-│   │   │   ├── PurchaseChart.tsx
-│   │   │   ├── SalesChart.tsx
-│   │   │   └── StatCard.tsx
-│   │   ├── pages/
-│   │   │   └── DashboardPage.tsx
-│   │   └── types.ts
-│   └── user/
-│       ├── components/
-│       │   ├── UserForm.tsx
-│       │   └── UserTable.tsx
-│       ├── pages/
-│       │   ├── UserCreationPage.tsx
-│       │   └── UserList.tsx
-│       ├── servies/
-│       └── types.ts
-├── pages/
-├── routes/
-│   ├── Approutes.tsx
-│   └── ProtectedRoute.tsx
-├── utils/
-│   └── validators.ts
-├── App.css
-├── App.tsx
-├── hooks.ts
-├── index.css
-├── main.tsx
-└── store.ts
+├── api/                  # Global Axios instances and interceptors
+├── app/                  # App-wide providers, Redux `store`, `hooks`, and Route guards
+├── components/           # Generic UI components (Buttons, Modals, Forms, Tables)
+├── features/             # Domain-specific logic 
+│   ├── auth/             # Login, OTP, Password Reset, Auth Slice
+│   ├── branches/         # Branch creation and localized management
+│   ├── company/          # Initial tenant setup and configuration
+│   ├── dashboard/        # Analytics, Sales Charts, and KPI cards
+│   ├── employee/         # Staff CRUD operations
+│   └── inventory/        # Products, Categories, Units, Taxes (VAT)
+└── utils/                # Global helpers, formatters, and validators
+```
+
+## 🧠 State Management (Redux)
+
+This application uses Redux Toolkit to manage complex global states without prop-drilling:
+1. **`authSlice`**: Tracks the user's cross-tenant login credentials (`accessToken`, `isMaster`, `tenantId`) and company settings (e.g., currency `decimals`).
+2. **`masterDataSlice`**: Employs `createAsyncThunk` to fetch inventory metadata *once* per session, allowing all deep feature forms to populate dropdowns instantly without duplicating network requests.
+
+## 🛠️ Getting Started
+
+### Prerequisites
+Make sure you have Node.js installed (v18+ recommended).
+
+### Installation
+
+1. Clone the repository and navigate to the project root.
+2. Install the core dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the Application
+
+To start the Vite development server:
+```bash
+npm run dev
+```
+The application will boot up at `http://localhost:5173`.
+
+### Build & Lint
+To build for production (outputs to `dist/`):
+```bash
+npm run build
+```
+
+To run ESLint and check for static typing errors:
+```bash
+npm run lint
+```
+
+## 🔒 Environment Variables
+Ensure you have the appropriate API target environments hooked up in your Vite proxy or `.env` files to connect to the Bitezo backend servers successfully.

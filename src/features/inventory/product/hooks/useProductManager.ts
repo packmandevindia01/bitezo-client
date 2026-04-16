@@ -1,184 +1,431 @@
-import { useMemo, useState } from "react";
-import { emptyAlternative, emptyProductForm, initialProducts } from "../constants";
-import type { ProductAlternative, ProductForm, ProductRecord } from "../types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { productService } from "../services/productService";
+import { subCategoryService } from "../../subcategory/services/subCategoryService";
+import * as branchApi from "../../branches/services/branchApi";
+import { useToast } from "../../../../app/providers/useToast";
+import type {
+  AltProductDraft,
+  AltProductItem,
+  MasterItem,
+  ProductFormState,
+  ProductListItem,
+  ProductMasterData,
+} from "../types";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 
-const normalizeProductForm = (form: ProductForm): ProductForm => ({
-  productName: form.productName.trim(),
-  arabicName: form.arabicName.trim(),
-  productCode: form.productCode.trim(),
-  category: form.category.trim(),
-  subCategory: form.subCategory.trim(),
-  type: form.type.trim(),
-  unit: form.unit.trim(),
-  pVat: form.pVat.trim(),
-  sVat: form.sVat.trim(),
-  cost: form.cost.trim(),
-  branch: form.branch.trim(),
-  note: form.note.trim(),
-  isActive: form.isActive,
-});
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const emptyForm: ProductFormState = {
+  code: "",
+  name: "",
+  arabicName: "",
+  categoryId: "",
+  subCatId: "",
+  groupId: "",
+  typeId: "1",
+  unitId: "",
+  pVatId: "",
+  sVatId: "",
+  cost: "0",
+  branchId: "",
+  isActive: true,
+};
+
+const emptyAltDraft: Omit<AltProductDraft, "id"> = {
+  unitId: 0,
+  barcode: "",
+  isIncl: true,
+  price: "0",
+  altName: "",
+  altArabic: "",
+  branchId: 0,
+};
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export const useProductManager = () => {
-  const [products, setProducts] = useState<ProductRecord[]>(initialProducts);
-  const [form, setForm] = useState<ProductForm>(emptyProductForm);
-  const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | undefined>(undefined);
-  const [alternatives, setAlternatives] = useState<ProductAlternative[]>([]);
-  const [alternativeDraft, setAlternativeDraft] = useState<Omit<ProductAlternative, "id">>(
-    emptyAlternative
-  );
+  const { showToast } = useToast();
 
-  const setField = <K extends keyof ProductForm>(key: K, value: ProductForm[K]) => {
+  // ── List ────────────────────────────────────────────────────────────────────
+  const [products, setProducts] = useState<ProductListItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+
+  // ── Master data (Redux) ───────────────────────────────────────────────────
+  const { data: masterData, branches, loading: masterLoading } = useAppSelector((state) => state.masterData);
+  const dispatch = useAppDispatch();
+  const [subCategories, setSubCategories] = useState<MasterItem[]>([]);
+  const [loadingSubs, setLoadingSubs] = useState(false);
+
+  // ── Search ──────────────────────────────────────────────────────────────────
+  const [search, setSearch] = useState("");
+
+  // ── Form ────────────────────────────────────────────────────────────────────
+  const [form, setForm] = useState<ProductFormState>(emptyForm);
+  const [alternatives, setAlternatives] = useState<AltProductDraft[]>([]);
+  const [altDraft, setAltDraft] = useState<Omit<AltProductDraft, "id">>(emptyAltDraft);
+
+  // ── UI state ────────────────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | undefined>(undefined);
+
+  // ── Confirm delete ──────────────────────────────────────────────────────────
+  const [pendingDelete, setPendingDelete] = useState<ProductListItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // ─── Fetch product list ───────────────────────────────────────────────────
+
+  const fetchProducts = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
+    try {
+      const data = await productService.list();
+      setProducts(data);
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Failed to load products.");
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!masterData || branches.length === 0) {
+      dispatch(fetchGlobalMasterData());
+    }
+    fetchProducts();
+  }, [fetchProducts, dispatch, masterData, branches.length]);
+
+  // ─── Category → SubCategory sync ─────────────────────────────────────────
+
+  useEffect(() => {
+    const catId = parseInt(form.categoryId);
+    if (!catId) {
+      setSubCategories([]);
+      return;
+    }
+
+    setLoadingSubs(true);
+    subCategoryService
+      .getSubCategories(undefined, undefined, catId)
+      .then((subs) => setSubCategories(subs.map((s) => ({ id: s.id, name: s.name }))))
+      .catch(() => showToast("Failed to load sub categories.", "error"))
+      .finally(() => setLoadingSubs(false));
+  }, [form.categoryId, showToast]);
+
+  // ─── Form helpers ─────────────────────────────────────────────────────────
+
+  const setField = <K extends keyof ProductFormState>(key: K, value: ProductFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const setAlternativeField = <K extends keyof Omit<ProductAlternative, "id">>(
+  const setAlternativeField = <K extends keyof Omit<AltProductDraft, "id">>(
     key: K,
-    value: Omit<ProductAlternative, "id">[K]
+    value: Omit<AltProductDraft, "id">[K]
   ) => {
-    setAlternativeDraft((prev) => ({ ...prev, [key]: value }));
+    setAltDraft((prev) => ({ ...prev, [key]: value }));
   };
 
   const resetForm = () => {
-    setForm(emptyProductForm);
+    setForm(emptyForm);
+    setAlternatives([]);
+    setAltDraft(emptyAltDraft);
     setEditingId(null);
     setImagePreview(undefined);
-    setAlternatives([]);
-    setAlternativeDraft(emptyAlternative);
-  };
-
-  const closeModal = () => {
-    setOpen(false);
-    resetForm();
   };
 
   const openCreateModal = () => {
     resetForm();
-    setOpen(true);
   };
 
+  const closeModal = () => {
+    resetForm();
+  };
+
+  // ─── Alternatives ─────────────────────────────────────────────────────────
+
   const addAlternative = () => {
-    if (!alternativeDraft.branch || !alternativeDraft.altName) {
+    if (!altDraft.branchId || !altDraft.altName) {
+      showToast("Please provide Branch and Alternative Name.", "warning");
       return;
     }
-
-    setAlternatives((prev) => [...prev, { id: Date.now(), ...alternativeDraft }]);
-    setAlternativeDraft(emptyAlternative);
+    setAlternatives((prev) => [...prev, { ...altDraft, id: Date.now() }]);
+    setAltDraft(emptyAltDraft);
   };
 
   const removeAlternative = (id: number) => {
     setAlternatives((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleSave = () => {
-    if (!form.productName || !form.productCode || !form.category || !form.branch) {
+  const handleEditById = async (id: number) => {
+    resetForm();
+    setEditingId(id);
+    setDetailLoading(true);
+    try {
+      const detail = await productService.getById(id);
+      // API returns product as an array — take the first element
+      const productArr = Array.isArray(detail.product) ? detail.product : detail.product ? [detail.product] : [];
+      const p = productArr[0];
+      if (p) {
+        setForm({
+          code: p.code ?? "",
+          name: p.name ?? "",
+          arabicName: p.arabicName ?? "",
+          categoryId: String(p.categoryId ?? ""),
+          // API field is "subcatId" (lowercase c)
+          subCatId: String(p.subcatId ?? ""),
+          groupId: String(p.groupId ?? ""),
+          typeId: String(p.typeId ?? "1"),
+          unitId: String(p.unitId ?? ""),
+          // API field is "pvatId" / "svatId" (lowercase v)
+          pVatId: String(p.pvatId ?? ""),
+          sVatId: String(p.svatId ?? ""),
+          cost: String(p.cost ?? "0"),
+          branchId: String(p.branchId ?? ""),
+          isActive: p.isActive ?? true,
+          fileName: p.fileName ?? "",
+          filePath: p.filePath ?? "",
+        });
+      }
+      if (detail.altproduct) {
+        setAlternatives(
+          detail.altproduct.map((alt, idx) => ({
+            ...alt,
+            id: (alt as any).id || Date.now() + idx,
+            branchId: alt.branchId ?? 0,
+            barcode: alt.barcode ?? "",
+            unitId: alt.unitId ?? 0,
+            price: String(alt.price ?? "0"),
+            altName: alt.altName ?? "",
+            altArabic: alt.altArabic ?? "",
+          }))
+        );
+      } else {
+        setAlternatives([]);
+      }
+    } catch (err: any) {
+      if (err.apiStatus === 409) {
+        showToast("Conflict: A product with this code or barcode already exists.", "error");
+      } else {
+        showToast("Failed to load product details.", "error");
+      }
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleEdit = (record: ProductListItem) => {
+    handleEditById(record.productId);
+  };
+
+  const handleSave = async (onSuccess?: () => void) => {
+    if (!form.name || !form.code || !form.categoryId || !form.unitId || !form.pVatId || !form.sVatId) {
+      showToast("Please fill in required fields including VAT rules.", "warning");
       return;
     }
 
-    const payload = normalizeProductForm(form);
+    const barcodes = alternatives.map(a => a.barcode).filter(b => b.trim() !== "");
+    const uniqueBarcodes = new Set(barcodes);
+    if (barcodes.length !== uniqueBarcodes.size) {
+      showToast("Duplicate barcodes found in alternative products. Each barcode must be unique.", "error");
+      return;
+    }
 
-    if (editingId) {
-      setProducts((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? { ...item, ...payload, alternatives, image: imagePreview }
-            : item
-        )
-      );
-    } else {
-      setProducts((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
+    setSaving(true);
+    try {
+      const altProducts: AltProductItem[] = alternatives.map(({ id: _id, price, ...rest }) => ({
+        ...rest,
+        price: parseFloat(price) || 0,
+      }));
+
+      const payload = {
+        code: form.code,
+        name: form.name,
+        arabicName: form.arabicName,
+        categoryId: parseInt(form.categoryId),
+        subCatId: parseInt(form.subCatId) || 0,
+        groupId: parseInt(form.groupId) || 0,
+        typeId: parseInt(form.typeId) || 1,
+        unitId: parseInt(form.unitId),
+        pVatId: parseInt(form.pVatId) || 0,
+        sVatId: parseInt(form.sVatId) || 0,
+        cost: parseFloat(form.cost) || 0,
+        branchId: parseInt(form.branchId) || 0,
+        fileName: form.fileName ?? "",
+        filePath: form.filePath ?? "",
+        isActive: form.isActive,
+        altProducts,
+      };
+
+      if (editingId) {
+        await productService.update(editingId, {
           ...payload,
-          alternatives,
-          image: imagePreview,
-        },
-      ]);
-    }
+          productId: editingId,
+          updatedAt: new Date().toISOString(),
+        });
+        showToast("Product updated successfully.", "success");
+      } else {
+        await productService.create({
+          ...payload,
+          createdAt: new Date().toISOString(),
+        });
+        showToast("Product created successfully.", "success");
+      }
 
-    closeModal();
-  };
-
-  const handleEdit = (record: ProductRecord) => {
-    setEditingId(record.id);
-    setForm({
-      productName: record.productName,
-      arabicName: record.arabicName,
-      productCode: record.productCode,
-      category: record.category,
-      subCategory: record.subCategory,
-      type: record.type,
-      unit: record.unit,
-      pVat: record.pVat,
-      sVat: record.sVat,
-      cost: record.cost,
-      branch: record.branch,
-      note: record.note,
-      isActive: record.isActive,
-    });
-    setAlternatives(record.alternatives);
-    setImagePreview(record.image);
-    setOpen(true);
-  };
-
-  const handleDelete = (record: ProductRecord) => {
-    setProducts((prev) => prev.filter((item) => item.id !== record.id));
-
-    if (editingId === record.id) {
-      resetForm();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        resetForm();
+      }
+      fetchProducts();
+    } catch (err: any) {
+      const msg = err.message || "Failed to save product.";
+      if (err.apiStatus === 409) {
+        showToast("Duplicate Value Error: This Code or Barcode is already in use.", "error");
+      } else {
+        showToast(msg, "error");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDeactivate = () => {
-    if (!editingId) {
-      return;
-    }
+  // ─── Delete (two-step confirm) ────────────────────────────────────────────
 
-    setProducts((prev) =>
-      prev.map((item) => (item.id === editingId ? { ...item, isActive: false } : item))
-    );
-    setForm((prev) => ({ ...prev, isActive: false }));
+  /** Step 1: Trash icon click → open confirm dialog */
+  const requestDelete = (record: ProductListItem) => {
+    setPendingDelete(record);
   };
+
+  /** Step 2a: User cancels */
+  const cancelDelete = () => {
+    setPendingDelete(null);
+  };
+
+  /** Step 2b: User confirms → call API */
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+
+    setDeleting(true);
+    try {
+      await productService.remove(pendingDelete.productId);
+      showToast("Product deleted successfully.", "success");
+      setPendingDelete(null);
+      fetchProducts();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete product.";
+      showToast(msg, "error");
+      // Keep dialog open so user sees the error via toast; close anyway
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ─── Deactivate ───────────────────────────────────────────────────────────
+
+  const handleDeactivate = async () => {
+    if (!editingId) return;
+    try {
+      const detail = await productService.getById(editingId);
+      const productArr = Array.isArray(detail.product) ? detail.product : detail.product ? [detail.product] : [];
+      const p = productArr[0];
+      if (p) {
+        await productService.update(editingId, {
+          productId: p.id,
+          code: p.code,
+          name: p.name,
+          arabicName: p.arabicName ?? "",
+          categoryId: p.categoryId,
+          subCatId: p.subcatId,
+          groupId: p.groupId,
+          typeId: p.typeId,
+          unitId: p.unitId,
+          pVatId: p.pvatId,
+          sVatId: p.svatId,
+          cost: p.cost,
+          branchId: p.branchId,
+          fileName: p.fileName,
+          filePath: p.filePath,
+          isActive: false,
+          updatedAt: new Date().toISOString(),
+          altProducts: (detail.altproduct ?? []).map(alt => ({
+            ...alt,
+            price: alt.price ?? 0,
+            isIncl: alt.isIncl ?? true
+          }))
+        });
+        showToast("Product deactivated.", "success");
+        setForm((prev) => ({ ...prev, isActive: false }));
+        fetchProducts();
+      }
+    } catch (err: any) {
+      showToast("Deactivation failed: " + (err.message || "Unknown error"), "error");
+    }
+  };
+
+  // ─── Image ────────────────────────────────────────────────────────────────
 
   const handleImageSelect = (file: File | null) => {
     if (!file) {
       setImagePreview(undefined);
+      setForm((prev) => ({ ...prev, fileName: "", filePath: "" }));
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       setImagePreview(typeof reader.result === "string" ? reader.result : undefined);
     };
     reader.readAsDataURL(file);
+    setForm((prev) => ({ ...prev, fileName: file.name, filePath: "uploads/" + file.name }));
   };
+
+  // ─── Search filter ────────────────────────────────────────────────────────
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return products;
-
-    return products.filter((item) =>
-      [item.productName, item.productCode, item.category, item.subCategory, item.branch].some(
-        (value) => value.toLowerCase().includes(query)
+    return products.filter((p) =>
+      [p.name, p.code, p.category, p.group].some((v) =>
+        v?.toLowerCase().includes(query)
       )
     );
   }, [products, search]);
 
+  // ─── Public API ───────────────────────────────────────────────────────────
+
   return {
     form,
-    open,
     search,
     editingId,
-    alternativeDraft,
+    alternativeDraft: altDraft,
     alternatives,
     imagePreview,
     filteredProducts,
+
+    // UI state
+    saving,
+    detailLoading,
+    listLoading,
+    listError,
+
+    // Master data
+    masterData,
+    branches,
+    subCategories,
+    loadingSubs,
+
+    // Delete confirm
+    pendingDelete,
+    deleting,
+
+    // Actions
     setSearch,
     setField,
     setAlternativeField,
+    setAlternatives,
     resetForm,
     closeModal,
     openCreateModal,
@@ -186,8 +433,12 @@ export const useProductManager = () => {
     removeAlternative,
     handleSave,
     handleEdit,
-    handleDelete,
+    handleEditById,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
     handleDeactivate,
     handleImageSelect,
-  };
+    fetchProducts,
+  } as const;
 };

@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Loader } from "../../components/common";
+import { useAppDispatch } from "../hooks";
+import { logout } from "../../features/auth/store/authSlice";
 
-const AUTH_BASE = "http://84.255.173.131:8068";
-
-const PUBLIC_ROUTES = [
+/**
+ * Routes that are always accessible regardless of onboarding state.
+ * The onboarding page itself is always reachable.
+ */
+const SKIP_CHECK_ROUTES = [
   "/company/onboarding",
   "/forgot-password",
   "/verify-otp",
@@ -12,35 +16,19 @@ const PUBLIC_ROUTES = [
 ];
 
 /**
- * Calls the send-otp endpoint with a dummy check just to see if the
- * server is reachable and the app_db exists. Instead we use masterload
- * which is a public endpoint that returns data only if the system is set up.
+ * RegistrationGuard — controls first-time device onboarding.
+ *
+ * Flow:
+ *  1. New device (no localStorage flag)
+ *       → Redirect to /company/onboarding
+ *       → Onboarding handles: OTP → check company → create if needed → Login
+ *
+ *  2. Device that has completed onboarding before (flag set in localStorage)
+ *       → Allow through to Login (or Dashboard if already logged in)
+ *
+ * The guard does NOT call any API — the masterload check is handled
+ * inside CompanyOnboardingPage during the OTP verification flow.
  */
-const checkCompanyRegistered = async (): Promise<boolean> => {
-  try {
-    const res = await fetch(`${AUTH_BASE}/api/company/masterload`, {
-      method: "GET",
-      headers: { accept: "*/*" },
-    });
-
-    if (!res.ok) return false;
-
-    const json = await res.json();
-
-    // masterload returns { data: { currencies: [...], countries: [...] } }
-    // If currencies or countries exist, the system/company is set up
-    const data = json?.data;
-    if (!data) return false;
-
-    const hasCurrencies = Array.isArray(data.currencies) && data.currencies.length > 0;
-    const hasCountries = Array.isArray(data.countries) && data.countries.length > 0;
-
-    return hasCurrencies || hasCountries;
-  } catch {
-    // Network error — assume registered to avoid blocking the app
-    return true;
-  }
-};
 
 interface Props {
   children: React.ReactNode;
@@ -49,48 +37,51 @@ interface Props {
 const RegistrationGuard = ({ children }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useAppDispatch();
   const [checking, setChecking] = useState(true);
 
+  // ── Global 401 Interceptor Listener ───────────────────────────────────────
   useEffect(() => {
-    // Skip check on public routes
-    if (PUBLIC_ROUTES.includes(location.pathname)) {
+    const handleUnauthorized = () => {
+      dispatch(logout());
+      navigate("/", { replace: true });
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, [dispatch, navigate]);
+
+  useEffect(() => {
+    // These routes bypass the guard entirely
+    if (SKIP_CHECK_ROUTES.includes(location.pathname)) {
       setChecking(false);
       return;
     }
 
-    const run = async () => {
-      // Fast path 1: user has an active session → definitely registered
-      const hasToken = !!localStorage.getItem("accessToken");
-      if (hasToken) {
+    // Fast path 1: active session → already logged in, definitely allow through
+    const hasToken = !!localStorage.getItem("accessToken");
+    if (hasToken) {
+      if (localStorage.getItem("companyRegistered") !== "true") {
         localStorage.setItem("companyRegistered", "true");
-        setChecking(false);
-        return;
       }
+      setChecking(false);
+      return;
+    }
 
-      // Fast path 2: already confirmed registered this browser
-      const alreadyRegistered = localStorage.getItem("companyRegistered") === "true";
-      if (alreadyRegistered) {
-        setChecking(false);
-        return;
-      }
+    // Fast path 2: onboarding completed on this device before → go to login
+    const onboardingDone = localStorage.getItem("companyRegistered") === "true";
+    if (onboardingDone) {
+      setChecking(false);
+      return;
+    }
 
-      // Slow path: ask the API
-      const registered = await checkCompanyRegistered();
-
-      if (registered) {
-        localStorage.setItem("companyRegistered", "true");
-        setChecking(false);
-      } else {
-        navigate("/company/onboarding", { replace: true });
-        setChecking(false);
-      }
-    };
-
-    void run();
+    // New device — send to onboarding (no API call needed here)
+    navigate("/company/onboarding", { replace: true });
+    setChecking(false);
   }, [location.pathname, navigate]);
 
   if (checking) {
-    return <Loader fullScreen text="Checking registration..." />;
+    return <Loader fullScreen text="Loading..." />;
   }
 
   return <>{children}</>;

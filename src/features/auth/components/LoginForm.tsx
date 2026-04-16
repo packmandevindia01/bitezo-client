@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FormInput, Button } from "../../../components/common";
 import { loginApi } from "../services/authApi";
 import { useToast } from "../../../app/providers/useToast";
+import { useAppDispatch } from "../../../app/hooks";
+import { setCredentials } from "../store/authSlice";
 
 interface LocationState {
   username?: string;
@@ -15,6 +17,7 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
+  const dispatch = useAppDispatch();
 
   const state = (location.state ?? {}) as LocationState;
 
@@ -54,6 +57,20 @@ const LoginForm = () => {
         if (data.session?.expiresAt) {
           localStorage.setItem("sessionExpiresAt", data.session.expiresAt);
         }
+
+        dispatch(
+          setCredentials({
+            tenantId: data.tenantId ?? clientDb,
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            userId: data.user.userId,
+            userName: data.user.userName,
+            isMaster: Boolean(data.user.isMaster),
+          })
+        );
+
+        // Mark device as registered so refresh doesn't trigger onboarding
+        localStorage.setItem("companyRegistered", "true");
 
         showToast("Login successful", "success");
         navigate("/dashboard");

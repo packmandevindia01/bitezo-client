@@ -16,7 +16,7 @@ const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
   expireAt: initialData?.expireAt ? new Date(initialData.expireAt).toISOString().split("T")[0] : "",
 });
 
-const TaxForm = ({ initialData, saving = false, error, onSubmit, onCancel }: Props) => {
+const TaxForm = ({ initialData, saving = false, error, onSubmit }: Props) => {
   const [form, setForm] = useState<TaxFormState>(() => createInitialForm(initialData));
 
   const handleChange = (key: keyof TaxFormState, value: string) => {

@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  loading?: boolean;
 }
 
 const ConfirmDialog = ({
@@ -19,6 +20,7 @@ const ConfirmDialog = ({
   cancelLabel = "Cancel",
   onConfirm,
   onCancel,
+  loading = false,
 }: ConfirmDialogProps) => {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title={title}>
@@ -26,11 +28,11 @@ const ConfirmDialog = ({
         <p className="text-gray-700">{message}</p>
 
         <div className="flex justify-center gap-3">
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button variant="danger" onClick={onConfirm}>
-            {confirmLabel}
+          <Button variant="danger" onClick={onConfirm} disabled={loading}>
+            {loading ? "Deleting..." : confirmLabel}
           </Button>
         </div>
       </div>

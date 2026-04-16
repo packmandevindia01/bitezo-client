@@ -119,6 +119,8 @@ const CompanyOnboardingPage = () => {
           : companyCheck.message || "Company already registered. Redirecting to login…",
         "success"
       );
+      // Mark this device as onboarded so future visits skip onboarding
+      localStorage.setItem("companyRegistered", "true");
       setTimeout(() => navigate("/"), 1500);
       return;
     }

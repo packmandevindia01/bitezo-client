@@ -21,7 +21,8 @@ const SubCategoryPage = lazy(() => import("../../features/inventory/subcategory/
 const GroupPage = lazy(() => import("../../features/inventory/group/pages/GroupPage"));
 const UnitPage = lazy(() => import("../../features/inventory/unit/pages/UnitPage"));
 const ModifierPage = lazy(() => import("../../features/inventory/modifier/pages/ModifierPage"));
-const ProductPage = lazy(() => import("../../features/inventory/product/pages/ProductPage"));
+const ProductListPage = lazy(() => import("../../features/inventory/product/pages/ProductListPage"));
+const ProductFormPage = lazy(() => import("../../features/inventory/product/pages/ProductFormPage"));
 const VoucherSeriesPage = lazy(() => import("../../features/inventory/voucherSeries/pages/VoucherSeriesPage"));
 const ExtrasMasterPage = lazy(() => import("../../features/inventory/extrasMaster/pages/ExtrasMasterPage"));
 const ExtrasTypePage = lazy(() => import("../../features/inventory/extrasType/pages/ExtrasTypePage"));
@@ -66,7 +67,9 @@ const AppRoutes = () => {
                 <Route path="groups" element={<GroupPage />} />
                 <Route path="units" element={<UnitPage />} />
                 <Route path="modifiers" element={<ModifierPage />} />
-                <Route path="products" element={<ProductPage />} />
+                <Route path="products" element={<ProductListPage />} />
+                <Route path="products/add" element={<ProductFormPage />} />
+                <Route path="products/edit/:id" element={<ProductFormPage />} />
                 <Route path="voucher-series" element={<VoucherSeriesPage />} />
                 <Route path="extras-master" element={<ExtrasMasterPage />} />
                 <Route path="extras-type" element={<ExtrasTypePage />} />
