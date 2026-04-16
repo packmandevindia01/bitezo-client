@@ -21,6 +21,7 @@ import {
   ListTree,
   X,
   MonitorCog,
+  Percent,
 } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";
@@ -160,6 +161,19 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
               <div className="flex items-center gap-2">
                 <MonitorCog size={14} />
                 <span>POS Terminal</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/taxes");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <Percent size={14} />
+                <span>Tax Master</span>
               </div>
             </div>
           </SidebarDropdown>

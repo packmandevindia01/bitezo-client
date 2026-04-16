@@ -32,6 +32,7 @@ const SectionPage = lazy(() => import("../../features/general/section/pages/Sect
 const TableMasterPage = lazy(() => import("../../features/general/tableMaster/pages/TableMasterPage"));
 const PosTerminalPage = lazy(() => import("../../features/pos/pages/PosTerminalPage"));
 const EditableGridView = lazy(() => import("../../features/experimental/editable-grid/pages/EditableGridView"));
+const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
 
 const AppRoutes = () => {
   return (
@@ -70,6 +71,7 @@ const AppRoutes = () => {
                 <Route path="extras-master" element={<ExtrasMasterPage />} />
                 <Route path="extras-type" element={<ExtrasTypePage />} />
                 <Route path="modifier-type" element={<ModifierTypePage />} />
+                <Route path="taxes" element={<TaxPage />} />
                 <Route path="test/editable-grid" element={<EditableGridView />} />
               </Route>
             </Route>
