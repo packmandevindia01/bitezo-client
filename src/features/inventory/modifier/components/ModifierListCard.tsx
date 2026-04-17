@@ -29,15 +29,25 @@ const ModifierListCard = ({
       actionLabel="+ Add Modifier"
       onAction={onAdd}
       columns={[
-        { header: "Category", accessor: "category" },
         { header: "Name", accessor: "name" },
         { header: "Arabic", accessor: "arabic" },
-        { header: "Color", accessor: "color" },
-        { header: "Branch", accessor: "branch" },
+        { 
+          header: "Price", 
+          accessor: "price",
+          render: (row) => <span>{Number(row.price || 0).toFixed(3)}</span>
+        },
         {
-          header: "Multi Cat",
-          accessor: "isMultiCategory",
-          render: (row) => (row.isMultiCategory ? "Yes" : "No"),
+          header: "Color",
+          accessor: "color",
+          render: (row) => (
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block h-4 w-4 rounded-full border border-gray-300"
+                style={{ backgroundColor: row.color || "#cccccc" }}
+              />
+              <span className="text-xs">{row.color || "None"}</span>
+            </div>
+          ),
         },
         {
           header: "Actions",

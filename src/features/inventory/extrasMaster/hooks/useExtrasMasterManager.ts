@@ -32,7 +32,7 @@ export const useExtrasMasterManager = () => {
   const { showToast } = useToast();
   const [records, setRecords] = useState<ExtrasMasterRecord[]>([]);
   const [extrasTypes, setExtrasTypes] = useState<ExtrasTypeRecord[]>([]);
-  const [categories, setCategories] = useState<CategoryListItem[]>(MOCK_CATEGORIES);
+  const [categories] = useState<CategoryListItem[]>(MOCK_CATEGORIES);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -1,6 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../product/types";
-import type { ModifierForm, ModifierRecord } from "../types";
+import type { ModifierRecord } from "../types";
 
 const BASE = "/modifier";
 

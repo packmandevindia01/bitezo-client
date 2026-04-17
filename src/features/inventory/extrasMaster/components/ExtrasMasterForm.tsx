@@ -1,4 +1,4 @@
-import { Building2, Loader2, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
+import { Building2, LayoutGrid, ChevronUp } from "lucide-react";
 import { Button, FormInput, SelectInput } from "../../../../components/common";
 import type { ExtrasMasterForm as ExtrasMasterFormType } from "../types";
 import type { ExtrasTypeRecord } from "../../extrasType/types";

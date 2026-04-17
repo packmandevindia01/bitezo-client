@@ -23,7 +23,7 @@ export const useModifierManager = () => {
   const dispatch = useAppDispatch();
   const [records, setRecords] = useState<ModifierRecord[]>([]);
   const [modifierTypes, setModifierTypes] = useState<ModifierTypeRecord[]>([]);
-  const [categories, setCategories] = useState<CategoryListItem[]>(MOCK_CATEGORIES);
+  const [categories] = useState<CategoryListItem[]>(MOCK_CATEGORIES);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

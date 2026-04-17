@@ -1,6 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../product/types";
-import type { ExtrasMasterForm, ExtrasMasterRecord } from "../types";
+import type { ExtrasMasterRecord } from "../types";
 
 const BASE = "/extras";
 

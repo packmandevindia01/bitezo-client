@@ -2,10 +2,10 @@ import type { ExtrasTypeForm, ExtrasTypeRecord } from "./types";
 
 export const emptyExtrasTypeForm: ExtrasTypeForm = {
   name: "",
-  arabic: "",
+  arabicName: "",
 };
 
 export const initialExtrasTypes: ExtrasTypeRecord[] = [
-  { id: 1, name: "Add-on", arabic: "Add-on" },
-  { id: 2, name: "Optional", arabic: "Optional" },
+  { typeId: 1, name: "Add-on", arabicName: "Add-on" },
+  { typeId: 2, name: "Optional", arabicName: "Optional" },
 ];
