@@ -2,10 +2,10 @@ import type { ModifierTypeForm, ModifierTypeRecord } from "./types";
 
 export const emptyModifierTypeForm: ModifierTypeForm = {
   name: "",
-  arabic: "",
+  arabicName: "",
 };
 
 export const initialModifierTypes: ModifierTypeRecord[] = [
-  { id: 1, name: "Required", arabic: "Required" },
-  { id: 2, name: "Optional", arabic: "Optional" },
+  { typeId: 1, name: "Required", arabicName: "Required" },
+  { typeId: 2, name: "Optional", arabicName: "Optional" },
 ];

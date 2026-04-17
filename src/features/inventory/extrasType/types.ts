@@ -1,8 +1,10 @@
 export interface ExtrasTypeForm {
   name: string;
-  arabic: string;
+  arabicName: string;
 }
 
 export interface ExtrasTypeRecord extends ExtrasTypeForm {
-  id: number;
+  typeId: number;
+  updatedAt?: string;
+  createdAt?: string;
 }

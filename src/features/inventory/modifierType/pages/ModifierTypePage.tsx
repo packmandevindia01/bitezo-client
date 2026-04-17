@@ -13,6 +13,8 @@ import type { ModifierTypeRecord } from "../types";
 const ModifierTypePage = () => {
   const {
     form,
+    loading,
+    saving,
     open,
     search,
     editingId,
@@ -35,17 +37,18 @@ const ModifierTypePage = () => {
         title="Saved Modifier Type List"
         search={search}
         onSearchChange={setSearch}
-        rowKey="id"
+        rowKey="typeId"
         data={filteredRecords}
         actionLabel="+ Add Modifier Type"
         onAction={openCreateModal}
+        loading={loading}
         columns={[
-          { header: "#", accessor: "id" },
+          { header: "#", accessor: "typeId" },
           { header: "Name", accessor: "name" },
-          { header: "Arabic", accessor: "arabic" },
+          { header: "Arabic", accessor: "arabicName" },
           {
             header: "Actions",
-            accessor: "id",
+            accessor: "typeId",
             render: (row) => (
               <div className="flex gap-2">
                 <button
@@ -74,6 +77,7 @@ const ModifierTypePage = () => {
         <ModifierTypeForm
           form={form}
           isEditing={Boolean(editingId)}
+          saving={saving}
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}

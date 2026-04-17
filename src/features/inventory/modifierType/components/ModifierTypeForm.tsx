@@ -4,6 +4,7 @@ import type { ModifierTypeForm as ModifierTypeFormType } from "../types";
 interface ModifierTypeFormProps {
   form: ModifierTypeFormType;
   isEditing: boolean;
+  saving?: boolean;
   onChange: <K extends keyof ModifierTypeFormType>(
     key: K,
     value: ModifierTypeFormType[K]
@@ -16,6 +17,7 @@ interface ModifierTypeFormProps {
 const ModifierTypeForm = ({
   form,
   isEditing,
+  saving = false,
   onChange,
   onClear,
   onSave,
@@ -35,19 +37,21 @@ const ModifierTypeForm = ({
 
         <FormInput
           label="Arabic"
-          value={form.arabic}
-          onChange={(e) => onChange("arabic", e.target.value)}
+          value={form.arabicName}
+          onChange={(e) => onChange("arabicName", e.target.value)}
         />
       </div>
 
       <div className="mt-6 flex gap-3">
-        <Button variant="secondary" onClick={onClear}>
+        <Button variant="secondary" onClick={onClear} disabled={saving}>
           Clear
         </Button>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={onSave}>{isEditing ? "Update" : "Save"}</Button>
+        <Button onClick={onSave} disabled={saving}>
+          {saving ? "Saving..." : isEditing ? "Update" : "Save"}
+        </Button>
       </div>
     </>
   );

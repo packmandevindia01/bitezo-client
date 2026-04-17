@@ -4,6 +4,7 @@ import type { ExtrasTypeForm as ExtrasTypeFormType } from "../types";
 interface ExtrasTypeFormProps {
   form: ExtrasTypeFormType;
   isEditing: boolean;
+  saving?: boolean;
   onChange: <K extends keyof ExtrasTypeFormType>(key: K, value: ExtrasTypeFormType[K]) => void;
   onClear: () => void;
   onSave: () => void;
@@ -13,6 +14,7 @@ interface ExtrasTypeFormProps {
 const ExtrasTypeForm = ({
   form,
   isEditing,
+  saving = false,
   onChange,
   onClear,
   onSave,
@@ -32,19 +34,21 @@ const ExtrasTypeForm = ({
 
         <FormInput
           label="Arabic"
-          value={form.arabic}
-          onChange={(e) => onChange("arabic", e.target.value)}
+          value={form.arabicName}
+          onChange={(e) => onChange("arabicName", e.target.value)}
         />
       </div>
 
       <div className="mt-6 flex gap-3">
-        <Button variant="secondary" onClick={onClear}>
+        <Button variant="secondary" onClick={onClear} disabled={saving}>
           Clear
         </Button>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={onSave}>{isEditing ? "Update" : "Save"}</Button>
+        <Button onClick={onSave} disabled={saving}>
+          {saving ? "Saving..." : isEditing ? "Update" : "Save"}
+        </Button>
       </div>
     </>
   );

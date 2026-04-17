@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { productService } from "../services/productService";
 import { subCategoryService } from "../../subcategory/services/subCategoryService";
-import * as branchApi from "../../branches/services/branchApi";
 import { useToast } from "../../../../app/providers/useToast";
 import type {
   AltProductDraft,
@@ -9,7 +8,6 @@ import type {
   MasterItem,
   ProductFormState,
   ProductListItem,
-  ProductMasterData,
 } from "../types";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
@@ -53,7 +51,7 @@ export const useProductManager = () => {
   const [listError, setListError] = useState<string | null>(null);
 
   // ── Master data (Redux) ───────────────────────────────────────────────────
-  const { data: masterData, branches, loading: masterLoading } = useAppSelector((state) => state.masterData);
+  const { data: masterData, branches } = useAppSelector((state) => state.masterData);
   const dispatch = useAppDispatch();
   const [subCategories, setSubCategories] = useState<MasterItem[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
@@ -226,18 +224,69 @@ export const useProductManager = () => {
       return;
     }
 
-    const barcodes = alternatives.map(a => a.barcode).filter(b => b.trim() !== "");
-    const uniqueBarcodes = new Set(barcodes);
-    if (barcodes.length !== uniqueBarcodes.size) {
-      showToast("Duplicate barcodes found in alternative products. Each barcode must be unique.", "error");
-      return;
+    // ─── Validation ────────────────────────────────────────────────────────
+    
+    // 1. Check for Duplicate Barcodes within the same branch
+    const branchBarcodeMap = new Map<string, number[]>(); // key: branchId-barcode, value: row indices
+    alternatives.forEach((alt, idx) => {
+      const barcode = alt.barcode.trim();
+      if (!barcode) return;
+      
+      const key = `${alt.branchId}-${barcode}`;
+      if (branchBarcodeMap.has(key)) {
+        branchBarcodeMap.get(key)?.push(idx + 1);
+      } else {
+        branchBarcodeMap.set(key, [idx + 1]);
+      }
+    });
+
+    for (const [key, rows] of branchBarcodeMap.entries()) {
+      if (rows.length > 1) {
+        const branchId = key.split("-")[0];
+        const branchName = branches.find(b => String(b.id) === branchId)?.name || `Branch ${branchId}`;
+        showToast(`Duplicate barcode "${key.split("-")[1]}" found in ${branchName} (Rows: ${rows.join(", ")}).`, "error");
+        return;
+      }
+    }
+
+    // 2. Check for Duplicate Unit + Branch combinations
+    // Include the main product in this check
+    const mainBranchId = parseInt(form.branchId) || 0;
+    const mainUnitId = parseInt(form.unitId) || 0;
+    
+    // Set of "branchId-unitId"
+    const seenUnits = new Set<string>();
+    seenUnits.add(`${mainBranchId}-${mainUnitId}`);
+
+    for (let i = 0; i < alternatives.length; i++) {
+      const alt = alternatives[i];
+      const key = `${alt.branchId}-${alt.unitId}`;
+      
+      if (seenUnits.has(key)) {
+        const branchName = branches.find(b => String(b.id) === String(alt.branchId))?.name || `Branch ${alt.branchId}`;
+        const unitName = masterData?.unit.find(u => String(u.id) === String(alt.unitId))?.name || `Unit ${alt.unitId}`;
+        
+        if (alt.branchId === mainBranchId && alt.unitId === mainUnitId) {
+          showToast(`The unit "${unitName}" for branch "${branchName}" is already defined as the main product unit.`, "error");
+        } else {
+          showToast(`Duplicate unit "${unitName}" found for branch "${branchName}" in alternative products.`, "error");
+        }
+        return;
+      }
+      seenUnits.add(key);
     }
 
     setSaving(true);
     try {
-      const altProducts: AltProductItem[] = alternatives.map(({ id: _id, price, ...rest }) => ({
-        ...rest,
-        price: parseFloat(price) || 0,
+      // Explicitly map only required fields to avoid sending extra data (like 'unit' or 'branch' strings)
+      const altProducts: AltProductItem[] = alternatives.map((alt) => ({
+        unitId: alt.unitId,
+        barcode: alt.barcode,
+        isIncl: alt.isIncl,
+        price: parseFloat(alt.price) || 0,
+        altName: alt.altName,
+        altArabic: alt.altArabic ?? "",
+        branchId: alt.branchId,
       }));
 
       const payload = {
@@ -245,12 +294,12 @@ export const useProductManager = () => {
         name: form.name,
         arabicName: form.arabicName,
         categoryId: parseInt(form.categoryId),
-        subCatId: parseInt(form.subCatId) || 0,
+        subcatId: parseInt(form.subCatId) || 0,
         groupId: parseInt(form.groupId) || 0,
         typeId: parseInt(form.typeId) || 1,
         unitId: parseInt(form.unitId),
-        pVatId: parseInt(form.pVatId) || 0,
-        sVatId: parseInt(form.sVatId) || 0,
+        pvatId: parseInt(form.pVatId) || 0,
+        svatId: parseInt(form.sVatId) || 0,
         cost: parseFloat(form.cost) || 0,
         branchId: parseInt(form.branchId) || 0,
         fileName: form.fileName ?? "",

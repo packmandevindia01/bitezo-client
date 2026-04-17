@@ -1,8 +1,13 @@
 export interface ModifierTypeForm {
   name: string;
-  arabic: string;
+  arabicName: string;
 }
 
-export interface ModifierTypeRecord extends ModifierTypeForm {
-  id: number;
+export interface ModifierTypeRecord {
+  typeId: number;
+  name: string;
+  arabicName: string;
+  createdAt?: string;
+  updatedAt?: string;
+  sNo?: number;
 }

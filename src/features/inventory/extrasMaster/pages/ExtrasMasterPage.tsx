@@ -13,12 +13,23 @@ import type { ExtrasMasterRecord } from "../types";
 const ExtrasMasterPage = () => {
   const {
     form,
+    loading,
+    saving,
     open,
     search,
     editingId,
     filteredRecords,
+    branches,
+    extrasTypes,
+    categories,
+    branchAllocOpen,
+    categoryAllocOpen,
     setSearch,
     setField,
+    toggleBranch,
+    toggleCategory,
+    setBranchAllocOpen,
+    setCategoryAllocOpen,
     resetForm,
     closeModal,
     openCreateModal,
@@ -39,12 +50,24 @@ const ExtrasMasterPage = () => {
         data={filteredRecords}
         actionLabel="+ Add Extras"
         onAction={openCreateModal}
+        loading={loading}
         columns={[
-          { header: "Category", accessor: "category" },
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabic" },
-          { header: "Price", accessor: "price" },
-          { header: "Type", accessor: "type" },
+          { 
+            header: "Price", 
+            accessor: "price",
+            render: (row) => <span>{Number(row.price || 0).toFixed(3)}</span>
+          },
+          { 
+            header: "Type", 
+            accessor: "typeId",
+            render: (row) => {
+              const typeId = row.typeId || (row as any).type_id;
+              const type = extrasTypes.find(t => t.typeId === typeId);
+              return <span>{type?.name || typeId || "N/A"}</span>;
+            }
+          },
           {
             header: "Color",
             accessor: "color",
@@ -52,17 +75,23 @@ const ExtrasMasterPage = () => {
               <div className="flex items-center gap-2">
                 <span
                   className="inline-block h-4 w-4 rounded-full border border-gray-300"
-                  style={{ backgroundColor: row.color }}
+                  style={{ backgroundColor: row.color || "#cccccc" }}
                 />
-                <span>{row.color}</span>
+                <span className="text-xs">{row.color || "None"}</span>
               </div>
             ),
           },
-          { header: "Branch", accessor: "branch" },
-          {
-            header: "Multi Cat",
-            accessor: "isMultiCategory",
-            render: (row) => <span>{row.isMultiCategory ? "Yes" : "No"}</span>,
+          { 
+            header: "Branches", 
+            accessor: "branchIds",
+            render: (row) => {
+               const count = (row.branchIds || []).length;
+               return (
+                 <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                   {count} {count === 1 ? "branch" : "branches"}
+                 </span>
+               );
+            }
           },
           {
             header: "Actions",
@@ -95,7 +124,18 @@ const ExtrasMasterPage = () => {
         <ExtrasMasterForm
           form={form}
           isEditing={Boolean(editingId)}
+          saving={saving}
+          loading={loading && Boolean(editingId)}
+          branches={branches}
+          categories={categories}
+          extrasTypes={extrasTypes}
+          branchAllocOpen={branchAllocOpen}
+          categoryAllocOpen={categoryAllocOpen}
           onChange={setField}
+          onToggleBranch={toggleBranch}
+          onToggleCategory={toggleCategory}
+          onToggleBranchAlloc={() => setBranchAllocOpen(!branchAllocOpen)}
+          onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
           onClear={resetForm}
           onSave={handleSave}
           onCancel={closeModal}

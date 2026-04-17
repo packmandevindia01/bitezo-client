@@ -55,22 +55,20 @@ const authSlice = createSlice({
     },
     logout: (state) => {
       state.isAuthenticated = false;
-      state.tenantId = null;
       state.accessToken = null;
       state.refreshToken = null;
       state.userId = null;
       state.userName = null;
       state.isMaster = false;
-      state.companyConfig.isRegistered = false;
       
-      // Essential cleanup
+      // Essential cleanup: Only remove user-session data.
+      // Do NOT remove "companyRegistered" or "tenantId" as they identify the device.
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
-      localStorage.removeItem("tenantId");
       localStorage.removeItem("userId");
       localStorage.removeItem("userName");
       localStorage.removeItem("isMaster");
-      localStorage.removeItem("companyRegistered");
+      localStorage.removeItem("sessionExpiresAt");
     },
     setCompanyConfig: (
       state,

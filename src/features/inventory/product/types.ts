@@ -90,12 +90,12 @@ export interface CreateProductPayload {
   name: string;
   arabicName: string;
   categoryId: number;
-  subCatId: number;
+  subcatId: number;
   groupId: number;
   typeId: number;
   unitId: number;
-  pVatId: number;
-  sVatId: number;
+  pvatId: number;
+  svatId: number;
   cost: number;
   branchId: number;
   fileName: string;

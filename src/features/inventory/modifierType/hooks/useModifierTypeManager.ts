@@ -1,18 +1,35 @@
-import { useMemo, useState } from "react";
-import { emptyModifierTypeForm, initialModifierTypes } from "../constants";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useToast } from "../../../../app/providers/useToast";
+import { modifierTypeService } from "../services/modifierTypeService";
+import { emptyModifierTypeForm } from "../constants";
 import type { ModifierTypeForm, ModifierTypeRecord } from "../types";
 
-const normalizeModifierTypeForm = (form: ModifierTypeForm): ModifierTypeForm => ({
-  name: form.name.trim(),
-  arabic: form.arabic.trim(),
-});
-
 export const useModifierTypeManager = () => {
-  const [records, setRecords] = useState<ModifierTypeRecord[]>(initialModifierTypes);
+  const { showToast } = useToast();
+  const [records, setRecords] = useState<ModifierTypeRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
   const [form, setForm] = useState<ModifierTypeForm>(emptyModifierTypeForm);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
+
+  const fetchTypes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await modifierTypeService.list();
+      setRecords(data);
+    } catch (err: any) {
+      showToast(err.message || "Failed to load modifier types", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchTypes();
+  }, [fetchTypes]);
 
   const setField = <K extends keyof ModifierTypeForm>(key: K, value: ModifierTypeForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -33,53 +50,86 @@ export const useModifierTypeManager = () => {
     setOpen(true);
   };
 
-  const handleSave = () => {
-    if (!form.name.trim()) {
+  const handleSave = async () => {
+    const name = (form.name || "").trim();
+    if (!name) {
+      showToast("Name is required", "warning");
       return;
     }
 
-    const payload = normalizeModifierTypeForm(form);
-
-    if (editingId) {
-      setRecords((prev) =>
-        prev.map((item) => (item.id === editingId ? { ...item, ...payload } : item))
-      );
-    } else {
-      setRecords((prev) => [...prev, { id: Date.now(), ...payload }]);
+    setSaving(true);
+    try {
+      if (editingId) {
+        await modifierTypeService.update(editingId, {
+          typeId: editingId,
+          name: name,
+          arabicName: (form.arabicName || "").trim(),
+          updatedAt: new Date().toISOString(),
+        });
+        showToast("Modifier type updated successfully", "success");
+      } else {
+        await modifierTypeService.create({
+          name: name,
+          arabicName: (form.arabicName || "").trim(),
+          createdAt: new Date().toISOString(),
+        });
+        showToast("Modifier type created successfully", "success");
+      }
+      fetchTypes();
+      closeModal();
+    } catch (err: any) {
+      showToast(err.message || "Failed to save modifier type", "error");
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
   };
 
-  const handleEdit = (record: ModifierTypeRecord) => {
-    setEditingId(record.id);
-    setForm({
-      name: record.name,
-      arabic: record.arabic,
-    });
+  const handleEdit = async (record: ModifierTypeRecord) => {
+    setLoading(true);
     setOpen(true);
+    setEditingId(record.typeId);
+    try {
+      const fullRecord = await modifierTypeService.getById(record.typeId);
+      setForm({
+        name: fullRecord.name || "",
+        arabicName: fullRecord.arabicName || "",
+      });
+    } catch (err: any) {
+      setForm({
+        name: record.name,
+        arabicName: record.arabicName || "",
+      });
+      showToast("Could not load full record details, using basic info.", "warning");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (record: ModifierTypeRecord) => {
-    setRecords((prev) => prev.filter((item) => item.id !== record.id));
-    if (editingId === record.id) {
-      resetForm();
+  const handleDelete = async (record: ModifierTypeRecord) => {
+    try {
+      await modifierTypeService.remove(record.typeId);
+      showToast("Modifier type deleted successfully", "success");
+      fetchTypes();
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete modifier type", "error");
     }
   };
 
   const filteredRecords = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) {
-      return records;
-    }
+    const query = (search || "").trim().toLowerCase();
+    if (!query) return records;
 
     return records.filter((item) =>
-      [item.name, item.arabic].some((value) => value.toLowerCase().includes(query))
+      [(item.name || ""), (item.arabicName || "")].some((value) => 
+        (value || "").toLowerCase().includes(query)
+      )
     );
   }, [records, search]);
 
   return {
     form,
+    loading,
+    saving,
     open,
     search,
     editingId,
