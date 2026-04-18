@@ -11,16 +11,35 @@ export interface ModifierForm {
 
 export interface ModifierRecord {
   id: number;
+  sNo: number;
   name: string;
-  arabic: string;
-  color: string;
+  arabic?: string;
+  color?: string;
   typeId?: number;
-  type_id?: number; // Backend inconsistent casing
-  price: number;
-  createdAt?: string;
-  updatedAt?: string;
-  modifiedAt?: string;
+  price?: number;
   branchIds?: number[];
   categoryIds?: number[];
-  sNo?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ModifierDetailResponse {
+  modifier: {
+    id: number;
+    name: string;
+    arabic: string;
+    color: string;
+    typeId: number;
+    price: number;
+    createdAt?: string;
+    updatedAt?: string;
+  }[];
+  branchIds: {
+    id: number;
+    name: string;
+  }[] | null;
+  categoryIds: {
+    id: number;
+    name: string;
+  }[] | null;
 }

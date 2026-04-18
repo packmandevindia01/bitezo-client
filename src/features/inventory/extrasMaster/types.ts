@@ -11,13 +11,35 @@ export interface ExtrasMasterForm {
 
 export interface ExtrasMasterRecord {
   id: number;
+  sNo: number;
   name: string;
   arabic?: string;
   color?: string;
   typeId?: number;
   price?: number;
-  createdAt?: string;
-  updatedAt?: string;
   branchIds?: number[];
   categoryIds?: number[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ExtrasDetailResponse {
+  modifier: {
+    id: number;
+    name: string;
+    arabic: string;
+    color: string;
+    typeId: number;
+    price: number;
+    createdAt?: string;
+    updatedAt?: string;
+  }[];
+  branchIds: {
+    id: number;
+    name: string;
+  }[] | null;
+  categoryIds: {
+    id: number;
+    name: string;
+  }[] | null;
 }

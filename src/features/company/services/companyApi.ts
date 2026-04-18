@@ -1,19 +1,9 @@
+import axiosInstance from "../../../api/axiosInstance";
 import type { CompanyFormData, CompanyMasterloadResponse } from "../types";
 
 export const fetchCompanyMasterload = async () => {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/company/masterload`, {
-    method: "GET",
-    headers: {
-      accept: "*/*",
-    },
-  });
-
-  if (!res.ok) {
-    const message = (await res.text().catch(() => "")) || "Failed to load company master data";
-    throw new Error(message);
-  }
-
-  return (await res.json()) as CompanyMasterloadResponse;
+  const { data } = await axiosInstance.get<CompanyMasterloadResponse>("/company/masterload");
+  return data;
 };
 
 const parseLookupId = (value: string, label: string) => {
@@ -52,21 +42,13 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     createdAt: new Date().toISOString(),
   };
 
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/company/${encodeURIComponent(clientDb)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "accept": "*/*",
-      "Temp-Token": tempToken,
-    },
-    body: JSON.stringify(payload),
-  });
+  const { data: responseData } = await axiosInstance.post<any>(
+    `/company/${encodeURIComponent(clientDb)}`,
+    payload,
+    {
+      headers: { "Temp-Token": tempToken },
+    }
+  );
 
-  if (!res.ok) {
-    const message =
-      (await res.text().catch(() => "")) || "Failed to create company";
-    throw new Error(message);
-  }
-
-  return res.json();
+  return responseData;
 };

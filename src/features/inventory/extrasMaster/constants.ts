@@ -32,6 +32,7 @@ export const emptyExtrasMasterForm: ExtrasMasterForm = {
 export const initialExtrasMaster: ExtrasMasterRecord[] = [
   {
     id: 1,
+    sNo: 1,
     name: "Extra Cheese",
     arabic: "Extra Cheese",
     price: 1.500,
@@ -42,6 +43,7 @@ export const initialExtrasMaster: ExtrasMasterRecord[] = [
   },
   {
     id: 2,
+    sNo: 2,
     name: "Extra Ice",
     arabic: "Extra Ice",
     price: 0.250,

@@ -1,6 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../product/types";
-import type { ExtrasMasterRecord } from "../types";
+import type { ExtrasMasterRecord, ExtrasDetailResponse } from "../types";
 
 const BASE = "/extras";
 
@@ -22,9 +22,9 @@ export const extrasService = {
     );
   },
 
-  getById(extraId: number): Promise<{ modifier: any[]; branch: any[] }> {
+  getById(extraId: number): Promise<ExtrasDetailResponse> {
     return unwrap(
-      axiosInstance.get<ApiResponse<{ modifier: any[]; branch: any[] }>>(`${BASE}/${extraId}/extrasid-data`)
+      axiosInstance.get<ApiResponse<ExtrasDetailResponse>>(`${BASE}/${extraId}/extrasid-data`)
     );
   },
 

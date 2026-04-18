@@ -1,21 +1,24 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ,
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api",
   headers: {
     "Content-Type": "application/json",
+    "Accept": "*/*",
   },
 });
 
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("accessToken");
-  const clientDb = localStorage.getItem("tenantId") ?? "app_db";
+  const tenantId = localStorage.getItem("tenantId") ?? "app_db";
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  if (clientDb) {
-    config.headers["clientDb"] = clientDb;
+
+  // Avoid sending clientDb header for auth endpoints to prevent conflicts with query parameters
+  if (tenantId && !config.url?.startsWith("/auth")) {
+    config.headers["clientDb"] = tenantId;
   }
 
   return config;

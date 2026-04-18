@@ -1,13 +1,6 @@
+import axiosInstance from "../../../../api/axiosInstance";
 import type { ChangePasswordPayload, User, UserPayload } from "../types";
-
-
-
-interface ApiResponse<T> {
-  data?: T;
-  message?: string;
-  status?: number;
-  isSuccess?: boolean;
-}
+import type { ApiResponse } from "../../../inventory/product/types";
 
 interface UserApiRecord {
   id?: number;
@@ -23,31 +16,6 @@ interface UserApiRecord {
   createdAt?: string;
   updatedAt?: string;
 }
-
-const getAccessToken = () => {
-  const token = localStorage.getItem("accessToken");
-  if (!token) {
-    throw new Error("Access token not found. Please log in again.");
-  }
-
-  return token;
-};
-
-const getAuthHeaders = () => ({
-  accept: "*/*",
-  Authorization: `Bearer ${getAccessToken()}`,
-});
-
-const getErrorMessage = async (response: Response, fallbackMessage: string) => {
-  try {
-    const json = (await response.json()) as ApiResponse<unknown>;
-    if (json.message) return json.message;
-  } catch {
-    // Fall back to plain text when the API does not return JSON.
-  }
-
-  return (await response.text().catch(() => "")) || fallbackMessage;
-};
 
 const mapApiUser = (user: UserApiRecord): User => ({
   id: user.id ?? user.userId ?? 0,
@@ -85,107 +53,63 @@ const normalizeUsers = (payload: unknown): User[] => {
 };
 
 export const fetchUsers = async () => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/userlist`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to load users"));
+  const { data } = await axiosInstance.get<ApiResponse<UserApiRecord[]>>("/user/userlist");
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load users");
   }
-
-  const json = (await response.json()) as ApiResponse<unknown>;
-  return normalizeUsers(json.data);
+  return normalizeUsers(data.data);
 };
 
 export const fetchUserById = async (userId: number) => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}/userid-data`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to load user details"));
+  const { data } = await axiosInstance.get<ApiResponse<UserApiRecord>>(`/user/${userId}/userid-data`);
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load user details");
   }
-
-  const json = (await response.json()) as ApiResponse<unknown>;
-  return mapApiUser((json.data ?? {}) as UserApiRecord);
+  return mapApiUser(data.data || {});
 };
 
 export const createUser = async (payload: UserPayload) => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user`, {
-    method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: payload.name,
-      password: payload.password,
-      branchId: payload.branchId,
-      isActive: payload.isActive,
-      isMaster: payload.isMaster,
-      createdAt: new Date().toISOString(),
-    }),
+  const { data } = await axiosInstance.post<ApiResponse<{ id?: number }>>("/user", {
+    name: payload.name,
+    password: payload.password,
+    branchId: payload.branchId,
+    isActive: payload.isActive,
+    isMaster: payload.isMaster,
+    createdAt: new Date().toISOString(),
   });
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to create user"));
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to create user");
   }
-
-  return (await response.json()) as ApiResponse<{ id?: number }>;
+  return data;
 };
 
 export const updateUser = async (userId: number, payload: UserPayload) => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}`, {
-    method: "PUT",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      userId,
-      name: payload.name,
-      branchId: payload.branchId,
-      isActive: payload.isActive,
-      isMaster: payload.isMaster,
-      updatedAt: new Date().toISOString(),
-    }),
+  const { data } = await axiosInstance.put<ApiResponse<{ id?: number }>>(`/user/${userId}`, {
+    userId,
+    name: payload.name,
+    branchId: payload.branchId,
+    isActive: payload.isActive,
+    isMaster: payload.isMaster,
+    updatedAt: new Date().toISOString(),
   });
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to update user"));
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to update user");
   }
-
-  return (await response.json()) as ApiResponse<{ id?: number }>;
+  return data;
 };
 
 export const deleteUser = async (userId: number) => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to delete user"));
+  const { data } = await axiosInstance.delete<ApiResponse<{ id?: number }>>(`/user/${userId}`);
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to delete user");
   }
-
-  return (await response.json()) as ApiResponse<{ id?: number }>;
+  return data;
 };
 
 export const changeUserPassword = async (userId: number, payload: ChangePasswordPayload) => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}/change-password`, {
-    method: "PATCH",
-    headers: {
-      ...getAuthHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to change password"));
+  const { data } = await axiosInstance.patch<ApiResponse<unknown>>(`/user/${userId}/change-password`, payload);
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to change password");
   }
-
-  return (await response.json()) as ApiResponse<unknown>;
+  return data;
 };

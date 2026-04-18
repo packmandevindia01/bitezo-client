@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { modifierService } from "../services/modifierService";
 import { modifierTypeService } from "../../modifierType/services/modifierTypeService";
+import { getCategories } from "../../category/services/categoryService";
 import { emptyModifierForm } from "../constants";
 import type { ModifierForm, ModifierRecord } from "../types";
 import type { ModifierTypeRecord } from "../../modifierType/types";
@@ -9,21 +10,12 @@ import type { CategoryListItem } from "../../category/types";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 
-// Mock categories for design preview
-const MOCK_CATEGORIES: CategoryListItem[] = [
-  { id: 101, name: "Food", arabic: "طعام", code: "F01", isActive: true, branches: [] },
-  { id: 102, name: "Beverage", arabic: "مشروبات", code: "B01", isActive: true, branches: [] },
-  { id: 103, name: "Dessert", arabic: "حلويات", code: "D01", isActive: true, branches: [] },
-  { id: 104, name: "Dine-in", arabic: "داخل المطعم", code: "DI01", isActive: true, branches: [] },
-  { id: 105, name: "Takeaway", arabic: "سفري", code: "TA01", isActive: true, branches: [] },
-];
-
 export const useModifierManager = () => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
   const [records, setRecords] = useState<ModifierRecord[]>([]);
   const [modifierTypes, setModifierTypes] = useState<ModifierTypeRecord[]>([]);
-  const [categories] = useState<CategoryListItem[]>(MOCK_CATEGORIES);
+  const [categories, setCategories] = useState<CategoryListItem[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,11 +44,14 @@ export const useModifierManager = () => {
 
   const fetchTypesAndCats = useCallback(async () => {
     try {
-      const types = await modifierTypeService.list();
+      const [types, cats] = await Promise.all([
+        modifierTypeService.list(),
+        getCategories()
+      ]);
       setModifierTypes(types);
-      // Removed dynamic category fetch - using mock data for design
+      setCategories(cats);
     } catch (err) {
-      console.error("Failed to load types", err);
+      console.error("Failed to load types or categories", err);
     }
   }, []);
 
@@ -122,6 +117,15 @@ export const useModifierManager = () => {
       return;
     }
 
+    // Front-end Duplicate Check
+    const isDuplicate = records.some(
+      (r) => r.name.toLowerCase() === name.toLowerCase() && r.id !== editingId
+    );
+    if (isDuplicate) {
+      showToast(`A modifier with the name "${name}" already exists.`, "error");
+      return;
+    }
+
     if (form.branchIds.length === 0) {
       showToast("Please allocate at least one branch", "warning");
       return;
@@ -132,16 +136,18 @@ export const useModifierManager = () => {
       const payload = {
         name: name,
         arabic: (form.arabic || "").trim(),
-        color: form.color,
+        color: form.color || "",
         typeId: parseInt(form.typeId),
         price: parseFloat(form.price) || 0,
         branchIds: form.branchIds,
+        categoryIds: form.categoryIds.length > 0 ? form.categoryIds : null,
       };
 
       if (editingId) {
         await modifierService.update(editingId, {
           ...payload,
           id: editingId,
+          updatedAt: new Date().toISOString(),
         });
         showToast("Modifier updated successfully", "success");
       } else {
@@ -168,17 +174,15 @@ export const useModifierManager = () => {
     try {
       const detail = await modifierService.getById(record.id);
       const mod = detail.modifier?.[0];
-      const branchIds = (detail.branch || []).map((b: any) => b.id);
-      
-      // Category selection is currently frontend-only logic until backend supports it
-      const categoryIds = record.categoryIds || [];
+      const branchIds = (detail.branchIds || []).map((b: any) => b.id);
+      const categoryIds = (detail.categoryIds || []).map((c: any) => c.id);
 
       if (mod) {
         setForm({
           name: mod.name || "",
           arabic: mod.arabic || "",
-          color: mod.color || "#cccccc",
-          typeId: String(mod.type_id || mod.typeId || ""),
+          color: mod.color && mod.color.trim() ? mod.color : "#cccccc",
+          typeId: String(mod.typeId || ""),
           price: String(mod.price || "0"),
           branchIds: branchIds,
           categoryIds: categoryIds,

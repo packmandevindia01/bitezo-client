@@ -1,3 +1,5 @@
+import axiosInstance from "../../../../api/axiosInstance";
+import type { ApiResponse } from "../../../inventory/product/types";
 import { useEffect, useState } from "react";
 import { Button, Checkbox, FormInput } from "../../../../components/common";
 import { isRequired } from "../../../../lib/validators";
@@ -42,24 +44,8 @@ const UserForm = ({
     const fetchBranches = async () => {
       try {
         setBranchesLoading(true);
-        const token = localStorage.getItem("accessToken") ?? "";
-        const tenantId = localStorage.getItem("tenantId") ?? "app_db";
-
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/list-name?clientDb=${encodeURIComponent(tenantId)}`,
-          {
-            method: "GET",
-            headers: {
-              Accept: "*/*",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!res.ok) throw new Error("Failed to load branches");
-
-        const json = await res.json();
-        setBranches(json?.data ?? []);
+        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/list-name");
+        setBranches(data.data ?? []);
       } catch {
         setBranches([]);
       } finally {

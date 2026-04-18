@@ -1,14 +1,8 @@
-import { authenticatedFetch } from "../../../../lib/authenticatedFetch";
+import axiosInstance from "../../../../api/axiosInstance";
+import type { ApiResponse } from "../../product/types";
 import type { BranchPayload, BranchRecord, LineItem } from "../types";
 
-
-
 // ─── Internal API shapes (not exported — only used inside this file) ──────────
-
-interface ApiResponse<T> {
-  data?: T;
-  message?: string;
-}
 
 interface BranchIdResponse {
   id?: number;
@@ -43,14 +37,6 @@ interface BranchRequestBody {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const getErrorMessage = async (response: Response, fallback: string): Promise<string> => {
-  try {
-    const json = (await response.json()) as ApiResponse<unknown>;
-    if (json.message) return json.message;
-  } catch { /* fall through */ }
-  return (await response.text().catch(() => "")) || fallback;
-};
 
 const cloneLines = (lines: LineItem[]): LineItem[] =>
   lines.map((line) => ({ ...line }));
@@ -93,16 +79,14 @@ const buildRequestBody = (payload: BranchPayload, branchId?: number): BranchRequ
 // ─── Exported API functions ───────────────────────────────────────────────────
 
 export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
-  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/list-name`);
+  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list-name");
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to load branches"));
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load branches");
   }
 
-  const json = (await response.json()) as ApiResponse<BranchListItem[]>;
-
-  return Array.isArray(json.data)
-    ? json.data.map((item) => ({
+  return Array.isArray(data.data)
+    ? data.data.map((item) => ({
         id: item.branchId ?? 0,
         branchName: item.branchName ?? "",
         isActive: item.isActive ?? true,
@@ -113,18 +97,13 @@ export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
 };
 
 export const createBranch = async (payload: BranchPayload): Promise<BranchRecord> => {
-  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildRequestBody(payload)),
-  });
+  const { data } = await axiosInstance.post<ApiResponse<BranchIdResponse>>("/Branch", buildRequestBody(payload));
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to create branch"));
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to create branch");
   }
 
-  const json = (await response.json()) as ApiResponse<BranchIdResponse>;
-  const id = json.data?.id;
+  const id = data.data?.id;
 
   if (!id) {
     throw new Error("Branch created, but no ID was returned by the server.");
@@ -143,17 +122,11 @@ export const updateBranch = async (
   branchId: number,
   payload: BranchPayload
 ): Promise<BranchRecord> => {
-  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/${branchId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildRequestBody(payload, branchId)),
-  });
+  const { data } = await axiosInstance.put<ApiResponse<unknown>>(`/Branch/${branchId}`, buildRequestBody(payload, branchId));
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to update branch"));
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to update branch");
   }
-
-  await response.json().catch(() => null);
 
   return {
     id: branchId,
@@ -165,12 +138,10 @@ export const updateBranch = async (
 };
 
 export const deleteBranch = async (branchId: number): Promise<void> => {
-  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/${branchId}`, {
-    method: "DELETE",
-  });
+  const { data } = await axiosInstance.delete<ApiResponse<unknown>>(`/Branch/${branchId}`);
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Failed to delete branch"));
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to delete branch");
   }
 };
 

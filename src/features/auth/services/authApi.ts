@@ -1,25 +1,14 @@
+import axiosInstance from "../../../api/axiosInstance";
 import type { LoginResponse } from "../types";
 
-export const loginApi = async (username: string, password: string, clientDb = "app_db") => {
-  const res = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/auth/login?clientDb=${encodeURIComponent(clientDb)}`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "*/*",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    }
+export const loginApi = async (username: string, password: string, clientDb = "app_db"): Promise<LoginResponse> => {
+  // Use a string template for the URL to ensure ?clientDb is perfectly appended to the path
+  const url = `/auth/login?clientDb=${encodeURIComponent(clientDb)}`;
+  
+  const { data } = await axiosInstance.post<LoginResponse>(
+    url,
+    { username, password }
   );
 
-  if (!res.ok) {
-    const message = (await res.text().catch(() => "")) || `HTTP error: ${res.status}`;
-    throw new Error(message);
-  }
-
-  return (await res.json()) as LoginResponse;
+  return data;
 };
