@@ -42,8 +42,13 @@ const CashierOutPage = lazy(() => import("../../features/systemRegistration/page
 
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
+  const hasToken = !!localStorage.getItem("accessToken");
+  const activeShift = localStorage.getItem("activeShift");
   
   if (isPos) {
+    if (hasToken && activeShift) {
+      return <Navigate to="/pos" replace />;
+    }
     return <Navigate to="/cashier/in" replace />;
   }
   

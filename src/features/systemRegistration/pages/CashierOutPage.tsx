@@ -17,6 +17,14 @@ const CashierOutPage = () => {
   const [counts, setCounts] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
 
+  // Computed Totals logic - Must be declared BEFORE any early returns
+  const computedTotal = useMemo(() => {
+    return DENOMINATIONS.reduce((sum, denom) => {
+      const count = parseInt(counts[denom] || "0", 10);
+      return sum + denom * count;
+    }, 0);
+  }, [counts]);
+
   // If the user hasn't opened a shift
   if (!isShiftOpen || !activeShift) {
     return (
@@ -28,7 +36,7 @@ const CashierOutPage = () => {
           <h2 className="text-lg font-semibold text-slate-800">No Open Shift</h2>
           <p className="mt-1 text-sm text-slate-500">There is no active shift to close.</p>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/")}
             className="mt-4 text-sm font-semibold text-[#49293e] hover:underline"
           >
             Back to Dashboard
@@ -52,14 +60,6 @@ const CashierOutPage = () => {
     month: "short",
     year: "numeric",
   });
-
-  // Computed Totals logic
-  const computedTotal = useMemo(() => {
-    return DENOMINATIONS.reduce((sum, denom) => {
-      const count = parseInt(counts[denom] || "0", 10);
-      return sum + denom * count;
-    }, 0);
-  }, [counts]);
 
   const hasDenominations = computedTotal > 0;
   // Final total displayed in the Total box
@@ -243,7 +243,7 @@ const CashierOutPage = () => {
             <Button
               size="lg"
               variant="secondary"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/")}
               disabled={loading}
               className="py-4 text-lg font-bold rounded-xl text-gray-600"
             >

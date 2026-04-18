@@ -17,7 +17,7 @@ const CashierInPage = () => {
       // Automatically open shift with default values to satisfy the routing guard
       openShift({ openingCash: 0, notes: "" });
       showToast("Cashier logged in successfully!", "success");
-      navigate("/dashboard", { replace: true });
+      navigate("/pos", { replace: true });
     } else {
       showToast("Invalid password. For demo, use 1234", "error");
       setPassword("");

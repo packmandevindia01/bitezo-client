@@ -138,18 +138,20 @@ const CompanyOnboardingPage = () => {
     const companyCheck = await checkCompanyExists(clientDb, formState.regId.trim());
 
     if (companyCheck.exists) {
+      showToast(
+        companyCheck.data?.name
+          ? `Company "${companyCheck.data.name}" is already registered. Redirecting...`
+          : companyCheck.message || "Company already registered. Redirecting...",
+        "success"
+      );
+
+      localStorage.setItem("companyRegistered", "true");
+
       if (systemType === "pos") {
         setupPosSession(clientDb);
         return;
       }
       
-      showToast(
-        companyCheck.data?.name
-          ? `Company "${companyCheck.data.name}" is already registered. Redirecting to login…`
-          : companyCheck.message || "Company already registered. Redirecting to login…",
-        "success"
-      );
-      localStorage.setItem("companyRegistered", "true");
       setTimeout(() => navigate("/", { replace: true }), 1500);
       return;
     }
