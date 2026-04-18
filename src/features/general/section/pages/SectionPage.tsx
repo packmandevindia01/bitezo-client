@@ -31,6 +31,7 @@ const SectionPage = () => {
         data={filteredRecords}
         actionLabel="+ Add Section"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "S No", accessor: "id" },
           { header: "Name", accessor: "name" },

@@ -81,6 +81,7 @@ const ExtrasMasterForm = ({
           placeholder="e.g. Extra Mayo"
           value={form.name}
           onChange={(e) => onChange("name", e.target.value)}
+          autoFocus
         />
 
         <FormInput

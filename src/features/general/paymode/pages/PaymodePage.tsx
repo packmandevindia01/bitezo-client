@@ -31,6 +31,7 @@ const PaymodePage = () => {
         data={filteredRecords}
         actionLabel="+ Add Paymode"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "S No", accessor: "id" },
           { header: "Paymode", accessor: "paymode" },

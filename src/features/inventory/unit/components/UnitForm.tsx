@@ -109,6 +109,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel }: Pr
           }}
           placeholder="Select category"
           required
+          autoFocus
         />
 
         <FormInput

@@ -33,6 +33,7 @@ const ModifierTypeForm = ({
           required
           value={form.name}
           onChange={(e) => onChange("name", e.target.value)}
+          autoFocus
         />
 
         <FormInput

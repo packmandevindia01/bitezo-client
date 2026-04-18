@@ -30,6 +30,7 @@ const CounterPage = () => {
         data={filteredRecords}
         actionLabel="+ Add Counter"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "S No", accessor: "id" },
           { header: "Name", accessor: "name" },

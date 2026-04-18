@@ -26,6 +26,7 @@ const CounterModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onS
               value={form.name}
               placeholder="Enter counter name"
               onChange={(value) => onChange("name", value)}
+              autoFocus
             />
           </MasterFieldRow>
 

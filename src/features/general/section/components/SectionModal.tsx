@@ -26,6 +26,7 @@ const SectionModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onS
               value={form.name}
               placeholder="Enter section name"
               onChange={(value) => onChange("name", value)}
+              autoFocus
             />
           </MasterFieldRow>
 

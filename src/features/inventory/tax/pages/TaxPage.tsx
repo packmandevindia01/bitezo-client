@@ -60,6 +60,7 @@ const TaxPage = () => {
         loading={listLoading}
         actionLabel="+ Add Tax"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },

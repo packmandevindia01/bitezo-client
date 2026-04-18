@@ -22,6 +22,7 @@ const BranchBasicInfo = ({ value, error, disabled, onChange }: Props) => {
         autoComplete="off"
         placeholder="Enter branch name"
         onChange={(e) => onChange(e.target.value)}
+        autoFocus
       />
     </div>
   );

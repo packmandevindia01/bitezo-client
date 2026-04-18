@@ -51,6 +51,7 @@ const ModifierPage = () => {
         actionLabel="+ Add Modifier"
         onAction={openCreateModal}
         loading={loading}
+        autoFocusSearch
         columns={[
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabic" },

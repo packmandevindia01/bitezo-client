@@ -39,6 +39,7 @@ const ResetPasswordForm = ({ onSubmit }: Props) => {
         required
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        autoFocus
       />
 
       <FormInput

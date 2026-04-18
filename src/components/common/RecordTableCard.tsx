@@ -18,6 +18,7 @@ interface RecordTableCardProps<T> {
   actionLabel?: string;
   onAction?: () => void;
   loading?: boolean;
+  autoFocusSearch?: boolean;
 }
 
 const RecordTableCard = <T,>({
@@ -30,6 +31,7 @@ const RecordTableCard = <T,>({
   actionLabel,
   onAction,
   loading = false,
+  autoFocusSearch,
 }: RecordTableCardProps<T>) => {
   return (
     <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
@@ -47,6 +49,7 @@ const RecordTableCard = <T,>({
               value={search}
               onChange={onSearchChange}
               placeholder={`Search ${title.toLowerCase()}`}
+              autoFocus={autoFocusSearch}
             />
           </div>
 

@@ -52,6 +52,7 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit }: Props) => {
           onChange={(e) => handleChange("name", e.target.value)}
           placeholder="e.g. VAT 10%"
           required
+          autoFocus
         />
 
         <FormInput

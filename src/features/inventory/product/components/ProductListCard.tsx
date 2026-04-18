@@ -31,6 +31,7 @@ const ProductListCard = ({
       rowKey="productId"
       actionLabel="+ Add Product"
       onAction={onAdd}
+      autoFocusSearch
       columns={[
         { header: "S No", accessor: "sNo" },
         { header: "Product Name", accessor: "name" },

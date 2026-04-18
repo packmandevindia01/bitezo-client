@@ -35,6 +35,7 @@ const EmailForm = ({ onSubmit }: Props) => {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         error={error}
+        autoFocus
       />
 
       <Button onClick={handleSubmit} className="w-full">

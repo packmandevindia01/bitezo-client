@@ -30,6 +30,7 @@ const PaymodeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onS
               value={form.paymode}
               placeholder="Enter paymode name"
               onChange={(value) => onChange("paymode", value)}
+              autoFocus
             />
           </MasterFieldRow>
 

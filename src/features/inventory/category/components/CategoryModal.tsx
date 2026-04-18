@@ -64,6 +64,7 @@ const CategoryModal = ({
                 value={form.code}
                 onChange={(e) => onChange({ code: e.target.value })}
                 placeholder="Enter category code"
+                autoFocus
               />
 
               {/* Category Name */}

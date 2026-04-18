@@ -39,6 +39,7 @@ const VoucherSeriesPage = () => {
         data={filteredRecords}
         actionLabel="+ Add Voucher Series"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "Voucher Type", accessor: "voucherType" },
           { header: "Name", accessor: "name" },

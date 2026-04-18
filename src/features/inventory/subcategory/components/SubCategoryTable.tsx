@@ -31,6 +31,7 @@ const SubCategoryTable = ({
       actionLabel="+ Add Sub Category"
       onAction={onAdd}
       loading={loading}
+      autoFocusSearch
       columns={[
         { header: "Code", accessor: "code" },
         { header: "Sub Category", accessor: "name" },

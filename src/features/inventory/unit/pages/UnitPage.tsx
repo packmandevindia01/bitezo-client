@@ -60,6 +60,7 @@ const UnitPage = () => {
         loading={listLoading}
         actionLabel="+ Add Unit"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },

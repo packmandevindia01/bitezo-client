@@ -61,6 +61,7 @@ const SubCategoryModal = ({
                 value={form.code}
                 onChange={(e) => onChange({ code: e.target.value })}
                 placeholder="Enter sub category code"
+                autoFocus
               />
 
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">

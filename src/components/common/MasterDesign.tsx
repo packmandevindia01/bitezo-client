@@ -22,6 +22,7 @@ interface MasterScreenProps<T> {
   rowKey: keyof T;
   children: ReactNode;
   showListSection?: boolean;
+  autoFocusSearch?: boolean;
 }
 
 interface MasterFieldRowProps {
@@ -36,6 +37,7 @@ interface MasterInputProps {
   type?: "text" | "number";
   readOnly?: boolean;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
 }
 
 interface MasterSelectProps {
@@ -43,6 +45,7 @@ interface MasterSelectProps {
   placeholder?: string;
   options: MasterOption[];
   onChange: (value: string) => void;
+  autoFocus?: boolean;
 }
 
 interface MasterColorInputProps {
@@ -77,6 +80,7 @@ export const MasterScreen = <T,>({
   rowKey,
   children,
   showListSection = true,
+  autoFocusSearch = false,
 }: MasterScreenProps<T>) => {
   return (
     <section className="rounded-4xl bg-white px-4 py-6 shadow-sm ring-1 ring-gray-100 md:px-8 md:py-10">
@@ -100,6 +104,7 @@ export const MasterScreen = <T,>({
                   value={search}
                   onChange={(e) => onSearchChange(e.target.value)}
                   placeholder="Search"
+                  autoFocus={autoFocusSearch}
                   className="w-full border-none bg-transparent pl-7 text-sm font-medium text-[#49293e] outline-none"
                 />
               </label>
@@ -175,6 +180,7 @@ export const MasterInput = ({
   type = "text",
   readOnly,
   onChange,
+  autoFocus,
 }: MasterInputProps) => {
   return (
     <input
@@ -183,6 +189,7 @@ export const MasterInput = ({
       readOnly={readOnly}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
+      autoFocus={autoFocus}
       className={`${fieldClassName} ${readOnly ? "bg-[#fbf7f9]" : ""}`}
     />
   );
@@ -193,11 +200,13 @@ export const MasterSelect = ({
   placeholder = "Select",
   options,
   onChange,
+  autoFocus,
 }: MasterSelectProps) => {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      autoFocus={autoFocus}
       className={fieldClassName}
     >
       <option value="">{placeholder}</option>

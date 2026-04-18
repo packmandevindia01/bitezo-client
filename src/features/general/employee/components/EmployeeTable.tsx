@@ -31,6 +31,7 @@ const EmployeeTable = ({
       actionLabel="+ Add Employee"
       onAction={onAdd}
       loading={loading}
+      autoFocusSearch
       columns={[
         { header: "Name", accessor: "name" },
         { header: "Code", accessor: "code" },

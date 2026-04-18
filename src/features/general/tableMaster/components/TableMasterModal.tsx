@@ -53,6 +53,7 @@ const TableMasterModal = ({
             placeholder="Choose"
             options={sectionOptions}
             onChange={onSectionChange}
+            autoFocus
           />
         </MasterFieldRow>
 

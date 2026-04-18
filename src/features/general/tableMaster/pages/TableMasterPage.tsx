@@ -37,6 +37,7 @@ const TableMasterPage = () => {
         data={filteredTables}
         actionLabel="+ Add Table"
         onAction={openCreateModal}
+        autoFocusSearch
         columns={[
           { header: "S No", accessor: "id" },
           { header: "Section", accessor: "section" },

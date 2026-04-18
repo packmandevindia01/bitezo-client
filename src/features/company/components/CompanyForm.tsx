@@ -250,12 +250,12 @@ const CompanyForm = ({
           onChange={(e) => handleChange("regId", e.target.value)}
           disabled={submitting}
           readOnly={isLocked("regId")}
+          autoFocus
         />
 
         <FormInput
           label="Company Name"
           required
-          autoFocus
           value={form.custName}
           onChange={(e) => handleChange("custName", e.target.value)}
           error={errors.custName}

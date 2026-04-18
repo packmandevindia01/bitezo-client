@@ -51,6 +51,7 @@ const ExtrasMasterPage = () => {
         actionLabel="+ Add Extras"
         onAction={openCreateModal}
         loading={loading}
+        autoFocusSearch
         columns={[
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabic" },

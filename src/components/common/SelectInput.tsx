@@ -17,6 +17,7 @@ interface Props {
   onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void;
   error?: string;
   disabled?: boolean;
+  autoFocus?: boolean;
 }
 
 const SelectInput = ({
@@ -31,6 +32,7 @@ const SelectInput = ({
   onBlur,
   error,
   disabled,
+  autoFocus,
 }: Props) => {
 
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
@@ -57,6 +59,7 @@ const SelectInput = ({
         onChange={onChange}
         onBlur={onBlur}
         disabled={disabled}
+        autoFocus={autoFocus}
         className={`
           w-full px-3 md:px-4 py-2
           text-sm md:text-base

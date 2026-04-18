@@ -42,6 +42,7 @@ const OtpInput = ({ value, onChange }: Props) => {
                     value={digit}
                     onChange={(e) => handleChange(e.target.value, index)}
                     onKeyDown={(e) => handleKeyDown(e, index)}
+                    autoFocus={index === 0}
                     className="w-10 h-10 sm:w-12 sm:h-12 text-center text-lg border rounded-md outline-none focus:ring-2 focus:ring-[#49293e]"
                 />
             ))}

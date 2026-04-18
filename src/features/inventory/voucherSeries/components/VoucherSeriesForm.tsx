@@ -33,6 +33,7 @@ const VoucherSeriesForm = ({
           value={form.voucherType}
           placeholder="Select voucher type"
           onChange={(e) => onChange("voucherType", e.target.value)}
+          autoFocus
         />
 
         <FormInput

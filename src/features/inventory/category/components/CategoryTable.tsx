@@ -31,6 +31,7 @@ const CategoryTable = ({
       actionLabel="+ Add Category"
       onAction={onAdd}
       loading={loading}
+      autoFocusSearch
       columns={[
         { header: "Code", accessor: "code" },
         { header: "Category Name", accessor: "name" },

@@ -223,6 +223,7 @@ const ProductMasterForm = ({
               disabled={saving}
               onChange={(e) => onChange("name", e.target.value)}
               required
+              autoFocus
             />
             <SearchableSelect
               label="Unit"

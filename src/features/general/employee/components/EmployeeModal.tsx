@@ -47,6 +47,7 @@ const EmployeeModal = ({
             value={form.name}
             onChange={(e) => onChange({ name: e.target.value })}
             placeholder="Enter employee name"
+            autoFocus
           />
 
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">Code</p>
