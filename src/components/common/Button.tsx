@@ -1,15 +1,11 @@
 import React from "react";
 
-interface ButtonProps {
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "danger";
   size?: "sm" | "md" | "lg";
-  onClick?: () => void;
-  type?: "button" | "submit" | "reset";
-  disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
-  className?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -24,8 +20,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       loading = false,
       fullWidth = false,
       className = "",
+      ...props
     },
-    ref // 👈 ref parameter added
+    ref
   ) => {
     const variants = {
       primary: "bg-[#49293e] text-white hover:bg-[#3c2232]",
@@ -41,7 +38,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     return (
       <button
-        ref={ref} // 👈 pass ref to button element
+        ref={ref}
         type={type}
         onClick={onClick}
         disabled={disabled || loading}
@@ -55,6 +52,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           focus:outline-none focus:ring-2 focus:ring-[#49293e] focus:ring-offset-1
           ${className}
         `}
+        {...props}
       >
         {loading && (
           <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

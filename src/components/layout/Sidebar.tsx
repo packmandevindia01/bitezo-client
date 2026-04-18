@@ -21,9 +21,6 @@ import {
   ListTree,
   X,
   Percent,
-  LogIn,
-  LogOut,
-  Monitor,
 } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";

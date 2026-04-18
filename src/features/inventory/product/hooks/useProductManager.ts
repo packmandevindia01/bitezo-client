@@ -191,10 +191,10 @@ export const useProductManager = () => {
           filePath: p.filePath ?? "",
         });
       }
-      const altProductsData = detail.altProducts ?? detail.altproduct;
-      if (altProductsData) {
+      const altProductsData = (detail as any).altProducts ?? (detail as any).altproduct;
+      if (altProductsData && Array.isArray(altProductsData)) {
         setAlternatives(
-          altProductsData.map((alt, idx) => ({
+          altProductsData.map((alt: any, idx: number) => ({
             ...alt,
             id: (alt as any).id || Date.now() + idx,
             branchId: alt.branchId ?? 0,

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Calendar, AlertCircle, Delete } from "lucide-react";
+import { Clock, Calendar, AlertCircle } from "lucide-react";
 import { Button } from "../../../components/common";
 import { useToast } from "../../../app/providers/useToast";
 import { useCashierShift } from "../hooks/useCashierShift";
