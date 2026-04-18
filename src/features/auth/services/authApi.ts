@@ -2,7 +2,7 @@ import type { LoginResponse } from "../types";
 
 export const loginApi = async (username: string, password: string, clientDb = "app_db") => {
   const res = await fetch(
-    `http://84.255.173.131:8068/api/auth/login?clientDb=${encodeURIComponent(clientDb)}`,
+    `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/auth/login?clientDb=${encodeURIComponent(clientDb)}`,
     {
       method: "POST",
       headers: {

@@ -1,7 +1,7 @@
 import type { CompanyFormData, CompanyMasterloadResponse } from "../types";
 
 export const fetchCompanyMasterload = async () => {
-  const res = await fetch("http://84.255.173.131:8068/api/company/masterload", {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/company/masterload`, {
     method: "GET",
     headers: {
       accept: "*/*",
@@ -52,7 +52,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     createdAt: new Date().toISOString(),
   };
 
-  const res = await fetch(`http://84.255.173.131:8068/api/company/${encodeURIComponent(clientDb)}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/company/${encodeURIComponent(clientDb)}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

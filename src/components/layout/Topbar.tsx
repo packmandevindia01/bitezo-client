@@ -1,4 +1,4 @@
-import { Menu, LogOut, ChevronRight, User, ChevronDown } from "lucide-react";
+import { Menu, LogOut, ChevronRight, User, ChevronDown, Monitor, Clock } from "lucide-react";
 import { Modal, Button } from "../common";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -31,6 +31,10 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/extras-master": "Extras Master",
     "/dashboard/extras-type": "Extras Type",
     "/dashboard/modifier-type": "Modifier Type",
+    "/dashboard/taxes": "Tax Master",
+    "/cashier/in": "Cashier In — Open Shift",
+    "/cashier/out": "Cashier Out — Close Shift",
+    "/system/register": "System Registration",
   };
   return map[pathname] ?? "Dashboard";
 };
@@ -52,6 +56,21 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
 
   const username = localStorage.getItem("userName") ?? "Admin";
   const pageTitle = getPageTitle(location.pathname);
+
+  const systemType = localStorage.getItem("systemType");
+  const systemName = localStorage.getItem("systemName");
+  const isPOS = systemType === "pos";
+
+  // Check if there's an open shift
+  const openShiftCash = (() => {
+    try {
+      const raw = localStorage.getItem("activeShift");
+      const shift = raw ? JSON.parse(raw) : null;
+      return shift?.status === "open" ? shift.openingCash : null;
+    } catch {
+      return null;
+    }
+  })();
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -98,6 +117,25 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
             <ChevronRight size={13} className="hidden text-gray-300 sm:block" />
             <span className="font-semibold text-gray-700">{pageTitle}</span>
           </div>
+
+          {/* POS / Back Office badge */}
+          {systemType && (
+            <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+              isPOS ? "bg-[#49293e]/10 text-[#49293e]" : "bg-slate-100 text-slate-500"
+            }`}>
+              {isPOS ? <Monitor size={11} /> : null}
+              <span>{isPOS ? "POS" : "Back Office"}</span>
+              {systemName && <span className="text-gray-400">· {systemName}</span>}
+            </div>
+          )}
+
+          {/* Open shift indicator for POS */}
+          {isPOS && openShiftCash !== null && (
+            <div className="hidden md:flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <Clock size={11} />
+              <span>Shift Open · {Number(openShiftCash).toFixed(3)}</span>
+            </div>
+          )}
         </div>
 
         {/* RIGHT — profile dropdown */}

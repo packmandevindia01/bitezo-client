@@ -46,7 +46,7 @@ const UserForm = ({
         const tenantId = localStorage.getItem("tenantId") ?? "app_db";
 
         const res = await fetch(
-          `http://84.255.173.131:8068/api/Branch/list-name?clientDb=${encodeURIComponent(tenantId)}`,
+          `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/list-name?clientDb=${encodeURIComponent(tenantId)}`,
           {
             method: "GET",
             headers: {

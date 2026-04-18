@@ -63,17 +63,17 @@ export interface ProductListItem {
 
 export interface ProductDetail {
   product: {
-    id: number;          // API returns "id" not "productId"
+    productId: number;
     code: string;
     name: string;
     arabicName: string | null;
     categoryId: number;
-    subcatId: number;    // API uses lowercase "subcatId"
+    subCatId: number;
     groupId: number;
     typeId: number;
     unitId: number;
-    pvatId: number;      // API uses lowercase "pvatId"
-    svatId: number;      // API uses lowercase "svatId"
+    pVatId: number;
+    sVatId: number;
     cost: number;
     branchId: number;
     fileName: string;
@@ -81,8 +81,8 @@ export interface ProductDetail {
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
-  }[] | null;            // API returns an array
-  altproduct: AltProductItem[] | null;
+  }[] | null;
+  altProducts: AltProductItem[] | null;
 }
 
 export interface CreateProductPayload {
@@ -90,12 +90,12 @@ export interface CreateProductPayload {
   name: string;
   arabicName: string;
   categoryId: number;
-  subcatId: number;
+  subCatId: number;
   groupId: number;
   typeId: number;
   unitId: number;
-  pvatId: number;
-  svatId: number;
+  pVatId: number;
+  sVatId: number;
   cost: number;
   branchId: number;
   fileName: string;

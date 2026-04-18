@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, useEffect } from "react";
 import {
   POS_CATEGORIES,
   POS_INITIAL_CART,
@@ -23,7 +23,20 @@ export const usePosTerminal = () => {
   const [search, setSearch] = useState("");
   const [selectedOrderType, setSelectedOrderType] = useState(POS_ORDER_TYPES[0]?.id ?? "");
   const [selectedTender, setSelectedTender] = useState(POS_TENDER_OPTIONS[0]?.id ?? "");
-  const [cartItems, setCartItems] = useState<PosCartItem[]>(POS_INITIAL_CART);
+  const [cartItems, setCartItems] = useState<PosCartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("posCartItems");
+      if (saved) return JSON.parse(saved);
+    } catch (err) {
+      console.warn("Failed to parse POS cart from storage:", err);
+    }
+    return POS_INITIAL_CART;
+  });
+
+  // Auto-save the cart to perfectly restore the POS if tab refreshes or power fails
+  useEffect(() => {
+    localStorage.setItem("posCartItems", JSON.stringify(cartItems));
+  }, [cartItems]);
 
   const deferredSearch = useDeferredValue(search);
   const normalizedSearch = deferredSearch.trim().toLowerCase();
@@ -74,6 +87,15 @@ export const usePosTerminal = () => {
     });
   };
 
+  const addProductBySku = (sku: string) => {
+    const product = POS_PRODUCTS.find((p) => p.sku.toLowerCase() === sku.toLowerCase());
+    if (product) {
+      addProduct(product.id);
+      return true;
+    }
+    return false;
+  };
+
   const incrementItem = (productId: number) => {
     setCartItems((current) =>
       current.map((item) =>
@@ -117,6 +139,7 @@ export const usePosTerminal = () => {
     setSelectedOrderType,
     setSelectedTender,
     addProduct,
+    addProductBySku,
     clearCart,
     decrementItem,
     incrementItem,

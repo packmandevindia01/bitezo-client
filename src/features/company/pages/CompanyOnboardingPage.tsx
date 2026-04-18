@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
+import { Mail, ShieldCheck, UserRoundPlus, Monitor, LayoutGrid } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, FormInput } from "../../../components/common";
 import OtpInput from "../../auth/components/OtpInput";
 import { useToast } from "../../../app/providers/useToast";
 import CompanyForm from "../components/CompanyForm";
-import {
-  checkCompanyExists,
-  fetchCompanyRegistration,
-  sendCompanyOtp,
-  verifyCompanyOtp,
-} from "../services/companyOnboardingApi";
+import { checkCompanyExists, fetchCompanyRegistration, sendCompanyOtp, verifyCompanyOtp } from "../services/companyOnboardingApi";
 import type { CompanyOnboardingState } from "../types";
 import { isValidEmail } from "../../../lib/validators";
+import type { SystemType } from "../../systemRegistration/types";
+import { useAppDispatch } from "../../../app/hooks";
+import { setCredentials } from "../../auth/store/authSlice";
 
-type OnboardingStage = "identify" | "verify" | "form";
+type OnboardingStage = "identify" | "verify" | "system-type" | "form";
 
 const initialState: CompanyOnboardingState = {
   regId: "",
@@ -25,6 +23,7 @@ const initialState: CompanyOnboardingState = {
 
 const CompanyOnboardingPage = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { showToast } = useToast();
 
   const [stage, setStage] = useState<OnboardingStage>("identify");
@@ -35,6 +34,7 @@ const CompanyOnboardingPage = () => {
   const [formNotice, setFormNotice] = useState("");
   const [clientDatabase, setClientDatabase] = useState("");
   const [tempToken, setTempToken] = useState("");
+  const [systemType, setSystemType] = useState<SystemType>("pos");
 
   useEffect(() => {
     if (stage !== "verify" || timer <= 0) return;
@@ -90,6 +90,31 @@ const CompanyOnboardingPage = () => {
     }
   };
 
+  const setupPosSession = (db: string) => {
+    localStorage.setItem("companyRegistered", "true");
+    dispatch(
+      setCredentials({
+        tenantId: db,
+        accessToken: "pos-terminal-session",
+        refreshToken: "pos-terminal-refresh",
+        userId: "pos-terminal",
+        userName: "POS Terminal",
+        isMaster: false,
+      })
+    );
+    
+    // Write directly to local storage to bypass React lifecycle racing
+    localStorage.setItem("tenantId", db);
+    localStorage.setItem("accessToken", "pos-terminal-session");
+    localStorage.setItem("refreshToken", "pos-terminal-refresh");
+    localStorage.setItem("userId", "pos-terminal");
+    localStorage.setItem("userName", "POS Terminal");
+    localStorage.setItem("isMaster", "false");
+
+    showToast("POS Terminal Registered! Opening system...", "success");
+    navigate("/cashier/in", { replace: true });
+  };
+
   const handlePostOtpFlow = async (otpToken: string) => {
     const registration = await fetchCompanyRegistration(
       { regId: formState.regId.trim(), email: formState.email.trim() },
@@ -113,15 +138,19 @@ const CompanyOnboardingPage = () => {
     const companyCheck = await checkCompanyExists(clientDb, formState.regId.trim());
 
     if (companyCheck.exists) {
+      if (systemType === "pos") {
+        setupPosSession(clientDb);
+        return;
+      }
+      
       showToast(
         companyCheck.data?.name
           ? `Company "${companyCheck.data.name}" is already registered. Redirecting to login…`
           : companyCheck.message || "Company already registered. Redirecting to login…",
         "success"
       );
-      // Mark this device as onboarded so future visits skip onboarding
       localStorage.setItem("companyRegistered", "true");
-      setTimeout(() => navigate("/"), 1500);
+      setTimeout(() => navigate("/", { replace: true }), 1500);
       return;
     }
 
@@ -153,11 +182,27 @@ const CompanyOnboardingPage = () => {
       }
 
       setField("otpToken", verification.otpToken);
-      showToast("OTP verified successfully", "success");
+      showToast("OTP verified! Now choose your system type.", "success");
 
-      await handlePostOtpFlow(verification.otpToken);
+      // ── Go to system-type step before post-OTP flow ──
+      setStage("system-type");
     } catch (error) {
       const message = error instanceof Error ? error.message : "OTP verification failed";
+      showToast(message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmSystemType = async () => {
+    // Save system type to localStorage before proceeding
+    localStorage.setItem("systemType", systemType);
+
+    try {
+      setLoading(true);
+      await handlePostOtpFlow(formState.otpToken);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
       showToast(message, "error");
     } finally {
       setLoading(false);
@@ -180,6 +225,13 @@ const CompanyOnboardingPage = () => {
     }
   };
 
+  const steps = [
+    { Icon: Mail,          step: "Step 1", label: "Enter registration ID and email" },
+    { Icon: ShieldCheck,   step: "Step 2", label: "Verify OTP and validate access" },
+    { Icon: Monitor,       step: "Step 3", label: "Choose system type (POS or Back Office)" },
+    { Icon: UserRoundPlus, step: "Step 4", label: "Complete the company registration form" },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
@@ -190,16 +242,12 @@ const CompanyOnboardingPage = () => {
           </p>
           <h1 className="mt-3 text-3xl font-bold leading-tight">Verify and Create Company</h1>
           <p className="mt-4 text-sm leading-6 text-white/80">
-            This flow validates your email with an OTP, checks your registration status, and
-            then opens the company setup form if needed.
+            This flow validates your email with an OTP, sets up this device as POS or Back Office,
+            and opens the company setup form if needed.
           </p>
 
           <div className="mt-8 space-y-4">
-            {[
-              { Icon: Mail, step: "Step 1", label: "Enter registration ID and email" },
-              { Icon: ShieldCheck, step: "Step 2", label: "Verify OTP and validate access" },
-              { Icon: UserRoundPlus, step: "Step 3", label: "Complete the company registration form" },
-            ].map(({ Icon, step, label }) => (
+            {steps.map(({ Icon, step, label }) => (
               <div
                 key={step}
                 className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"
@@ -316,6 +364,98 @@ const CompanyOnboardingPage = () => {
             </div>
           )}
 
+          {/* Stage: system-type */}
+          {stage === "system-type" && (
+            <div className="mx-auto max-w-2xl">
+              <h2 className="text-2xl font-semibold text-slate-900">Choose System Type</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                How will this machine be used? This setting is saved on this device.
+              </p>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {/* POS Card */}
+                <button
+                  type="button"
+                  id="system-type-pos"
+                  onClick={() => setSystemType("pos")}
+                  className={`relative w-full rounded-2xl border-2 bg-white p-6 text-left transition-all duration-200 hover:shadow-md ${
+                    systemType === "pos"
+                      ? "border-[#49293e] shadow-md"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {systemType === "pos" && (
+                    <span className="absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-[#49293e]">
+                      <svg viewBox="0 0 12 10" className="h-3 w-3 fill-none stroke-white stroke-2">
+                        <polyline points="1,5 4,8 11,1" />
+                      </svg>
+                    </span>
+                  )}
+                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#49293e] to-[#7b3f6e] text-white shadow-sm">
+                    <Monitor size={22} />
+                  </div>
+                  <h3 className="text-base font-semibold text-gray-900">POS Terminal</h3>
+                  <span className="mt-1 inline-block rounded-full bg-[#49293e]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#49293e]">
+                    Requires Cashier In / Out
+                  </span>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-500">
+                    This machine handles customer orders and payments. A cashier must open
+                    and close a shift each day.
+                  </p>
+                </button>
+
+                {/* Back Office Card */}
+                <button
+                  type="button"
+                  id="system-type-backoffice"
+                  onClick={() => setSystemType("backoffice")}
+                  className={`relative w-full rounded-2xl border-2 bg-white p-6 text-left transition-all duration-200 hover:shadow-md ${
+                    systemType === "backoffice"
+                      ? "border-slate-600 shadow-md"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {systemType === "backoffice" && (
+                    <span className="absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-slate-600">
+                      <svg viewBox="0 0 12 10" className="h-3 w-3 fill-none stroke-white stroke-2">
+                        <polyline points="1,5 4,8 11,1" />
+                      </svg>
+                    </span>
+                  )}
+                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-sm">
+                    <LayoutGrid size={22} />
+                  </div>
+                  <h3 className="text-base font-semibold text-gray-900">Back Office</h3>
+                  <span className="mt-1 inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                    Full admin access
+                  </span>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-500">
+                    This machine is for management, reporting, and master data. No shift
+                    management required.
+                  </p>
+                </button>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button
+                  id="confirm-system-type-btn"
+                  onClick={handleConfirmSystemType}
+                  disabled={loading}
+                  size="lg"
+                >
+                  {loading ? "Checking…" : "Confirm & Continue"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setStage("verify")}
+                  disabled={loading}
+                >
+                  Back
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Stage: form (company creation) */}
           {stage === "form" && (
             <div>
@@ -348,16 +488,20 @@ const CompanyOnboardingPage = () => {
                 clientDb={clientDatabase}
                 tempToken={tempToken}
                 onSuccess={() => {
-                  localStorage.setItem("companyRegistered", "true");
-                  navigate("/", {
-                    state: {
-                      clientDb: clientDatabase,
-                      username: "Admin",
-                      password: "1",
-                      message:
-                        "Company created successfully. Logging you in with default Admin credentials.",
-                    },
-                  });
+                  if (systemType === "pos") {
+                    setupPosSession(clientDatabase);
+                  } else {
+                    localStorage.setItem("companyRegistered", "true");
+                    navigate("/", {
+                      state: {
+                        clientDb: clientDatabase,
+                        username: "Admin",
+                        password: "1",
+                        message:
+                          "Company created successfully. Logging you in with default Admin credentials.",
+                      },
+                    });
+                  }
                 }}
               />
             </div>

@@ -1,7 +1,7 @@
 import { authenticatedFetch } from "../../../../lib/authenticatedFetch";
 import type { BranchPayload, BranchRecord, LineItem } from "../types";
 
-const API_BASE_URL = "http://84.255.173.131:8068";
+
 
 // ─── Internal API shapes (not exported — only used inside this file) ──────────
 
@@ -93,7 +93,7 @@ const buildRequestBody = (payload: BranchPayload, branchId?: number): BranchRequ
 // ─── Exported API functions ───────────────────────────────────────────────────
 
 export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/Branch/list-name`);
+  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/list-name`);
 
   if (!response.ok) {
     throw new Error(await getErrorMessage(response, "Failed to load branches"));
@@ -113,7 +113,7 @@ export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
 };
 
 export const createBranch = async (payload: BranchPayload): Promise<BranchRecord> => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/Branch`, {
+  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildRequestBody(payload)),
@@ -143,7 +143,7 @@ export const updateBranch = async (
   branchId: number,
   payload: BranchPayload
 ): Promise<BranchRecord> => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/Branch/${branchId}`, {
+  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/${branchId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildRequestBody(payload, branchId)),
@@ -165,7 +165,7 @@ export const updateBranch = async (
 };
 
 export const deleteBranch = async (branchId: number): Promise<void> => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/Branch/${branchId}`, {
+  const response = await authenticatedFetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/Branch/${branchId}`, {
     method: "DELETE",
   });
 

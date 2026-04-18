@@ -270,6 +270,7 @@ const ProductMasterForm = ({
               value={form.groupId}
               placeholder="Select group"
               onChange={(v) => onChange("groupId", v)}
+              required
               disabled={saving}
             />
             <SearchableSelect
@@ -288,6 +289,7 @@ const ProductMasterForm = ({
               value={form.cost}
               disabled={saving}
               onChange={(e) => onChange("cost", e.target.value)}
+              required
             />
             <SearchableSelect
               label="Sub Category"
@@ -303,6 +305,7 @@ const ProductMasterForm = ({
               value={form.branchId}
               placeholder="Select branch"
               onChange={(v) => onChange("branchId", v)}
+              required
               disabled={saving}
             />
             <SearchableSelect

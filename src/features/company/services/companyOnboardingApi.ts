@@ -5,8 +5,7 @@ import type {
   VerifyOtpResponse,
 } from "../types";
 
-const AUTH_API_BASE = "http://84.255.173.131:8068";
-const COMPANY_API_BASE = "http://84.255.173.131:8068";
+
 
 const getJsonErrorMessage = async (response: Response, fallback: string) => {
   try {
@@ -27,7 +26,7 @@ const getJsonErrorMessage = async (response: Response, fallback: string) => {
 
 export const sendCompanyOtp = async (regId: string, email: string) => {
   const response = await fetch(
-    `${AUTH_API_BASE}/api/auth/send-otp?regId=${encodeURIComponent(regId)}&email=${encodeURIComponent(email)}`,
+    `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/auth/send-otp?regId=${encodeURIComponent(regId)}&email=${encodeURIComponent(email)}`,
     {
     method: "POST",
     headers: {
@@ -45,7 +44,7 @@ export const sendCompanyOtp = async (regId: string, email: string) => {
 
 export const verifyCompanyOtp = async (regId: string, email: string, otp: string) => {
   const response = await fetch(
-    `${AUTH_API_BASE}/api/auth/verify-otp?regId=${encodeURIComponent(regId)}`,
+    `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/auth/verify-otp?regId=${encodeURIComponent(regId)}`,
     {
     method: "POST",
     headers: {
@@ -74,7 +73,7 @@ export const fetchCompanyRegistration = async <T = unknown>(
   payload: CompanyLookupPayload,
   otpToken: string
 ) => {
-  const url = `${AUTH_API_BASE}/api/admin/${encodeURIComponent(payload.regId)}/${encodeURIComponent(payload.email)}`;
+  const url = `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/admin/${encodeURIComponent(payload.regId)}/${encodeURIComponent(payload.email)}`;
 
   const response = await fetch(url, {
     method: "GET",
@@ -116,7 +115,7 @@ export const fetchCompanyRegistration = async <T = unknown>(
   };
 };
 export const checkCompanyExists = async (clientDb: string, regId: string) => {
-  const url = `${COMPANY_API_BASE}/api/company/isExist/${encodeURIComponent(clientDb)}/${encodeURIComponent(regId)}`;
+  const url = `${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/company/isExist/${encodeURIComponent(clientDb)}/${encodeURIComponent(regId)}`;
 
   const response = await fetch(url, {
     method: "GET",

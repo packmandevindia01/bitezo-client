@@ -3,6 +3,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Loader } from "../../components/common";
 import RegistrationGuard from "./RegistrationGuard";
 import ProtectedRoute from "./ProtectedRoute";
+import SystemRegistrationGuard from "./SystemRegistrationGuard";
+import { Navigate } from "react-router-dom";
 
 const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
 const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
@@ -34,6 +36,20 @@ const TableMasterPage = lazy(() => import("../../features/general/tableMaster/pa
 const PosTerminalPage = lazy(() => import("../../features/pos/pages/PosTerminalPage"));
 const EditableGridView = lazy(() => import("../../features/experimental/editable-grid/pages/EditableGridView"));
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
+const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
+const CashierInPage = lazy(() => import("../../features/systemRegistration/pages/CashierInPage"));
+const CashierOutPage = lazy(() => import("../../features/systemRegistration/pages/CashierOutPage"));
+
+const LoginRedirect = () => {
+  const isPos = localStorage.getItem("systemType") === "pos";
+  const hasToken = !!localStorage.getItem("accessToken");
+  
+  if (isPos) {
+    return <Navigate to="/cashier/in" replace />;
+  }
+  
+  return <LoginPage />;
+};
 
 const AppRoutes = () => {
   return (
@@ -42,40 +58,52 @@ const AppRoutes = () => {
         <RegistrationGuard>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<LoginPage />} />
+            <Route path="/" element={<LoginRedirect />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/verify-otp" element={<VerifyOtpPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/company/onboarding" element={<CompanyOnboardingPage />} />
+            <Route path="/system/register" element={<SystemRegistrationPage />} />
 
             {/* Protected routes — redirects to "/" if userId not in localStorage */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<MainLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="users" element={<UserList />} />
-                <Route path="customers" element={<CustomerListPage />} />
-                <Route path="customers/new" element={<CustomerFormPage />} />
-                <Route path="employees" element={<EmployeePage />} />
-                <Route path="paymodes" element={<PaymodePage />} />
-                <Route path="counters" element={<CounterPage />} />
-                <Route path="sections" element={<SectionPage />} />
-                <Route path="tables" element={<TableMasterPage />} />
-                <Route path="pos-terminal" element={<PosTerminalPage />} />
-                <Route path="branches" element={<BranchCreationPage />} />
-                <Route path="categories" element={<CategoryPage />} />
-                <Route path="sub-categories" element={<SubCategoryPage />} />
-                <Route path="groups" element={<GroupPage />} />
-                <Route path="units" element={<UnitPage />} />
-                <Route path="modifiers" element={<ModifierPage />} />
-                <Route path="products" element={<ProductListPage />} />
-                <Route path="products/add" element={<ProductFormPage />} />
-                <Route path="products/edit/:id" element={<ProductFormPage />} />
-                <Route path="voucher-series" element={<VoucherSeriesPage />} />
-                <Route path="extras-master" element={<ExtrasMasterPage />} />
-                <Route path="extras-type" element={<ExtrasTypePage />} />
-                <Route path="modifier-type" element={<ModifierTypePage />} />
-                <Route path="taxes" element={<TaxPage />} />
-                <Route path="test/editable-grid" element={<EditableGridView />} />
+              <Route element={<SystemRegistrationGuard />}>
+                
+                {/* Cashier shift pages — protected but outside dashboard layout */}
+                <Route path="/cashier/in" element={<CashierInPage />} />
+                <Route path="/cashier/out" element={<CashierOutPage />} />
+
+                {/* Main POS Screen - outside dashboard layout, fully standalone */}
+                <Route path="pos" element={<PosTerminalPage />} />
+
+                {/* Dashboard — fully guarded */}
+                <Route path="/dashboard" element={<MainLayout />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="users" element={<UserList />} />
+                  <Route path="customers" element={<CustomerListPage />} />
+                  <Route path="customers/new" element={<CustomerFormPage />} />
+                  <Route path="employees" element={<EmployeePage />} />
+                  <Route path="paymodes" element={<PaymodePage />} />
+                  <Route path="counters" element={<CounterPage />} />
+                  <Route path="sections" element={<SectionPage />} />
+                  <Route path="tables" element={<TableMasterPage />} />
+                  <Route path="branches" element={<BranchCreationPage />} />
+                  <Route path="categories" element={<CategoryPage />} />
+                  <Route path="sub-categories" element={<SubCategoryPage />} />
+                  <Route path="groups" element={<GroupPage />} />
+                  <Route path="units" element={<UnitPage />} />
+                  <Route path="modifiers" element={<ModifierPage />} />
+                  <Route path="products" element={<ProductListPage />} />
+                  <Route path="products/add" element={<ProductFormPage />} />
+                  <Route path="products/edit/:id" element={<ProductFormPage />} />
+                  <Route path="voucher-series" element={<VoucherSeriesPage />} />
+                  <Route path="extras-master" element={<ExtrasMasterPage />} />
+                  <Route path="extras-type" element={<ExtrasTypePage />} />
+                  <Route path="modifier-type" element={<ModifierTypePage />} />
+                  <Route path="taxes" element={<TaxPage />} />
+                  <Route path="test/editable-grid" element={<EditableGridView />} />
+                </Route>
+
               </Route>
             </Route>
           </Routes>

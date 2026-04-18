@@ -20,8 +20,10 @@ import {
   Shapes,
   ListTree,
   X,
-  MonitorCog,
   Percent,
+  LogIn,
+  LogOut,
+  Monitor,
 } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";
@@ -38,6 +40,8 @@ const itemClassName =
 const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
   const navigate = useNavigate();
 
+  const systemName = localStorage.getItem("systemName");
+
   return (
     <div className="flex h-dvh w-[280px] max-w-[85vw] flex-col border-r border-gray-200 bg-white md:h-screen md:w-64 md:max-w-none">
       <div className="flex shrink-0 justify-end p-4 md:hidden">
@@ -46,6 +50,11 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
 
       <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-4 text-xl font-bold text-[#49293e] md:h-20">
         Bitezo
+        {systemName && (
+          <span className="ml-2 text-xs font-normal text-gray-400 truncate max-w-[100px]">
+            · {systemName}
+          </span>
+        )}
       </div>
 
       <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain py-2 text-sm md:text-base">
@@ -151,18 +160,7 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
               </div>
             </div>
 
-            <div
-              onClick={() => {
-                navigate("/dashboard/pos-terminal");
-                onClose();
-              }}
-              className={itemClassName}
-            >
-              <div className="flex items-center gap-2">
-                <MonitorCog size={14} />
-                <span>POS Terminal</span>
-              </div>
-            </div>
+
 
             <div
               onClick={() => {
@@ -338,6 +336,10 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
             Stock Report
           </div>
         </SidebarDropdown>
+
+
+
+
 
         <SidebarItem
           icon={<Settings size={18} />}

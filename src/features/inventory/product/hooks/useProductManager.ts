@@ -167,19 +167,23 @@ export const useProductManager = () => {
       const productArr = Array.isArray(detail.product) ? detail.product : detail.product ? [detail.product] : [];
       const p = productArr[0];
       if (p) {
+        // Ensure we capture the ID even if the API returns 'id' instead of 'productId'
+        const actualProductId = p.productId ?? (p as any).id;
+        if (actualProductId) setEditingId(actualProductId);
+
         setForm({
           code: p.code ?? "",
           name: p.name ?? "",
           arabicName: p.arabicName ?? "",
           categoryId: String(p.categoryId ?? ""),
-          // API field is "subcatId" (lowercase c)
-          subCatId: String(p.subcatId ?? ""),
+          // Handle both subCatId and subcatId
+          subCatId: String(p.subCatId ?? (p as any).subcatId ?? ""),
           groupId: String(p.groupId ?? ""),
           typeId: String(p.typeId ?? "1"),
           unitId: String(p.unitId ?? ""),
-          // API field is "pvatId" / "svatId" (lowercase v)
-          pVatId: String(p.pvatId ?? ""),
-          sVatId: String(p.svatId ?? ""),
+          // Handle both pVatId/pvatId and sVatId/svatId
+          pVatId: String(p.pVatId ?? (p as any).pvatId ?? ""),
+          sVatId: String(p.sVatId ?? (p as any).svatId ?? ""),
           cost: String(p.cost ?? "0"),
           branchId: String(p.branchId ?? ""),
           isActive: p.isActive ?? true,
@@ -187,9 +191,10 @@ export const useProductManager = () => {
           filePath: p.filePath ?? "",
         });
       }
-      if (detail.altproduct) {
+      const altProductsData = detail.altProducts ?? detail.altproduct;
+      if (altProductsData) {
         setAlternatives(
-          detail.altproduct.map((alt, idx) => ({
+          altProductsData.map((alt, idx) => ({
             ...alt,
             id: (alt as any).id || Date.now() + idx,
             branchId: alt.branchId ?? 0,
@@ -219,8 +224,19 @@ export const useProductManager = () => {
   };
 
   const handleSave = async (onSuccess?: () => void) => {
-    if (!form.name || !form.code || !form.categoryId || !form.unitId || !form.pVatId || !form.sVatId) {
-      showToast("Please fill in required fields including VAT rules.", "warning");
+    if (
+      !form.name || 
+      !form.code || 
+      !form.categoryId || 
+      !form.unitId || 
+      !form.pVatId || 
+      !form.sVatId || 
+      !form.groupId || 
+      !form.branchId || 
+      !form.typeId || 
+      form.cost === ""
+    ) {
+      showToast("Please fill in all required fields marked with *.", "warning");
       return;
     }
 
@@ -294,14 +310,14 @@ export const useProductManager = () => {
         name: form.name,
         arabicName: form.arabicName,
         categoryId: parseInt(form.categoryId),
-        subcatId: parseInt(form.subCatId) || 0,
-        groupId: parseInt(form.groupId) || 0,
+        subCatId: parseInt(form.subCatId) || 0,
+        groupId: parseInt(form.groupId) || 1,
         typeId: parseInt(form.typeId) || 1,
         unitId: parseInt(form.unitId),
-        pvatId: parseInt(form.pVatId) || 0,
-        svatId: parseInt(form.sVatId) || 0,
+        pVatId: parseInt(form.pVatId) || 0,
+        sVatId: parseInt(form.sVatId) || 0,
         cost: parseFloat(form.cost) || 0,
-        branchId: parseInt(form.branchId) || 0,
+        branchId: parseInt(form.branchId) || 1,
         fileName: form.fileName ?? "",
         filePath: form.filePath ?? "",
         isActive: form.isActive,
@@ -383,24 +399,24 @@ export const useProductManager = () => {
       const p = productArr[0];
       if (p) {
         await productService.update(editingId, {
-          productId: p.id,
+          productId: p.productId,
           code: p.code,
           name: p.name,
           arabicName: p.arabicName ?? "",
           categoryId: p.categoryId,
-          subcatId: p.subcatId,
+          subCatId: p.subCatId,
           groupId: p.groupId,
           typeId: p.typeId,
           unitId: p.unitId,
-          pvatId: p.pvatId,
-          svatId: p.svatId,
+          pVatId: p.pVatId,
+          sVatId: p.sVatId,
           cost: p.cost,
           branchId: p.branchId,
           fileName: p.fileName,
           filePath: p.filePath,
           isActive: false,
           updatedAt: new Date().toISOString(),
-          altProducts: (detail.altproduct ?? []).map(alt => ({
+          altProducts: (detail.altProducts ?? []).map(alt => ({
             ...alt,
             price: alt.price ?? 0,
             isIncl: alt.isIncl ?? true
@@ -435,12 +451,24 @@ export const useProductManager = () => {
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return products;
-    return products.filter((p) =>
-      [p.name, p.code, p.category, p.group].some((v) =>
-        v?.toLowerCase().includes(query)
-      )
-    );
+    
+    // 1. Filter
+    const filtered = query
+      ? products.filter((p) =>
+          [p.name, p.code, p.category, p.group].some((v) =>
+            v?.toLowerCase().includes(query)
+          )
+        )
+      : [...products];
+
+    // 2. Sort by productId descending (Latest first)
+    // and Map to sequential S.No (1, 2, 3...)
+    return filtered
+      .sort((a, b) => b.productId - a.productId)
+      .map((p, index) => ({
+        ...p,
+        sNo: index + 1,
+      }));
   }, [products, search]);
 
   // ─── Public API ───────────────────────────────────────────────────────────

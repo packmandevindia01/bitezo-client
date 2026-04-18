@@ -1,4 +1,5 @@
-import { ShoppingBag, TimerReset, UserRound } from "lucide-react";
+import { ShoppingBag, TimerReset, UserRound, Power } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { SearchBar } from "../../../components/common";
 import PosActionButton from "../components/PosActionButton";
 import PosCategoryRail from "../components/PosCategoryRail";
@@ -6,6 +7,11 @@ import PosOrderPanel from "../components/PosOrderPanel";
 import PosProductGrid from "../components/PosProductGrid";
 import { POS_CART_ACTIONS, POS_MORE_ACTIONS } from "../constants";
 import { usePosTerminal } from "../hooks/usePosTerminal";
+import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
+import { usePosShortcuts } from "../hooks/usePosShortcuts";
+import ErrorBoundary from "../../../components/common/ErrorBoundary";
+import { useToast } from "../../../app/providers/useToast";
+
 
 const PosTerminalPage = () => {
   const {
@@ -29,13 +35,40 @@ const PosTerminalPage = () => {
     setSelectedOrderType,
     setSelectedTender,
     addProduct,
+    addProductBySku,
     clearCart,
     decrementItem,
     incrementItem,
   } = usePosTerminal();
 
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  // 1. Hardware Barcode Scanner Integration
+  useBarcodeScanner((barcode) => {
+    const success = addProductBySku(barcode);
+    if (success) {
+      showToast(`Scanned: ${barcode}`, "success");
+    } else {
+      showToast(`SKU not found: ${barcode}`, "error");
+    }
+  });
+
+  // 2. Keyboard Hotkeys for Power Users
+  usePosShortcuts({
+    onClearCart: clearCart,
+    onHoldTicket: () => showToast("Ticket put on hold", "success"),
+    onCheckout: () => {
+      if (itemCount > 0) {
+        showToast(`Processing ${selectedTender} payment for ₹${total}`, "success");
+      } else {
+        showToast("Cart is empty", "error");
+      }
+    }
+  });
+
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 space-y-6">
       <section className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#49293e] via-[#5b324c] to-[#7a5168] px-5 py-6 text-white shadow-lg sm:px-6 lg:px-8">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -45,21 +78,30 @@ const PosTerminalPage = () => {
             <h1 className="mt-2 text-2xl font-bold tracking-wide sm:text-3xl">
               Billing Terminal
             </h1>
-           
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-3xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/65">Ticket Load</p>
-              <p className="mt-2 text-2xl font-semibold">{itemCount}</p>
-            </div>
-            <div className="rounded-3xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/65">Section</p>
-              <p className="mt-2 text-lg font-semibold">{activeCategory?.name ?? "Counter"}</p>
-            </div>
-            <div className="rounded-3xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/65">Operator</p>
-              <p className="mt-2 text-lg font-semibold">Counter Admin</p>
+          <div className="flex flex-col xl:flex-row items-end xl:items-center gap-4">
+            <button
+              onClick={() => navigate("/cashier/out")}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-rose-500/90 hover:bg-rose-500 px-5 py-3.5 text-sm font-bold tracking-wide text-white transition-all active:scale-95 border border-rose-400 shadow-md h-full"
+            >
+              <Power size={18} />
+              Cashier Out
+            </button>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-3xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/65">Ticket Load</p>
+                <p className="mt-2 text-2xl font-semibold">{itemCount}</p>
+              </div>
+              <div className="rounded-3xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/65">Section</p>
+                <p className="mt-2 text-lg font-semibold">{activeCategory?.name ?? "Counter"}</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/65">Operator</p>
+                <p className="mt-2 text-lg font-semibold">Counter Admin</p>
+              </div>
             </div>
           </div>
         </div>
@@ -111,29 +153,33 @@ const PosTerminalPage = () => {
           onSelect={setActiveCategoryId}
         />
 
-        <PosProductGrid
-          products={visibleProducts}
-          activeCategory={activeCategory}
-          search={search}
-          onAdd={addProduct}
-        />
+        <ErrorBoundary name="Product Grid">
+          <PosProductGrid
+            products={visibleProducts}
+            activeCategory={activeCategory}
+            search={search}
+            onAdd={addProduct}
+          />
+        </ErrorBoundary>
 
-        <PosOrderPanel
-          cartActions={POS_CART_ACTIONS}
-          extraActions={POS_MORE_ACTIONS}
-          cartDetails={cartDetails}
-          itemCount={itemCount}
-          subtotal={subtotal}
-          discount={discount}
-          tax={tax}
-          total={total}
-          tenderOptions={tenderOptions}
-          selectedTender={selectedTender}
-          onSelectTender={setSelectedTender}
-          onIncrement={incrementItem}
-          onDecrement={decrementItem}
-          onClearCart={clearCart}
-        />
+        <ErrorBoundary name="Order Panel">
+          <PosOrderPanel
+            cartActions={POS_CART_ACTIONS}
+            extraActions={POS_MORE_ACTIONS}
+            cartDetails={cartDetails}
+            itemCount={itemCount}
+            subtotal={subtotal}
+            discount={discount}
+            tax={tax}
+            total={total}
+            tenderOptions={tenderOptions}
+            selectedTender={selectedTender}
+            onSelectTender={setSelectedTender}
+            onIncrement={incrementItem}
+            onDecrement={decrementItem}
+            onClearCart={clearCart}
+          />
+        </ErrorBoundary>
       </section>
     </div>
   );

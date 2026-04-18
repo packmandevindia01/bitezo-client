@@ -1,6 +1,6 @@
 import type { ChangePasswordPayload, User, UserPayload } from "../types";
 
-const API_BASE_URL = "http://84.255.173.131:8068";
+
 
 interface ApiResponse<T> {
   data?: T;
@@ -85,7 +85,7 @@ const normalizeUsers = (payload: unknown): User[] => {
 };
 
 export const fetchUsers = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/user/userlist`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/userlist`, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -99,7 +99,7 @@ export const fetchUsers = async () => {
 };
 
 export const fetchUserById = async (userId: number) => {
-  const response = await fetch(`${API_BASE_URL}/api/user/${userId}/userid-data`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}/userid-data`, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -113,7 +113,7 @@ export const fetchUserById = async (userId: number) => {
 };
 
 export const createUser = async (payload: UserPayload) => {
-  const response = await fetch(`${API_BASE_URL}/api/user`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user`, {
     method: "POST",
     headers: {
       ...getAuthHeaders(),
@@ -137,7 +137,7 @@ export const createUser = async (payload: UserPayload) => {
 };
 
 export const updateUser = async (userId: number, payload: UserPayload) => {
-  const response = await fetch(`${API_BASE_URL}/api/user/${userId}`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}`, {
     method: "PUT",
     headers: {
       ...getAuthHeaders(),
@@ -161,7 +161,7 @@ export const updateUser = async (userId: number, payload: UserPayload) => {
 };
 
 export const deleteUser = async (userId: number) => {
-  const response = await fetch(`${API_BASE_URL}/api/user/${userId}`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -174,7 +174,7 @@ export const deleteUser = async (userId: number) => {
 };
 
 export const changeUserPassword = async (userId: number, payload: ChangePasswordPayload) => {
-  const response = await fetch(`${API_BASE_URL}/api/user/${userId}/change-password`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api"}/user/${userId}/change-password`, {
     method: "PATCH",
     headers: {
       ...getAuthHeaders(),
