@@ -37,10 +37,10 @@ const RecordTableCard = <T,>({
     <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
-            Saved Records
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
+            Saved Records ({data.length})
           </p>
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          {title && <h2 className="text-lg font-semibold text-gray-900">{title}</h2>}
         </div>
 
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">

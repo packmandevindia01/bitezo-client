@@ -9,6 +9,7 @@ import {
 import ModifierMasterForm from "../components/ModifierMasterForm";
 import { useModifierManager } from "../hooks/useModifierManager";
 import type { ModifierRecord } from "../types";
+import { formatCurrency } from "../../../../utils/formatters";
 
 const ModifierPage = () => {
   const {
@@ -58,7 +59,7 @@ const ModifierPage = () => {
           { 
             header: "Price", 
             accessor: "price",
-            render: (row) => <span>{Number(row.price || 0).toFixed(3)}</span>
+            render: (row) => <span>{formatCurrency(row.price || 0)}</span>
           },
           { 
             header: "Type", 

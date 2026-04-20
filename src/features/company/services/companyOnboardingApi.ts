@@ -7,7 +7,7 @@ import type {
 
 export const sendCompanyOtp = async (regId: string, email: string): Promise<SendOtpResponse> => {
   const { data } = await axiosInstance.post<SendOtpResponse>("/auth/send-otp", null, {
-    params: { regId, email }
+    params: { regId, email },
   });
 
   return data;

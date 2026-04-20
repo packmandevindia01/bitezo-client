@@ -1,6 +1,7 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { PosCategory, PosProduct } from "../types";
+import { formatCurrency } from "../../../utils/formatters";
 
 interface PosProductGridProps {
   products: PosProduct[];
@@ -110,7 +111,7 @@ const PosProductGrid = ({
 
                     <div className="mt-6 xl:mt-8 flex items-end justify-between">
                       <div className="text-2xl xl:text-3xl font-bold text-[#49293e] tracking-tighter">
-                        ₹{product.price.toFixed(0)}
+                        {formatCurrency(product.price)}
                       </div>
 
                       <button

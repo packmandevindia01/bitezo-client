@@ -17,7 +17,8 @@ const UserList = lazy(() => import("../../features/general/user/pages/UserList")
 const CustomerListPage = lazy(() => import("../../features/general/customer/pages/CustomerListPage"));
 const CustomerFormPage = lazy(() => import("../../features/general/customer/pages/CustomerFormPage"));
 const EmployeePage = lazy(() => import("../../features/general/employee/pages/EmployeePage"));
-const BranchCreationPage = lazy(() => import("../../features/inventory/branches/pages/BranchCreationPage"));
+const BranchListPage = lazy(() => import("../../features/inventory/branches/pages/BranchListPage"));
+const BranchFormPage = lazy(() => import("../../features/inventory/branches/pages/BranchFormPage"));
 const CategoryPage = lazy(() => import("../../features/inventory/category/pages/CategoryPage"));
 const SubCategoryPage = lazy(() => import("../../features/inventory/subcategory/pages/SubCategoryPage"));
 const GroupPage = lazy(() => import("../../features/inventory/group/pages/GroupPage"));
@@ -91,7 +92,9 @@ const AppRoutes = () => {
                   <Route path="counters" element={<CounterPage />} />
                   <Route path="sections" element={<SectionPage />} />
                   <Route path="tables" element={<TableMasterPage />} />
-                  <Route path="branches" element={<BranchCreationPage />} />
+                  <Route path="branches" element={<BranchListPage />} />
+                  <Route path="branches/add" element={<BranchFormPage />} />
+                  <Route path="branches/edit/:id" element={<BranchFormPage />} />
                   <Route path="categories" element={<CategoryPage />} />
                   <Route path="sub-categories" element={<SubCategoryPage />} />
                   <Route path="groups" element={<GroupPage />} />

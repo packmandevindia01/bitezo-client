@@ -100,6 +100,8 @@ const CompanyOnboardingPage = () => {
         userId: "pos-terminal",
         userName: "POS Terminal",
         isMaster: false,
+        decimalPart: 2,
+        currencySymbol: "BHD",
       })
     );
     

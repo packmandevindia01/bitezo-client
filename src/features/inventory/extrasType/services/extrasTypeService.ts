@@ -14,9 +14,9 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 }
 
 export const extrasTypeService = {
-  list(typeName?: string): Promise<ExtrasTypeRecord[]> {
+  list(allStatus: boolean = false, typeName?: string): Promise<ExtrasTypeRecord[]> {
     return unwrap(
-      axiosInstance.get<ApiResponse<ExtrasTypeRecord[]>>(`${BASE}/modifiertype-list`, {
+      axiosInstance.get<ApiResponse<ExtrasTypeRecord[]>>(`${BASE}/${allStatus}/listname`, {
         params: { typeName },
       })
     );

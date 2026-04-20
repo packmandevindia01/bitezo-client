@@ -50,7 +50,7 @@ const ExtrasMasterForm = ({
 }: ExtrasMasterFormProps) => {
   const typeOptions = extrasTypes.map((t) => ({
     label: t.name,
-    value: String(t.typeId),
+    value: String(t.typeId || (t as any).id),
   }));
 
   if (loading) {

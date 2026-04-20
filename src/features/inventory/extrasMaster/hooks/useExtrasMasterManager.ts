@@ -62,7 +62,7 @@ export const useExtrasMasterManager = () => {
   const fetchTypesAndCats = useCallback(async () => {
     try {
       const [types, cats] = await Promise.all([
-        extrasTypeService.list(),
+        extrasTypeService.list(true),
         getCategories()
       ]);
       setExtrasTypes(types);

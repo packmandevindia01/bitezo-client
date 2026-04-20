@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
 import type { ModifierRecord } from "../types";
+import { formatCurrency } from "../../../../utils/formatters";
 
 interface ModifierListCardProps {
   records: ModifierRecord[];
@@ -34,7 +35,7 @@ const ModifierListCard = ({
         { 
           header: "Price", 
           accessor: "price",
-          render: (row) => <span>{Number(row.price || 0).toFixed(3)}</span>
+          render: (row) => <span>{formatCurrency(row.price || 0)}</span>
         },
         {
           header: "Color",

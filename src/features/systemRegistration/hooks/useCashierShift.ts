@@ -1,29 +1,11 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "../../../app/hooks";
+import { startShift, endShift } from "../store/shiftSlice";
 import type { CashierShift } from "../types";
 
-const SHIFT_KEY = "activeShift";
-
-const loadShift = (): CashierShift | null => {
-  try {
-    const raw = localStorage.getItem(SHIFT_KEY);
-    return raw ? (JSON.parse(raw) as CashierShift) : null;
-  } catch {
-    return null;
-  }
-};
-
-const saveShift = (shift: CashierShift | null) => {
-  if (shift) {
-    localStorage.setItem(SHIFT_KEY, JSON.stringify(shift));
-  } else {
-    localStorage.removeItem(SHIFT_KEY);
-  }
-};
-
-// ── Public hook ─────────────────────────────────────────────────────────────
-
 export const useCashierShift = () => {
-  const [activeShift, setActiveShift] = useState<CashierShift | null>(loadShift);
+  const dispatch = useAppDispatch();
+  const activeShift = useAppSelector((state) => state.shift.activeShift);
 
   const isShiftOpen = activeShift?.status === "open";
 
@@ -35,6 +17,7 @@ export const useCashierShift = () => {
       openingCash: number;
       notes: string;
     }) => {
+      // These would ideally come from an auth slice in a real app
       const cashierId = localStorage.getItem("userId") ?? "unknown";
       const cashierName = localStorage.getItem("userName") ?? "Cashier";
 
@@ -48,10 +31,9 @@ export const useCashierShift = () => {
         cashierName,
       };
 
-      saveShift(shift);
-      setActiveShift(shift);
+      dispatch(startShift(shift));
     },
-    []
+    [dispatch]
   );
 
   const closeShift = useCallback(
@@ -72,17 +54,9 @@ export const useCashierShift = () => {
         status: "closed",
       };
 
-      saveShift(null); // clear active shift
-      setActiveShift(null);
-
-      // Store last closed shift history (optional — for reference)
-      const history: CashierShift[] = JSON.parse(
-        localStorage.getItem("shiftHistory") ?? "[]"
-      );
-      history.unshift(closed);
-      localStorage.setItem("shiftHistory", JSON.stringify(history.slice(0, 20)));
+      dispatch(endShift(closed));
     },
-    [activeShift]
+    [activeShift, dispatch]
   );
 
   return {

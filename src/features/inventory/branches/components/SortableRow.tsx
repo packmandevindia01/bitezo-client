@@ -25,20 +25,20 @@ const SortableRow = ({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 }}
-      className="flex flex-col gap-1.5 bg-white rounded-lg py-1"
+      className="flex flex-col gap-0.5 bg-white rounded-lg py-0.5"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {/* Drag handle */}
         <DragHandle listeners={listeners} attributes={attributes} />
 
         {/* Label */}
-        <span className="text-xs text-gray-500 font-medium w-14 shrink-0">
+        <span className="text-[11px] text-gray-400 font-bold w-10 shrink-0">
           {item.section === "header" ? "H" : "F"}{index + 1}
         </span>
 
         {/* Input */}
         <input
-          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#49293e]/20 focus:border-[#49293e]/40 transition disabled:bg-gray-50 min-w-0"
+          className="flex-1 text-sm border border-gray-100 rounded-lg px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#49293e]/20 focus:border-[#49293e]/40 transition disabled:bg-gray-50 min-w-0"
           value={item.value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
@@ -55,15 +55,15 @@ const SortableRow = ({
         <button
           onClick={onOpenFont}
           disabled={disabled}
-          className="flex items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium text-white bg-[#49293e] hover:bg-[#5c3550] transition whitespace-nowrap disabled:opacity-40 shrink-0"
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[#49293e] hover:bg-[#5c3550] transition whitespace-nowrap disabled:opacity-40 shrink-0"
         >
-          <Type size={11} /> Font
+          <Type size={10} /> Font
         </button>
       </div>
 
       {/* Position slider below input */}
-      <div className="flex items-center gap-2 pl-[calc(1.5rem+3.5rem+0.5rem)]">
-        <span className="text-[10px] text-gray-400 shrink-0">Position</span>
+      <div className="flex items-center gap-2 pl-[calc(1.5rem+2.5rem+0.5rem)] -mt-1">
+        <span className="text-[9px] font-bold text-slate-300 uppercase shrink-0">Pos</span>
         <PositionSlider
           value={item.offsetX}
           onChange={onOffsetChange}

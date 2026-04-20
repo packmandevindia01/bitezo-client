@@ -9,6 +9,7 @@ import {
 import ExtrasMasterForm from "../components/ExtrasMasterForm";
 import { useExtrasMasterManager } from "../hooks/useExtrasMasterManager";
 import type { ExtrasMasterRecord } from "../types";
+import { formatCurrency } from "../../../../utils/formatters";
 
 const ExtrasMasterPage = () => {
   const {
@@ -58,7 +59,7 @@ const ExtrasMasterPage = () => {
           { 
             header: "Price", 
             accessor: "price",
-            render: (row) => <span>{Number(row.price || 0).toFixed(3)}</span>
+            render: (row) => <span>{formatCurrency(row.price || 0)}</span>
           },
           { 
             header: "Type", 

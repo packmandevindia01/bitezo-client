@@ -10,7 +10,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import ErrorBoundary from "../../../components/common/ErrorBoundary";
 import { useToast } from "../../../app/providers/useToast";
-
+import { formatCurrency } from "../../../utils/formatters";
 
 const PosTerminalPage = () => {
   const navigate = useNavigate();
@@ -211,7 +211,7 @@ const PosTerminalPage = () => {
              </div>
              <span className="text-sm font-bold uppercase tracking-widest">View Order</span>
           </div>
-          <span className="text-xl font-bold">₹{(total || 0).toFixed(2)}</span>
+          <span className="text-xl font-bold">{formatCurrency(total || 0)}</span>
         </button>
       </div>
 

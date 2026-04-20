@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { X, Trash2 } from "lucide-react";
+import { X } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;

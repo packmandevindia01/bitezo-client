@@ -11,8 +11,10 @@ const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) =>
   });
 
 export const modifierTypeService = {
-  list: (query?: string): Promise<ModifierTypeRecord[]> => {
-    const url = query ? `${BASE}/modifiertype-list?typeName=${encodeURIComponent(query)}` : `${BASE}/modifiertype-list`;
+  list: (allStatus: boolean = false, query?: string): Promise<ModifierTypeRecord[]> => {
+    const url = query 
+      ? `${BASE}/${allStatus}/listname?typeName=${encodeURIComponent(query)}` 
+      : `${BASE}/${allStatus}/listname`;
     return unwrap(axiosInstance.get<ApiResponse<ModifierTypeRecord[]>>(url));
   },
 

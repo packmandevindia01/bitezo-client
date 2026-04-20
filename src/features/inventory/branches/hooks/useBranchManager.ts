@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
-import { createBranch, deleteBranch, fetchBranchNames, updateBranch } from "../services/branchApi";
+import { createBranch, deleteBranch, fetchBranches, updateBranch } from "../services/branchApi";
 import type { BranchPayload, BranchRecord } from "../types";
+import { useAppDispatch } from "../../../../app/hooks";
+import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 
 export const useBranchManager = () => {
   const { showToast } = useToast();
+  const dispatch = useAppDispatch();
   const [branches, setBranches] = useState<BranchRecord[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -19,7 +22,7 @@ export const useBranchManager = () => {
     const loadBranches = async () => {
       setLoading(true);
       try {
-        const records = await fetchBranchNames();
+        const records = await fetchBranches();
         if (!active) return;
 
         setBranches((prev) => {
@@ -56,6 +59,8 @@ export const useBranchManager = () => {
       setBranches((prev) => [...prev, createdRecord]);
       showToast("Branch created successfully", "success");
     }
+    // Refresh global master data so other modules (Modifier, Product, etc.) see the changes
+    dispatch(fetchGlobalMasterData());
     setOpen(false);
     setEditingBranch(null);
   };
@@ -67,6 +72,7 @@ export const useBranchManager = () => {
       await deleteBranch(deleteCandidate.id);
       setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
       showToast("Branch deleted successfully", "success");
+      dispatch(fetchGlobalMasterData());
       setDeleteCandidate(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete branch";

@@ -4,6 +4,7 @@ import { Clock, Calendar, AlertCircle } from "lucide-react";
 import { Button } from "../../../components/common";
 import { useToast } from "../../../app/providers/useToast";
 import { useCashierShift } from "../hooks/useCashierShift";
+import { formatAmount } from "../../../utils/formatters";
 
 const DENOMINATIONS = [0.010, 0.025, 0.050, 0.100, 0.500, 1];
 
@@ -63,7 +64,7 @@ const CashierOutPage = () => {
 
   const hasDenominations = computedTotal > 0;
   // Final total displayed in the Total box
-  const finalTotal = hasDenominations ? computedTotal.toFixed(3) : totalStr;
+  const finalTotal = hasDenominations ? formatAmount(computedTotal) : totalStr;
 
   // Numpad handler
   const handleNumpadKey = (key: string) => {
@@ -147,14 +148,14 @@ const CashierOutPage = () => {
             {DENOMINATIONS.map((denom) => {
               const count = counts[denom] || "";
               const cVal = parseInt(count || "0", 10);
-              const subtotal = (cVal * denom).toFixed(3);
+              const subtotal = formatAmount(cVal * denom);
               const isActive = activeInput === denom;
 
               return (
                 <div key={denom} className="flex items-center gap-3">
                   <div className="w-32 flex items-center gap-2">
                     <span className="font-semibold text-gray-500 w-16 text-right">
-                      {denom.toFixed(3)}
+                      {formatAmount(denom)}
                     </span>
                     <span className="text-gray-400 font-bold text-sm">x</span>
                   </div>

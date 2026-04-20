@@ -12,7 +12,7 @@ interface Props {
   onDelete?: () => void;
 }
 
-const CounterModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onSave }: Props) => {
+const CounterModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onSave, onDelete }: Props) => {
   return (
     <Modal
       isOpen={isOpen}

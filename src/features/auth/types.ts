@@ -10,4 +10,8 @@ export interface LoginResponse {
     isMaster: boolean;
   };
   tenantId?: string;
+  company?: {
+    decimalPart: number;
+    currencySymbol: string;
+  };
 }

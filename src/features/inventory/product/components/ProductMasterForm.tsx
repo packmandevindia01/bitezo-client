@@ -14,6 +14,7 @@ import type {
   ProductMasterData,
 } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
+import { getDecimalPart, getCurrencySymbol } from "../../../../utils/formatters";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -95,18 +96,18 @@ const ProductMasterForm = ({
   }, [focusPos, activeTab]);
 
   // ── Build option arrays ────────────────────────────────────────────────────
-  const categoryOptions  = masterData?.category.map(c => ({ label: c.name, value: String(c.id) })) ?? [];
-  const groupOptions     = masterData?.group.map(g => ({ label: g.name, value: String(g.id) })) ?? [];
-  const unitOptions      = masterData?.unit.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
-  const vatOptions       = masterData?.vat.map(v => ({ label: `${v.name} (${v.value}%)`, value: String(v.id) })) ?? [];
+  const categoryOptions  = masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [];
+  const groupOptions     = masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [];
+  const unitOptions      = masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
+  const vatOptions       = masterData?.vat?.map(v => ({ label: `${v.name} (${v.value}%)`, value: String(v.id) })) ?? [];
   const subCatOptions    = subCategories.map(s => ({ label: s.name, value: String(s.id) }));
   const branchOptions    = branches.map(b => ({ label: b.name, value: String(b.id) }));
 
   // Filter alternative units to match the category of the currently selected main unit
-  const mainUnitSelected = masterData?.unit.find(u => String(u.id) === String(form.unitId));
+  const mainUnitSelected = masterData?.unit?.find(u => String(u.id) === String(form.unitId));
   const mainUnitCategory = mainUnitSelected?.category;
   const altUnitOptions = masterData?.unit
-    .filter(u => (mainUnitCategory && u.category) ? u.category === mainUnitCategory : true)
+    ?.filter(u => (mainUnitCategory && u.category) ? u.category === mainUnitCategory : true)
     .map(u => ({ label: u.name, value: String(u.id) })) ?? [];
 
   // ── Grid Handlers ──────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ const ProductMasterForm = ({
       branchId: branches[0]?.id || 0,
       barcode: "",
       isIncl: true,
-      unitId: masterData?.unit[0]?.id || 0,
+      unitId: masterData?.unit?.[0]?.id || 0,
       price: "0",
       altName: "",
       altArabic: "",
@@ -286,9 +287,9 @@ const ProductMasterForm = ({
               disabled={saving}
             />
             <FormInput
-              label="Cost"
+              label={`Cost (${getCurrencySymbol()})`}
               type="number"
-              step="0.001"
+              step={1 / Math.pow(10, getDecimalPart())}
               value={form.cost}
               disabled={saving}
               onChange={(e) => onChange("cost", e.target.value)}
@@ -340,7 +341,7 @@ const ProductMasterForm = ({
                     <th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Barcode</th>
                     <th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Unit</th>
                     <th className="w-[8%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-center">Incl.</th>
-                    <th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Price</th>
+                    <th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Price ({getCurrencySymbol()})</th>
                     <th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name</th>
                     <th className="w-[20%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name (Arabic)</th>
                     <th className="w-12.5 px-2 py-3 border-l border-gray-200"></th>
@@ -411,7 +412,7 @@ const ProductMasterForm = ({
                           <input
                             ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-4`, el); }}
                             type="number"
-                            step="0.001"
+                            step={1 / Math.pow(10, getDecimalPart())}
                             value={alt.price}
                             onFocus={() => setFocusPos({ r: rIdx, c: 4 })}
                             onKeyDown={(e) => handleKeyDown(e, rIdx, 4)}

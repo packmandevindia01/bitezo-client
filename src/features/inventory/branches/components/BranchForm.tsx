@@ -85,7 +85,7 @@ const BranchForm = ({
 
   const handleSubmit = async () => {
     if (!branchName.trim()) {
-      setBranchNameError("Branch name is required");
+      setBranchNameError("Branch Master is required");
       showToast("Please fill all required fields", "error");
       return;
     }
@@ -154,49 +154,46 @@ const BranchForm = ({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_270px]">
-          <div>
-            <BranchBasicInfo
-              value={branchName}
-              error={branchNameError}
-              disabled={submitting}
-              onChange={(value) => {
-                setBranchName(value);
-                setBranchNameError("");
-              }}
-            />
-
-            <p className="mb-1 text-sm font-bold text-gray-700 underline">Print Details</p>
-            <p className="mb-4 text-xs text-gray-400">
-              Drag rows to reorder and move them between header and footer.
-            </p>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <PrintSection
-                section="header"
-                lines={headerLines}
-                onUpdate={updateLine}
-                onOpenFont={openFontModal}
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_270px]">
+          <div className="flex flex-col">
+            <div className="flex-1 pr-1">
+              <BranchBasicInfo
+                value={branchName}
+                error={branchNameError}
                 disabled={submitting}
-              />
-
-              <PrintSection
-                section="footer"
-                lines={footerLines}
-                onUpdate={updateLine}
-                onOpenFont={openFontModal}
-                disabled={submitting}
-                lastRowKeyDown={(e) => {
-                  if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
-                    e.preventDefault();
-                    saveBtnRef.current?.focus();
-                  }
+                onChange={(value) => {
+                  setBranchName(value);
+                  setBranchNameError("");
                 }}
               />
+
+              <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                <PrintSection
+                  section="header"
+                  lines={headerLines}
+                  onUpdate={updateLine}
+                  onOpenFont={openFontModal}
+                  disabled={submitting}
+                />
+
+                <PrintSection
+                  section="footer"
+                  lines={footerLines}
+                  onUpdate={updateLine}
+                  onOpenFont={openFontModal}
+                  disabled={submitting}
+                  lastRowKeyDown={(e) => {
+                    if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+                      e.preventDefault();
+                      saveBtnRef.current?.focus();
+                    }
+                  }}
+                />
+              </div>
             </div>
 
-            {/* Action row: Active checkbox + buttons */}
-            <div className="mt-6 flex flex-wrap items-center justify-end gap-4">
+            {/* Sticky Action row: Active checkbox + buttons */}
+            <div className="sticky bottom-[-1.5rem] -mx-6 -mb-6 mt-8 p-6 border-t border-slate-100 bg-white/95 backdrop-blur-sm z-30 flex flex-wrap items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               <Checkbox
                 label="Active"
                 checked={isActive}
@@ -238,7 +235,7 @@ const BranchForm = ({
             </div>
           </div>
 
-          <div className="hidden xl:block">
+          <div className="hidden xl:block overflow-y-auto pr-1 scrollbar-hide">
             <ReceiptPreview
               branchName={branchName}
               allLines={allLines}

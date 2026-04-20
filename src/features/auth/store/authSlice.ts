@@ -8,8 +8,9 @@ export interface AuthState {
   userId: string | null;
   userName: string | null;
   isMaster: boolean;
+  decimalPart: number;
+  currencySymbol: string;
   companyConfig: {
-    decimals: number;
     isRegistered: boolean;
   };
 }
@@ -23,8 +24,9 @@ const initialState: AuthState = {
   userId: localStorage.getItem("userId"),
   userName: localStorage.getItem("userName"),
   isMaster: localStorage.getItem("isMaster") === "true",
+  decimalPart: Number(localStorage.getItem("decimalPart")) || 2,
+  currencySymbol: localStorage.getItem("currencySymbol") || "BHD",
   companyConfig: {
-    decimals: Number(localStorage.getItem("decimals")) || 2,
     isRegistered: localStorage.getItem("companyRegistered") === "true",
   },
 };
@@ -42,6 +44,8 @@ const authSlice = createSlice({
         userId: string | number;
         userName: string;
         isMaster: boolean;
+        decimalPart: number;
+        currencySymbol: string;
       }>
     ) => {
       const p = action.payload;
@@ -52,6 +56,8 @@ const authSlice = createSlice({
       state.userId = String(p.userId);
       state.userName = p.userName;
       state.isMaster = p.isMaster;
+      state.decimalPart = p.decimalPart;
+      state.currencySymbol = p.currencySymbol;
     },
     logout: (state) => {
       state.isAuthenticated = false;
@@ -60,6 +66,8 @@ const authSlice = createSlice({
       state.userId = null;
       state.userName = null;
       state.isMaster = false;
+      state.decimalPart = 2;
+      state.currencySymbol = "BHD";
       
       // Essential cleanup: Only remove user-session data.
       // Do NOT remove "companyRegistered" or "tenantId" as they identify the device.
@@ -68,15 +76,21 @@ const authSlice = createSlice({
       localStorage.removeItem("userId");
       localStorage.removeItem("userName");
       localStorage.removeItem("isMaster");
+      localStorage.removeItem("decimalPart");
+      localStorage.removeItem("currencySymbol");
       localStorage.removeItem("sessionExpiresAt");
     },
     setCompanyConfig: (
       state,
-      action: PayloadAction<{ decimals?: number; isRegistered?: boolean }>
+      action: PayloadAction<{ decimalPart?: number; isRegistered?: boolean; currencySymbol?: string }>
     ) => {
-      if (action.payload.decimals !== undefined) {
-        state.companyConfig.decimals = action.payload.decimals;
-        localStorage.setItem("decimals", String(action.payload.decimals));
+      if (action.payload.decimalPart !== undefined) {
+        state.decimalPart = action.payload.decimalPart;
+        localStorage.setItem("decimalPart", String(action.payload.decimalPart));
+      }
+      if (action.payload.currencySymbol !== undefined) {
+        state.currencySymbol = action.payload.currencySymbol;
+        localStorage.setItem("currencySymbol", action.payload.currencySymbol);
       }
       if (action.payload.isRegistered !== undefined) {
         state.companyConfig.isRegistered = action.payload.isRegistered;
@@ -87,4 +101,11 @@ const authSlice = createSlice({
 });
 
 export const { setCredentials, logout, setCompanyConfig } = authSlice.actions;
+
+// ─── Selectors ──────────────────────────────────────────────────────────────
+import type { RootState } from '../../../app/store';
+
+export const selectDecimalPart = (state: RootState) => state.auth.decimalPart;
+export const selectCurrencySymbol = (state: RootState) => state.auth.currencySymbol;
+
 export default authSlice.reducer;

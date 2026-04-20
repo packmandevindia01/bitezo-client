@@ -1,6 +1,7 @@
 import { ReceiptText } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import type { PosQuickAction, PosTenderOption } from "../types";
+import { formatAmount } from "../../../utils/formatters";
 
 interface CartRow {
   productId: number;
@@ -116,9 +117,9 @@ const PosOrderPanel = ({
                 </div>
 
                 <div className="text-right flex flex-col items-end">
-                  <p className="text-sm font-bold text-slate-900 leading-none">{(item.lineTotal || 0).toFixed(3)}</p>
+                  <p className="text-sm font-bold text-slate-900 leading-none">{formatAmount(item.lineTotal || 0)}</p>
                   <p className="text-[9px] font-bold text-slate-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    @ {(item.product.price || 0).toFixed(3)}
+                    @ {formatAmount(item.product.price || 0)}
                   </p>
                 </div>
               </div>
@@ -137,7 +138,7 @@ const PosOrderPanel = ({
            <div className="flex flex-col items-end leading-none">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Due</span>
               <span className="text-3xl font-bold text-slate-900 tracking-tighter">
-                {(total || 0).toFixed(3)}
+                {formatAmount(total || 0)}
               </span>
            </div>
          </div>

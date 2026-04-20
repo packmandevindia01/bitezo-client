@@ -1,121 +1,101 @@
-import { useDeferredValue, useState, useEffect } from "react";
+import { useDeferredValue, useMemo } from "react";
+import { useAppDispatch, useAppSelector } from "../../../app/hooks";
 import {
   POS_CATEGORIES,
-  POS_INITIAL_CART,
-  POS_ORDER_TYPES,
   POS_PRODUCTS,
   POS_TENDER_OPTIONS,
+  POS_ORDER_TYPES,
 } from "../constants";
-import type { PosCartItem } from "../types";
-
-const TAX_RATE = 0.05;
-const DISCOUNT_RATE = 0.08;
-
-interface PosCartDetail extends PosCartItem {
-  product: (typeof POS_PRODUCTS)[number];
-  lineTotal: number;
-}
-
-const isCartDetail = (value: PosCartDetail | null): value is PosCartDetail => value !== null;
+import {
+  addToCart,
+  incrementItem,
+  decrementItem,
+  clearCart,
+  setCategory,
+  setSearch,
+  setOrderType,
+  setTenderOption,
+  selectCartDetails,
+  selectSubtotal,
+  selectDiscount,
+  selectTax,
+  selectTotal,
+  selectItemCount,
+} from "../store/posSlice";
 
 export const usePosTerminal = () => {
-  const [activeCategoryId, setActiveCategoryId] = useState(POS_CATEGORIES[0]?.id ?? "");
-  const [search, setSearch] = useState("");
-  const [selectedOrderType, setSelectedOrderType] = useState(POS_ORDER_TYPES[0]?.id ?? "");
-  const [selectedTender, setSelectedTender] = useState(POS_TENDER_OPTIONS[0]?.id ?? "");
-  const [cartItems, setCartItems] = useState<PosCartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("posCartItems");
-      if (saved) return JSON.parse(saved);
-    } catch (err) {
-      console.warn("Failed to parse POS cart from storage:", err);
-    }
-    return POS_INITIAL_CART;
-  });
+  const dispatch = useAppDispatch();
+  
+  // ── State from Redux ──────────────────────────────────────────────────────
+  const { 
+    activeCategoryId, 
+    search, 
+    selectedOrderType, 
+    selectedTender 
+  } = useAppSelector((state) => state.pos);
 
-  // Auto-save the cart to perfectly restore the POS if tab refreshes or power fails
-  useEffect(() => {
-    localStorage.setItem("posCartItems", JSON.stringify(cartItems));
-  }, [cartItems]);
+  const cartDetails = useAppSelector(selectCartDetails);
+  const subtotal = useAppSelector(selectSubtotal);
+  const discount = useAppSelector(selectDiscount);
+  const tax = useAppSelector(selectTax);
+  const total = useAppSelector(selectTotal);
+  const itemCount = useAppSelector(selectItemCount);
 
+  // ── Local Search logic (keep as Deferred for performance) ────────────────
   const deferredSearch = useDeferredValue(search);
-  const normalizedSearch = deferredSearch.trim().toLowerCase();
-
-  const visibleProducts = POS_PRODUCTS.filter((product) => {
-    const matchesCategory = product.categoryId === activeCategoryId;
-    const matchesSearch =
-      normalizedSearch.length === 0 || product.name.toLowerCase().includes(normalizedSearch);
-
-    return matchesCategory && matchesSearch;
-  });
-
-  const cartDetails = cartItems
-    .map((item) => {
-      const product = POS_PRODUCTS.find((entry) => entry.id === item.productId);
-      if (!product) {
-        return null;
-      }
-
-      return {
-        ...item,
-        product,
-        lineTotal: product.price * item.quantity,
-      };
-    })
-    .filter(isCartDetail);
-
-  const subtotal = cartDetails.reduce((sum, item) => sum + item.lineTotal, 0);
-  const discount = Math.round(subtotal * DISCOUNT_RATE);
-  const taxableAmount = subtotal - discount;
-  const tax = Math.round(taxableAmount * TAX_RATE);
-  const total = taxableAmount + tax;
+  
+  const visibleProducts = useMemo(() => {
+    const normalizedSearch = deferredSearch.trim().toLowerCase();
+    return POS_PRODUCTS.filter((product) => {
+      const matchesCategory = product.categoryId === activeCategoryId;
+      const matchesSearch =
+        normalizedSearch.length === 0 || product.name.toLowerCase().includes(normalizedSearch);
+      return matchesCategory && matchesSearch;
+    });
+  }, [activeCategoryId, deferredSearch]);
 
   const activeCategory = POS_CATEGORIES.find((category) => category.id === activeCategoryId);
-  const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const addProduct = (productId: number) => {
-    setCartItems((current) => {
-      const existingItem = current.find((item) => item.productId === productId);
-
-      if (existingItem) {
-        return current.map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-
-      return [...current, { productId, quantity: 1 }];
-    });
+  // ── Actions ──────────────────────────────────────────────────────────────
+  const handleAddProduct = (productId: number) => {
+    dispatch(addToCart(productId));
   };
 
-  const addProductBySku = (sku: string) => {
+  const handleAddProductBySku = (sku: string) => {
     const product = POS_PRODUCTS.find((p) => p.sku.toLowerCase() === sku.toLowerCase());
     if (product) {
-      addProduct(product.id);
+      dispatch(addToCart(product.id));
       return true;
     }
     return false;
   };
 
-  const incrementItem = (productId: number) => {
-    setCartItems((current) =>
-      current.map((item) =>
-        item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
-      )
-    );
+  const handleIncrement = (productId: number) => {
+    dispatch(incrementItem(productId));
   };
 
-  const decrementItem = (productId: number) => {
-    setCartItems((current) =>
-      current
-        .map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
+  const handleDecrement = (productId: number) => {
+    dispatch(decrementItem(productId));
   };
 
-  const clearCart = () => {
-    setCartItems([]);
+  const handleClearCart = () => {
+    dispatch(clearCart());
+  };
+
+  const handleSetCategory = (id: string) => {
+    dispatch(setCategory(id));
+  };
+
+  const handleSetSearch = (val: string) => {
+    dispatch(setSearch(val));
+  };
+
+  const handleSetOrderType = (id: string) => {
+    dispatch(setOrderType(id));
+  };
+
+  const handleSetTender = (id: string) => {
+    dispatch(setTenderOption(id));
   };
 
   return {
@@ -134,14 +114,14 @@ export const usePosTerminal = () => {
     tax,
     total,
     visibleProducts,
-    setActiveCategoryId,
-    setSearch,
-    setSelectedOrderType,
-    setSelectedTender,
-    addProduct,
-    addProductBySku,
-    clearCart,
-    decrementItem,
-    incrementItem,
+    setActiveCategoryId: handleSetCategory,
+    setSearch: handleSetSearch,
+    setSelectedOrderType: handleSetOrderType,
+    setSelectedTender: handleSetTender,
+    addProduct: handleAddProduct,
+    addProductBySku: handleAddProductBySku,
+    clearCart: handleClearCart,
+    decrementItem: handleDecrement,
+    incrementItem: handleIncrement,
   };
 };

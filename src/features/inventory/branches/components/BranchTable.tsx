@@ -14,7 +14,7 @@ interface Props {
 const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit, onDelete }: Props) => {
   return (
     <RecordTableCard
-      title="Saved Branch List"
+      title=""
       search={search}
       onSearchChange={onSearchChange}
       rowKey="id"

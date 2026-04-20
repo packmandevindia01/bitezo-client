@@ -16,8 +16,8 @@ interface BranchListItem {
 
 interface BranchRequestBody {
   branchId?: number;
-  name: string;
-  isActive: boolean;
+  branchName: string;
+  isActive: boolean | string;
   createdAt?: string;
   updatedAt?: string;
   header1: string; headerLeftAlign1: number; headerFont1: string;
@@ -53,8 +53,8 @@ const buildRequestBody = (payload: BranchPayload, branchId?: number): BranchRequ
   const f = payload.lines.filter((l) => l.section === "footer");
 
   return {
-    ...(branchId !== undefined ? { branchId } : {}),
-    name: payload.branchName,
+    ...(branchId !== undefined ? { branchId } : { branchId: 0 }),
+    branchName: payload.branchName,
     isActive: payload.isActive,
     ...(branchId !== undefined
       ? { updatedAt: new Date().toISOString() }
@@ -78,8 +78,8 @@ const buildRequestBody = (payload: BranchPayload, branchId?: number): BranchRequ
 
 // ─── Exported API functions ───────────────────────────────────────────────────
 
-export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
-  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list-name");
+export const fetchBranchNames = async (allStatus: boolean = false): Promise<BranchRecord[]> => {
+  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>(`/Branch/${allStatus}/list-name`);
 
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load branches");
@@ -89,7 +89,26 @@ export const fetchBranchNames = async (): Promise<BranchRecord[]> => {
     ? data.data.map((item) => ({
         id: item.branchId ?? 0,
         branchName: item.branchName ?? "",
-        isActive: item.isActive ?? true,
+        isActive: item.isActive === true || String(item.isActive).toLowerCase() === "active",
+        lines: [],
+        detailsLoaded: false,
+      }))
+    : [];
+};
+
+export const fetchBranches = async (): Promise<BranchRecord[]> => {
+  const { data } = await axiosInstance.get<ApiResponse<any[]>>("/Branch/list");
+
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load branch list");
+  }
+
+  return Array.isArray(data.data)
+    ? data.data.map((item) => ({
+        id: item.branchId ?? 0,
+        sNo: item.sNo,
+        branchName: item.branchName ?? "",
+        isActive: item.isActive === true || String(item.isActive).toLowerCase() === "active",
         lines: [],
         detailsLoaded: false,
       }))
@@ -145,8 +164,68 @@ export const deleteBranch = async (branchId: number): Promise<void> => {
   }
 };
 
+export const fetchBranchById = async (branchId: number): Promise<BranchRecord> => {
+  const { data } = await axiosInstance.get<ApiResponse<BranchRequestBody>>(`/Branch/${branchId}/branchid-data`);
+
+  if (!data.isSuccess || !data.data) {
+    throw new Error(data.message || "Failed to load branch details");
+  }
+
+  const b = data.data;
+
+  // Helper to parse serialized font strings
+  const parseFont = (fontStr?: string) => {
+    try {
+      return fontStr ? JSON.parse(fontStr) : { fontFamily: "Inter", fontStyle: "Regular", fontSize: "12" };
+    } catch {
+      return { fontFamily: "Inter", fontStyle: "Regular", fontSize: "12" };
+    }
+  };
+
+  const lines: LineItem[] = [];
+
+  // Map header fields back to LineItem array
+  for (let i = 1; i <= 7; i++) {
+    const val = (b as any)[`header${i}`];
+    if (val !== undefined) {
+      lines.push({
+        id: `h${i}`,
+        section: "header",
+        value: val,
+        offsetX: (b as any)[`headerLeftAlign${i}`] ?? 0,
+        ...parseFont((b as any)[`headerFont${i}`]),
+      });
+    }
+  }
+
+  // Map footer fields back to LineItem array
+  for (let i = 1; i <= 7; i++) {
+    const val = (b as any)[`footer${i}`];
+    if (val !== undefined) {
+      lines.push({
+        id: `f${i}`,
+        section: "footer",
+        value: val,
+        offsetX: (b as any)[`footerLeftAlign${i}`] ?? 0,
+        ...parseFont((b as any)[`footerFont${i}`]),
+      });
+    }
+  }
+
+  return {
+    id: branchId,
+    branchName: b.branchName || "",
+    isActive: typeof b.isActive === "boolean" 
+      ? b.isActive 
+      : String(b.isActive).toLowerCase() === "active",
+    lines,
+    detailsLoaded: true,
+  };
+};
+
 export const branchApi = {
   fetchBranchNames,
+  fetchBranchById,
   createBranch,
   updateBranch,
   deleteBranch,

@@ -9,18 +9,17 @@ interface Props {
 
 const BranchBasicInfo = ({ value, error, disabled, onChange }: Props) => {
   return (
-    <div className="mb-6">
-      <p className="font-bold text-sm text-gray-700 mb-3 underline">Basic Information</p>
+    <div className="mb-2">
 
       <FormInput
-        label="Branch Name"
+        label="Branch Master"
         name="branchName"
         value={value}
         error={error}
         disabled={disabled}
         required
         autoComplete="off"
-        placeholder="Enter branch name"
+        placeholder="Enter branch master"
         onChange={(e) => onChange(e.target.value)}
         autoFocus
       />

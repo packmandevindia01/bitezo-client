@@ -1,14 +1,19 @@
-import { Menu, LogOut, ChevronRight, User, ChevronDown, Monitor, Clock } from "lucide-react";
+import { Menu, LogOut, ChevronRight, User, ChevronDown, Clock } from "lucide-react";
 import { Modal, Button } from "../common";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { useToast } from "../../app/providers/useToast";
+import { formatCurrency } from "../../utils/formatters";
 
 interface TopbarProps {
   toggleSidebar: () => void;
 }
 
 const getPageTitle = (pathname: string): string => {
+  if (pathname.startsWith("/dashboard/branches/add")) return "Branch Master > Create";
+  if (pathname.includes("/dashboard/branches/edit/")) return "Branch Master > Edit";
+  if (pathname.startsWith("/dashboard/branches")) return "Branch Master";
+
   const map: Record<string, string> = {
     "/dashboard": "Dashboard",
     "/dashboard/users": "Users",
@@ -20,7 +25,6 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/sections": "Sections",
     "/dashboard/tables": "Table Master",
     "/dashboard/pos-terminal": "POS Terminal",
-    "/dashboard/branches": "Branch Creation",
     "/dashboard/categories": "Categories",
     "/dashboard/sub-categories": "Sub Categories",
     "/dashboard/groups": "Groups",
@@ -58,7 +62,6 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
   const pageTitle = getPageTitle(location.pathname);
 
   const systemType = localStorage.getItem("systemType");
-  const systemName = localStorage.getItem("systemName");
   const isPOS = systemType === "pos";
 
   // Check if there's an open shift
@@ -114,26 +117,33 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
 
           <div className="flex items-center gap-1.5 text-sm">
             <span className="hidden text-gray-400 sm:block">Bitezo</span>
-            <ChevronRight size={13} className="hidden text-gray-300 sm:block" />
-            <span className="font-semibold text-gray-700">{pageTitle}</span>
+            {pageTitle.split(" > ").map((segment, index) => {
+              const isLast = index === pageTitle.split(" > ").length - 1;
+              const isStyled = segment === "Branch Master";
+
+              return (
+                <div key={index} className="flex items-center gap-1.5 font-semibold">
+                  <ChevronRight size={13} className="text-gray-300" />
+                  <span className={`
+                    rounded-md transition-colors
+                    ${isStyled 
+                      ? "bg-[#49293e] px-3 py-1 text-[13px] text-white shadow-sm" 
+                      : isLast ? "text-gray-700" : "text-gray-400"
+                    }
+                  `}>
+                    {segment}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
-          {/* POS / Back Office badge */}
-          {systemType && (
-            <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-              isPOS ? "bg-[#49293e]/10 text-[#49293e]" : "bg-slate-100 text-slate-500"
-            }`}>
-              {isPOS ? <Monitor size={11} /> : null}
-              <span>{isPOS ? "POS" : "Back Office"}</span>
-              {systemName && <span className="text-gray-400">· {systemName}</span>}
-            </div>
-          )}
 
           {/* Open shift indicator for POS */}
           {isPOS && openShiftCash !== null && (
             <div className="hidden md:flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
               <Clock size={11} />
-              <span>Shift Open · {Number(openShiftCash).toFixed(3)}</span>
+              <span>Shift Open · {formatCurrency(openShiftCash || 0)}</span>
             </div>
           )}
         </div>

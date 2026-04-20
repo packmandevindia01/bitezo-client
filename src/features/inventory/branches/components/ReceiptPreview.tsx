@@ -1,4 +1,7 @@
 import { useState, useRef } from "react";
+import { formatAmount } from "../../../../utils/formatters";
+
+// ── Draggable Preview Line ────────────────────────────────────────────────────
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -174,16 +177,16 @@ const ReceiptPreview = ({ branchName, allLines, onOffsetChange }: Props) => {
           <span>SNo</span><span>Name</span><span>Qty</span><span>Price</span>
         </div>
         <div className="flex justify-between text-[10px]">
-          <span>1</span><span>ITEM 123</span><span>1</span><span>1.000</span>
+          <span>1</span><span>ITEM 123</span><span>1</span><span>{formatAmount(1)}</span>
         </div>
 
         <div className="border-t border-dashed border-gray-400 my-2" />
 
         {/* Totals */}
         <div className="text-[10px] space-y-0.5">
-          <div className="flex justify-between"><span>Sub Total</span><span>1.000</span></div>
-          <div className="flex justify-between"><span>VAT</span><span>0.000</span></div>
-          <div className="flex justify-between font-bold"><span>Net Amount</span><span>1.000</span></div>
+          <div className="flex justify-between"><span>Sub Total</span><span>{formatAmount(1)}</span></div>
+          <div className="flex justify-between"><span>VAT</span><span>{formatAmount(0)}</span></div>
+          <div className="flex justify-between font-bold"><span>Net Amount</span><span>{formatAmount(1)}</span></div>
         </div>
 
         <div className="border-t border-dashed border-gray-400 my-2" />

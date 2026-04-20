@@ -54,6 +54,13 @@ const LoginForm = () => {
         localStorage.setItem("tenantId", data.tenantId ?? clientDb);
         localStorage.setItem("userName", data.user.userName);
         localStorage.setItem("isMaster", String(Boolean(data.user.isMaster)));
+        
+        const decimalPart = data.company?.decimalPart ?? 2;
+        const currencySymbol = data.company?.currencySymbol ?? "BHD";
+        
+        localStorage.setItem("decimalPart", String(decimalPart));
+        localStorage.setItem("currencySymbol", currencySymbol);
+
         if (data.session?.expiresAt) {
           localStorage.setItem("sessionExpiresAt", data.session.expiresAt);
         }
@@ -66,6 +73,8 @@ const LoginForm = () => {
             userId: data.user.userId,
             userName: data.user.userName,
             isMaster: Boolean(data.user.isMaster),
+            decimalPart,
+            currencySymbol,
           })
         );
 

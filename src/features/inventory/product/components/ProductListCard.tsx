@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
 import type { ProductListItem } from "../types";
+import { formatCurrency } from "../../../../utils/formatters";
 
 interface ProductListCardProps {
   records: ProductListItem[];
@@ -39,7 +40,11 @@ const ProductListCard = ({
         { header: "Category", accessor: "category" },
         { header: "Group", accessor: "group" },
         { header: "Unit", accessor: "unit" },
-        { header: "Cost", accessor: "cost" },
+        { 
+          header: "Cost", 
+          accessor: "cost",
+          render: (row: any) => formatCurrency(row.cost)
+        },
         {
           header: "Actions",
           accessor: "productId",

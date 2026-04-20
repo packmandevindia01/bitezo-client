@@ -90,7 +90,7 @@ const ModifierMasterForm = ({
           <SelectInput
             label="Type"
             required
-            options={modifierTypes.map(t => ({ label: t.name, value: String(t.typeId) }))}
+            options={modifierTypes.map(t => ({ label: t.name, value: String(t.typeId || (t as any).id) }))}
             value={form.typeId}
             placeholder="Select type"
             onChange={(e) => onChange("typeId", e.target.value)}

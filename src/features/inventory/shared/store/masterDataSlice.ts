@@ -29,7 +29,7 @@ export const fetchGlobalMasterData = createAsyncThunk(
     try {
       const [pMaster, branchList] = await Promise.all([
         productService.loadMasterData(),
-        branchApi.fetchBranchNames(),
+        branchApi.fetchBranchNames(true),
       ]);
 
       const branches = branchList.map((b: any) => ({
