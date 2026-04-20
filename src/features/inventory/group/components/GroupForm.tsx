@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import type { GroupDetail, GroupForm as GroupFormState } from "../types";
 
@@ -24,6 +25,7 @@ interface Props {
   error?: string | null;
   onSubmit: (data: GroupFormState) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -35,6 +37,7 @@ const GroupForm = ({
   error,
   onSubmit,
   onCancel,
+  onDelete,
 }: Props) => {
   const [form, setForm] = useState<GroupFormState>(() => buildInitialForm(initialData));
 
@@ -121,7 +124,18 @@ const GroupForm = ({
         </label>
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
+        {initialData && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete Group
+          </Button>
+        )}
         <Button variant="secondary" onClick={handleClear} disabled={saving}>
           Clear
         </Button>

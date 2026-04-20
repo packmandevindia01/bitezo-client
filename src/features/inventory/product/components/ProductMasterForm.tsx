@@ -41,6 +41,7 @@ interface ProductMasterFormProps {
   onClear: () => void;
   onSave: () => void;
   onDeactivate: () => void;
+  onDelete?: () => void;
   onImageSelect: (file: File | null) => void;
 }
 
@@ -61,6 +62,7 @@ const ProductMasterForm = ({
   onClear,
   onSave,
   onDeactivate,
+  onDelete,
   onImageSelect,
 }: ProductMasterFormProps) => {
   const { showToast } = useToast();
@@ -478,6 +480,17 @@ const ProductMasterForm = ({
         />
 
         <div className="flex flex-wrap items-center justify-end gap-3">
+          {isEditing && (
+            <Button
+              variant="danger"
+              disabled={saving}
+              onClick={onDelete}
+              type="button"
+            >
+              <Trash2 size={16} />
+              Delete Product
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClear} type="button" disabled={saving}>
             Clear
           </Button>
@@ -485,7 +498,8 @@ const ProductMasterForm = ({
             {saving ? "Saving…" : isEditing ? "Update Product" : "Save Product"}
           </Button>
           <Button
-            variant="danger"
+            variant="secondary"
+            className="text-red-600 border-red-100 hover:bg-red-50"
             disabled={!isEditing || saving}
             onClick={onDeactivate}
             type="button"

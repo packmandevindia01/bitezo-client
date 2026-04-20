@@ -121,7 +121,12 @@ const ModifierPage = () => {
         ]}
       />
 
-      <Modal isOpen={open} onClose={closeModal} title="Modifier Master" size="lg">
+      <Modal 
+        isOpen={open} 
+        onClose={closeModal} 
+        title="Modifier Master" 
+        size="lg"
+      >
         <ModifierMasterForm
           form={form}
           isEditing={Boolean(editingId)}

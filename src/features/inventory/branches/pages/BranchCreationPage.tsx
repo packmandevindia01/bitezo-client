@@ -39,6 +39,12 @@ const BranchCreationPage = () => {
         editingBranch={editingBranch}
         onClose={closeModal}
         onSave={handleSave}
+        onDelete={() => {
+          if (editingBranch) {
+            setDeleteCandidate(editingBranch);
+            closeModal();
+          }
+        }}
       />
 
       <ConfirmDialog

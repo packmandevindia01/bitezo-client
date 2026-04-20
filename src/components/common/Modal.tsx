@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -82,14 +82,17 @@ useEffect(() => {
             </h2>
           )}
 
-          {showClose && (
-            <button
-              onClick={onClose}
-              className="p-1 rounded hover:bg-gray-100 transition"
-            >
-              <X size={18} />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+
+            {showClose && (
+              <button
+                onClick={onClose}
+                className="p-1 rounded hover:bg-gray-100 transition"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* CONTENT */}

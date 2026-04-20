@@ -29,6 +29,7 @@ interface Props {
   onSubmit?: (payload: BranchPayload) => void | Promise<void>;
   onCancel?: () => void;
   showTitle?: boolean;
+  onDelete?: () => void;
 }
 
 const BranchForm = ({
@@ -36,6 +37,7 @@ const BranchForm = ({
   onSubmit,
   onCancel,
   showTitle = true,
+  onDelete,
 }: Props) => {
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -205,6 +207,17 @@ const BranchForm = ({
               {onCancel && (
                 <Button variant="secondary" onClick={onCancel} disabled={submitting}>
                   Cancel
+                </Button>
+              )}
+
+              {initialData && (
+                <Button 
+                  variant="secondary" 
+                  onClick={onDelete} 
+                  disabled={submitting}
+                  className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100 mr-auto"
+                >
+                  Delete Branch
                 </Button>
               )}
 

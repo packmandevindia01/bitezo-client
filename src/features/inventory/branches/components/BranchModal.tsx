@@ -7,9 +7,10 @@ interface Props {
   editingBranch: BranchRecord | null;
   onClose: () => void;
   onSave: (payload: BranchPayload) => void;
+  onDelete?: () => void;
 }
 
-const BranchModal = ({ isOpen, editingBranch, onClose, onSave }: Props) => {
+const BranchModal = ({ isOpen, editingBranch, onClose, onSave, onDelete }: Props) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -30,6 +31,7 @@ const BranchModal = ({ isOpen, editingBranch, onClose, onSave }: Props) => {
         }
         onSubmit={onSave}
         onCancel={onClose}
+        onDelete={onDelete}
         showTitle={false}
       />
     </Modal>

@@ -1,7 +1,9 @@
+import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
 import CounterModal from "../components/CounterModal";
 import { useCounterManager } from "../hooks/useCounterManager";
+import type { CounterRecord } from "../types";
 
 const CounterPage = () => {
   const {
@@ -19,6 +21,7 @@ const CounterPage = () => {
     handleEdit,
     handleDelete,
   } = useCounterManager();
+  const [deleteRecord, setDeleteRecord] = React.useState<CounterRecord | null>(null);
 
   return (
     <PageShell title="Counter Master">
@@ -50,7 +53,7 @@ const CounterPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(row)}
+                  onClick={() => setDeleteRecord(row)}
                   className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
                   aria-label={`Delete ${row.name}`}
                 >
@@ -70,6 +73,25 @@ const CounterPage = () => {
         onClose={closeModal}
         onClear={resetForm}
         onSave={handleSave}
+        onDelete={() => {
+          const record = filteredRecords.find(r => r.id === editingId);
+          if (record) {
+            setDeleteRecord(record);
+            closeModal();
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteRecord !== null}
+        onCancel={() => setDeleteRecord(null)}
+        onConfirm={() => {
+          if (deleteRecord) {
+            handleDelete(deleteRecord);
+            setDeleteRecord(null);
+          }
+        }}
+        message={`Are you sure you want to delete counter "${deleteRecord?.name}"?`}
       />
     </PageShell>
   );

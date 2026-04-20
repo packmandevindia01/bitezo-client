@@ -73,7 +73,11 @@ const ModifierTypePage = () => {
         ]}
       />
 
-      <Modal isOpen={open} onClose={closeModal} title="Modifier Type">
+      <Modal 
+        isOpen={open} 
+        onClose={closeModal} 
+        title="Modifier Type"
+      >
         <ModifierTypeForm
           form={form}
           isEditing={Boolean(editingId)}
@@ -82,6 +86,13 @@ const ModifierTypePage = () => {
           onClear={resetForm}
           onSave={handleSave}
           onCancel={closeModal}
+          onDelete={() => {
+            const record = filteredRecords.find(r => r.typeId === editingId);
+            if (record) {
+              setDeleteRecord(record);
+              closeModal();
+            }
+          }}
         />
       </Modal>
 

@@ -2,7 +2,7 @@ import { Button, FormInput, SelectInput } from "../../../../components/common";
 import type { ModifierForm } from "../types";
 import type { ModifierTypeRecord } from "../../modifierType/types";
 import type { CategoryListItem } from "../../category/types";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 interface ModifierMasterFormProps {
   form: ModifierForm;
@@ -22,6 +22,7 @@ interface ModifierMasterFormProps {
   onClear: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const ModifierMasterForm = ({
@@ -42,6 +43,7 @@ const ModifierMasterForm = ({
   onClear,
   onSave,
   onCancel,
+  onDelete,
 }: ModifierMasterFormProps) => {
   if (loading) {
     return (
@@ -197,7 +199,18 @@ const ModifierMasterForm = ({
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-3 border-t border-gray-100 pt-6">
+      <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
+        {isEditing && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete Modifier
+          </Button>
+        )}
         <Button variant="secondary" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>

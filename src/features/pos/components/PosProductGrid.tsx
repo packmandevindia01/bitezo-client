@@ -1,4 +1,3 @@
-import { Clock3, Plus } from "lucide-react";
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { PosCategory, PosProduct } from "../types";
@@ -10,30 +9,20 @@ interface PosProductGridProps {
   onAdd: (productId: number) => void;
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
-
 const PosProductGrid = ({
   products,
-  activeCategory,
-  search,
   onAdd,
 }: PosProductGridProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(1);
 
-  // Dynamic column calculation based on container width
   useEffect(() => {
     const updateColumns = () => {
       if (!parentRef.current) return;
       const width = parentRef.current.offsetWidth;
       if (width > 1200) setColumns(4);
-      else if (width > 900) setColumns(3);
-      else if (width > 600) setColumns(2);
+      else if (width > 800) setColumns(3);
+      else if (width > 500) setColumns(2);
       else setColumns(1);
     };
 
@@ -42,7 +31,6 @@ const PosProductGrid = ({
     return () => window.removeEventListener("resize", updateColumns);
   }, []);
 
-  // Chunk products into rows
   const rows = useMemo(() => {
     const result = [];
     for (let i = 0; i < products.length; i += columns) {
@@ -54,46 +42,19 @@ const PosProductGrid = ({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200, // Approximate height of a product card + gap
+    estimateSize: () => 300, 
     overscan: 5,
   });
 
   return (
-    <section className="flex flex-col rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5 h-[calc(100vh-320px)] min-h-[500px]">
-      <div className="flex flex-wrap items-start justify-between gap-3 shrink-0 mb-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#49293e]/65">
-            Menu Library
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-900">
-            {activeCategory?.name ?? "Products"}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {search
-              ? `Showing results for "${search}" inside this category.`
-              : activeCategory?.description ?? "Tap a category to begin billing faster."}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Visible Items
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{products.length}</p>
-        </div>
-      </div>
-
+    <section className="flex-1 bg-transparent overflow-hidden">
       <div
         ref={parentRef}
-        className="flex-1 overflow-y-auto scrollbar-hide pr-1"
-        style={{ scrollBehavior: 'smooth' }}
+        className="h-full overflow-y-auto scrollbar-hide"
       >
         {products.length === 0 ? (
-          <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
-            <p className="text-lg font-semibold text-slate-700">No items matched this search.</p>
-            <p className="mt-2 text-sm text-slate-500">
-              Try a shorter keyword or switch to another category.
-            </p>
+          <div className="rounded-[40px] border-2 border-dashed border-slate-100 bg-white px-6 py-20 text-center shadow-sm">
+            <p className="text-xl font-bold text-slate-300">No items matched this search.</p>
           </div>
         ) : (
           <div
@@ -106,7 +67,7 @@ const PosProductGrid = ({
             {rowVirtualizer.getVirtualItems().map((virtualRow) => (
               <div
                 key={virtualRow.index}
-                className="grid gap-4"
+                className="grid gap-6 xl:gap-10"
                 style={{
                   position: "absolute",
                   top: 0,
@@ -115,45 +76,60 @@ const PosProductGrid = ({
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                   gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                  paddingBottom: "16px" // gap equivalent
+                  paddingBottom: "40px"
                 }}
               >
                 {rows[virtualRow.index].map((product) => (
-                  <button
+                  <div
                     key={product.id}
-                    type="button"
-                    onClick={() => onAdd(product.id)}
-                    className="group flex flex-col justify-between h-full rounded-[26px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#49293e]/25 hover:shadow-lg"
+                    className="
+                      group relative flex flex-col justify-between
+                      rounded-[32px] xl:rounded-[40px] border border-slate-50 bg-white p-6 xl:p-8
+                      transition-all duration-300 hover:shadow-2xl hover:shadow-[#49293e]/10 hover:-translate-y-2
+                    "
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-semibold text-slate-900 truncate">{product.name}</p>
-                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-slate-400">
-                          {product.sku}
-                        </p>
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg xl:text-xl font-bold text-black leading-[1.1] pr-4">
+                          {product.name}
+                        </h3>
+                        {product.bestseller && (
+                          <span className="shrink-0 px-2 py-1 xl:px-3 xl:py-1 rounded-full bg-emerald-50 text-[8px] xl:text-[10px] font-bold text-emerald-600 uppercase tracking-widest border border-emerald-100">
+                            Bestseller
+                          </span>
+                        )}
                       </div>
-
-                      {product.bestseller && (
-                        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                          Best
-                        </span>
-                      )}
+                      <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] mb-2 xl:mb-3">
+                        {product.sku}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        {product.prepTime}
+                      </div>
                     </div>
 
-                    <div className="mt-4 flex items-end justify-between gap-3">
-                      <div>
-                        <p className="text-xl font-semibold text-[#49293e]">{formatCurrency(product.price)}</p>
-                        <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
-                          <Clock3 size={13} />
-                          {product.prepTime}
-                        </p>
+                    <div className="mt-6 xl:mt-8 flex items-end justify-between">
+                      <div className="text-2xl xl:text-3xl font-bold text-[#49293e] tracking-tighter">
+                        ₹{product.price.toFixed(0)}
                       </div>
 
-                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#49293e] text-white shadow-[0_16px_30px_-18px_rgba(73,41,62,0.95)] transition group-hover:scale-105">
-                        <Plus size={18} />
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onAdd(product.id)}
+                        className="
+                          flex h-12 w-12 xl:h-14 xl:w-14 items-center justify-center 
+                          rounded-full bg-[#49293e] text-white shadow-xl shadow-[#49293e]/30
+                          transition-all hover:scale-110 active:scale-90
+                        "
+                      >
+                        <svg className="w-6 h-6 xl:w-7 xl:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                          <path d="m3.3 7 8.7 5 8.7-5"/>
+                          <path d="M12 22V12"/>
+                        </svg>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ))}
@@ -165,4 +141,3 @@ const PosProductGrid = ({
 };
 
 export default PosProductGrid;
-

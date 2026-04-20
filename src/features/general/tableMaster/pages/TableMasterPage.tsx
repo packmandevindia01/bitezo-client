@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
 import TableMasterModal from "../components/TableMasterModal";
 import { useTableManager } from "../hooks/useTableManager";
+import type { TableRecord } from "../types";
 
 const TableMasterPage = () => {
   const {
@@ -26,9 +28,10 @@ const TableMasterPage = () => {
     setCreateMode,
   } = useTableManager();
 
+  const [deleteRecord, setDeleteRecord] = useState<TableRecord | null>(null);
+
   return (
-    <PageShell
-      title="Table Master" >
+    <PageShell title="Table Master" >
       <RecordTableCard
         title="Saved Table List"
         search={search}
@@ -59,7 +62,7 @@ const TableMasterPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(row)}
+                  onClick={() => setDeleteRecord(row)}
                   className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
                   aria-label={`Delete ${row.tableNo}`}
                 >
@@ -88,10 +91,28 @@ const TableMasterPage = () => {
           resetForm(selectedSection);
         }}
         onSave={handleSave}
+        onDelete={() => {
+          const record = filteredTables.find(t => t.id === selectedId);
+          if (record) {
+            setDeleteRecord(record);
+            closeModal();
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteRecord !== null}
+        onCancel={() => setDeleteRecord(null)}
+        onConfirm={() => {
+          if (deleteRecord) {
+            handleDelete(deleteRecord);
+            setDeleteRecord(null);
+          }
+        }}
+        message={`Are you sure you want to delete table "${deleteRecord?.tableNo}"?`}
       />
     </PageShell>
   );
 };
 
 export default TableMasterPage;
-

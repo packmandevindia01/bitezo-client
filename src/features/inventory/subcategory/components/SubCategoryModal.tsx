@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import {
   Button,
   FormInput,
@@ -27,6 +27,7 @@ interface Props {
   onChange: (patch: Partial<SubCategoryFormState>) => void;
   onClear: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }
 
 const SubCategoryModal = ({
@@ -40,6 +41,7 @@ const SubCategoryModal = ({
   onChange,
   onClear,
   onSave,
+  onDelete,
 }: Props) => {
   return (
     <Modal
@@ -119,6 +121,17 @@ const SubCategoryModal = ({
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3">
+              {editingId && (
+                <Button
+                  variant="danger"
+                  onClick={onDelete}
+                  disabled={saving}
+                  className="mr-auto"
+                >
+                  <Trash2 size={16} />
+                  Delete Sub Category
+                </Button>
+              )}
               <Button variant="secondary" onClick={onClear} disabled={saving}>
                 Clear
               </Button>

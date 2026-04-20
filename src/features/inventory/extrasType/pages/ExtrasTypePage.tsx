@@ -73,7 +73,11 @@ const ExtrasTypePage = () => {
         ]}
       />
 
-      <Modal isOpen={open} onClose={closeModal} title="Extras Type">
+      <Modal 
+        isOpen={open} 
+        onClose={closeModal} 
+        title="Extras Type"
+      >
         <ExtrasTypeForm
           form={form}
           isEditing={Boolean(editingId)}
@@ -82,6 +86,13 @@ const ExtrasTypePage = () => {
           onClear={resetForm}
           onSave={handleSave}
           onCancel={closeModal}
+          onDelete={() => {
+            const record = filteredRecords.find(r => r.typeId === editingId);
+            if (record) {
+              setDeleteRecord(record);
+              closeModal();
+            }
+          }}
         />
       </Modal>
 

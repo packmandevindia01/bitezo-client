@@ -22,6 +22,7 @@ interface Props {
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }
 
 const TableMasterModal = ({
@@ -38,6 +39,7 @@ const TableMasterModal = ({
   onClose,
   onClear,
   onSave,
+  onDelete,
 }: Props) => {
   return (
     <Modal
@@ -135,6 +137,15 @@ const TableMasterModal = ({
         </div>
 
         <div className="flex flex-wrap justify-center gap-3">
+          {mode === "edit" && selectedId && (
+            <MasterActionButton
+              variant="secondary"
+              className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100"
+              onClick={onDelete || (() => {})}
+            >
+              Delete Table
+            </MasterActionButton>
+          )}
           <MasterActionButton variant="secondary" onClick={onClear}>
             Clear
           </MasterActionButton>

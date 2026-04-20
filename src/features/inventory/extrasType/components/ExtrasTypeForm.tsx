@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import type { ExtrasTypeForm as ExtrasTypeFormType } from "../types";
 
@@ -9,6 +10,7 @@ interface ExtrasTypeFormProps {
   onClear: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const ExtrasTypeForm = ({
@@ -19,6 +21,7 @@ const ExtrasTypeForm = ({
   onClear,
   onSave,
   onCancel,
+  onDelete,
 }: ExtrasTypeFormProps) => {
   return (
     <>
@@ -40,7 +43,18 @@ const ExtrasTypeForm = ({
         />
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
+        {isEditing && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete
+          </Button>
+        )}
         <Button variant="secondary" onClick={onClear} disabled={saving}>
           Clear
         </Button>

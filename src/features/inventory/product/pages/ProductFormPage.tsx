@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button, PageShell } from "../../../../components/common";
+import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
 import { useProductManager } from "../hooks/useProductManager";
 
@@ -29,6 +29,11 @@ const ProductFormPage = () => {
     handleDeactivate,
     handleImageSelect,
     handleEditById,
+    pendingDelete,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+    deleting,
   } = useProductManager();
 
   useEffect(() => {
@@ -79,9 +84,25 @@ const ProductFormPage = () => {
             onSave={onSave}
             onDeactivate={handleDeactivate}
             onImageSelect={handleImageSelect}
+            onDelete={() => {
+              if (editingId) {
+                requestDelete({ productId: editingId, name: form.name });
+              }
+            }}
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDelete)}
+        onCancel={cancelDelete}
+        onConfirm={async () => {
+          await confirmDelete();
+          navigate("/dashboard/products");
+        }}
+        loading={deleting}
+        message="Are you sure you want to delete this product? This action cannot be undone."
+      />
     </PageShell>
   );
 };

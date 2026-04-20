@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import type { TaxFormState, TaxDetail } from "../types";
 
@@ -6,8 +7,9 @@ interface Props {
   initialData?: TaxDetail | null;
   saving?: boolean;
   error?: string | null;
-  onSubmit: (data: TaxFormState) => void;
+  onSubmit: (form: TaxFormState) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
@@ -16,7 +18,7 @@ const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
   expireAt: initialData?.expireAt ? new Date(initialData.expireAt).toISOString().split("T")[0] : "",
 });
 
-const TaxForm = ({ initialData, saving = false, error, onSubmit }: Props) => {
+const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete }: Props) => {
   const [form, setForm] = useState<TaxFormState>(() => createInitialForm(initialData));
 
   const handleChange = (key: keyof TaxFormState, value: string) => {
@@ -74,7 +76,18 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit }: Props) => {
         />
       </section>
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+      <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+        {initialData && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete Tax
+          </Button>
+        )}
         <Button variant="secondary" onClick={handleClear} type="button" disabled={saving}>
           Reset
         </Button>

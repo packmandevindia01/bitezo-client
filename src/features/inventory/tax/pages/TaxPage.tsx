@@ -101,7 +101,11 @@ const TaxPage = () => {
         ]}
       />
 
-      <Modal isOpen={isOpen} onClose={closeModal} title={isEditMode ? "Edit Tax" : "Add New Tax"}>
+      <Modal 
+        isOpen={isOpen} 
+        onClose={closeModal} 
+        title={isEditMode ? "Edit Tax" : "Add New Tax"}
+      >
         <TaxForm
           key={isEditMode ? `edit-${editDetail?.id}` : "new-tax"}
           initialData={editDetail}
@@ -109,6 +113,12 @@ const TaxPage = () => {
           error={mutationError}
           onSubmit={handleSave}
           onCancel={closeModal}
+          onDelete={() => {
+            if (editDetail) {
+              requestDelete({ id: editDetail.id, name: editDetail.name } as any);
+              closeModal();
+            }
+          }}
         />
       </Modal>
 

@@ -106,7 +106,11 @@ const UnitPage = () => {
         ]}
       />
 
-      <Modal isOpen={isOpen} onClose={closeModal} title={isEditMode ? "Edit Unit" : "Add New Unit"}>
+      <Modal 
+        isOpen={isOpen} 
+        onClose={closeModal} 
+        title={isEditMode ? "Edit Unit" : "Add New Unit"}
+      >
         <UnitForm
           key={isEditMode ? `edit-${editDetail?.unitId}` : "new-unit"}
           initialData={editDetail}
@@ -114,6 +118,12 @@ const UnitPage = () => {
           error={mutationError}
           onSubmit={handleSave}
           onCancel={closeModal}
+          onDelete={() => {
+            if (editDetail) {
+              requestDelete({ unitId: editDetail.unitId, name: editDetail.name } as any);
+              closeModal();
+            }
+          }}
         />
       </Modal>
 

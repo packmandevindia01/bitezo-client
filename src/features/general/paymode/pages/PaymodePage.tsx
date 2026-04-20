@@ -1,7 +1,9 @@
+import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
 import PaymodeModal from "../components/PaymodeModal";
 import { usePaymodeManager } from "../hooks/usePaymodeManager";
+import type { PaymodeRecord } from "../types";
 
 const PaymodePage = () => {
   const {
@@ -19,6 +21,7 @@ const PaymodePage = () => {
     handleEdit,
     handleDelete,
   } = usePaymodeManager();
+  const [deleteRecord, setDeleteRecord] = React.useState<PaymodeRecord | null>(null);
 
   return (
     <PageShell
@@ -52,7 +55,7 @@ const PaymodePage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(row)}
+                  onClick={() => setDeleteRecord(row)}
                   className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
                   aria-label={`Delete ${row.paymode}`}
                 >
@@ -72,6 +75,25 @@ const PaymodePage = () => {
         onClose={closeModal}
         onClear={resetForm}
         onSave={handleSave}
+        onDelete={() => {
+          const record = filteredRecords.find(r => r.id === editingId);
+          if (record) {
+            setDeleteRecord(record);
+            closeModal();
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteRecord !== null}
+        onCancel={() => setDeleteRecord(null)}
+        onConfirm={() => {
+          if (deleteRecord) {
+            handleDelete(deleteRecord);
+            setDeleteRecord(null);
+          }
+        }}
+        message={`Are you sure you want to delete paymode "${deleteRecord?.paymode}"?`}
       />
     </PageShell>
   );

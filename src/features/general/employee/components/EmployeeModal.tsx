@@ -20,6 +20,7 @@ interface Props {
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }
 
 const EmployeeModal = ({
@@ -32,6 +33,7 @@ const EmployeeModal = ({
   onClose,
   onClear,
   onSave,
+  onDelete,
 }: Props) => {
   return (
     <Modal
@@ -95,6 +97,16 @@ const EmployeeModal = ({
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">
+          {editingId && (
+            <Button
+              variant="danger"
+              onClick={onDelete}
+              disabled={saving}
+              className="mr-auto"
+            >
+              Delete Employee
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClear} disabled={saving}>
             Clear
           </Button>

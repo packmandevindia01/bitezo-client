@@ -1,4 +1,4 @@
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, Loader2, Trash2 } from "lucide-react";
 import { Button, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
 import type { BranchOption } from "../types";
 
@@ -25,6 +25,7 @@ interface Props {
   onToggleBranch: (branchId: number) => void;
   onClear: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }
 
 const CategoryModal = ({
@@ -42,6 +43,7 @@ const CategoryModal = ({
   onToggleBranch,
   onClear,
   onSave,
+  onDelete,
 }: Props) => {
   return (
     <Modal
@@ -116,6 +118,17 @@ const CategoryModal = ({
 
             {/* Action buttons */}
             <div className="mt-4 flex flex-wrap gap-3">
+              {editingId && (
+                <Button
+                  variant="danger"
+                  onClick={onDelete}
+                  disabled={saving}
+                  className="mr-auto"
+                >
+                  <Trash2 size={16} />
+                  Delete Category
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"

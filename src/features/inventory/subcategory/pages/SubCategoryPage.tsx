@@ -68,6 +68,13 @@ const SubCategoryPage = () => {
         onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
         onClear={resetForm}
         onSave={handleSave}
+        onDelete={() => {
+          const record = filteredSubCategories.find((s) => s.id === editingId);
+          if (record) {
+            requestDelete(record);
+            closeModal();
+          }
+        }}
       />
 
       {/* Delete confirmation dialog */}

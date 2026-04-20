@@ -9,9 +9,10 @@ interface Props {
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }
 
-const PaymodeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onSave }: Props) => {
+const PaymodeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onSave, onDelete }: Props) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -52,6 +53,15 @@ const PaymodeModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onS
         </div>
 
         <div className="flex flex-wrap justify-center gap-3">
+          {editingId && (
+            <MasterActionButton
+              variant="secondary"
+              className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100"
+              onClick={onDelete || (() => {})}
+            >
+              Delete Paymode
+            </MasterActionButton>
+          )}
           <MasterActionButton variant="secondary" onClick={onClear}>
             Clear
           </MasterActionButton>

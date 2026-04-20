@@ -12,6 +12,7 @@ interface ModifierTypeFormProps {
   onClear: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const ModifierTypeForm = ({
@@ -22,6 +23,7 @@ const ModifierTypeForm = ({
   onClear,
   onSave,
   onCancel,
+  onDelete,
 }: ModifierTypeFormProps) => {
   return (
     <>
@@ -43,7 +45,17 @@ const ModifierTypeForm = ({
         />
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
+        {isEditing && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            Delete
+          </Button>
+        )}
         <Button variant="secondary" onClick={onClear} disabled={saving}>
           Clear
         </Button>

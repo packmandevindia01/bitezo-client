@@ -1,4 +1,4 @@
-import { Building2, LayoutGrid, ChevronUp } from "lucide-react";
+import { Building2, LayoutGrid, ChevronUp, Trash2 } from "lucide-react";
 import { Button, FormInput, SelectInput } from "../../../../components/common";
 import type { ExtrasMasterForm as ExtrasMasterFormType } from "../types";
 import type { ExtrasTypeRecord } from "../../extrasType/types";
@@ -25,6 +25,7 @@ interface ExtrasMasterFormProps {
   onClear: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const ExtrasMasterForm = ({
@@ -45,6 +46,7 @@ const ExtrasMasterForm = ({
   onClear,
   onSave,
   onCancel,
+  onDelete,
 }: ExtrasMasterFormProps) => {
   const typeOptions = extrasTypes.map((t) => ({
     label: t.name,
@@ -205,7 +207,18 @@ const ExtrasMasterForm = ({
         )}
       </div>
 
-      <div className="mt-8 flex justify-end gap-3 border-t border-gray-100 pt-6">
+      <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
+        {isEditing && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete Extra
+          </Button>
+        )}
         <Button variant="secondary" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>

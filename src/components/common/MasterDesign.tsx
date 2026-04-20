@@ -58,6 +58,7 @@ interface MasterActionButtonProps {
   variant?: "primary" | "secondary";
   onClick: () => void;
   type?: "button" | "submit" | "reset";
+  className?: string;
 }
 
 interface RowActionButtonsProps<T> {
@@ -240,6 +241,7 @@ export const MasterActionButton = ({
   variant = "primary",
   onClick,
   type = "button",
+  className = "",
 }: MasterActionButtonProps) => {
   const variantClassName =
     variant === "primary"
@@ -250,7 +252,7 @@ export const MasterActionButton = ({
     <button
       type={type}
       onClick={onClick}
-      className={`h-11 rounded-2xl border px-8 text-base font-semibold shadow-sm transition hover:-translate-y-0.5 ${variantClassName}`}
+      className={`h-11 rounded-2xl border px-8 text-base font-semibold shadow-sm transition hover:-translate-y-0.5 ${variantClassName} ${className}`}
     >
       {children}
     </button>

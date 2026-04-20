@@ -71,7 +71,7 @@ export const useProductManager = () => {
   const [imagePreview, setImagePreview] = useState<string | undefined>(undefined);
 
   // ── Confirm delete ──────────────────────────────────────────────────────────
-  const [pendingDelete, setPendingDelete] = useState<ProductListItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ productId: number; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // ─── Fetch product list ───────────────────────────────────────────────────
@@ -360,7 +360,7 @@ export const useProductManager = () => {
   // ─── Delete (two-step confirm) ────────────────────────────────────────────
 
   /** Step 1: Trash icon click → open confirm dialog */
-  const requestDelete = (record: ProductListItem) => {
+  const requestDelete = (record: { productId: number; name: string }) => {
     setPendingDelete(record);
   };
 

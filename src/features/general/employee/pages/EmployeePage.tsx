@@ -55,6 +55,13 @@ const EmployeePage = () => {
         onClose={closeModal}
         onClear={resetForm}
         onSave={handleSave}
+        onDelete={() => {
+          const record = filteredEmployees.find((e) => e.id === editingId);
+          if (record) {
+            setDeleteCandidate(record);
+            closeModal();
+          }
+        }}
       />
 
       <ConfirmDialog

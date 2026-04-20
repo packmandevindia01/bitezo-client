@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button, FormInput, SelectInput } from "../../../../components/common";
 import { unitCategoryOptions } from "../constants";
 import { unitService } from "../services/unitService";
@@ -8,8 +9,9 @@ interface Props {
   initialData?: UnitDetail | null;
   saving?: boolean;
   error?: string | null;
-  onSubmit: (data: UnitFormState) => void;
+  onSubmit: (form: UnitFormState) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const createInitialForm = (initialData?: UnitDetail | null): UnitFormState => ({
@@ -20,7 +22,7 @@ const createInitialForm = (initialData?: UnitDetail | null): UnitFormState => ({
   parentId: initialData?.parentId ?? 0,
 });
 
-const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel }: Props) => {
+const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDelete }: Props) => {
   const [form, setForm] = useState<UnitFormState>(() => createInitialForm(initialData));
   const [parentOptions, setParentOptions] = useState<UnitNameListItem[]>([]);
   const [loadingParents, setLoadingParents] = useState(false);
@@ -155,7 +157,18 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel }: Pr
         </div>
       </section>
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+      <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+        {initialData && (initialData.unitId > 4) && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            disabled={saving}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete Unit
+          </Button>
+        )}
         <button
           type="button"
           onClick={onCancel}

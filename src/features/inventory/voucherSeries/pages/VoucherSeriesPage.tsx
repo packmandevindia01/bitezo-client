@@ -73,7 +73,11 @@ const VoucherSeriesPage = () => {
         ]}
       />
 
-      <Modal isOpen={open} onClose={closeModal} title="Voucher Series">
+      <Modal 
+        isOpen={open} 
+        onClose={closeModal} 
+        title="Voucher Series"
+      >
         <VoucherSeriesForm
           form={form}
           isEditing={Boolean(editingId)}
@@ -81,6 +85,13 @@ const VoucherSeriesPage = () => {
           onClear={resetForm}
           onSave={handleSave}
           onCancel={closeModal}
+          onDelete={() => {
+            const record = filteredRecords.find(r => r.id === editingId);
+            if (record) {
+              setDeleteRecord(record);
+              closeModal();
+            }
+          }}
         />
       </Modal>
 

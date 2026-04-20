@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { Button, FormInput, SelectInput } from "../../../../components/common";
 import { voucherBranchOptions, voucherTypeOptions } from "../constants";
 import type { VoucherSeriesForm as VoucherSeriesFormType } from "../types";
@@ -12,6 +13,7 @@ interface VoucherSeriesFormProps {
   onClear: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const VoucherSeriesForm = ({
@@ -21,6 +23,7 @@ const VoucherSeriesForm = ({
   onClear,
   onSave,
   onCancel,
+  onDelete,
 }: VoucherSeriesFormProps) => {
   return (
     <>
@@ -65,7 +68,17 @@ const VoucherSeriesForm = ({
         />
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
+        {isEditing && (
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            className="mr-auto"
+          >
+            <Trash2 size={16} />
+            Delete Series
+          </Button>
+        )}
         <Button variant="secondary" onClick={onClear}>
           Clear
         </Button>

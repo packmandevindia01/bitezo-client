@@ -121,7 +121,11 @@ const ExtrasMasterPage = () => {
         ]}
       />
 
-      <Modal isOpen={open} onClose={closeModal} title="Extras Master" size="lg">
+      <Modal 
+        isOpen={open} 
+        onClose={closeModal} 
+        title="Extras Master"
+      >
         <ExtrasMasterForm
           form={form}
           isEditing={Boolean(editingId)}
@@ -140,6 +144,13 @@ const ExtrasMasterPage = () => {
           onClear={resetForm}
           onSave={handleSave}
           onCancel={closeModal}
+          onDelete={() => {
+            const record = filteredRecords.find(r => r.id === editingId);
+            if (record) {
+              setDeleteRecord(record);
+              closeModal();
+            }
+          }}
         />
       </Modal>
 

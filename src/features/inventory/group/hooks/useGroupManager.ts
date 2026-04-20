@@ -32,7 +32,7 @@ export const useGroupManager = () => {
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   // ── Delete confirmation ──────────────────────────────────────────────────────
-  const [deleteCandidate, setDeleteCandidate] = useState<GroupRecord | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<{ grpId: number; name: string } | null>(null);
 
   // ─── Fetch list ─────────────────────────────────────────────────────────────
 
@@ -140,7 +140,7 @@ export const useGroupManager = () => {
 
   // ─── Delete Flow ─────────────────────────────────────────────────────────────
   
-  const requestDelete = useCallback((record: GroupRecord) => {
+  const requestDelete = useCallback((record: { grpId: number; name: string }) => {
     setDeleteCandidate(record);
   }, []);
 
