@@ -3,11 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
 import { useProductManager } from "../hooks/useProductManager";
+import { useBarcodeScanner } from "../../../pos/hooks/useBarcodeScanner";
+import { productService } from "../services/productService";
+import { useToast } from "../../../../app/providers/useToast";
 
 const ProductFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const {
+    products,
     form,
     editingId,
     saving,
@@ -43,6 +48,46 @@ const ProductFormPage = () => {
       resetForm();
     }
   }, [id]);
+
+  // ─── Scan to Edit Logic (Multipage) ──────────────────────────────────────
+
+  const handleScan = async (scannedValue: string) => {
+    const code = scannedValue.trim();
+    if (!code) return;
+
+    showToast(`Quick Switch: ${code}...`, "info");
+
+    // 1. Local Lookup
+    const localMatch = (products || []).find((p: any) => p.code.toLowerCase() === code.toLowerCase());
+    
+    if (localMatch) {
+      showToast(`Switched to: ${localMatch.name}`, "success");
+      navigate(`/dashboard/products/edit/${localMatch.productId}`);
+      return;
+    }
+
+    // 2. Server Lookup (Specialized search)
+    try {
+      const detail = await productService.getByCode(code);
+      const productArr = Array.isArray(detail.product) ? detail.product : detail.product ? [detail.product] : [];
+      const item = productArr[0];
+      
+      if (item) {
+        showToast(`Switched to: ${item.name}`, "success");
+        navigate(`/dashboard/products/edit/${item.productId}`);
+      } else {
+        // If not found on server, and we are in "Add" mode or want to change current code, fill the field
+        setField("code", code);
+        showToast(`New code detected: ${code}`, "info");
+      }
+    } catch (error) {
+      // If error (like 404), treat as new code
+      setField("code", code);
+      showToast(`New code detected: ${code}`, "info");
+    }
+  };
+
+  useBarcodeScanner(handleScan);
 
   const onSave = () => {
     handleSave(() => navigate("/dashboard/products"));

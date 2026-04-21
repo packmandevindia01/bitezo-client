@@ -1,18 +1,10 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { BranchOption } from "../types";
 
-interface BranchListItem {
-  branchId?: number;
-  id?: number;
-  branchName?: string;
-  name?: string;
-}
+
 
 export const fetchBranches = async (): Promise<BranchOption[]> => {
-  const clientDb = localStorage.getItem("tenantId") ?? "";
-  const response = await axiosInstance.get<BranchListItem[]>(
-    `/Branch/list-name?clientDb=${encodeURIComponent(clientDb)}`
-  );
+  const response = await axiosInstance.get<any[]>("/Branch/true/list-name");
 
   const data = response.data ?? [];
 

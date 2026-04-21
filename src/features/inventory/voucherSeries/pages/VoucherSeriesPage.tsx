@@ -13,9 +13,12 @@ import type { VoucherSeriesRecord } from "../types";
 const VoucherSeriesPage = () => {
   const {
     form,
+    branches,
     open,
     search,
     editingId,
+    loading,
+    saving,
     filteredRecords,
     setSearch,
     setField,
@@ -29,33 +32,32 @@ const VoucherSeriesPage = () => {
   const [deleteRecord, setDeleteRecord] = React.useState<VoucherSeriesRecord | null>(null);
 
   return (
-    <PageShell
-      title="Voucher Series" >
+    <PageShell title="Voucher Series">
       <RecordTableCard
-        title="Saved Voucher Series"
+        title="Saved Voucher Series list"
         search={search}
         onSearchChange={setSearch}
-        rowKey="id"
+        rowKey="voucherId"
         data={filteredRecords}
         actionLabel="+ Add Voucher Series"
         onAction={openCreateModal}
         autoFocusSearch
+        loading={loading}
         columns={[
+          { header: "S No", accessor: "sNo" },
           { header: "Voucher Type", accessor: "voucherType" },
-          { header: "Name", accessor: "name" },
-          { header: "Prefix", accessor: "prefix" },
-          { header: "Start No", accessor: "startNo" },
+          { header: "Name", accessor: "voucherName" },
           { header: "Branch", accessor: "branch" },
           {
             header: "Actions",
-            accessor: "id",
+            accessor: "voucherId",
             render: (row) => (
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => handleEdit(row)}
                   className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
+                  aria-label={`Edit ${row.voucherName}`}
                 >
                   <Pencil size={16} />
                 </button>
@@ -63,7 +65,7 @@ const VoucherSeriesPage = () => {
                   type="button"
                   onClick={() => setDeleteRecord(row)}
                   className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.name}`}
+                  aria-label={`Delete ${row.voucherName}`}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -77,19 +79,24 @@ const VoucherSeriesPage = () => {
         isOpen={open} 
         onClose={closeModal} 
         title="Voucher Series"
+        size="lg"
       >
         <VoucherSeriesForm
           form={form}
+          branches={branches}
           isEditing={Boolean(editingId)}
+          saving={saving}
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
           onCancel={closeModal}
           onDelete={() => {
-            const record = filteredRecords.find(r => r.id === editingId);
-            if (record) {
-              setDeleteRecord(record);
-              closeModal();
+            if (editingId) {
+              const record = filteredRecords.find(r => r.voucherId === editingId);
+              if (record) {
+                setDeleteRecord(record);
+                closeModal();
+              }
             }
           }}
         />
@@ -104,7 +111,8 @@ const VoucherSeriesPage = () => {
             setDeleteRecord(null);
           }
         }}
-        message="Are you sure you want to delete this voucher series?"
+        message={`Are you sure you want to delete voucher series "${deleteRecord?.voucherName}"?`}
+        loading={saving}
       />
     </PageShell>
   );

@@ -44,7 +44,7 @@ const UserForm = ({
     const fetchBranches = async () => {
       try {
         setBranchesLoading(true);
-        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/list-name");
+        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/true/list-name");
         setBranches(data.data ?? []);
       } catch {
         setBranches([]);

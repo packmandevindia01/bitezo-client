@@ -19,8 +19,12 @@ export const verifyCompanyOtp = async (regId: string, email: string, otp: string
     { params: { regId } }
   );
 
+  // Extract the string token from the nested response
+  const rawToken = data.otpToken ?? data.data?.otpToken ?? data.otp_token ?? "";
+  const tokenString = (typeof rawToken === "object" && rawToken !== null) ? (rawToken as any).data : rawToken;
+
   return {
-    otpToken: data.otpToken ?? data.data?.otpToken ?? data.otp_token ?? "",
+    otpToken: typeof tokenString === "string" ? tokenString : "",
   };
 };
 

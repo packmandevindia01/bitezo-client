@@ -46,7 +46,7 @@ export const deleteEmployee = async (empId: number) => {
 
 // ── Branches ──────────────────────────────────────────────────────────────────
 export const getBranches = async (): Promise<BranchOption[]> => {
-  const res = await axiosInstance.get("/Branch/list-name");
+  const res = await axiosInstance.get("/Branch/true/list-name");
   return res.data?.data ?? [];
 };
 

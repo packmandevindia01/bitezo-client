@@ -1,80 +1,117 @@
-# Bitezo Admin Dashboard
+# Bitezo - Modern POS & Enterprise Management Platform
 
-Bitezo Admin is a modern, high-performance Point of Sale (POS) and Enterprise Dashboard application built to manage company onboarding, complex inventory matrices, employee routing, and daily analytics.
+![Bitezo Logo](/bitezo-logo-hq.png)
 
-## 🚀 Tech Stack
+Bitezo is a state-of-the-art, high-performance **Point of Sale (POS)** and **Enterprise Resource Planning (ERP)** solution. Designed with a "Premium-First" aesthetic, it empowers businesses to manage complex restaurant operations, multi-branch inventories, and deep analytics through a unified, high-fidelity interface.
 
-- **Framework:** [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **Language:** [TypeScript](https://www.typescriptlang.org/)
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **State Management:** [Redux Toolkit (RTK)](https://redux-toolkit.js.org/)
-- **Routing:** [React Router v7](https://reactrouter.com/)
-- **Icons:** [Lucide React](https://lucide.dev/)
+---
 
-## ✨ Key Features
+## 🚀 Technology Stack
 
-- **Authentication & Onboarding:** Secure JWT-based login flows with device-based guards (`RegistrationGuard`) connecting multi-tenant databases.
-- **Inventory & Product Master:** Advanced Excel-style data grids to manage generic products and their barcode-specific branch variations (Alternatives).
-- **Global Master Data Caching:** High-speed Redux architecture that caches foundational options (Categories, Subcategories, Units, VAT) for 0ms form rendering latencies.
-- **Internationalization Ready:** Built-in multi-lingual column support (e.g., Native Arabic text mapping via RTL inputs).
-- **Responsive Layout:** Dynamic UI optimized across devices using a customized Tailwind design system.
+Bitezo is built on a cutting-edge frontend architecture designed for 0ms latency and high scalability.
 
-## 📁 Project Architecture
+- **Foundational**: [React 19](https://react.dev/) + [Vite 8](https://vitejs.dev/) + [TypeScript 5.9](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) (Custom UI Design System)
+- **State Architecture**: [Redux Toolkit](https://redux-toolkit.js.org/) + [React-Redux 9](https://react-redux.js.org/)
+- **Routing**: [React Router v7](https://reactrouter.com/) (Standalone & Layout-driven)
+- **Networking**: [Axios](https://axios-http.com/) (Centralized Multi-Tenant Instance)
+- **Visualization**: [Recharts](https://recharts.org/) & [Lucide React](https://lucide.dev/)
+- **Performance**: [React Virtual](https://tanstack.com/virtual/v3) for high-denisty data grids.
 
-The architecture follows a strict **Feature-Sliced Design**. Code is decoupled into specific domains rather than grouping by file type.
+---
+
+## ✨ Core Feature Modules
+
+### 1. 🖥️ POS Terminal (The Heart of Operation)
+A high-fidelity, full-screen terminal optimized for speed and operator precision.
+- **Order Management**: Support for Dine-In, Takeaway, Drive-Thru, Delivery, and Provider modes.
+- **Hardware Ready**: Native integration with Barcode Scanners and HID devices.
+- **Keyboard Power**: Extensive hotkey support for clear-cart, hold-ticket, and fast-checkout.
+- **Dynamic Calculation**: Real-time tax (VAT), discounting, and multi-tender type processing.
+
+### 2. 🍽️ Order Master
+A specialized suite of tools for fine-tuning dining experiences.
+- **Floor Planning**: Manage Sections (Floors, VIP, Terrace) and Table allocations.
+- **Menu Customization**: 
+    - **Modifiers**: Add cooking instructions or set-menu variations.
+    - **Extras**: Define add-ons (Extra Cheese, Side Salads) with inventory linkage.
+- **Kitchen Flow**: Integration paths for KOT (Kitchen Order Ticket) series management.
+
+### 3. 📦 Inventory & Logistics
+Advanced control over global products and branch-specific variants.
+- **Matrix Management**: Categories, Subcategories, Groups, and Units.
+- **Product Master**: Manage base products with individual branch-level overrides.
+- **Voucher Series**: Multi-tenant voucher sequencing for Sale, Purchase, Receipt, and Payment flows.
+- **Taxation**: Localized VAT/Tax rule engine integrated into every transaction.
+
+### 4. 👥 General Management
+The foundational data layer of the enterprise.
+- **HRM**: Detailed Employee profiles with role-based routing.
+- **CRM**: Customer loyalty tracking and transaction history.
+- **Financials**: Multi-mode Payment options (Cash, Card, Digital wallets).
+- **Security**: Granular User permissions and Multi-tenant database isolation.
+
+---
+
+## 🏗️ Architecture: Feature-Sliced Design
+
+The project follows a modular, domain-driven structure. Instead of technical grouping (e.g., all components in one folder), code is grouped by **Feature Areas**.
 
 ```text
 src/
-├── api/                  # Global Axios instances and interceptors
-├── app/                  # App-wide providers, Redux `store`, `hooks`, and Route guards
-├── components/           # Generic UI components (Buttons, Modals, Forms, Tables)
-├── features/             # Domain-specific logic 
-│   ├── auth/             # Login, OTP, Password Reset, Auth Slice
-│   ├── branches/         # Branch creation and localized management
-│   ├── company/          # Initial tenant setup and configuration
-│   ├── dashboard/        # Analytics, Sales Charts, and KPI cards
-│   ├── employee/         # Staff CRUD operations
-│   └── inventory/        # Products, Categories, Units, Taxes (VAT)
-└── utils/                # Global helpers, formatters, and validators
+├── api/                  # Centralized Axios logic & Interceptors
+├── app/                  # Redux Store, App Providers & Global Routes
+├── components/           # High-Fidelity Design System (Modals, Tables, Forms)
+├── features/             # Feature-Specific Contexts (The "Brain")
+│   ├── pos/              # High-Performance Terminal Logic
+│   ├── general/          # Users, Employees, Customers, Counter, Section
+│   ├── inventory/        # Product Matrix, Branches, Voucher Series
+│   └── company/          # Multi-tenant Onboarding & Identity
+└── utils/                # Standardized Formatters & Logic Helpers
 ```
 
-## 🧠 State Management (Redux)
+### Centralized API Pattern
+Bitezo employs a unified `axiosInstance` that automatically handles:
+- **Tenant Isolation**: Injects `clientDb` into every request based on the logged-in context.
+- **Authorization**: Manages Bearer tokens and session refresh logic.
+- **Error Handling**: Standardized unwrap functions for predictable API responses.
 
-This application uses Redux Toolkit to manage complex global states without prop-drilling:
-1. **`authSlice`**: Tracks the user's cross-tenant login credentials (`accessToken`, `isMaster`, `tenantId`) and company settings (e.g., currency `decimals`).
-2. **`masterDataSlice`**: Employs `createAsyncThunk` to fetch inventory metadata *once* per session, allowing all deep feature forms to populate dropdowns instantly without duplicating network requests.
+---
 
-## 🛠️ Getting Started
+## 🛠️ Developer Setup
 
 ### Prerequisites
-Make sure you have Node.js installed (v18+ recommended).
+- **Node.js**: Version 20+ recommended.
+- **Package Manager**: NPM (standard).
 
-### Installation
-
-1. Clone the repository and navigate to the project root.
-2. Install the core dependencies:
+### Setup & Run
+1. **Clone & Install**:
    ```bash
    npm install
    ```
+2. **Launch Development**:
+   ```bash
+   npm run dev
+   ```
+   *Terminal local access: `http://localhost:5173`*
 
-### Running the Application
+3. **Build for Production**:
+   ```bash
+   npm run build
+   ```
+4. **Enforce Standards (Lint/Typecheck)**:
+   ```bash
+   npm run lint
+   npm run build  # Triggers full TSC check
+   ```
 
-To start the Vite development server:
-```bash
-npm run dev
-```
-The application will boot up at `http://localhost:5173`.
+---
 
-### Build & Lint
-To build for production (outputs to `dist/`):
-```bash
-npm run build
-```
+## 🔒 Security & Performance
+- **RegistrationGuard**: Ensures only registered devices can access sensitive POS data.
+- **Deferred Searching**: Optimized `useDeferredValue` hooks to ensure 60FPS UI performance during large product index searches.
+- **React 19 Concurrency**: Utilizes the latest React features for non-blocking UI transitions.
 
-To run ESLint and check for static typing errors:
-```bash
-npm run lint
-```
+---
 
-## 🔒 Environment Variables
-Ensure you have the appropriate API target environments hooked up in your Vite proxy or `.env` files to connect to the Bitezo backend servers successfully.
+*© 2026 Bitezo Platform. High-Fidelity Enterprise Management.*

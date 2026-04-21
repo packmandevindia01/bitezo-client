@@ -8,9 +8,12 @@ import type { SectionRecord } from "../types";
 const SectionPage = () => {
   const {
     form,
+    counters,
     open,
     search,
     editingId,
+    loading,
+    saving,
     filteredRecords,
     setSearch,
     setField,
@@ -24,24 +27,24 @@ const SectionPage = () => {
   const [deleteRecord, setDeleteRecord] = React.useState<SectionRecord | null>(null);
 
   return (
-    <PageShell
-      title="Section Master" >
+    <PageShell title="Section Master">
       <RecordTableCard
         title="Saved Section List"
         search={search}
         onSearchChange={setSearch}
-        rowKey="id"
+        rowKey="sectionId"
         data={filteredRecords}
         actionLabel="+ Add Section"
         onAction={openCreateModal}
         autoFocusSearch
+        loading={loading}
         columns={[
-          { header: "S No", accessor: "id" },
+          { header: "S No", accessor: "sNo" },
           { header: "Name", accessor: "name" },
           { header: "Counter", accessor: "counter" },
           {
             header: "Actions",
-            accessor: "id",
+            accessor: "sectionId",
             render: (row) => (
               <div className="flex gap-2">
                 <button
@@ -70,15 +73,20 @@ const SectionPage = () => {
         isOpen={open}
         editingId={editingId}
         form={form}
+        counters={counters}
+        loading={loading}
+        saving={saving}
         onChange={setField}
         onClose={closeModal}
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {
-          const record = filteredRecords.find(r => r.id === editingId);
-          if (record) {
-            setDeleteRecord(record);
-            closeModal();
+          if (editingId) {
+            const record = filteredRecords.find(r => r.sectionId === editingId);
+            if (record) {
+              setDeleteRecord(record);
+              closeModal();
+            }
           }
         }}
       />
@@ -93,10 +101,12 @@ const SectionPage = () => {
           }
         }}
         message={`Are you sure you want to delete section "${deleteRecord?.name}"?`}
+        loading={saving}
       />
     </PageShell>
   );
 };
 
 export default SectionPage;
+
 

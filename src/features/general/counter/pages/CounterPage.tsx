@@ -8,9 +8,12 @@ import type { CounterRecord } from "../types";
 const CounterPage = () => {
   const {
     form,
+    branches,
     open,
     search,
     editingId,
+    loading,
+    saving,
     filteredRecords,
     setSearch,
     setField,
@@ -29,25 +32,26 @@ const CounterPage = () => {
         title="Saved Counter List"
         search={search}
         onSearchChange={setSearch}
-        rowKey="id"
+        rowKey="counterId"
         data={filteredRecords}
         actionLabel="+ Add Counter"
         onAction={openCreateModal}
         autoFocusSearch
+        loading={loading}
         columns={[
-          { header: "S No", accessor: "id" },
-          { header: "Name", accessor: "name" },
+          { header: "S No", accessor: "sNo" },
+          { header: "Name", accessor: "counterName" },
           { header: "Branch", accessor: "branch" },
           {
             header: "Actions",
-            accessor: "id",
+            accessor: "counterId",
             render: (row) => (
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => handleEdit(row)}
                   className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
+                  aria-label={`Edit ${row.counterName}`}
                 >
                   <Pencil size={16} />
                 </button>
@@ -55,7 +59,7 @@ const CounterPage = () => {
                   type="button"
                   onClick={() => setDeleteRecord(row)}
                   className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.name}`}
+                  aria-label={`Delete ${row.counterName}`}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -69,15 +73,20 @@ const CounterPage = () => {
         isOpen={open}
         editingId={editingId}
         form={form}
+        branches={branches}
+        loading={loading}
+        saving={saving}
         onChange={setField}
         onClose={closeModal}
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {
-          const record = filteredRecords.find(r => r.id === editingId);
-          if (record) {
-            setDeleteRecord(record);
-            closeModal();
+          if (editingId) {
+            const record = filteredRecords.find(r => r.counterId === editingId);
+            if (record) {
+              setDeleteRecord(record);
+              closeModal();
+            }
           }
         }}
       />
@@ -91,7 +100,8 @@ const CounterPage = () => {
             setDeleteRecord(null);
           }
         }}
-        message={`Are you sure you want to delete counter "${deleteRecord?.name}"?`}
+        message={`Are you sure you want to delete counter "${deleteRecord?.counterName}"?`}
+        loading={saving}
       />
     </PageShell>
   );

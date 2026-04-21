@@ -21,6 +21,7 @@ import {
   ListTree,
   X,
   Percent,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";
@@ -133,6 +134,34 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
 
             <div
               onClick={() => {
+                navigate("/dashboard/tables");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <Grid2x2 size={14} />
+                <span>Table Master</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/taxes");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <Percent size={14} />
+                <span>Tax Master</span>
+              </div>
+            </div>
+          </SidebarDropdown>
+
+          <SidebarDropdown label="Order" icon={<UtensilsCrossed size={14} />} nested defaultOpen>
+            <div
+              onClick={() => {
                 navigate("/dashboard/sections");
                 onClose();
               }}
@@ -146,29 +175,53 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
 
             <div
               onClick={() => {
-                navigate("/dashboard/tables");
+                navigate("/dashboard/modifier-type");
                 onClose();
               }}
               className={itemClassName}
             >
               <div className="flex items-center gap-2">
-                <Grid2x2 size={14} />
-                <span>Table Master</span>
+                <SlidersHorizontal size={14} />
+                <span>Modifier Type</span>
               </div>
             </div>
 
-
-
             <div
               onClick={() => {
-                navigate("/dashboard/taxes");
+                navigate("/dashboard/modifiers");
                 onClose();
               }}
               className={itemClassName}
             >
               <div className="flex items-center gap-2">
-                <Percent size={14} />
-                <span>Tax Master</span>
+                <SlidersHorizontal size={14} />
+                <span>Modifier</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/extras-type");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <ListTree size={14} />
+                <span>Extras Type</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/extras-master");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <Shapes size={14} />
+                <span>Extras Master</span>
               </div>
             </div>
           </SidebarDropdown>
@@ -241,58 +294,6 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
               <div className="flex items-center gap-2">
                 <Ruler size={14} />
                 <span>Unit</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => {
-                navigate("/dashboard/extras-type");
-                onClose();
-              }}
-              className={itemClassName}
-            >
-              <div className="flex items-center gap-2">
-                <ListTree size={14} />
-                <span>Extras Type</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => {
-                navigate("/dashboard/extras-master");
-                onClose();
-              }}
-              className={itemClassName}
-            >
-              <div className="flex items-center gap-2">
-                <Shapes size={14} />
-                <span>Extras Master</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => {
-                navigate("/dashboard/modifier-type");
-                onClose();
-              }}
-              className={itemClassName}
-            >
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={14} />
-                <span>Modifier Type</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => {
-                navigate("/dashboard/modifiers");
-                onClose();
-              }}
-              className={itemClassName}
-            >
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={14} />
-                <span>Modifier</span>
               </div>
             </div>
 

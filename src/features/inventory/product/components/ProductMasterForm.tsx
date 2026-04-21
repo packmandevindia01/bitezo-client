@@ -71,8 +71,21 @@ const ProductMasterForm = ({
   
   const handleTabSwitch = (tab: "product" | "alternatives") => {
     if (tab === "alternatives") {
-      if (!form.name || !form.code || !form.categoryId || !form.unitId || !form.pVatId || !form.sVatId) {
-        showToast("Please fill all required General fields (Name, Code, Category, Unit, Purchase & Sales VAT).", "warning");
+      const required = [
+        { key: "name", label: "Name" },
+        { key: "code", label: "Code" },
+        { key: "categoryId", label: "Category" },
+        { key: "groupId", label: "Group" },
+        { key: "unitId", label: "Unit" },
+        { key: "branchId", label: "Branch" },
+        { key: "pVatId", label: "Purchase VAT" },
+        { key: "sVatId", label: "Sales VAT" },
+      ];
+
+      const missing = required.filter(f => !form[f.key as keyof ProductFormState]);
+      
+      if (missing.length > 0) {
+        showToast(`Please fill all required fields: ${missing.map(m => m.label).join(", ")}.`, "warning");
         return;
       }
     }

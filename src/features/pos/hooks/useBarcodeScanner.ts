@@ -11,15 +11,6 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore inputs if the user is explicitly typing into an input field
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      ) {
-        return;
-      }
-
       const currentTime = Date.now();
       const timeDiff = currentTime - lastKeyTime.current;
 
@@ -38,8 +29,14 @@ export const useBarcodeScanner = (onScan: (barcode: string) => void) => {
         buffer.current = "";
       }
 
-      // Only record single characters (ignore Shift, Control, etc)
-      if (e.key.length === 1) {
+      // Record single characters (ignore Shift, Control, etc)
+      if (e.key && e.key.length === 1) {
+        // Only swallow if we have established a 'fast' sequence (Scanner speed)
+        // Note: The very first character of a scan will leak into the focused box, 
+        // but we can live with that to ensure humans can type normally.
+        if (timeDiff <= 50) {
+          e.preventDefault();
+        }
         buffer.current += e.key;
       }
       

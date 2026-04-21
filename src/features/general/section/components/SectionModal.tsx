@@ -1,10 +1,14 @@
-import { Modal, MasterActionButton, MasterFieldRow, MasterInput } from "../../../../components/common";
+import { Button, FormInput, Modal } from "../../../../components/common";
+import type { CounterRecord } from "../../counter/types";
 import type { SectionForm } from "../types";
 
 interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: SectionForm;
+  counters: CounterRecord[];
+  loading?: boolean;
+  saving?: boolean;
   onChange: (key: keyof SectionForm, value: string) => void;
   onClose: () => void;
   onClear: () => void;
@@ -12,7 +16,18 @@ interface Props {
   onDelete?: () => void;
 }
 
-const SectionModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onSave, onDelete }: Props) => {
+const SectionModal = ({
+  isOpen,
+  editingId,
+  form,
+  counters,
+  saving,
+  onChange,
+  onClose,
+  onClear,
+  onSave,
+  onDelete,
+}: Props) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -20,42 +35,55 @@ const SectionModal = ({ isOpen, editingId, form, onChange, onClose, onClear, onS
       title={editingId ? "Edit Section Master" : "Add Section Master"}
       size="lg"
     >
-      <div className="mx-auto max-w-3xl space-y-5">
-        <div className="space-y-4">
-          <MasterFieldRow label="Name">
-            <MasterInput
-              value={form.name}
-              placeholder="Enter section name"
-              onChange={(value) => onChange("name", value)}
-              autoFocus
-            />
-          </MasterFieldRow>
+      <div className="mx-auto max-w-3xl">
+        <div className="grid gap-4 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
+          {/* NAME FIELD */}
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+            Section Name
+          </p>
+          <FormInput
+            value={form.name}
+            onChange={(e) => onChange("name", e.target.value)}
+            placeholder="Enter section name"
+            autoFocus
+          />
 
-          <MasterFieldRow label="Counter">
-            <MasterInput
-              value={form.counter}
-              placeholder="Enter counter"
-              onChange={(value) => onChange("counter", value)}
-            />
-          </MasterFieldRow>
+          {/* COUNTER FIELD */}
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+            Counter Name
+          </p>
+          <select
+            value={form.counterId}
+            onChange={(e) => onChange("counterId", e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
+          >
+            <option value="">Select a counter</option>
+            {counters.map((c) => (
+              <option key={c.counterId} value={String(c.counterId)}>
+                {c.counterName}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
+        {/* ACTIONS */}
+        <div className="mt-8 flex flex-wrap gap-3">
           {editingId && (
-            <MasterActionButton
-              variant="secondary"
-              className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100"
-              onClick={onDelete || (() => {})}
+            <Button
+              variant="danger"
+              onClick={onDelete}
+              disabled={saving}
+              className="mr-auto"
             >
               Delete Section
-            </MasterActionButton>
+            </Button>
           )}
-          <MasterActionButton variant="secondary" onClick={onClear}>
+          <Button variant="secondary" onClick={onClear} disabled={saving}>
             Clear
-          </MasterActionButton>
-          <MasterActionButton onClick={onSave}>
+          </Button>
+          <Button onClick={onSave} loading={saving}>
             {editingId ? "Update" : "Save"}
-          </MasterActionButton>
+          </Button>
         </div>
       </div>
     </Modal>

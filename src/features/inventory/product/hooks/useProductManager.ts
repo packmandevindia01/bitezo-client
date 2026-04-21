@@ -270,8 +270,9 @@ export const useProductManager = () => {
     const mainBranchId = parseInt(form.branchId) || 0;
     const mainUnitId = parseInt(form.unitId) || 0;
     
-    // Set of "branchId-unitId"
+    // Set of "branchId-unitId" and Set of unique barcodes
     const seenUnits = new Set<string>();
+    const seenBarcodes = new Set<string>();
     seenUnits.add(`${mainBranchId}-${mainUnitId}`);
 
     for (let i = 0; i < alternatives.length; i++) {
@@ -290,10 +291,36 @@ export const useProductManager = () => {
         return;
       }
       seenUnits.add(key);
+
+      // Check for duplicate barcodes in the alternatives list
+      if (alt.barcode && alt.barcode.trim()) {
+        const barcode = alt.barcode.trim();
+        if (seenBarcodes.has(barcode) || barcode === form.code.trim()) {
+          showToast(`Duplicate barcode "${barcode}" detected. Each product/alternative must have a unique barcode.`, "error");
+          return;
+        }
+        seenBarcodes.add(barcode);
+      }
     }
 
     setSaving(true);
     try {
+      // 1. Remote Validation: Check if main code already exists (only for NEW products)
+      const isNew = !editingId;
+
+      if (isNew && form.code && form.code.trim()) {
+        try {
+          const exists = await productService.checkCodeExists(form.code.trim());
+          if (exists > 0) {
+            showToast(`Product Code / Barcode "${form.code}" already exists in the system.`, "error");
+            setSaving(false);
+            return;
+          }
+        } catch (err) {
+          console.warn("CheckCodeExists returned 404 or failed (treating as non-existent):", err);
+        }
+      }
+
       // Explicitly map only required fields to avoid sending extra data (like 'unit' or 'branch' strings)
       const altProducts: AltProductItem[] = alternatives.map((alt) => ({
         unitId: alt.unitId,
@@ -346,9 +373,13 @@ export const useProductManager = () => {
       }
       fetchProducts();
     } catch (err: any) {
-      const msg = err.message || "Failed to save product.";
-      if (err.apiStatus === 409) {
-        showToast("Duplicate Value Error: This Code or Barcode is already in use.", "error");
+      console.error("Product Save Error:", err);
+      // Extract the most specific error message possible
+      const serverMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
+      const msg = serverMsg || err.message || "Failed to save product.";
+
+      if (err.apiStatus === 409 || msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("already exists")) {
+        showToast(`Validation Error: ${msg}`, "error");
       } else {
         showToast(msg, "error");
       }
@@ -480,6 +511,7 @@ export const useProductManager = () => {
     alternativeDraft: altDraft,
     alternatives,
     imagePreview,
+    products,
     filteredProducts,
 
     // UI state
