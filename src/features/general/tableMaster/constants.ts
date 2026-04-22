@@ -5,6 +5,7 @@ export const emptyTableForm: TableForm = {
   tableName: "",
   chairs: "",
   isActive: true,
+  position: 0,
 };
 
 export const statusOptions = [

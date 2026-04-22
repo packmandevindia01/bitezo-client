@@ -3,6 +3,7 @@ import type {
   CompanyLookupPayload,
   CompanyLookupResponse,
   SendOtpResponse,
+  VerifyOtpResponse,
 } from "../types";
 
 export const sendCompanyOtp = async (regId: string, email: string): Promise<SendOtpResponse> => {
@@ -10,18 +11,26 @@ export const sendCompanyOtp = async (regId: string, email: string): Promise<Send
     params: { regId, email },
   });
 
+  // Handle "200-OK-but-logical-error" pattern
+  if (data.status !== 200 || !data.isSuccess) {
+    throw new Error(data.message || "Failed to send OTP. Please check your credentials.");
+  }
+
   return data;
 };
 
 export const verifyCompanyOtp = async (regId: string, email: string, otp: string) => {
-  const { data } = await axiosInstance.post<any>("/auth/verify-otp", 
+  const { data } = await axiosInstance.post<VerifyOtpResponse>("/auth/verify-otp", 
     { email, otp },
     { params: { regId } }
   );
 
-  // Extract the string token from the nested response
-  const rawToken = data.otpToken ?? data.data?.otpToken ?? data.otp_token ?? "";
-  const tokenString = (typeof rawToken === "object" && rawToken !== null) ? (rawToken as any).data : rawToken;
+  // Handle "200-OK-but-logical-error" pattern
+  if (!data.otpToken || !data.otpToken.isSuccess) {
+    throw new Error((data.otpToken as any)?.message || "OTP verification failed. Please try again.");
+  }
+
+  const tokenString = data.otpToken.data;
 
   return {
     otpToken: typeof tokenString === "string" ? tokenString : "",

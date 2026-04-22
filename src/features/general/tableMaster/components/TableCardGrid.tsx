@@ -1,5 +1,20 @@
-import { Trash2, Loader2 } from "lucide-react";
+import { 
+  DndContext, 
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { Loader2 } from "lucide-react";
 import type { TableRecord } from "../types";
+import SortableTableCard from "./SortableTableCard";
 
 interface TableCardGridProps {
   tables: TableRecord[];
@@ -7,6 +22,7 @@ interface TableCardGridProps {
   loading: boolean;
   onEdit: (record: TableRecord) => void;
   onDeleteRequest: (record: TableRecord) => void;
+  onReorder?: (newTables: TableRecord[]) => void;
 }
 
 const TableCardGrid = ({
@@ -14,8 +30,42 @@ const TableCardGrid = ({
   selectedId,
   loading,
   onEdit,
-  onDeleteRequest
+  onDeleteRequest,
+  onReorder
 }: TableCardGridProps) => {
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = tables.findIndex((t) => t.tableId === active.id);
+      const newIndex = tables.findIndex((t) => t.tableId === over.id);
+      
+      console.log(`[Move] From index ${oldIndex} to ${newIndex}`, {
+        activeId: active.id,
+        overId: over.id
+      });
+
+      const reordered = arrayMove(tables, oldIndex, newIndex);
+      if (onReorder) {
+        onReorder(reordered);
+      }
+    }
+  };
+
   if (loading && tables.length === 0) {
     return (
       <div className="py-12 flex justify-center w-full">
@@ -26,51 +76,36 @@ const TableCardGrid = ({
 
   if (tables.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center text-gray-400 w-full">
+      <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center text-gray-400 w-full animate-in fade-in zoom-in duration-300">
         No tables found for this section.
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {tables.map((table) => (
-        <div key={table.tableId} className="group relative">
-          <button
-            type="button"
-            onClick={() => onEdit(table)}
-            className={`h-32 w-full rounded-2xl border-2 transition-all duration-200 flex flex-col items-center justify-center gap-1 shadow-sm hover:translate-y-[-2px] hover:shadow-md ${
-              selectedId === table.tableId
-                ? "border-[#49293e] bg-[#49293e] text-white"
-                : "border-gray-100 bg-white text-[#49293e] hover:border-[#49293e]/30"
-            }`}
-            disabled={loading}
-          >
-            <span className="text-2xl font-bold">{table.tableName}</span>
-            <span className={`text-[10px] font-bold uppercase tracking-[0.1em] ${
-              selectedId === table.tableId ? "text-white/70" : "text-gray-400"
-            }`}>
-              {table.chairs} Chairs
-            </span>
-            <div className={`mt-2 h-1.5 w-1.5 rounded-full ${
-              table.isActive ? "bg-green-500" : "bg-red-400"
-            }`} />
-          </button>
-          
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteRequest(table);
-            }}
-            className="absolute -right-2 -top-2 flex h-8 w-8 scale-0 items-center justify-center rounded-full bg-red-100 text-red-600 shadow-sm transition-transform duration-200 group-hover:scale-100 hover:bg-red-200"
-            disabled={loading}
-          >
-            <Trash2 size={14} />
-          </button>
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext 
+        items={tables.map(t => t.tableId)}
+        strategy={rectSortingStrategy}
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {tables.map((table) => (
+            <SortableTableCard
+              key={table.tableId}
+              table={table}
+              selectedId={selectedId}
+              loading={loading}
+              onEdit={onEdit}
+              onDeleteRequest={onDeleteRequest}
+            />
+          ))}
         </div>
-      ))}
-    </div>
+      </SortableContext>
+    </DndContext>
   );
 };
 

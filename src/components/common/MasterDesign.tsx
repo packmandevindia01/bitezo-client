@@ -85,7 +85,7 @@ export const MasterScreen = <T,>({
 }: MasterScreenProps<T>) => {
   return (
     <section className="rounded-4xl bg-white px-4 py-6 shadow-sm ring-1 ring-gray-100 md:px-8 md:py-10">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-7xl">
         <h1 className="text-center text-2xl font-semibold uppercase tracking-wide text-[#49293e] md:text-4xl">
           {title}
         </h1>

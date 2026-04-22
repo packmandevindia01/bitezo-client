@@ -38,19 +38,26 @@ export const tableService = {
     return unwrap(
       axiosInstance.post<ApiResponse<{ id: number }>>(BASE, {
         ...payload,
+        position: payload.position ?? 0,
         createdAt: new Date().toISOString()
       })
     );
   },
 
   update(tableId: number, payload: TablePayload): Promise<any> {
+    const url = `${BASE}/${tableId}`;
     return unwrap(
-      axiosInstance.put<ApiResponse<any>>(`${BASE}/${tableId}`, {
-        ...payload,
-        tableId,
-        updatedAt: new Date().toISOString()
+      axiosInstance.put<ApiResponse<any>>(url, {
+        tableId: tableId,
+        tableName: payload.tableName,
+        chairs: payload.chairs,
+        isActive: payload.isActive,
+        sectionId: payload.sectionId,
+        updatedAt: new Date().toISOString(),
+        position: payload.position
       })
     );
+
   },
 
   remove(tableId: number): Promise<any> {

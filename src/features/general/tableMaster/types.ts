@@ -3,6 +3,7 @@ export interface TableRecord {
   tableName: string;
   chairs: number;
   isActive: boolean;
+  position: number;
 }
 
 export interface TableDetail extends TableRecord {
@@ -14,6 +15,7 @@ export interface TableForm {
   tableName: string;
   chairs: string;
   isActive: boolean;
+  position: number;
 }
 
 export interface TablePayload {
@@ -22,4 +24,5 @@ export interface TablePayload {
   chairs: number;
   isActive: boolean;
   sectionId: number;
+  position: number;
 }

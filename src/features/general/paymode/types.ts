@@ -1,13 +1,36 @@
 export interface PaymodeRecord {
-  id: number;
-  paymode: string;
-  branch: string;
-  counter: string;
+  paymodeId: number;
+  sNo: number;
+  code: number;
+  paymodeName: string;
+  isActive: string | boolean; // API returns string "Active", Form uses boolean
 }
 
 export interface PaymodeForm {
-  id: string;
-  paymode: string;
-  branch: string;
-  counter: string;
+  paymodeId: number;
+  code: string | number;
+  paymodeName: string;
+  isActive: boolean;
+  counterIds: number[];
 }
+
+export interface CounterOption {
+  counterId: number;
+  counterName: string;
+}
+
+export interface PaymodeDetailResponse {
+  paymode: {
+    paymodeId: number;
+    code: number;
+    paymodeName: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+  counter: {
+    counterId: number;
+    counterName: string;
+  }[];
+}
+

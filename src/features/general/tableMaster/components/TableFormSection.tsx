@@ -1,5 +1,5 @@
-import { Trash2, Loader2 } from "lucide-react";
-import { MasterFieldRow, Button, FormInput } from "../../../../components/common";
+import { Trash2, Loader2, Minus, Plus } from "lucide-react";
+import { Button, FormInput } from "../../../../components/common";
 import { statusOptions } from "../constants";
 import type { TableForm } from "../types";
 
@@ -22,81 +22,122 @@ const TableFormSection = ({
   onSave,
   onDeleteRequest
 }: TableFormSectionProps) => {
+  const handleChairChange = (delta: number) => {
+    const current = parseInt(String(form.chairs || 0));
+    const next = Math.max(1, current + delta);
+    onSetField("chairs", String(next));
+  };
+
   return (
-    <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-3xl border border-gray-100 bg-white p-6 shadow-md md:p-10">
-      <div className="mb-10 flex items-center justify-between border-b border-gray-50 pb-4">
-        <h2 className="text-xl font-bold uppercase tracking-wide text-[#49293e]">
-          {mode === "edit" ? "Table Details" : "New Table"}
+    <div className="animate-in fade-in slide-in-from-top-2 duration-300 rounded-3xl border border-gray-200 bg-white p-4 md:p-5 shadow-lg max-w-4xl mx-auto">
+      <div className="mb-3 flex items-center justify-between border-b border-gray-50 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-[#49293e]">
+          {mode === "edit" ? "Edit Table" : "Register New Table"}
         </h2>
         <button 
           onClick={onReset}
-          className="text-sm font-semibold text-gray-400 hover:text-[#49293e] transition-colors"
+          className="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-tighter transition-colors"
           disabled={loading}
         >
           Cancel
         </button>
       </div>
 
-      <div className="mx-auto max-w-xl space-y-2">
-        <MasterFieldRow label="Table Name">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Table Name */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
+            Table Name
+          </label>
           <FormInput
             value={form.tableName}
-            placeholder="e.g. T1"
+            placeholder='e.g. "T1"'
             onChange={(e) => onSetField("tableName", e.target.value)}
+            className="h-11 text-base font-bold !rounded-xl border-gray-200"
             autoFocus
             disabled={loading}
           />
-        </MasterFieldRow>
+        </div>
 
-        <MasterFieldRow label="Chairs">
-          <FormInput
-            value={form.chairs}
-            type="number"
-            placeholder="Enter number of chairs"
-            onChange={(e) => onSetField("chairs", e.target.value)}
-            disabled={loading}
-          />
-        </MasterFieldRow>
-
-        <MasterFieldRow label="Status">
-          <div className="flex flex-col gap-1 mb-4 w-full">
-            <select
-              value={String(form.isActive)}
-              onChange={(e) => onSetField("isActive", e.target.value === "true")}
-              className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
-              disabled={loading}
+        {/* Chairs Stepper */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
+            Chairs
+          </label>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleChairChange(-1)}
+              disabled={loading || parseInt(String(form.chairs)) <= 1}
+              className="h-11 w-11 flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-[#49293e] active:bg-gray-100 transition-colors disabled:opacity-30 shadow-sm"
             >
-              {statusOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+              <Minus size={18} />
+            </button>
+            <div className="flex-1">
+              <FormInput
+                value={form.chairs}
+                type="number"
+                placeholder="0"
+                onChange={(e) => onSetField("chairs", e.target.value)}
+                className="h-11 text-center text-base font-bold !rounded-xl border-gray-200"
+                disabled={loading}
+              />
+            </div>
+            <button
+              onClick={() => handleChairChange(1)}
+              disabled={loading}
+              className="h-11 w-11 flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-[#49293e] active:bg-gray-100 transition-colors disabled:opacity-30 shadow-sm"
+            >
+              <Plus size={18} />
+            </button>
           </div>
-        </MasterFieldRow>
+        </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-8">
-          {mode === "edit" && onDeleteRequest && (
-            <Button
-              variant="danger"
-              onClick={onDeleteRequest}
-              disabled={loading}
-            >
-              <Trash2 size={16} className="mr-2" />
-              Delete
-            </Button>
-          )}
-          <Button 
-            variant="secondary" 
-            onClick={onReset} 
-            className="min-w-[120px]"
+        {/* Status */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
+            Status
+          </label>
+          <select
+            value={String(form.isActive)}
+            onChange={(e) => onSetField("isActive", e.target.value === "true")}
+            className="h-11 w-full px-3 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-600 outline-none transition focus:border-[#49293e] focus:ring-2 focus:ring-[#49293e]/5 disabled:bg-gray-50 shadow-sm"
             disabled={loading}
           >
-            Reset
-          </Button>
-          <Button onClick={onSave} className="min-w-[150px]" disabled={loading}>
-            {loading ? <Loader2 size={18} className="mr-2 animate-spin" /> : null}
-            {mode === "edit" ? "Update" : "Save"}
-          </Button>
+            {statusOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-2 mt-5 pt-4 border-t border-gray-50">
+        {mode === "edit" && onDeleteRequest && (
+          <Button
+            variant="danger"
+            onClick={onDeleteRequest}
+            disabled={loading}
+            className="h-11 px-4 text-xs rounded-xl font-bold"
+          >
+            <Trash2 size={16} className="mr-2" />
+            Delete
+          </Button>
+        )}
+        <Button 
+          variant="secondary" 
+          onClick={onReset} 
+          className="h-11 px-6 text-xs rounded-xl font-bold border-gray-200 shadow-sm"
+          disabled={loading}
+        >
+          Reset
+        </Button>
+        <Button 
+          onClick={onSave} 
+          className="h-11 px-8 text-xs rounded-xl font-bold shadow-md bg-[#49293e] hover:bg-[#3a2131]"
+          disabled={loading}
+        >
+          {loading ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+          {mode === "edit" ? "Update Table" : "Save Table"}
+        </Button>
       </div>
     </div>
   );

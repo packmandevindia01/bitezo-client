@@ -22,6 +22,7 @@ export const useTableManager = () => {
         tableName: record.tableName,
         chairs: String(record.chairs),
         isActive: record.isActive,
+        position: record.position || 0,
       });
     } catch (err: any) {
       showToast(err.message || "Failed to fetch table details", "error");
@@ -77,11 +78,14 @@ export const useTableManager = () => {
 
     setLoading(true);
     try {
+      const maxPos = tables.reduce((max, t) => Math.max(max, t.position || 0), 0);
+      
       const payload: TablePayload = {
         tableName: trimmedTableName,
         chairs: Number(form.chairs || 0),
         isActive: form.isActive,
         sectionId: Number(form.sectionId),
+        position: mode === "edit" ? (form.position ?? 0) : (maxPos + 1),
       };
 
       if (mode === "edit" && selectedId !== null) {
@@ -103,6 +107,36 @@ export const useTableManager = () => {
     }
   };
 
+  const handleReorder = async (newTables: TableRecord[]) => {
+    // 1. Update local state immediately for visual responsiveness
+    const reorderedWithPositions = newTables.map((table, index) => ({
+      ...table,
+      position: index + 1
+    }));
+    setTables(reorderedWithPositions);
+
+    // 2. Persist to backend (Parallel updates for speed)
+    try {
+      const updatePromises = reorderedWithPositions.map((table) => {
+        const payload: TablePayload = {
+          tableName: table.tableName,
+          chairs: table.chairs,
+          isActive: table.isActive,
+          sectionId: Number(selectedSectionId),
+          position: table.position,
+        };
+        return tableService.update(table.tableId, payload);
+      });
+
+      await Promise.all(updatePromises);
+      showToast("Order saved successfully", "success");
+    } catch (err: any) {
+      console.error("[Reorder] Persistence failed:", err);
+      showToast("Failed to persist new order", "error");
+      if (selectedSectionId) fetchTables(selectedSectionId);
+    }
+  };
+
   return {
     form,
     sections,
@@ -114,7 +148,7 @@ export const useTableManager = () => {
     selectedId,
     selectedSectionId,
     filteredTables,
-    visibleTables: tables,
+    visibleTables: filteredTables,
     setSearch,
     setField,
     resetForm,
@@ -123,5 +157,6 @@ export const useTableManager = () => {
     handleDelete,
     handleSectionChange,
     setCreateMode,
+    handleReorder,
   };
 };

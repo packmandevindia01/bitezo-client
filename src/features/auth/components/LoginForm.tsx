@@ -22,10 +22,16 @@ const LoginForm = () => {
   const state = (location.state ?? {}) as LocationState;
 
   // clientDb is hidden from UI — comes from onboarding state, localStorage, or falls back to "app_db"
-  const [clientDb] = useState(state.clientDb ?? localStorage.getItem("tenantId") ?? "app_db");
+  const [clientDb, setClientDb] = useState(state.clientDb ?? localStorage.getItem("tenantId") ?? "app_db");
   const [username, setUsername] = useState(state.username ?? "");
   const [password, setPassword] = useState(state.password ?? "");
   const [loading, setLoading] = useState(false);
+
+  // Sync state if navigation state changes (e.g. after OTP verification)
+  useEffect(() => {
+    if (state.clientDb) setClientDb(state.clientDb);
+    if (state.username) setUsername(state.username);
+  }, [state.clientDb, state.username]);
 
   useEffect(() => {
     if (state.message) {

@@ -31,6 +31,7 @@ const TableMasterPage = () => {
     handleDelete,
     handleSectionChange,
     setCreateMode,
+    handleReorder,
   } = useTableManager();
 
   const [deleteRecord, setDeleteRecord] = useState<TableRecord | null>(null);
@@ -58,12 +59,12 @@ const TableMasterPage = () => {
         rowKey="tableId"
         showListSection={false}
       >
-        <div className="space-y-8">
+        <div className="space-y-4">
           {/* Error Display */}
           {error && (
-            <div className="flex items-center gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
-              <AlertCircle size={18} />
-              <span>{error}</span>
+            <div className="flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm text-red-600 border-2 border-red-100 animate-in fade-in zoom-in duration-200">
+              <AlertCircle size={20} />
+              <span className="font-bold">{error}</span>
             </div>
           )}
 
@@ -76,13 +77,16 @@ const TableMasterPage = () => {
           />
 
           {!open && (
-            <TableCardGrid 
-              tables={visibleTables}
-              selectedId={selectedId}
-              loading={loading}
-              onEdit={handleEdit}
-              onDeleteRequest={setDeleteRecord}
-            />
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <TableCardGrid 
+                tables={visibleTables}
+                selectedId={selectedId}
+                loading={loading}
+                onEdit={handleEdit}
+                onDeleteRequest={setDeleteRecord}
+                onReorder={handleReorder}
+              />
+            </div>
           )}
 
           {open && (

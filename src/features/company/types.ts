@@ -43,11 +43,19 @@ export interface CompanyOnboardingState {
 }
 
 export interface SendOtpResponse {
+  data: any;
+  status: number;
   message: string;
+  isSuccess: boolean;
 }
 
 export interface VerifyOtpResponse {
-  otpToken: string;
+  otpToken: {
+    data: string;
+    status: number;
+    message: string;
+    isSuccess: boolean;
+  };
 }
 
 export interface CompanyLookupResponse<T = unknown> {

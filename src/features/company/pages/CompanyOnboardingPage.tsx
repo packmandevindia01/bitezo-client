@@ -111,7 +111,9 @@ const CompanyOnboardingPage = () => {
     localStorage.setItem("refreshToken", "pos-terminal-refresh");
     localStorage.setItem("userId", "pos-terminal");
     localStorage.setItem("userName", "POS Terminal");
+    localStorage.setItem("userName", "POS Terminal");
     localStorage.setItem("isMaster", "false");
+    localStorage.setItem("companyRegistered", "true");
 
     showToast("POS Terminal Registered! Opening system...", "success");
     navigate("/cashier/in", { replace: true });
@@ -148,13 +150,23 @@ const CompanyOnboardingPage = () => {
       );
 
       localStorage.setItem("companyRegistered", "true");
+      // Explicitly set the tenantId so the app knows which database to talk to immediately
+      localStorage.setItem("tenantId", clientDb);
 
       if (systemType === "pos") {
         setupPosSession(clientDb);
         return;
       }
       
-      setTimeout(() => navigate("/", { replace: true }), 1500);
+      // Pass the details to the Login Form so it correctly identifies the company
+      setTimeout(() => navigate("/", { 
+        replace: true,
+        state: {
+          clientDb: clientDb,
+          username: formState.email.trim(),
+          message: companyCheck.message || "Device verified. Please log in to your company account."
+        }
+      }), 1500);
       return;
     }
 

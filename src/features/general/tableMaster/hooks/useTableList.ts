@@ -13,6 +13,7 @@ export const useTableList = (selectedSectionId: number | null) => {
     setError(null);
     try {
       const data = await tableService.list(sectionId);
+      console.log("[TableList] Raw data from server:", data); // DEBUG LOG
       setTables(data);
     } catch (err: any) {
       setError(err.message || "Failed to fetch tables");
@@ -28,10 +29,23 @@ export const useTableList = (selectedSectionId: number | null) => {
   }, [selectedSectionId, fetchTables]);
 
   const filteredTables = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return tables;
+    // 1. Sort by position
+    const sorted = [...tables].sort((a, b) => {
+      const posA = Number(a.position) ?? 0;
+      const posB = Number(b.position) ?? 0;
+      
+      // If positions are the same, fallback to ID or Name to keep it stable
+      if (posA === posB) return a.tableId - b.tableId;
+      return posA - posB;
+    });
 
-    return tables.filter((table) =>
+    console.log("[TableList] Final Sorted Tables:", sorted.map(t => `${t.tableName}(pos:${t.position})`));
+
+    // 2. Filter by search
+    const query = search.trim().toLowerCase();
+    if (!query) return sorted;
+
+    return sorted.filter((table) =>
       [table.tableName, String(table.chairs)].some((value) =>
         value.toLowerCase().includes(query),
       ),
