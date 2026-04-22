@@ -1,95 +1,47 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getCategories } from "../../category/services/categoryService";
+import { useState } from "react";
 import {
   createSubCategory,
   deleteSubCategory,
-  getSubCategories,
   getSubCategoryById,
   updateSubCategory,
 } from "../services/subCategoryService";
 import { useToast } from "../../../../app/providers/useToast";
 import type { SubCategoryListItem } from "../types";
-
-export interface SubCategoryFormState {
-  code: string;
-  name: string;
-  arabicName: string;
-  categoryId: number | "";
-  isActive: boolean;
-  image: string;
-}
-
-const emptyForm: SubCategoryFormState = {
-  code: "",
-  name: "",
-  arabicName: "",
-  categoryId: "",
-  isActive: true,
-  image: "",
-};
+import { useSubCategoryList } from "./useSubCategoryList";
+import { useSubCategoryFormState } from "./useSubCategoryFormState";
 
 export const useSubCategoryManager = () => {
-  const [subCategories, setSubCategories] = useState<SubCategoryListItem[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: number }[]>([]);
-
-  const [form, setForm] = useState<SubCategoryFormState>(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const { showToast } = useToast();
+  
+  // Compose specialized hooks
+  const {
+    categoryOptions,
+    loading,
+    error,
+    setError,
+    search,
+    setSearch,
+    filteredSubCategories,
+    fetchInitData,
+  } = useSubCategoryList();
 
-  // Async flags
-  const [loading, setLoading] = useState(false);
+  const {
+    form,
+    setForm,
+    editingId,
+    setEditingId,
+    open,
+    setOpen,
+    resetForm,
+    closeModal,
+    openCreateModal,
+    handleImageSelect,
+  } = useSubCategoryFormState();
+
+  // Async action flags
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Delete
   const [deleteCandidate, setDeleteCandidate] = useState<SubCategoryListItem | null>(null);
-
-  const fetchInitData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [cats, subCats] = await Promise.all([
-        getCategories(),
-        getSubCategories(),
-      ]);
-      setCategoryOptions(cats.map((c) => ({ label: c.name, value: c.id })));
-      setSubCategories(subCats);
-    } catch (err) {
-      setError("Failed to load sub categories. Please try again.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchInitData();
-  }, [fetchInitData]);
-
-  const resetForm = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-  };
-
-  const closeModal = () => {
-    setOpen(false);
-    resetForm();
-  };
-
-  const openCreateModal = () => {
-    resetForm();
-    setOpen(true);
-  };
-
-  const handleImageSelect = (file: File | null) => {
-    setForm((prev) => ({
-      ...prev,
-      image: file ? URL.createObjectURL(file) : "",
-    }));
-  };
 
   const handleSave = async () => {
     const codeVal = form.code || "";
@@ -141,7 +93,6 @@ export const useSubCategoryManager = () => {
   const handleEdit = async (record: SubCategoryListItem) => {
     try {
       setError(null);
-      // We attempt to fetch the detail by ID for the complete record (including Arabic Name and Cat ID)
       const res = await getSubCategoryById(record.id);
       
       const subCatArray = res?.subcategory || res?.subcategory_list || res?.data || res;
@@ -172,7 +123,6 @@ export const useSubCategoryManager = () => {
       console.error(err);
       setError("Failed to fetch subcategory details. Using partial list data.");
       
-      // Fallback if GET /{id} fails or diverges
       setEditingId(record.id);
       setForm({
         code: record.code,
@@ -211,17 +161,6 @@ export const useSubCategoryManager = () => {
   };
 
   const cancelDelete = () => setDeleteCandidate(null);
-
-  const filteredSubCategories = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return subCategories;
-
-    return subCategories.filter((item) =>
-      [item.code, item.name, item.categoryName].some((value) =>
-        value?.toLowerCase().includes(query)
-      )
-    );
-  }, [search, subCategories]);
 
   return {
     form,

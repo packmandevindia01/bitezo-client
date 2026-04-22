@@ -1,102 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { taxService } from "../services/taxService";
 import { useToast } from "../../../../app/providers/useToast";
-import type { TaxDetail, TaxFormState, TaxListItem } from "../types";
-
-// ─── Internal State ───────────────────────────────────────────────────────────
-
-type ModalState =
-  | { mode: "closed" }
-  | { mode: "create" }
-  | { mode: "edit"; vatId: number; detail: TaxDetail | null };
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+import type { TaxFormState, TaxListItem } from "../types";
+import { useTaxList } from "./useTaxList";
+import { useTaxModal } from "./useTaxModal";
 
 export const useTaxManager = () => {
-  // ── List state ──────────────────────────────────────────────────────────────
-  const [taxes, setTaxes] = useState<TaxListItem[]>([]);
-  const [listLoading, setListLoading] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
-
-  // ── Search ──────────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState("");
-
-  // ── Modal / form state ──────────────────────────────────────────────────────
-  const [modal, setModal] = useState<ModalState>({ mode: "closed" });
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  // ── Mutation feedback ───────────────────────────────────────────────────────
-  const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
-  const [deleting, setDeleting] = useState<number | null>(null); // vatId being deleted
+
+  // Compose specialized hooks
+  const { taxes, setTaxes, listLoading, listError, search, setSearch, filteredTaxes, fetchTaxes } = useTaxList();
+  const { modal, setModal, detailLoading, closeModal, openCreateModal, openEditModal } = useTaxModal();
+
+  // Mutation feedback
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
-
-  // ── Delete confirmation ──────────────────────────────────────────────────────
   const [deleteCandidate, setDeleteCandidate] = useState<TaxListItem | null>(null);
-
-  // ─── Fetch list ─────────────────────────────────────────────────────────────
-
-  const fetchTaxes = useCallback(async () => {
-    setListLoading(true);
-    setListError(null);
-    try {
-      const data = await taxService.list();
-      setTaxes(data);
-    } catch (err) {
-      setListError(err instanceof Error ? err.message : "Failed to load taxes.");
-    } finally {
-      setListLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchTaxes();
-  }, [fetchTaxes]);
-
-  // ─── Modal helpers ───────────────────────────────────────────────────────────
-
-  const closeModal = useCallback(() => {
-    setModal({ mode: "closed" });
-    setMutationError(null);
-  }, []);
-
-  const openCreateModal = useCallback(() => {
-    setMutationError(null);
-    setModal({ mode: "create" });
-  }, []);
-
-  const openEditModal = useCallback(async (record: TaxListItem) => {
-    setMutationError(null);
-    setModal({ mode: "edit", vatId: record.id, detail: null });
-    setDetailLoading(true);
-    try {
-      const detail = await taxService.getById(record.id);
-      setModal({ mode: "edit", vatId: record.id, detail });
-    } catch (err) {
-      // Fallback
-      setModal({
-        mode: "edit",
-        vatId: record.id,
-        detail: {
-          id: record.id,
-          name: record.name,
-          value: record.value,
-          expireAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      });
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
-
-  // ─── Derived: current edit data ──────────────────────────────────────────────
-
-  const editDetail = modal.mode === "edit" ? modal.detail : null;
-  const editingId = modal.mode === "edit" ? modal.vatId : null;
-
-  // ─── Save (create or update) ─────────────────────────────────────────────────
 
   const handleSave = useCallback(
     async (form: TaxFormState) => {
@@ -138,7 +58,7 @@ export const useTaxManager = () => {
   
         showToast(modal.mode === "edit" ? "Tax updated successfully" : "Tax created successfully", "success");
         closeModal();
-        await fetchTaxes(); // refresh list
+        await fetchTaxes();
       } catch (err: any) {
         const apiMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
         const msg = apiMsg || (err instanceof Error ? err.message : "Save failed.");
@@ -150,8 +70,6 @@ export const useTaxManager = () => {
     },
     [modal, closeModal, fetchTaxes, showToast, taxes]
   );
-
-  // ─── Delete Flow ─────────────────────────────────────────────────────────────
 
   const requestDelete = useCallback((record: TaxListItem) => {
     setDeleteCandidate(record);
@@ -169,8 +87,6 @@ export const useTaxManager = () => {
 
     try {
       await taxService.remove(deleteCandidate.id);
-  
-      // Optimistic UI update
       setTaxes((prev) => prev.filter((t) => t.id !== deleteCandidate.id));
       showToast("Tax deleted successfully", "success");
       setDeleteCandidate(null);
@@ -186,18 +102,7 @@ export const useTaxManager = () => {
     } finally {
       setDeleting(null);
     }
-  }, [deleteCandidate, modal, closeModal, fetchTaxes, showToast]);
-
-  // ─── Filtered list ────────────────────────────────────────────────────────────
-
-  const filteredTaxes = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return taxes;
-
-    return taxes.filter((t) =>
-      t.name.toLowerCase().includes(query)
-    );
-  }, [taxes, search]);
+  }, [deleteCandidate, modal, closeModal, fetchTaxes, setTaxes, showToast]);
 
   return {
     // List
@@ -214,8 +119,8 @@ export const useTaxManager = () => {
     // Modal
     isOpen: modal.mode !== "closed",
     isEditMode: modal.mode === "edit",
-    editingId,
-    editDetail,
+    editingId: modal.mode === "edit" ? modal.vatId : null,
+    editDetail: modal.mode === "edit" ? modal.detail : null,
     detailLoading,
 
     // Mutations

@@ -1,115 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { unitService } from "../services/unitService";
 import { useToast } from "../../../../app/providers/useToast";
-import type { UnitDetail, UnitFormState, UnitListItem } from "../types";
-
-// ─── Internal State ───────────────────────────────────────────────────────────
-
-type ModalState =
-  | { mode: "closed" }
-  | { mode: "create" }
-  | { mode: "edit"; unitId: number; detail: UnitDetail | null };
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+import type { UnitFormState, UnitListItem } from "../types";
+import { useUnitList } from "./useUnitList";
+import { useUnitModal } from "./useUnitModal";
 
 export const useUnitManager = () => {
-  // ── List state ──────────────────────────────────────────────────────────────
-  const [units, setUnits] = useState<UnitListItem[]>([]);
-  const [listLoading, setListLoading] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
-
-  // ── Search ──────────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState("");
-
-  // ── Modal / form state ──────────────────────────────────────────────────────
-  const [modal, setModal] = useState<ModalState>({ mode: "closed" });
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  // ── Mutation feedback ───────────────────────────────────────────────────────
-  const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
-  const [deleting, setDeleting] = useState<number | null>(null); // unitId being deleted
+
+  // Compose specialized hooks
+  const { units, setUnits, listLoading, listError, search, setSearch, filteredUnits, fetchUnits } = useUnitList();
+  const { modal, detailLoading, closeModal, openCreateModal, openEditModal } = useUnitModal();
+
+  // Mutation feedback
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
-
-  // ── Delete confirmation ──────────────────────────────────────────────────────
   const [deleteCandidate, setDeleteCandidate] = useState<UnitListItem | null>(null);
-
-  // ─── Fetch list ─────────────────────────────────────────────────────────────
-
-  const fetchUnits = useCallback(async () => {
-    setListLoading(true);
-    setListError(null);
-    try {
-      const data = await unitService.list();
-      setUnits(data);
-    } catch (err) {
-      setListError(err instanceof Error ? err.message : "Failed to load units.");
-    } finally {
-      setListLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUnits();
-  }, [fetchUnits]);
-
-  // ─── Modal helpers ───────────────────────────────────────────────────────────
-
-  const closeModal = useCallback(() => {
-    setModal({ mode: "closed" });
-    setMutationError(null);
-  }, []);
-
-  const openCreateModal = useCallback(() => {
-    setMutationError(null);
-    setModal({ mode: "create" });
-  }, []);
-
-  const openEditModal = useCallback(async (record: UnitListItem) => {
-    if (record.unitId <= 4) {
-      showToast("Core system units cannot be edited.", "warning");
-      return;
-    }
-    setMutationError(null);
-    setModal({ mode: "edit", unitId: record.unitId, detail: null });
-    setDetailLoading(true);
-    try {
-      const detail = await unitService.getById(record.unitId);
-      setModal({ mode: "edit", unitId: record.unitId, detail });
-    } catch (err) {
-      // Fallback
-      setModal({
-        mode: "edit",
-        unitId: record.unitId,
-        detail: {
-          unitId: record.unitId,
-          name: record.name,
-          category: record.category,
-          conversion: 1,
-          currentValue: record.currentValue,
-          parentId: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      });
-    } finally {
-      setDetailLoading(false);
-    }
-  }, [showToast]);
-
-  // ─── Derived: current edit data ──────────────────────────────────────────────
-
-  const editDetail = modal.mode === "edit" ? modal.detail : null;
-  const editingId = modal.mode === "edit" ? modal.unitId : null;
-
-  // ─── Save (create or update) ─────────────────────────────────────────────────
 
   const handleSave = useCallback(
     async (form: UnitFormState) => {
       setSaving(true);
       setMutationError(null);
 
-      // ── Client-side uniqueness check ──────────────────────────────────────────
       const isDuplicate = units.some(u => 
         u.name.toLowerCase() === form.name.trim().toLowerCase() && 
         u.unitId !== (modal.mode === "edit" ? modal.unitId : -1)
@@ -146,9 +59,8 @@ export const useUnitManager = () => {
   
         showToast(modal.mode === "edit" ? "Unit updated successfully" : "Unit created successfully", "success");
         closeModal();
-        await fetchUnits(); // refresh list
+        await fetchUnits();
       } catch (err: any) {
-        // More robust error extraction
         const apiMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
         const msg = apiMsg || (err instanceof Error ? err.message : "Save failed.");
         setMutationError(msg);
@@ -159,8 +71,6 @@ export const useUnitManager = () => {
     },
     [modal, closeModal, fetchUnits, showToast, units]
   );
-
-  // ─── Delete Flow ─────────────────────────────────────────────────────────────
 
   const requestDelete = useCallback((record: UnitListItem) => {
     setDeleteCandidate(record);
@@ -178,8 +88,6 @@ export const useUnitManager = () => {
 
     try {
       await unitService.remove(deleteCandidate.unitId);
-  
-      // Optimistic UI update
       setUnits((prev) => prev.filter((u) => u.unitId !== deleteCandidate.unitId));
       showToast("Unit deleted successfully", "success");
       setDeleteCandidate(null);
@@ -195,18 +103,7 @@ export const useUnitManager = () => {
     } finally {
       setDeleting(null);
     }
-  }, [deleteCandidate, modal, closeModal, fetchUnits]);
-
-  // ─── Filtered list ────────────────────────────────────────────────────────────
-
-  const filteredUnits = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return units;
-
-    return units.filter((u) =>
-      [u.name, u.category].some((v) => v.toLowerCase().includes(query))
-    );
-  }, [units, search]);
+  }, [deleteCandidate, modal, closeModal, fetchUnits, setUnits, showToast]);
 
   return {
     // List
@@ -223,8 +120,8 @@ export const useUnitManager = () => {
     // Modal
     isOpen: modal.mode !== "closed",
     isEditMode: modal.mode === "edit",
-    editingId,
-    editDetail,
+    editingId: modal.mode === "edit" ? modal.unitId : null,
+    editDetail: modal.mode === "edit" ? modal.detail : null,
     detailLoading,
 
     // Mutations

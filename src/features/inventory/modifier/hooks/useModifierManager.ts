@@ -1,114 +1,55 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { modifierService } from "../services/modifierService";
-import { modifierTypeService } from "../../modifierType/services/modifierTypeService";
-import { getCategories } from "../../category/services/categoryService";
-import { emptyModifierForm } from "../constants";
-import type { ModifierForm, ModifierRecord } from "../types";
-import type { ModifierTypeRecord } from "../../modifierType/types";
-import type { CategoryListItem } from "../../category/types";
-import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
-import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { useModifierList } from "./useModifierList";
+import { useModifierFormState } from "./useModifierFormState";
+import type { ModifierRecord } from "../types";
 
 export const useModifierManager = () => {
   const { showToast } = useToast();
-  const dispatch = useAppDispatch();
-  const [records, setRecords] = useState<ModifierRecord[]>([]);
-  const [modifierTypes, setModifierTypes] = useState<ModifierTypeRecord[]>([]);
-  const [categories, setCategories] = useState<CategoryListItem[]>([]);
   
-  const [loading, setLoading] = useState(false);
+  // Compose specialized hooks
+  const {
+    records,
+    modifierTypes,
+    categories,
+    loading,
+    setLoading,
+    search,
+    setSearch,
+    filteredModifiers,
+    fetchModifiers,
+    fetchTypesAndCats,
+    branches,
+  } = useModifierList();
+
+  const {
+    form,
+    setForm,
+    editingId,
+    setEditingId,
+    open,
+    setOpen,
+    branchAllocOpen,
+    setBranchAllocOpen,
+    categoryAllocOpen,
+    setCategoryAllocOpen,
+    setField,
+    toggleBranch,
+    toggleCategory,
+    resetForm,
+    closeModal,
+    openCreateModal,
+  } = useModifierFormState();
+
+  // Async action flags
   const [saving, setSaving] = useState(false);
-  
-  const [form, setForm] = useState<ModifierForm>(emptyModifierForm);
-  const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
-  const [branchAllocOpen, setBranchAllocOpen] = useState(false);
-  const [categoryAllocOpen, setCategoryAllocOpen] = useState(false);
-
-  // Get branches from global master data
-  const { branches } = useAppSelector((state) => state.masterData);
-
-  const fetchModifiers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await modifierService.list();
-      setRecords(data);
-    } catch (err: any) {
-      showToast(err.message || "Failed to load modifiers", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
-
-  const fetchTypesAndCats = useCallback(async () => {
-    try {
-      const [types, cats] = await Promise.all([
-        modifierTypeService.list(true),
-        getCategories()
-      ]);
-      setModifierTypes(types);
-      setCategories(cats);
-    } catch (err) {
-      console.error("Failed to load types or categories", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchModifiers();
-    // Ensure global branches are loaded
-    if (branches.length === 0) {
-      dispatch(fetchGlobalMasterData());
-    }
-  }, [fetchModifiers, dispatch, branches.length]);
 
   useEffect(() => {
     if (open) {
       fetchTypesAndCats();
     }
   }, [open, fetchTypesAndCats]);
-
-  const setField = <K extends keyof ModifierForm>(key: K, value: ModifierForm[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const toggleBranch = (branchId: number) => {
-    setForm((prev) => {
-      const exists = prev.branchIds.includes(branchId);
-      if (exists) {
-        return { ...prev, branchIds: prev.branchIds.filter((id) => id !== branchId) };
-      }
-      return { ...prev, branchIds: [...prev.branchIds, branchId] };
-    });
-  };
-
-  const toggleCategory = (categoryId: number) => {
-    setForm((prev) => {
-      const exists = prev.categoryIds.includes(categoryId);
-      if (exists) {
-        return { ...prev, categoryIds: prev.categoryIds.filter((id) => id !== categoryId) };
-      }
-      return { ...prev, categoryIds: [...prev.categoryIds, categoryId] };
-    });
-  };
-
-  const resetForm = () => {
-    setForm(emptyModifierForm);
-    setEditingId(null);
-    setBranchAllocOpen(false);
-    setCategoryAllocOpen(false);
-  };
-
-  const closeModal = () => {
-    setOpen(false);
-    resetForm();
-  };
-
-  const openCreateModal = () => {
-    resetForm();
-    setOpen(true);
-  };
 
   const handleSave = async () => {
     const name = (form.name || "").trim();
@@ -205,17 +146,6 @@ export const useModifierManager = () => {
       showToast(err.message || "Failed to delete modifier", "error");
     }
   };
-
-  const filteredModifiers = useMemo(() => {
-    const query = (search || "").trim().toLowerCase();
-    if (!query) return records;
-
-    return records.filter((item) =>
-      [(item.name || ""), (item.arabic || ""), (item.color || "")].some((value) => 
-        (value || "").toLowerCase().includes(query)
-      )
-    );
-  }, [records, search]);
 
   return {
     form,

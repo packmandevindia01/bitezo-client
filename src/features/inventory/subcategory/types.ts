@@ -53,4 +53,13 @@ export interface UpdateSubCategoryPayload {
   updatedAt?: string;
 }
 
+export interface SubCategoryFormState {
+  code: string;
+  name: string;
+  arabicName: string;
+  categoryId: number | "";
+  isActive: boolean;
+  image: string;
+}
+
 
