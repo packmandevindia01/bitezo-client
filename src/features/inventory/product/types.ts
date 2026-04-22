@@ -88,7 +88,7 @@ export interface ProductDetail {
 export interface CreateProductPayload {
   code: string;
   name: string;
-  arabicName: string;
+  arabicName: string | null;
   categoryId: number;
   subCatId: number;
   groupId: number;
@@ -98,8 +98,8 @@ export interface CreateProductPayload {
   sVatId: number;
   cost: number;
   branchId: number;
-  fileName: string;
-  filePath: string;
+  fileName?: string;
+  filePath?: string;
   isActive: boolean;
   createdAt: string;
   altProducts: AltProductItem[];

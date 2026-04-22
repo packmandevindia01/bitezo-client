@@ -1,3 +1,5 @@
+import type { TableForm } from "./types";
+
 export const emptyTableForm: TableForm = {
   sectionId: "",
   tableName: "",

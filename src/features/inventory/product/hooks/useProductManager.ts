@@ -2,11 +2,7 @@ import { useEffect, useState } from "react";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import type {
-  AltProductItem,
-  ProductFormState,
   ProductListItem,
-  TablePayload,
-  AltProductDraft
 } from "../types";
 
 import { useProductList } from "./useProductList";
@@ -225,5 +221,8 @@ export const useProductManager = () => {
     handleEdit,
     handleEditById,
     handleDeactivate,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
   } as const;
 };

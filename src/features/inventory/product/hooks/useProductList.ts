@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { productService } from "../services/productService";
 import type { ProductListItem } from "../types";
 

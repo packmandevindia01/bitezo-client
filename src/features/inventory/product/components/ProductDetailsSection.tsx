@@ -1,7 +1,7 @@
 import { FormInput } from "../../../../components/common";
 import SearchableSelect from "../../../../components/common/Searchableselect";
 import { productTypeOptions } from "../constants";
-import type { ProductFormState, ProductMasterData, MasterItem } from "../types";
+import type { ProductFormState, ProductMasterData } from "../types";
 import { getCurrencySymbol, getDecimalPart } from "../../../../utils/formatters";
 
 interface ProductDetailsSectionProps {
