@@ -10,7 +10,7 @@ export const useTaxManager = () => {
 
   // Compose specialized hooks
   const { taxes, setTaxes, listLoading, listError, search, setSearch, filteredTaxes, fetchTaxes } = useTaxList();
-  const { modal, setModal, detailLoading, closeModal, openCreateModal, openEditModal } = useTaxModal();
+  const { modal, detailLoading, closeModal, openCreateModal, openEditModal } = useTaxModal();
 
   // Mutation feedback
   const [saving, setSaving] = useState(false);
