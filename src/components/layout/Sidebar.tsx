@@ -134,19 +134,6 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
 
             <div
               onClick={() => {
-                navigate("/dashboard/tables");
-                onClose();
-              }}
-              className={itemClassName}
-            >
-              <div className="flex items-center gap-2">
-                <Grid2x2 size={14} />
-                <span>Table Master</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => {
                 navigate("/dashboard/taxes");
                 onClose();
               }}
@@ -222,6 +209,19 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
               <div className="flex items-center gap-2">
                 <Shapes size={14} />
                 <span>Extras Master</span>
+              </div>
+            </div>
+
+            <div
+              onClick={() => {
+                navigate("/dashboard/tables");
+                onClose();
+              }}
+              className={itemClassName}
+            >
+              <div className="flex items-center gap-2">
+                <Grid2x2 size={14} />
+                <span>Table Master</span>
               </div>
             </div>
           </SidebarDropdown>
