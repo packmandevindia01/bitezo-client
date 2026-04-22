@@ -1,14 +1,25 @@
 export interface TableRecord {
-  id: number;
-  section: string;
-  tableNo: string;
+  tableId: number;
+  tableName: string;
   chairs: number;
-  status: "Active" | "Inactive";
+  isActive: boolean;
+}
+
+export interface TableDetail extends TableRecord {
+  sectionId: number;
 }
 
 export interface TableForm {
-  section: string;
-  tableNo: string;
+  sectionId: string;
+  tableName: string;
   chairs: string;
-  status: "Active" | "Inactive";
+  isActive: boolean;
+}
+
+export interface TablePayload {
+  tableId?: number;
+  tableName: string;
+  chairs: number;
+  isActive: boolean;
+  sectionId: number;
 }

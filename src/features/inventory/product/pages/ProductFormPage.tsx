@@ -115,16 +115,12 @@ const ProductFormPage = () => {
             saving={saving}
             imagePreview={imagePreview}
             alternatives={alternatives}
-            alternativeDraft={alternativeDraft}
             masterData={masterData}
             branches={branches}
             subCategories={subCategories}
             loadingSubs={loadingSubs}
             onChange={setField}
-            onAlternativeChange={setAlternativeField}
             onAlternativesChange={setAlternatives}
-            onAddAlternative={addAlternative}
-            onDeleteAlternative={removeAlternative}
             onClear={resetForm}
             onSave={onSave}
             onDeactivate={handleDeactivate}

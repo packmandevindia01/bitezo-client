@@ -16,10 +16,8 @@ const BASE = "/product";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>, url: string): Promise<T> {
-  console.log(`[ProductAPI Request] ${url}`);
   try {
     const { data: envelope } = await promise;
-    console.log(`[ProductAPI Response] ${url}:`, envelope);
 
     if (!envelope.isSuccess) {
       const msg =
