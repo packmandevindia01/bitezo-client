@@ -28,12 +28,11 @@ export const useCounterManager = () => {
       setLoading(true);
       const [counterList, branchList] = await Promise.all([
         counterService.list(),
-        branchApi.fetchBranchNames(true),
+        branchApi.fetchBranchNames(false),
       ]);
       
       setRecords(counterList as CounterRecord[]);
-      // Filter out BranchId: 1 (typically "All") as per user request
-      setBranches(branchList.filter(b => b.id !== 1));
+      setBranches(branchList);
     } catch (error) {
       showToast("Failed to load counter data", "error");
       console.error(error);

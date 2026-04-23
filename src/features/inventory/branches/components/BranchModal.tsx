@@ -30,9 +30,7 @@ const BranchModal = ({ isOpen, editingBranch, onClose, onSave, onDelete }: Props
             : null
         }
         onSubmit={onSave}
-        onCancel={onClose}
         onDelete={onDelete}
-        showTitle={false}
       />
     </Modal>
   );

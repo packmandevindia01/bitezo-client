@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
   headers: {
     "Content-Type": "application/json",
     "Accept": "*/*",
@@ -12,30 +12,30 @@ axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("accessToken");
   const tenantId = localStorage.getItem("tenantId") ?? "app_db";
 
-  if (token) {
+  // Identify onboarding/auth endpoints that should be "clean"
+  const url = config.url || "";
+  const isAuthOrAdmin = url.startsWith("/auth") || 
+                        url.startsWith("/admin") || 
+                        url.startsWith("/company");
+
+  // 1. Authorization: Only add if NOT an onboarding/auth endpoint
+  if (token && !isAuthOrAdmin) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Determine the correct base URL based on the endpoint
-  const isAuthOrAdmin = config.url?.startsWith("/auth") || 
-                        config.url?.startsWith("/admin") || 
-                        config.url?.startsWith("/company");
+  // 2. Tenant Context: Only add if NOT an onboarding/auth endpoint
+  // Some endpoints (e.g. change-password, denomination) resolve tenant purely from the JWT token
+  // and crash with 500 when clientDb is injected via header or query param.
+  const isTokenResolvedOnly = url.includes("/change-password") || url.includes("/denomination");
 
-  if (isAuthOrAdmin) {
-    config.baseURL = import.meta.env.VITE_AUTH_BASE_URL || "http://84.255.173.131:66/api";
-  } else {
-    config.baseURL = import.meta.env.VITE_API_BASE_URL || "http://84.255.173.131:8068/api";
-  }
-
-  if (tenantId && !config.url?.startsWith("/auth")) {
-    // 1. Add as header (for some endpoints)
+  if (tenantId && !isAuthOrAdmin && !isTokenResolvedOnly) {
+    // Add as header
     config.headers["clientDb"] = tenantId;
 
-    // 2. Add as query parameter (for endpoints like /Branch/list-name)
-    // We check if it's already there to avoid duplicates
+    // Add as query parameter for all other requests
     config.params = {
       clientDb: tenantId,
-      ...config.params
+      ...config.params,
     };
   }
 
@@ -53,8 +53,11 @@ axiosInstance.interceptors.response.use(
       // Broadcast globally for UI reaction
       window.dispatchEvent(new CustomEvent("auth:unauthorized"));
 
-      // Optionally redirect if not already on login page
-      if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/verify")) {
+      // Only redirect if not already on the login page
+      const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login");
+      const isLoginRequest = error.config?.url?.includes("/auth/login");
+
+      if (!isLoginPath && !isLoginRequest) {
         window.location.href = "/";
       }
     }

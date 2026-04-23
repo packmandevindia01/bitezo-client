@@ -1,4 +1,4 @@
-import { Trash2, Loader2, Minus, Plus } from "lucide-react";
+import { Trash2, Loader2, Minus, Plus, X } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import { statusOptions } from "../constants";
 import type { TableForm } from "../types";
@@ -36,10 +36,10 @@ const TableFormSection = ({
         </h2>
         <button 
           onClick={onReset}
-          className="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-tighter transition-colors"
+          className="p-1 rounded-full text-gray-400 hover:bg-gray-100 hover:text-red-500 transition-colors"
           disabled={loading}
         >
-          Cancel
+          <X size={18} />
         </button>
       </div>
 
@@ -110,7 +110,23 @@ const TableFormSection = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 mt-5 pt-4 border-t border-gray-50">
+      <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-gray-50">
+        <Button 
+          variant="secondary" 
+          onClick={onReset} 
+          className="h-11 px-6 text-xs rounded-xl font-bold border-gray-200 shadow-sm"
+          disabled={loading}
+        >
+          Clear
+        </Button>
+        <Button 
+          onClick={onSave} 
+          className="h-11 px-8 text-xs rounded-xl font-bold shadow-md bg-[#49293e] hover:bg-[#3a2131]"
+          disabled={loading}
+        >
+          {loading ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+          {mode === "edit" ? "Update Table" : "Save Table"}
+        </Button>
         {mode === "edit" && onDeleteRequest && (
           <Button
             variant="danger"
@@ -122,22 +138,6 @@ const TableFormSection = ({
             Delete
           </Button>
         )}
-        <Button 
-          variant="secondary" 
-          onClick={onReset} 
-          className="h-11 px-6 text-xs rounded-xl font-bold border-gray-200 shadow-sm"
-          disabled={loading}
-        >
-          Reset
-        </Button>
-        <Button 
-          onClick={onSave} 
-          className="h-11 px-8 text-xs rounded-xl font-bold shadow-md bg-[#49293e] hover:bg-[#3a2131]"
-          disabled={loading}
-        >
-          {loading ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
-          {mode === "edit" ? "Update Table" : "Save Table"}
-        </Button>
       </div>
     </div>
   );

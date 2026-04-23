@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import LoginForm from "../components/LoginForm";
 
 const LoginPage = () => {
@@ -31,12 +31,6 @@ const LoginPage = () => {
             </div>
           )}
           <LoginForm />
-          <p className="mt-4 text-center text-sm text-slate-500">
-            New customer not registered yet?{" "}
-            <Link to="/company/onboarding" className="font-semibold text-[#49293e] hover:underline">
-              Start onboarding
-            </Link>
-          </p>
         </div>
       </div>
 

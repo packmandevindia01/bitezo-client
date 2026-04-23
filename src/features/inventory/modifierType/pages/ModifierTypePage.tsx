@@ -76,7 +76,7 @@ const ModifierTypePage = () => {
       <Modal 
         isOpen={open} 
         onClose={closeModal} 
-        title="Modifier Type"
+        title={editingId ? "Edit Modifier Type" : "Add Modifier Type"}
       >
         <ModifierTypeForm
           form={form}
@@ -85,7 +85,6 @@ const ModifierTypePage = () => {
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
-          onCancel={closeModal}
           onDelete={() => {
             const record = filteredRecords.find(r => r.typeId === editingId);
             if (record) {

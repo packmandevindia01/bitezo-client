@@ -36,22 +36,19 @@ const CounterModal = ({
       size="lg"
     >
       <div className="mx-auto max-w-3xl">
-        <div className="grid gap-4 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
-          {/* NAME FIELD */}
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
-            Name
-          </p>
-          <FormInput
-            value={form.name}
-            onChange={(e) => onChange("name", e.target.value)}
-            placeholder="Enter counter name"
-            autoFocus
-          />
+      <div className="flex flex-col gap-4">
+        {/* NAME FIELD */}
+        <FormInput
+          label="Name"
+          value={form.name}
+          onChange={(e) => onChange("name", e.target.value)}
+          placeholder="Enter counter name"
+          autoFocus
+        />
 
-          {/* BRANCH FIELD */}
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
-            Branch Name
-          </p>
+        {/* BRANCH FIELD */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">Branch Name</label>
           <select
             value={form.branchId}
             onChange={(e) => onChange("branchId", e.target.value)}
@@ -65,25 +62,25 @@ const CounterModal = ({
             ))}
           </select>
         </div>
+      </div>
 
         {/* ACTIONS */}
-        <div className="mt-8 flex flex-wrap gap-3">
-          {editingId && (
-            <Button
-              variant="danger"
-              onClick={onDelete}
-              disabled={saving}
-              className="mr-auto"
-            >
-              Delete Counter
-            </Button>
-          )}
+        <div className="mt-8 flex flex-wrap justify-end gap-3">
           <Button variant="secondary" onClick={onClear} disabled={saving}>
             Clear
           </Button>
           <Button onClick={onSave} loading={saving}>
             {editingId ? "Update" : "Save"}
           </Button>
+          {editingId && (
+            <Button
+              variant="danger"
+              onClick={onDelete}
+              disabled={saving}
+            >
+              Delete Counter
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

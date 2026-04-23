@@ -82,28 +82,46 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
     try {
       const isNew = !editingId;
       if (isNew) {
-        const exists = await productService.checkCodeExists(form.code.trim());
-        if (exists > 0) {
-          showToast(`Code "${form.code}" already exists.`, "error");
-          setSaving(false);
-          return;
+        try {
+          const exists = await productService.checkCodeExists(form.code.trim());
+          if (exists > 0) {
+            showToast(`Code "${form.code}" already exists.`, "error");
+            setSaving(false);
+            return;
+          }
+        } catch (err: any) {
+          // If the check endpoint returns 404, the backend might not support this specific pre-check.
+          // We proceed to the CREATE call and let it handle any actual duplicates (409 Conflict).
+          if (err.apiStatus !== 404 && err.response?.status !== 404) {
+            console.error("Code check failed:", err);
+          }
         }
       }
 
       const payload = {
-        ...form,
-        categoryId: parseInt(form.categoryId),
+        code: form.code.trim(),
+        name: form.name.trim(),
+        arabicName: form.arabicName.trim(),
+        categoryId: parseInt(form.categoryId) || 1,
         subCatId: parseInt(form.subCatId) || 0,
         groupId: parseInt(form.groupId) || 1,
         typeId: parseInt(form.typeId) || 1,
-        unitId: parseInt(form.unitId),
+        unitId: parseInt(form.unitId) || 1,
         pVatId: parseInt(form.pVatId) || 0,
         sVatId: parseInt(form.sVatId) || 0,
         cost: parseFloat(form.cost) || 0,
         branchId: parseInt(form.branchId) || 1,
+        fileName: form.fileName || "",
+        filePath: form.filePath || "",
+        isActive: form.isActive !== false,
         altProducts: alternatives.map((alt: any) => ({
-          ...alt,
-          price: parseFloat(alt.price) || 0
+          unitId: parseInt(alt.unitId),
+          barcode: alt.barcode || "",
+          isIncl: alt.isIncl !== false,
+          price: parseFloat(alt.price) || 0,
+          altName: alt.altName || "",
+          altArabic: alt.altArabic || "",
+          branchId: parseInt(alt.branchId) || 1,
         })),
       };
 
@@ -126,7 +144,8 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
       else resetForm();
       productList.fetchProducts();
     } catch (err: any) {
-      showToast(err.message || "Failed to save product.", "error");
+      const apiMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
+      showToast(apiMsg || err.message || "Failed to save product.", "error");
     } finally {
       setSaving(false);
     }

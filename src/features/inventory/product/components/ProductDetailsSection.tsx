@@ -2,7 +2,9 @@ import { FormInput } from "../../../../components/common";
 import SearchableSelect from "../../../../components/common/Searchableselect";
 import { productTypeOptions } from "../constants";
 import type { ProductFormState, ProductMasterData } from "../types";
-import { getCurrencySymbol, getDecimalPart } from "../../../../utils/formatters";
+import { formatAmount, sanitizeAmountInput } from "../../../../utils/formatters";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
 
 interface ProductDetailsSectionProps {
   form: ProductFormState;
@@ -23,6 +25,7 @@ export const ProductDetailsSection = ({
   loadingSubs,
   onChange,
 }: ProductDetailsSectionProps) => {
+  const decimalPart = useAppSelector(selectDecimalPart);
   const categoryOptions = masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [];
   const groupOptions = masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [];
   const unitOptions = masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
@@ -99,12 +102,21 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <FormInput
-          label={`Cost (${getCurrencySymbol()})`}
-          type="number"
-          step={1 / Math.pow(10, getDecimalPart())}
-          value={form.cost}
+          label="Cost"
+          type="text"
+          inputMode="decimal"
+          value={form.cost === "0" ? formatAmount(0, decimalPart) : form.cost}
           disabled={saving}
-          onChange={(e) => onChange("cost", e.target.value)}
+          onChange={(e) => {
+            const next = sanitizeAmountInput(e.target.value, decimalPart);
+            if (next !== null) onChange("cost", next);
+          }}
+          onFocus={(e) => e.target.select()}
+          onBlur={(e) => {
+            if (e.target.value !== "" && e.target.value !== ".") {
+              onChange("cost", formatAmount(e.target.value, decimalPart));
+            }
+          }}
           required
         />
         <SearchableSelect

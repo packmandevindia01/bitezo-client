@@ -81,7 +81,7 @@ export const useModifierManager = () => {
         typeId: parseInt(form.typeId),
         price: parseFloat(form.price) || 0,
         branchIds: form.branchIds,
-        categoryIds: form.categoryIds.length > 0 ? form.categoryIds : null,
+        categoryIds: form.categoryIds, // Send the array as is (even if empty) instead of null
       };
 
       if (editingId) {

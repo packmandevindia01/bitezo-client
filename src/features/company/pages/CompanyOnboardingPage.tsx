@@ -1,18 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { Mail, ShieldCheck, UserRoundPlus, Monitor, LayoutGrid } from "lucide-react";
+import { Building2, Mail, Monitor, LayoutGrid, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, FormInput } from "../../../components/common";
+import { Button, FormInput, SelectInput } from "../../../components/common";
 import OtpInput from "../../auth/components/OtpInput";
 import { useToast } from "../../../app/providers/useToast";
 import CompanyForm from "../components/CompanyForm";
-import { checkCompanyExists, fetchCompanyRegistration, sendCompanyOtp, verifyCompanyOtp } from "../services/companyOnboardingApi";
+import {
+  checkCompanyExists,
+  fetchCompanyRegistration,
+  fetchOnboardBranches,
+  fetchOnboardCounters,
+  sendCompanyOtp,
+  verifyCompanyOtp,
+} from "../services/companyOnboardingApi";
 import type { CompanyOnboardingState } from "../types";
 import { isValidEmail } from "../../../lib/validators";
 import type { SystemType } from "../../systemRegistration/types";
 import { useAppDispatch } from "../../../app/hooks";
 import { setCredentials } from "../../auth/store/authSlice";
 
-type OnboardingStage = "identify" | "verify" | "system-type" | "form";
+type OnboardingStage = "identify" | "verify" | "system-type" | "pos-setup" | "form";
+
+interface PosCounterOption {
+  id: number;
+  name: string;
+}
 
 const initialState: CompanyOnboardingState = {
   regId: "",
@@ -35,6 +47,13 @@ const CompanyOnboardingPage = () => {
   const [clientDatabase, setClientDatabase] = useState("");
   const [tempToken, setTempToken] = useState("");
   const [systemType, setSystemType] = useState<SystemType>("pos");
+  const [posBranchId, setPosBranchId] = useState("");
+  const [posCounterId, setPosCounterId] = useState("");
+  const [posBranches, setPosBranches] = useState<{ id: number; name: string }[]>([]);
+  const [posCounters, setPosCounters] = useState<PosCounterOption[]>([]);
+  const [posSetupErrors, setPosSetupErrors] = useState({ branchId: "", counterId: "" });
+  const [loadingPosSetup, setLoadingPosSetup] = useState(false);
+  const [loadingPosCounters, setLoadingPosCounters] = useState(false);
 
   useEffect(() => {
     if (stage !== "verify" || timer <= 0) return;
@@ -90,7 +109,12 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  const setupPosSession = (db: string) => {
+  const setupPosSession = (db: string, branchId: string, counterId: string) => {
+    const selectedBranch = posBranches.find((branch) => String(branch.id) === branchId);
+    const selectedCounter = posCounters.find((counter) => String(counter.id) === counterId);
+    const branchName = selectedBranch?.name ?? "";
+    const counterName = selectedCounter?.name ?? "";
+
     localStorage.setItem("companyRegistered", "true");
     dispatch(
       setCredentials({
@@ -111,12 +135,78 @@ const CompanyOnboardingPage = () => {
     localStorage.setItem("refreshToken", "pos-terminal-refresh");
     localStorage.setItem("userId", "pos-terminal");
     localStorage.setItem("userName", "POS Terminal");
-    localStorage.setItem("userName", "POS Terminal");
     localStorage.setItem("isMaster", "false");
     localStorage.setItem("companyRegistered", "true");
+    localStorage.setItem("systemType", "pos");
+    localStorage.setItem("systemName", counterName ? `POS Terminal - ${counterName}` : "POS Terminal");
+    localStorage.setItem("systemBranchId", branchId);
+    localStorage.setItem("systemBranchName", branchName);
+    localStorage.setItem("systemCounterId", counterId);
+    localStorage.setItem("systemCounterName", counterName);
+    localStorage.setItem("systemRegisteredAt", new Date().toISOString());
 
     showToast("POS Terminal Registered! Opening system...", "success");
     navigate("/cashier/in", { replace: true });
+  };
+
+  const beginPosSetup = async (db: string) => {
+    localStorage.setItem("companyRegistered", "true");
+    localStorage.setItem("tenantId", db);
+    localStorage.setItem("systemType", "pos");
+    setClientDatabase(db);
+    setLoadingPosSetup(true);
+
+    try {
+      const branches = await fetchOnboardBranches(db, false);
+
+      const branchOptions = branches.map((branch) => ({
+        id: branch.branchId,
+        name: branch.branchName,
+      }));
+
+      setPosBranches(branchOptions);
+      setPosCounters([]);
+      setPosCounterId("");
+      setPosSetupErrors({ branchId: "", counterId: "" });
+      setStage("pos-setup");
+
+      if (branchOptions.length === 1) {
+        const onlyBranchId = String(branchOptions[0].id);
+        setPosBranchId(onlyBranchId);
+        await loadPosCounters(onlyBranchId, db);
+      } else {
+        setPosBranchId("");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load branch and counter data";
+      showToast(message, "error");
+    } finally {
+      setLoadingPosSetup(false);
+    }
+  };
+
+  const loadPosCounters = async (branchId: string, db = clientDatabase) => {
+    if (!branchId || !db) {
+      setPosCounters([]);
+      return;
+    }
+
+    try {
+      setLoadingPosCounters(true);
+      const counters = await fetchOnboardCounters(db, branchId);
+      setPosCounters(
+        counters.map((counter) => ({
+          id: counter.counterId,
+          name: counter.counterName,
+        }))
+      );
+    } catch (error) {
+      setPosCounters([]);
+      const message = error instanceof Error ? error.message : "Failed to load counters";
+      showToast(message, "error");
+    } finally {
+      setLoadingPosCounters(false);
+    }
   };
 
   const handlePostOtpFlow = async (otpToken: string) => {
@@ -154,7 +244,7 @@ const CompanyOnboardingPage = () => {
       localStorage.setItem("tenantId", clientDb);
 
       if (systemType === "pos") {
-        setupPosSession(clientDb);
+        await beginPosSetup(clientDb);
         return;
       }
       
@@ -225,6 +315,18 @@ const CompanyOnboardingPage = () => {
     }
   };
 
+  const handleCompletePosSetup = () => {
+    const nextErrors = { branchId: "", counterId: "" };
+
+    if (!posBranchId) nextErrors.branchId = "Please select a branch";
+    if (!posCounterId) nextErrors.counterId = "Please select a counter";
+
+    setPosSetupErrors(nextErrors);
+    if (nextErrors.branchId || nextErrors.counterId) return;
+
+    setupPosSession(clientDatabase, posBranchId, posCounterId);
+  };
+
   const handleResendOtp = async () => {
     try {
       setLoading(true);
@@ -245,7 +347,8 @@ const CompanyOnboardingPage = () => {
     { Icon: Mail,          step: "Step 1", label: "Enter registration ID and email" },
     { Icon: ShieldCheck,   step: "Step 2", label: "Verify OTP and validate access" },
     { Icon: Monitor,       step: "Step 3", label: "Choose system type (POS or Back Office)" },
-    { Icon: UserRoundPlus, step: "Step 4", label: "Complete the company registration form" },
+    { Icon: Building2,     step: "Step 4", label: "Select branch and counter for POS" },
+    { Icon: UserRoundPlus, step: "Step 5", label: "Complete company registration if needed" },
   ];
 
   return (
@@ -472,6 +575,86 @@ const CompanyOnboardingPage = () => {
             </div>
           )}
 
+          {/* Stage: pos-setup */}
+          {stage === "pos-setup" && (
+            <div className="mx-auto max-w-2xl">
+              <h2 className="text-2xl font-semibold text-slate-900">Choose Branch and Counter</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Select where this POS terminal will operate. These details are saved on this device.
+              </p>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                <SelectInput
+                  label="Branch"
+                  required
+                  value={posBranchId}
+                  placeholder={loadingPosSetup ? "Loading branches..." : "Select branch"}
+                  disabled={loadingPosSetup}
+                  error={posSetupErrors.branchId}
+                  options={posBranches.map((branch) => ({
+                    label: branch.name,
+                    value: String(branch.id),
+                  }))}
+                  onChange={(e) => {
+                    const branchId = e.target.value;
+                    setPosBranchId(branchId);
+                    setPosCounterId("");
+                    setPosCounters([]);
+                    setPosSetupErrors((current) => ({ ...current, branchId: "" }));
+                    void loadPosCounters(branchId);
+                  }}
+                />
+
+                <SelectInput
+                  label="Counter"
+                  required
+                  value={posCounterId}
+                  placeholder={
+                    !posBranchId
+                      ? "Select branch first"
+                      : loadingPosCounters
+                        ? "Loading counters..."
+                        : "Select counter"
+                  }
+                  disabled={loadingPosSetup || loadingPosCounters || !posBranchId}
+                  error={posSetupErrors.counterId}
+                  options={posCounters.map((counter) => ({
+                    label: counter.name,
+                    value: String(counter.id),
+                  }))}
+                  onChange={(e) => {
+                    setPosCounterId(e.target.value);
+                    setPosSetupErrors((current) => ({ ...current, counterId: "" }));
+                  }}
+                />
+              </div>
+
+              {posBranchId && !loadingPosCounters && posCounters.length === 0 && (
+                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  No counters were found for the selected branch. Please add a counter in Back Office first.
+                </p>
+              )}
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button
+                  onClick={handleCompletePosSetup}
+                  disabled={loadingPosSetup || loadingPosCounters || posCounters.length === 0}
+                  loading={loadingPosSetup || loadingPosCounters}
+                  size="lg"
+                >
+                  Save POS Setup
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setStage("system-type")}
+                  disabled={loadingPosSetup}
+                >
+                  Back
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Stage: form (company creation) */}
           {stage === "form" && (
             <div>
@@ -505,7 +688,7 @@ const CompanyOnboardingPage = () => {
                 tempToken={tempToken}
                 onSuccess={() => {
                   if (systemType === "pos") {
-                    setupPosSession(clientDatabase);
+                    void beginPosSetup(clientDatabase);
                   } else {
                     localStorage.setItem("companyRegistered", "true");
                     navigate("/", {

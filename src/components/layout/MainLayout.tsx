@@ -1,9 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import DenominationModal from "../../features/general/denomination/components/DenominationModal";
+import { fetchDenominations } from "../../features/general/denomination/services/denominationService";
+import { useAppDispatch } from "../../app/hooks";
+import { setCompanyConfig } from "../../features/auth/store/authSlice";
+import { normalizeDecimalPart } from "../../utils/formatters";
 const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [denominationOpen, setDenominationOpen] = useState(false);
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    let ignore = false;
+
+    const syncDenominationDecimal = async () => {
+      try {
+        const denominations = await fetchDenominations();
+        const decimalPart = denominations[0]?.value;
+        if (!ignore && decimalPart !== undefined) {
+          dispatch(setCompanyConfig({ decimalPart: normalizeDecimalPart(decimalPart) }));
+        }
+      } catch (error) {
+        console.error("Failed to sync denomination decimal part:", error);
+      }
+    };
+
+    syncDenominationDecimal();
+
+    return () => {
+      ignore = true;
+    };
+  }, [dispatch]);
 
   const toggleSidebar = () => {
     setSidebarOpen((current) => !current);
@@ -16,7 +45,11 @@ const MainLayout = () => {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
+          onDenominationOpen={() => setDenominationOpen(true)}
+        />
       </div>
 
       {sidebarOpen && (
@@ -33,6 +66,13 @@ const MainLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {denominationOpen && (
+        <DenominationModal 
+          isOpen={denominationOpen} 
+          onClose={() => setDenominationOpen(false)} 
+        />
+      )}
     </div>
   );
 };

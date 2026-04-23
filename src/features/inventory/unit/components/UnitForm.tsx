@@ -158,31 +158,25 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
       </section>
 
       <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+        <Button variant="secondary" onClick={onCancel} type="button" disabled={saving}>
+          Cancel
+        </Button>
+        <Button variant="secondary" onClick={handleClear} type="button" disabled={saving}>
+          Clear
+        </Button>
+        <Button type="submit" loading={saving}>
+          {initialData ? "Update Unit" : "Create Unit"}
+        </Button>
         {initialData && (initialData.unitId > 4) && (
           <Button
             variant="danger"
             onClick={onDelete}
             disabled={saving}
-            className="mr-auto"
           >
             <Trash2 size={16} />
             Delete Unit
           </Button>
         )}
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={saving}
-          className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <Button variant="secondary" onClick={handleClear} type="button" disabled={saving}>
-          Reset
-        </Button>
-        <Button type="submit" loading={saving}>
-          {initialData ? "Update Unit" : "Create Unit"}
-        </Button>
       </div>
     </form>
   );

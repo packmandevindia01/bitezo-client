@@ -10,8 +10,11 @@ import ExtrasMasterForm from "../components/ExtrasMasterForm";
 import { useExtrasMasterManager } from "../hooks/useExtrasMasterManager";
 import type { ExtrasMasterRecord } from "../types";
 import { formatCurrency } from "../../../../utils/formatters";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
 
 const ExtrasMasterPage = () => {
+  const decimalPart = useAppSelector(selectDecimalPart);
   const {
     form,
     loading,
@@ -59,7 +62,7 @@ const ExtrasMasterPage = () => {
           { 
             header: "Price", 
             accessor: "price",
-            render: (row) => <span>{formatCurrency(row.price || 0)}</span>
+            render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
           },
           { 
             header: "Type", 
@@ -125,7 +128,7 @@ const ExtrasMasterPage = () => {
       <Modal 
         isOpen={open} 
         onClose={closeModal} 
-        title="Extras Master"
+        title={editingId ? "Edit Extras" : "Add Extras"}
       >
         <ExtrasMasterForm
           form={form}
@@ -144,7 +147,6 @@ const ExtrasMasterPage = () => {
           onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
           onClear={resetForm}
           onSave={handleSave}
-          onCancel={closeModal}
           onDelete={() => {
             const record = filteredRecords.find(r => r.id === editingId);
             if (record) {
@@ -171,4 +173,3 @@ const ExtrasMasterPage = () => {
 };
 
 export default ExtrasMasterPage;
-

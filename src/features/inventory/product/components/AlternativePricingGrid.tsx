@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getCurrencySymbol, getDecimalPart } from "../../../../utils/formatters";
+import { formatAmount, sanitizeAmountInput } from "../../../../utils/formatters";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { AltProductDraft, ProductMasterData, MasterItem } from "../types";
 
 interface AlternativePricingGridProps {
@@ -19,6 +21,7 @@ export const AlternativePricingGrid = ({
   onAlternativesChange,
 }: AlternativePricingGridProps) => {
   const [focusPos, setFocusPos] = useState({ r: 0, c: 0 });
+  const decimalPart = useAppSelector(selectDecimalPart);
   const cellRefs = useRef<Map<string, HTMLInputElement | HTMLSelectElement>>(new Map());
   const TOTAL_COLS = 7;
 
@@ -127,7 +130,7 @@ export const AlternativePricingGrid = ({
                 <th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Barcode</th>
                 <th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Unit</th>
                 <th className="w-[8%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-center">Incl.</th>
-                <th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Price ({getCurrencySymbol()})</th>
+                <th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Price</th>
                 <th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name</th>
                 <th className="w-[20%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name (Arabic)</th>
                 <th className="w-12.5 px-2 py-3 border-l border-gray-200"></th>
@@ -192,13 +195,24 @@ export const AlternativePricingGrid = ({
                     <td className="p-0 border-r border-gray-100">
                       <input
                         ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-4`, el); }}
-                        type="number"
-                        step={1 / Math.pow(10, getDecimalPart())}
-                        value={alt.price}
-                        onFocus={() => setFocusPos({ r: rIdx, c: 4 })}
+                        type="text"
+                        inputMode="decimal"
+                        value={alt.price === "0" ? formatAmount(0, decimalPart) : alt.price}
+                        onFocus={(e) => {
+                          setFocusPos({ r: rIdx, c: 4 });
+                          e.target.select();
+                        }}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 4)}
-                        onChange={(e) => handleGridChange(rIdx, "price", e.target.value)}
-                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10"
+                        onChange={(e) => {
+                          const next = sanitizeAmountInput(e.target.value, decimalPart);
+                          if (next !== null) handleGridChange(rIdx, "price", next);
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value !== "" && e.target.value !== ".") {
+                            handleGridChange(rIdx, "price", formatAmount(e.target.value, decimalPart));
+                          }
+                        }}
+                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10 font-mono"
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">

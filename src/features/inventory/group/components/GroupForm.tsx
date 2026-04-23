@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { Button, FormInput } from "../../../../components/common";
+import { Button, Checkbox, FormInput } from "../../../../components/common";
 import type { GroupDetail, GroupForm as GroupFormState } from "../types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -21,10 +21,7 @@ interface Props {
   detailLoading?: boolean;
   /** True while the save mutation is in flight. */
   saving?: boolean;
-  /** Server-side error message to display inside the form. */
-  error?: string | null;
   onSubmit: (data: GroupFormState) => void;
-  onCancel: () => void;
   onDelete?: () => void;
 }
 
@@ -34,9 +31,7 @@ const GroupForm = ({
   initialData,
   detailLoading = false,
   saving = false,
-  error,
   onSubmit,
-  onCancel,
   onDelete,
 }: Props) => {
   const [form, setForm] = useState<GroupFormState>(() => buildInitialForm(initialData));
@@ -79,16 +74,7 @@ const GroupForm = ({
 
   return (
     <>
-      <h2 className="mb-6 text-center text-lg font-bold">GROUP MASTER</h2>
-
-      {/* Server-side error banner */}
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div className="flex max-w-sm flex-col gap-4">
+      <div className="flex max-w-sm flex-col gap-4 mb-6">
         <FormInput
           label="Code"
           autoFocus
@@ -111,40 +97,31 @@ const GroupForm = ({
           onChange={(e) => handleChange("arabicName", e.target.value)}
         />
 
-        {/* Active toggle */}
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 select-none">
-          <input
-            type="checkbox"
-            checked={form.isActive}
-            disabled={saving}
-            onChange={(e) => handleChange("isActive", e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e]"
-          />
-          Active
-        </label>
+        <Checkbox
+          label="Active"
+          checked={form.isActive}
+          disabled={saving}
+          onChange={(e) => handleChange("isActive", e.target.checked)}
+        />
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="flex flex-wrap justify-end gap-3 mt-2">
+        <Button variant="secondary" onClick={handleClear} disabled={saving}>
+          Clear
+        </Button>
+        <Button onClick={handleSubmit} disabled={saving || !form.code.trim() || !form.name.trim()}>
+          {saving ? "Saving…" : initialData ? "Update" : "Save"}
+        </Button>
         {initialData && (
           <Button
             variant="danger"
             onClick={onDelete}
             disabled={saving}
-            className="mr-auto"
           >
             <Trash2 size={16} />
             Delete Group
           </Button>
         )}
-        <Button variant="secondary" onClick={handleClear} disabled={saving}>
-          Clear
-        </Button>
-        <Button variant="secondary" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={saving || !form.code.trim() || !form.name.trim()}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
       </div>
     </>
   );

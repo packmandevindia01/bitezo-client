@@ -107,16 +107,14 @@ const GroupPage = () => {
       <Modal 
         isOpen={isOpen} 
         onClose={closeModal} 
-        title={isEditMode ? "Edit Group" : "Add New Group"}
+        title={isEditMode ? "Edit Group" : "Add Group"}
       >
         <GroupForm
           key={isEditMode ? `edit-${editDetail?.grpId}` : "new-group"}
           initialData={editDetail}
           detailLoading={detailLoading}
           saving={saving}
-          error={mutationError}
           onSubmit={handleSave}
-          onCancel={closeModal}
           onDelete={() => {
             if (editDetail) {
               requestDelete(editDetail);

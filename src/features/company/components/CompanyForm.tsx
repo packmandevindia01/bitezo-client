@@ -5,14 +5,14 @@ import { useToast } from "../../../app/providers/useToast";
 import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
 import { createCompany, fetchCompanyMasterload } from "../services/companyApi";
 import type { CompanyFormData, CompanyMasterOption } from "../types";
-import { mapCountry } from "../utils/countryMapper";
+
 import { formatPhone } from "../utils/formatters";
 
 const initialState: CompanyFormData = {
   custName: "",
   custMob: "",
   custMob2: "",
-  country: "",
+
   block: "",
   area: "",
   road: "",
@@ -27,35 +27,12 @@ const initialState: CompanyFormData = {
   email: "",
   taxRegNo: "",
   currency: "",
-  decimals: "",
+// decimals: "",
   customerId: "",
 };
 
-const mobilePlaceholders: Record<string, string> = {
-  IN: "+91 9876543210",
-  AE: "+971 501234567",
-  SA: "+966 512345678",
-  BH: "+973 36001234",
-  OM: "+968 92001234",
-  QA: "+974 33001234",
-  KW: "+965 51001234",
-  SG: "+65 91234567",
-  MY: "+60 121234567",
-  TH: "+66 812345678",
-};
 
-const fallbackCountries: CompanyMasterOption[] = [
-  { id: 1, name: "India", code: "IN" },
-  { id: 2, name: "UAE", code: "AE" },
-  { id: 3, name: "Saudi Arabia", code: "SA" },
-  { id: 4, name: "Bahrain", code: "BH" },
-  { id: 5, name: "Oman", code: "OM" },
-  { id: 6, name: "Qatar", code: "QA" },
-  { id: 7, name: "Kuwait", code: "KW" },
-  { id: 8, name: "Singapore", code: "SG" },
-  { id: 9, name: "Malaysia", code: "MY" },
-  { id: 10, name: "Thailand", code: "TH" },
-];
+
 
 const fallbackCurrencies: CompanyMasterOption[] = [
   { id: 1, name: "INR - Indian Rupee", code: "INR" },
@@ -109,7 +86,7 @@ const CompanyForm = ({
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyFormData, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [loadingMasterData, setLoadingMasterData] = useState(true);
-  const [countryMaster, setCountryMaster] = useState<CompanyMasterOption[]>(fallbackCountries);
+
   const [currencyMaster, setCurrencyMaster] = useState<CompanyMasterOption[]>(fallbackCurrencies);
 
   const isLocked = (field: keyof CompanyFormData) => lockedFields.includes(field);
@@ -121,7 +98,6 @@ const CompanyForm = ({
       try {
         setLoadingMasterData(true);
         const response = await fetchCompanyMasterload();
-        const countries = response.data?.countries ?? response.data?.countryList ?? [];
         const currencies =
           response.data?.currencies ??
           response.data?.currencyList ??
@@ -130,16 +106,11 @@ const CompanyForm = ({
 
         if (cancelled) return;
 
-        if (countries.length > 0) {
-          setCountryMaster(countries);
-        }
-
         if (currencies.length > 0) {
           setCurrencyMaster(currencies);
         }
       } catch {
         if (!cancelled) {
-          setCountryMaster(fallbackCountries);
           setCurrencyMaster(fallbackCurrencies);
           showToast("Company master data is unavailable, so demo fallback values are being used.", "error");
         }
@@ -175,7 +146,7 @@ const CompanyForm = ({
       newErrors.custMob = "Invalid mobile number";
     }
 
-    if (!isRequired(form.country)) newErrors.country = "Country is required";
+
     if (!isRequired(form.currency)) newErrors.currency = "Currency is required";
 
     if (form.email && !isValidEmail(form.email)) {
@@ -186,13 +157,9 @@ const CompanyForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const selectedCountry = countryMaster.find((item) => item.id.toString() === form.country);
-  const countryLabel = selectedCountry?.name ?? "India";
-  const countryCode = (selectedCountry?.code || mapCountry(countryLabel)) as CountryCode;
-  const countryOptions = countryMaster.map((item) => ({
-    label: item.name,
-    value: item.id.toString(),
-  }));
+  // Default to Bahrain for mobile formatting since country select is removed
+  const countryCode = "BH" as CountryCode;
+
   const currencyOptions = currencyMaster.map((item) => ({
     label: item.name,
     value: item.id.toString(),
@@ -276,11 +243,7 @@ const CompanyForm = ({
         <FormInput
           label="Mobile No"
           required
-          placeholder={
-            form.country
-              ? mobilePlaceholders[countryCode] ?? "+91 9876543210"
-              : "Select country first"
-          }
+          placeholder="+973 36001234"
           value={form.custMob}
           onChange={(e) => handleChange("custMob", e.target.value)}
           error={errors.custMob}
@@ -313,15 +276,7 @@ const CompanyForm = ({
           readOnly={isLocked("taxRegNo")}
         />
 
-        <SelectInput
-          label="Country"
-          required
-          value={form.country}
-          onChange={(e) => handleChange("country", e.target.value)}
-          options={countryOptions}
-          error={errors.country}
-          disabled={submitting}
-        />
+
 
         <SelectInput
           label="Currency"
@@ -341,13 +296,7 @@ const CompanyForm = ({
           readOnly={isLocked("block")}
         />
 
-        <FormInput
-          label="Decimals"
-          value={form.decimals}
-          onChange={(e) => handleChange("decimals", e.target.value)}
-          disabled={submitting}
-          readOnly={isLocked("decimals")}
-        />
+
 
         <FormInput
           label="Area / Street"

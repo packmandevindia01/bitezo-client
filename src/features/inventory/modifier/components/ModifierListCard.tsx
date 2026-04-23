@@ -2,6 +2,8 @@ import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
 import type { ModifierRecord } from "../types";
 import { formatCurrency } from "../../../../utils/formatters";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
 
 interface ModifierListCardProps {
   records: ModifierRecord[];
@@ -20,6 +22,8 @@ const ModifierListCard = ({
   onEdit,
   onDelete,
 }: ModifierListCardProps) => {
+  const decimalPart = useAppSelector(selectDecimalPart);
+
   return (
     <RecordTableCard
       title="List Modifiers"
@@ -35,7 +39,7 @@ const ModifierListCard = ({
         { 
           header: "Price", 
           accessor: "price",
-          render: (row) => <span>{formatCurrency(row.price || 0)}</span>
+          render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
         },
         {
           header: "Color",

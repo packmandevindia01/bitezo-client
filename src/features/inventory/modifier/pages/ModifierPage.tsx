@@ -10,8 +10,11 @@ import ModifierMasterForm from "../components/ModifierMasterForm";
 import { useModifierManager } from "../hooks/useModifierManager";
 import type { ModifierRecord } from "../types";
 import { formatCurrency } from "../../../../utils/formatters";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
 
 const ModifierPage = () => {
+  const decimalPart = useAppSelector(selectDecimalPart);
   const {
     form,
     loading,
@@ -59,7 +62,7 @@ const ModifierPage = () => {
           { 
             header: "Price", 
             accessor: "price",
-            render: (row) => <span>{formatCurrency(row.price || 0)}</span>
+            render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
           },
           { 
             header: "Type", 
@@ -125,7 +128,7 @@ const ModifierPage = () => {
       <Modal 
         isOpen={open} 
         onClose={closeModal} 
-        title="Modifier Master" 
+        title={editingId ? "Edit Modifier" : "Add Modifier"} 
         size="lg"
       >
         <ModifierMasterForm
@@ -145,7 +148,6 @@ const ModifierPage = () => {
           onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
           onClear={resetForm}
           onSave={handleSave}
-          onCancel={closeModal}
         />
       </Modal>
 
@@ -165,4 +167,3 @@ const ModifierPage = () => {
 };
 
 export default ModifierPage;
-

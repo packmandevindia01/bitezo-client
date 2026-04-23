@@ -104,7 +104,7 @@ const TaxPage = () => {
       <Modal 
         isOpen={isOpen} 
         onClose={closeModal} 
-        title={isEditMode ? "Edit Tax" : "Add New Tax"}
+        title={isEditMode ? "Edit Tax" : "Add Tax"}
       >
         <TaxForm
           key={isEditMode ? `edit-${editDetail?.id}` : "new-tax"}

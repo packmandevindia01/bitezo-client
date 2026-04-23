@@ -1,7 +1,7 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import { useEffect, useState } from "react";
-import { Button, Checkbox, FormInput } from "../../../../components/common";
+import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
 import { isRequired } from "../../../../lib/validators";
 import type { User, UserFormData, UserPayload } from "../types";
 
@@ -44,7 +44,7 @@ const UserForm = ({
     const fetchBranches = async () => {
       try {
         setBranchesLoading(true);
-        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/true/list-name");
+        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/false/list-name");
         setBranches(data.data ?? []);
       } catch {
         setBranches([]);
@@ -109,11 +109,7 @@ const UserForm = ({
 
   return (
     <>
-      <h2 className="mb-6 text-center text-lg font-bold">
-        {initialData ? "EDIT USER" : "USER CREATION"}
-      </h2>
-
-      <div className="flex max-w-sm flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
         <FormInput
           label="User Name"
           required
@@ -122,6 +118,20 @@ const UserForm = ({
           onChange={(e) => handleChange("name", e.target.value)}
           error={errors.name}
           autoComplete="new-username"
+        />
+
+        <SelectInput
+          label="Branch"
+          required
+          value={form.branchId}
+          onChange={(e) => handleChange("branchId", e.target.value)}
+          disabled={branchesLoading}
+          error={errors.branchId}
+          options={branches.map((b) => ({
+            label: b.branchName,
+            value: String(b.branchId),
+          }))}
+          placeholder={branchesLoading ? "Loading..." : "Select a branch"}
         />
 
         {!initialData && (
@@ -148,33 +158,7 @@ const UserForm = ({
           </>
         )}
 
-        {/* Branch select */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700">
-            Branch <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={form.branchId}
-            onChange={(e) => handleChange("branchId", e.target.value)}
-            disabled={branchesLoading}
-            className={`rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${errors.branchId ? "border-red-400" : "border-slate-300"
-              }`}
-          >
-            <option value="">
-              {branchesLoading ? "Loading branches..." : "Select a branch"}
-            </option>
-            {branches.map((branch) => (
-              <option key={branch.branchId} value={String(branch.branchId)}>
-                {branch.branchName}
-              </option>
-            ))}
-          </select>
-          {errors.branchId && (
-            <p className="text-xs text-red-500">{errors.branchId}</p>
-          )}
-        </div>
-
-        <div className="mt-1 flex gap-4">
+        <div className="md:col-span-2">
           <Checkbox
             label="Active/not"
             checked={form.isActive}
@@ -183,13 +167,13 @@ const UserForm = ({
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end  gap-3">
+      <div className="mt-6 flex flex-wrap justify-end gap-3">
         <Button variant="secondary" className="h-10 w-20" onClick={handleClear}>
           Clear
         </Button>
 
         <Button className="h-10 w-20" onClick={handleSubmit} loading={submitting}>
-          Save
+          {initialData ? "Update" : "Save"}
         </Button>
 
         {initialData && onDelete && (

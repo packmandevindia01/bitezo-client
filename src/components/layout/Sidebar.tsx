@@ -12,12 +12,13 @@ import NavReportGroup from "./sidebar/NavReportGroup";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onDenominationOpen: () => void;
 }
 
 const itemClassName =
   "px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer";
 
-const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
+const Sidebar = ({ isOpen: _isOpen, onClose, onDenominationOpen }: Props) => {
   const navigate = useNavigate();
   const systemName = localStorage.getItem("systemName");
 
@@ -39,6 +40,7 @@ const Sidebar = ({ isOpen: _isOpen, onClose }: Props) => {
           navigate={navigate} 
           onClose={onClose} 
           itemClassName={itemClassName} 
+          onOpenDenomination={onDenominationOpen}
         />
 
         <NavReportGroup onClose={onClose} />

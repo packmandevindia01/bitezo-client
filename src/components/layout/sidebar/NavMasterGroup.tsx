@@ -17,6 +17,7 @@ import {
   Boxes,
   Ruler,
   PackagePlus,
+  Coins,
 } from "lucide-react";
 import SidebarDropdown from "../SidebarDropdown";
 
@@ -24,12 +25,18 @@ interface NavMasterGroupProps {
   navigate: (path: string) => void;
   onClose: () => void;
   itemClassName: string;
+  onOpenDenomination: () => void;
 }
 
-const NavMasterGroup = ({ navigate, onClose, itemClassName }: NavMasterGroupProps) => {
+const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }: NavMasterGroupProps) => {
   const handleItemClick = (path: string) => {
     navigate(path);
     onClose();
+  };
+
+  const handleDenominationClick = () => {
+    onOpenDenomination();
+    onClose(); 
   };
 
   return (
@@ -74,6 +81,13 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName }: NavMasterGroupProp
           <div className="flex items-center gap-2">
             <Percent size={14} />
             <span>Tax Master</span>
+          </div>
+        </div>
+
+        <div onClick={handleDenominationClick} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <Coins size={14} />
+            <span>Denomination</span>
           </div>
         </div>
       </SidebarDropdown>

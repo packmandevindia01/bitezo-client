@@ -3,7 +3,7 @@ export interface CompanyFormData {
   custMob: string;
   custMob2?: string;
 
-  country: string;
+
 
   block?: string;
   area?: string;
@@ -24,7 +24,7 @@ export interface CompanyFormData {
   taxRegNo?: string;
 
   currency: string;
-  decimals: string;
+// decimals: string;
 
   customerId: string;
 }

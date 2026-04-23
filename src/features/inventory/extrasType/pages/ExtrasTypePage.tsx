@@ -76,7 +76,7 @@ const ExtrasTypePage = () => {
       <Modal 
         isOpen={open} 
         onClose={closeModal} 
-        title="Extras Type"
+        title={editingId ? "Edit Extras Type" : "Add Extras Type"}
       >
         <ExtrasTypeForm
           form={form}
@@ -85,7 +85,6 @@ const ExtrasTypePage = () => {
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
-          onCancel={closeModal}
           onDelete={() => {
             const record = filteredRecords.find(r => r.typeId === editingId);
             if (record) {

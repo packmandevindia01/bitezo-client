@@ -107,9 +107,38 @@ export const deleteUser = async (userId: number) => {
 };
 
 export const changeUserPassword = async (userId: number, payload: ChangePasswordPayload) => {
-  const { data } = await axiosInstance.patch<ApiResponse<unknown>>(`/user/${userId}/change-password`, payload);
-  if (!data.isSuccess) {
-    throw new Error(data.message || "Failed to change password");
+  try {
+    const { data } = await axiosInstance.patch<ApiResponse<unknown>>(`/user/${userId}/change-password`, payload);
+    if (!data.isSuccess) {
+      throw new Error(data.message || "Failed to change password");
+    }
+    return data;
+  } catch (err: any) {
+    // Log full server response to help diagnose the 500
+    if (err.response) {
+      console.error("[ChangePassword] Server error response:", {
+        status: err.response.status,
+        data: err.response.data,
+        headers: err.response.headers,
+      });
+      // Extract readable message from server response body
+      const serverMsg =
+        err.response.data?.message ||
+        err.response.data?.title ||
+        err.response.data?.detail ||
+        (typeof err.response.data === "string" ? err.response.data : null);
+
+      if (serverMsg) {
+        // Map known backend error codes to user-friendly messages
+        const isDuplicate =
+          serverMsg.toLowerCase().includes("duplicate") ||
+          err.response.data?.errors?.some((e: any) => e.code === "CONFLICT");
+        if (isDuplicate) {
+          throw new Error("This password has already been used before. Please choose a different password.");
+        }
+        throw new Error(serverMsg);
+      }
+    }
+    throw err;
   }
-  return data;
 };

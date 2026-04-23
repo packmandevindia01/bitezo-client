@@ -9,7 +9,6 @@ interface ExtrasTypeFormProps {
   onChange: <K extends keyof ExtrasTypeFormType>(key: K, value: ExtrasTypeFormType[K]) => void;
   onClear: () => void;
   onSave: () => void;
-  onCancel: () => void;
   onDelete?: () => void;
 }
 
@@ -20,14 +19,11 @@ const ExtrasTypeForm = ({
   onChange,
   onClear,
   onSave,
-  onCancel,
   onDelete,
 }: ExtrasTypeFormProps) => {
   return (
     <>
-      <h2 className="mb-6 text-center text-lg font-bold">EXTRAS TYPE</h2>
-
-      <div className="flex max-w-sm flex-col gap-4">
+      <div className="flex flex-col gap-4 mb-6">
         <FormInput
           label="Name"
           required
@@ -43,27 +39,23 @@ const ExtrasTypeForm = ({
         />
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="flex flex-wrap justify-end gap-3 mt-2">
+        <Button variant="secondary" onClick={onClear} disabled={saving}>
+          Clear
+        </Button>
+        <Button onClick={onSave} disabled={saving}>
+          {saving ? "Saving..." : isEditing ? "Update" : "Save"}
+        </Button>
         {isEditing && (
           <Button
             variant="danger"
             onClick={onDelete}
             disabled={saving}
-            className="mr-auto"
           >
             <Trash2 size={16} />
             Delete
           </Button>
         )}
-        <Button variant="secondary" onClick={onClear} disabled={saving}>
-          Clear
-        </Button>
-        <Button variant="secondary" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button onClick={onSave} disabled={saving}>
-          {saving ? "Saving..." : isEditing ? "Update" : "Save"}
-        </Button>
       </div>
     </>
   );

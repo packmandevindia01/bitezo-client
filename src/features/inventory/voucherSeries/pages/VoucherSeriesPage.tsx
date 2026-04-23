@@ -78,7 +78,7 @@ const VoucherSeriesPage = () => {
       <Modal 
         isOpen={open} 
         onClose={closeModal} 
-        title="Voucher Series"
+        title={editingId ? "Edit Voucher Series" : "Add Voucher Series"}
         size="lg"
       >
         <VoucherSeriesForm
@@ -89,7 +89,6 @@ const VoucherSeriesPage = () => {
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
-          onCancel={closeModal}
           onDelete={() => {
             if (editingId) {
               const record = filteredRecords.find(r => r.voucherId === editingId);

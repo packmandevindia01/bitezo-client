@@ -27,16 +27,12 @@ const getErrorMessage = (error: unknown) => {
 interface Props {
   initialData?: BranchPayload | null;
   onSubmit?: (payload: BranchPayload) => void | Promise<void>;
-  onCancel?: () => void;
-  showTitle?: boolean;
   onDelete?: () => void;
 }
 
 const BranchForm = ({
   initialData = null,
   onSubmit,
-  onCancel,
-  showTitle = true,
   onDelete,
 }: Props) => {
   const { showToast } = useToast();
@@ -145,8 +141,6 @@ const BranchForm = ({
         onClose={() => setFontModal((prev) => ({ ...prev, open: false }))}
       />
 
-      {showTitle && <h2 className="mb-6 text-center text-lg font-bold">BRANCH CREATION</h2>}
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -192,7 +186,6 @@ const BranchForm = ({
               </div>
             </div>
 
-            {/* Sticky Action row: Active checkbox + buttons */}
             <div className="sticky bottom-[-1.5rem] -mx-6 -mb-6 mt-8 p-6 border-t border-slate-100 bg-white/95 backdrop-blur-sm z-30 flex flex-wrap items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               <Checkbox
                 label="Active"
@@ -201,22 +194,7 @@ const BranchForm = ({
                 disabled={submitting}
               />
 
-              {onCancel && (
-                <Button variant="secondary" onClick={onCancel} disabled={submitting}>
-                  Cancel
-                </Button>
-              )}
 
-              {initialData && (
-                <Button 
-                  variant="secondary" 
-                  onClick={onDelete} 
-                  disabled={submitting}
-                  className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100 mr-auto"
-                >
-                  Delete Branch
-                </Button>
-              )}
 
               <Button variant="secondary" onClick={handleClear} disabled={submitting}>
                 Clear
@@ -229,9 +207,20 @@ const BranchForm = ({
                     Saving...
                   </span>
                 ) : (
-                  "Save"
+                  initialData ? "Update" : "Save"
                 )}
               </Button>
+
+              {initialData && (
+                <Button 
+                  variant="secondary" 
+                  onClick={onDelete} 
+                  disabled={submitting}
+                  className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100"
+                >
+                  Delete Branch
+                </Button>
+              )}
             </div>
           </div>
 

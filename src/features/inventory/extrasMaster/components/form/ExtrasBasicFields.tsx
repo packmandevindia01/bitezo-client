@@ -1,5 +1,8 @@
 import { FormInput, SelectInput } from "../../../../../components/common";
 import type { ExtrasMasterForm as ExtrasMasterFormType } from "../../types";
+import { formatAmount, sanitizeAmountInput } from "../../../../../utils/formatters";
+import { useAppSelector } from "../../../../../app/hooks";
+import { selectDecimalPart } from "../../../../auth/store/authSlice";
 
 interface ExtrasBasicFieldsProps {
   form: ExtrasMasterFormType;
@@ -11,6 +14,8 @@ interface ExtrasBasicFieldsProps {
 }
 
 const ExtrasBasicFields = ({ form, typeOptions, onChange }: ExtrasBasicFieldsProps) => {
+  const decimalPart = useAppSelector(selectDecimalPart);
+
   return (
     <div className="grid max-w-2xl gap-4 md:grid-cols-2">
       <FormInput
@@ -39,12 +44,22 @@ const ExtrasBasicFields = ({ form, typeOptions, onChange }: ExtrasBasicFieldsPro
       />
 
       <FormInput
-        label="Price (Incl)"
-        type="number"
-        step="0.001"
-        placeholder="0.000"
-        value={form.price}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("price", e.target.value)}
+        label="Price"
+        type="text"
+        inputMode="decimal"
+        placeholder={formatAmount(0, decimalPart)}
+        value={form.price === "0" ? formatAmount(0, decimalPart) : form.price}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+          const next = sanitizeAmountInput(e.target.value, decimalPart);
+          if (next !== null) onChange("price", next);
+        }}
+        onFocus={(e: React.FocusEvent<HTMLInputElement>) => e.target.select()}
+        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+          if (e.target.value !== "" && e.target.value !== ".") {
+            onChange("price", formatAmount(e.target.value, decimalPart));
+          }
+        }}
+        className="font-mono"
       />
 
       <div className="flex flex-col gap-1">

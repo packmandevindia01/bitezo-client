@@ -77,23 +77,22 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete }: Pro
       </section>
 
       <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+        <Button variant="secondary" onClick={handleClear} type="button" disabled={saving}>
+          Clear
+        </Button>
+        <Button type="submit" loading={saving}>
+          {initialData ? "Update Tax" : "Create Tax"}
+        </Button>
         {initialData && (
           <Button
             variant="danger"
             onClick={onDelete}
             disabled={saving}
-            className="mr-auto"
           >
             <Trash2 size={16} />
             Delete Tax
           </Button>
         )}
-        <Button variant="secondary" onClick={handleClear} type="button" disabled={saving}>
-          Reset
-        </Button>
-        <Button type="submit" loading={saving}>
-          {initialData ? "Update Tax" : "Create Tax"}
-        </Button>
       </div>
     </form>
   );

@@ -164,8 +164,9 @@ const UserList = () => {
       showToast("Password changed successfully", "success");
       closePasswordModal();
     } catch (error) {
-      showToast(getErrorMessage(error), "error");
-      throw error;
+      const msg = getErrorMessage(error);
+      const isDuplicate = msg.toLowerCase().includes("already been used") || msg.toLowerCase().includes("duplicate");
+      showToast(msg, isDuplicate ? "warning" : "error");
     } finally {
       setPasswordChanging(false);
     }
@@ -251,7 +252,7 @@ const UserList = () => {
         />
       )}
 
-      <Modal isOpen={open} onClose={closeModal} title="  " >
+      <Modal isOpen={open} onClose={closeModal} title={editUser ? "Edit User" : "User Creation"} size="lg">
         {detailLoading ? (
           <div className="py-8">
             <Loader text="Loading user details..." />

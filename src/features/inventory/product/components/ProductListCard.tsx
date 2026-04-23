@@ -2,6 +2,8 @@ import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard } from "../../../../components/common";
 import type { ProductListItem } from "../types";
 import { formatCurrency } from "../../../../utils/formatters";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
 
 interface ProductListCardProps {
   records: ProductListItem[];
@@ -22,6 +24,8 @@ const ProductListCard = ({
   onEdit,
   onDelete,
 }: ProductListCardProps) => {
+  const decimalPart = useAppSelector(selectDecimalPart);
+
   return (
     <RecordTableCard
       title="Saved Product List"
@@ -43,7 +47,7 @@ const ProductListCard = ({
         { 
           header: "Cost", 
           accessor: "cost",
-          render: (row: any) => formatCurrency(row.cost)
+          render: (row: any) => formatCurrency(row.cost, decimalPart)
         },
         {
           header: "Actions",

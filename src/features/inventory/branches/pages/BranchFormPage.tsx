@@ -79,9 +79,7 @@ const BranchFormPage = () => {
         <BranchForm 
           initialData={initialData}
           onSubmit={handleSubmit}
-          onCancel={() => navigate("/dashboard/branches")}
-          onDelete={handleDelete}
-          showTitle={false}
+          onDelete={id ? handleDelete : undefined}
         />
       </div>
     </div>

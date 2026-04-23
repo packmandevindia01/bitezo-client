@@ -5,9 +5,20 @@ import type {
   SendOtpResponse,
   VerifyOtpResponse,
 } from "../types";
+import type { ApiResponse } from "../../inventory/product/types";
+
+export interface OnboardBranchOption {
+  branchId: number;
+  branchName: string;
+}
+
+export interface OnboardCounterOption {
+  counterId: number;
+  counterName: string;
+}
 
 export const sendCompanyOtp = async (regId: string, email: string): Promise<SendOtpResponse> => {
-  const { data } = await axiosInstance.post<SendOtpResponse>("/auth/send-otp", null, {
+  const { data } = await axiosInstance.post<SendOtpResponse>("/auth/send-otp", { email }, {
     params: { regId, email },
   });
 
@@ -123,4 +134,36 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
   } catch (err: any) {
     throw new Error(err.response?.data?.message || "Failed to verify company registration.");
   }
+};
+
+export const fetchOnboardBranches = async (
+  clientDb: string,
+  allStatus: boolean = false
+): Promise<OnboardBranchOption[]> => {
+  const { data } = await axiosInstance.get<ApiResponse<OnboardBranchOption[]>>(
+    `/Branch/${allStatus}/onboard-list-name`,
+    { params: { clientDb } }
+  );
+
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load branches");
+  }
+
+  return data.data ?? [];
+};
+
+export const fetchOnboardCounters = async (
+  clientDb: string,
+  branchId: string | number
+): Promise<OnboardCounterOption[]> => {
+  const { data } = await axiosInstance.get<ApiResponse<OnboardCounterOption[]>>(
+    `/counter/${branchId}/onboard-list-name`,
+    { params: { clientDb } }
+  );
+
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load counters");
+  }
+
+  return data.data ?? [];
 };

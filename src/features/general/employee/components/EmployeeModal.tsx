@@ -96,23 +96,22 @@ const EmployeeModal = ({
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap justify-end gap-3">
+          <Button variant="secondary" onClick={onClear} disabled={saving}>
+            Clear
+          </Button>
+          <Button onClick={onSave} loading={saving}>
+            {editingId ? "Update" : "Save"}
+          </Button>
           {editingId && (
             <Button
               variant="danger"
               onClick={onDelete}
               disabled={saving}
-              className="mr-auto"
             >
               Delete Employee
             </Button>
           )}
-          <Button variant="secondary" onClick={onClear} disabled={saving}>
-            Clear
-          </Button>
-          <Button onClick={onSave} loading={saving}>
-            Save
-          </Button>
         </div>
       </div>
     </Modal>

@@ -153,7 +153,7 @@ export const useExtrasMasterManager = () => {
         typeId: parseInt(form.typeId),
         color: form.color || "",
         branchIds: form.branchIds.length > 0 ? form.branchIds : [],
-        categoryIds: form.categoryIds.length > 0 ? form.categoryIds : null,
+        categoryIds: form.categoryIds, // Send the array as is (even if empty) instead of null
       };
 
       if (editingId) {

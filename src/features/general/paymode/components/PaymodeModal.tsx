@@ -97,18 +97,7 @@ const PaymodeModal = ({
           </div>
 
           {/* Action buttons */}
-          <div className="mt-2 flex flex-wrap gap-3">
-            {editingId && (
-              <Button
-                variant="danger"
-                onClick={onDelete}
-                disabled={saving}
-                className="mr-auto"
-              >
-                <Trash2 size={16} />
-                Delete Paymode
-              </Button>
-            )}
+          <div className="mt-2 flex flex-wrap justify-end gap-3">
             <Button
               variant="secondary"
               className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
@@ -131,6 +120,16 @@ const PaymodeModal = ({
                 editingId ? "Update" : "Save"
               )}
             </Button>
+            {editingId && (
+              <Button
+                variant="danger"
+                onClick={onDelete}
+                disabled={saving}
+              >
+                <Trash2 size={16} />
+                Delete Paymode
+              </Button>
+            )}
           </div>
 
           {/* Counter allocation panel */}

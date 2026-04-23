@@ -28,7 +28,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     name: data.custName,
     mobNo: data.custMob,
     telNo: data.custMob2 || "",
-    country: parseLookupId(data.country, "Country"),
+    country: 1, // Defaulting to 1 (Bahrain) for now as it is likely required by backend DTO
     block: data.block || "",
     area: data.area || "",
     road: data.road || "",

@@ -44,7 +44,7 @@ const LoginForm = () => {
     e.preventDefault();
 
     if (!username.trim() || !password.trim()) {
-      showToast("Please enter username and password", "error");
+      showToast("Please enter username and password", "warning");
       return;
     }
 
@@ -97,11 +97,16 @@ const LoginForm = () => {
         return;
       }
 
-      showToast("Invalid credentials", "error");
+      showToast("Invalid credentials", "warning");
       setPassword("");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Login failed. Try again.";
-      showToast(message, "error");
+    } catch (error: any) {
+      let message = "Login failed. Please try again.";
+      if (error.response?.status === 401) {
+        message = "Please check login validation";
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      showToast(message, "warning");
       setPassword("");
     } finally {
       setLoading(false);

@@ -67,23 +67,22 @@ const SectionModal = ({
         </div>
 
         {/* ACTIONS */}
-        <div className="mt-8 flex flex-wrap gap-3">
-          {editingId && (
-            <Button
-              variant="danger"
-              onClick={onDelete}
-              disabled={saving}
-              className="mr-auto"
-            >
-              Delete Section
-            </Button>
-          )}
+        <div className="mt-8 flex flex-wrap justify-end gap-3">
           <Button variant="secondary" onClick={onClear} disabled={saving}>
             Clear
           </Button>
           <Button onClick={onSave} loading={saving}>
             {editingId ? "Update" : "Save"}
           </Button>
+          {editingId && (
+            <Button
+              variant="danger"
+              onClick={onDelete}
+              disabled={saving}
+            >
+              Delete Section
+            </Button>
+          )}
         </div>
       </div>
     </Modal>
