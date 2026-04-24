@@ -28,13 +28,13 @@ export const extrasService = {
     );
   },
 
-  create(payload: any): Promise<{ extraId: number }> {
+  create(payload: Record<string, unknown>): Promise<{ extraId: number }> {
     return unwrap(
       axiosInstance.post<ApiResponse<{ extraId: number }>>(BASE, payload)
     );
   },
 
-  update(extraId: number, payload: any): Promise<void> {
+  update(extraId: number, payload: Record<string, unknown>): Promise<void> {
     return unwrap(
       axiosInstance.put<ApiResponse<void>>(`${BASE}/${extraId}`, payload)
     );

@@ -24,8 +24,9 @@ export const useExtrasTypeManager = () => {
     try {
       const data = await extrasTypeService.list();
       setRecords(data);
-    } catch (err: any) {
-      showToast(err.message || "Failed to load extras types", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load extras types";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -80,8 +81,9 @@ export const useExtrasTypeManager = () => {
       }
       fetchTypes();
       closeModal();
-    } catch (err: any) {
-      showToast(err.message || "Failed to save extras type", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save extras type";
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -98,7 +100,7 @@ export const useExtrasTypeManager = () => {
         name: fullRecord.name || "",
         arabicName: fullRecord.arabicName || "",
       });
-    } catch (err: any) {
+    } catch {
       // Fallback to list data if detail fetch fails
       setForm({
         name: record.name,
@@ -115,8 +117,9 @@ export const useExtrasTypeManager = () => {
       await extrasTypeService.remove(record.typeId);
       showToast("Extras type deleted successfully", "success");
       fetchTypes();
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete extras type", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete extras type";
+      showToast(msg, "error");
     }
   };
 

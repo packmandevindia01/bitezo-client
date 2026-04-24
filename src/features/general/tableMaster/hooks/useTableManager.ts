@@ -24,8 +24,9 @@ export const useTableManager = () => {
         isActive: record.isActive,
         position: record.position || 0,
       });
-    } catch (err: any) {
-      showToast(err.message || "Failed to fetch table details", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to fetch table details";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -47,8 +48,9 @@ export const useTableManager = () => {
       if (selectedId === record.tableId) {
         resetForm();
       }
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete table", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete table";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -100,8 +102,9 @@ export const useTableManager = () => {
         fetchTables(selectedSectionId);
       }
       setOpen(false);
-    } catch (err: any) {
-       showToast(err.message || "Failed to save table", "error");
+    } catch (err: unknown) {
+       const msg = err instanceof Error ? err.message : "Failed to save table";
+       showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -130,7 +133,7 @@ export const useTableManager = () => {
 
       await Promise.all(updatePromises);
       showToast("Order saved successfully", "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[Reorder] Persistence failed:", err);
       showToast("Failed to persist new order", "error");
       if (selectedSectionId) fetchTables(selectedSectionId);

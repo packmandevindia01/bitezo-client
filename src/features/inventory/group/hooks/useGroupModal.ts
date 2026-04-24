@@ -25,7 +25,7 @@ export const useGroupModal = () => {
     try {
       const detail = await groupService.getById(record.grpId);
       setModal({ mode: "edit", grpId: record.grpId, detail });
-    } catch (err) {
+    } catch {
       // Fallback
       setModal({
         mode: "edit",

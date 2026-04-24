@@ -17,12 +17,12 @@ export const getSubCategories = async (
   if (name) params.Name = name;
   if (catId) params.catId = catId;
 
-  const { data } = await axiosInstance.get<ApiResponse<any[]>>(
+  const { data } = await axiosInstance.get<ApiResponse<SubCategoryListItem[]>>(
     "/subcategory/subcategory-list",
     { params }
   );
   
-  return (data.data ?? []).map((item) => ({
+  return ((data.data as any[]) ?? []).map((item) => ({
     id: item.subCatId || item.id,
     code: item.code,
     name: item.name,
@@ -32,9 +32,9 @@ export const getSubCategories = async (
 };
 
 // ── GET By ID (assuming similar pattern to category) ────────────────────────
-export const getSubCategoryById = async (id: number): Promise<any> => {
+export const getSubCategoryById = async (id: number): Promise<SubCategoryListItem> => {
   // If your endpoint differs, modify this URL! Assuming standard subcatid-data.
-  const { data } = await axiosInstance.get<ApiResponse<any>>(
+  const { data } = await axiosInstance.get<ApiResponse<SubCategoryListItem>>(
     `/subcategory/${id}/subcatid-data`
   );
   return data.data;
@@ -47,8 +47,9 @@ export const createSubCategory = async (
   try {
     const { data } = await axiosInstance.post<ApiResponse<unknown>>("/subcategory", payload);
     return data;
-  } catch (err: any) {
-    const body = err?.response?.data;
+  } catch (err: unknown) {
+    const axErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } };
+    const body = axErr?.response?.data;
     if (body?.errors && typeof body.errors === "object") {
       const detail = Object.entries(body.errors)
         .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)
@@ -72,8 +73,9 @@ export const updateSubCategory = async (
       payload
     );
     return data;
-  } catch (err: any) {
-    const body = err?.response?.data;
+  } catch (err: unknown) {
+    const axErr = err as { response?: { data?: { errors?: Record<string, string[]> } } };
+    const body = axErr?.response?.data;
     if (body?.errors && typeof body.errors === "object") {
       const detail = Object.entries(body.errors)
         .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)

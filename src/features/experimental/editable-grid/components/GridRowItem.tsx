@@ -1,7 +1,6 @@
 import { Trash2 } from "lucide-react";
 import type { GridRow } from "../types";
-
-export const UNIT_OPTIONS = ["Small", "Medium", "Large", "Extra Large", "Box", "Pack"];
+import { UNIT_OPTIONS } from "../constants";
 
 interface GridRowItemProps {
   row: GridRow;

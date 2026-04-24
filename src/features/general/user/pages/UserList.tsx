@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import ChangePasswordForm from "../components/ChangePasswordForm";
 import UserForm from "../components/UserForm";
@@ -41,7 +41,7 @@ const UserList = () => {
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
   const [search, setSearch] = useState("");
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const records = await fetchUsers();
@@ -51,11 +51,11 @@ const UserList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     void loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   const closeModal = () => {
     setOpen(false);

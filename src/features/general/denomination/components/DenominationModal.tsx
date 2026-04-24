@@ -44,7 +44,7 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
             loading={loading}
             className="px-10 h-11 rounded-xl bg-[#49293e] hover:bg-[#5c3450] shadow-lg shadow-[#49293e]/20"
           >
-            {denominations.length > 0 && (denominations[0] as any).id ? "Update" : "Create"}
+            {denominations.length > 0 && "id" in denominations[0] ? "Update" : "Create"}
           </Button>
         </div>
       }

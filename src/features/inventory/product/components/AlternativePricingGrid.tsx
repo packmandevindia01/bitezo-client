@@ -23,6 +23,7 @@ export const AlternativePricingGrid = ({
   const [focusPos, setFocusPos] = useState({ r: 0, c: 0 });
   const decimalPart = useAppSelector(selectDecimalPart);
   const cellRefs = useRef<Map<string, HTMLInputElement | HTMLSelectElement>>(new Map());
+  const nextRowId = useRef(-1);
   const TOTAL_COLS = 7;
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export const AlternativePricingGrid = ({
     ?.filter(u => (mainUnitCategory && u.category) ? u.category === mainUnitCategory : true)
     .map(u => ({ label: u.name, value: String(u.id) })) ?? [];
 
-  const handleGridChange = (idx: number, key: keyof AltProductDraft, value: any) => {
+  const handleGridChange = (idx: number, key: keyof AltProductDraft, value: AltProductDraft[keyof AltProductDraft]) => {
     const next = [...alternatives];
     next[idx] = { ...next[idx], [key]: value };
     onAlternativesChange(next);
@@ -49,7 +50,7 @@ export const AlternativePricingGrid = ({
 
   const addGridRow = () => {
     const newRow: AltProductDraft = {
-      id: Date.now(),
+      id: nextRowId.current,
       branchId: branches[0]?.id || 0,
       barcode: "",
       isIncl: true,
@@ -58,6 +59,7 @@ export const AlternativePricingGrid = ({
       altName: "",
       altArabic: "",
     };
+    nextRowId.current -= 1;
     onAlternativesChange([...alternatives, newRow]);
   };
 

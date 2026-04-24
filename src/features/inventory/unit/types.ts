@@ -83,4 +83,4 @@ export interface UnitFormState {
 }
 
 /** Legacy type reference (if still needed externally) */
-export interface UnitRecord extends UnitListItem {}
+export type UnitRecord = UnitListItem;

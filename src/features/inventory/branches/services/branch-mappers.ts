@@ -70,28 +70,30 @@ export const mapResponseToBranch = (branchId: number, b: BranchRequestBody): Bra
 
   // Map header fields back to LineItem array
   for (let i = 1; i <= 7; i++) {
-    const val = (b as any)[`header${i}`];
+    const raw = b as unknown as Record<string, unknown>;
+    const val = raw[`header${i}`];
     if (val !== undefined) {
       lines.push({
         id: `h${i}`,
         section: "header",
-        value: val,
-        offsetX: (b as any)[`headerLeftAlign${i}`] ?? 0,
-        ...parseFont((b as any)[`headerFont${i}`]),
+        value: val as string,
+        offsetX: (raw[`headerLeftAlign${i}`] ?? 0) as number,
+        ...parseFont(raw[`headerFont${i}`] as string | undefined),
       });
     }
   }
 
   // Map footer fields back to LineItem array
   for (let i = 1; i <= 7; i++) {
-    const val = (b as any)[`footer${i}`];
+    const raw = b as unknown as Record<string, unknown>;
+    const val = raw[`footer${i}`];
     if (val !== undefined) {
       lines.push({
         id: `f${i}`,
         section: "footer",
-        value: val,
-        offsetX: (b as any)[`footerLeftAlign${i}`] ?? 0,
-        ...parseFont((b as any)[`footerFont${i}`]),
+        value: val as string,
+        offsetX: (raw[`footerLeftAlign${i}`] ?? 0) as number,
+        ...parseFont(raw[`footerFont${i}`] as string | undefined),
       });
     }
   }

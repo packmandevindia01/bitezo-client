@@ -4,9 +4,7 @@ import ResetPasswordForm from "../components/ResetPasswordForm";
 const ResetPasswordPage = () => {
   const navigate = useNavigate();
 
-  const handleReset = (password: string) => {
-    console.log("New Password:", password);
-
+  const handleReset = () => {
     // 🔥 replace with API later
 
     alert("Password reset successful");

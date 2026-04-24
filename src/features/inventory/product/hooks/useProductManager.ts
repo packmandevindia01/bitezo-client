@@ -28,9 +28,10 @@ export const useProductManager = () => {
   } = useProductActions({ formState, altState, productList });
 
   // 3. Initial load orchestration
+  const { fetchProducts } = productList;
   useEffect(() => {
-    productList.fetchProducts();
-  }, [productList.fetchProducts]);
+    fetchProducts();
+  }, [fetchProducts]);
 
   // 4. Adapter methods for legacy UI compatibility
   const openCreateModal = () => resetForm();

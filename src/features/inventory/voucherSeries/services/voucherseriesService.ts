@@ -2,7 +2,8 @@ import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import type { 
   VoucherSeriesDetail, 
-  VoucherSeriesPayload 
+  VoucherSeriesPayload,
+  VoucherSeriesRecord
 } from "../types";
 
 const BASE = "/voucherseries";
@@ -19,9 +20,9 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 }
 
 export const voucherseriesService = {
-  list(): Promise<any[]> {
+  list(): Promise<VoucherSeriesRecord[]> {
     return unwrap(
-      axiosInstance.get<ApiResponse<any[]>>(`${BASE}/voucherseries-list`)
+      axiosInstance.get<ApiResponse<VoucherSeriesRecord[]>>(`${BASE}/voucherseries-list`)
     );
   },
 
@@ -39,10 +40,9 @@ export const voucherseriesService = {
       })
     );
   },
-
-  update(voucherId: number, payload: VoucherSeriesPayload): Promise<any> {
+  update(voucherId: number, payload: VoucherSeriesPayload): Promise<void> {
     return unwrap(
-      axiosInstance.put<ApiResponse<any>>(`${BASE}/${voucherId}`, {
+      axiosInstance.put<ApiResponse<void>>(`${BASE}/${voucherId}`, {
         ...payload,
         voucherId,
         updatedAt: new Date().toISOString()
@@ -50,9 +50,9 @@ export const voucherseriesService = {
     );
   },
 
-  remove(voucherId: number): Promise<any> {
+  remove(voucherId: number): Promise<void> {
     return unwrap(
-      axiosInstance.delete<ApiResponse<any>>(`${BASE}/${voucherId}`)
+      axiosInstance.delete<ApiResponse<void>>(`${BASE}/${voucherId}`)
     );
   },
 } as const;

@@ -1,6 +1,6 @@
-import type { PaymodeForm } from "./types";
+import type { PaymodeForm, PaymodeRecord } from "./types";
 
-export const initialPaymodes: any[] = [];
+export const initialPaymodes: PaymodeRecord[] = [];
 
 export const createEmptyPaymodeForm = (): PaymodeForm => ({
   paymodeId: 0,

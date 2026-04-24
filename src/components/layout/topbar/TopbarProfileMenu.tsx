@@ -58,7 +58,7 @@ const TopbarProfileMenu = ({ username }: TopbarProfileMenuProps) => {
           <button
             onClick={() => {
               setShowDropdown(false);
-              navigate("/dashboard/settings");
+              navigate("/dashboard");
             }}
             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50"
           >

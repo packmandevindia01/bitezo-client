@@ -25,8 +25,9 @@ export const useModifierList = () => {
     try {
       const data = await modifierService.list();
       setRecords(data);
-    } catch (err: any) {
-      showToast(err.message || "Failed to load modifiers", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load modifiers";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

@@ -53,12 +53,6 @@ const TableCardGrid = ({
     if (over && active.id !== over.id) {
       const oldIndex = tables.findIndex((t) => t.tableId === active.id);
       const newIndex = tables.findIndex((t) => t.tableId === over.id);
-      
-      console.log(`[Move] From index ${oldIndex} to ${newIndex}`, {
-        activeId: active.id,
-        overId: over.id
-      });
-
       const reordered = arrayMove(tables, oldIndex, newIndex);
       if (onReorder) {
         onReorder(reordered);

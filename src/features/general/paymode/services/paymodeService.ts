@@ -51,9 +51,9 @@ export const paymodeService = {
     );
   },
 
-  remove(paymodeId: number): Promise<any> {
+  remove(paymodeId: number): Promise<unknown> {
     return unwrap(
-      axiosInstance.delete<ApiResponse<any>>(`${BASE}/${paymodeId}`)
+      axiosInstance.delete<ApiResponse<unknown>>(`${BASE}/${paymodeId}`)
     );
   },
 } as const;

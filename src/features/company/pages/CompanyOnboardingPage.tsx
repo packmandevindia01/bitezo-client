@@ -215,8 +215,8 @@ const CompanyOnboardingPage = () => {
       otpToken
     );
 
-    const clientDb = registration.database?.trim() ?? "";
-    const token = registration.tempToken ?? "";
+    const clientDb = String(registration.database || "").trim();
+    const token = String(registration.tempToken || "");
 
     setClientDatabase(clientDb);
     setTempToken(token);
@@ -231,11 +231,13 @@ const CompanyOnboardingPage = () => {
 
     const companyCheck = await checkCompanyExists(clientDb, formState.regId.trim());
 
+    const checkData = companyCheck.data as Record<string, unknown> | null;
+
     if (companyCheck.exists) {
       showToast(
-        companyCheck.data?.name
-          ? `Company "${companyCheck.data.name}" is already registered. Redirecting...`
-          : companyCheck.message || "Company already registered. Redirecting...",
+        checkData?.name
+          ? `Company "${String(checkData.name)}" is already registered. Redirecting...`
+          : String(companyCheck.message || "Company already registered. Redirecting..."),
         "success"
       );
 
@@ -261,8 +263,8 @@ const CompanyOnboardingPage = () => {
     }
 
     setFormNotice(
-      companyCheck.message ||
-        `Client database "${clientDb}" is ready. Complete the form to create your company.`
+      String(companyCheck.message ||
+        `Client database "${clientDb}" is ready. Complete the form to create your company.`)
     );
     setStage("form");
   };

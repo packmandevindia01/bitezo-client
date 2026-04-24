@@ -20,8 +20,9 @@ export const useModifierTypeManager = () => {
     try {
       const data = await modifierTypeService.list();
       setRecords(data);
-    } catch (err: any) {
-      showToast(err.message || "Failed to load modifier types", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load modifier types";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -77,8 +78,9 @@ export const useModifierTypeManager = () => {
       }
       fetchTypes();
       closeModal();
-    } catch (err: any) {
-      showToast(err.message || "Failed to save modifier type", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save modifier type";
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -94,7 +96,7 @@ export const useModifierTypeManager = () => {
         name: fullRecord.name || "",
         arabicName: fullRecord.arabicName || "",
       });
-    } catch (err: any) {
+    } catch {
       setForm({
         name: record.name,
         arabicName: record.arabicName || "",
@@ -110,8 +112,9 @@ export const useModifierTypeManager = () => {
       await modifierTypeService.remove(record.typeId);
       showToast("Modifier type deleted successfully", "success");
       fetchTypes();
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete modifier type", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete modifier type";
+      showToast(msg, "error");
     }
   };
 

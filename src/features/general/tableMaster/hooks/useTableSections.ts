@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { sectionService } from "../../section/services/sectionService";
+import type { SectionRecord } from "../../section/types";
 
 export const useTableSections = () => {
-  const [sections, setSections] = useState<any[]>([]);
+  const [sections, setSections] = useState<SectionRecord[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,8 +15,9 @@ export const useTableSections = () => {
         if (data.length > 0 && selectedSectionId === null) {
           setSelectedSectionId(data[0].sectionId);
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch sections");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to fetch sections";
+        setError(msg);
       }
     };
     fetchSections();

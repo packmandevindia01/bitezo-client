@@ -42,7 +42,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     createdAt: new Date().toISOString(),
   };
 
-  const { data: responseData } = await axiosInstance.post<any>(
+  const { data: responseData } = await axiosInstance.post<unknown>(
     `/company/${encodeURIComponent(clientDb)}`,
     payload,
     {

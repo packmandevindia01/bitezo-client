@@ -40,7 +40,7 @@ export const fetchBranchNames = async (allStatus: boolean = false): Promise<Bran
 };
 
 export const fetchBranches = async (): Promise<BranchRecord[]> => {
-  const { data } = await axiosInstance.get<ApiResponse<any[]>>("/Branch/list");
+  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list");
 
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load branch list");
@@ -49,7 +49,7 @@ export const fetchBranches = async (): Promise<BranchRecord[]> => {
   return Array.isArray(data.data)
     ? data.data.map((item) => ({
         id: item.branchId ?? 0,
-        sNo: item.sNo,
+        sNo: (item as any).sNo,
         branchName: item.branchName ?? "",
         isActive: item.isActive === true || String(item.isActive).toLowerCase() === "active",
         lines: [],

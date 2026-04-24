@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { 
   fetchDenominations, 
   createDenominations,
@@ -18,14 +18,14 @@ export const useDenominationManager = () => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
 
-  const syncDecimalPart = (items: DenominationItem[]) => {
+  const syncDecimalPart = useCallback((items: DenominationItem[]) => {
     const decimalPart = items[0]?.value;
     if (decimalPart !== undefined) {
       dispatch(setCompanyConfig({ decimalPart: normalizeDecimalPart(decimalPart) }));
     }
-  };
+  }, [dispatch]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setInitialLoading(true);
       const data = await fetchDenominations();
@@ -39,11 +39,11 @@ export const useDenominationManager = () => {
     } finally {
       setInitialLoading(false);
     }
-  };
+  }, [syncDecimalPart]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const addRow = () => {
     setDenominations([...denominations, { name: "", value: 0 }]);
@@ -91,9 +91,10 @@ export const useDenominationManager = () => {
         showToast(result.message || "Failed to save denominations", "error");
         return false;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Save error:", error);
-      const serverMsg = error.response?.data?.message || error.message || "Failed to save denominations";
+      const axErr = error as { response?: { data?: { message?: string } }; message?: string };
+      const serverMsg = axErr.response?.data?.message || axErr.message || "Failed to save denominations";
       showToast(serverMsg, "error");
       return false;
     } finally {

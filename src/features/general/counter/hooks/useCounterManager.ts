@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import type { BranchRecord } from "../../../inventory/branches/types";
@@ -18,12 +18,7 @@ export const useCounterManager = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [counterList, branchList] = await Promise.all([
@@ -39,7 +34,12 @@ export const useCounterManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const setField = <K extends keyof CounterForm>(key: K, value: CounterForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -109,7 +109,7 @@ export const useCounterManager = () => {
         branchId: String(detail.branchId),
       });
       setOpen(true);
-    } catch (error) {
+    } catch {
       showToast("Failed to load counter details", "error");
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ export const useCounterManager = () => {
       await counterService.remove(record.counterId);
       showToast("Counter deleted successfully", "success");
       await fetchData();
-    } catch (error) {
+    } catch {
       showToast("Failed to delete counter", "error");
     } finally {
       setSaving(false);

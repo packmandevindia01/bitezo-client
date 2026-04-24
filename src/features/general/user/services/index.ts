@@ -113,26 +113,26 @@ export const changeUserPassword = async (userId: number, payload: ChangePassword
       throw new Error(data.message || "Failed to change password");
     }
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const axErr = err as { response?: { status?: number; data?: { message?: string; title?: string; detail?: string; errors?: { code?: string }[] } }; message?: string };
     // Log full server response to help diagnose the 500
-    if (err.response) {
+    if (axErr.response) {
       console.error("[ChangePassword] Server error response:", {
-        status: err.response.status,
-        data: err.response.data,
-        headers: err.response.headers,
+        status: axErr.response.status,
+        data: axErr.response.data,
       });
       // Extract readable message from server response body
       const serverMsg =
-        err.response.data?.message ||
-        err.response.data?.title ||
-        err.response.data?.detail ||
-        (typeof err.response.data === "string" ? err.response.data : null);
+        axErr.response.data?.message ||
+        axErr.response.data?.title ||
+        axErr.response.data?.detail ||
+        null;
 
       if (serverMsg) {
         // Map known backend error codes to user-friendly messages
         const isDuplicate =
           serverMsg.toLowerCase().includes("duplicate") ||
-          err.response.data?.errors?.some((e: any) => e.code === "CONFLICT");
+          axErr.response.data?.errors?.some((e) => e.code === "CONFLICT");
         if (isDuplicate) {
           throw new Error("This password has already been used before. Please choose a different password.");
         }

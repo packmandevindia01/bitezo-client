@@ -43,7 +43,7 @@ export interface CompanyOnboardingState {
 }
 
 export interface SendOtpResponse {
-  data: any;
+  data: unknown;
   status: number;
   message: string;
   isSuccess: boolean;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import type { BranchRecord } from "../../../inventory/branches/types";
@@ -18,12 +18,7 @@ export const useVoucherSeriesManager = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [seriesList, branchList] = await Promise.all([
@@ -34,13 +29,17 @@ export const useVoucherSeriesManager = () => {
       setRecords(seriesList as VoucherSeriesRecord[]);
       // Filter out BranchId: 1 (typically "All") as per user request
       setBranches(branchList.filter(b => b.id !== 1));
-    } catch (error) {
+    } catch {
       showToast("Failed to load voucher series data", "error");
-      console.error(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const setField = <K extends keyof VoucherSeriesForm>(key: K, value: VoucherSeriesForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -122,7 +121,7 @@ export const useVoucherSeriesManager = () => {
         branchId: String(detail.branchId),
       });
       setOpen(true);
-    } catch (error) {
+    } catch {
       showToast("Failed to load voucher series details", "error");
     } finally {
       setLoading(false);
@@ -135,7 +134,7 @@ export const useVoucherSeriesManager = () => {
       await voucherseriesService.remove(record.voucherId);
       showToast("Voucher series deleted successfully", "success");
       await fetchData();
-    } catch (error) {
+    } catch {
       showToast("Failed to delete voucher series", "error");
     } finally {
       setSaving(false);

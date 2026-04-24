@@ -1,0 +1,303 @@
+
+> bitezo-admin@0.0.0 lint
+> eslint .
+
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\auth\components\LoginForm.tsx
+  102:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\company\services\companyApi.ts
+  45:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\company\services\companyOnboardingApi.ts
+   41:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\company\types.ts
+  46:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\experimental\editable-grid\components\GridRowItem.tsx
+  4:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\counter\hooks\useCounterManager.ts
+   24:6   warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  112:14  error    'error' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+  125:14  error    'error' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\counter\services\counterService.ts
+  25:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  48:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  58:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\denomination\components\DenominationModal.tsx
+  47:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\denomination\hooks\useDenominationManager.ts
+  46:6   warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  94:21  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\paymode\constants.ts
+  3:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\paymode\hooks\usePaymodeManager.ts
+   23:6   warning  React Hook useEffect has a missing dependency: 'fetchRecords'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   30:21  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+   41:38  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+   45:21  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+  101:21  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+  123:21  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+  139:21  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\paymode\services\paymodeService.ts
+  54:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\section\hooks\useSectionManager.ts
+   24:6   warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  112:14  error    'error' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+  125:14  error    'error' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\section\services\sectionService.ts
+  22:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  53:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\tableMaster\components\TableFormSection.tsx
+  7:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\tableMaster\components\TableSectionSelector.tsx
+  5:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\tableMaster\hooks\useTableManager.ts
+   27:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   50:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\tableMaster\hooks\useTableSections.ts
+   5:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\tableMaster\services\tableService.ts
+  47:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  63:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  65:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\userRole\hooks\useUserRoleManager.ts
+  43:6  warning  React Hook useEffect has a missing dependency: 'loadInitialData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\user\pages\UserList.tsx
+  58:6  warning  React Hook useEffect has a missing dependency: 'loadUsers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\general\user\services\index.ts
+  116:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\branches\pages\BranchFormPage.tsx
+  23:16  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  56:15  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\branches\services\branch-mappers.ts
+  73:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  79:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  80:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  87:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  93:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  94:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\branches\services\branchApi.ts
+  43:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\category\hooks\useCategoryManager.ts
+  183:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\category\services\categoryService.ts
+  21:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  52:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\extrasMaster\components\ExtrasMasterForm.tsx
+  53:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\extrasMaster\hooks\useExtrasMasterManager.ts
+   48:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  191:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  205:14  error  'err' is defined but never used           @typescript-eslint/no-unused-vars
+  205:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\extrasMaster\pages\ExtrasMasterPage.tsx
+  71:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\extrasMaster\services\extrasService.ts
+  31:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  37:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\extrasType\hooks\useExtrasTypeManager.ts
+   27:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:14  error  'err' is defined but never used           @typescript-eslint/no-unused-vars
+  101:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\group\hooks\useGroupModal.ts
+  28:14  error  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\modifierType\hooks\useModifierTypeManager.ts
+   23:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:14  error  'err' is defined but never used           @typescript-eslint/no-unused-vars
+   97:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\modifier\components\form\ModifierBasicFields.tsx
+  18:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\modifier\hooks\useModifierList.ts
+  28:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\modifier\hooks\useModifierManager.ts
+  104:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:14  error  'err' is defined but never used           @typescript-eslint/no-unused-vars
+  133:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  145:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\modifier\pages\ModifierPage.tsx
+  71:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\modifier\services\modifierService.ts
+  28:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  32:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\components\ProductListCard.tsx
+  50:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\hooks\useProductActions.ts
+    6:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    7:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    8:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   33:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   41:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   45:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   46:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:65  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   58:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   60:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  192:14  error  'err' is defined but never used           @typescript-eslint/no-unused-vars
+  192:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\hooks\useProductManager.ts
+  33:6  warning  React Hook useEffect has a missing dependency: 'productList'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\hooks\useProductMasterData.ts
+  24:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\hooks\useProductMasterData.ts:24:7
+  22 |     const catId = parseInt(categoryId);
+  23 |     if (!catId) {
+> 24 |       setSubCategories([]);
+     |       ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  25 |       return;
+  26 |     }
+  27 |  react-hooks/set-state-in-effect
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\pages\ProductFormPage.tsx
+  46:6   warning  React Hook useEffect has missing dependencies: 'handleEditById' and 'resetForm'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  57:50  error    Unexpected any. Specify a different type                                                                                             @typescript-eslint/no-explicit-any
+  79:14  error    'error' is defined but never used                                                                                                    @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\product\pages\ProductListPage.tsx
+  56:14  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\shared\store\masterDataSlice.ts
+  35:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\subcategory\services\subCategoryService.ts
+  20:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  37:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  75:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\tax\hooks\useTaxManager.ts
+  62:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\tax\hooks\useTaxModal.ts
+  28:14  error  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\tax\pages\TaxPage.tsx
+  118:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\unit\hooks\useUnitManager.ts
+  63:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\unit\hooks\useUnitModal.ts
+  34:14  error  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\unit\pages\UnitPage.tsx
+  123:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\unit\types.ts
+  86:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\voucherSeries\hooks\useVoucherSeriesManager.ts
+   24:6   warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  125:14  error    'error' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+  138:14  error    'error' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\inventory\voucherSeries\services\voucherseriesService.ts
+  22:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  53:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\pos\components\PosProductGrid.tsx
+  43:26  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\pos\components\PosProductGrid.tsx:43:26
+  41 |   }, [products, columns]);
+  42 |
+> 43 |   const rowVirtualizer = useVirtualizer({
+     |                          ^^^^^^^^^^^^^^ TanStack Virtual's `useVirtualizer()` API returns functions that cannot be memoized safely
+  44 |     count: rows.length,
+  45 |     getScrollElement: () => parentRef.current,
+  46 |     estimateSize: () => 300,   react-hooks/incompatible-library
+
+C:\Users\DELL\Desktop\client-bitezo\src\features\systemRegistration\services\branchService.ts
+  7:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 154 problems (144 errors, 10 warnings)
+

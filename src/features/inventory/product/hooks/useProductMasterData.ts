@@ -21,6 +21,7 @@ export const useProductMasterData = (categoryId: string) => {
   useEffect(() => {
     const catId = parseInt(categoryId);
     if (!catId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSubCategories([]);
       return;
     }

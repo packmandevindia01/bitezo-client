@@ -35,7 +35,6 @@ const OtpForm = ({ onSubmit }: Props) => {
   };
 
   const handleResend = () => {
-    console.log("Resend OTP");
     setTimer(30);
   };
 

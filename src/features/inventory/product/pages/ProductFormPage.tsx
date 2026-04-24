@@ -43,7 +43,7 @@ const ProductFormPage = () => {
     } else {
       resetForm();
     }
-  }, [id]);
+  }, [id, handleEditById, resetForm]);
 
   // ─── Scan to Edit Logic (Multipage) ──────────────────────────────────────
 
@@ -54,7 +54,9 @@ const ProductFormPage = () => {
     showToast(`Quick Switch: ${code}...`, "info");
 
     // 1. Local Lookup
-    const localMatch = (products || []).find((p: any) => p.code.toLowerCase() === code.toLowerCase());
+    const localMatch = (products || []).find((p: any) => 
+      typeof p.code === "string" && p.code.toLowerCase() === code.toLowerCase()
+    );
     
     if (localMatch) {
       showToast(`Switched to: ${localMatch.name}`, "success");
@@ -76,7 +78,7 @@ const ProductFormPage = () => {
         setField("code", code);
         showToast(`New code detected: ${code}`, "info");
       }
-    } catch (error) {
+    } catch {
       // If error (like 404), treat as new code
       setField("code", code);
       showToast(`New code detected: ${code}`, "info");

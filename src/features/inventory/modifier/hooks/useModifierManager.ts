@@ -101,8 +101,9 @@ export const useModifierManager = () => {
       
       fetchModifiers();
       closeModal();
-    } catch (err: any) {
-      showToast(err.message || "Failed to save modifier", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save modifier";
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -115,8 +116,8 @@ export const useModifierManager = () => {
     try {
       const detail = await modifierService.getById(record.id);
       const mod = detail.modifier?.[0];
-      const branchIds = (detail.branchIds || []).map((b: any) => b.id);
-      const categoryIds = (detail.categoryIds || []).map((c: any) => c.id);
+      const branchIds = (detail.branchIds || []).map((b: { id?: number }) => b.id ?? 0);
+      const categoryIds = (detail.categoryIds || []).map((c: { id?: number }) => c.id ?? 0);
 
       if (mod) {
         setForm({
@@ -130,7 +131,7 @@ export const useModifierManager = () => {
           category: "",
         });
       }
-    } catch (err: any) {
+    } catch {
       showToast("Failed to load details", "error");
     } finally {
       setLoading(false);
@@ -142,8 +143,9 @@ export const useModifierManager = () => {
       await modifierService.remove(record.id);
       showToast("Modifier deleted successfully", "success");
       fetchModifiers();
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete modifier", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete modifier";
+      showToast(msg, "error");
     }
   };
 

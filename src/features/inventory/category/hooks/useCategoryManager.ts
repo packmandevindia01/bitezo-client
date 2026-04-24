@@ -180,7 +180,7 @@ export const useCategoryManager = () => {
       });
       // The API returns `branch` array of BranchOption or matching shape
       const allocatedBranches = res?.branch || [];
-      setSelectedBranchIds(allocatedBranches.map((b: any) => Number(b.id || b.branchId)));
+      setSelectedBranchIds(allocatedBranches.map((b: { id?: number; branchId?: number }) => Number(b.id || b.branchId)));
       setOpen(true);
     } catch (err) {
       setError("Failed to load category details. Please try again.");

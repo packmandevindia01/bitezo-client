@@ -3,9 +3,22 @@ import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 
 interface ProductActionsDeps {
-  formState: any;
-  altState: any;
-  productList: any;
+  formState: {
+    form: any;
+    editingId: number | null;
+    resetFormState: () => void;
+    setEditingId: (id: number) => void;
+    setForm: (form: any) => void;
+    setField: (key: any, value: any) => void;
+  };
+  altState: {
+    alternatives: any[];
+    resetAlternatives: () => void;
+    setAlternatives: (alts: any[]) => void;
+  };
+  productList: {
+    fetchProducts: () => void;
+  };
 }
 
 export const useProductActions = ({ formState, altState, productList }: ProductActionsDeps) => {
@@ -30,7 +43,7 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
       const p = productArr[0];
       
       if (p) {
-        const actualProductId = p.productId ?? (p as any).id;
+        const actualProductId = p.productId ?? (p as Record<string, unknown>).id;
         if (actualProductId) formState.setEditingId(actualProductId);
 
         formState.setForm({
@@ -38,12 +51,12 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
           name: p.name ?? "",
           arabicName: p.arabicName ?? "",
           categoryId: String(p.categoryId ?? ""),
-          subCatId: String(p.subCatId ?? (p as any).subcatId ?? ""),
+          subCatId: String(p.subCatId ?? (p as Record<string, unknown>).subcatId ?? ""),
           groupId: String(p.groupId ?? ""),
           typeId: String(p.typeId ?? "1"),
           unitId: String(p.unitId ?? ""),
-          pVatId: String(p.pVatId ?? (p as any).pvatId ?? ""),
-          sVatId: String(p.sVatId ?? (p as any).svatId ?? ""),
+          pVatId: String(p.pVatId ?? (p as Record<string, unknown>).pvatId ?? ""),
+          sVatId: String(p.sVatId ?? (p as Record<string, unknown>).svatId ?? ""),
           cost: String(p.cost ?? "0"),
           branchId: String(p.branchId ?? ""),
           isActive: p.isActive ?? true,
@@ -52,18 +65,20 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
         });
       }
       
-      const altData = (detail as any).altProducts ?? (detail as any).altproduct;
+      const detailRecord = detail as unknown as Record<string, unknown>;
+      const altData = detailRecord.altProducts ?? detailRecord.altproduct;
       if (altData && Array.isArray(altData)) {
         altState.setAlternatives(
-          altData.map((alt: any, idx: number) => ({
+          altData.map((alt: Record<string, unknown>, idx: number) => ({
             ...alt,
-            id: (alt as any).id || Date.now() + idx,
+            id: (alt.id as number) || Date.now() + idx,
             price: String(alt.price ?? "0"),
           }))
         );
       }
-    } catch (err: any) {
-      showToast(err.apiStatus === 409 ? "Conflict detected." : "Failed to load product details.", "error");
+    } catch (err: unknown) {
+      const axErr = err as { apiStatus?: number };
+      showToast(axErr.apiStatus === 409 ? "Conflict detected." : "Failed to load product details.", "error");
     } finally {
       setDetailLoading(false);
     }
@@ -83,36 +98,37 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
       const isNew = !editingId;
       if (isNew) {
         try {
-          const exists = await productService.checkCodeExists(form.code.trim());
+          const exists = await productService.checkCodeExists(String(form.code || "").trim());
           if (exists > 0) {
             showToast(`Code "${form.code}" already exists.`, "error");
             setSaving(false);
             return;
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const axErr = err as { apiStatus?: number; response?: { status?: number } };
           // If the check endpoint returns 404, the backend might not support this specific pre-check.
           // We proceed to the CREATE call and let it handle any actual duplicates (409 Conflict).
-          if (err.apiStatus !== 404 && err.response?.status !== 404) {
+          if (axErr.apiStatus !== 404 && axErr.response?.status !== 404) {
             console.error("Code check failed:", err);
           }
         }
       }
 
       const payload = {
-        code: form.code.trim(),
-        name: form.name.trim(),
-        arabicName: form.arabicName.trim(),
-        categoryId: parseInt(form.categoryId) || 1,
-        subCatId: parseInt(form.subCatId) || 0,
-        groupId: parseInt(form.groupId) || 1,
-        typeId: parseInt(form.typeId) || 1,
-        unitId: parseInt(form.unitId) || 1,
-        pVatId: parseInt(form.pVatId) || 0,
-        sVatId: parseInt(form.sVatId) || 0,
-        cost: parseFloat(form.cost) || 0,
-        branchId: parseInt(form.branchId) || 1,
-        fileName: form.fileName || "",
-        filePath: form.filePath || "",
+        code: String(form.code || "").trim(),
+        name: String(form.name || "").trim(),
+        arabicName: String(form.arabicName || "").trim(),
+        categoryId: parseInt(String(form.categoryId)) || 1,
+        subCatId: parseInt(String(form.subCatId)) || 0,
+        groupId: parseInt(String(form.groupId)) || 1,
+        typeId: parseInt(String(form.typeId)) || 1,
+        unitId: parseInt(String(form.unitId)) || 1,
+        pVatId: parseInt(String(form.pVatId)) || 0,
+        sVatId: parseInt(String(form.sVatId)) || 0,
+        cost: parseFloat(String(form.cost)) || 0,
+        branchId: parseInt(String(form.branchId)) || 1,
+        fileName: String(form.fileName || ""),
+        filePath: String(form.filePath || ""),
         isActive: form.isActive !== false,
         altProducts: alternatives.map((alt: any) => ({
           unitId: parseInt(alt.unitId),
@@ -123,18 +139,18 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
           altArabic: alt.altArabic || "",
           branchId: parseInt(alt.branchId) || 1,
         })),
-      };
+      } as any;
 
       if (editingId) {
         await productService.update(editingId, {
-          ...payload,
+          ...(payload as any),
           productId: editingId,
           updatedAt: new Date().toISOString(),
         });
         showToast("Product updated successfully.", "success");
       } else {
         await productService.create({
-          ...payload,
+          ...(payload as any),
           createdAt: new Date().toISOString(),
         });
         showToast("Product created successfully.", "success");
@@ -143,9 +159,10 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
       if (onSuccess) onSuccess();
       else resetForm();
       productList.fetchProducts();
-    } catch (err: any) {
-      const apiMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
-      showToast(apiMsg || err.message || "Failed to save product.", "error");
+    } catch (err: unknown) {
+      const axErr = err as { response?: { data?: { message?: string; errors?: { message?: string }[] } }; message?: string };
+      const apiMsg = axErr.response?.data?.message || axErr.response?.data?.errors?.[0]?.message;
+      showToast(apiMsg || axErr.message || "Failed to save product.", "error");
     } finally {
       setSaving(false);
     }
@@ -159,8 +176,9 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
       showToast("Product deleted successfully.", "success");
       setPendingDelete(null);
       productList.fetchProducts();
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete product.", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete product.";
+      showToast(msg, "error");
       setPendingDelete(null);
     } finally {
       setDeleting(false);
@@ -179,17 +197,17 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
           ...p,
           isActive: false,
           updatedAt: new Date().toISOString(),
-          altProducts: (detail.altProducts ?? []).map((alt: any) => ({ 
+          altProducts: ((detail.altProducts as any[]) ?? []).map((alt: any) => ({ 
             ...alt, 
             price: alt.price ?? 0, 
             isIncl: alt.isIncl ?? true 
-          }))
+          })) as any
         });
         showToast("Product deactivated.", "success");
         formState.setField("isActive", false);
         productList.fetchProducts();
       }
-    } catch (err: any) {
+    } catch {
       showToast("Deactivation failed.", "error");
     }
   };

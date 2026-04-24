@@ -2,7 +2,8 @@ import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import type { 
   SectionDetail, 
-  SectionPayload 
+  SectionPayload,
+  SectionRecord
 } from "../types";
 
 const BASE = "/section";
@@ -19,9 +20,9 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 }
 
 export const sectionService = {
-  list(): Promise<any[]> {
+  list(): Promise<SectionRecord[]> {
     return unwrap(
-      axiosInstance.get<ApiResponse<any[]>>(`${BASE}/section-list`)
+      axiosInstance.get<ApiResponse<SectionRecord[]>>(`${BASE}/section-list`)
     );
   },
 
@@ -40,9 +41,9 @@ export const sectionService = {
     );
   },
 
-  update(sectionId: number, payload: SectionPayload): Promise<any> {
+  update(sectionId: number, payload: SectionPayload): Promise<unknown> {
     return unwrap(
-      axiosInstance.put<ApiResponse<any>>(`${BASE}/${sectionId}`, {
+      axiosInstance.put<ApiResponse<unknown>>(`${BASE}/${sectionId}`, {
         ...payload,
         sectionId,
         updatedAt: new Date().toISOString()
@@ -50,9 +51,9 @@ export const sectionService = {
     );
   },
 
-  remove(sectionId: number): Promise<any> {
+  remove(sectionId: number): Promise<unknown> {
     return unwrap(
-      axiosInstance.delete<ApiResponse<any>>(`${BASE}/${sectionId}`)
+      axiosInstance.delete<ApiResponse<unknown>>(`${BASE}/${sectionId}`)
     );
   },
 } as const;

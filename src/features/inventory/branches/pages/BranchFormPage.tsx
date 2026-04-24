@@ -20,7 +20,7 @@ const BranchFormPage = () => {
       try {
         const data = await fetchBranchById(Number(id));
         setInitialData(data);
-      } catch (error) {
+      } catch {
         showToast("Failed to load branch details", "error");
         navigate("/dashboard/branches");
       } finally {
@@ -53,7 +53,7 @@ const BranchFormPage = () => {
        await deleteBranch(Number(id));
        showToast("Branch deleted successfully", "success");
        navigate("/dashboard/branches");
-     } catch (error) {
+     } catch {
        showToast("Failed to delete branch", "error");
      }
   };

@@ -9,6 +9,7 @@ const getPageTitle = (pathname: string): string => {
   const map: Record<string, string> = {
     "/dashboard": "Dashboard",
     "/dashboard/users": "Users",
+    "/dashboard/user-roles": "User Roles",
     "/dashboard/customers": "Customers",
     "/dashboard/customers/new": "New Customer",
     "/dashboard/employees": "Employees",
@@ -28,6 +29,8 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/extras-type": "Extras Type",
     "/dashboard/modifier-type": "Modifier Type",
     "/dashboard/taxes": "Tax Master",
+    "/dashboard/purchase-invoice": "Purchase Invoice",
+    "/dashboard/purchase-return": "Purchase Return",
     "/cashier/in": "Cashier In — Open Shift",
     "/cashier/out": "Cashier Out — Close Shift",
     "/system/register": "System Registration",

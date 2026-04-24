@@ -1,8 +1,9 @@
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "../../../../components/common";
+import type { SectionRecord } from "../../section/types";
 
 interface TableSectionSelectorProps {
-  sections: any[];
+  sections: SectionRecord[];
   selectedSectionId: number | null;
   loading: boolean;
   onSectionChange: (value: string) => void;
@@ -33,7 +34,7 @@ const TableSectionSelector = ({
           </option>
           {sections.map(section => (
             <option key={section.sectionId} value={section.sectionId}>
-              {section.name || section.sectionName}
+              {section.name || (section as any).sectionName as string}
             </option>
           ))}
         </select>

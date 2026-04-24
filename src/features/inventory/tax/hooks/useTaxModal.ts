@@ -25,7 +25,7 @@ export const useTaxModal = () => {
     try {
       const detail = await taxService.getById(record.id);
       setModal({ mode: "edit", vatId: record.id, detail });
-    } catch (err) {
+    } catch {
       setModal({
         mode: "edit",
         vatId: record.id,

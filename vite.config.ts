@@ -23,13 +23,13 @@ export default defineConfig({
         display: 'fullscreen',
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
+            src: 'favicon-48.png',
+            sizes: '48x48',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
+            src: 'favicon-32.png',
+            sizes: '32x32',
             type: 'image/png'
           }
         ]

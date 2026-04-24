@@ -95,7 +95,8 @@ export const useSubCategoryManager = () => {
       setError(null);
       const res = await getSubCategoryById(record.id);
       
-      const subCatArray = res?.subcategory || res?.subcategory_list || res?.data || res;
+      const rawRes = res as any;
+      const subCatArray = rawRes?.subcategory || rawRes?.subcategory_list || rawRes?.data || rawRes;
       const subCat = Array.isArray(subCatArray) ? subCatArray[0] : subCatArray;
 
       const scId = subCat?.id || subCat?.subCatId || record.id;

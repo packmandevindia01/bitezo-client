@@ -2,6 +2,7 @@ import {
   Package,
   Layers3,
   ShieldUser,
+  ShieldCheck,
   Users,
   UserCog,
   Ticket,
@@ -46,6 +47,13 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
           <div className="flex items-center gap-2">
             <ShieldUser size={14} />
             <span>Users</span>
+          </div>
+        </div>
+
+        <div onClick={() => handleItemClick("/dashboard/user-roles")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={14} />
+            <span>User Roles</span>
           </div>
         </div>
 

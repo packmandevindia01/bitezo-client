@@ -25,11 +25,11 @@ export const modifierService = {
     );
   },
 
-  create: (payload: any): Promise<{ id: number }> => {
+  create: (payload: Record<string, unknown>): Promise<{ id: number }> => {
     return unwrap(axiosInstance.post<ApiResponse<{ id: number }>>(BASE, payload));
   },
 
-  update: (id: number, payload: any): Promise<void> => {
+  update: (id: number, payload: Record<string, unknown>): Promise<void> => {
     return unwrap(axiosInstance.put<ApiResponse<void>>(`${BASE}/${id}`, payload));
   },
 

@@ -53,7 +53,7 @@ const ProductListPage = () => {
       } else {
         showToast(`Product with code "${code}" not found.`, "error");
       }
-    } catch (error) {
+    } catch {
       showToast(`Product code "${code}" not found.`, "error");
     }
   };

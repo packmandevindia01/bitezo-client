@@ -1,13 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";
 import SidebarHeader from "./sidebar/SidebarHeader";
 import NavMasterGroup from "./sidebar/NavMasterGroup";
 import NavReportGroup from "./sidebar/NavReportGroup";
+import NavTransactionGroup from "./sidebar/NavTransactionGroup";
 
 interface Props {
   isOpen: boolean;
@@ -18,7 +16,7 @@ interface Props {
 const itemClassName =
   "px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer";
 
-const Sidebar = ({ isOpen: _isOpen, onClose, onDenominationOpen }: Props) => {
+const Sidebar = ({ onClose, onDenominationOpen }: Props) => {
   const navigate = useNavigate();
   const systemName = localStorage.getItem("systemName");
 
@@ -43,16 +41,14 @@ const Sidebar = ({ isOpen: _isOpen, onClose, onDenominationOpen }: Props) => {
           onOpenDenomination={onDenominationOpen}
         />
 
+        <NavTransactionGroup
+          navigate={navigate}
+          onClose={onClose}
+          itemClassName={itemClassName}
+        />
+
         <NavReportGroup onClose={onClose} />
 
-        <SidebarItem
-          icon={<Settings size={18} />}
-          label="Settings"
-          onClick={() => {
-            navigate("/dashboard/settings");
-            onClose();
-          }}
-        />
       </div>
     </div>
   );

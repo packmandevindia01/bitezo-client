@@ -44,10 +44,10 @@ export const tableService = {
     );
   },
 
-  update(tableId: number, payload: TablePayload): Promise<any> {
+  update(tableId: number, payload: TablePayload): Promise<unknown> {
     const url = `${BASE}/${tableId}`;
     return unwrap(
-      axiosInstance.put<ApiResponse<any>>(url, {
+      axiosInstance.put<ApiResponse<unknown>>(url, {
         tableId: tableId,
         tableName: payload.tableName,
         chairs: payload.chairs,
@@ -60,9 +60,9 @@ export const tableService = {
 
   },
 
-  remove(tableId: number): Promise<any> {
+  remove(tableId: number): Promise<unknown> {
     return unwrap(
-      axiosInstance.delete<ApiResponse<any>>(`${BASE}/${tableId}`)
+      axiosInstance.delete<ApiResponse<unknown>>(`${BASE}/${tableId}`)
     );
   },
 } as const;

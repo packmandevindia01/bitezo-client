@@ -18,12 +18,12 @@ export const getCategories = async (
   if (catCode) params.catCode = catCode;
   if (catName) params.catName = catName;
 
-  const { data } = await axiosInstance.get<ApiResponse<any[]>>(
+  const { data } = await axiosInstance.get<ApiResponse<CategoryListItem[]>>(
     "/category/category-list",
     { params }
   );
-  return (data.data ?? []).map((item) => ({
-    id: item.catId,
+  return ((data.data as any[]) ?? []).map((item) => ({
+    id: item.catId ?? item.id,
     code: item.catCode || item.code,
     name: item.catName || item.name,
     isActive: item.isActive === "Active" || item.isActive === true,
@@ -49,8 +49,9 @@ export const createCategory = async (
     };
     const { data } = await axiosInstance.post<ApiResponse<unknown>>("/category", body);
     return data;
-  } catch (err: any) {
-    const body = err?.response?.data;
+  } catch (err: unknown) {
+    const axErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } };
+    const body = axErr?.response?.data;
     if (body?.errors && typeof body.errors === "object") {
       const detail = Object.entries(body.errors)
         .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)

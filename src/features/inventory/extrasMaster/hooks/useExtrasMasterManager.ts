@@ -45,8 +45,9 @@ export const useExtrasMasterManager = () => {
     try {
       const data = await extrasService.list();
       setRecords(data);
-    } catch (err: any) {
-      showToast(err.message || "Failed to load extras", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load extras";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -173,8 +174,9 @@ export const useExtrasMasterManager = () => {
       
       fetchExtras();
       closeModal();
-    } catch (err: any) {
-      showToast(err.message || "Failed to save extra", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save extra";
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -187,8 +189,8 @@ export const useExtrasMasterManager = () => {
     try {
       const detail = await extrasService.getById(record.id);
       const mod = detail.modifier?.[0];
-      const branchIds = (detail.branchIds || []).map((b: any) => b.id);
-      const categoryIds = (detail.categoryIds || []).map((c: any) => c.id);
+      const branchIds = (detail.branchIds || []).map((b: { id?: number }) => b.id ?? 0);
+      const categoryIds = (detail.categoryIds || []).map((c: { id?: number }) => c.id ?? 0);
 
       if (mod) {
         setForm({
@@ -202,7 +204,7 @@ export const useExtrasMasterManager = () => {
           category: "",
         });
       }
-    } catch (err: any) {
+    } catch {
       showToast("Failed to load details", "error");
     } finally {
       setLoading(false);
@@ -215,8 +217,9 @@ export const useExtrasMasterManager = () => {
       await extrasService.remove(record.id);
       showToast("Extra deleted successfully", "success");
       fetchExtras();
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete extra", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete extra";
+      showToast(msg, "error");
     }
   };
 

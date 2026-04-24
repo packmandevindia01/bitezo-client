@@ -7,9 +7,7 @@ const VerifyOtpPage = () => {
 
   const email = location.state?.email;
 
-  const handleVerifyOtp = (otp: string) => {
-    console.log("Verify OTP:", otp, "for email:", email);
-
+  const handleVerifyOtp = () => {
     // 🔥 replace with API later
     navigate("/reset-password");
   };

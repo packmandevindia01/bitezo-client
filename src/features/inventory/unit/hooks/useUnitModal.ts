@@ -31,7 +31,7 @@ export const useUnitModal = () => {
     try {
       const detail = await unitService.getById(record.unitId);
       setModal({ mode: "edit", unitId: record.unitId, detail });
-    } catch (err) {
+    } catch {
       setModal({
         mode: "edit",
         unitId: record.unitId,

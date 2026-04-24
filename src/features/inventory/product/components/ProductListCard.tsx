@@ -47,7 +47,7 @@ const ProductListCard = ({
         { 
           header: "Cost", 
           accessor: "cost",
-          render: (row: any) => formatCurrency(row.cost, decimalPart)
+          render: (row: ProductListItem) => formatCurrency(row.cost, decimalPart)
         },
         {
           header: "Actions",

@@ -4,7 +4,7 @@ import { statusOptions } from "../constants";
 import type { TableForm } from "../types";
 
 interface TableFormSectionProps {
-  form: any;
+  form: TableForm;
   mode: "create" | "edit";
   loading: boolean;
   onSetField: <K extends keyof TableForm>(key: K, value: TableForm[K]) => void;

@@ -14,6 +14,7 @@ const ResetPasswordPage = lazy(() => import("../../features/auth/pages/ResetPass
 const CompanyOnboardingPage = lazy(() => import("../../features/company/pages/CompanyOnboardingPage"));
 const DashboardPage = lazy(() => import("../../features/dashboard/pages/DashboardPage"));
 const UserList = lazy(() => import("../../features/general/user/pages/UserList"));
+const UserRolePage = lazy(() => import("../../features/general/userRole/pages/UserRolePage"));
 const CustomerListPage = lazy(() => import("../../features/general/customer/pages/CustomerListPage"));
 const CustomerFormPage = lazy(() => import("../../features/general/customer/pages/CustomerFormPage"));
 const EmployeePage = lazy(() => import("../../features/general/employee/pages/EmployeePage"));
@@ -40,6 +41,8 @@ const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"))
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
 const CashierInPage = lazy(() => import("../../features/systemRegistration/pages/CashierInPage"));
 const CashierOutPage = lazy(() => import("../../features/systemRegistration/pages/CashierOutPage"));
+const PurchaseInvoicePage = lazy(() => import("../../features/transaction/purchase/pages/PurchaseInvoicePage"));
+const PurchaseReturnPage = lazy(() => import("../../features/transaction/purchase/pages/PurchaseReturnPage"));
 
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
@@ -85,6 +88,7 @@ const AppRoutes = () => {
                 <Route path="/dashboard" element={<MainLayout />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="users" element={<UserList />} />
+                  <Route path="user-roles" element={<UserRolePage />} />
                   <Route path="customers" element={<CustomerListPage />} />
                   <Route path="customers/new" element={<CustomerFormPage />} />
                   <Route path="employees" element={<EmployeePage />} />
@@ -108,6 +112,8 @@ const AppRoutes = () => {
                   <Route path="extras-type" element={<ExtrasTypePage />} />
                   <Route path="modifier-type" element={<ModifierTypePage />} />
                   <Route path="taxes" element={<TaxPage />} />
+                  <Route path="purchase-invoice" element={<PurchaseInvoicePage />} />
+                  <Route path="purchase-return" element={<PurchaseReturnPage />} />
                   <Route path="test/editable-grid" element={<EditableGridView />} />
                 </Route>
 

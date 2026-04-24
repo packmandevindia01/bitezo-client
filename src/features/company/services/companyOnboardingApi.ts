@@ -38,7 +38,7 @@ export const verifyCompanyOtp = async (regId: string, email: string, otp: string
 
   // Handle "200-OK-but-logical-error" pattern
   if (!data.otpToken || !data.otpToken.isSuccess) {
-    throw new Error((data.otpToken as any)?.message || "OTP verification failed. Please try again.");
+    throw new Error((data.otpToken as { message?: string })?.message || "OTP verification failed. Please try again.");
   }
 
   const tokenString = data.otpToken.data;
@@ -60,9 +60,11 @@ export const fetchCompanyRegistration = async <T = unknown>(
       }
     );
 
-    const database = (json as any)?.data?.database ?? null;
-    const tempToken = (json as any)?.temp_token ?? null;
-    const isNew = (json as any)?.isNew ?? false;
+    const raw = json as unknown as Record<string, unknown>;
+    const rawData = raw?.data as Record<string, unknown> | null | undefined;
+    const database = rawData?.database ?? null;
+    const tempToken = raw?.temp_token ?? null;
+    const isNew = (raw?.isNew ?? false) as boolean;
 
     return {
       data: json?.data ?? null,
@@ -73,12 +75,13 @@ export const fetchCompanyRegistration = async <T = unknown>(
       tempToken,
       raw: json,
     };
-  } catch (err: any) {
-    const json = err.response?.data;
-    if (err.response?.status === 404) {
+  } catch (err: unknown) {
+    const axErr = err as { response?: { status?: number; data?: { message?: string } } };
+    const json = axErr.response?.data;
+    if (axErr.response?.status === 404) {
       throw new Error(json?.message ?? "Wrong credentials. Please check your Registration ID and email.");
     }
-    if (err.response?.status === 401) {
+    if (axErr.response?.status === 401) {
       throw new Error(json?.message ?? "OTP verification failed. Please try again.");
     }
     throw new Error(json?.message ?? "Failed to verify credentials. Please try again.");
@@ -87,7 +90,7 @@ export const fetchCompanyRegistration = async <T = unknown>(
 
 export const checkCompanyExists = async (clientDb: string, regId: string) => {
   try {
-    const { data: json, status } = await axiosInstance.get<any>(
+    const { data: json, status } = await axiosInstance.get<Record<string, unknown>>(
       `/company/isExist/${encodeURIComponent(clientDb)}/${encodeURIComponent(regId)}`,
       {
         validateStatus: (s) => (s >= 200 && s < 300) || s === 404 || s === 409 || s === 400
@@ -96,7 +99,7 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
 
     // 400 = bad request / regId mismatch — hard error
     if (status === 400) {
-      throw new Error(json?.message ?? "Registration ID mismatch.");
+      throw new Error((json?.message as string) ?? "Registration ID mismatch.");
     }
 
     // 404 = "Company not created yet" — this is the HAPPY PATH for new customers
@@ -131,8 +134,9 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
       data: null,
       message: json?.message ?? "Company not found.",
     };
-  } catch (err: any) {
-    throw new Error(err.response?.data?.message || "Failed to verify company registration.");
+  } catch (err: unknown) {
+    const axErr = err as { response?: { data?: { message?: string } } };
+    throw new Error(axErr.response?.data?.message || "Failed to verify company registration.");
   }
 };
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createEmptyPaymodeForm } from "../constants";
 import type { CounterOption, PaymodeForm, PaymodeRecord } from "../types";
 import { paymodeService } from "../services/paymodeService";
@@ -17,35 +17,35 @@ export const usePaymodeManager = () => {
   const [counterOptions, setCounterOptions] = useState<CounterOption[]>([]);
   const [counterAllocOpen, setCounterAllocOpen] = useState(false);
 
-  useEffect(() => {
-    fetchRecords();
-    fetchCounters();
-  }, []);
-
-  const fetchRecords = async () => {
+  const fetchRecords = useCallback(async () => {
     try {
       setLoading(true);
       const data = await paymodeService.list();
       setRecords(data);
-    } catch (error: any) {
-      showToast(error.message || "Failed to fetch paymodes", "error");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Failed to fetch paymodes";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
-
-  const fetchCounters = async () => {
+  const fetchCounters = useCallback(async () => {
     try {
       const data = await counterService.list();
-      setCounterOptions(data.map((c: any) => ({
+      setCounterOptions(data.map((c) => ({
         counterId: c.counterId,
         counterName: c.counterName
       })));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to fetch counters", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchRecords();
+    fetchCounters();
+  }, [fetchRecords, fetchCounters]);
 
   const setField = (patch: Partial<PaymodeForm>) => {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -98,8 +98,9 @@ export const usePaymodeManager = () => {
       }
       fetchRecords();
       closeModal();
-    } catch (error: any) {
-      showToast(error.message || "Failed to save paymode", "error");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Failed to save paymode";
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -120,8 +121,9 @@ export const usePaymodeManager = () => {
       });
 
       setOpen(true);
-    } catch (error: any) {
-      showToast(error.message || "Failed to fetch paymode details", "error");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Failed to fetch paymode details";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -136,8 +138,9 @@ export const usePaymodeManager = () => {
       if (editingId === paymodeId) {
         closeModal();
       }
-    } catch (error: any) {
-      showToast(error.message || "Failed to delete paymode", "error");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Failed to delete paymode";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

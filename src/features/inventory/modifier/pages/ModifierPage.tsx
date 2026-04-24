@@ -68,8 +68,8 @@ const ModifierPage = () => {
             header: "Type", 
             accessor: "typeId",
             render: (row) => {
-              const typeId = row.typeId || (row as any).type_id;
-              const type = modifierTypes.find(t => t.typeId === typeId);
+              const typeId = String(row.typeId || (row as any).type_id || "");
+              const type = modifierTypes.find(t => String(t.typeId || (t as any).id) === typeId);
               return <span>{type?.name || typeId || "N/A"}</span>;
             }
           },

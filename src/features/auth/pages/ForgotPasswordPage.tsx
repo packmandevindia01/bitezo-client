@@ -5,8 +5,6 @@ const ForgotPasswordPage = () => {
   const navigate = useNavigate();
 
   const handleEmailSubmit = (email: string) => {
-    console.log("Send OTP to:", email);
-
     // 🔥 later replace with API
     navigate("/verify-otp", { state: { email } });
   };

@@ -99,9 +99,10 @@ const LoginForm = () => {
 
       showToast("Invalid credentials", "warning");
       setPassword("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       let message = "Login failed. Please try again.";
-      if (error.response?.status === 401) {
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError.response?.status === 401) {
         message = "Please check login validation";
       } else if (error instanceof Error) {
         message = error.message;

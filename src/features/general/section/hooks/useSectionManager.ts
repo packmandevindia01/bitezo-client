@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { counterService } from "../../counter/services/counterService";
 import type { CounterRecord } from "../../counter/types";
@@ -18,12 +18,7 @@ export const useSectionManager = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [sectionList, counterList] = await Promise.all([
@@ -39,7 +34,12 @@ export const useSectionManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const setField = <K extends keyof SectionForm>(key: K, value: SectionForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -109,7 +109,7 @@ export const useSectionManager = () => {
         counterId: String(detail.counterId),
       });
       setOpen(true);
-    } catch (error) {
+    } catch {
       showToast("Failed to load section details", "error");
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ export const useSectionManager = () => {
       await sectionService.remove(record.sectionId);
       showToast("Section deleted successfully", "success");
       await fetchData();
-    } catch (error) {
+    } catch {
       showToast("Failed to delete section", "error");
     } finally {
       setSaving(false);

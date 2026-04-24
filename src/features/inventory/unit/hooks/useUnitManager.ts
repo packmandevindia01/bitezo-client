@@ -60,8 +60,9 @@ export const useUnitManager = () => {
         showToast(modal.mode === "edit" ? "Unit updated successfully" : "Unit created successfully", "success");
         closeModal();
         await fetchUnits();
-      } catch (err: any) {
-        const apiMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
+      } catch (err: unknown) {
+        const axErr = err as { response?: { data?: { message?: string; errors?: { message?: string }[] } }; message?: string };
+        const apiMsg = axErr.response?.data?.message || axErr.response?.data?.errors?.[0]?.message;
         const msg = apiMsg || (err instanceof Error ? err.message : "Save failed.");
         setMutationError(msg);
         showToast(msg, "error");

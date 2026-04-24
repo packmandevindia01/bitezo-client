@@ -32,14 +32,15 @@ export const fetchGlobalMasterData = createAsyncThunk(
         branchApi.fetchBranchNames(true),
       ]);
 
-      const branches = branchList.map((b: any) => ({
+      const branches = branchList.map((b) => ({
         id: b.id,
         name: b.branchName,
       }));
 
       return { pMaster, branches };
-    } catch (err: any) {
-      return rejectWithValue(err.message || 'Failed to load global master data');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load global master data';
+      return rejectWithValue(msg);
     }
   }
 );

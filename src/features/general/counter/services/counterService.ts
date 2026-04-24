@@ -2,7 +2,8 @@ import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import type { 
   CounterDetail, 
-  CounterPayload 
+  CounterPayload,
+  CounterRecord
 } from "../types";
 
 // Note: The UI types might differ slightly from the raw API response
@@ -22,9 +23,9 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 }
 
 export const counterService = {
-  list(): Promise<any[]> {
+  list(): Promise<CounterRecord[]> {
     return unwrap(
-      axiosInstance.get<ApiResponse<any[]>>(`${BASE}/counter-list`)
+      axiosInstance.get<ApiResponse<CounterRecord[]>>(`${BASE}/counter-list`)
     );
   },
 
@@ -43,9 +44,9 @@ export const counterService = {
     );
   },
 
-  update(counterId: number, payload: CounterPayload): Promise<any> {
+  update(counterId: number, payload: CounterPayload): Promise<unknown> {
     return unwrap(
-      axiosInstance.put<ApiResponse<any>>(`${BASE}/${counterId}`, {
+      axiosInstance.put<ApiResponse<unknown>>(`${BASE}/${counterId}`, {
         ...payload,
         counterId,
         updatedAt: new Date().toISOString()
@@ -53,9 +54,9 @@ export const counterService = {
     );
   },
 
-  remove(counterId: number): Promise<any> {
+  remove(counterId: number): Promise<unknown> {
     return unwrap(
-      axiosInstance.delete<ApiResponse<any>>(`${BASE}/${counterId}`)
+      axiosInstance.delete<ApiResponse<unknown>>(`${BASE}/${counterId}`)
     );
   },
 } as const;
