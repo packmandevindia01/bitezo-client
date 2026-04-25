@@ -98,6 +98,20 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
             <span>Denomination</span>
           </div>
         </div>
+
+        <div onClick={() => handleItemClick("/dashboard/recipes")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed size={14} />
+            <span>Recipe</span>
+          </div>
+        </div>
+
+        <div onClick={() => handleItemClick("/dashboard/bom")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <PackageSearch size={14} />
+            <span>BOM</span>
+          </div>
+        </div>
       </SidebarDropdown>
 
       <SidebarDropdown label="Order" icon={<UtensilsCrossed size={14} />} nested defaultOpen>

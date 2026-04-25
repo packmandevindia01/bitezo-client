@@ -97,6 +97,20 @@ export const useUserRoleManager = () => {
     });
   };
 
+  const setActionPermissions = (category: string, action: string, checked: boolean, categories: Record<string, string[]>) => {
+    const modules = categories[category] || [];
+    const actionIds = permissions
+      .filter((p) => modules.includes(p.module) && p.action === action)
+      .map((p) => p.permissionId);
+
+    setForm((prev) => {
+      const ids = checked
+        ? Array.from(new Set([...prev.permissionIds, ...actionIds]))
+        : prev.permissionIds.filter((id) => !actionIds.includes(id));
+      return { ...prev, permissionIds: ids };
+    });
+  };
+
   const handleEdit = async (record: UserRoleRecord) => {
     try {
       setOpen(true);
@@ -191,5 +205,6 @@ export const useUserRoleManager = () => {
     handleEdit,
     handleSave,
     handleDelete,
+    setActionPermissions,
   };
 };

@@ -41,8 +41,12 @@ const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"))
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
 const CashierInPage = lazy(() => import("../../features/systemRegistration/pages/CashierInPage"));
 const CashierOutPage = lazy(() => import("../../features/systemRegistration/pages/CashierOutPage"));
-const PurchaseInvoicePage = lazy(() => import("../../features/transaction/purchase/pages/PurchaseInvoicePage"));
-const PurchaseReturnPage = lazy(() => import("../../features/transaction/purchase/pages/PurchaseReturnPage"));
+const PurchaseInvoicePage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoicePage"));
+const PurchaseReturnPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnPage"));
+const RecipePage = lazy(() => import("../../features/general/recipe/pages/RecipePage"));
+const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
+const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
+const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
 
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
@@ -115,6 +119,10 @@ const AppRoutes = () => {
                   <Route path="purchase-invoice" element={<PurchaseInvoicePage />} />
                   <Route path="purchase-return" element={<PurchaseReturnPage />} />
                   <Route path="test/editable-grid" element={<EditableGridView />} />
+                  <Route path="recipes" element={<RecipePage />} />
+                  <Route path="bom" element={<BomPage />} />
+                  <Route path="production" element={<ProductionPage />} />
+                  <Route path="stock-adjustment" element={<StockAdjustmentPage />} />
                 </Route>
 
               </Route>

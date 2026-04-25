@@ -27,6 +27,7 @@ const UserRolePage = () => {
     handleEdit,
     handleSave,
     handleDelete,
+    setActionPermissions,
   } = useUserRoleManager();
   const [deleteRecord, setDeleteRecord] = useState<UserRoleRecord | null>(null);
 
@@ -93,6 +94,7 @@ const UserRolePage = () => {
             closeModal();
           }
         }}
+        setActionPermissions={setActionPermissions}
       />
 
       <ConfirmDialog

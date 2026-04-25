@@ -1,16 +1,12 @@
 import { useMemo, useRef, useState } from "react";
 import { FileText, Plus, Printer, RotateCcw, Save, X } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
-import { createEmptyPurchaseTransactionForm } from "../constants";
-import type { PurchaseLineItem, PurchaseTransactionForm, PurchaseTransactionKind } from "../types";
-
-interface Props {
-  kind: PurchaseTransactionKind;
-}
+import { createEmptyPurchaseInvoiceForm } from "../constants";
+import type { PurchaseInvoiceLineItem, PurchaseInvoiceForm } from "../types";
 
 type FieldConfig = {
   label: string;
-  key: keyof PurchaseTransactionForm;
+  key: keyof PurchaseInvoiceForm;
   type?: string;
   required?: boolean;
 };
@@ -22,7 +18,7 @@ const toNumber = (value: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const calculateLine = (item: PurchaseLineItem) => {
+const calculateLine = (item: PurchaseInvoiceLineItem) => {
   const amount = item.qty * item.price;
   const discountAmount = amount * (item.discPercent / 100);
   const vatAmount = (amount - discountAmount) * (item.vatPercent / 100);
@@ -36,22 +32,17 @@ const calculateLine = (item: PurchaseLineItem) => {
   };
 };
 
-const PurchaseTransactionPage = ({ kind }: Props) => {
-  const [form, setForm] = useState<PurchaseTransactionForm>(createEmptyPurchaseTransactionForm());
-  const [items, setItems] = useState<PurchaseLineItem[]>([]);
+const PurchaseInvoicePage = () => {
+  const [form, setForm] = useState<PurchaseInvoiceForm>(createEmptyPurchaseInvoiceForm());
+  const [items, setItems] = useState<PurchaseInvoiceLineItem[]>([]);
   const nextItemId = useRef(1);
-
-  const isReturn = kind === "return";
-  const title = isReturn ? "Purchase Return" : "Purchase Invoice";
-  const purchaseNoLabel = isReturn ? "PR No" : "P No";
-  const invoiceNoLabel = isReturn ? "P Inv No" : "Inv No";
 
   const topFields: FieldConfig[] = [
     { label: "Series", key: "series", required: true },
-    { label: purchaseNoLabel, key: "purchaseNo", required: true },
+    { label: "P No", key: "purchaseNo", required: true },
     { label: "P Date", key: "purchaseDate", type: "date", required: true },
-    { label: invoiceNoLabel, key: "invoiceNo", required: !isReturn },
-    ...(!isReturn ? [{ label: "Inv Date", key: "invoiceDate", type: "date", required: true } as FieldConfig] : []),
+    { label: "Inv No", key: "invoiceNo", required: true },
+    { label: "Inv Date", key: "invoiceDate", type: "date", required: true },
   ];
 
   const partyFields: FieldConfig[] = [
@@ -60,11 +51,11 @@ const PurchaseTransactionPage = ({ kind }: Props) => {
     { label: "Salesman", key: "salesman", required: true },
   ];
 
-  const setField = (key: keyof PurchaseTransactionForm, value: string) => {
+  const setField = (key: keyof PurchaseInvoiceForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const currentLine = useMemo<PurchaseLineItem>(
+  const currentLine = useMemo<PurchaseInvoiceLineItem>(
     () => ({
       id: 0,
       product: form.product.trim(),
@@ -124,7 +115,7 @@ const PurchaseTransactionPage = ({ kind }: Props) => {
   };
 
   const resetForm = () => {
-    setForm(createEmptyPurchaseTransactionForm());
+    setForm(createEmptyPurchaseInvoiceForm());
     setItems([]);
   };
 
@@ -141,7 +132,7 @@ const PurchaseTransactionPage = ({ kind }: Props) => {
   );
 
   return (
-    <PageShell title={title}>
+    <PageShell title="Purchase Invoice">
       <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
         <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -150,7 +141,7 @@ const PurchaseTransactionPage = ({ kind }: Props) => {
             </p>
             <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900">
               <FileText size={24} className="text-[#49293e]" />
-              {title}
+              Purchase Invoice
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -278,4 +269,4 @@ const PurchaseTransactionPage = ({ kind }: Props) => {
   );
 };
 
-export default PurchaseTransactionPage;
+export default PurchaseInvoicePage;

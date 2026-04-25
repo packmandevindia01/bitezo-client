@@ -36,7 +36,7 @@ export const useModifierList = () => {
   const fetchTypesAndCats = useCallback(async () => {
     try {
       const [types, cats] = await Promise.all([
-        modifierTypeService.list(true),
+        modifierTypeService.list(),
         getCategories()
       ]);
       setModifierTypes(types);

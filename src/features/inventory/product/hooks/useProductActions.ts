@@ -131,7 +131,7 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
         filePath: String(form.filePath || ""),
         isActive: form.isActive !== false,
         altProducts: alternatives.map((alt: any) => ({
-          unitId: parseInt(alt.unitId),
+          unitId: parseInt(alt.unitId) || 0,
           barcode: alt.barcode || "",
           isIncl: alt.isIncl !== false,
           price: parseFloat(alt.price) || 0,

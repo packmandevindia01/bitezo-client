@@ -1,16 +1,14 @@
-import type { PurchaseTransactionForm } from "./types";
+import type { PurchaseReturnForm } from "./types";
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-export const createEmptyPurchaseTransactionForm = (): PurchaseTransactionForm => ({
+export const createEmptyPurchaseReturnForm = (): PurchaseReturnForm => ({
   series: "",
   purchaseNo: "",
-  purchaseDate: today(),
+  purchaseDate: new Date().toISOString().split("T")[0],
   invoiceNo: "",
-  invoiceDate: today(),
   supplier: "",
   branch: "",
   salesman: "",
+  
   product: "",
   code: "",
   unit: "",
@@ -19,8 +17,9 @@ export const createEmptyPurchaseTransactionForm = (): PurchaseTransactionForm =>
   price: "0.000",
   vatPercent: "0",
   discPercent: "0",
-  discAmount: "",
-  paymode: "",
+  
+  discAmount: "0.000",
+  paymode: "Cash",
   narration: "",
   otherCharge: "0.000",
   roundOff: "0.000",

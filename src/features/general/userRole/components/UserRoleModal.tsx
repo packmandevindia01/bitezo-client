@@ -1,4 +1,5 @@
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Fragment, useState } from "react";
 import { Button, Checkbox, FormInput, Loader, Modal } from "../../../../components/common";
 import type { UserRoleForm, UserRolePermission } from "../types";
 
@@ -17,9 +18,10 @@ interface Props {
   onClear: () => void;
   onSave: () => void;
   onDelete?: () => void;
+  setActionPermissions: (category: string, action: string, checked: boolean, categories: Record<string, string[]>) => void;
 }
 
-const ACTION_ORDER = ["View", "Add", "Edit", "Delete"];
+const ACTION_ORDER = ["View", "Add", "Edit", "Delete", "Print"];
 
 const groupPermissions = (permissions: UserRolePermission[]) => {
   return permissions.reduce<Record<string, UserRolePermission[]>>((acc, permission) => {
@@ -27,6 +29,13 @@ const groupPermissions = (permissions: UserRolePermission[]) => {
     acc[permission.module].push(permission);
     return acc;
   }, {});
+};
+
+const getCategory = (moduleName: string) => {
+  const lower = moduleName.toLowerCase();
+  if (lower.includes("master")) return "Master";
+  if (lower.includes("report")) return "Report";
+  return "Transaction";
 };
 
 const sortActions = (permissions: UserRolePermission[]) => {
@@ -52,16 +61,44 @@ const UserRoleModal = ({
   onClear,
   onSave,
   onDelete,
+  setActionPermissions,
 }: Props) => {
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    Master: true,
+    Report: true,
+    Transaction: true,
+  });
+
   const permissionsByModule = groupPermissions(permissions);
   const moduleNames = Object.keys(permissionsByModule);
+
+  const categories = moduleNames.reduce<Record<string, string[]>>((acc, moduleName) => {
+    const cat = getCategory(moduleName);
+    acc[cat] = acc[cat] || [];
+    acc[cat].push(moduleName);
+    return acc;
+  }, {});
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }));
+  };
+
+  const handleToggleCategoryCheckbox = (category: string, checked: boolean) => {
+    const categoryModules = categories[category] || [];
+    categoryModules.forEach((module) => {
+      onToggleModule(module, checked);
+    });
+  };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={editingId ? "Edit User Role" : "Add User Role"}
-      size="xl"
+      size="2xl"
     >
       {detailLoading ? (
         <div className="py-10">
@@ -108,45 +145,104 @@ const UserRoleModal = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {moduleNames.map((module) => {
-                        const modulePermissions = sortActions(permissionsByModule[module]);
-                        const moduleIds = modulePermissions.map((permission) => permission.permissionId);
-                        const allSelected = moduleIds.every((id) => form.permissionIds.includes(id));
+                      {Object.entries(categories).map(([category, modules]) => {
+                        const isExpanded = expandedCategories[category];
+                        
+                        // Check if all permissions in this category are selected
+                        const allCategoryPermissionIds = modules.flatMap(mod => permissionsByModule[mod].map(p => p.permissionId));
+                        const isCategoryAllSelected = allCategoryPermissionIds.length > 0 && allCategoryPermissionIds.every(id => form.permissionIds.includes(id));
 
                         return (
-                          <tr key={module} className="hover:bg-[#49293e]/5">
-                            <td className="whitespace-nowrap border-l-[3px] border-l-[#49293e] px-4 py-3.5 font-medium text-gray-900">
-                              {module}
-                            </td>
-                            {ACTION_ORDER.map((action) => {
-                              const permission = modulePermissions.find((item) => item.action === action);
+                          <Fragment key={category}>
+                            {/* Category Header Row */}
+                            <tr className="bg-gray-50/80 hover:bg-gray-100/80 transition-colors">
+                              <td className="px-4 py-2">
+                                <div 
+                                  className="flex items-center gap-2 cursor-pointer font-bold text-gray-800 uppercase tracking-wide text-xs"
+                                  onClick={() => toggleCategory(category)}
+                                >
+                                  {isExpanded ? <ChevronDown size={16} className="text-[#49293e]" /> : <ChevronRight size={16} className="text-[#49293e]" />}
+                                  {category}
+                                </div>
+                              </td>
+                              {ACTION_ORDER.map((action) => {
+                                const actionIds = modules.flatMap(mod => 
+                                  permissionsByModule[mod]
+                                    .filter(p => p.action === action)
+                                    .map(p => p.permissionId)
+                                );
+                                const isActionAllSelected = actionIds.length > 0 && actionIds.every(id => form.permissionIds.includes(id));
+
+                                return (
+                                  <td key={action} className="px-4 py-2 text-center">
+                                    {actionIds.length > 0 ? (
+                                      <div className="flex justify-center">
+                                        <Checkbox
+                                          checked={isActionAllSelected}
+                                          onChange={(e) => setActionPermissions(category, action, e.target.checked, categories)}
+                                          id={`category-${category.toLowerCase()}-action-${action.toLowerCase()}`}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-300">-</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-4 py-2 text-center">
+                                <div className="flex justify-center">
+                                  <Checkbox
+                                    checked={isCategoryAllSelected}
+                                    onChange={(e) => handleToggleCategoryCheckbox(category, e.target.checked)}
+                                    id={`category-${category.toLowerCase()}-all`}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Module Rows */}
+                            {isExpanded && modules.map((module) => {
+                              const modulePermissions = sortActions(permissionsByModule[module]);
+                              const moduleIds = modulePermissions.map((permission) => permission.permissionId);
+                              const allSelected = moduleIds.length > 0 && moduleIds.every((id) => form.permissionIds.includes(id));
 
                               return (
-                                <td key={action} className="px-4 py-3.5 text-center">
-                                  {permission ? (
+                                <tr key={module} className="hover:bg-[#49293e]/5 transition-colors">
+                                  <td className="whitespace-nowrap border-l-[3px] border-l-[#49293e] pl-8 pr-4 py-3 font-medium text-gray-700">
+                                    {module}
+                                  </td>
+                                  {ACTION_ORDER.map((action) => {
+                                    const permission = modulePermissions.find((item) => item.action === action);
+
+                                    return (
+                                      <td key={action} className="px-4 py-3 text-center">
+                                        {permission ? (
+                                          <div className="flex justify-center">
+                                            <Checkbox
+                                              checked={form.permissionIds.includes(permission.permissionId)}
+                                              onChange={() => onTogglePermission(permission.permissionId)}
+                                              id={`permission-${permission.permissionId}`}
+                                            />
+                                          </div>
+                                        ) : (
+                                          <span className="text-gray-300">-</span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="px-4 py-3 text-center bg-gray-50/30">
                                     <div className="flex justify-center">
                                       <Checkbox
-                                        checked={form.permissionIds.includes(permission.permissionId)}
-                                        onChange={() => onTogglePermission(permission.permissionId)}
-                                        id={`permission-${permission.permissionId}`}
+                                        checked={allSelected}
+                                        onChange={(e) => onToggleModule(module, e.target.checked)}
+                                        id={`module-${module.replace(/\s+/g, "-").toLowerCase()}`}
                                       />
                                     </div>
-                                  ) : (
-                                    <span className="text-gray-300">-</span>
-                                  )}
-                                </td>
+                                  </td>
+                                </tr>
                               );
                             })}
-                            <td className="px-4 py-3.5 text-center">
-                              <div className="flex justify-center">
-                                <Checkbox
-                                  checked={allSelected}
-                                  onChange={(e) => onToggleModule(module, e.target.checked)}
-                                  id={`module-${module.replace(/\s+/g, "-").toLowerCase()}`}
-                                />
-                              </div>
-                            </td>
-                          </tr>
+                          </Fragment>
                         );
                       })}
                     </tbody>

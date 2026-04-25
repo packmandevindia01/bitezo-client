@@ -1,6 +1,4 @@
-export type PurchaseTransactionKind = "invoice" | "return";
-
-export interface PurchaseLineItem {
+export interface PurchaseReturnLineItem {
   id: number;
   product: string;
   code: string;
@@ -12,15 +10,15 @@ export interface PurchaseLineItem {
   discPercent: number;
 }
 
-export interface PurchaseTransactionForm {
+export interface PurchaseReturnForm {
   series: string;
   purchaseNo: string;
   purchaseDate: string;
   invoiceNo: string;
-  invoiceDate: string;
   supplier: string;
   branch: string;
   salesman: string;
+  
   product: string;
   code: string;
   unit: string;
@@ -29,6 +27,7 @@ export interface PurchaseTransactionForm {
   price: string;
   vatPercent: string;
   discPercent: string;
+  
   discAmount: string;
   paymode: string;
   narration: string;

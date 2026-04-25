@@ -41,7 +41,7 @@ const MainLayout = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[85vw] transform transition-transform duration-300 md:static md:w-64 md:max-w-none md:translate-x-0 md:shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[85vw] transform transition-transform duration-300 md:w-64 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -54,7 +54,7 @@ const MainLayout = () => {
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          className="fixed inset-0 z-30 bg-black/30"
           onClick={() => setSidebarOpen(false)}
         />
       )}

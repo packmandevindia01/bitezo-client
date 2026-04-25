@@ -17,7 +17,7 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
       <div className="flex items-center gap-3">
         <button
           onClick={toggleSidebar}
-          className="rounded-lg p-2 transition hover:bg-gray-100 md:hidden"
+          className="rounded-lg p-2 transition hover:bg-gray-100"
         >
           <Menu size={20} />
         </button>

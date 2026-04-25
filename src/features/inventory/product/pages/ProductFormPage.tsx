@@ -43,7 +43,8 @@ const ProductFormPage = () => {
     } else {
       resetForm();
     }
-  }, [id, handleEditById, resetForm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   // ─── Scan to Edit Logic (Multipage) ──────────────────────────────────────
 
