@@ -4,8 +4,10 @@ import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../component
 import SectionModal from "../components/SectionModal";
 import { useSectionManager } from "../hooks/useSectionManager";
 import type { SectionRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const SectionPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     counters,
@@ -26,6 +28,10 @@ const SectionPage = () => {
   } = useSectionManager();
   const [deleteRecord, setDeleteRecord] = React.useState<SectionRecord | null>(null);
 
+  const canAdd = hasPermission("Section Master", "Add");
+  const canEdit = hasPermission("Section Master", "Edit");
+  const canDelete = hasPermission("Section Master", "Delete");
+
   return (
     <PageShell title="Section Master">
       <RecordTableCard
@@ -34,8 +40,8 @@ const SectionPage = () => {
         onSearchChange={setSearch}
         rowKey="sectionId"
         data={filteredRecords}
-        actionLabel="+ Add Section"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Section" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         autoFocusSearch
         loading={loading}
         columns={[
@@ -47,22 +53,26 @@ const SectionPage = () => {
             accessor: "sectionId",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.name}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.name}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -81,7 +91,7 @@ const SectionPage = () => {
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {
-          if (editingId) {
+          if (editingId && canDelete) {
             const record = filteredRecords.find(r => r.sectionId === editingId);
             if (record) {
               setDeleteRecord(record);

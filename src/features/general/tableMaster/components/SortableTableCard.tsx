@@ -7,8 +7,8 @@ interface SortableTableCardProps {
   table: TableRecord;
   selectedId: number | null;
   loading: boolean;
-  onEdit: (record: TableRecord) => void;
-  onDeleteRequest: (record: TableRecord) => void;
+  onEdit?: (record: TableRecord) => void;
+  onDeleteRequest?: (record: TableRecord) => void;
 }
 
 const SortableTableCard = ({
@@ -45,7 +45,7 @@ const SortableTableCard = ({
     >
       <button
         type="button"
-        onClick={() => onEdit(table)}
+        onClick={() => onEdit?.(table)}
         className={`h-22 w-full rounded-2xl border-2 transition-all duration-200 flex flex-col items-center justify-center shadow-sm active:scale-95 ${
           selectedId === table.tableId
             ? "border-[#49293e] bg-[#49293e] text-white shadow-lg"
@@ -84,7 +84,7 @@ const SortableTableCard = ({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onDeleteRequest(table);
+          onDeleteRequest?.(table);
         }}
         className="absolute -right-1.5 -top-1.5 flex h-7 w-7 scale-0 items-center justify-center rounded-full bg-red-100 text-red-600 shadow-md border border-white transition-transform duration-200 group-hover:scale-100 hover:bg-red-200"
         disabled={loading}

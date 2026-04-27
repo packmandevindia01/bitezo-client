@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
 import { isRequired } from "../../../../lib/validators";
 import type { User, UserFormData, UserPayload } from "../types";
+import { userRoleService } from "../../userRole/services/userRoleService";
+import type { UserRoleNameOption } from "../../userRole/types";
 
 interface Branch {
   branchId: number;
@@ -24,6 +26,7 @@ const createInitialForm = (initialData?: User | null): UserFormData => ({
   password: "",
   confirmPassword: "",
   branchId: initialData?.branchId ? String(initialData.branchId) : "",
+  roleId: initialData?.roleId ? String(initialData.roleId) : "",
   isActive: initialData?.isActive ?? false,
   isMaster: false,
 });
@@ -39,6 +42,8 @@ const UserForm = ({
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchesLoading, setBranchesLoading] = useState(false);
+  const [roles, setRoles] = useState<UserRoleNameOption[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -53,7 +58,20 @@ const UserForm = ({
       }
     };
 
+    const fetchRoles = async () => {
+      try {
+        setRolesLoading(true);
+        const data = await userRoleService.listNames();
+        setRoles(data ?? []);
+      } catch {
+        setRoles([]);
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+
     fetchBranches();
+    fetchRoles();
   }, []);
 
   const handleChange = <K extends keyof UserFormData>(key: K, value: UserFormData[K]) => {
@@ -86,6 +104,10 @@ const UserForm = ({
       newErrors.branchId = "Branch is required";
     }
 
+    if (!isRequired(form.roleId)) {
+      newErrors.roleId = "Role is required";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -96,6 +118,7 @@ const UserForm = ({
     const payload: UserPayload = {
       name: form.name.trim(),
       branchId: Number(form.branchId),
+      roleId: Number(form.roleId),
       isActive: form.isActive,
       isMaster: false,
     };
@@ -132,6 +155,20 @@ const UserForm = ({
             value: String(b.branchId),
           }))}
           placeholder={branchesLoading ? "Loading..." : "Select a branch"}
+        />
+
+        <SelectInput
+          label="User Role"
+          required
+          value={form.roleId}
+          onChange={(e) => handleChange("roleId", e.target.value)}
+          disabled={rolesLoading}
+          error={errors.roleId}
+          options={roles.map((r) => ({
+            label: r.roleName,
+            value: String(r.roleId),
+          }))}
+          placeholder={rolesLoading ? "Loading..." : "Select a role"}
         />
 
         {!initialData && (

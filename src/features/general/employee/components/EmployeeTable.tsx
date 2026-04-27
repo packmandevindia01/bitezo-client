@@ -6,9 +6,9 @@ interface Props {
   employees: EmployeeRecord[];
   search: string;
   onSearchChange: (value: string) => void;
-  onAdd: () => void;
-  onEdit: (record: EmployeeRecord) => void;
-  onDelete: (record: EmployeeRecord) => void;
+  onAdd?: () => void;
+  onEdit?: (record: EmployeeRecord) => void;
+  onDelete?: (record: EmployeeRecord) => void;
   loading?: boolean;
 }
 
@@ -28,7 +28,7 @@ const EmployeeTable = ({
       onSearchChange={onSearchChange}
       rowKey="id"
       data={employees}
-      actionLabel="+ Add Employee"
+      actionLabel={onAdd ? "+ Add Employee" : undefined}
       onAction={onAdd}
       loading={loading}
       autoFocusSearch
@@ -46,20 +46,24 @@ const EmployeeTable = ({
           accessor: "id",
           render: (row) => (
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => onEdit(row)}
-                className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(row)}
-                className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-              >
-                <Trash2 size={16} />
-              </button>
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(row)}
+                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                >
+                  <Pencil size={16} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(row)}
+                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           ),
         },

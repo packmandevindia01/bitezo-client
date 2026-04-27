@@ -25,7 +25,11 @@ export const useProductManager = () => {
     handleSave,
     confirmDelete,
     handleDeactivate,
-  } = useProductActions({ formState, altState, productList });
+  } = useProductActions({ 
+    formState: { ...formState }, // includes setImagePreview
+    altState, 
+    productList 
+  });
 
   // 3. Initial load orchestration
   const { fetchProducts } = productList;

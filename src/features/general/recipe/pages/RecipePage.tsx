@@ -3,6 +3,7 @@ import { Plus, RotateCcw, Save, X, Ban, FileText } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyRecipeForm } from "../constants";
 import type { RecipeLineItem, RecipeForm } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const currency = (value: number) => value.toFixed(3);
 
@@ -12,11 +13,18 @@ const toNumber = (value: string) => {
 };
 
 const RecipePage = () => {
+  const { hasPermission } = usePermissions();
   const [form, setForm] = useState<RecipeForm>(createEmptyRecipeForm());
   const [items, setItems] = useState<RecipeLineItem[]>([]);
   const nextItemId = useRef(1);
 
+  const canAdd = hasPermission("Recipe Master", "Add");
+  const canEdit = hasPermission("Recipe Master", "Edit");
+  const canDelete = hasPermission("Recipe Master", "Delete");
+  const canSave = canAdd || canEdit;
+
   const setField = (key: keyof RecipeForm, value: string) => {
+    if (!canSave) return;
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -46,7 +54,7 @@ const RecipePage = () => {
   }, [items, form.otherCharge, form.finishedProductQty]);
 
   const addItem = () => {
-    if (!currentLine.product) return;
+    if (!canAdd || !currentLine.product) return;
 
     const itemId = nextItemId.current;
     nextItemId.current += 1;
@@ -88,36 +96,40 @@ const RecipePage = () => {
             value={form.finishedProduct} 
             onChange={(e) => setField("finishedProduct", e.target.value)} 
             required
+            readOnly={!canSave}
           />
           <FormInput 
             label="Code" 
             value={form.finishedProductCode} 
             onChange={(e) => setField("finishedProductCode", e.target.value)} 
             required
+            readOnly={!canSave}
           />
           <FormInput 
             label="Unit" 
             value={form.finishedProductUnit} 
             onChange={(e) => setField("finishedProductUnit", e.target.value)} 
             required
+            readOnly={!canSave}
           />
           <FormInput 
             label="Qty" 
             value={form.finishedProductQty} 
             onChange={(e) => setField("finishedProductQty", e.target.value)} 
             required
+            readOnly={!canSave}
           />
         </div>
 
         <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
-            <FormInput label="Product" value={form.product} onChange={(e) => setField("product", e.target.value)} />
-            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} />
-            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
-            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
-            <FormInput label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} />
+            <FormInput label="Product" value={form.product} onChange={(e) => setField("product", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} readOnly={!canAdd} />
             <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full px-8">
+              <Button onClick={addItem} className="h-10 w-full px-8" disabled={!canAdd}>
                 <Plus size={16} />
                 Add
               </Button>
@@ -170,7 +182,7 @@ const RecipePage = () => {
 
         <div className="mt-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="pt-2">
-            <Button variant="secondary" className="border-gray-200 shadow-sm mb-2 text-gray-700">
+            <Button variant="secondary" className="border-gray-200 shadow-sm mb-2 text-gray-700" disabled={!canSave}>
               <Ban size={16} className="text-gray-500" />
               Exclude Order
             </Button>
@@ -184,6 +196,7 @@ const RecipePage = () => {
               label="Other Charge"
               value={form.otherCharge}
               onChange={(e) => setField("otherCharge", e.target.value)}
+              readOnly={!canSave}
             />
             <div className="mt-2 rounded-xl border border-[#49293e]/15 bg-white px-4 py-3 mb-2">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
@@ -196,18 +209,24 @@ const RecipePage = () => {
             />
             
             <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button variant="secondary" onClick={resetForm}>
-                <RotateCcw size={16} />
-                New
-              </Button>
-              <Button>
-                <Save size={16} />
-                Save
-              </Button>
-              <Button variant="secondary" className="text-red-500 hover:text-red-600">
-                <X size={16} />
-                Delete
-              </Button>
+              {canAdd && (
+                <Button variant="secondary" onClick={resetForm}>
+                  <RotateCcw size={16} />
+                  New
+                </Button>
+              )}
+              {canSave && (
+                <Button>
+                  <Save size={16} />
+                  Save
+                </Button>
+              )}
+              {canDelete && (
+                <Button variant="secondary" className="text-red-500 hover:text-red-600">
+                  <X size={16} />
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -36,6 +36,7 @@ export interface ProductMasterData {
   group: MasterItem[];
   category: MasterItem[];
   vat: VatMasterItem[];
+  type: MasterItem[];
 }
 
 // ─── Product API Models ──────────────────────────────────────────────────────
@@ -129,6 +130,7 @@ export interface ProductFormState {
   // File handling
   fileName?: string;
   filePath?: string;
+  imageFile?: File;
 }
 
 /** Internal UI state for alternative products */

@@ -2,8 +2,10 @@ import { AlertCircle, Pencil, Trash2, X } from "lucide-react";
 import { ConfirmDialog, Modal, PageShell, RecordTableCard } from "../../../../components/common";
 import UnitForm from "../components/UnitForm";
 import { useUnitManager } from "../hooks/useUnitManager";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const UnitPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     filteredUnits,
     listLoading,
@@ -34,6 +36,10 @@ const UnitPage = () => {
     cancelDelete,
   } = useUnitManager();
 
+  const canAdd = hasPermission("Unit Master", "Add");
+  const canEdit = hasPermission("Unit Master", "Edit");
+  const canDelete = hasPermission("Unit Master", "Delete");
+
   return (
     <PageShell title="Unit Master">
       {/* Error banner */}
@@ -58,8 +64,8 @@ const UnitPage = () => {
         rowKey="unitId"
         data={filteredUnits}
         loading={listLoading}
-        actionLabel="+ Add Unit"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Unit" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         autoFocusSearch
         columns={[
           { header: "#", accessor: "sNo" },
@@ -77,28 +83,32 @@ const UnitPage = () => {
               const isRestricted = row.unitId <= 4;
               return (
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(row)}
-                    disabled={isRestricted}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title={isRestricted ? "Core system unit cannot be edited" : `Edit ${row.name}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => requestDelete(row)}
-                    disabled={isRestricted || deleting === row.unitId}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title={isRestricted ? "Core system unit cannot be deleted" : `Delete ${row.name}`}
-                  >
-                    {deleting === row.unitId ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(row)}
+                      disabled={isRestricted}
+                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={isRestricted ? "Core system unit cannot be edited" : `Edit ${row.name}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => requestDelete(row)}
+                      disabled={isRestricted || deleting === row.unitId}
+                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={isRestricted ? "Core system unit cannot be deleted" : `Delete ${row.name}`}
+                    >
+                      {deleting === row.unitId ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  )}
                 </div>
               );
             },
@@ -118,12 +128,12 @@ const UnitPage = () => {
           error={mutationError}
           onSubmit={handleSave}
           onCancel={closeModal}
-          onDelete={() => {
+          onDelete={editDetail && canDelete ? () => {
             if (editDetail) {
               requestDelete({ unitId: editDetail.unitId, name: editDetail.name } as any);
               closeModal();
             }
-          }}
+          } : undefined}
         />
       </Modal>
 

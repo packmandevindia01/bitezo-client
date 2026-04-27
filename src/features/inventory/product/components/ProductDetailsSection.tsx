@@ -30,6 +30,7 @@ export const ProductDetailsSection = ({
   const groupOptions = masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [];
   const unitOptions = masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
   const vatOptions = masterData?.vat?.map(v => ({ label: `${v.name} (${v.value}%)`, value: String(v.id) })) ?? [];
+  const typeOptions = masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions;
 
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
@@ -138,7 +139,7 @@ export const ProductDetailsSection = ({
         />
         <SearchableSelect
           label="Type"
-          options={productTypeOptions}
+          options={typeOptions}
           value={form.typeId}
           placeholder="Select type"
           onChange={(v) => onChange("typeId", v)}

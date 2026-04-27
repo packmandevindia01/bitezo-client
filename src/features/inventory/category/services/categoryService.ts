@@ -40,42 +40,54 @@ export const getCategoryById = async (id: number): Promise<CategoryDetailRespons
 };
 
 export const createCategory = async (
-  payload: CreateCategoryPayload
+  payload: CreateCategoryPayload & { imageFile?: File }
 ): Promise<ApiResponse<unknown>> => {
-  try {
-    const body = {
-      ...payload,
-      branchIds: payload.branchIds.map((id) => Number(id)),
-    };
-    const { data } = await axiosInstance.post<ApiResponse<unknown>>("/category", body);
-    return data;
-  } catch (err: unknown) {
-    const axErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } };
-    const body = axErr?.response?.data;
-    if (body?.errors && typeof body.errors === "object") {
-      const detail = Object.entries(body.errors)
-        .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)
-        .join(" | ");
-      console.error("Create validation errors:", detail);
-    } else {
-      console.error("Create error body:", JSON.stringify(body, null, 2));
-    }
-    throw err;
+  const formData = new FormData();
+  formData.append("catCode", payload.CatCode);
+  formData.append("catName", payload.CatName);
+  formData.append("catArabic", payload.CatArabic);
+  formData.append("isActive", payload.IsActive ? "true" : "false");
+  formData.append("createdAt", payload.CreatedAt || new Date().toISOString());
+
+  if (payload.BranchIds && payload.BranchIds.length > 0) {
+    payload.BranchIds.forEach((id) => {
+      formData.append("branchIds", String(id));
+    });
   }
+
+  if (payload.imageFile) {
+    formData.append("CategoryImage", payload.imageFile);
+  }
+
+  const { data } = await axiosInstance.post<ApiResponse<unknown>>("/category", formData);
+  return data;
 };
 
 export const updateCategory = async (
   id: number,
-  payload: UpdateCategoryPayload
+  payload: UpdateCategoryPayload & { imageFile?: File }
 ): Promise<ApiResponse<unknown>> => {
-  const body = {
-    ...payload,
-    branchIds: payload.branchIds.map((bid) => Number(bid)),
-  };
-  const { data } = await axiosInstance.put<ApiResponse<unknown>>(
-    `/category/${id}`,
-    body
-  );
+  const url = `/category/${id}`;
+  const formData = new FormData();
+  formData.append("catId", String(id));
+  formData.append("catCode", payload.CatCode);
+  formData.append("catName", payload.CatName);
+  formData.append("catArabic", payload.CatArabic);
+  formData.append("isActive", payload.IsActive ? "true" : "false");
+  formData.append("updatedAt", payload.UpdatedAt || new Date().toISOString());
+
+  if (payload.BranchIds && payload.BranchIds.length > 0) {
+    payload.BranchIds.forEach((id) => {
+      formData.append("branchIds", String(id));
+    });
+  }
+
+  if (payload.imageFile) {
+    formData.append("CategoryImage", payload.imageFile);
+  }
+
+  // Switch to POST for update to be consistent with Product pattern
+  const { data } = await axiosInstance.post<ApiResponse<unknown>>(url, formData);
   return data;
 };
 

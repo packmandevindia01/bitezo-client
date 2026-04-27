@@ -4,8 +4,10 @@ import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../component
 import CounterModal from "../components/CounterModal";
 import { useCounterManager } from "../hooks/useCounterManager";
 import type { CounterRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const CounterPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     branches,
@@ -26,6 +28,10 @@ const CounterPage = () => {
   } = useCounterManager();
   const [deleteRecord, setDeleteRecord] = React.useState<CounterRecord | null>(null);
 
+  const canAdd = hasPermission("Counter Master", "Add");
+  const canEdit = hasPermission("Counter Master", "Edit");
+  const canDelete = hasPermission("Counter Master", "Delete");
+
   return (
     <PageShell title="Counter Master">
       <RecordTableCard
@@ -34,8 +40,8 @@ const CounterPage = () => {
         onSearchChange={setSearch}
         rowKey="counterId"
         data={filteredRecords}
-        actionLabel="+ Add Counter"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Counter" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         autoFocusSearch
         loading={loading}
         columns={[
@@ -47,22 +53,26 @@ const CounterPage = () => {
             accessor: "counterId",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.counterName}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.counterName}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.counterName}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.counterName}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -81,7 +91,7 @@ const CounterPage = () => {
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {
-          if (editingId) {
+          if (editingId && canDelete) {
             const record = filteredRecords.find(r => r.counterId === editingId);
             if (record) {
               setDeleteRecord(record);

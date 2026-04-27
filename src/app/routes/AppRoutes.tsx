@@ -5,6 +5,7 @@ import RegistrationGuard from "./RegistrationGuard";
 import ProtectedRoute from "./ProtectedRoute";
 import SystemRegistrationGuard from "./SystemRegistrationGuard";
 import { Navigate } from "react-router-dom";
+import RoleGuard from "./RoleGuard";
 
 const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
 const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
@@ -47,6 +48,7 @@ const RecipePage = lazy(() => import("../../features/general/recipe/pages/Recipe
 const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
+const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
 
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
@@ -86,43 +88,44 @@ const AppRoutes = () => {
                 <Route path="/cashier/out" element={<CashierOutPage />} />
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}
-                <Route path="pos" element={<PosTerminalPage />} />
+                <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
 
                 {/* Dashboard — fully guarded */}
                 <Route path="/dashboard" element={<MainLayout />}>
                   <Route index element={<DashboardPage />} />
-                  <Route path="users" element={<UserList />} />
-                  <Route path="user-roles" element={<UserRolePage />} />
-                  <Route path="customers" element={<CustomerListPage />} />
-                  <Route path="customers/new" element={<CustomerFormPage />} />
-                  <Route path="employees" element={<EmployeePage />} />
-                  <Route path="paymodes" element={<PaymodePage />} />
-                  <Route path="counters" element={<CounterPage />} />
-                  <Route path="sections" element={<SectionPage />} />
-                  <Route path="tables" element={<TableMasterPage />} />
-                  <Route path="branches" element={<BranchListPage />} />
-                  <Route path="branches/add" element={<BranchFormPage />} />
-                  <Route path="branches/edit/:id" element={<BranchFormPage />} />
-                  <Route path="categories" element={<CategoryPage />} />
-                  <Route path="sub-categories" element={<SubCategoryPage />} />
-                  <Route path="groups" element={<GroupPage />} />
-                  <Route path="units" element={<UnitPage />} />
-                  <Route path="modifiers" element={<ModifierPage />} />
-                  <Route path="products" element={<ProductListPage />} />
-                  <Route path="products/add" element={<ProductFormPage />} />
-                  <Route path="products/edit/:id" element={<ProductFormPage />} />
-                  <Route path="voucher-series" element={<VoucherSeriesPage />} />
-                  <Route path="extras-master" element={<ExtrasMasterPage />} />
-                  <Route path="extras-type" element={<ExtrasTypePage />} />
-                  <Route path="modifier-type" element={<ModifierTypePage />} />
-                  <Route path="taxes" element={<TaxPage />} />
-                  <Route path="purchase-invoice" element={<PurchaseInvoicePage />} />
-                  <Route path="purchase-return" element={<PurchaseReturnPage />} />
+                  <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
+                  <Route path="user-roles" element={<RoleGuard moduleName="User Master"><UserRolePage /></RoleGuard>} />
+                  <Route path="customers" element={<RoleGuard moduleName="Customer Master"><CustomerListPage /></RoleGuard>} />
+                  <Route path="customers/new" element={<RoleGuard moduleName="Customer Master" action="Add"><CustomerFormPage /></RoleGuard>} />
+                  <Route path="employees" element={<RoleGuard moduleName="Employee Master"><EmployeePage /></RoleGuard>} />
+                  <Route path="paymodes" element={<RoleGuard moduleName="Paymode Master"><PaymodePage /></RoleGuard>} />
+                  <Route path="counters" element={<RoleGuard moduleName="Counter Master"><CounterPage /></RoleGuard>} />
+                  <Route path="sections" element={<RoleGuard moduleName="Section Master"><SectionPage /></RoleGuard>} />
+                  <Route path="tables" element={<RoleGuard moduleName="Table Master"><TableMasterPage /></RoleGuard>} />
+                  <Route path="branches" element={<RoleGuard moduleName="Branch Master"><BranchListPage /></RoleGuard>} />
+                  <Route path="branches/add" element={<RoleGuard moduleName="Branch Master" action="Add"><BranchFormPage /></RoleGuard>} />
+                  <Route path="branches/edit/:id" element={<RoleGuard moduleName="Branch Master" action="Edit"><BranchFormPage /></RoleGuard>} />
+                  <Route path="categories" element={<RoleGuard moduleName="Category Master"><CategoryPage /></RoleGuard>} />
+                  <Route path="sub-categories" element={<RoleGuard moduleName="Sub Category Master"><SubCategoryPage /></RoleGuard>} />
+                  <Route path="groups" element={<RoleGuard moduleName="Group Master"><GroupPage /></RoleGuard>} />
+                  <Route path="units" element={<RoleGuard moduleName="Unit Master"><UnitPage /></RoleGuard>} />
+                  <Route path="modifiers" element={<RoleGuard moduleName="Modifier Master"><ModifierPage /></RoleGuard>} />
+                  <Route path="products" element={<RoleGuard moduleName="Product Master"><ProductListPage /></RoleGuard>} />
+                  <Route path="products/add" element={<RoleGuard moduleName="Product Master" action="Add"><ProductFormPage /></RoleGuard>} />
+                  <Route path="products/edit/:id" element={<RoleGuard moduleName="Product Master" action="Edit"><ProductFormPage /></RoleGuard>} />
+                  <Route path="voucher-series" element={<RoleGuard moduleName="Voucher Series Master"><VoucherSeriesPage /></RoleGuard>} />
+                  <Route path="extras-master" element={<RoleGuard moduleName="Extras Master"><ExtrasMasterPage /></RoleGuard>} />
+                  <Route path="extras-type" element={<RoleGuard moduleName="Extras Type"><ExtrasTypePage /></RoleGuard>} />
+                  <Route path="modifier-type" element={<RoleGuard moduleName="Modifier Type"><ModifierTypePage /></RoleGuard>} />
+                  <Route path="taxes" element={<RoleGuard moduleName="Tax Master"><TaxPage /></RoleGuard>} />
+                  <Route path="purchase-invoice" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoicePage /></RoleGuard>} />
+                  <Route path="purchase-return" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnPage /></RoleGuard>} />
                   <Route path="test/editable-grid" element={<EditableGridView />} />
-                  <Route path="recipes" element={<RecipePage />} />
-                  <Route path="bom" element={<BomPage />} />
-                  <Route path="production" element={<ProductionPage />} />
-                  <Route path="stock-adjustment" element={<StockAdjustmentPage />} />
+                  <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
+                  <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
+                  <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
+                  <Route path="stock-adjustment" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentPage /></RoleGuard>} />
+                  <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />
                 </Route>
 
               </Route>

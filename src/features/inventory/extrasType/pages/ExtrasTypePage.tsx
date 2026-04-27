@@ -9,8 +9,10 @@ import {
 import ExtrasTypeForm from "../components/ExtrasTypeForm";
 import { useExtrasTypeManager } from "../hooks/useExtrasTypeManager";
 import type { ExtrasTypeRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ExtrasTypePage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     loading,
@@ -30,6 +32,10 @@ const ExtrasTypePage = () => {
   } = useExtrasTypeManager();
   const [deleteRecord, setDeleteRecord] = React.useState<ExtrasTypeRecord | null>(null);
 
+  const canAdd = hasPermission("Extras Type", "Add");
+  const canEdit = hasPermission("Extras Type", "Edit");
+  const canDelete = hasPermission("Extras Type", "Delete");
+
   return (
     <PageShell
       title="Extras Type" >
@@ -39,8 +45,8 @@ const ExtrasTypePage = () => {
         onSearchChange={setSearch}
         rowKey="typeId"
         data={filteredRecords}
-        actionLabel="+ Add Extras Type"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Extras Type" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
         columns={[
           { header: "#", accessor: "typeId" },
@@ -51,22 +57,26 @@ const ExtrasTypePage = () => {
             accessor: "typeId",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.name}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.name}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -85,13 +95,13 @@ const ExtrasTypePage = () => {
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
-          onDelete={() => {
+          onDelete={editingId && canDelete ? () => {
             const record = filteredRecords.find(r => r.typeId === editingId);
             if (record) {
               setDeleteRecord(record);
               closeModal();
             }
-          }}
+          } : undefined}
         />
       </Modal>
 

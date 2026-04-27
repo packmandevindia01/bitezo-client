@@ -7,7 +7,7 @@ interface TableSectionSelectorProps {
   selectedSectionId: number | null;
   loading: boolean;
   onSectionChange: (value: string) => void;
-  onAdd: () => void;
+  onAdd?: () => void;
 }
 
 const TableSectionSelector = ({
@@ -40,15 +40,17 @@ const TableSectionSelector = ({
         </select>
       </div>
       
-      <Button 
-        onClick={onAdd}
-        className="h-12 min-w-[140px] shadow-md active:translate-y-0.5 rounded-xl font-bold"
-        disabled={loading || sections.length === 0}
-        size="lg"
-      >
-        {loading ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Plus size={18} className="mr-2" />}
-        Add Table
-      </Button>
+      {onAdd && (
+        <Button 
+          onClick={onAdd}
+          className="h-12 min-w-[140px] shadow-md active:translate-y-0.5 rounded-xl font-bold"
+          disabled={loading || sections.length === 0}
+          size="lg"
+        >
+          {loading ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Plus size={18} className="mr-2" />}
+          Add Table
+        </Button>
+      )}
     </div>
   );
 };

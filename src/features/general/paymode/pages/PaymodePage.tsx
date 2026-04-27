@@ -4,8 +4,10 @@ import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../component
 import PaymodeModal from "../components/PaymodeModal";
 import { usePaymodeManager } from "../hooks/usePaymodeManager";
 import type { PaymodeRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const PaymodePage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     open,
@@ -29,6 +31,10 @@ const PaymodePage = () => {
   } = usePaymodeManager();
   const [deleteRecord, setDeleteRecord] = React.useState<PaymodeRecord | null>(null);
 
+  const canAdd = hasPermission("Paymode Master", "Add");
+  const canEdit = hasPermission("Paymode Master", "Edit");
+  const canDelete = hasPermission("Paymode Master", "Delete");
+
   return (
     <PageShell title="Paymode Master">
       <RecordTableCard
@@ -37,8 +43,8 @@ const PaymodePage = () => {
         onSearchChange={setSearch}
         rowKey="paymodeId"
         data={filteredRecords}
-        actionLabel="+ Add Paymode"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Paymode" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         autoFocusSearch
         loading={loading}
         columns={[
@@ -63,22 +69,26 @@ const PaymodePage = () => {
             accessor: "paymodeId",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.paymodeName}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.paymodeName}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.paymodeName}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.paymodeName}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -100,6 +110,7 @@ const PaymodePage = () => {
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {
+          if (!canDelete) return;
           const record = filteredRecords.find(r => r.paymodeId === editingId);
           if (record) {
             setDeleteRecord(record);
@@ -124,5 +135,3 @@ const PaymodePage = () => {
 };
 
 export default PaymodePage;
-
-

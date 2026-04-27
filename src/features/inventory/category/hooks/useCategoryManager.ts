@@ -18,6 +18,7 @@ export interface CategoryFormState {
   arabic: string;
   isActive: boolean;
   image: string;
+  imageFile?: File;
 }
 
 const emptyForm: CategoryFormState = {
@@ -104,6 +105,7 @@ export const useCategoryManager = () => {
     setForm((prev) => ({
       ...prev,
       image: file ? URL.createObjectURL(file) : "",
+      imageFile: file || undefined,
     }));
   };
 
@@ -120,23 +122,25 @@ export const useCategoryManager = () => {
     try {
       if (editingId) {
         await updateCategory(editingId, {
-          id: editingId,
-          code: codeVal.trim(),
-          name: nameVal.trim(),
-          arabic: arabicVal.trim(),
-          isActive: form.isActive,
-          updatedAt: new Date().toISOString(),
-          branchIds: selectedBranchIds,
-        });
+          CatId: editingId,
+          CatCode: codeVal.trim(),
+          CatName: nameVal.trim(),
+          CatArabic: arabicVal.trim(),
+          IsActive: form.isActive,
+          UpdatedAt: new Date().toISOString(),
+          BranchIds: selectedBranchIds,
+          imageFile: form.imageFile,
+        } as any);
       } else {
         await createCategory({
-          code: codeVal.trim(),
-          name: nameVal.trim(),
-          arabic: arabicVal.trim(),
-          isActive: form.isActive,
-          createdAt: new Date().toISOString(),
-          branchIds: selectedBranchIds,
-        });
+          CatCode: codeVal.trim(),
+          CatName: nameVal.trim(),
+          CatArabic: arabicVal.trim(),
+          IsActive: form.isActive,
+          CreatedAt: new Date().toISOString(),
+          BranchIds: selectedBranchIds,
+          imageFile: form.imageFile,
+        } as any);
       }
       await fetchCategories();
       showToast(editingId ? "Category updated successfully" : "Category created successfully", "success");
@@ -171,12 +175,31 @@ export const useCategoryManager = () => {
           : record.isActive;
 
       setEditingId(catId);
+      const catImage = cat?.image || cat?.filePath || "";
+      let imagePreviewUrl = "";
+      if (catImage) {
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || "";
+        const baseUrl = apiUrl 
+          ? apiUrl.replace(/\/api\/?$/, "") 
+          : "http://84.255.173.131:8068";
+          
+        const cleanPath = catImage.replace(/^\/?api\//i, "").replace(/^\//, "");
+        
+        imagePreviewUrl = catImage.startsWith("http") 
+          ? catImage 
+          : `${baseUrl}/${cleanPath}`;
+        
+        // Clean up double slashes
+        imagePreviewUrl = imagePreviewUrl.replace(/([^:]\/)\/+/g, "$1");
+        console.log("[Category Image Debug] Full URL:", imagePreviewUrl);
+      }
+
       setForm({
         code: catCode,
         name: catName,
         arabic: catArabic,
         isActive: catIsActive,
-        image: "",
+        image: imagePreviewUrl,
       });
       // The API returns `branch` array of BranchOption or matching shape
       const allocatedBranches = res?.branch || [];

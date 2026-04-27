@@ -28,7 +28,8 @@ export const useProductFormState = () => {
     setForm((prev) => ({ 
       ...prev, 
       fileName: file.name, 
-      filePath: "uploads/" + file.name 
+      filePath: "uploads/" + file.name,
+      imageFile: file 
     }));
   };
 

@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { UserRole } from '../types';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -8,6 +9,7 @@ export interface AuthState {
   userId: string | null;
   userName: string | null;
   isMaster: boolean;
+  userRoles: UserRole[];
   decimalPart: number;
   currencySymbol: string;
   companyConfig: {
@@ -24,6 +26,7 @@ const initialState: AuthState = {
   userId: localStorage.getItem("userId"),
   userName: localStorage.getItem("userName"),
   isMaster: localStorage.getItem("isMaster") === "true",
+  userRoles: localStorage.getItem("userRoles") ? JSON.parse(localStorage.getItem("userRoles")!) : [],
   decimalPart: Number(localStorage.getItem("decimalPart")) || 2,
   currencySymbol: localStorage.getItem("currencySymbol") || "BHD",
   companyConfig: {
@@ -44,6 +47,7 @@ const authSlice = createSlice({
         userId: string | number;
         userName: string;
         isMaster: boolean;
+        userRoles: UserRole[];
         decimalPart: number;
         currencySymbol: string;
       }>
@@ -56,6 +60,7 @@ const authSlice = createSlice({
       state.userId = String(p.userId);
       state.userName = p.userName;
       state.isMaster = p.isMaster;
+      state.userRoles = p.userRoles;
       state.decimalPart = p.decimalPart;
       state.currencySymbol = p.currencySymbol;
     },
@@ -66,6 +71,7 @@ const authSlice = createSlice({
       state.userId = null;
       state.userName = null;
       state.isMaster = false;
+      state.userRoles = [];
       state.decimalPart = 2;
       state.currencySymbol = "BHD";
       
@@ -76,6 +82,7 @@ const authSlice = createSlice({
       localStorage.removeItem("userId");
       localStorage.removeItem("userName");
       localStorage.removeItem("isMaster");
+      localStorage.removeItem("userRoles");
       localStorage.removeItem("decimalPart");
       localStorage.removeItem("currencySymbol");
       localStorage.removeItem("sessionExpiresAt");

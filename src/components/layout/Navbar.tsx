@@ -1,11 +1,16 @@
 import { Menu, Plus, Bell, Settings } from "lucide-react";
 import { Button } from "../common";
+import { usePermissions } from "../../hooks/usePermissions";
+import { useNavigate } from "react-router-dom";
 
 interface NavbarProps {
   toggleSidebar?: () => void;
 }
 
 const Navbar = ({ toggleSidebar }: NavbarProps) => {
+  const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
+
   return (
     <header className="w-full flex items-center justify-between border-b bg-white px-3 sm:px-4 md:px-6 py-3 shadow-sm">
 
@@ -37,9 +42,14 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
         </button>
 
         {/* Settings */}
-        <button className="p-2 rounded-full hover:bg-gray-100 transition">
-          <Settings size={18} />
-        </button>
+        {hasPermission("Configuration", "View") && (
+          <button 
+            onClick={() => navigate("/dashboard/configuration")}
+            className="p-2 rounded-full hover:bg-gray-100 transition"
+          >
+            <Settings size={18} />
+          </button>
+        )}
 
         {/* Divider (desktop only) */}
         <div className="hidden md:block w-px h-6 bg-gray-300"></div>

@@ -20,6 +20,7 @@ import {
   updateUser,
 } from "../services";
 import type { ChangePasswordPayload, User, UserPayload } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -28,6 +29,7 @@ const getErrorMessage = (error: unknown) => {
 
 const UserList = () => {
   const { showToast } = useToast();
+  const { hasPermission } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -40,6 +42,10 @@ const UserList = () => {
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
   const [search, setSearch] = useState("");
+
+  const canAdd = hasPermission("User Master", "Add");
+  const canEdit = hasPermission("User Master", "Edit");
+  const canDelete = hasPermission("User Master", "Delete");
 
   const loadUsers = useCallback(async () => {
     try {
@@ -70,11 +76,13 @@ const UserList = () => {
   };
 
   const openCreateModal = () => {
+    if (!canAdd) return;
     setEditUser(null);
     setOpen(true);
   };
 
   const handleEdit = async (userId: number) => {
+    if (!canEdit) return;
     try {
       setOpen(true);
       setDetailLoading(true);
@@ -94,6 +102,7 @@ const UserList = () => {
   };
 
   const handleOpenPasswordModal = async (userId: number) => {
+    if (!canEdit) return;
     try {
       setPasswordModalOpen(true);
       setDetailLoading(true);
@@ -117,10 +126,12 @@ const UserList = () => {
       setSaving(true);
 
       if (editUser) {
+        if (!canEdit) throw new Error("Permission denied");
         await updateUser(editUser.id, data);
         await loadUsers();
         showToast("User updated successfully", "success");
       } else {
+        if (!canAdd) throw new Error("Permission denied");
         await createUser(data);
         await loadUsers();
         showToast("User created successfully", "success");
@@ -135,7 +146,7 @@ const UserList = () => {
   };
 
   const handleDelete = async () => {
-    if (!deleteCandidate) return;
+    if (!deleteCandidate || !canDelete) return;
 
     try {
       setDeleting(true);
@@ -156,7 +167,7 @@ const UserList = () => {
   };
 
   const handlePasswordChange = async (payload: ChangePasswordPayload) => {
-    if (!passwordUser) return;
+    if (!passwordUser || !canEdit) return;
 
     try {
       setPasswordChanging(true);
@@ -181,6 +192,7 @@ const UserList = () => {
         return [
           user.name,
           user.branchName ?? "",
+          user.roleName ?? "",
           String(user.branchId),
           user.statusLabel ?? "",
         ].some((value) => value.toLowerCase().includes(query));
@@ -201,8 +213,8 @@ const UserList = () => {
           onSearchChange={setSearch}
           rowKey="id"
           data={filteredUsers}
-          actionLabel="+ Add User"
-          onAction={openCreateModal}
+          actionLabel={canAdd ? "+ Add User" : undefined}
+          onAction={canAdd ? openCreateModal : undefined}
           columns={[
             { header: "#", accessor: "id" },
             { header: "User Name", accessor: "name" },
@@ -210,6 +222,11 @@ const UserList = () => {
               header: "Branch",
               accessor: "branchName",
               render: (row) => <span>{row.branchName || row.branchId || "-"}</span>,
+            },
+            {
+              header: "User Role",
+              accessor: "roleName",
+              render: (row) => <span>{row.roleName || "-"}</span>,
             },
             {
               header: "Status",
@@ -221,30 +238,36 @@ const UserList = () => {
               accessor: "id",
               render: (row) => (
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleEdit(row.id)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.name}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleOpenPasswordModal(row.id)}
-                    className="inline-flex rounded-lg p-2 text-blue-600 hover:bg-blue-50"
-                    aria-label={`Change password for ${row.name}`}
-                  >
-                    <KeyRound size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteCandidate(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${row.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => void handleEdit(row.id)}
+                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                      aria-label={`Edit ${row.name}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenPasswordModal(row.id)}
+                      className="inline-flex rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                      aria-label={`Change password for ${row.name}`}
+                    >
+                      <KeyRound size={16} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteCandidate(row)}
+                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                      aria-label={`Delete ${row.name}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               ),
             },
@@ -264,7 +287,7 @@ const UserList = () => {
             onSubmit={handleSave}
             onCancel={closeModal}
             submitting={saving}
-            onDelete={editUser ? () => setDeleteCandidate(editUser) : undefined}
+            onDelete={editUser && canDelete ? () => setDeleteCandidate(editUser) : undefined}
             deleting={deleting}
           />
         )}

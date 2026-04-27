@@ -2,8 +2,10 @@ import { AlertCircle, Pencil, Trash2, X } from "lucide-react";
 import { ConfirmDialog, Modal, PageShell, RecordTableCard } from "../../../../components/common";
 import TaxForm from "../components/TaxForm";
 import { useTaxManager } from "../hooks/useTaxManager";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const TaxPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     filteredTaxes,
     listLoading,
@@ -34,6 +36,10 @@ const TaxPage = () => {
     cancelDelete,
   } = useTaxManager();
 
+  const canAdd = hasPermission("Tax Master", "Add");
+  const canEdit = hasPermission("Tax Master", "Edit");
+  const canDelete = hasPermission("Tax Master", "Delete");
+
   return (
     <PageShell title="Tax Master">
       {/* Error banner */}
@@ -58,8 +64,8 @@ const TaxPage = () => {
         rowKey="id"
         data={filteredTaxes}
         loading={listLoading}
-        actionLabel="+ Add Tax"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Tax" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         autoFocusSearch
         columns={[
           { header: "#", accessor: "sNo" },
@@ -74,27 +80,31 @@ const TaxPage = () => {
             accessor: "id",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  title={`Edit ${row.name}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => requestDelete(row)}
-                  disabled={deleting === row.id}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={`Delete ${row.name}`}
-                >
-                  {deleting === row.id ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    title={`Edit ${row.name}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => requestDelete(row)}
+                    disabled={deleting === row.id}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={`Delete ${row.name}`}
+                  >
+                    {deleting === row.id ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                  </button>
+                )}
               </div>
             ),
           },
@@ -113,12 +123,12 @@ const TaxPage = () => {
           error={mutationError}
           onSubmit={handleSave}
           onCancel={closeModal}
-          onDelete={() => {
+          onDelete={editDetail && canDelete ? () => {
             if (editDetail) {
               requestDelete({ id: editDetail.id, name: editDetail.name } as any);
               closeModal();
             }
-          }}
+          } : undefined}
         />
       </Modal>
 

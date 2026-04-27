@@ -2,9 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { ConfirmDialog, Loader, PageShell } from "../../../../components/common";
 import BranchTable from "../components/BranchTable";
 import { useBranchManager } from "../hooks/useBranchManager";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const BranchListPage = () => {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const {
     search,
     setSearch,
@@ -16,6 +18,10 @@ const BranchListPage = () => {
     filteredBranches,
   } = useBranchManager();
 
+  const canAdd = hasPermission("Branch Master", "Add");
+  const canEdit = hasPermission("Branch Master", "Edit");
+  const canDelete = hasPermission("Branch Master", "Delete");
+
   return (
     <PageShell title="Branch Master Management">
       {loading ? <Loader className="py-8" text="Loading branches..." /> : null}
@@ -24,9 +30,9 @@ const BranchListPage = () => {
         branches={filteredBranches}
         search={search}
         onSearchChange={setSearch}
-        onAdd={() => navigate("/dashboard/branches/add")}
-        onEdit={(branch) => navigate(`/dashboard/branches/edit/${branch.id}`)}
-        onDelete={setDeleteCandidate}
+        onAdd={canAdd ? () => navigate("/dashboard/branches/add") : undefined}
+        onEdit={canEdit ? (branch) => navigate(`/dashboard/branches/edit/${branch.id}`) : undefined}
+        onDelete={canDelete ? setDeleteCandidate : undefined}
       />
 
       <ConfirmDialog

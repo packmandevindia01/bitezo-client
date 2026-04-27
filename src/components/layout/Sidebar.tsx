@@ -6,6 +6,7 @@ import SidebarHeader from "./sidebar/SidebarHeader";
 import NavMasterGroup from "./sidebar/NavMasterGroup";
 import NavReportGroup from "./sidebar/NavReportGroup";
 import NavTransactionGroup from "./sidebar/NavTransactionGroup";
+import NavSettingsGroup from "./sidebar/NavSettingsGroup";
 
 interface Props {
   isOpen: boolean;
@@ -48,6 +49,12 @@ const Sidebar = ({ onClose, onDenominationOpen }: Props) => {
         />
 
         <NavReportGroup onClose={onClose} />
+
+        <NavSettingsGroup
+          navigate={navigate}
+          onClose={onClose}
+          itemClassName={itemClassName}
+        />
 
       </div>
     </div>

@@ -3,10 +3,12 @@ import { ConfirmDialog, Modal, PageShell, RecordTableCard } from "../../../../co
 import GroupForm from "../components/GroupForm";
 import { useGroupManager } from "../hooks/useGroupManager";
 import type { GroupRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const GroupPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     filteredGroups,
     listLoading,
@@ -34,6 +36,10 @@ const GroupPage = () => {
     confirmDelete,
     cancelDelete,
   } = useGroupManager();
+
+  const canAdd = hasPermission("Group Master", "Add");
+  const canEdit = hasPermission("Group Master", "Edit");
+  const canDelete = hasPermission("Group Master", "Delete");
 
   return (
     <PageShell title="Group Master">
@@ -65,8 +71,8 @@ const GroupPage = () => {
         rowKey="grpId"
         data={filteredGroups}
         loading={listLoading}
-        actionLabel="+ Add Group"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Group" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         columns={[
           { header: "#", accessor: "sNo" },
           { header: "Code", accessor: "code" },
@@ -77,27 +83,31 @@ const GroupPage = () => {
             accessor: "grpId",
             render: (row: GroupRecord) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => requestDelete(row)}
-                  disabled={deleting === row.grpId}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
-                  aria-label={`Delete ${row.name}`}
-                >
-                  {deleting === row.grpId ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.name}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => requestDelete(row)}
+                    disabled={deleting === row.grpId}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                    aria-label={`Delete ${row.name}`}
+                  >
+                    {deleting === row.grpId ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                  </button>
+                )}
               </div>
             ),
           },
@@ -115,12 +125,12 @@ const GroupPage = () => {
           detailLoading={detailLoading}
           saving={saving}
           onSubmit={handleSave}
-          onDelete={() => {
+          onDelete={editDetail && canDelete ? () => {
             if (editDetail) {
               requestDelete(editDetail);
               closeModal();
             }
-          }}
+          } : undefined}
         />
       </Modal>
 

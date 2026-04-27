@@ -61,6 +61,12 @@ const LoginForm = () => {
         localStorage.setItem("userName", data.user.userName);
         localStorage.setItem("isMaster", String(Boolean(data.user.isMaster)));
         
+        if (data.userRoles && data.userRoles.length > 0) {
+          localStorage.setItem("userRoles", JSON.stringify(data.userRoles));
+        } else {
+          localStorage.removeItem("userRoles");
+        }
+        
         const decimalPart = data.company?.decimalPart ?? 2;
         const currencySymbol = data.company?.currencySymbol ?? "BHD";
         
@@ -79,6 +85,7 @@ const LoginForm = () => {
             userId: data.user.userId,
             userName: data.user.userName,
             isMaster: Boolean(data.user.isMaster),
+            userRoles: data.userRoles ?? [],
             decimalPart,
             currencySymbol,
           })

@@ -20,8 +20,8 @@ interface TableCardGridProps {
   tables: TableRecord[];
   selectedId: number | null;
   loading: boolean;
-  onEdit: (record: TableRecord) => void;
-  onDeleteRequest: (record: TableRecord) => void;
+  onEdit?: (record: TableRecord) => void;
+  onDeleteRequest?: (record: TableRecord) => void;
   onReorder?: (newTables: TableRecord[]) => void;
 }
 

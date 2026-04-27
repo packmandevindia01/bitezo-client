@@ -3,8 +3,10 @@ import { ConfirmDialog, PageShell } from "../../../../components/common";
 import CategoryModal from "../components/CategoryModal";
 import CategoryTable from "../components/CategoryTable";
 import { useCategoryManager } from "../hooks/useCategoryManager";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const CategoryPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     setForm,
@@ -34,6 +36,10 @@ const CategoryPage = () => {
     filteredCategories,
   } = useCategoryManager();
 
+  const canAdd = hasPermission("Category Master", "Add");
+  const canEdit = hasPermission("Category Master", "Edit");
+  const canDelete = hasPermission("Category Master", "Delete");
+
   return (
     <PageShell title="Category Master">
       {/* Error banner */}
@@ -56,9 +62,9 @@ const CategoryPage = () => {
         loading={loading}
         search={search}
         onSearchChange={setSearch}
-        onAdd={openCreateModal}
-        onEdit={handleEdit}
-        onDelete={requestDelete}
+        onAdd={canAdd ? openCreateModal : undefined}
+        onEdit={canEdit ? handleEdit : undefined}
+        onDelete={canDelete ? requestDelete : undefined}
       />
 
       <CategoryModal

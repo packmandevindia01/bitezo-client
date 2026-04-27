@@ -7,10 +7,12 @@ import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import ProductListCard from "../components/ProductListCard";
 import { useProductManager } from "../hooks/useProductManager";
 import type { ProductListItem } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ProductListPage = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { hasPermission } = usePermissions();
   const {
     products, 
     search,
@@ -24,9 +26,14 @@ const ProductListPage = () => {
     cancelDelete,
   } = useProductManager();
 
+  const canAdd = hasPermission("Product Master", "Add");
+  const canEdit = hasPermission("Product Master", "Edit");
+  const canDelete = hasPermission("Product Master", "Delete");
+
   // ─── Scan to Edit Logic (Local Only) ──────────────────────────────────────
 
   const handleScan = async (scannedValue: string) => {
+    if (!canEdit) return;
     const code = scannedValue.trim();
     if (!code) return;
 
@@ -67,9 +74,9 @@ const ProductListPage = () => {
         search={search}
         loading={listLoading}
         onSearchChange={setSearch}
-        onAdd={() => navigate("/dashboard/products/add")}
-        onEdit={(record: ProductListItem) => navigate(`/dashboard/products/edit/${record.productId}`)}
-        onDelete={requestDelete}
+        onAdd={canAdd ? () => navigate("/dashboard/products/add") : undefined}
+        onEdit={canEdit ? (record: ProductListItem) => navigate(`/dashboard/products/edit/${record.productId}`) : undefined}
+        onDelete={canDelete ? requestDelete : undefined}
       />
 
       {/* ── Delete confirmation dialog ───────────────────────────────────── */}

@@ -18,4 +18,5 @@ export { default as RecordTableCard } from "./RecordTableCard";
 export { default as PageShell } from "./PageShell";
 export { default as ImageUploadPanel } from "./ImageUploadPanel";
 export { default as TouchNumpad } from "./TouchNumpad";
+export { default as Toggle } from "./Toggle";
 export * from "./MasterDesign";

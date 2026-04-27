@@ -3,6 +3,7 @@ import { FileText, Plus, Printer, RotateCcw, Save, X } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyPurchaseInvoiceForm } from "../constants";
 import type { PurchaseInvoiceLineItem, PurchaseInvoiceForm } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 type FieldConfig = {
   label: string;
@@ -33,9 +34,15 @@ const calculateLine = (item: PurchaseInvoiceLineItem) => {
 };
 
 const PurchaseInvoicePage = () => {
+  const { hasPermission } = usePermissions();
   const [form, setForm] = useState<PurchaseInvoiceForm>(createEmptyPurchaseInvoiceForm());
   const [items, setItems] = useState<PurchaseInvoiceLineItem[]>([]);
   const nextItemId = useRef(1);
+
+  const canAdd = hasPermission("Purchase Invoice", "Add");
+  const canEdit = hasPermission("Purchase Invoice", "Edit");
+  // For transactions, "Add" or "Edit" usually allows saving depending on the state
+  const canSave = canAdd || canEdit;
 
   const topFields: FieldConfig[] = [
     { label: "Series", key: "series", required: true },
@@ -96,7 +103,7 @@ const PurchaseInvoicePage = () => {
   }, [form.discAmount, form.otherCharge, form.roundOff, items]);
 
   const addItem = () => {
-    if (!currentLine.product) return;
+    if (!currentLine.product || !canSave) return;
 
     const itemId = nextItemId.current;
     nextItemId.current += 1;
@@ -114,7 +121,7 @@ const PurchaseInvoicePage = () => {
     }));
   };
 
-  const resetForm = () => {
+  const handleReset = () => {
     setForm(createEmptyPurchaseInvoiceForm());
     setItems([]);
   };
@@ -128,6 +135,7 @@ const PurchaseInvoicePage = () => {
       onChange={(event) => setField(field.key, event.target.value)}
       placeholder={field.label}
       required={field.required}
+      readOnly={!canSave}
     />
   );
 
@@ -145,14 +153,18 @@ const PurchaseInvoicePage = () => {
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={resetForm}>
-              <RotateCcw size={16} />
-              New
-            </Button>
-            <Button>
-              <Save size={16} />
-              Save
-            </Button>
+            {canAdd && (
+              <Button variant="secondary" onClick={handleReset}>
+                <RotateCcw size={16} />
+                New
+              </Button>
+            )}
+            {canSave && (
+              <Button>
+                <Save size={16} />
+                Save
+              </Button>
+            )}
             <Button variant="secondary">
               <Printer size={16} />
               Print
@@ -174,18 +186,18 @@ const PurchaseInvoicePage = () => {
 
         <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[1.1fr_1fr_1fr_0.55fr_0.55fr_0.75fr_0.65fr_0.65fr_0.8fr_0.9fr_auto]">
-            <FormInput label="Product" value={form.product} onChange={(e) => setField("product", e.target.value)} />
-            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} />
-            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
-            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
-            <FormInput label="FOC" value={form.foc} onChange={(e) => setField("foc", e.target.value)} />
-            <FormInput label="Price" value={form.price} onChange={(e) => setField("price", e.target.value)} />
-            <FormInput label="VAT(%)" value={form.vatPercent} onChange={(e) => setField("vatPercent", e.target.value)} />
-            <FormInput label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} />
+            <FormInput label="Product" value={form.product} onChange={(e) => setField("product", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} readOnly={!canSave} />
+            <FormInput label="FOC" value={form.foc} onChange={(e) => setField("foc", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Price" value={form.price} onChange={(e) => setField("price", e.target.value)} readOnly={!canSave} />
+            <FormInput label="VAT(%)" value={form.vatPercent} onChange={(e) => setField("vatPercent", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} readOnly={!canSave} />
             <FormInput label="Disc Amt" value={currency(currentLineTotals.discountAmount)} readOnly />
             <FormInput label="Amount" value={currency(currentLineTotals.netAmount)} readOnly />
             <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full">
+              <Button onClick={addItem} className="h-10 w-full" disabled={!canSave}>
                 <Plus size={16} />
                 Add
               </Button>
@@ -245,10 +257,10 @@ const PurchaseInvoicePage = () => {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="grid gap-x-4 gap-y-1 md:grid-cols-2">
-            <FormInput label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} />
-            <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} />
-            <FormInput label="Disc Amt" value={form.discAmount} onChange={(e) => setField("discAmount", e.target.value)} />
-            <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} />
+            <FormInput label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Disc Amt" value={form.discAmount} onChange={(e) => setField("discAmount", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} readOnly={!canSave} />
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
@@ -256,8 +268,9 @@ const PurchaseInvoicePage = () => {
               label="Other Charge"
               value={form.otherCharge}
               onChange={(e) => setField("otherCharge", e.target.value)}
+              readOnly={!canSave}
             />
-            <FormInput label="Round Off" value={form.roundOff} onChange={(e) => setField("roundOff", e.target.value)} />
+            <FormInput label="Round Off" value={form.roundOff} onChange={(e) => setField("roundOff", e.target.value)} readOnly={!canSave} />
             <div className="rounded-xl border border-[#49293e]/15 bg-white px-4 py-3">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
               <p className="mt-1 text-2xl font-bold text-[#49293e]">{currency(totals.grandTotal)}</p>

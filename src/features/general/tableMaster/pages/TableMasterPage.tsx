@@ -10,8 +10,10 @@ import type { TableRecord } from "../types";
 import TableSectionSelector from "../components/TableSectionSelector";
 import TableCardGrid from "../components/TableCardGrid";
 import TableFormSection from "../components/TableFormSection";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const TableMasterPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     sections,
@@ -36,12 +38,16 @@ const TableMasterPage = () => {
 
   const [deleteRecord, setDeleteRecord] = useState<TableRecord | null>(null);
 
+  const canAdd = hasPermission("Table Master", "Add");
+  const canEdit = hasPermission("Table Master", "Edit");
+  const canDelete = hasPermission("Table Master", "Delete");
+
   const handleOpenAdd = () => {
-    setCreateMode();
+    if (canAdd) setCreateMode();
   };
 
   const handleConfirmDelete = () => {
-    if (deleteRecord) {
+    if (deleteRecord && canDelete) {
       handleDelete(deleteRecord);
       setDeleteRecord(null);
     }
@@ -73,7 +79,7 @@ const TableMasterPage = () => {
             selectedSectionId={selectedSectionId}
             loading={loading}
             onSectionChange={handleSectionChange}
-            onAdd={handleOpenAdd}
+            onAdd={canAdd ? handleOpenAdd : undefined}
           />
 
           {!open && (
@@ -82,9 +88,9 @@ const TableMasterPage = () => {
                 tables={visibleTables}
                 selectedId={selectedId}
                 loading={loading}
-                onEdit={handleEdit}
-                onDeleteRequest={setDeleteRecord}
-                onReorder={handleReorder}
+                onEdit={canEdit ? handleEdit : undefined}
+                onDeleteRequest={canDelete ? setDeleteRecord : undefined}
+                onReorder={canEdit ? handleReorder : undefined}
               />
             </div>
           )}
@@ -97,7 +103,7 @@ const TableMasterPage = () => {
               onSetField={setField}
               onReset={() => resetForm(String(selectedSectionId))}
               onSave={handleSave}
-              onDeleteRequest={mode === "edit" ? () => {
+              onDeleteRequest={(mode === "edit" && canDelete) ? () => {
                 const record = visibleTables.find(t => t.tableId === selectedId);
                 if (record) setDeleteRecord(record);
               } : undefined}

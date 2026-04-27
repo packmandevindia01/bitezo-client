@@ -9,8 +9,10 @@ import {
 import VoucherSeriesForm from "../components/VoucherSeriesForm";
 import { useVoucherSeriesManager } from "../hooks/useVoucherSeriesManager";
 import type { VoucherSeriesRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const VoucherSeriesPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     branches,
@@ -31,6 +33,10 @@ const VoucherSeriesPage = () => {
   } = useVoucherSeriesManager();
   const [deleteRecord, setDeleteRecord] = React.useState<VoucherSeriesRecord | null>(null);
 
+  const canAdd = hasPermission("Voucher Series Master", "Add");
+  const canEdit = hasPermission("Voucher Series Master", "Edit");
+  const canDelete = hasPermission("Voucher Series Master", "Delete");
+
   return (
     <PageShell title="Voucher Series">
       <RecordTableCard
@@ -39,8 +45,8 @@ const VoucherSeriesPage = () => {
         onSearchChange={setSearch}
         rowKey="voucherId"
         data={filteredRecords}
-        actionLabel="+ Add Voucher Series"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Voucher Series" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         autoFocusSearch
         loading={loading}
         columns={[
@@ -53,22 +59,26 @@ const VoucherSeriesPage = () => {
             accessor: "voucherId",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.voucherName}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.voucherName}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.voucherName}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.voucherName}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -89,7 +99,7 @@ const VoucherSeriesPage = () => {
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
-          onDelete={() => {
+          onDelete={editingId && canDelete ? () => {
             if (editingId) {
               const record = filteredRecords.find(r => r.voucherId === editingId);
               if (record) {
@@ -97,7 +107,7 @@ const VoucherSeriesPage = () => {
                 closeModal();
               }
             }
-          }}
+          } : undefined}
         />
       </Modal>
 

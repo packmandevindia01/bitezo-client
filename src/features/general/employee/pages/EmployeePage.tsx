@@ -2,8 +2,10 @@ import { ConfirmDialog, PageShell } from "../../../../components/common";
 import EmployeeModal from "../components/EmployeeModal";
 import EmployeeTable from "../components/EmployeeTable";
 import { useEmployeeManager } from "../hooks/useEmployeeManager";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const EmployeePage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     setForm,
@@ -27,6 +29,10 @@ const EmployeePage = () => {
     filteredEmployees,
   } = useEmployeeManager();
 
+  const canAdd = hasPermission("Employee Master", "Add");
+  const canEdit = hasPermission("Employee Master", "Edit");
+  const canDelete = hasPermission("Employee Master", "Delete");
+
   return (
     <PageShell title="Employee Creation">
       {error && (
@@ -39,9 +45,9 @@ const EmployeePage = () => {
         employees={filteredEmployees}
         search={search}
         onSearchChange={setSearch}
-        onAdd={openCreateModal}
-        onEdit={handleEdit}
-        onDelete={setDeleteCandidate}
+        onAdd={canAdd ? openCreateModal : undefined}
+        onEdit={canEdit ? handleEdit : undefined}
+        onDelete={canDelete ? setDeleteCandidate : undefined}
         loading={loading}
       />
 
@@ -56,6 +62,7 @@ const EmployeePage = () => {
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {
+          if (!canDelete) return;
           const record = filteredEmployees.find((e) => e.id === editingId);
           if (record) {
             setDeleteCandidate(record);

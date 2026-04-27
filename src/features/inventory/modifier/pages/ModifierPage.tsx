@@ -12,9 +12,11 @@ import type { ModifierRecord } from "../types";
 import { formatCurrency } from "../../../../utils/formatters";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ModifierPage = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
+  const { hasPermission } = usePermissions();
   const {
     form,
     loading,
@@ -43,6 +45,10 @@ const ModifierPage = () => {
   } = useModifierManager();
   const [deleteRecord, setDeleteRecord] = React.useState<ModifierRecord | null>(null);
 
+  const canAdd = hasPermission("Modifier Master", "Add");
+  const canEdit = hasPermission("Modifier Master", "Edit");
+  const canDelete = hasPermission("Modifier Master", "Delete");
+
   return (
     <PageShell
       title="Modifier Master">
@@ -52,8 +58,8 @@ const ModifierPage = () => {
         onSearchChange={setSearch}
         rowKey="id"
         data={filteredModifiers}
-        actionLabel="+ Add Modifier"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Modifier" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
         autoFocusSearch
         columns={[
@@ -103,22 +109,26 @@ const ModifierPage = () => {
             accessor: "id",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.name}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.name}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },

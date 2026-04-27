@@ -10,6 +10,7 @@ interface ProductActionsDeps {
     setEditingId: (id: number) => void;
     setForm: (form: any) => void;
     setField: (key: any, value: any) => void;
+    setImagePreview: (url: string | undefined) => void;
   };
   altState: {
     alternatives: any[];
@@ -63,6 +64,27 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
           fileName: p.fileName ?? "",
           filePath: p.filePath ?? "",
         });
+
+        if (p.filePath) {
+          // Calculate base URL from API URL (strip /api)
+          const apiUrl = import.meta.env.VITE_API_BASE_URL || "";
+          const baseUrl = apiUrl 
+            ? apiUrl.replace(/\/api\/?$/, "") 
+            : "http://84.255.173.131:8068";
+            
+          // Strip /api if it exists at the start of the filePath returned by server
+          const cleanPath = p.filePath.replace(/^\/?api\//i, "").replace(/^\//, "");
+          
+          let fullUrl = p.filePath.startsWith("http") 
+            ? p.filePath 
+            : `${baseUrl}/${cleanPath}`;
+            
+          // Clean up any other potential double slashes
+          fullUrl = fullUrl.replace(/([^:]\/)\/+/g, "$1");
+          
+          console.log("[Product Image Debug] Full URL:", fullUrl);
+          formState.setImagePreview(fullUrl);
+        }
       }
       
       const detailRecord = detail as unknown as Record<string, unknown>;
@@ -95,24 +117,6 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
 
     setSaving(true);
     try {
-      const isNew = !editingId;
-      if (isNew) {
-        try {
-          const exists = await productService.checkCodeExists(String(form.code || "").trim());
-          if (exists > 0) {
-            showToast(`Code "${form.code}" already exists.`, "error");
-            setSaving(false);
-            return;
-          }
-        } catch (err: unknown) {
-          const axErr = err as { apiStatus?: number; response?: { status?: number } };
-          // If the check endpoint returns 404, the backend might not support this specific pre-check.
-          // We proceed to the CREATE call and let it handle any actual duplicates (409 Conflict).
-          if (axErr.apiStatus !== 404 && axErr.response?.status !== 404) {
-            console.error("Code check failed:", err);
-          }
-        }
-      }
 
       const payload = {
         code: String(form.code || "").trim(),
@@ -139,6 +143,7 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
           altArabic: alt.altArabic || "",
           branchId: parseInt(alt.branchId) || 1,
         })),
+        imageFile: form.imageFile,
       } as any;
 
       if (editingId) {

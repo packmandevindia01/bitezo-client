@@ -3,8 +3,10 @@ import { ConfirmDialog, PageShell } from "../../../../components/common";
 import SubCategoryModal from "../components/SubCategoryModal";
 import SubCategoryTable from "../components/SubCategoryTable";
 import { useSubCategoryManager } from "../hooks/useSubCategoryManager";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const SubCategoryPage = () => {
+  const { hasPermission } = usePermissions();
   const {
     form,
     setForm,
@@ -30,6 +32,10 @@ const SubCategoryPage = () => {
     filteredSubCategories,
   } = useSubCategoryManager();
 
+  const canAdd = hasPermission("Sub Category Master", "Add");
+  const canEdit = hasPermission("Sub Category Master", "Edit");
+  const canDelete = hasPermission("Sub Category Master", "Delete");
+
   return (
     <PageShell title="Sub Category Master">
       {/* Error banner */}
@@ -52,9 +58,9 @@ const SubCategoryPage = () => {
         loading={loading}
         search={search}
         onSearchChange={setSearch}
-        onAdd={openCreateModal}
-        onEdit={handleEdit}
-        onDelete={requestDelete}
+        onAdd={canAdd ? openCreateModal : undefined}
+        onEdit={canEdit ? handleEdit : undefined}
+        onDelete={canDelete ? requestDelete : undefined}
       />
 
       <SubCategoryModal
@@ -68,13 +74,13 @@ const SubCategoryPage = () => {
         onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
         onClear={resetForm}
         onSave={handleSave}
-        onDelete={() => {
+        onDelete={canDelete ? () => {
           const record = filteredSubCategories.find((s) => s.id === editingId);
           if (record) {
             requestDelete(record);
             closeModal();
           }
-        }}
+        } : undefined}
       />
 
       {/* Delete confirmation dialog */}

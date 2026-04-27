@@ -3,6 +3,7 @@ import { Plus, RotateCcw, Save, X, FileText } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyBomForm } from "../constants";
 import type { BomLineItem, BomForm } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const toNumber = (value: string) => {
   const parsed = Number(value);
@@ -10,11 +11,18 @@ const toNumber = (value: string) => {
 };
 
 const BomPage = () => {
+  const { hasPermission } = usePermissions();
   const [form, setForm] = useState<BomForm>(createEmptyBomForm());
   const [items, setItems] = useState<BomLineItem[]>([]);
   const nextItemId = useRef(1);
 
+  const canAdd = hasPermission("BOM Master", "Add");
+  const canEdit = hasPermission("BOM Master", "Edit");
+  const canDelete = hasPermission("BOM Master", "Delete");
+  const canSave = canAdd || canEdit;
+
   const setField = (key: keyof BomForm, value: string) => {
+    if (!canSave) return;
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -30,7 +38,7 @@ const BomPage = () => {
   );
 
   const addItem = () => {
-    if (!currentLine.product) return;
+    if (!canAdd || !currentLine.product) return;
 
     const itemId = nextItemId.current;
     nextItemId.current += 1;
@@ -70,35 +78,39 @@ const BomPage = () => {
             value={form.finishedProduct} 
             onChange={(e) => setField("finishedProduct", e.target.value)} 
             required
+            readOnly={!canSave}
           />
           <FormInput 
             label="Code" 
             value={form.finishedProductCode} 
             onChange={(e) => setField("finishedProductCode", e.target.value)} 
             required
+            readOnly={!canSave}
           />
           <FormInput 
             label="Unit" 
             value={form.finishedProductUnit} 
             onChange={(e) => setField("finishedProductUnit", e.target.value)} 
             required
+            readOnly={!canSave}
           />
           <FormInput 
             label="Qty" 
             value={form.finishedProductQty} 
             onChange={(e) => setField("finishedProductQty", e.target.value)} 
             required
+            readOnly={!canSave}
           />
         </div>
 
         <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-            <FormInput label="Raw Materials" value={form.product} onChange={(e) => setField("product", e.target.value)} />
-            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} />
-            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
-            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
+            <FormInput label="Raw Materials" value={form.product} onChange={(e) => setField("product", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} readOnly={!canAdd} />
+            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} readOnly={!canAdd} />
             <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full px-8">
+              <Button onClick={addItem} className="h-10 w-full px-8" disabled={!canAdd}>
                 <Plus size={16} />
                 Add
               </Button>
@@ -148,18 +160,24 @@ const BomPage = () => {
         </div>
 
         <div className="mt-8 flex flex-wrap justify-end gap-3">
-          <Button variant="secondary" onClick={resetForm} className="min-w-[120px] justify-center">
-            <RotateCcw size={16} />
-            New
-          </Button>
-          <Button className="min-w-[120px] justify-center">
-            <Save size={16} />
-            Save
-          </Button>
-          <Button variant="secondary" className="min-w-[120px] justify-center text-red-500 hover:text-red-600">
-            <X size={16} />
-            Delete
-          </Button>
+          {canAdd && (
+            <Button variant="secondary" onClick={resetForm} className="min-w-[120px] justify-center">
+              <RotateCcw size={16} />
+              New
+            </Button>
+          )}
+          {canSave && (
+            <Button className="min-w-[120px] justify-center">
+              <Save size={16} />
+              Save
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="secondary" className="min-w-[120px] justify-center text-red-500 hover:text-red-600">
+              <X size={16} />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     </PageShell>

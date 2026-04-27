@@ -9,6 +9,8 @@ interface UserApiRecord {
   userName?: string;
   branchId?: number;
   branch?: string;
+  roleId?: number;
+  roleName?: string;
   isActive?: boolean;
   active?: boolean;
   status?: string;
@@ -22,6 +24,8 @@ const mapApiUser = (user: UserApiRecord): User => ({
   name: user.name ?? user.userName ?? "",
   branchId: user.branchId ?? 0,
   branchName: user.branch ?? "",
+  roleId: user.roleId,
+  roleName: user.roleName,
   isActive: user.isActive ?? user.active ?? false,
   isMaster: Boolean(user.isMaster),
   statusLabel: user.status,
@@ -73,6 +77,7 @@ export const createUser = async (payload: UserPayload) => {
     name: payload.name,
     password: payload.password,
     branchId: payload.branchId,
+    roleId: payload.roleId,
     isActive: payload.isActive,
     isMaster: payload.isMaster,
     createdAt: new Date().toISOString(),
@@ -88,6 +93,7 @@ export const updateUser = async (userId: number, payload: UserPayload) => {
     userId,
     name: payload.name,
     branchId: payload.branchId,
+    roleId: payload.roleId,
     isActive: payload.isActive,
     isMaster: payload.isMaster,
     updatedAt: new Date().toISOString(),

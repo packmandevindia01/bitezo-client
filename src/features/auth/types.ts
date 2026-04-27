@@ -1,3 +1,11 @@
+export interface UserRole {
+  permissionId: number;
+  module: string;
+  action: string;
+  status?: boolean;
+  moduleType?: string;
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -9,6 +17,7 @@ export interface LoginResponse {
     userName: string;
     isMaster: boolean;
   };
+  userRoles?: UserRole[];
   tenantId?: string;
   company?: {
     decimalPart: number;

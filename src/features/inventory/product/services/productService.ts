@@ -29,8 +29,16 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>, url: string
     }
 
     return envelope.data;
-  } catch (error) {
-    console.error(`[ProductAPI Error] ${url}:`, error);
+  } catch (error: any) {
+    const responseData = error.response?.data;
+    if (error.response?.status === 400 && responseData?.errors) {
+      console.error(`[ProductAPI Validation Errors] ${url}:`, responseData.errors);
+    }
+    console.error(`[ProductAPI Error] ${url}:`, {
+      message: error.message,
+      status: error.response?.status,
+      data: responseData,
+    });
     throw error;
   }
 }
@@ -89,18 +97,60 @@ export const productService = {
   },
 
   /** POST /api/product */
-  create(payload: CreateProductPayload): Promise<{ id: number }> {
-    return unwrap(
-      axiosInstance.post<ApiResponse<{ id: number }>>(BASE, payload),
+  async create(payload: CreateProductPayload & { imageFile?: File }): Promise<{ id: number }> {
+    const { imageFile, ...data } = payload;
+    
+    // 1. Create product as JSON (application/json)
+    const result = await unwrap(
+      axiosInstance.post<ApiResponse<{ id: number }>>(BASE, data),
       BASE
     );
+
+    // 2. If an image was provided, upload it separately to /api/product/product-image
+    if (imageFile && result.id) {
+      try {
+        await productService.uploadImage(result.id, imageFile);
+      } catch (error) {
+        console.error("[ProductService] Image upload failed after product creation:", error);
+      }
+    }
+
+    return result;
   },
 
-  /** PUT /api/product/{productId} */
-  update(productId: number, payload: UpdateProductPayload): Promise<{ id: number }> {
+  /** PUT /api/product/{productId} - Update product details as JSON */
+  async update(productId: number, payload: UpdateProductPayload & { imageFile?: File }): Promise<{ id: number }> {
+    const { imageFile, ...data } = payload;
     const url = `${BASE}/${productId}`;
+
+    // 1. Update product as JSON
+    const result = await unwrap(
+      axiosInstance.put<ApiResponse<{ id: number }>>(url, data),
+      url
+    );
+
+    // 2. If a new image was provided, upload it
+    if (imageFile) {
+      try {
+        await productService.uploadImage(productId, imageFile);
+      } catch (error) {
+        console.error("[ProductService] Image upload failed after product update:", error);
+      }
+    }
+
+    return result;
+  },
+  
+  /** POST /api/product/product-image */
+  async uploadImage(productId: number, imageFile: File): Promise<void> {
+    const url = `${BASE}/product-image`;
+    const formData = new FormData();
+    // Some APIs expect camelCase even if Swagger shows PascalCase
+    formData.append("productId", String(productId));
+    formData.append("productImage", imageFile);
+
     return unwrap(
-      axiosInstance.put<ApiResponse<{ id: number }>>(url, payload),
+      axiosInstance.post<ApiResponse<void>>(url, formData),
       url
     );
   },

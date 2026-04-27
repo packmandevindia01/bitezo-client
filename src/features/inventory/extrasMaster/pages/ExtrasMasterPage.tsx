@@ -12,9 +12,11 @@ import type { ExtrasMasterRecord } from "../types";
 import { formatCurrency } from "../../../../utils/formatters";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ExtrasMasterPage = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
+  const { hasPermission } = usePermissions();
   const {
     form,
     loading,
@@ -43,6 +45,10 @@ const ExtrasMasterPage = () => {
   } = useExtrasMasterManager();
   const [deleteRecord, setDeleteRecord] = React.useState<ExtrasMasterRecord | null>(null);
 
+  const canAdd = hasPermission("Extras Master", "Add");
+  const canEdit = hasPermission("Extras Master", "Edit");
+  const canDelete = hasPermission("Extras Master", "Delete");
+
   return (
     <PageShell
       title="Extras Master" >
@@ -52,8 +58,8 @@ const ExtrasMasterPage = () => {
         onSearchChange={setSearch}
         rowKey="id"
         data={filteredRecords}
-        actionLabel="+ Add Extras"
-        onAction={openCreateModal}
+        actionLabel={canAdd ? "+ Add Extras" : undefined}
+        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
         autoFocusSearch
         columns={[
@@ -103,22 +109,26 @@ const ExtrasMasterPage = () => {
             accessor: "id",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.name}`}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteRecord(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.name}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                    aria-label={`Edit ${row.name}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteRecord(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                    aria-label={`Delete ${row.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -147,13 +157,13 @@ const ExtrasMasterPage = () => {
           onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
           onClear={resetForm}
           onSave={handleSave}
-          onDelete={() => {
+          onDelete={editingId && canDelete ? () => {
             const record = filteredRecords.find(r => r.id === editingId);
             if (record) {
               setDeleteRecord(record);
               closeModal();
             }
-          }}
+          } : undefined}
         />
       </Modal>
 

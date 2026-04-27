@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, RecordTableCard } from "../../../../components/common";
 import type { CustomerRecord } from "../types";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const initialCustomers: CustomerRecord[] = [
   {
@@ -25,8 +26,13 @@ const initialCustomers: CustomerRecord[] = [
 
 const CustomerListPage = () => {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const [customers, setCustomers] = useState(initialCustomers);
   const [search, setSearch] = useState("");
+
+  const canAdd = hasPermission("Customer Master", "Add");
+  const canEdit = hasPermission("Customer Master", "Edit");
+  const canDelete = hasPermission("Customer Master", "Delete");
 
   const filteredCustomers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -40,6 +46,7 @@ const CustomerListPage = () => {
   }, [customers, search]);
 
   const handleDelete = (id: number) => {
+    if (!canDelete) return;
     setCustomers((prev) => prev.filter((item) => item.id !== id));
   };
 
@@ -51,8 +58,8 @@ const CustomerListPage = () => {
         onSearchChange={setSearch}
         rowKey="id"
         data={filteredCustomers}
-        actionLabel="+ Add Customer"
-        onAction={() => navigate("/dashboard/customers/new")}
+        actionLabel={canAdd ? "+ Add Customer" : undefined}
+        onAction={canAdd ? () => navigate("/dashboard/customers/new") : undefined}
         columns={[
           { header: "Customer ID", accessor: "customerId" },
           { header: "Customer Name", accessor: "custName" },
@@ -64,20 +71,24 @@ const CustomerListPage = () => {
             accessor: "id",
             render: (row) => (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard/customers/new")}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(row.id)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/dashboard/customers/new")}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(row.id)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ),
           },
