@@ -10,10 +10,14 @@ import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import ErrorBoundary from "../../../components/common/ErrorBoundary";
 import { useToast } from "../../../app/providers/useToast";
 import { formatCurrency } from "../../../utils/formatters";
+import PosMoreModal from "../components/PosMoreModal";
+
 
 const PosTerminalPage = () => {
   const { showToast } = useToast();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
+
 
   const {
     categories,
@@ -52,7 +56,8 @@ const PosTerminalPage = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-100 font-sans text-slate-900 overflow-hidden relative">
-      <PosTopNav onNewOrder={clearCart} />
+      <PosTopNav onNewOrder={clearCart} onMore={() => setIsMoreModalOpen(true)} />
+
 
       <main className="flex flex-col flex-1 overflow-hidden xl:grid xl:grid-cols-[280px_minmax(0,1fr)_460px]">
         {/* Left Column: Categories */}
@@ -65,17 +70,18 @@ const PosTerminalPage = () => {
         {/* Middle Column: Search + Grid */}
         <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb]">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between p-4 xl:px-8 xl:py-4 bg-white border-b border-slate-100 gap-4 xl:gap-10">
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-3 xl:gap-4 shrink-0">
               <div className="space-y-0.5">
-                <h2 className="text-2xl xl:text-3xl font-bold text-[#49293e] tracking-tight whitespace-nowrap">
+                <h2 className="text-xl md:text-2xl xl:text-3xl font-bold text-[#49293e] tracking-tight whitespace-nowrap">
                   {activeCategory?.name || "All Items"}
                 </h2>
-                <p className="hidden sm:block text-[10px] xl:text-xs font-bold text-slate-400 uppercase tracking-[0.15em]">
+                <p className="hidden sm:block text-[9px] xl:text-xs font-bold text-slate-400 uppercase tracking-[0.15em]">
                   {visibleProducts.length} Items Available
                 </p>
               </div>
               <div className="hidden xl:block w-px h-10 bg-slate-100" />
             </div>
+
 
             <div className="relative w-full group max-w-2xl">
               <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400 group-focus-within:text-[#49293e] transition-colors">
@@ -146,6 +152,9 @@ const PosTerminalPage = () => {
         </button>
       </div>
 
+      {/* More Modal */}
+      <PosMoreModal isOpen={isMoreModalOpen} onClose={() => setIsMoreModalOpen(false)} />
+
       {/* Mobile Overlay */}
       {isCartOpen && (
         <div
@@ -153,6 +162,7 @@ const PosTerminalPage = () => {
           onClick={() => setIsCartOpen(false)}
         />
       )}
+
     </div>
   );
 };

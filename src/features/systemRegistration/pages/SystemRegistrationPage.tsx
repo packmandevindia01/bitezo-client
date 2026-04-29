@@ -8,8 +8,11 @@ const SystemRegistrationPage = () => {
     setSystemType,
     systemName,
     branchId,
+    counterId,
     branches,
+    counters,
     loadingBranches,
+    loadingCounters,
     saving,
     errors,
     handleFieldChange,
@@ -28,8 +31,11 @@ const SystemRegistrationPage = () => {
           setSystemType={setSystemType}
           systemName={systemName}
           branchId={branchId}
+          counterId={counterId}
           branches={branches}
+          counters={counters}
           loadingBranches={loadingBranches}
+          loadingCounters={loadingCounters}
           saving={saving}
           errors={errors}
           onFieldChange={handleFieldChange}

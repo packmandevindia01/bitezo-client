@@ -14,13 +14,13 @@ export const createEmptyPurchaseReturnForm = (): PurchaseReturnForm => ({
   unit: "",
   qty: "0",
   foc: "0",
-  price: "0.000",
+  price: "0",
   vatPercent: "0",
   discPercent: "0",
   
-  discAmount: "0.000",
+  discAmount: "0",
   paymode: "Cash",
   narration: "",
-  otherCharge: "0.000",
-  roundOff: "0.000",
+  otherCharge: "0",
+  roundOff: "0",
 });

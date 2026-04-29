@@ -50,6 +50,7 @@ const authSlice = createSlice({
         userRoles: UserRole[];
         decimalPart: number;
         currencySymbol: string;
+        sessionExpiresAt?: string;
       }>
     ) => {
       const p = action.payload;
@@ -63,7 +64,20 @@ const authSlice = createSlice({
       state.userRoles = p.userRoles;
       state.decimalPart = p.decimalPart;
       state.currencySymbol = p.currencySymbol;
+
+      // Persist to localStorage
+      localStorage.setItem("accessToken", p.accessToken);
+      localStorage.setItem("refreshToken", p.refreshToken);
+      localStorage.setItem("userId", String(p.userId));
+      localStorage.setItem("userName", p.userName);
+      localStorage.setItem("isMaster", String(p.isMaster));
+      localStorage.setItem("userRoles", JSON.stringify(p.userRoles));
+      localStorage.setItem("decimalPart", String(p.decimalPart));
+      localStorage.setItem("currencySymbol", p.currencySymbol);
+      if (p.tenantId) localStorage.setItem("tenantId", p.tenantId);
+      if (p.sessionExpiresAt) localStorage.setItem("sessionExpiresAt", p.sessionExpiresAt);
     },
+
     logout: (state) => {
       state.isAuthenticated = false;
       state.accessToken = null;

@@ -3,6 +3,7 @@ import { FileText, Plus, Printer, RotateCcw, Save, X } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyPurchaseReturnForm } from "../constants";
 import type { PurchaseReturnLineItem, PurchaseReturnForm } from "../types";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 type FieldConfig = {
   label: string;
@@ -10,8 +11,6 @@ type FieldConfig = {
   type?: string;
   required?: boolean;
 };
-
-const currency = (value: number) => value.toFixed(3);
 
 const toNumber = (value: string) => {
   const parsed = Number(value);
@@ -33,8 +32,17 @@ const calculateLine = (item: PurchaseReturnLineItem) => {
 };
 
 const PurchaseReturnPage = () => {
-  const [form, setForm] = useState<PurchaseReturnForm>(createEmptyPurchaseReturnForm());
+  const { formatAmount } = useCurrency();
+  const [form, setForm] = useState<PurchaseReturnForm>(() => {
+    const empty = createEmptyPurchaseReturnForm();
+    empty.price = formatAmount(0);
+    empty.discAmount = formatAmount(0);
+    empty.otherCharge = formatAmount(0);
+    empty.roundOff = formatAmount(0);
+    return empty;
+  });
   const [items, setItems] = useState<PurchaseReturnLineItem[]>([]);
+
   const nextItemId = useRef(1);
 
   const topFields: FieldConfig[] = [
@@ -107,16 +115,24 @@ const PurchaseReturnPage = () => {
       unit: "",
       qty: "0",
       foc: "0",
-      price: "0.000",
+      price: formatAmount(0),
       vatPercent: "0",
       discPercent: "0",
     }));
   };
 
   const resetForm = () => {
-    setForm(createEmptyPurchaseReturnForm());
+    setForm(() => {
+      const empty = createEmptyPurchaseReturnForm();
+      empty.price = formatAmount(0);
+      empty.discAmount = formatAmount(0);
+      empty.otherCharge = formatAmount(0);
+      empty.roundOff = formatAmount(0);
+      return empty;
+    });
     setItems([]);
   };
+
 
   const renderField = (field: FieldConfig) => (
     <FormInput
@@ -181,8 +197,8 @@ const PurchaseReturnPage = () => {
             <FormInput label="Price" value={form.price} onChange={(e) => setField("price", e.target.value)} />
             <FormInput label="VAT(%)" value={form.vatPercent} onChange={(e) => setField("vatPercent", e.target.value)} />
             <FormInput label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} />
-            <FormInput label="Disc Amt" value={currency(currentLineTotals.discountAmount)} readOnly />
-            <FormInput label="Amount" value={currency(currentLineTotals.netAmount)} readOnly />
+            <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} readOnly />
+            <FormInput label="Amount" value={formatAmount(currentLineTotals.netAmount)} readOnly />
             <div className="flex items-end pb-4">
               <Button onClick={addItem} className="h-10 w-full">
                 <Plus size={16} />
@@ -228,11 +244,11 @@ const PurchaseReturnPage = () => {
                         <td className="px-4 py-3">{item.unit || "-"}</td>
                         <td className="px-4 py-3">{item.qty}</td>
                         <td className="px-4 py-3">{item.foc}</td>
-                        <td className="px-4 py-3">{currency(item.price)}</td>
-                        <td className="px-4 py-3">{currency(line.amount)}</td>
-                        <td className="px-4 py-3">{currency(line.discountAmount)}</td>
-                        <td className="px-4 py-3">{currency(line.vatAmount)}</td>
-                        <td className="px-4 py-3 font-semibold text-gray-900">{currency(line.netAmount)}</td>
+                        <td className="px-4 py-3 font-mono">{formatAmount(item.price)}</td>
+                        <td className="px-4 py-3 font-mono">{formatAmount(line.amount)}</td>
+                        <td className="px-4 py-3 font-mono">{formatAmount(line.discountAmount)}</td>
+                        <td className="px-4 py-3 font-mono">{formatAmount(line.vatAmount)}</td>
+                        <td className="px-4 py-3 font-mono font-semibold text-gray-900">{formatAmount(line.netAmount)}</td>
                       </tr>
                     );
                   })
@@ -259,7 +275,7 @@ const PurchaseReturnPage = () => {
             <FormInput label="Round Off" value={form.roundOff} onChange={(e) => setField("roundOff", e.target.value)} />
             <div className="rounded-xl border border-[#49293e]/15 bg-white px-4 py-3">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
-              <p className="mt-1 text-2xl font-bold text-[#49293e]">{currency(totals.grandTotal)}</p>
+              <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
             </div>
           </div>
         </div>

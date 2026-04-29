@@ -22,9 +22,10 @@ const PosProductGrid = ({
       if (!parentRef.current) return;
       const width = parentRef.current.offsetWidth;
       if (width > 1200) setColumns(4);
-      else if (width > 800) setColumns(3);
-      else if (width > 500) setColumns(2);
+      else if (width > 900) setColumns(3);
+      else if (width > 600) setColumns(2);
       else setColumns(1);
+
     };
 
     updateColumns();

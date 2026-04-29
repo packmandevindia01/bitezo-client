@@ -1,3 +1,6 @@
+/**
+ * Normalizes a value to a valid number of decimal places (between 0 and 6)
+ */
 export const normalizeDecimalPart = (value: number | string | undefined | null): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 2;
@@ -5,14 +8,14 @@ export const normalizeDecimalPart = (value: number | string | undefined | null):
 };
 
 /**
- * Returns the configured decimal part from localStorage
+ * Returns the configured decimal part from localStorage (fallback for non-hook usage)
  */
 export const getDecimalPart = (): number => {
   return normalizeDecimalPart(localStorage.getItem("decimalPart"));
 };
 
 /**
- * Returns the configured currency symbol from localStorage
+ * Returns the configured currency symbol from localStorage (fallback for non-hook usage)
  */
 export const getCurrencySymbol = (): string => {
   return localStorage.getItem("currencySymbol") || "BHD";
@@ -20,7 +23,7 @@ export const getCurrencySymbol = (): string => {
 
 /**
  * Formats a number or string into a string with the correct decimal part.
- * Example: formatAmount(15.5) -> "15.500" (if decimalPart is 3)
+ * Example: formatAmount(15.5, 3) -> "15.500"
  */
 export const formatAmount = (value: number | string | undefined | null, decimalPart = getDecimalPart()): string => {
   if (value === undefined || value === null || value === "") return "";
@@ -32,15 +35,21 @@ export const formatAmount = (value: number | string | undefined | null, decimalP
 
 /**
  * Formats a number or string into a currency string with the correct symbol and decimals.
- * Example: formatCurrency(25) -> "BHD 25.000" (if BHD and 3 decimals)
  */
-export const formatCurrency = (value: number | string | undefined | null, decimalPart = getDecimalPart()): string => {
+export const formatCurrency = (value: number | string | undefined | null, decimalPart = getDecimalPart(), symbol = getCurrencySymbol()): string => {
   if (value === undefined || value === null || value === "") return "";
-  return formatAmount(value, decimalPart);
+  return `${symbol} ${formatAmount(value, decimalPart)}`;
 };
 
+/**
+ * Validates if an input string is a valid amount based on decimal constraints.
+ */
 export const sanitizeAmountInput = (value: string, decimalPart = getDecimalPart()): string | null => {
   const decimals = normalizeDecimalPart(decimalPart);
+  // Allow empty string for clearing inputs
+  if (value === "") return "";
+  
+  // Regex for digits followed by optional dot and limited decimal places
   const pattern = decimals === 0
     ? /^\d*$/
     : new RegExp(`^\\d*(?:\\.\\d{0,${decimals}})?$`);

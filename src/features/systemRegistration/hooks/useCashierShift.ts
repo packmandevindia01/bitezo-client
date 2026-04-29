@@ -13,13 +13,17 @@ export const useCashierShift = () => {
     ({
       openingCash,
       notes,
+      cashierId: manualId,
+      cashierName: manualName,
     }: {
       openingCash: number;
       notes: string;
+      cashierId?: string | number;
+      cashierName?: string;
     }) => {
-      // These would ideally come from an auth slice in a real app
-      const cashierId = localStorage.getItem("userId") ?? "unknown";
-      const cashierName = localStorage.getItem("userName") ?? "Cashier";
+      const cashierId = String(manualId || localStorage.getItem("userId") || "unknown");
+      const cashierName = manualName || localStorage.getItem("userName") || "Cashier";
+
 
       const shift: CashierShift = {
         shiftId: `shift-${Date.now()}`,

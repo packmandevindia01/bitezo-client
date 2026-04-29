@@ -1,17 +1,20 @@
 import { Button, FormInput } from "../../../components/common";
 import SystemTypeCard from "./SystemTypeCard";
-import type { BranchOption, SystemType } from "../types";
+import type { BranchOption, CounterOption, SystemType } from "../types";
 
 interface RegistrationFormProps {
   systemType: SystemType;
   setSystemType: (type: SystemType) => void;
   systemName: string;
   branchId: string;
+  counterId: string;
   branches: BranchOption[];
+  counters: CounterOption[];
   loadingBranches: boolean;
+  loadingCounters: boolean;
   saving: boolean;
-  errors: { systemName: string; branchId: string };
-  onFieldChange: (field: "systemName" | "branchId", value: string) => void;
+  errors: { systemName: string; branchId: string; counterId: string };
+  onFieldChange: (field: "systemName" | "branchId" | "counterId", value: string) => void;
   onSubmit: () => void;
 }
 
@@ -20,8 +23,11 @@ const RegistrationForm = ({
   setSystemType,
   systemName,
   branchId,
+  counterId,
   branches,
+  counters,
   loadingBranches,
+  loadingCounters,
   saving,
   errors,
   onFieldChange,
@@ -62,48 +68,87 @@ const RegistrationForm = ({
         />
       </div>
 
-      {/* Branch Selector */}
-      <div className="flex flex-col gap-1 mb-4 w-full">
-        <label htmlFor="branch-select" className="text-xs md:text-sm font-medium text-gray-700">
-          Branch <span className="text-red-500 ml-1 font-bold">*</span>
-        </label>
-        <select
-          id="branch-select"
-          value={branchId}
-          onChange={(e) => onFieldChange("branchId", e.target.value)}
-          disabled={saving || loadingBranches}
-          className={`
-            w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border outline-none transition
-            ${errors.branchId ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
-            ${saving || loadingBranches ? "bg-gray-100 cursor-not-allowed" : ""}
-            focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
-          `}
-        >
-          <option value="">
-            {loadingBranches ? "Loading branches..." : "Select a branch"}
-          </option>
-          {branches.map((b) => (
-            <option key={b.id} value={String(b.id)}>
-              {b.name}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+        {/* Branch Selector */}
+        <div className="flex flex-col gap-1 w-full">
+          <label htmlFor="branch-select" className="text-xs md:text-sm font-medium text-gray-700">
+            Branch <span className="text-red-500 ml-1 font-bold">*</span>
+          </label>
+          <select
+            id="branch-select"
+            value={branchId}
+            onChange={(e) => onFieldChange("branchId", e.target.value)}
+            disabled={saving || loadingBranches}
+            className={`
+              w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border outline-none transition
+              ${errors.branchId ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
+              ${saving || loadingBranches ? "bg-gray-100 cursor-not-allowed" : ""}
+              focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
+            `}
+          >
+            <option value="">
+              {loadingBranches ? "Loading branches..." : "Select a branch"}
             </option>
-          ))}
-        </select>
-        {errors.branchId && (
-          <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-red-600 font-semibold">
-            <span className="shrink-0">⚠️</span>
-            <span>{errors.branchId}</span>
+            {branches.map((b) => (
+              <option key={b.id} value={String(b.id)}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          {errors.branchId && (
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-red-600 font-semibold">
+              <span className="shrink-0">⚠️</span>
+              <span>{errors.branchId}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Counter Selector - Only for POS */}
+        {systemType === "pos" && (
+          <div className="flex flex-col gap-1 w-full">
+            <label htmlFor="counter-select" className="text-xs md:text-sm font-medium text-gray-700">
+              Counter <span className="text-red-500 ml-1 font-bold">*</span>
+            </label>
+            <select
+              id="counter-select"
+              value={counterId}
+              onChange={(e) => onFieldChange("counterId", e.target.value)}
+              disabled={saving || loadingCounters || !branchId}
+              className={`
+                w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border outline-none transition
+                ${errors.counterId ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
+                ${saving || loadingCounters || !branchId ? "bg-gray-100 cursor-not-allowed" : ""}
+                focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
+              `}
+            >
+              <option value="">
+                {!branchId ? "Select branch first" : loadingCounters ? "Loading counters..." : "Select a counter"}
+              </option>
+              {counters.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {errors.counterId && (
+              <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-red-600 font-semibold">
+                <span className="shrink-0">⚠️</span>
+                <span>{errors.counterId}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Action */}
-      <div className="mt-6 flex gap-3">
+      <div className="mt-8 flex gap-3">
         <Button
           id="register-system-btn"
           onClick={onSubmit}
           disabled={saving}
           loading={saving}
           size="lg"
+          className="w-full sm:w-auto"
         >
           {saving ? "Saving…" : "Register System"}
         </Button>

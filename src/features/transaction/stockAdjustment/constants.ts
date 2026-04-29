@@ -11,8 +11,8 @@ export const createEmptyStockAdjustmentForm = (): StockAdjustmentForm => ({
   code: "",
   unit: "",
   qty: "0",
-  cost: "0.000",
-  amount: "0.000",
+  cost: "0",
+  amount: "0",
   type: "",
   effect: "",
 });

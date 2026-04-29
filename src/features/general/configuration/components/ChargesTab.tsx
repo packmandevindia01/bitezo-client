@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Trash2, DollarSign } from "lucide-react";
 import type { ConfigurationState } from "../types";
 import { FormInput, Button, Table } from "../../../../components/common";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface Props {
   form: ConfigurationState;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) => {
+  const { formatAmount } = useCurrency();
   const [newName, setNewName] = useState("");
   const [newCharge, setNewCharge] = useState("");
 
@@ -80,7 +82,7 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
               { 
                 header: "Charge Amount", 
                 accessor: "charge",
-                render: (row) => <span className="font-bold text-[#49293e]">{row.charge.toFixed(3)}</span>
+                render: (row) => <span className="font-bold text-[#49293e]">{formatAmount(row.charge)}</span>
               },
               {
                 header: "Actions",

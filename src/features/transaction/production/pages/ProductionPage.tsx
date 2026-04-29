@@ -3,18 +3,24 @@ import { Plus, RotateCcw, Save, X, FileText, Download } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyProductionForm } from "../constants";
 import type { ProductionLineItem, ProductionForm } from "../types";
-
-const currency = (value: number) => value.toFixed(3);
-
-const toNumber = (value: string) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 const ProductionPage = () => {
-  const [form, setForm] = useState<ProductionForm>(createEmptyProductionForm());
+  const { formatAmount } = useCurrency();
+  const [form, setForm] = useState<ProductionForm>(() => {
+    const empty = createEmptyProductionForm();
+    empty.cost = formatAmount(0);
+    empty.otherCharge = formatAmount(0);
+    return empty;
+  });
   const [items, setItems] = useState<ProductionLineItem[]>([]);
+
   const nextItemId = useRef(1);
+
+  const toNumber = (value: string) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
 
   const setField = (key: keyof ProductionForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -57,14 +63,20 @@ const ProductionPage = () => {
       code: "",
       unit: "",
       qty: "0",
-      cost: "0.000",
+      cost: formatAmount(0),
     }));
   };
 
   const resetForm = () => {
-    setForm(createEmptyProductionForm());
+    setForm(() => {
+      const empty = createEmptyProductionForm();
+      empty.cost = formatAmount(0);
+      empty.otherCharge = formatAmount(0);
+      return empty;
+    });
     setItems([]);
   };
+
 
   return (
     <PageShell title="Production">
@@ -157,8 +169,8 @@ const ProductionPage = () => {
                       <td className="px-4 py-3">{item.code || "-"}</td>
                       <td className="px-4 py-3">{item.unit || "-"}</td>
                       <td className="px-4 py-3">{item.qty}</td>
-                      <td className="px-4 py-3">{currency(item.cost)}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">{currency(item.amount)}</td>
+                      <td className="px-4 py-3 font-mono">{formatAmount(item.cost)}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-gray-900">{formatAmount(item.amount)}</td>
                     </tr>
                   ))
                 )}
@@ -183,11 +195,11 @@ const ProductionPage = () => {
             />
             <div className="mt-2 rounded-xl border border-[#49293e]/15 bg-white px-4 py-3 mb-2">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
-              <p className="mt-1 text-2xl font-bold text-[#49293e]">{currency(totals.grandTotal)}</p>
+              <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
             </div>
             <FormInput
               label="Cost/Unit"
-              value={currency(totals.costPerUnit)}
+              value={formatAmount(totals.costPerUnit)}
               readOnly
             />
             

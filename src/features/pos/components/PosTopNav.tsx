@@ -1,12 +1,17 @@
 import { useNavigate } from "react-router-dom";
+import { MoreHorizontal } from "lucide-react";
 import PosActionButton from "./PosActionButton";
+
 
 interface PosTopNavProps {
   onNewOrder?: () => void;
   onHoldTicket?: () => void;
+  onMore?: () => void;
 }
 
-const PosTopNav = ({ onNewOrder }: PosTopNavProps) => {
+
+const PosTopNav = ({ onNewOrder, onMore }: PosTopNavProps) => {
+
   const navigate = useNavigate();
 
   return (
@@ -30,7 +35,7 @@ const PosTopNav = ({ onNewOrder }: PosTopNavProps) => {
           <span className="hidden sm:inline">New Order</span>
         </PosActionButton>
 
-        <div className="hidden md:flex gap-1 ml-2">
+        <div className="hidden lg:flex gap-1 ml-2">
           {["Dine In", "Take Out", "Drive Thru", "Delivery", "Provider"].map((type) => (
             <PosActionButton
               key={type}
@@ -41,6 +46,7 @@ const PosTopNav = ({ onNewOrder }: PosTopNavProps) => {
             </PosActionButton>
           ))}
         </div>
+
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
@@ -61,6 +67,17 @@ const PosTopNav = ({ onNewOrder }: PosTopNavProps) => {
         </PosActionButton>
 
         <div className="w-px h-8 xl:h-10 bg-slate-200 mx-1" />
+
+        <PosActionButton
+          accent="gray"
+          noPadding
+          className="h-10 w-10 xl:h-12 xl:w-12 rounded-xl shadow-md"
+          onClick={onMore}
+          title="More Options"
+        >
+          <MoreHorizontal size={24} strokeWidth={2.5} color="white" />
+        </PosActionButton>
+
 
         <PosActionButton
           accent="red"

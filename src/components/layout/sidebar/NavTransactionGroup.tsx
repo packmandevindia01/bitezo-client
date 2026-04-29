@@ -53,6 +53,50 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
           </div>
         </div>
       )}
+
+      {hasPermission("Payment Against Voucher", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/payment-against-voucher")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <FileText size={14} />
+            <span>Payment Against Voucher</span>
+          </div>
+        </div>
+      )}
+
+
+
+      {hasPermission("Receipt Against Voucher", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/receipt-against-voucher")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <FileText size={14} />
+            <span>Receipt Against Voucher</span>
+          </div>
+        </div>
+      )}
+
+
+
+      {hasPermission("Payment Voucher", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/payment-voucher")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <FileText size={14} />
+            <span>Payment Voucher</span>
+          </div>
+        </div>
+      )}
+
+
+
+      {hasPermission("Receipt Voucher", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/receipt-voucher")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <FileText size={14} />
+            <span>Receipt Voucher</span>
+          </div>
+        </div>
+      )}
+
+
     </SidebarDropdown>
   );
 };

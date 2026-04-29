@@ -9,7 +9,9 @@ interface TouchNumpadProps {
   onClose?: () => void;
   title?: string;
   isPassword?: boolean;
+  disabled?: boolean;
 }
+
 
 const TouchNumpad: React.FC<TouchNumpadProps> = ({
   value,
@@ -18,7 +20,9 @@ const TouchNumpad: React.FC<TouchNumpadProps> = ({
   onClose,
   title = "ENTER Value",
   isPassword = false,
+  disabled = false,
 }) => {
+
   const handleNumClick = (num: string) => {
     onChange(value + num);
   };
@@ -64,8 +68,10 @@ const TouchNumpad: React.FC<TouchNumpadProps> = ({
                 <button
                   key={btn}
                   onClick={handleClear}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-lg py-4 rounded-xl transition active:scale-95 border border-gray-200"
+                  disabled={disabled}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-lg py-4 rounded-xl transition active:scale-95 border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+
                   {btn}
                 </button>
               );
@@ -75,8 +81,10 @@ const TouchNumpad: React.FC<TouchNumpadProps> = ({
                 <button
                   key={btn}
                   onClick={handleDelete}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-lg py-4 flex items-center justify-center rounded-xl transition active:scale-95 border border-gray-200"
+                  disabled={disabled}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-lg py-4 flex items-center justify-center rounded-xl transition active:scale-95 border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+
                   <Delete size={22} />
                 </button>
               );
@@ -85,8 +93,10 @@ const TouchNumpad: React.FC<TouchNumpadProps> = ({
               <button
                 key={btn}
                 onClick={() => handleNumClick(btn)}
-                className="bg-white hover:bg-gray-50 text-gray-800 font-bold text-2xl py-4 rounded-xl transition active:scale-95 border border-gray-200 shadow-sm"
+                disabled={disabled}
+                className="bg-white hover:bg-gray-50 text-gray-800 font-bold text-2xl py-4 rounded-xl transition active:scale-95 border border-gray-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
+
                 {btn}
               </button>
             );
@@ -99,16 +109,20 @@ const TouchNumpad: React.FC<TouchNumpadProps> = ({
             size="lg"
             variant="primary"
             onClick={onSubmit}
+            disabled={disabled}
             className="w-full rounded-xl py-4 text-lg font-bold"
           >
+
             Submit
           </Button>
           <Button
             size="lg"
             variant="secondary"
             onClick={onClose || (() => onChange(""))}
+            disabled={disabled}
             className="w-full rounded-xl py-4 text-lg font-bold text-gray-600"
           >
+
             {onClose ? "Close" : "Reset"}
           </Button>
         </div>

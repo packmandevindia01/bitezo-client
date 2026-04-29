@@ -4,8 +4,7 @@ import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyRecipeForm } from "../constants";
 import type { RecipeLineItem, RecipeForm } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
-
-const currency = (value: number) => value.toFixed(3);
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 const toNumber = (value: string) => {
   const parsed = Number(value);
@@ -14,8 +13,15 @@ const toNumber = (value: string) => {
 
 const RecipePage = () => {
   const { hasPermission } = usePermissions();
-  const [form, setForm] = useState<RecipeForm>(createEmptyRecipeForm());
+  const { formatAmount } = useCurrency();
+  const [form, setForm] = useState<RecipeForm>(() => {
+    const empty = createEmptyRecipeForm();
+    empty.cost = formatAmount(0);
+    empty.otherCharge = formatAmount(0);
+    return empty;
+  });
   const [items, setItems] = useState<RecipeLineItem[]>([]);
+
   const nextItemId = useRef(1);
 
   const canAdd = hasPermission("Recipe Master", "Add");
@@ -65,14 +71,20 @@ const RecipePage = () => {
       code: "",
       unit: "",
       qty: "0",
-      cost: "0.000",
+      cost: formatAmount(0),
     }));
   };
 
-  const resetForm = () => {
-    setForm(createEmptyRecipeForm());
+  const handleReset = () => {
+    setForm(() => {
+      const empty = createEmptyRecipeForm();
+      empty.cost = formatAmount(0);
+      empty.otherCharge = formatAmount(0);
+      return empty;
+    });
     setItems([]);
   };
+
 
   return (
     <PageShell title="Recipe">
@@ -87,7 +99,6 @@ const RecipePage = () => {
               Recipe
             </h1>
           </div>
-          {/* Action buttons moved to the bottom */}
         </div>
 
         <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 lg:grid-cols-5">
@@ -170,8 +181,8 @@ const RecipePage = () => {
                       <td className="px-4 py-3">{item.code || "-"}</td>
                       <td className="px-4 py-3">{item.unit || "-"}</td>
                       <td className="px-4 py-3">{item.qty}</td>
-                      <td className="px-4 py-3">{currency(item.cost)}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">{currency(item.amount)}</td>
+                      <td className="px-4 py-3 font-mono">{formatAmount(item.cost)}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-gray-900">{formatAmount(item.amount)}</td>
                     </tr>
                   ))
                 )}
@@ -200,17 +211,17 @@ const RecipePage = () => {
             />
             <div className="mt-2 rounded-xl border border-[#49293e]/15 bg-white px-4 py-3 mb-2">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
-              <p className="mt-1 text-2xl font-bold text-[#49293e]">{currency(totals.grandTotal)}</p>
+              <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
             </div>
             <FormInput
               label="Cost/Unit"
-              value={currency(totals.costPerUnit)}
+              value={formatAmount(totals.costPerUnit)}
               readOnly
             />
             
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               {canAdd && (
-                <Button variant="secondary" onClick={resetForm}>
+                <Button variant="secondary" onClick={handleReset}>
                   <RotateCcw size={16} />
                   New
                 </Button>

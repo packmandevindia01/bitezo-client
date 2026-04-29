@@ -46,9 +46,9 @@ const SystemRegistrationGuard = ({ children }: Props) => {
   }
 
   if (systemType === "pos") {
-    if (location.pathname.startsWith("/dashboard")) {
-      return <Navigate to="/pos" replace />;
-    }
+    // If on a POS machine, we prefer the terminal, but don't force a redirect from dashboard
+    // to avoid infinite loops if RoleGuard sends the user to dashboard.
+
 
     if (!hasOpenShift()) {
       return location.pathname === "/cashier/in"

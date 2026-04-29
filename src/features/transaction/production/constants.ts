@@ -10,7 +10,7 @@ export const createEmptyProductionForm = (): ProductionForm => ({
   code: "",
   unit: "",
   qty: "0",
-  cost: "0.000",
+  cost: "0",
   
-  otherCharge: "0.000",
+  otherCharge: "0",
 });

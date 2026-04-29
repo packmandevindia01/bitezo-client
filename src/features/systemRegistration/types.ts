@@ -7,6 +7,8 @@ export interface SystemRegistrationData {
   systemType: SystemType;
   branchId: string;
   branchName: string;
+  counterId?: string;
+  counterName?: string;
   registeredAt: string; // ISO date string
 }
 
@@ -25,9 +27,14 @@ export interface CashierShift {
   cashierName: string;
 }
 
-// ─── Branch ────────────────────────────────────────────────────────────────
+// ─── Branch & Counter ────────────────────────────────────────────────────────
 
 export interface BranchOption {
+  id: number;
+  name: string;
+}
+
+export interface CounterOption {
   id: number;
   name: string;
 }

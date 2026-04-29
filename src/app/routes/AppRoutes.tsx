@@ -49,21 +49,43 @@ const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
+const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherPage"));
+const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherPage"));
+const PaymentVoucherPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherPage"));
+const ReceiptVoucherPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherPage"));
+
 
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
   const hasToken = !!localStorage.getItem("accessToken");
-  const activeShift = localStorage.getItem("activeShift");
+  const activeShiftRaw = localStorage.getItem("activeShift");
+  let hasOpenShift = false;
+
+  if (activeShiftRaw) {
+    try {
+      const shift = JSON.parse(activeShiftRaw);
+      hasOpenShift = shift?.status === "open";
+    } catch {
+      hasOpenShift = false;
+    }
+  }
   
   if (isPos) {
-    if (hasToken && activeShift) {
+    if (hasToken && hasOpenShift) {
       return <Navigate to="/pos" replace />;
     }
+    // If we have a token but no shift, go to cashier/in
+    // If we have no token, go to cashier/in
     return <Navigate to="/cashier/in" replace />;
   }
   
+  if (hasToken) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <LoginPage />;
 };
+
 
 const AppRoutes = () => {
   return (
@@ -80,15 +102,17 @@ const AppRoutes = () => {
             <Route path="/system/register" element={<SystemRegistrationPage />} />
 
             {/* Protected routes — redirects to "/" if userId not in localStorage */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<SystemRegistrationGuard />}>
-                
+            <Route element={<SystemRegistrationGuard />}>
+              {/* POS Login - Must be accessible without a session token */}
+              <Route path="/cashier/in" element={<CashierInPage />} />
+
+              <Route element={<ProtectedRoute />}>
                 {/* Cashier shift pages — protected but outside dashboard layout */}
-                <Route path="/cashier/in" element={<CashierInPage />} />
                 <Route path="/cashier/out" element={<CashierOutPage />} />
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}
                 <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
+
 
                 {/* Dashboard — fully guarded */}
                 <Route path="/dashboard" element={<MainLayout />}>
@@ -125,6 +149,12 @@ const AppRoutes = () => {
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
                   <Route path="stock-adjustment" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentPage /></RoleGuard>} />
+                  <Route path="payment-against-voucher" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherPage /></RoleGuard>} />
+                  <Route path="receipt-against-voucher" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherPage /></RoleGuard>} />
+                  <Route path="payment-voucher" element={<RoleGuard moduleName="Payment Voucher"><PaymentVoucherPage /></RoleGuard>} />
+                  <Route path="receipt-voucher" element={<RoleGuard moduleName="Receipt Voucher"><ReceiptVoucherPage /></RoleGuard>} />
+
+
                   <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />
                 </Route>
 

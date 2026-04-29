@@ -3,21 +3,27 @@ import { Plus, RotateCcw, Save, X, FileText, Ban } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import { createEmptyStockAdjustmentForm } from "../constants";
 import type { StockAdjustmentLineItem, StockAdjustmentForm } from "../types";
-
-const currency = (value: number) => value.toFixed(3);
-
-const toNumber = (value: string) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 const StockAdjustmentPage = () => {
-  const [form, setForm] = useState<StockAdjustmentForm>(createEmptyStockAdjustmentForm());
+  const { formatAmount } = useCurrency();
+  const [form, setForm] = useState<StockAdjustmentForm>(() => {
+    const empty = createEmptyStockAdjustmentForm();
+    empty.cost = formatAmount(0);
+    empty.amount = formatAmount(0);
+    return empty;
+  });
   const [items, setItems] = useState<StockAdjustmentLineItem[]>([]);
+
   const nextItemId = useRef(1);
 
   const setField = (key: keyof StockAdjustmentForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toNumber = (value: string) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
   };
 
   const currentLine = useMemo<StockAdjustmentLineItem>(
@@ -37,8 +43,6 @@ const StockAdjustmentPage = () => {
 
   const totals = useMemo(() => {
     const grandTotal = items.reduce((acc, item) => {
-      // In a real app, effect might subtract if it's "-", but for now we just sum the absolute amount
-      // or handle based on business logic. 
       const multiplier = item.effect === "-" ? -1 : 1;
       return acc + (item.amount * multiplier);
     }, 0);
@@ -60,17 +64,23 @@ const StockAdjustmentPage = () => {
       code: "",
       unit: "",
       qty: "0",
-      cost: "0.000",
-      amount: "0.000",
+      cost: formatAmount(0),
+      amount: formatAmount(0),
       type: "",
       effect: "",
     }));
   };
 
   const resetForm = () => {
-    setForm(createEmptyStockAdjustmentForm());
+    setForm(() => {
+      const empty = createEmptyStockAdjustmentForm();
+      empty.cost = formatAmount(0);
+      empty.amount = formatAmount(0);
+      return empty;
+    });
     setItems([]);
   };
+
 
   return (
     <PageShell title="Stock Adjustment">
@@ -123,12 +133,12 @@ const StockAdjustmentPage = () => {
 
         <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_0.8fr_1fr_0.8fr_auto]">
-            <FormInput label="Finished Product" value={form.product} onChange={(e) => setField("product", e.target.value)} />
+            <FormInput label="Product" value={form.product} onChange={(e) => setField("product", e.target.value)} />
             <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} />
             <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
             <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
             <FormInput label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} />
-            <FormInput label="Amt" value={currency(currentLine.amount)} readOnly />
+            <FormInput label="Amt" value={formatAmount(currentLine.amount)} readOnly />
             
             <div className="flex flex-col gap-1 mb-4 w-full">
               <label className="text-xs md:text-sm font-medium text-gray-700">Type</label>
@@ -199,10 +209,10 @@ const StockAdjustmentPage = () => {
                       <td className="px-4 py-3">{item.code || "-"}</td>
                       <td className="px-4 py-3">{item.unit || "-"}</td>
                       <td className="px-4 py-3">{item.qty}</td>
-                      <td className="px-4 py-3">{currency(item.cost)}</td>
+                      <td className="px-4 py-3 font-mono">{formatAmount(item.cost)}</td>
                       <td className="px-4 py-3">{item.type || "-"}</td>
                       <td className="px-4 py-3 font-bold text-[#49293e]">{item.effect || "-"}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">{currency(item.amount)}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-gray-900">{formatAmount(item.amount)}</td>
                     </tr>
                   ))
                 )}
@@ -222,7 +232,7 @@ const StockAdjustmentPage = () => {
           <div className="w-full md:w-80 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
             <div className="rounded-xl border border-[#49293e]/15 bg-white px-4 py-3 mb-2">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
-              <p className="mt-1 text-2xl font-bold text-[#49293e]">{currency(totals.grandTotal)}</p>
+              <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
             </div>
             
             <div className="mt-4 flex flex-wrap justify-end gap-2">
