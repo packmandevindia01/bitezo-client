@@ -8,6 +8,34 @@ import type {
   UpdateCategoryPayload,
 } from "../types";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
+  try {
+    const { data: envelope } = await promise;
+
+    if (!envelope.isSuccess) {
+      const firstError = envelope.errors?.[0] as any;
+      const msg = (typeof firstError === 'object' ? firstError.message : firstError) 
+                  ?? envelope.message 
+                  ?? "An unexpected error occurred.";
+      throw new Error(msg);
+    }
+
+    return envelope.data;
+  } catch (error: any) {
+    if (error.response?.data) {
+      const envelope = error.response.data as ApiResponse<any>;
+      const firstError = envelope.errors?.[0] as any;
+      const msg = (typeof firstError === 'object' ? firstError.message : firstError) 
+                  ?? envelope.message 
+                  ?? error.message;
+      throw new Error(msg);
+    }
+    throw error;
+  }
+}
+
 // ── Category endpoints ────────────────────────────────────────────────────────
 
 export const getCategories = async (
@@ -18,82 +46,107 @@ export const getCategories = async (
   if (catCode) params.catCode = catCode;
   if (catName) params.catName = catName;
 
-  const { data } = await axiosInstance.get<ApiResponse<CategoryListItem[]>>(
-    "/category/category-list",
-    { params }
+  const data = await unwrap(
+    axiosInstance.get<ApiResponse<CategoryListItem[]>>("/category/category-list", { params })
   );
-  return ((data.data as any[]) ?? []).map((item) => ({
-    id: item.catId ?? item.id,
-    code: item.catCode || item.code,
-    name: item.catName || item.name,
+  
+  return (data ?? []).map((item: any) => ({
+    id: item.catId,
+    code: item.catCode,
+    name: item.catName,
     isActive: item.isActive === "Active" || item.isActive === true,
-    arabic: "",
+    arabic: item.arabic || "",
     branches: [],
   }));
 };
 
 export const getCategoryById = async (id: number): Promise<CategoryDetailResponse["data"]> => {
-  const { data } = await axiosInstance.get<CategoryDetailResponse>(
-    `/category/${id}/catid-data`
+  return unwrap(
+    axiosInstance.get<CategoryDetailResponse>(`/category/${id}/catid-data`)
   );
-  return data.data;
+};
+
+export const uploadCategoryImage = async (id: number, imageFile: File, oldPath: string = "string"): Promise<void> => {
+  const formData = new FormData();
+  formData.append("Id", String(id));
+  formData.append("OldPath", oldPath || "string");
+  formData.append("CategoryImage", imageFile);
+
+  await axiosInstance.post("/category/category-image", formData, {
+    headers: {
+      "Content-Type": undefined,
+    },
+  });
 };
 
 export const createCategory = async (
   payload: CreateCategoryPayload & { imageFile?: File }
-): Promise<ApiResponse<unknown>> => {
-  const formData = new FormData();
-  formData.append("catCode", payload.CatCode);
-  formData.append("catName", payload.CatName);
-  formData.append("catArabic", payload.CatArabic);
-  formData.append("isActive", payload.IsActive ? "true" : "false");
-  formData.append("createdAt", payload.CreatedAt || new Date().toISOString());
+): Promise<ApiResponse<{ id: number }>> => {
+  const { imageFile, ...jsonData } = payload;
+  
+  // 1. Create category as JSON
+  const data = await unwrap(
+    axiosInstance.post<ApiResponse<{ id: number }>>("/category", jsonData)
+  );
+  
+  const response: ApiResponse<{ id: number }> = {
+    data,
+    isSuccess: true,
+    message: "Category created successfully",
+    status: 200,
+    correlationId: "",
+    errors: []
+  };
 
-  if (payload.BranchIds && payload.BranchIds.length > 0) {
-    payload.BranchIds.forEach((id) => {
-      formData.append("branchIds", String(id));
-    });
+  // 2. If image exists, upload it
+  if (data?.id && imageFile) {
+    try {
+      await uploadCategoryImage(data.id, imageFile);
+    } catch (error) {
+      console.error("Category image upload failed:", error);
+    }
   }
-
-  if (payload.imageFile) {
-    formData.append("CategoryImage", payload.imageFile);
-  }
-
-  const { data } = await axiosInstance.post<ApiResponse<unknown>>("/category", formData);
-  return data;
+  
+  return response;
 };
 
 export const updateCategory = async (
   id: number,
   payload: UpdateCategoryPayload & { imageFile?: File }
-): Promise<ApiResponse<unknown>> => {
+): Promise<ApiResponse<{ id: number }>> => {
+  const { imageFile, ...jsonData } = payload;
   const url = `/category/${id}`;
-  const formData = new FormData();
-  formData.append("catId", String(id));
-  formData.append("catCode", payload.CatCode);
-  formData.append("catName", payload.CatName);
-  formData.append("catArabic", payload.CatArabic);
-  formData.append("isActive", payload.IsActive ? "true" : "false");
-  formData.append("updatedAt", payload.UpdatedAt || new Date().toISOString());
+  
+  // 1. Update category as JSON
+  const data = await unwrap(
+    axiosInstance.put<ApiResponse<{ id: number }>>(url, jsonData)
+  );
+  
+  const response: ApiResponse<{ id: number }> = {
+    data,
+    isSuccess: true,
+    message: "Category updated successfully",
+    status: 200,
+    correlationId: "",
+    errors: []
+  };
 
-  if (payload.BranchIds && payload.BranchIds.length > 0) {
-    payload.BranchIds.forEach((id) => {
-      formData.append("branchIds", String(id));
-    });
+  // 2. If image exists, upload it
+  if (imageFile) {
+    try {
+      await uploadCategoryImage(id, imageFile);
+    } catch (error) {
+      console.error("Category image upload failed:", error);
+    }
   }
-
-  if (payload.imageFile) {
-    formData.append("CategoryImage", payload.imageFile);
-  }
-
-  // Switch to POST for update to be consistent with Product pattern
-  const { data } = await axiosInstance.post<ApiResponse<unknown>>(url, formData);
-  return data;
+  
+  return response;
 };
 
-export const deleteCategory = async (id: number): Promise<ApiResponse<unknown>> => {
-  const { data } = await axiosInstance.delete<ApiResponse<unknown>>(`/category/${id}`);
-  return data;
+export const deleteCategory = async (id: number): Promise<unknown> => {
+  return unwrap(
+    axiosInstance.delete<ApiResponse<unknown>>(`/category/${id}`)
+  );
 };
 
 // ── Branch endpoint ───────────────────────────────────────────────────────────
@@ -106,8 +159,10 @@ interface BranchListItem {
 }
 
 export const getBranches = async (): Promise<BranchOption[]> => {
-  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list");
-  return (data.data ?? []).map((b) => ({ id: Number(b.branchId), name: b.branchName }));
+  const data = await unwrap(
+    axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list")
+  );
+  return (data ?? []).map((b) => ({ id: Number(b.branchId), name: b.branchName }));
 };
 
 export const categoryService = {
@@ -117,4 +172,5 @@ export const categoryService = {
   updateCategory,
   deleteCategory,
   getBranches,
+  uploadCategoryImage,
 } as const;

@@ -25,3 +25,6 @@ dist-ssr
 
 .env".env" 
 ".env.development" 
+
+.env
+.env.development

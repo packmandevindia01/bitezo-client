@@ -1,5 +1,5 @@
 import { ReceiptText } from "lucide-react";
-import { formatAmount } from "../../../utils/formatters";
+import { formatAmount } from "../../../../utils/formatters";
 
 interface CartRow {
   productId: number;

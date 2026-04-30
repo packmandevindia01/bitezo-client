@@ -1,6 +1,6 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { PosCategory, PosProduct } from "../types";
+import type { PosCategory, PosProduct } from "../../types";
 import PosProductCard from "./PosProductCard";
 
 interface PosProductGridProps {

@@ -1,4 +1,4 @@
-import type { PosCategory } from "../types";
+import type { PosCategory } from "../../types";
 
 interface PosCategoryRailProps {
   categories: PosCategory[];

@@ -3,13 +3,13 @@ import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
 import PosOrderPanel from "../components/PosOrderPanel";
 import PosProductGrid from "../components/PosProductGrid";
-import { POS_CART_ACTIONS, POS_MORE_ACTIONS } from "../constants";
+import { POS_CART_ACTIONS, POS_MORE_ACTIONS } from "../../constants";
 import { usePosTerminal } from "../hooks/usePosTerminal";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
-import ErrorBoundary from "../../../components/common/ErrorBoundary";
-import { useToast } from "../../../app/providers/useToast";
-import { formatCurrency } from "../../../utils/formatters";
+import ErrorBoundary from "../../../../components/common/ErrorBoundary";
+import { useToast } from "../../../../app/providers/useToast";
+import { formatCurrency } from "../../../../utils/formatters";
 import PosMoreModal from "../components/PosMoreModal";
 
 

@@ -1,5 +1,5 @@
-import type { PosProduct } from "../types";
-import { formatCurrency } from "../../../utils/formatters";
+import type { PosProduct } from "../../types";
+import { formatCurrency } from "../../../../utils/formatters";
 
 interface PosProductCardProps {
   product: PosProduct;

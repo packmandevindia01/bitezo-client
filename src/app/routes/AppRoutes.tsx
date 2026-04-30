@@ -36,7 +36,7 @@ const PaymodePage = lazy(() => import("../../features/general/paymode/pages/Paym
 const CounterPage = lazy(() => import("../../features/general/counter/pages/CounterPage"));
 const SectionPage = lazy(() => import("../../features/general/section/pages/SectionPage"));
 const TableMasterPage = lazy(() => import("../../features/general/tableMaster/pages/TableMasterPage"));
-const PosTerminalPage = lazy(() => import("../../features/pos/pages/PosTerminalPage"));
+const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/PosTerminalPage"));
 const EditableGridView = lazy(() => import("../../features/experimental/editable-grid/pages/EditableGridView"));
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
@@ -49,6 +49,9 @@ const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
+const ProviderListPage = lazy(() => import("../../features/general/provider/pages/ProviderListPage"));
+const ProviderFormPage = lazy(() => import("../../features/general/provider/pages/ProviderFormPage"));
+const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsPage"));
 const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherPage"));
 const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherPage"));
 const PaymentVoucherPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherPage"));
@@ -129,6 +132,9 @@ const AppRoutes = () => {
                   <Route path="branches" element={<RoleGuard moduleName="Branch Master"><BranchListPage /></RoleGuard>} />
                   <Route path="branches/add" element={<RoleGuard moduleName="Branch Master" action="Add"><BranchFormPage /></RoleGuard>} />
                   <Route path="branches/edit/:id" element={<RoleGuard moduleName="Branch Master" action="Edit"><BranchFormPage /></RoleGuard>} />
+                  <Route path="providers" element={<RoleGuard moduleName="Provider Master"><ProviderListPage /></RoleGuard>} />
+                  <Route path="providers/new" element={<RoleGuard moduleName="Provider Master" action="Add"><ProviderFormPage /></RoleGuard>} />
+                  <Route path="providers/edit/:id" element={<RoleGuard moduleName="Provider Master" action="Edit"><ProviderFormPage /></RoleGuard>} />
                   <Route path="categories" element={<RoleGuard moduleName="Category Master"><CategoryPage /></RoleGuard>} />
                   <Route path="sub-categories" element={<RoleGuard moduleName="Sub Category Master"><SubCategoryPage /></RoleGuard>} />
                   <Route path="groups" element={<RoleGuard moduleName="Group Master"><GroupPage /></RoleGuard>} />
@@ -156,6 +162,7 @@ const AppRoutes = () => {
 
 
                   <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />
+                  <Route path="provider-settings" element={<RoleGuard moduleName="Configuration"><ProviderSettingsPage /></RoleGuard>} />
                 </Route>
 
               </Route>

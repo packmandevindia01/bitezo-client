@@ -1,5 +1,5 @@
-import { useAppDispatch, useAppSelector } from "../../../app/hooks";
-import { POS_PRODUCTS } from "../constants";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { POS_PRODUCTS } from "../../constants";
 import {
   addToCart,
   incrementItem,

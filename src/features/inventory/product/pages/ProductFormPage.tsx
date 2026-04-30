@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
 import { useProductManager } from "../hooks/useProductManager";
-import { useBarcodeScanner } from "../../../pos/hooks/useBarcodeScanner";
+import { useBarcodeScanner } from '../../../pos/terminal/hooks/useBarcodeScanner';
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 

@@ -26,7 +26,26 @@ axiosInstance.interceptors.request.use((config) => {
   // 2. Tenant Context: Only add if NOT an onboarding/auth endpoint
   // Some endpoints (e.g. change-password, denomination) resolve tenant purely from the JWT token
   // and crash with 500 when clientDb is injected via header or query param.
-  const isTokenResolvedOnly = url.includes("/change-password") || url.includes("/denomination");
+  const normalizedUrl = url.toLowerCase();
+  const isTokenResolvedOnly = normalizedUrl.includes("/change-password") || 
+                              normalizedUrl.includes("/denomination") || 
+                              normalizedUrl.includes("/category/category-image") ||
+                              normalizedUrl.includes("/product/product-image") ||
+                              normalizedUrl.includes("/provider") ||
+                              normalizedUrl.includes("/lock-product");
+
+
+  // 3. Cleanup: Remove headers that can cause 500s on strict backends
+  if (config.method?.toLowerCase() === "get") {
+    if (config.headers.delete) {
+      config.headers.delete("Content-Type");
+      config.headers.delete("X-Requested-With");
+    } else {
+      delete config.headers["Content-Type"];
+      delete config.headers["X-Requested-With"];
+    }
+  }
+
 
   if (tenantId && !isAuthOrAdmin && !isTokenResolvedOnly) {
     // Add as header
@@ -37,7 +56,19 @@ axiosInstance.interceptors.request.use((config) => {
       clientDb: tenantId,
       ...config.params,
     };
+  } else if (isTokenResolvedOnly) {
+    // Strictly ensure NO tenant info is sent for these endpoints
+    if (config.headers.delete) {
+      config.headers.delete("clientDb");
+    } else {
+      delete config.headers["clientDb"];
+    }
+    
+    if (config.params) {
+      delete config.params.clientDb;
+    }
   }
+
 
   return config;
 });

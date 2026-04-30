@@ -1,9 +1,9 @@
 import { useDeferredValue, useMemo } from "react";
-import { useAppDispatch, useAppSelector } from "../../../app/hooks";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import {
   POS_CATEGORIES,
   POS_PRODUCTS,
-} from "../constants";
+} from "../../constants";
 import {
   setCategory,
   setSearch,

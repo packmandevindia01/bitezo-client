@@ -19,6 +19,7 @@ import {
   Ruler,
   PackagePlus,
   Coins,
+  Globe,
 } from "lucide-react";
 import SidebarDropdown from "../SidebarDropdown";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -132,6 +133,15 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
             <div className="flex items-center gap-2">
               <PackageSearch size={14} />
               <span>BOM</span>
+            </div>
+          </div>
+        )}
+
+        {hasPermission("Provider Master", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/providers")} className={itemClassName}>
+            <div className="flex items-center gap-2">
+              <Globe size={14} />
+              <span>Provider Master</span>
             </div>
           </div>
         )}

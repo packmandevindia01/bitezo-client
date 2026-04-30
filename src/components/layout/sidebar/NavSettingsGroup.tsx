@@ -26,6 +26,14 @@ const NavSettingsGroup = ({ navigate, onClose, itemClassName }: NavSettingsGroup
           </div>
         </div>
       )}
+      {hasPermission("Configuration", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/provider-settings")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <Settings size={14} />
+            <span>Provider Settings</span>
+          </div>
+        </div>
+      )}
     </SidebarDropdown>
   );
 };

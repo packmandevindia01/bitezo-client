@@ -1,6 +1,6 @@
 import { usePosProducts } from "./usePosProducts";
 import { usePosCartActions } from "./usePosCartActions";
-import { POS_ORDER_TYPES, POS_TENDER_OPTIONS } from "../constants";
+import { POS_ORDER_TYPES, POS_TENDER_OPTIONS } from "../../constants";
 
 export const usePosTerminal = () => {
   const products = usePosProducts();

@@ -118,7 +118,7 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
     setSaving(true);
     try {
 
-      const payload = {
+      const basePayload = {
         code: String(form.code || "").trim(),
         name: String(form.name || "").trim(),
         arabicName: String(form.arabicName || "").trim(),
@@ -131,8 +131,6 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
         sVatId: parseInt(String(form.sVatId)) || 0,
         cost: parseFloat(String(form.cost)) || 0,
         branchId: parseInt(String(form.branchId)) || 1,
-        fileName: String(form.fileName || ""),
-        filePath: String(form.filePath || ""),
         isActive: form.isActive !== false,
         altProducts: alternatives.map((alt: any) => ({
           unitId: parseInt(alt.unitId) || 0,
@@ -144,20 +142,21 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
           branchId: parseInt(alt.branchId) || 1,
         })),
         imageFile: form.imageFile,
-      } as any;
+      };
 
       if (editingId) {
         await productService.update(editingId, {
-          ...(payload as any),
+          ...basePayload,
           productId: editingId,
           updatedAt: new Date().toISOString(),
-        });
+          oldPath: form.filePath || "",
+        } as any);
         showToast("Product updated successfully.", "success");
       } else {
         await productService.create({
-          ...(payload as any),
+          ...basePayload,
           createdAt: new Date().toISOString(),
-        });
+        } as any);
         showToast("Product created successfully.", "success");
       }
 

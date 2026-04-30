@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useBarcodeScanner } from "../../../pos/hooks/useBarcodeScanner";
+import { useBarcodeScanner } from "../../../pos/terminal/hooks/useBarcodeScanner";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import { PageShell } from "../../../../components/common";

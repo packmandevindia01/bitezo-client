@@ -5,8 +5,8 @@ import {
   POS_ORDER_TYPES, 
   POS_TENDER_OPTIONS, 
   POS_INITIAL_CART 
-} from '../constants';
-import type { PosCartItem } from '../types';
+} from '../../constants';
+import type { PosCartItem } from '../../types';
 
 interface PosState {
   cartItems: PosCartItem[];
@@ -102,8 +102,8 @@ export const {
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
 import { createSelector } from '@reduxjs/toolkit';
-import type { RootState } from '../../../app/store';
-import { POS_PRODUCTS } from '../constants';
+import type { RootState } from '../../../../app/store';
+import { POS_PRODUCTS } from '../../constants';
 
 const TAX_RATE = 0.05;
 const DISCOUNT_RATE = 0.08;
@@ -113,7 +113,7 @@ export const selectPosState = (state: RootState) => state.pos;
 export const selectCartDetails = createSelector(
   [selectPosState],
   (pos) => {
-    return pos.cartItems.map(item => {
+    return pos.cartItems.map((item: PosCartItem) => {
       const product = POS_PRODUCTS.find(p => p.id === item.productId);
       if (!product) return null;
       return {
@@ -127,7 +127,7 @@ export const selectCartDetails = createSelector(
 
 export const selectSubtotal = createSelector(
   [selectCartDetails],
-  (details) => details.reduce((sum, item) => sum + item.lineTotal, 0)
+  (details) => details.reduce((sum: number, item) => sum + item.lineTotal, 0)
 );
 
 export const selectDiscount = createSelector(
@@ -147,7 +147,7 @@ export const selectTotal = createSelector(
 
 export const selectItemCount = createSelector(
   [(state: RootState) => state.pos.cartItems],
-  (items) => items.reduce((sum, item) => sum + item.quantity, 0)
+  (items) => items.reduce((sum: number, item: PosCartItem) => sum + item.quantity, 0)
 );
 
 export default posSlice.reducer;

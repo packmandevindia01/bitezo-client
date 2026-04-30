@@ -1,4 +1,4 @@
-import { formatAmount } from "../../../utils/formatters";
+import { formatAmount } from "../../../../utils/formatters";
 
 interface PosOrderSummaryProps {
   total: number;

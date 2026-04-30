@@ -1,21 +1,27 @@
-import type { CategoryRecord } from "./types";
+import type { CategoryListItem } from "./types";
 
-export const initialCategories: CategoryRecord[] = [
+export const initialCategories: CategoryListItem[] = [
   {
     id: 1,
     code: "CAT-001",
     name: "Beverages",
-    image: "",
-    branches: ["Main Branch", "Express Counter"],
+    arabic: "مشروبات",
+    isActive: true,
+    branches: [
+      { id: 1, name: "Main Branch" },
+      { id: 2, name: "Express Counter" }
+    ],
   },
   {
     id: 2,
     code: "CAT-002",
     name: "Snacks",
-    image: "",
-    branches: ["Main Branch"],
+    arabic: "وجبات خفيفة",
+    isActive: true,
+    branches: [{ id: 1, name: "Main Branch" }],
   },
 ];
+
 
 export const emptyCategoryForm = {
   code: "",

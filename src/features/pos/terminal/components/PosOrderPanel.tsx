@@ -1,5 +1,5 @@
 import PosActionButton from "./PosActionButton";
-import type { PosQuickAction } from "../types";
+import type { PosQuickAction } from "../../types";
 import PosCartList from "./PosCartList";
 import PosOrderSummary from "./PosOrderSummary";
 

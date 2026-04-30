@@ -82,7 +82,7 @@ export interface ProductDetail {
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
-  }[] | null;
+  } | null;
   altProducts: AltProductItem[] | null;
 }
 

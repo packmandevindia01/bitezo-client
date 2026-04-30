@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Outfit", "Inter", system-ui, -apple-system, sans-serif;
   
   --color-pos-orange: #f48120;
   --color-pos-orange-hover: #e0751b;
@@ -9,6 +9,8 @@
   --color-pos-green-dark: #79a35e;
   --color-pos-blue: #a6c7e9;
   --color-pos-gray: #a1a1a1;
+  --color-pos-primary: #49293e;
+  --color-pos-primary-hover: #3a2132;
   
   --shadow-premium: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-premium-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
