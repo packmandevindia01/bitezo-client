@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react";
+import { Settings, Clock } from "lucide-react";
 import SidebarDropdown from "../SidebarDropdown";
 import { usePermissions } from "../../../hooks/usePermissions";
 
@@ -31,6 +31,14 @@ const NavSettingsGroup = ({ navigate, onClose, itemClassName }: NavSettingsGroup
           <div className="flex items-center gap-2">
             <Settings size={14} />
             <span>Provider Settings</span>
+          </div>
+        </div>
+      )}
+      {hasPermission("Configuration", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/happy-hour")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <Clock size={14} />
+            <span>Happy Hour</span>
           </div>
         </div>
       )}

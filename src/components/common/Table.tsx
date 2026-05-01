@@ -7,13 +7,14 @@ export interface Column<T> {
   header: string;
   accessor: keyof T;
   render?: (row: T) => React.ReactNode;
+  align?: "left" | "center" | "right";
 }
 
 interface TableProps<T> {
   columns: Column<T>[];
   data: T[];
   loading?: boolean;
-  rowKey?: keyof T;
+  rowKey?: keyof T | ((row: T) => string | number);
   pagination?: {
     currentPage: number;
     totalPages: number;
@@ -48,7 +49,11 @@ const Table = <T,>({
                   {columns.map((col, index) => (
                     <th
                       key={index}
-                      className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                      className={`
+                        px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap md:px-5
+                        ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
+                        ${index === 0 ? "pl-[19px] md:pl-[23px]" : ""} 
+                      `}
                     >
                       {col.header}
                     </th>
@@ -58,16 +63,24 @@ const Table = <T,>({
 
               {/* BODY */}
               <tbody className="divide-y divide-gray-100">
-                {data.map((row, rowIndex) => (
-                  <tr
-                    key={rowKey ? String(row[rowKey]) : rowIndex}
-                    className="group hover:bg-[#49293e]/5 transition-colors duration-150"
-                  >
-                    {columns.map((col, colIndex) => (
-                      <td
-                        key={colIndex}
+                {data.map((row, rowIndex) => {
+                  const key = typeof rowKey === "function" 
+                    ? rowKey(row) 
+                    : rowKey 
+                      ? String(row[rowKey]) 
+                      : rowIndex;
+                  
+                  return (
+                    <tr
+                      key={key}
+                      className="group hover:bg-[#49293e]/5 transition-colors duration-150"
+                    >
+                      {columns.map((col, colIndex) => (
+                        <td
+                          key={colIndex}
                         className={`
                           px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap md:px-5
+                          ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
                           ${colIndex === 0
                             ? "font-medium text-gray-900 border-l-[3px] border-l-[#49293e] group-hover:border-l-[#6b3d5a]"
                             : ""}
@@ -78,8 +91,9 @@ const Table = <T,>({
                           : (row[col.accessor] as React.ReactNode)}
                       </td>
                     ))}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
 
             </table>

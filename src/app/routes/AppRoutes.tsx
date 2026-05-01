@@ -51,11 +51,12 @@ const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockA
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
 const ProviderListPage = lazy(() => import("../../features/general/provider/pages/ProviderListPage"));
 const ProviderFormPage = lazy(() => import("../../features/general/provider/pages/ProviderFormPage"));
-const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsPage"));
+const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsList"));
 const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherPage"));
 const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherPage"));
 const PaymentVoucherPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherPage"));
 const ReceiptVoucherPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherPage"));
+const HappyHourPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourPage"));
 
 
 const LoginRedirect = () => {
@@ -163,6 +164,7 @@ const AppRoutes = () => {
 
                   <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />
                   <Route path="provider-settings" element={<RoleGuard moduleName="Configuration"><ProviderSettingsPage /></RoleGuard>} />
+                  <Route path="happy-hour" element={<RoleGuard moduleName="Configuration"><HappyHourPage /></RoleGuard>} />
                 </Route>
 
               </Route>

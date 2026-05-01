@@ -14,11 +14,12 @@ interface RecordTableCardProps<T> {
   onSearchChange: (value: string) => void;
   columns: Column<T>[];
   data: T[];
-  rowKey: keyof T;
+  rowKey: keyof T | ((row: T) => string | number);
   actionLabel?: string;
   onAction?: () => void;
   loading?: boolean;
   autoFocusSearch?: boolean;
+  extraActions?: React.ReactNode;
 }
 
 const RecordTableCard = <T,>({
@@ -32,6 +33,7 @@ const RecordTableCard = <T,>({
   onAction,
   loading = false,
   autoFocusSearch,
+  extraActions,
 }: RecordTableCardProps<T>) => {
   return (
     <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
@@ -52,6 +54,12 @@ const RecordTableCard = <T,>({
               autoFocus={autoFocusSearch}
             />
           </div>
+
+          {extraActions && (
+            <div className="w-full md:w-auto">
+              {extraActions}
+            </div>
+          )}
 
           {actionLabel && onAction && (
             <Button onClick={onAction} className="w-full md:w-auto">
