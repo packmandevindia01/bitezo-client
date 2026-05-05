@@ -20,9 +20,10 @@ interface ProductActionsDeps {
   productList: {
     fetchProducts: () => void;
   };
+  branches: any[];
 }
 
-export const useProductActions = ({ formState, altState, productList }: ProductActionsDeps) => {
+export const useProductActions = ({ formState, altState, productList, branches }: ProductActionsDeps) => {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -113,6 +114,76 @@ export const useProductActions = ({ formState, altState, productList }: ProductA
     if (!form.name || !form.code || !form.categoryId || !form.unitId || !form.branchId) {
       showToast("Please fill in all required fields.", "warning");
       return;
+    }
+
+    // ─── Custom Validation Rules ──────────────────────────────────────────
+    // 1. Each unit must be unique per branch.
+    // 2. 'All' branch units/barcodes restricted from individual branches.
+    
+    const ALL_BRANCH_ID = branches.find(b => 
+      b.name?.toLowerCase() === "all" || b.branchName?.toLowerCase() === "all"
+    )?.id ?? 1;
+    
+    const unitBranchPairs = [
+      { unitId: parseInt(String(form.unitId)), branchId: parseInt(String(form.branchId)), source: "Main Product" },
+      ...alternatives.map((alt, i) => ({ 
+        unitId: parseInt(alt.unitId), 
+        branchId: parseInt(alt.branchId), 
+        source: `Alternative Row ${i + 1}` 
+      }))
+    ];
+
+    const barcodeBranchPairs = [
+      { code: String(form.code || "").trim(), branchId: parseInt(String(form.branchId)), source: "Main Product" },
+      ...alternatives.map((alt, i) => ({ 
+        code: String(alt.barcode || "").trim(), 
+        branchId: parseInt(alt.branchId), 
+        source: `Alternative Row ${i + 1}` 
+      }))
+    ];
+
+    // Validate Units
+    for (let i = 0; i < unitBranchPairs.length; i++) {
+      const current = unitBranchPairs[i];
+      for (let j = i + 1; j < unitBranchPairs.length; j++) {
+        const other = unitBranchPairs[j];
+        if (current.unitId === other.unitId) {
+          // Rule 1: Unique per branch
+          if (current.branchId === other.branchId) {
+            showToast(`Validation Error: Unit assigned multiple times to the same branch (${current.source} & ${other.source}).`, "warning");
+            return;
+          }
+          // Rule 2: 'All' branch restriction
+          if (current.branchId === ALL_BRANCH_ID || other.branchId === ALL_BRANCH_ID) {
+            showToast(`Validation Error: Unit assigned to 'All' branch cannot be assigned to individual branches.`, "warning");
+            return;
+          }
+        }
+      }
+    }
+
+    // Validate Barcodes
+    for (let i = 0; i < barcodeBranchPairs.length; i++) {
+      const current = barcodeBranchPairs[i];
+      if (!current.code) continue;
+      
+      for (let j = i + 1; j < barcodeBranchPairs.length; j++) {
+        const other = barcodeBranchPairs[j];
+        if (!other.code) continue;
+
+        if (current.code.toLowerCase() === other.code.toLowerCase()) {
+          // Rule 1: Unique per branch
+          if (current.branchId === other.branchId) {
+            showToast(`Validation Error: Barcode "${current.code}" assigned multiple times to the same branch.`, "warning");
+            return;
+          }
+          // Rule 2: 'All' branch restriction
+          if (current.branchId === ALL_BRANCH_ID || other.branchId === ALL_BRANCH_ID) {
+            showToast(`Validation Error: Barcode "${current.code}" assigned to 'All' branch cannot be assigned to individual branches.`, "warning");
+            return;
+          }
+        }
+      }
     }
 
     setSaving(true);

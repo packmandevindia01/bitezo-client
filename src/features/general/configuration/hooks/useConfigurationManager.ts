@@ -1,12 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { INITIAL_CONFIG } from "../constants";
 import type { ConfigurationState, DeliveryCharge } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
+import { employeeService } from "../../employee/services/employeeService";
+
+export interface ConfigurationEmployeeOption {
+  label: string;
+  value: string;
+}
 
 export const useConfigurationManager = () => {
   const { showToast } = useToast();
   const [form, setForm] = useState<ConfigurationState>(INITIAL_CONFIG);
+  const [employeeOptions, setEmployeeOptions] = useState<ConfigurationEmployeeOption[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadEmployees = async () => {
+      try {
+        const employees = await employeeService.getEmployees();
+        if (!active) return;
+        setEmployeeOptions(
+          employees.map((employee) => ({
+            label: employee.empName,
+            value: String(employee.empId),
+          }))
+        );
+      } catch {
+        if (active) setEmployeeOptions([]);
+      }
+    };
+
+    void loadEmployees();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const setField = <K extends keyof ConfigurationState>(key: K, value: ConfigurationState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -60,6 +92,7 @@ export const useConfigurationManager = () => {
 
   return {
     form,
+    employeeOptions,
     saving,
     setField,
     setDayEndField,

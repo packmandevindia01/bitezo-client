@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
@@ -36,6 +37,16 @@ const ProductFormPage = () => {
     confirmDelete,
     deleting,
   } = useProductManager();
+
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const handleClearClick = () => {
+    if (form.name || form.code || (form.cost !== "0" && form.cost !== "0.00") || (alternatives && alternatives.length > 0)) {
+      setShowClearConfirm(true);
+    } else {
+      resetForm();
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -94,42 +105,70 @@ const ProductFormPage = () => {
 
   return (
     <PageShell title={id ? "Edit Product" : "Add Product"}>
-      <div className="mb-6 flex items-center justify-between">
-        <Button variant="secondary" onClick={() => navigate("/dashboard/products")}>
-          Back to List
-        </Button>
-      </div>
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className={detailLoading ? "pointer-events-none opacity-50 relative" : "relative"}>
+            {detailLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
+                 <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#49293e] border-t-transparent" />
+              </div>
+            )}
+            
+            <ProductMasterForm
+              form={form}
 
-      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div className={detailLoading ? "pointer-events-none opacity-50" : "relative"}>
-          {detailLoading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
-               <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#49293e] border-t-transparent" />
-            </div>
+              saving={saving}
+              imagePreview={imagePreview}
+              alternatives={alternatives}
+              masterData={masterData}
+              branches={branches}
+              subCategories={subCategories}
+              loadingSubs={loadingSubs}
+              onChange={setField}
+              onAlternativesChange={setAlternatives}
+              onClear={resetForm}
+              onSave={onSave}
+              onDeactivate={handleDeactivate}
+              onBackToList={() => navigate("/dashboard/products")}
+              onImageSelect={handleImageSelect}
+              onDelete={() => {
+                if (editingId) {
+                  requestDelete({ productId: editingId, name: form.name });
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Sticky Action Footer */}
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-2xl">
+          {Boolean(editingId) && (
+            <Button
+              variant="danger"
+              disabled={saving}
+              onClick={() => { if (editingId) requestDelete({ productId: editingId, name: form.name }); }}
+              type="button"
+            >
+              <Trash2 size={16} />
+              Delete Product
+            </Button>
           )}
-          
-          <ProductMasterForm
-            form={form}
-            isEditing={Boolean(editingId)}
-            saving={saving}
-            imagePreview={imagePreview}
-            alternatives={alternatives}
-            masterData={masterData}
-            branches={branches}
-            subCategories={subCategories}
-            loadingSubs={loadingSubs}
-            onChange={setField}
-            onAlternativesChange={setAlternatives}
-            onClear={resetForm}
-            onSave={onSave}
-            onDeactivate={handleDeactivate}
-            onImageSelect={handleImageSelect}
-            onDelete={() => {
-              if (editingId) {
-                requestDelete({ productId: editingId, name: form.name });
-              }
-            }}
-          />
+          <Button variant="secondary" onClick={handleClearClick} type="button" disabled={saving}>
+            Clear
+          </Button>
+          <Button onClick={onSave} type="button" disabled={saving}>
+            {saving ? "Saving…" : Boolean(editingId) ? "Update Product" : "Save Product"}
+          </Button>
+          <Button
+            variant="secondary"
+            className="text-red-600 border-red-100 hover:bg-red-50"
+            disabled={!Boolean(editingId) || saving}
+            onClick={handleDeactivate}
+            type="button"
+          >
+            Deactivate
+          </Button>
         </div>
       </div>
 
@@ -142,6 +181,18 @@ const ProductFormPage = () => {
         }}
         loading={deleting}
         message="Are you sure you want to delete this product? This action cannot be undone."
+      />
+
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        onCancel={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          resetForm();
+          setShowClearConfirm(false);
+        }}
+        title="Clear Form"
+        message="Are you sure you want to clear the form? All unsaved data will be lost."
+        confirmLabel="Clear"
       />
     </PageShell>
   );

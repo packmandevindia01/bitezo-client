@@ -11,7 +11,7 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
   const username = localStorage.getItem("userName") ?? "Admin";
 
   return (
-    <div className="sticky top-0 z-20 flex w-full items-center justify-between border-b border-gray-100 bg-white px-4 shadow-sm md:px-6" style={{ height: "64px" }}>
+    <div className="sticky top-0 z-20 flex w-full items-center justify-between border-b border-gray-100 bg-white px-4 shadow-sm md:px-6" style={{ height: "50px" }}>
 
       {/* LEFT — hamburger + breadcrumb */}
       <div className="flex items-center gap-3">

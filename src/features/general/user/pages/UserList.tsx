@@ -289,6 +289,7 @@ const UserList = () => {
             submitting={saving}
             onDelete={editUser && canDelete ? () => setDeleteCandidate(editUser) : undefined}
             deleting={deleting}
+            onClear={() => setEditUser(null)}
           />
         )}
       </Modal>

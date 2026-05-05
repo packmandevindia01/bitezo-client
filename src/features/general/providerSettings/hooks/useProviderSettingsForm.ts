@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "../../../../app/providers/useToast";
+import { useCurrency } from "../../../../hooks/useCurrency";
 import { subCategoryService } from "../../../inventory/subcategory/services/subCategoryService";
 import {
   loadMasterData,
   loadProducts,
   fetchAltNames,
+  deleteProviderSettings,
 } from "../services/providerSettingsService";
 import type {
   ProviderMasterItem,
@@ -20,9 +22,11 @@ import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 
 export const useProviderSettingsForm = (
   initialData: ProviderSettingsData | null | undefined,
-  onSubmit: (payload: ProviderSettingsPayload) => void
+  onSubmit: (payload: ProviderSettingsPayload) => void,
+  onDeleteSuccess?: () => void
 ) => {
   const { showToast } = useToast();
+  const { decimalPart, formatAmount } = useCurrency();
 
   // ─── Master data ──────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderMasterItem[]>([]);
@@ -53,7 +57,7 @@ export const useProviderSettingsForm = (
   const [entryCode, setEntryCode] = useState("");
   const [entryAltName, setEntryAltName] = useState("");
   const [entryIsIncl, setEntryIsIncl] = useState(true);
-  const [entryPrice, setEntryPrice] = useState("0.000");
+  const [entryPrice, setEntryPrice] = useState(formatAmount(0));
 
   // ─── Grid entries ─────────────────────────────────────────────────────────
   const [entries, setEntries] = useState<ProviderSettingEntry[]>([]);
@@ -64,22 +68,36 @@ export const useProviderSettingsForm = (
       setLoading(true);
       const master = await loadMasterData();
       if (master) {
-        setProviders(master.provider || []);
-        setBranches(master.branch || []);
-        setCategories(master.category || []);
+        // Deduplicate master data
+        const uniqueProviders = Array.from(new Map((master.provider || []).map(p => [p.providerId, p])).values());
+        const uniqueBranches = Array.from(new Map((master.branch || []).map(b => [b.branchId, b])).values());
+        const uniqueCategories = Array.from(new Map((master.category || []).map(c => [c.categoryId, c])).values());
+
+        setProviders(uniqueProviders);
+        setBranches(uniqueBranches);
+        setCategories(uniqueCategories);
       }
       const prodsData = await loadProducts({});
-      setAllProducts(
-        prodsData.map((p) => ({
-          productId: p.productId,
-          unitId: p.unitId,
-          productName: p.product,
-          barcode: p.barcode,
-          altName: p.altName,
-          price: p.price,
-          isIncl: p.isIncl,
-        }))
-      );
+      const uniqueProds: ProductSearchItem[] = [];
+      const seenKeys = new Set<string>();
+      
+      prodsData.forEach((p) => {
+        const key = `${p.productId}-${p.unitId}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueProds.push({
+            productId: p.productId,
+            unitId: p.unitId,
+            productName: p.product,
+            barcode: p.barcode,
+            altName: p.altName,
+            price: p.price,
+            isIncl: p.isIncl,
+          });
+        }
+      });
+      
+      setAllProducts(uniqueProds);
     } catch {
       showToast("Failed to load initial data", "error");
     } finally {
@@ -91,24 +109,35 @@ export const useProviderSettingsForm = (
 
   // ─── Populate fields when editing ────────────────────────────────────────
   useEffect(() => {
-    if (!initialData) return;
+    if (!initialData || !initialData.master) return;
     const { master, details } = initialData;
     setSelectedProvider(master.providerId.toString());
     setSelectedBranch(master.branchId.toString());
-    setSelectedDate(master.createdAt.split("T")[0]);
-    setEntries(
-      details.map((d) => ({
-        productId: d.productId,
-        unitId: d.unitId,
-        productName: d.product,
-        productCode: d.barcode,
-        altName: d.altName,
-        isIncl: d.isIncl,
-        exclPrice: d.isIncl ? d.price / 1.05 : d.price,
-        inclPrice: d.isIncl ? d.price : d.price * 1.05,
-        price: d.price,
-      }))
-    );
+    setSelectedDate(master.createdAt?.split("T")[0] || "");
+    
+      if (details) {
+        const uniqueDetails: ProviderSettingEntry[] = [];
+        const seenDetailsKeys = new Set<string>();
+
+        details.forEach((d) => {
+          const key = `${d.productId}-${d.unitId}`;
+          if (!seenDetailsKeys.has(key)) {
+            seenDetailsKeys.add(key);
+            uniqueDetails.push({
+              productId: d.productId,
+              unitId: d.unitId,
+              productName: d.product,
+              productCode: d.barcode,
+              altName: d.altName,
+              isIncl: d.isIncl,
+              exclPrice: d.isIncl ? d.price / 1.05 : d.price,
+              inclPrice: d.isIncl ? d.price : d.price * 1.05,
+              price: d.price,
+            });
+          }
+        });
+        setEntries(uniqueDetails);
+      }
   }, [initialData]);
 
   // ─── Sub-categories when category changes ─────────────────────────────────
@@ -145,19 +174,28 @@ export const useProviderSettingsForm = (
         categoryId: selectedCategory ? Number(selectedCategory) : undefined,
         subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
       });
-      setEntries(
-        data.map((p) => ({
-          productId: p.productId,
-          unitId: p.unitId,
-          productName: p.product,
-          productCode: p.barcode,
-          altName: p.altName || p.product,
-          isIncl: p.isIncl,
-          exclPrice: p.isIncl ? p.price / 1.05 : p.price,
-          inclPrice: p.isIncl ? p.price : p.price * 1.05,
-          price: p.price,
-        }))
-      );
+      const uniqueLoadedEntries: ProviderSettingEntry[] = [];
+      const seenLoadedKeys = new Set<string>();
+
+      data.forEach((p) => {
+        const key = `${p.productId}-${p.unitId}`;
+        if (!seenLoadedKeys.has(key)) {
+          seenLoadedKeys.add(key);
+          uniqueLoadedEntries.push({
+            productId: p.productId,
+            unitId: p.unitId,
+            productName: p.product,
+            productCode: p.barcode,
+            altName: p.altName || p.product,
+            isIncl: p.isIncl,
+            exclPrice: p.isIncl ? p.price / 1.05 : p.price,
+            inclPrice: p.isIncl ? p.price : p.price * 1.05,
+            price: p.price,
+          });
+        }
+      });
+      
+      setEntries(uniqueLoadedEntries);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to load settings", "error");
     } finally {
@@ -172,7 +210,7 @@ export const useProviderSettingsForm = (
       setEntryUnitId(null);
       setEntryCode("");
       setEntryAltName("");
-      setEntryPrice("0.000");
+      setEntryPrice(formatAmount(0));
       setAltNameOptions([]);
       return;
     }
@@ -184,7 +222,7 @@ export const useProviderSettingsForm = (
     setEntryUnitId(uid);
     setEntryCode(match.barcode);
     setEntryAltName(match.altName);
-    setEntryPrice(match.price ? match.price.toFixed(3) : "0.000");
+    setEntryPrice(match.price ? match.price.toFixed(decimalPart) : formatAmount(0));
     if (match.isIncl !== undefined) setEntryIsIncl(match.isIncl);
 
     try {
@@ -216,11 +254,11 @@ export const useProviderSettingsForm = (
 
     if (fullProduct) {
       setEntryCode(fullProduct.barcode);
-      setEntryPrice(fullProduct.price ? fullProduct.price.toFixed(3) : "0.000");
+      setEntryPrice(fullProduct.price ? fullProduct.price.toFixed(decimalPart) : formatAmount(0));
       if (fullProduct.isIncl !== undefined) setEntryIsIncl(fullProduct.isIncl);
     } else {
       setEntryCode("");
-      setEntryPrice("0.000");
+      setEntryPrice(formatAmount(0));
     }
   };
 
@@ -239,6 +277,7 @@ export const useProviderSettingsForm = (
       return;
     }
     setEntries((prev) => [
+      ...prev,
       {
         productId: entryProductId,
         unitId: entryUnitId,
@@ -250,7 +289,6 @@ export const useProviderSettingsForm = (
         inclPrice: entryIsIncl ? priceVal : priceVal * 1.05,
         price: priceVal,
       },
-      ...prev,
     ]);
     // Reset row
     setSelectedProductKey("");
@@ -258,15 +296,70 @@ export const useProviderSettingsForm = (
     setEntryUnitId(null);
     setEntryCode("");
     setEntryAltName("");
-    setEntryPrice("0.000");
+    setEntryPrice(formatAmount(0));
     setEntryIsIncl(true);
     setAltNameOptions([]);
   };
 
+  const handleEditEntry = async (entry: ProviderSettingEntry) => {
+    const key = `${entry.productId}-${entry.unitId}`;
+    setSelectedProductKey(key);
+    setEntryProductId(entry.productId);
+    setEntryUnitId(entry.unitId);
+    setEntryCode(entry.productCode);
+    setEntryAltName(entry.altName);
+    setEntryPrice(entry.price.toFixed(decimalPart));
+    setEntryIsIncl(entry.isIncl);
+
+    try {
+      setLoadingAltNames(true);
+      const alts = await fetchAltNames(entry.productId);
+      setAltNameOptions(alts);
+    } catch {
+      showToast("Failed to load alt names for editing", "error");
+    } finally {
+      setLoadingAltNames(false);
+    }
+  };
+
+  const handleDeleteSettings = async () => {
+    if (!initialData?.master?.transId) {
+      setEntries([]);
+      return;
+    }
+    try {
+      setLoading(true);
+      await deleteProviderSettings(initialData.master.transId);
+      showToast("Provider settings deleted successfully", "success");
+      handleReset();
+      onDeleteSuccess?.();
+    } catch {
+      showToast("Failed to delete provider settings", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRemoveEntry = (productId: number, unitId: number) => {
     setEntries((prev) =>
-      prev.filter((e) => !(e.productId === productId && e.unitId === unitId))
+      prev.filter((e) => !(e.productId == productId && e.unitId == unitId))
     );
+  };
+
+  const handleReset = () => {
+    setSelectedProvider("");
+    setSelectedBranch("");
+    setSelectedCategory("");
+    setSelectedSubCategory("");
+    setEntries([]);
+    setSelectedProductKey("");
+    setEntryProductId(null);
+    setEntryUnitId(null);
+    setEntryCode("");
+    setEntryAltName("");
+    setEntryPrice(formatAmount(0));
+    setEntryIsIncl(true);
+    setAltNameOptions([]);
   };
 
   const handleSubmit = () => {
@@ -293,7 +386,7 @@ export const useProviderSettingsForm = (
         productId: e.productId,
         unitId: e.unitId,
         isIncl: e.isIncl,
-        price: parseFloat(e.price.toFixed(3)),
+        price: parseFloat(e.price.toFixed(decimalPart)),
       })),
     });
   };
@@ -323,7 +416,10 @@ export const useProviderSettingsForm = (
     handleProductSelect,
     handleAltNameSelect,
     handleAddEntry,
+    handleEditEntry,
     handleRemoveEntry,
+    handleDeleteSettings,
+    handleReset,
     handleSubmit,
   };
 };

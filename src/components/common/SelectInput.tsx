@@ -15,6 +15,7 @@ interface Props {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLSelectElement>) => void;
   error?: string;
   disabled?: boolean;
   autoFocus?: boolean;
@@ -30,6 +31,7 @@ const SelectInput = ({
   value,
   onChange,
   onBlur,
+  onKeyDown,
   error,
   disabled,
   autoFocus,
@@ -47,7 +49,7 @@ const SelectInput = ({
           className="text-xs md:text-sm font-medium text-gray-700"
         >
           {label}
-          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
+          {required && <span className="text-amber-500 ml-1 font-bold">*</span>}
         </label>
       )}
 
@@ -58,6 +60,7 @@ const SelectInput = ({
         value={value}
         onChange={onChange}
         onBlur={onBlur}
+        onKeyDown={onKeyDown}
         disabled={disabled}
         autoFocus={autoFocus}
         className={`
@@ -65,7 +68,7 @@ const SelectInput = ({
           text-sm md:text-base
           rounded-md border outline-none transition
           
-          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
+          ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "bg-gray-100 cursor-not-allowed opacity-50" : ""}
 
           focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
@@ -86,7 +89,7 @@ const SelectInput = ({
 
       {/* ERROR */}
       {error && (
-        <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-red-600 font-semibold animate-in fade-in slide-in-from-top-1">
+        <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-amber-600 font-semibold animate-in fade-in slide-in-from-top-1">
           <span className="shrink-0">⚠️</span>
           <span>{error}</span>
         </div>

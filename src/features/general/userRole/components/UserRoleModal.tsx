@@ -105,8 +105,11 @@ const UserRoleModal = ({
           <Loader text="Loading role details..." />
         </div>
       ) : (
-        <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-          <div className="grid gap-5 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
+        <div className="flex flex-col" style={{ maxHeight: "calc(90vh - 80px)" }}>
+          {/* ── Scrollable Body ── */}
+          <div className="flex-1 overflow-y-auto pr-1">
+            <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+              <div className="grid gap-5 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
             <p className="pt-2 text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
               Role Name
             </p>
@@ -250,9 +253,12 @@ const UserRoleModal = ({
                 </div>
               )}
             </div>
+            </div>
+          </section>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
+          {/* ── Sticky Action Footer ── */}
+          <div className="flex flex-wrap justify-end gap-3 pt-4 mt-2 border-t border-gray-200 bg-white">
             <Button variant="secondary" onClick={onClear} disabled={saving || deleting}>
               Clear
             </Button>
@@ -275,7 +281,7 @@ const UserRoleModal = ({
               </Button>
             )}
           </div>
-        </section>
+        </div>
       )}
     </Modal>
   );

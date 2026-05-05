@@ -19,6 +19,7 @@ interface Props {
   submitting?: boolean;
   onDelete?: () => void | Promise<void>;
   deleting?: boolean;
+  onClear?: () => void;
 }
 
 const createInitialForm = (initialData?: User | null): UserFormData => ({
@@ -37,6 +38,7 @@ const UserForm = ({
   submitting = false,
   onDelete,
   deleting = false,
+  onClear,
 }: Props) => {
   const [form, setForm] = useState<UserFormData>(() => createInitialForm(initialData));
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
@@ -80,8 +82,9 @@ const UserForm = ({
   };
 
   const handleClear = () => {
-    setForm(createInitialForm(initialData));
+    setForm(createInitialForm(null));
     setErrors({});
+    if (onClear) onClear();
   };
 
   const validate = () => {

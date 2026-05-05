@@ -7,12 +7,28 @@ interface PosTopNavProps {
   onNewOrder?: () => void;
   onHoldTicket?: () => void;
   onMore?: () => void;
+  onCashierOut?: () => void;
+  status: any;
 }
 
 
-const PosTopNav = ({ onNewOrder, onMore }: PosTopNavProps) => {
+const PosTopNav = ({ onNewOrder, onMore, onCashierOut, status }: PosTopNavProps) => {
 
   const navigate = useNavigate();
+
+  const handleLogoutClick = () => {
+    // If Day or Shift is still OPEN, give a reminder
+    if (status && (!status.isDayClosed || !status.isShiftClosed)) {
+      if (onCashierOut) {
+        onCashierOut(); // Open the Close Session dashboard
+      } else {
+        navigate("/cashier/out");
+      }
+    } else {
+      // If everything is closed, go to the final out page/login
+      navigate("/cashier/out");
+    }
+  };
 
   return (
     <nav className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-2 shadow-sm shrink-0">
@@ -83,7 +99,7 @@ const PosTopNav = ({ onNewOrder, onMore }: PosTopNavProps) => {
           accent="red"
           noPadding
           className="h-10 w-10 xl:h-12 xl:w-12 rounded-xl shadow-md"
-          onClick={() => navigate("/cashier/out")}
+          onClick={handleLogoutClick}
           title="Logout"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

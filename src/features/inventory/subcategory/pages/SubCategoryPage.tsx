@@ -40,13 +40,13 @@ const SubCategoryPage = () => {
     <PageShell title="Sub Category Master">
       {/* Error banner */}
       {error && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <span className="flex-1">{error}</span>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="shrink-0 rounded p-0.5 hover:bg-red-100"
+            className="shrink-0 rounded p-0.5 hover:bg-amber-100"
           >
             <X size={14} />
           </button>

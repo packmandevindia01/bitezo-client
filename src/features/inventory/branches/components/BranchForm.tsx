@@ -28,12 +28,14 @@ interface Props {
   initialData?: BranchPayload | null;
   onSubmit?: (payload: BranchPayload) => void | Promise<void>;
   onDelete?: () => void;
+  onClear?: () => void;
 }
 
 const BranchForm = ({
   initialData = null,
   onSubmit,
   onDelete,
+  onClear,
 }: Props) => {
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -113,10 +115,11 @@ const BranchForm = ({
   };
 
   const handleClear = () => {
-    setBranchName(initialData?.branchName ?? "");
+    setBranchName("");
     setBranchNameError("");
-    setIsActive(initialData?.isActive ?? true);
-    resetLines(initialData?.lines);
+    setIsActive(true);
+    resetLines();
+    if (onClear) onClear();
   };
 
   const sampleText = fontModal.lineId
@@ -186,15 +189,14 @@ const BranchForm = ({
               </div>
             </div>
 
-            <div className="sticky bottom-[-1.5rem] -mx-6 -mb-6 mt-8 p-6 border-t border-slate-100 bg-white/95 backdrop-blur-sm z-30 flex flex-wrap items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+            {/* ── Sticky Action Footer ── */}
+            <div className="mt-6 pt-4 border-t border-slate-100 bg-white flex flex-wrap items-center justify-end gap-3">
               <Checkbox
                 label="Active"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
                 disabled={submitting}
               />
-
-
 
               <Button variant="secondary" onClick={handleClear} disabled={submitting}>
                 Clear

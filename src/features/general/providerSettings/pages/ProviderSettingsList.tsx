@@ -1,22 +1,29 @@
 import { Pencil, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Loader,
-  Modal,
   PageShell,
   RecordTableCard,
 } from "../../../../components/common";
 import { useProviderSettingsList } from "../hooks/useProviderSettingsList";
-import ProviderSettingsForm from "../components/ProviderSettingsForm";
 import ProviderSettingsDeleteDialog from "../components/ProviderSettingsDeleteDialog";
 
 const ProviderSettingsList = () => {
+  const navigate = useNavigate();
   const {
-    filteredList, loading, detailLoading, saving, deleting,
-    open, editData, deleteCandidate, search,
+    filteredList, loading, deleting,
+    deleteCandidate, search,
     setSearch, setDeleteCandidate,
-    openCreateModal, closeModal,
-    handleEdit, handleSave, handleDelete,
+    handleDelete,
   } = useProviderSettingsList();
+
+  const handleEdit = (transId: number) => {
+    navigate(`/dashboard/provider-settings/edit/${transId}`);
+  };
+
+  const handleCreate = () => {
+    navigate("/dashboard/provider-settings/new");
+  };
 
   return (
     <PageShell title="Provider Pricing Settings">
@@ -32,7 +39,7 @@ const ProviderSettingsList = () => {
           rowKey="transId"
           data={filteredList}
           actionLabel="+ Add New"
-          onAction={openCreateModal}
+          onAction={handleCreate}
           columns={[
             { header: "S.No", accessor: "sNo" },
             { header: "Provider", accessor: "provider" },
@@ -43,7 +50,7 @@ const ProviderSettingsList = () => {
               render: (row) => (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => void handleEdit(row.transId)}
+                    onClick={() => handleEdit(row.transId)}
                     className="p-2 text-pos-primary hover:bg-pos-primary/10 rounded-lg transition-all"
                   >
                     <Pencil size={16} />
@@ -60,26 +67,6 @@ const ProviderSettingsList = () => {
           ]}
         />
       )}
-
-      <Modal
-        isOpen={open}
-        onClose={closeModal}
-        title={editData ? "Edit Provider Settings" : "Configure Provider Settings"}
-        size="2xl"
-      >
-        {detailLoading ? (
-          <div className="py-8">
-            <Loader text="Loading details..." />
-          </div>
-        ) : (
-          <ProviderSettingsForm
-            initialData={editData}
-            onSubmit={handleSave}
-            onCancel={closeModal}
-            submitting={saving}
-          />
-        )}
-      </Modal>
 
       <ProviderSettingsDeleteDialog
         candidate={deleteCandidate}

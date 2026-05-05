@@ -4,9 +4,9 @@ import Loader from "./Loader";
 import Pagination from "./Pagination";
 
 export interface Column<T> {
-  header: string;
+  header: React.ReactNode;
   accessor: keyof T;
-  render?: (row: T) => React.ReactNode;
+  render?: (row: T, index: number) => React.ReactNode;
   align?: "left" | "center" | "right";
 }
 
@@ -20,6 +20,9 @@ interface TableProps<T> {
     totalPages: number;
     onPageChange: (page: number) => void;
   };
+  onRowClick?: (row: T) => void;
+  onRowDoubleClick?: (row: T) => void;
+  rowClassName?: (row: T, index: number) => string;
 }
 
 const Table = <T,>({
@@ -28,9 +31,12 @@ const Table = <T,>({
   loading,
   rowKey,
   pagination,
+  onRowClick,
+  onRowDoubleClick,
+  rowClassName,
 }: TableProps<T>) => {
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl bg-white border border-gray-200">
 
       {loading ? (
         <div className="py-10">
@@ -73,7 +79,15 @@ const Table = <T,>({
                   return (
                     <tr
                       key={key}
-                      className="group hover:bg-[#49293e]/5 transition-colors duration-150"
+                      data-row-key={String(key)}
+                      tabIndex={-1}
+                      onClick={() => onRowClick?.(row)}
+                      onDoubleClick={() => onRowDoubleClick?.(row)}
+                      className={`group outline-none transition-colors duration-150 ${rowClassName?.(row, rowIndex) ?? ""} ${
+                        onRowClick || onRowDoubleClick 
+                          ? 'cursor-pointer hover:bg-[#49293e]/5' 
+                          : 'hover:bg-gray-50/50'
+                      }`}
                     >
                       {columns.map((col, colIndex) => (
                         <td
@@ -87,7 +101,7 @@ const Table = <T,>({
                         `}
                       >
                         {col.render
-                          ? col.render(row)
+                          ? col.render(row, rowIndex)
                           : (row[col.accessor] as React.ReactNode)}
                       </td>
                     ))}

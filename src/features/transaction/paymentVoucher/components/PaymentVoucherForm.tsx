@@ -1,17 +1,23 @@
 import { useState } from "react";
-import { Button, FormInput } from "../../../../components/common";
+import { Button } from "../../../../components/common";
 import { createEmptyPaymentVoucherForm } from "../constants";
 import type { PaymentVoucherForm as PaymentVoucherFormType } from "../types";
+import { Save, RotateCcw, X } from "lucide-react";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface Props {
   initialData?: PaymentVoucherFormType | null;
   onSubmit: (data: PaymentVoucherFormType) => void;
   onCancel: () => void;
+  onClear?: () => void;
   submitting?: boolean;
 }
 
-const PaymentVoucherForm = ({ initialData, onSubmit, submitting }: Props) => {
+const labelClass = "text-[10px] font-bold uppercase tracking-widest text-slate-600";
+const inputClass = "w-full h-10.5 px-3 text-xs rounded-lg border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition disabled:bg-gray-50";
 
+const PaymentVoucherForm = ({ initialData, onSubmit, onCancel, onClear, submitting }: Props) => {
+  const { formatAmount } = useCurrency();
   const [form, setForm] = useState<PaymentVoucherFormType>(initialData || createEmptyPaymentVoucherForm());
 
   const setField = (key: keyof PaymentVoucherFormType, value: string) => {
@@ -20,32 +26,119 @@ const PaymentVoucherForm = ({ initialData, onSubmit, submitting }: Props) => {
 
   const handleClear = () => {
     setForm(createEmptyPaymentVoucherForm());
+    if (onClear) onClear();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
   };
 
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-        <FormInput label="Series" value={form.series} onChange={(e) => setField("series", e.target.value)} />
-        <FormInput label="Vch No" value={form.vchNo} onChange={(e) => setField("vchNo", e.target.value)} />
-        <FormInput label="Account" value={form.account} onChange={(e) => setField("account", e.target.value)} />
-        <FormInput label="Amount" value={form.amount} onChange={(e) => setField("amount", e.target.value)} />
-        <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} />
-        <div className="md:col-span-2">
-           <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} />
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>Series</label>
+          <input 
+            id="vch-series"
+            autoFocus
+            value={form.series} 
+            onChange={(e) => setField("series", e.target.value)} 
+            onKeyDown={(e) => handleKeyDown(e, "vch-no")}
+            placeholder="Enter Series"
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>Voucher No</label>
+          <input 
+            id="vch-no"
+            value={form.vchNo} 
+            onChange={(e) => setField("vchNo", e.target.value)} 
+            onKeyDown={(e) => handleKeyDown(e, "vch-account")}
+            placeholder="Enter Voucher No"
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>Account</label>
+          <input 
+            id="vch-account"
+            value={form.account} 
+            onChange={(e) => setField("account", e.target.value)} 
+            onKeyDown={(e) => handleKeyDown(e, "vch-amount")}
+            placeholder="Select Account"
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>Amount</label>
+          <input 
+            id="vch-amount"
+            type="number"
+            value={form.amount} 
+            style={{ textAlign: 'right' }}
+            onChange={(e) => setField("amount", e.target.value)} 
+            onKeyDown={(e) => handleKeyDown(e, "vch-paymode")}
+            placeholder={formatAmount(0)}
+            className={`${inputClass} font-bold text-[#49293e] bg-[#49293e]/5 border-[#49293e]/10`}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>Paymode</label>
+          <input 
+            id="vch-paymode"
+            value={form.paymode} 
+            onChange={(e) => setField("paymode", e.target.value)} 
+            onKeyDown={(e) => handleKeyDown(e, "vch-narration")}
+            placeholder="Select Paymode"
+            className={inputClass}
+          />
+        </div>
+        <div className="md:col-span-2 flex flex-col gap-1.5">
+           <label className={labelClass}>Narration</label>
+           <textarea 
+             id="vch-narration"
+             value={form.narration} 
+             onChange={(e) => setField("narration", e.target.value)} 
+             onKeyDown={(e) => handleKeyDown(e, "vch-save-btn")}
+             placeholder="Enter Narration..."
+             rows={3}
+             className="w-full p-3 text-xs rounded-lg border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+           />
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap justify-end gap-2">
-        <Button variant="secondary" className="h-10 px-6" onClick={handleClear}>
-          CLEAR
+      <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-slate-100">
+        <Button 
+          variant="secondary" 
+          onClick={onCancel}
+          className="h-10.5 px-6 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 border-none shadow-sm"
+        >
+          <X size={14} /> Cancel
         </Button>
-        <Button className="h-10 px-6" onClick={() => onSubmit(form)} loading={submitting}>
-          {initialData ? "UPDATE" : "SAVE"}
+        <Button 
+          variant="secondary" 
+          onClick={handleClear}
+          className="h-10.5 px-6 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 border-none shadow-sm"
+        >
+          <RotateCcw size={14} /> Clear
+        </Button>
+        <Button 
+          id="vch-save-btn"
+          onClick={() => onSubmit(form)} 
+          disabled={submitting}
+          className="h-10.5 px-10 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-pos-primary/20"
+        >
+          {submitting ? <RotateCcw size={14} className="animate-spin" /> : <Save size={14} />}
+          {initialData ? "Update Voucher" : "Save Voucher"}
         </Button>
       </div>
-
-
-    </>
+    </div>
   );
 };
 

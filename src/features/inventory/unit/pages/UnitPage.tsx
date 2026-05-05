@@ -44,13 +44,13 @@ const UnitPage = () => {
     <PageShell title="Unit Master">
       {/* Error banner */}
       {(listError || mutationError) && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <span className="flex-1">{mutationError || listError}</span>
           <button
             type="button"
             onClick={mutationError ? clearMutationError : fetchUnits}
-            className="shrink-0 rounded p-0.5 hover:bg-red-100"
+            className="shrink-0 rounded p-0.5 hover:bg-amber-100"
           >
             {mutationError ? <X size={14} /> : <span className="underline">Retry</span>}
           </button>
@@ -134,6 +134,7 @@ const UnitPage = () => {
               closeModal();
             }
           } : undefined}
+          onClear={openCreateModal}
         />
       </Modal>
 

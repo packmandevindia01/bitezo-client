@@ -1,5 +1,5 @@
 import { RefreshCcw } from "lucide-react";
-import { Button, SelectInput } from "../../../../components/common";
+import { Button } from "../../../../components/common";
 import type { 
   ProviderMasterItem, 
   BranchMasterItem, 
@@ -48,59 +48,114 @@ const ProviderSettingsFilters = ({
   onSubCategoryChange,
   onLoad,
 }: Props) => {
-  return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-6 items-end">
-        <SelectInput
-          label="Provider"
-          options={providers.map(p => ({ label: p.providerName, value: String(p.providerId) }))}
-          value={selectedProvider}
-          onChange={(e) => onProviderChange(e.target.value)}
-          disabled={isEdit}
-          placeholder="Select Provider"
-        />
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
 
-        <div className="flex flex-col gap-1 mb-4 w-full">
-          <label className="text-xs md:text-sm font-medium text-gray-700">
-            Date
-          </label>
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-6 items-end">
+        
+        {/* Provider */}
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Provider</label>
+          <select
+            id="ps-provider"
+            autoFocus
+            value={selectedProvider}
+            onChange={(e) => onProviderChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "ps-date")}
+            disabled={isEdit}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition disabled:bg-gray-50"
+          >
+            <option value="">Select Provider</option>
+            {providers.map(p => (
+              <option key={p.providerId} value={String(p.providerId)}>{p.providerName}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date */}
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Date</label>
           <input
+            id="ps-date"
             type="date"
             value={selectedDate}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+            onKeyDown={(e) => handleKeyDown(e, "ps-branch")}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
           />
         </div>
 
-        <SelectInput
-          label="Branch"
-          options={branches.map(b => ({ label: b.branchName, value: String(b.branchId) }))}
-          value={selectedBranch}
-          onChange={(e) => onBranchChange(e.target.value)}
-          disabled={isEdit}
-          placeholder="Select Branch"
-        />
+        {/* Branch */}
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Branch</label>
+          <select
+            id="ps-branch"
+            value={selectedBranch}
+            onChange={(e) => onBranchChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "ps-category")}
+            disabled={isEdit}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition disabled:bg-gray-50"
+          >
+            <option value="">Select Branch</option>
+            {branches.map(b => (
+              <option key={b.branchId} value={String(b.branchId)}>{b.branchName}</option>
+            ))}
+          </select>
+        </div>
 
-        <SelectInput
-          label="Category"
-          options={categories.map(c => ({ label: c.categoryName, value: String(c.categoryId) }))}
-          value={selectedCategory}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          placeholder="Select Category"
-        />
+        {/* Category */}
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Category</label>
+          <select
+            id="ps-category"
+            value={selectedCategory}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "ps-subcategory")}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+          >
+            <option value="">Select Category</option>
+            {categories.map(c => (
+              <option key={c.categoryId} value={String(c.categoryId)}>{c.categoryName}</option>
+            ))}
+          </select>
+        </div>
 
-        <SelectInput
-          label="Sub Category"
-          options={subCategories.map(s => ({ label: s.name, value: String(s.id) }))}
-          value={selectedSubCategory}
-          onChange={(e) => onSubCategoryChange(e.target.value)}
-          disabled={loadingSubs || !selectedCategory}
-          placeholder={loadingSubs ? "Loading..." : "Select Sub Category"}
-        />
+        {/* Sub Category */}
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Sub Category</label>
+          <select
+            id="ps-subcategory"
+            value={selectedSubCategory}
+            onChange={(e) => onSubCategoryChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "ps-entry-product")}
+            disabled={loadingSubs || !selectedCategory}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition disabled:bg-gray-50"
+          >
+            <option value="">{loadingSubs ? "Loading..." : "Select Sub Category"}</option>
+            {subCategories.map(s => (
+              <option key={s.id} value={String(s.id)}>{s.name}</option>
+            ))}
+          </select>
+        </div>
 
-        <div className="mb-4">
-          <Button onClick={onLoad} disabled={loading} className="w-full h-10.5">
-            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
+        {/* Load Button */}
+        <div className="flex flex-col gap-1 w-full">
+          <label className="h-[15px]"></label>
+          <Button 
+            id="ps-load-btn"
+            onClick={onLoad} 
+            disabled={loading} 
+            className="w-full h-10.5 text-[10px] font-black uppercase tracking-widest shadow-sm"
+          >
+            <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
             Load
           </Button>
         </div>

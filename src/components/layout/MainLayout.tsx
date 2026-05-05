@@ -72,7 +72,7 @@ const MainLayout = () => {
       >
         <Topbar toggleSidebar={toggleSidebar} />
 
-        <main className="flex-1 overflow-x-hidden p-3 sm:p-4 md:p-6">
+        <main className="flex-1 overflow-x-hidden p-2">
           <Outlet />
         </main>
       </div>

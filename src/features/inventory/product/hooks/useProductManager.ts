@@ -28,7 +28,8 @@ export const useProductManager = () => {
   } = useProductActions({ 
     formState: { ...formState }, // includes setImagePreview
     altState, 
-    productList 
+    productList,
+    branches: masterDataState.branches
   });
 
   // 3. Initial load orchestration

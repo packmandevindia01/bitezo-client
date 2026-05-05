@@ -111,3 +111,14 @@ export const fetchAltNames = async (productId: number) => {
   }
   return data.data || [];
 };
+
+export const fetchUnitPrice = async (productId: number, unitId: number) => {
+  const { data } = await axiosInstance.get<ApiResponse<{ price: number; isIncl: boolean }>>(
+    "/product/get-unit-price",
+    { params: { ProductId: productId, UnitId: unitId } }
+  );
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to fetch unit price");
+  }
+  return data.data;
+};

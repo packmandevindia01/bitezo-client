@@ -49,7 +49,7 @@ const Checkbox = ({
 
       {/* ERROR */}
       {error && (
-        <span className="text-xs text-red-500">
+        <span className="text-xs text-amber-600 font-semibold">
           {error}
         </span>
       )}

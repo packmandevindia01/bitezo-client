@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
-import { Plus, RotateCcw, Save, X, FileText } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RotateCcw, Save, X, FileText } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
+import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyBomForm } from "../constants";
 import type { BomLineItem, BomForm } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -12,8 +13,11 @@ const toNumber = (value: string) => {
 
 const BomPage = () => {
   const { hasPermission } = usePermissions();
-  const [form, setForm] = useState<BomForm>(createEmptyBomForm());
+  const initialForm = useMemo(() => createEmptyBomForm(), []);
+
+  const [form, setForm] = useState<BomForm>(initialForm);
   const [items, setItems] = useState<BomLineItem[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const nextItemId = useRef(1);
 
   const canAdd = hasPermission("BOM Master", "Add");
@@ -25,6 +29,12 @@ const BomPage = () => {
     if (!canSave) return;
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  const hk = (e: React.KeyboardEvent, nextId?: string) => {
+    if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
+  };
+
+  useEffect(() => { setTimeout(() => { document.getElementById("bom-finProduct")?.focus(); }, 200); }, []);
 
   const currentLine = useMemo<BomLineItem>(
     () => ({
@@ -50,11 +60,22 @@ const BomPage = () => {
       unit: "",
       qty: "0",
     }));
+    setTimeout(() => document.getElementById("bom-product")?.focus(), 0);
   };
 
   const resetForm = () => {
-    setForm(createEmptyBomForm());
+    setForm(initialForm);
     setItems([]);
+    setShowClearConfirm(false);
+  };
+
+  const handleClearClick = () => {
+    const isDirty = items.length > 0 || JSON.stringify(form) !== JSON.stringify(initialForm);
+    if (isDirty) {
+      setShowClearConfirm(true);
+    } else {
+      resetForm();
+    }
   };
 
   return (
@@ -73,45 +94,21 @@ const BomPage = () => {
         </div>
 
         <div className="grid gap-x-4 gap-y-1 md:grid-cols-4">
-          <FormInput 
-            label="Finished Product" 
-            value={form.finishedProduct} 
-            onChange={(e) => setField("finishedProduct", e.target.value)} 
-            required
-            readOnly={!canSave}
-          />
-          <FormInput 
-            label="Code" 
-            value={form.finishedProductCode} 
-            onChange={(e) => setField("finishedProductCode", e.target.value)} 
-            required
-            readOnly={!canSave}
-          />
-          <FormInput 
-            label="Unit" 
-            value={form.finishedProductUnit} 
-            onChange={(e) => setField("finishedProductUnit", e.target.value)} 
-            required
-            readOnly={!canSave}
-          />
-          <FormInput 
-            label="Qty" 
-            value={form.finishedProductQty} 
-            onChange={(e) => setField("finishedProductQty", e.target.value)} 
-            required
-            readOnly={!canSave}
-          />
+          <FormInput id="bom-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "bom-finCode")} required readOnly={!canSave} />
+          <FormInput id="bom-finCode" label="Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "bom-finUnit")} required readOnly={!canSave} />
+          <FormInput id="bom-finUnit" label="Unit" value={form.finishedProductUnit} onChange={(e) => setField("finishedProductUnit", e.target.value)} onKeyDown={(e) => hk(e, "bom-finQty")} required readOnly={!canSave} />
+          <FormInput id="bom-finQty" label="Qty" value={form.finishedProductQty} onChange={(e) => setField("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "bom-product")} required readOnly={!canSave} />
         </div>
 
         <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-            <FormInput label="Raw Materials" value={form.product} onChange={(e) => setField("product", e.target.value)} readOnly={!canAdd} />
-            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} readOnly={!canAdd} />
-            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} readOnly={!canAdd} />
-            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} readOnly={!canAdd} />
+            <FormInput id="bom-product" label="Raw Materials" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "bom-code")} readOnly={!canAdd} />
+            <FormInput id="bom-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "bom-unit")} readOnly={!canAdd} />
+            <FormInput id="bom-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "bom-qty")} readOnly={!canAdd} />
+            <FormInput id="bom-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "bom-add-btn")} readOnly={!canAdd} />
             <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full px-8" disabled={!canAdd}>
-                <Plus size={16} />
+              <Button id="bom-add-btn" onClick={addItem} className="h-10 w-full px-8" disabled={!canAdd}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
                 Add
               </Button>
             </div>
@@ -161,7 +158,7 @@ const BomPage = () => {
 
         <div className="mt-8 flex flex-wrap justify-end gap-3">
           {canAdd && (
-            <Button variant="secondary" onClick={resetForm} className="min-w-[120px] justify-center">
+            <Button variant="secondary" onClick={handleClearClick} className="min-w-[120px] justify-center">
               <RotateCcw size={16} />
               New
             </Button>
@@ -180,6 +177,15 @@ const BomPage = () => {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Clear Form"
+        message="Are you sure you want to clear the form? All unsaved data will be lost."
+        confirmLabel="Clear"
+        onConfirm={resetForm}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </PageShell>
   );
 };

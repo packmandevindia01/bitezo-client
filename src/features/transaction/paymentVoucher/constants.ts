@@ -4,7 +4,7 @@ export const createEmptyPaymentVoucherForm = (): PaymentVoucherForm => ({
   series: "",
   vchNo: "",
   account: "",
-  amount: "0.000",
+  amount: "",
   paymode: "",
   narration: "",
 });

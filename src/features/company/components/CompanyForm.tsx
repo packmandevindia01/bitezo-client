@@ -92,6 +92,18 @@ const CompanyForm = ({
   const isLocked = (field: keyof CompanyFormData) => lockedFields.includes(field);
 
   useEffect(() => {
+    // Explicit focus on mount: skip read-only fields
+    setTimeout(() => {
+      const regField = document.getElementById("co-regId") as HTMLInputElement;
+      if (regField && !regField.readOnly) {
+        regField.focus();
+      } else {
+        document.getElementById("co-custName")?.focus();
+      }
+    }, 200);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadMasterData = async () => {
@@ -195,6 +207,17 @@ const CompanyForm = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      } else {
+        saveBtnRef.current?.focus();
+      }
+    }
+  };
+
   return (
     <>
       {submitting && (
@@ -211,137 +234,155 @@ const CompanyForm = ({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormInput
+          id="co-regId"
           label="Registration ID"
           required
           value={form.regId}
           onChange={(e) => handleChange("regId", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-custName")}
           disabled={submitting}
           readOnly={isLocked("regId")}
           autoFocus
         />
 
         <FormInput
+          id="co-custName"
           label="Company Name"
           required
           value={form.custName}
           onChange={(e) => handleChange("custName", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-crNo")}
           error={errors.custName}
           disabled={submitting}
           readOnly={isLocked("custName")}
         />
 
         <FormInput
+          id="co-crNo"
           label="CR No"
           required
           value={form.crNo}
           onChange={(e) => handleChange("crNo", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-custMob")}
           error={errors.crNo}
           disabled={submitting}
           readOnly={isLocked("crNo")}
         />
 
         <FormInput
+          id="co-custMob"
           label="Mobile No"
           required
           placeholder="+973 36001234"
           value={form.custMob}
           onChange={(e) => handleChange("custMob", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-email")}
           error={errors.custMob}
           disabled={submitting}
           readOnly={isLocked("custMob")}
         />
 
         <FormInput
+          id="co-email"
           label="Email"
           value={form.email}
           onChange={(e) => handleChange("email", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-custMob2")}
           error={errors.email}
           disabled={submitting}
           readOnly={isLocked("email")}
         />
 
         <FormInput
+          id="co-custMob2"
           label="Tel No"
           value={form.custMob2}
           onChange={(e) => handleChange("custMob2", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-taxRegNo")}
           disabled={submitting}
           readOnly={isLocked("custMob2")}
         />
 
         <FormInput
+          id="co-taxRegNo"
           label="Tax Reg No"
           value={form.taxRegNo}
           onChange={(e) => handleChange("taxRegNo", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-currency")}
           disabled={submitting}
           readOnly={isLocked("taxRegNo")}
         />
 
-
-
         <SelectInput
+          id="co-currency"
           label="Currency"
           required
           value={form.currency}
           onChange={(e) => handleChange("currency", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-block")}
           options={currencyOptions}
           error={errors.currency}
           disabled={submitting}
         />
 
         <FormInput
+          id="co-block"
           label="Block No"
           value={form.block}
           onChange={(e) => handleChange("block", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-area")}
           disabled={submitting}
           readOnly={isLocked("block")}
         />
 
-
-
         <FormInput
+          id="co-area"
           label="Area / Street"
           value={form.area}
           onChange={(e) => handleChange("area", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-customerId")}
           disabled={submitting}
           readOnly={isLocked("area")}
         />
 
         <FormInput
+          id="co-customerId"
           label="Customer ID"
           value={form.customerId}
           onChange={(e) => handleChange("customerId", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-building")}
           disabled={submitting}
           readOnly={isLocked("customerId")}
         />
 
         <FormInput
+          id="co-building"
           label="Building No"
           value={form.building}
           onChange={(e) => handleChange("building", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-road")}
           disabled={submitting}
           readOnly={isLocked("building")}
         />
 
         <FormInput
+          id="co-road"
           label="Road No"
           value={form.road}
           onChange={(e) => handleChange("road", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "co-flatNo")}
           disabled={submitting}
           readOnly={isLocked("road")}
         />
 
         <FormInput
+          id="co-flatNo"
           label="Flat No"
           value={form.flatNo}
           onChange={(e) => handleChange("flatNo", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e)}
           disabled={submitting}
           readOnly={isLocked("flatNo")}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
-              e.preventDefault();
-              saveBtnRef.current?.focus();
-            }
-          }}
         />
       </div>
 

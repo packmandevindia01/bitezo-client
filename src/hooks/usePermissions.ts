@@ -5,12 +5,12 @@ export const usePermissions = () => {
   const userRoles = useAppSelector((state) => state.auth.userRoles);
 
   const hasPermission = (moduleName: string, action: string) => {
-    // Development bypass: allow all permissions if flag is set in .env.development
-    if (import.meta.env.DEV && import.meta.env.VITE_BYPASS_PERMISSIONS === 'true') {
+    // Global bypass: allow all permissions if flag is set in .env (works in dev and production)
+    if (import.meta.env.VITE_BYPASS_PERMISSIONS === 'true') {
       return true;
     }
 
-    // Master users have full access
+    // Master users have full access (flagged from backend)
     if (isMaster) {
       return true;
     }

@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import { useRef, useState, useEffect, useMemo } from "react";
+import { FileText } from "lucide-react";
 
 import { Button, FormInput, PageShell } from "../../../../components/common";
+import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyPaymentAgainstVoucherForm } from "../constants";
 import type { PaymentAgainstVoucherLineItem, PaymentAgainstVoucherForm } from "../types";
 
@@ -9,17 +10,34 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 
 const PaymentAgainstVoucherPage = () => {
   const { formatAmount } = useCurrency();
-  const [form, setForm] = useState<PaymentAgainstVoucherForm>(() => {
+  const initialForm = useMemo(() => {
     const empty = createEmptyPaymentAgainstVoucherForm();
     empty.invAmnt = formatAmount(0);
     empty.paid = formatAmount(0);
     empty.balance = formatAmount(0);
     empty.amount = formatAmount(0);
     return empty;
-  });
+  }, [formatAmount]);
+
+  const [form, setForm] = useState<PaymentAgainstVoucherForm>(initialForm);
   const [items, setItems] = useState<PaymentAgainstVoucherLineItem[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const nextItemId = useRef(1);
+
+  // Auto-focus on mount
+  useEffect(() => {
+    setTimeout(() => {
+      document.getElementById("pav-page-series")?.focus();
+    }, 200);
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent, nextId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextId) document.getElementById(nextId)?.focus();
+    }
+  };
 
   const toNumber = (value: string) => {
     const parsed = Number(value);
@@ -58,18 +76,31 @@ const PaymentAgainstVoucherPage = () => {
       amount: formatAmount(0),
     }));
 
+    setTimeout(() => document.getElementById("pav-page-vchType")?.focus(), 0);
   };
 
   const handleReset = () => {
-    setForm(createEmptyPaymentAgainstVoucherForm());
+    setForm(initialForm);
     setItems([]);
+    setShowClearConfirm(false);
+    setTimeout(() => document.getElementById("pav-page-series")?.focus(), 0);
+  };
+
+  const handleClearClick = () => {
+    const isDirty = items.length > 0 || JSON.stringify(form) !== JSON.stringify(initialForm);
+    if (isDirty) {
+      setShowClearConfirm(true);
+    } else {
+      handleReset();
+    }
   };
 
   return (
     <PageShell title="Payment Against Voucher">
-      <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-        <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-center md:justify-between">
-          <div>
+      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+        {/* ── Scrollable Body ── */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="mb-5 border-b border-gray-100 pb-4">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
               Transaction
             </p>
@@ -79,15 +110,13 @@ const PaymentAgainstVoucherPage = () => {
             </h1>
           </div>
 
-        </div>
-
         <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 xl:grid-cols-5">
-          <FormInput label="Series" value={form.series} onChange={(e) => setField("series", e.target.value)} />
-          <FormInput label="Vch No" value={form.vchNo} onChange={(e) => setField("vchNo", e.target.value)} />
-          <FormInput label="Date" type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} />
+          <FormInput id="pav-page-series" label="Series" value={form.series} onChange={(e) => setField("series", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchNo")} />
+          <FormInput id="pav-page-vchNo" label="Vch No" value={form.vchNo} onChange={(e) => setField("vchNo", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-date")} />
+          <FormInput id="pav-page-date" label="Date" type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-supplier")} />
           <div className="md:col-span-2 xl:col-span-2 flex items-end gap-2">
             <div className="flex-1">
-              <FormInput label="Supplier" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} />
+              <FormInput id="pav-page-supplier" label="Supplier" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchType")} />
             </div>
             <div className="pb-4">
               <Button variant="secondary" className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
@@ -99,15 +128,21 @@ const PaymentAgainstVoucherPage = () => {
 
         <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto]">
-            <FormInput label="Vch Type" value={form.vchType} onChange={(e) => setField("vchType", e.target.value)} />
-            <FormInput label="Vch No" value={form.vchNoInput} onChange={(e) => setField("vchNoInput", e.target.value)} />
-            <FormInput label="Inv Amnt" value={form.invAmnt} onChange={(e) => setField("invAmnt", e.target.value)} />
-            <FormInput label="Paid" value={form.paid} onChange={(e) => setField("paid", e.target.value)} />
-            <FormInput label="Balance" value={form.balance} onChange={(e) => setField("balance", e.target.value)} />
-            <FormInput label="Amount" value={form.amount} onChange={(e) => setField("amount", e.target.value)} />
+            <FormInput id="pav-page-vchType" label="Vch Type" value={form.vchType} onChange={(e) => setField("vchType", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchNoInput")} />
+            <FormInput id="pav-page-vchNoInput" label="Vch No" value={form.vchNoInput} onChange={(e) => setField("vchNoInput", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-invAmnt")} />
+            <FormInput id="pav-page-invAmnt" label="Inv Amnt" value={form.invAmnt} onChange={(e) => setField("invAmnt", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-paid")} />
+            <FormInput id="pav-page-paid" label="Paid" value={form.paid} onChange={(e) => setField("paid", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-balance")} />
+            <FormInput id="pav-page-balance" label="Balance" value={form.balance} onChange={(e) => setField("balance", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-amount")} />
+            <FormInput id="pav-page-amount" label="Amount" value={form.amount} onChange={(e) => setField("amount", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-add-btn")} />
             <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full px-8">
-                <Plus size={16} />
+              <Button
+                id="pav-page-add-btn"
+                onClick={addItem}
+                className="h-10 w-full px-8"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addItem(); }
+                }}
+              >
                 ADD
               </Button>
             </div>
@@ -160,8 +195,8 @@ const PaymentAgainstVoucherPage = () => {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_350px]">
           <div className="grid gap-x-4 gap-y-1 md:grid-cols-2">
-            <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} />
-            <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} />
+            <FormInput id="pav-page-narration" label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-paymode")} />
+            <FormInput id="pav-page-paymode" label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-save-btn")} />
           </div>
           <div className="flex flex-col gap-4">
             <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
@@ -173,19 +208,29 @@ const PaymentAgainstVoucherPage = () => {
               </div>
             </div>
             
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" className="h-10 px-6" onClick={handleReset}>
-                CLEAR
-              </Button>
-              <Button className="h-10 px-6">
-                SAVE
-              </Button>
-            </div>
-
           </div>
         </div>
+        </div>{/* end scrollable body */}
 
+        {/* ── Sticky Action Footer ── */}
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
+          <Button variant="secondary" className="h-10 px-6" onClick={handleClearClick}>
+            CLEAR
+          </Button>
+          <Button id="pav-page-save-btn" className="h-10 px-6">
+            SAVE
+          </Button>
+        </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Clear Form"
+        message="Are you sure you want to clear the form? All unsaved data will be lost."
+        confirmLabel="Clear"
+        onConfirm={handleReset}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </PageShell>
   );
 };

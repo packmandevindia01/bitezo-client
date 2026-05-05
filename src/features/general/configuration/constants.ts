@@ -4,6 +4,9 @@ export const INITIAL_CONFIG: ConfigurationState = {
   companyNameKOT: false,
   locationWisePrice: false,
   alternativeOrder: "Name",
+  defaultEmployee: false,
+  employeeId: "",
+  groupInMenu: false,
   packagerHeader: false,
   
   discCalc: "Exclusive",

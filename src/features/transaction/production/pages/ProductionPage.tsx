@@ -1,19 +1,23 @@
-import { useMemo, useRef, useState } from "react";
-import { Plus, RotateCcw, Save, X, FileText, Download } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RotateCcw, Save, X, FileText, Download } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
+import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyProductionForm } from "../constants";
 import type { ProductionLineItem, ProductionForm } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 
 const ProductionPage = () => {
   const { formatAmount } = useCurrency();
-  const [form, setForm] = useState<ProductionForm>(() => {
+  const initialForm = useMemo(() => {
     const empty = createEmptyProductionForm();
     empty.cost = formatAmount(0);
     empty.otherCharge = formatAmount(0);
     return empty;
-  });
+  }, [formatAmount]);
+
+  const [form, setForm] = useState<ProductionForm>(initialForm);
   const [items, setItems] = useState<ProductionLineItem[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const nextItemId = useRef(1);
 
@@ -25,6 +29,12 @@ const ProductionPage = () => {
   const setField = (key: keyof ProductionForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  const hk = (e: React.KeyboardEvent, nextId?: string) => {
+    if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
+  };
+
+  useEffect(() => { setTimeout(() => { document.getElementById("prod-finProduct")?.focus(); }, 200); }, []);
 
   const currentLine = useMemo<ProductionLineItem>(
     () => ({
@@ -65,24 +75,31 @@ const ProductionPage = () => {
       qty: "0",
       cost: formatAmount(0),
     }));
+    setTimeout(() => document.getElementById("prod-product")?.focus(), 0);
   };
 
   const resetForm = () => {
-    setForm(() => {
-      const empty = createEmptyProductionForm();
-      empty.cost = formatAmount(0);
-      empty.otherCharge = formatAmount(0);
-      return empty;
-    });
+    setForm(initialForm);
     setItems([]);
+    setShowClearConfirm(false);
+  };
+
+  const handleClearClick = () => {
+    const isDirty = items.length > 0 || JSON.stringify(form) !== JSON.stringify(initialForm);
+    if (isDirty) {
+      setShowClearConfirm(true);
+    } else {
+      resetForm();
+    }
   };
 
 
   return (
     <PageShell title="Production">
-      <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-        <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-center md:justify-between">
-          <div>
+      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+        {/* ── Scrollable Body ── */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="mb-5 border-b border-gray-100 pb-4">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
               Transaction
             </p>
@@ -91,45 +108,24 @@ const ProductionPage = () => {
               Production
             </h1>
           </div>
-        </div>
 
         <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 lg:grid-cols-5">
-          <FormInput 
-            label="Finished Product" 
-            value={form.finishedProduct} 
-            onChange={(e) => setField("finishedProduct", e.target.value)} 
-            required
-          />
-          <FormInput 
-            label="Code" 
-            value={form.finishedProductCode} 
-            onChange={(e) => setField("finishedProductCode", e.target.value)} 
-            required
-          />
-          <FormInput 
-            label="Unit" 
-            value={form.finishedProductUnit} 
-            onChange={(e) => setField("finishedProductUnit", e.target.value)} 
-            required
-          />
-          <FormInput 
-            label="Qty" 
-            value={form.finishedProductQty} 
-            onChange={(e) => setField("finishedProductQty", e.target.value)} 
-            required
-          />
+          <FormInput id="prod-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "prod-finCode")} required />
+          <FormInput id="prod-finCode" label="Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "prod-finUnit")} required />
+          <FormInput id="prod-finUnit" label="Unit" value={form.finishedProductUnit} onChange={(e) => setField("finishedProductUnit", e.target.value)} onKeyDown={(e) => hk(e, "prod-finQty")} required />
+          <FormInput id="prod-finQty" label="Qty" value={form.finishedProductQty} onChange={(e) => setField("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "prod-product")} required />
         </div>
 
         <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
-            <FormInput label="Finished Product" value={form.product} onChange={(e) => setField("product", e.target.value)} />
-            <FormInput label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} />
-            <FormInput label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} />
-            <FormInput label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} />
-            <FormInput label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} />
+            <FormInput id="prod-product" label="Finished Product" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "prod-code")} />
+            <FormInput id="prod-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "prod-unit")} />
+            <FormInput id="prod-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "prod-qty")} />
+            <FormInput id="prod-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
+            <FormInput id="prod-cost" label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
             <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full px-8">
-                <Plus size={16} />
+              <Button id="prod-add-btn" onClick={addItem} className="h-10 w-full px-8"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
                 Add
               </Button>
             </div>
@@ -203,23 +199,35 @@ const ProductionPage = () => {
               readOnly
             />
             
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button variant="secondary" onClick={resetForm}>
-                <RotateCcw size={16} />
-                New
-              </Button>
-              <Button>
-                <Save size={16} />
-                Save
-              </Button>
-              <Button variant="secondary" className="text-red-500 hover:text-red-600">
-                <X size={16} />
-                Delete
-              </Button>
-            </div>
           </div>
         </div>
+        </div>{/* end scrollable body */}
+
+        {/* ── Sticky Action Footer ── */}
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
+          <Button variant="secondary" onClick={handleClearClick}>
+            <RotateCcw size={16} />
+            New
+          </Button>
+          <Button>
+            <Save size={16} />
+            Save
+          </Button>
+          <Button variant="secondary" className="text-red-500 hover:text-red-600">
+            <X size={16} />
+            Delete
+          </Button>
+        </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Clear Form"
+        message="Are you sure you want to clear the form? All unsaved data will be lost."
+        confirmLabel="Clear"
+        onConfirm={resetForm}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </PageShell>
   );
 };

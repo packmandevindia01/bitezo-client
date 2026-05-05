@@ -10,6 +10,7 @@ interface Props {
   onSubmit: (form: TaxFormState) => void;
   onCancel: () => void;
   onDelete?: () => void;
+  onClear?: () => void;
 }
 
 const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
@@ -18,7 +19,7 @@ const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
   expireAt: initialData?.expireAt ? new Date(initialData.expireAt).toISOString().split("T")[0] : "",
 });
 
-const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete }: Props) => {
+const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onClear }: Props) => {
   const [form, setForm] = useState<TaxFormState>(() => createInitialForm(initialData));
 
   const handleChange = (key: keyof TaxFormState, value: string) => {
@@ -26,7 +27,8 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete }: Pro
   };
 
   const handleClear = () => {
-    setForm(createInitialForm(initialData));
+    setForm(createInitialForm(null));
+    if (onClear) onClear();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -42,7 +44,7 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete }: Pro
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-100">
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100">
           {error}
         </div>
       )}

@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Loader,
   Modal,
@@ -6,17 +7,24 @@ import {
   RecordTableCard,
 } from "../../../../components/common";
 import { useHappyHourList } from "../hooks/useHappyHourList";
-import HappyHourForm from "../components/HappyHourForm";
 
 const HappyHourList = () => {
+  const navigate = useNavigate();
   const {
-    filteredList, loading, detailLoading, saving, deleting,
-    open, editData, deleteCandidate, search,
+    filteredList, loading, deleting,
+    deleteCandidate, search,
     fromDate, setFromDate, toDate, setToDate,
     setSearch, setDeleteCandidate,
-    openCreateModal, closeModal,
-    handleEdit, handleSave, handleDelete,
+    handleDelete,
   } = useHappyHourList();
+
+  const handleEdit = (id: number) => {
+    navigate(`/dashboard/happy-hour/edit/${id}`);
+  };
+
+  const handleCreate = () => {
+    navigate("/dashboard/happy-hour/new");
+  };
 
   return (
     <PageShell title="Happy Hours Management">
@@ -32,7 +40,7 @@ const HappyHourList = () => {
           rowKey="promotionId"
           data={filteredList}
           actionLabel="+ Add New"
-          onAction={openCreateModal}
+          onAction={handleCreate}
           extraActions={
             <div className="flex items-center gap-2">
                 <input
@@ -69,7 +77,7 @@ const HappyHourList = () => {
               render: (row) => (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => void handleEdit(row.promotionId)}
+                    onClick={() => handleEdit(row.promotionId)}
                     className="p-2 text-pos-primary hover:bg-pos-primary/10 rounded-lg transition-all"
                   >
                     <Pencil size={16} />
@@ -86,26 +94,6 @@ const HappyHourList = () => {
           ]}
         />
       )}
-
-      <Modal
-        isOpen={open}
-        onClose={closeModal}
-        title={editData ? "Edit Happy Hour" : "Create Happy Hour"}
-        size="2xl"
-      >
-        {detailLoading ? (
-          <div className="py-8">
-            <Loader text="Loading details..." />
-          </div>
-        ) : (
-          <HappyHourForm
-            initialData={editData}
-            onSubmit={handleSave}
-            onCancel={closeModal}
-            submitting={saving}
-          />
-        )}
-      </Modal>
 
       {/* Delete Confirmation Dialog */}
       <Modal

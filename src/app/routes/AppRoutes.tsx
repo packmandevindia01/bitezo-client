@@ -16,8 +16,7 @@ const CompanyOnboardingPage = lazy(() => import("../../features/company/pages/Co
 const DashboardPage = lazy(() => import("../../features/dashboard/pages/DashboardPage"));
 const UserList = lazy(() => import("../../features/general/user/pages/UserList"));
 const UserRolePage = lazy(() => import("../../features/general/userRole/pages/UserRolePage"));
-const CustomerListPage = lazy(() => import("../../features/general/customer/pages/CustomerListPage"));
-const CustomerFormPage = lazy(() => import("../../features/general/customer/pages/CustomerFormPage"));
+const CompanyPage = lazy(() => import("../../features/company/pages/CompanyPage"));
 const EmployeePage = lazy(() => import("../../features/general/employee/pages/EmployeePage"));
 const BranchListPage = lazy(() => import("../../features/inventory/branches/pages/BranchListPage"));
 const BranchFormPage = lazy(() => import("../../features/inventory/branches/pages/BranchFormPage"));
@@ -37,7 +36,7 @@ const CounterPage = lazy(() => import("../../features/general/counter/pages/Coun
 const SectionPage = lazy(() => import("../../features/general/section/pages/SectionPage"));
 const TableMasterPage = lazy(() => import("../../features/general/tableMaster/pages/TableMasterPage"));
 const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/PosTerminalPage"));
-const EditableGridView = lazy(() => import("../../features/experimental/editable-grid/pages/EditableGridView"));
+
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
 const CashierInPage = lazy(() => import("../../features/systemRegistration/pages/CashierInPage"));
@@ -57,6 +56,10 @@ const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/
 const PaymentVoucherPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherPage"));
 const ReceiptVoucherPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherPage"));
 const HappyHourPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourPage"));
+const HappyHourFormPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourFormPage"));
+const ProviderSettingsFormPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsFormPage"));
+const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
+const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockItemPage"));
 
 
 const LoginRedirect = () => {
@@ -116,15 +119,15 @@ const AppRoutes = () => {
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}
                 <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
-
+                <Route path="pos/pay-in-out" element={<RoleGuard moduleName="Sales Invoice"><PayInOutPage /></RoleGuard>} />
+                <Route path="pos/lock-item" element={<RoleGuard moduleName="Sales Invoice"><LockItemPage /></RoleGuard>} />
 
                 {/* Dashboard — fully guarded */}
                 <Route path="/dashboard" element={<MainLayout />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
                   <Route path="user-roles" element={<RoleGuard moduleName="User Master"><UserRolePage /></RoleGuard>} />
-                  <Route path="customers" element={<RoleGuard moduleName="Customer Master"><CustomerListPage /></RoleGuard>} />
-                  <Route path="customers/new" element={<RoleGuard moduleName="Customer Master" action="Add"><CustomerFormPage /></RoleGuard>} />
+                  <Route path="company" element={<RoleGuard moduleName="Customer Master"><CompanyPage /></RoleGuard>} />
                   <Route path="employees" element={<RoleGuard moduleName="Employee Master"><EmployeePage /></RoleGuard>} />
                   <Route path="paymodes" element={<RoleGuard moduleName="Paymode Master"><PaymodePage /></RoleGuard>} />
                   <Route path="counters" element={<RoleGuard moduleName="Counter Master"><CounterPage /></RoleGuard>} />
@@ -151,7 +154,7 @@ const AppRoutes = () => {
                   <Route path="taxes" element={<RoleGuard moduleName="Tax Master"><TaxPage /></RoleGuard>} />
                   <Route path="purchase-invoice" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoicePage /></RoleGuard>} />
                   <Route path="purchase-return" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnPage /></RoleGuard>} />
-                  <Route path="test/editable-grid" element={<EditableGridView />} />
+
                   <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
@@ -164,7 +167,12 @@ const AppRoutes = () => {
 
                   <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />
                   <Route path="provider-settings" element={<RoleGuard moduleName="Configuration"><ProviderSettingsPage /></RoleGuard>} />
+                  <Route path="provider-settings/new" element={<RoleGuard moduleName="Configuration"><ProviderSettingsFormPage /></RoleGuard>} />
+                  <Route path="provider-settings/edit/:id" element={<RoleGuard moduleName="Configuration"><ProviderSettingsFormPage /></RoleGuard>} />
+
                   <Route path="happy-hour" element={<RoleGuard moduleName="Configuration"><HappyHourPage /></RoleGuard>} />
+                  <Route path="happy-hour/new" element={<RoleGuard moduleName="Configuration"><HappyHourFormPage /></RoleGuard>} />
+                  <Route path="happy-hour/edit/:id" element={<RoleGuard moduleName="Configuration"><HappyHourFormPage /></RoleGuard>} />
                 </Route>
 
               </Route>

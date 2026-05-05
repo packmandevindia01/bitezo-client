@@ -64,8 +64,8 @@ const BranchFormPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 px-2 py-4 xl:px-8">
-      <div className="mx-auto w-full max-w-7xl rounded-[24px] bg-white p-4 xl:p-6 shadow-premium border border-slate-100">
-        <div className="mb-4">
+      <div className="mx-auto w-full max-w-7xl rounded-[24px] bg-white shadow-premium border border-slate-100 flex flex-col" style={{ maxHeight: "calc(100vh - 32px)", overflow: "hidden" }}>
+        <div className="p-4 xl:p-6 border-b border-slate-100 shrink-0">
           <Button 
             variant="secondary" 
             onClick={() => navigate("/dashboard/branches")}
@@ -76,11 +76,16 @@ const BranchFormPage = () => {
           </Button>
         </div>
 
-        <BranchForm 
-          initialData={initialData}
-          onSubmit={handleSubmit}
-          onDelete={id ? handleDelete : undefined}
-        />
+        <div className="flex-1 overflow-y-auto p-4 xl:p-6">
+          <BranchForm 
+            initialData={initialData}
+            onSubmit={handleSubmit}
+            onDelete={id ? handleDelete : undefined}
+            onClear={() => {
+              if (id) navigate("/dashboard/branches/add");
+            }}
+          />
+        </div>
       </div>
     </div>
   );

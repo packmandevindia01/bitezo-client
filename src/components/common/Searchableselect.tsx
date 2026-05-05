@@ -9,6 +9,7 @@ export interface SearchableOption {
 }
 
 interface Props {
+  id?: string;
   label?: string;
   options: SearchableOption[];
   value?: string;
@@ -19,11 +20,13 @@ interface Props {
   error?: string;
   /** Show a clear (×) button when a value is selected. Default: true */
   clearable?: boolean;
+  autoFocus?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SearchableSelect = ({
+  id,
   label,
   options,
   value = "",
@@ -33,11 +36,22 @@ const SearchableSelect = ({
   disabled,
   error,
   clearable = true,
+  autoFocus = false,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  // Auto focus logic
+  useEffect(() => {
+    if (autoFocus && triggerRef.current) {
+      triggerRef.current.focus();
+    }
+  }, [autoFocus]);
 
   // Derive selected label from value
   const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
@@ -48,6 +62,21 @@ const SearchableSelect = ({
         o.label.toLowerCase().includes(query.trim().toLowerCase())
       )
     : options;
+
+  // Reset highlighted index when filtered list changes
+  useEffect(() => {
+    setHighlightedIndex(filtered.length > 0 ? 0 : -1);
+  }, [filtered.length]);
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightedIndex >= 0 && listRef.current) {
+      const highlightedEl = listRef.current.children[highlightedIndex] as HTMLElement;
+      if (highlightedEl) {
+        highlightedEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [highlightedIndex]);
 
   // Close on outside click
   useEffect(() => {
@@ -81,31 +110,77 @@ const SearchableSelect = ({
   const toggleOpen = () => {
     if (disabled) return;
     setOpen((prev) => !prev);
-    if (!open) setQuery("");
+    if (!open) {
+      setQuery("");
+      setHighlightedIndex(filtered.length > 0 ? 0 : -1);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return;
+
+    if (!open) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev + 1) % filtered.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+          handleSelect(filtered[highlightedIndex].value);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setOpen(false);
+        setQuery("");
+        break;
+      case "Tab":
+        // Let normal tab behavior happen, but close dropdown
+        setOpen(false);
+        setQuery("");
+        break;
+    }
   };
 
   return (
-    <div className="mb-4 flex w-full flex-col gap-1" ref={containerRef}>
+    <div className="flex w-full flex-col gap-1" ref={containerRef}>
       {/* Label */}
       {label && (
         <label className="text-xs font-medium text-gray-700 md:text-sm">
           {label}
-          {required && <span className="ml-1 font-bold text-red-500">*</span>}
+          {required && <span className="ml-1 font-bold text-amber-500">*</span>}
         </label>
       )}
 
       {/* Trigger */}
       <div
+        id={id}
+        ref={triggerRef}
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
+        tabIndex={disabled ? -1 : 0}
         onClick={toggleOpen}
+        onKeyDown={handleKeyDown}
         className={`
           relative flex w-full cursor-pointer items-center gap-2
-          rounded-md border px-3 py-2 text-sm outline-none transition md:px-4 md:text-base
-          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
+          rounded-md border px-3 py-2.5 text-xs outline-none transition md:px-4
+          ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50" : ""}
-          ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : ""}
+          ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"}
         `}
       >
         {/* Displayed value or placeholder */}
@@ -144,6 +219,7 @@ const SearchableSelect = ({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Type to search…"
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
                 onClick={(e) => e.stopPropagation()}
@@ -152,22 +228,24 @@ const SearchableSelect = ({
 
             {/* Options list */}
             <ul
+              ref={listRef}
               role="listbox"
               className="max-h-48 overflow-y-auto py-1"
             >
               {filtered.length === 0 ? (
                 <li className="px-4 py-2 text-sm text-gray-400">No options found</li>
               ) : (
-                filtered.map((opt) => (
+                filtered.map((opt, index) => (
                   <li
                     key={opt.value}
                     role="option"
                     aria-selected={opt.value === value}
                     onClick={() => handleSelect(opt.value)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
                     className={`
                       cursor-pointer px-4 py-2 text-sm transition
-                      hover:bg-[#49293e]/10 hover:text-[#49293e]
-                      ${opt.value === value ? "bg-[#49293e]/10 font-medium text-[#49293e]" : "text-gray-700"}
+                      ${index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e]" : "text-gray-700"}
+                      ${opt.value === value ? "font-bold underline decoration-[#49293e]/30 underline-offset-4" : ""}
                     `}
                   >
                     {opt.label}
@@ -181,7 +259,7 @@ const SearchableSelect = ({
 
       {/* Error */}
       {error && (
-        <div className="mt-1 flex animate-in items-center gap-1.5 text-[11px] font-semibold text-red-600 fade-in slide-in-from-top-1 md:text-xs">
+        <div className="mt-1 flex animate-in items-center gap-1.5 text-[11px] font-semibold text-amber-600 fade-in slide-in-from-top-1 md:text-xs">
           <span className="shrink-0">⚠️</span>
           <span>{error}</span>
         </div>

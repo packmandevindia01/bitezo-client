@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Settings, 
   Printer, 
@@ -12,14 +13,15 @@ import {
   History,
   Users,
   Search,
+  ArrowLeftRight,
+  LogOut,
 } from 'lucide-react';
-import { LockItemModal } from '../../lockItem';
 import { Modal, Button } from '../../../../components/common';
-
 
 interface PosMoreModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCashierOut: () => void;
 }
 
 const MORE_ITEMS = [
@@ -30,8 +32,9 @@ const MORE_ITEMS = [
   { label: 'LOCK ITEM', icon: Lock, action: 'lock' },
   { label: 'CASH DRAWER', icon: Archive },
   { label: 'CHARGES', icon: DollarSign },
+  { label: 'PAY IN / OUT', icon: ArrowLeftRight, action: 'payInOut' },
+  { label: 'CASHIER OUT', icon: LogOut, action: 'cashierOut' },
 ];
-
 
 const ORDER_ITEMS = [
   { label: 'ORDER HISTORY', icon: History },
@@ -40,14 +43,25 @@ const ORDER_ITEMS = [
   { label: 'CUSTOMER SEARCH', icon: Search },
 ];
 
-const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose }) => {
-  const [isLockModalOpen, setIsLockModalOpen] = React.useState(false);
+const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut }) => {
+  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
   const handleItemClick = (item: any) => {
     if (item.action === 'lock') {
-      setIsLockModalOpen(true);
+      onClose();
+      navigate('/pos/lock-item');
+      return;
+    }
+    if (item.action === 'payInOut') {
+      onClose();
+      navigate('/pos/pay-in-out');
+      return;
+    }
+    if (item.action === 'cashierOut') {
+      onClose();
+      onCashierOut();
       return;
     }
     // All other items are just buttons, no navigation
@@ -112,7 +126,6 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
-      <LockItemModal isOpen={isLockModalOpen} onClose={() => setIsLockModalOpen(false)} />
     </Modal>
   );
 };

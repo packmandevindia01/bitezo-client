@@ -3,6 +3,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { formatAmount, sanitizeAmountInput } from "../../../../utils/formatters";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
+import { SearchableSelect } from "../../../../components/common";
+import { useToast } from "../../../../app/providers/useToast";
 import type { AltProductDraft, ProductMasterData, MasterItem } from "../types";
 
 interface AlternativePricingGridProps {
@@ -10,6 +12,7 @@ interface AlternativePricingGridProps {
   masterData: ProductMasterData | null;
   branches: MasterItem[];
   mainUnitId: string;
+  mainBranchId: string;
   onAlternativesChange: (alternatives: AltProductDraft[]) => void;
 }
 
@@ -18,37 +21,124 @@ export const AlternativePricingGrid = ({
   masterData,
   branches,
   mainUnitId,
+  mainBranchId,
   onAlternativesChange,
 }: AlternativePricingGridProps) => {
+  const { showToast } = useToast();
   const [focusPos, setFocusPos] = useState({ r: 0, c: 0 });
   const decimalPart = useAppSelector(selectDecimalPart);
-  const cellRefs = useRef<Map<string, HTMLInputElement | HTMLSelectElement>>(new Map());
+  const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const addButtonRef = useRef<HTMLButtonElement>(null);
   const nextRowId = useRef(-1);
   const TOTAL_COLS = 7;
 
   useEffect(() => {
+    if (alternatives.length === 0) {
+      addButtonRef.current?.focus();
+      return;
+    }
+
     const key = `${focusPos.r}-${focusPos.c}`;
-    const el = cellRefs.current.get(key);
+    const el = cellRefs.current.get(key) ?? document.getElementById(`alt-unit-${focusPos.r}`);
     if (el) {
       el.focus();
       if (el instanceof HTMLInputElement) el.select();
     }
-  }, [focusPos]);
+  }, [focusPos, alternatives.length]);
 
   const branchOptions = branches.map(b => ({ label: b.name, value: String(b.id) }));
   const mainUnitSelected = masterData?.unit?.find(u => String(u.id) === String(mainUnitId));
   const mainUnitCategory = mainUnitSelected?.category;
+  const mgUnit = masterData?.unit?.find(u => u.name === "Mg");
+  console.log("[Unit Filter Debug] mainUnitCategory raw:", mainUnitCategory);
+  console.log("[Unit Filter Debug] Mg category raw:", mgUnit?.category);
+  console.log("[Unit Filter Debug] Are they equal:", mainUnitCategory === mgUnit?.category);
+  
   const altUnitOptions = masterData?.unit
-    ?.filter(u => (mainUnitCategory && u.category) ? u.category === mainUnitCategory : true)
+    ?.filter(u => {
+      if (!mainUnitCategory || !u.category) return true;
+      return u.category.toLowerCase().trim() === mainUnitCategory.toLowerCase().trim();
+    })
     .map(u => ({ label: u.name, value: String(u.id) })) ?? [];
+
+  console.log("[Unit Filter Debug] Final altUnitOptions:", altUnitOptions);
+
+  const ALL_BRANCH_ID = branches.find(b => b.name.toLowerCase() === "all")?.id ?? 0;
+
+  const isDuplicateUnit = (unitId: number, branchId: number, excludeIdx: number): string | null => {
+    // Check against main product
+    const mUnitId = parseInt(mainUnitId);
+    const mBranchId = parseInt(mainBranchId);
+    if (unitId === mUnitId) {
+      if (branchId === mBranchId) return "Unit already used by main product in this branch";
+      if (branchId === ALL_BRANCH_ID || mBranchId === ALL_BRANCH_ID) 
+        return "Unit conflicts with main product's 'All' branch assignment";
+    }
+
+    // Check against other alternatives
+    for (let i = 0; i < alternatives.length; i++) {
+      if (i === excludeIdx) continue;
+      const other = alternatives[i];
+      if (parseInt(String(other.unitId)) === unitId) {
+        if (parseInt(String(other.branchId)) === branchId) {
+          return `Unit already assigned to this branch in row ${i + 1}`;
+        }
+        if (branchId === ALL_BRANCH_ID || parseInt(String(other.branchId)) === ALL_BRANCH_ID) {
+          return `Unit assigned to 'All' branch cannot be used in individual branches`;
+        }
+      }
+    }
+    return null;
+  };
+
+  const isDuplicateBarcode = (barcode: string, branchId: number, excludeIdx: number): string | null => {
+    if (!barcode.trim()) return null;
+    for (let i = 0; i < alternatives.length; i++) {
+      if (i === excludeIdx) continue;
+      const other = alternatives[i];
+      if (other.barcode.trim().toLowerCase() === barcode.trim().toLowerCase()) {
+        if (parseInt(String(other.branchId)) === branchId) {
+          return `Barcode already assigned to this branch in row ${i + 1}`;
+        }
+        if (branchId === ALL_BRANCH_ID || parseInt(String(other.branchId)) === ALL_BRANCH_ID) {
+          return `Barcode assigned to 'All' branch cannot be used in individual branches`;
+        }
+      }
+    }
+    return null;
+  };
 
   const handleGridChange = (idx: number, key: keyof AltProductDraft, value: AltProductDraft[keyof AltProductDraft]) => {
     const next = [...alternatives];
+    
+    // Validate unit uniqueness
+    if (key === "unitId" || key === "branchId") {
+      const uId = key === "unitId" ? parseInt(String(value)) : parseInt(String(next[idx].unitId));
+      const bId = key === "branchId" ? parseInt(String(value)) : parseInt(String(next[idx].branchId));
+      const error = isDuplicateUnit(uId, bId, idx);
+      if (error) {
+        showToast(error, "warning");
+        return;
+      }
+    }
+
+    // Validate barcode uniqueness
+    if (key === "barcode" || key === "branchId") {
+      const bcode = key === "barcode" ? String(value) : next[idx].barcode;
+      const bId = key === "branchId" ? parseInt(String(value)) : parseInt(String(next[idx].branchId));
+      const error = isDuplicateBarcode(bcode, bId, idx);
+      if (error) {
+        showToast(error, "warning");
+        return;
+      }
+    }
+
     next[idx] = { ...next[idx], [key]: value };
     onAlternativesChange(next);
   };
 
   const addGridRow = () => {
+    const nextRowIndex = alternatives.length;
     const newRow: AltProductDraft = {
       id: nextRowId.current,
       branchId: branches[0]?.id || 0,
@@ -61,6 +151,7 @@ export const AlternativePricingGrid = ({
     };
     nextRowId.current -= 1;
     onAlternativesChange([...alternatives, newRow]);
+    setFocusPos({ r: nextRowIndex, c: 0 });
   };
 
   const removeGridRow = (idx: number) => {
@@ -129,12 +220,12 @@ export const AlternativePricingGrid = ({
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e]">Branch</th>
-                <th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Barcode</th>
-                <th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Unit</th>
-                <th className="w-[8%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-center">Incl.</th>
-                <th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Price</th>
-                <th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name</th>
-                <th className="w-[20%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name (Arabic)</th>
+<th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Barcode</th>
+<th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Unit</th>
+<th className="w-[8%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-center">Incl.</th>
+<th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-right">Price</th>
+<th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name</th>
+<th className="w-[20%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name (Arabic)</th>
                 <th className="w-12.5 px-2 py-3 border-l border-gray-200"></th>
               </tr>
             </thead>
@@ -172,16 +263,19 @@ export const AlternativePricingGrid = ({
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">
-                      <select
-                        ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-2`, el); }}
-                        value={alt.unitId}
+                      <div
                         onFocus={() => setFocusPos({ r: rIdx, c: 2 })}
-                        onKeyDown={(e) => handleKeyDown(e, rIdx, 2)}
-                        onChange={(e) => handleGridChange(rIdx, "unitId", parseInt(e.target.value))}
-                        className="h-full w-full appearance-none border-none bg-transparent px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10"
+                        className="px-2 py-1"
                       >
-                        {altUnitOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                      </select>
+                        <SearchableSelect
+                          key={`unit-select-${rIdx}-${alt.id}`}
+                          id={`alt-unit-${rIdx}`}
+                          options={altUnitOptions}
+                          value={String(alt.unitId || "")}
+                          onChange={(value) => handleGridChange(rIdx, "unitId", parseInt(value) || 0)}
+                          placeholder="Search unit..."
+                        />
+                      </div>
                     </td>
                     <td className="p-0 border-r border-gray-100 text-center">
                        <input
@@ -214,7 +308,8 @@ export const AlternativePricingGrid = ({
                             handleGridChange(rIdx, "price", formatAmount(e.target.value, decimalPart));
                           }
                         }}
-                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10 font-mono"
+                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10 font-mono text-right"
+                        style={{ textAlign: 'right' }}
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">
@@ -256,8 +351,9 @@ export const AlternativePricingGrid = ({
         </div>
         <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
            <button
+            ref={addButtonRef}
             onClick={addGridRow}
-            className="flex items-center gap-2 text-xs font-bold text-[#49293e]/60 hover:text-[#49293e] transition-all"
+            className="flex items-center gap-2 rounded-md text-xs font-bold text-[#49293e]/60 transition-all hover:text-[#49293e] focus:outline-none focus:ring-2 focus:ring-[#49293e]/25 focus:ring-offset-2"
            >
              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#49293e]/10">
                <Plus size={12} />

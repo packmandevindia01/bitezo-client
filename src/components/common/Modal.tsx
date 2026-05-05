@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: React.ReactNode;
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "2xl";
   showClose?: boolean;
@@ -64,8 +64,8 @@ useEffect(() => {
       {/* Modal Box */}
       <div
         className={`
-          relative w-full ${sizes[size]}
-          max-h-[92vh] overflow-y-auto rounded-xl bg-white p-4 shadow-lg z-10 sm:max-h-[90vh] sm:p-6
+          relative flex flex-col w-full ${sizes[size]}
+          max-h-[92vh] overflow-hidden rounded-xl bg-white p-4 shadow-lg z-10 sm:max-h-[90vh] sm:p-6
           animate-[fadeIn_0.2s_ease-in-out]
         `}
         onClick={(e) => e.stopPropagation()}
@@ -96,7 +96,7 @@ useEffect(() => {
         </div>
 
         {/* CONTENT */}
-        <div className="text-sm md:text-base">
+        <div className="flex-1 min-h-0 text-sm md:text-base">
           {children}
         </div>
 

@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
 
   onCancel: () => void;
   loading?: boolean;
+  confirmVariant?: "primary" | "secondary" | "danger";
 }
 
 const ConfirmDialog = ({
@@ -22,6 +23,7 @@ const ConfirmDialog = ({
   onConfirm,
   onCancel,
   loading = false,
+  confirmVariant = "danger",
 }: ConfirmDialogProps) => {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title={title}>
@@ -32,8 +34,8 @@ const ConfirmDialog = ({
           <Button variant="secondary" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button variant="danger" onClick={onConfirm} disabled={loading}>
-            {loading ? "Deleting..." : confirmLabel}
+          <Button variant={confirmVariant} onClick={onConfirm} disabled={loading}>
+            {loading ? "Please wait..." : confirmLabel}
           </Button>
         </div>
       </div>

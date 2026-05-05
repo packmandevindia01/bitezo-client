@@ -1,5 +1,5 @@
 import { RefreshCcw } from "lucide-react";
-import { Button, SelectInput, FormInput } from "../../../../components/common";
+import { Button } from "../../../../components/common";
 import type { 
   BranchMasterItem, 
   CategoryMasterItem 
@@ -27,6 +27,7 @@ interface Props {
   onSubCategoryChange: (val: string) => void;
   onPercentageChange: (val: string) => void;
   onLoad: () => void;
+  errors?: Record<string, string>;
 }
 
 const HappyHourFilters = ({
@@ -50,73 +51,126 @@ const HappyHourFilters = ({
   onSubCategoryChange,
   onPercentageChange,
   onLoad,
+  errors,
 }: Props) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="grid grid-cols-1 gap-x-4 gap-y-2 md:grid-cols-3 lg:grid-cols-3 items-end mb-4">
-        <FormInput
-          label="Promotion Name"
-          value={promotionName}
-          onChange={(e) => onPromotionNameChange(e.target.value)}
-          placeholder="Enter Promotion Name"
-        />
-        <div className="flex flex-col gap-1 mb-4 w-full">
-          <label className="text-xs md:text-sm font-medium text-gray-700">Start Date</label>
+    <section className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-end mb-2">
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex justify-between">
+            <span>Promotion Name</span>
+            {errors?.promotionName && <span className="text-red-500 normal-case">{errors.promotionName}</span>}
+          </label>
           <input
-            type="date"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-            className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+            id="hp-name"
+            autoFocus
+            type="text"
+            value={promotionName}
+            onChange={(e) => onPromotionNameChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "hp-start")}
+            placeholder="Enter Promotion Name"
+            className={`w-full px-3 py-2.5 text-xs rounded-md border bg-white outline-none focus:ring-1 transition ${errors?.promotionName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-300 focus:border-[#49293e] focus:ring-[#49293e]/20'}`}
           />
         </div>
-        <div className="flex flex-col gap-1 mb-4 w-full">
-          <label className="text-xs md:text-sm font-medium text-gray-700">End Date</label>
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Start Date & Time</label>
           <input
-            type="date"
+            id="hp-start"
+            type="datetime-local"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "hp-end")}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+          />
+        </div>
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">End Date & Time</label>
+          <input
+            id="hp-end"
+            type="datetime-local"
             value={endDate}
             onChange={(e) => onEndDateChange(e.target.value)}
-            className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+            onKeyDown={(e) => handleKeyDown(e, "hp-category")}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-4 gap-y-2 md:grid-cols-3 lg:grid-cols-4 items-end">
-        <SelectInput
-          label="Category"
-          options={categories.map(c => ({ label: c.categoryName, value: String(c.categoryId) }))}
-          value={selectedCategory}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          placeholder="Select Category"
-        />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Category</label>
+          <select
+            id="hp-category"
+            value={selectedCategory}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "hp-subcategory")}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+          >
+            <option value="">Select Category</option>
+            {categories.map(c => <option key={c.categoryId} value={String(c.categoryId)}>{c.categoryName}</option>)}
+          </select>
+        </div>
 
-        <SelectInput
-          label="Sub Category"
-          options={subCategories.map(s => ({ label: s.name, value: String(s.id) }))}
-          value={selectedSubCategory}
-          onChange={(e) => onSubCategoryChange(e.target.value)}
-          disabled={loadingSubs || !selectedCategory}
-          placeholder={loadingSubs ? "Loading..." : "Select Sub Category"}
-        />
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Sub Category</label>
+          <select
+            id="hp-subcategory"
+            value={selectedSubCategory}
+            onChange={(e) => onSubCategoryChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "hp-branch")}
+            disabled={loadingSubs || !selectedCategory}
+            className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition disabled:bg-gray-50"
+          >
+            <option value="">{loadingSubs ? "Loading..." : "Select Sub Category"}</option>
+            {subCategories.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+          </select>
+        </div>
 
-        <SelectInput
-          label="Branch"
-          options={branches.map(b => ({ label: b.branchName, value: String(b.branchId) }))}
-          value={selectedBranch}
-          onChange={(e) => onBranchChange(e.target.value)}
-          placeholder="Select Branch"
-        />
+        <div className="flex flex-col gap-1 w-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex justify-between">
+            <span>Branch</span>
+            {errors?.selectedBranch && <span className="text-red-500 normal-case">{errors.selectedBranch}</span>}
+          </label>
+          <select
+            id="hp-branch"
+            value={selectedBranch}
+            onChange={(e) => onBranchChange(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "hp-percentage")}
+            className={`w-full px-3 py-2.5 text-xs rounded-md border bg-white outline-none focus:ring-1 transition ${errors?.selectedBranch ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-300 focus:border-[#49293e] focus:ring-[#49293e]/20'}`}
+          >
+            <option value="">Select Branch</option>
+            {branches.map(b => <option key={b.branchId} value={String(b.branchId)}>{b.branchName}</option>)}
+          </select>
+        </div>
 
-        <div className="grid grid-cols-2 gap-4 items-end">
-          <FormInput
-            label="Percentage"
-            type="number"
-            value={percentage}
-            onChange={(e) => onPercentageChange(e.target.value)}
-            placeholder="%"
-          />
-          <div className="mb-4">
-            <Button onClick={onLoad} disabled={loading} className="w-full h-10.5">
-              <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
+        <div className="grid grid-cols-2 gap-2 items-end">
+          <div className="flex flex-col gap-1 w-full">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 text-right">Percentage</label>
+            <input
+              id="hp-percentage"
+              type="number"
+              value={percentage}
+              onChange={(e) => onPercentageChange(String(Math.abs(Number(e.target.value))))}
+              onKeyDown={(e) => handleKeyDown(e, "hp-entry-product")}
+              placeholder="%"
+              min="0"
+              style={{ textAlign: 'right' }}
+              className="w-full px-3 py-2.5 text-xs rounded-md border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
+            />
+          </div>
+          <div className="flex flex-col gap-1 w-full">
+            <label className="h-[15px]"></label>
+            <Button id="hp-load-btn" onClick={onLoad} disabled={loading} className="w-full h-10.5 text-[10px] font-black uppercase tracking-widest shadow-sm">
+              <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
               Load
             </Button>
           </div>

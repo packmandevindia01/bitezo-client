@@ -3,7 +3,7 @@ import {
   Layers3,
   ShieldUser,
   ShieldCheck,
-  Users,
+  Building2,
   UserCog,
   Ticket,
   Store,
@@ -66,10 +66,10 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
         )}
 
         {hasPermission("Customer Master", "View") && (
-          <div onClick={() => handleItemClick("/dashboard/customers")} className={itemClassName}>
+          <div onClick={() => handleItemClick("/dashboard/company")} className={itemClassName}>
             <div className="flex items-center gap-2">
-              <Users size={14} />
-              <span>Customers</span>
+              <Building2 size={14} />
+              <span>Company</span>
             </div>
           </div>
         )}

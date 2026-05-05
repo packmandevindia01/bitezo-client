@@ -9,6 +9,9 @@ export interface ConfigurationState {
   companyNameKOT: boolean;
   locationWisePrice: boolean;
   alternativeOrder: "Id" | "Name" | "Price";
+  defaultEmployee: boolean;
+  employeeId: string;
+  groupInMenu: boolean;
   packagerHeader: boolean;
   
   // Printing & KOT

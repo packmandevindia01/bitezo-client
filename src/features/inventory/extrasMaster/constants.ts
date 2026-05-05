@@ -22,7 +22,7 @@ export const emptyExtrasMasterForm: ExtrasMasterForm = {
   category: "",
   name: "",
   arabic: "",
-  price: "0.000",
+  price: "",
   typeId: "",
   color: "#8fce63",
   branchIds: [],

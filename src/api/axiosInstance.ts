@@ -14,9 +14,12 @@ axiosInstance.interceptors.request.use((config) => {
 
   // Identify onboarding/auth endpoints that should be "clean"
   const url = config.url || "";
+  // Only exclude auth/admin and the ONBOARDING company endpoints (masterload + creation with clientDb slug)
+  // The plain /company GET/PUT (dashboard) must still send Bearer + clientDb
+  const isOnboardingCompany = url.startsWith("/company/") || url === "/company/masterload";
   const isAuthOrAdmin = url.startsWith("/auth") || 
                         url.startsWith("/admin") || 
-                        url.startsWith("/company");
+                        isOnboardingCompany;
 
   // 1. Authorization: Only add if NOT an onboarding/auth endpoint
   if (token && !isAuthOrAdmin) {

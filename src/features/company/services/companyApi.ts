@@ -28,7 +28,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     name: data.custName,
     mobNo: data.custMob,
     telNo: data.custMob2 || "",
-    country: 1, // Defaulting to 1 (Bahrain) for now as it is likely required by backend DTO
+    country: 1,
     block: data.block || "",
     area: data.area || "",
     road: data.road || "",
@@ -52,3 +52,35 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
 
   return responseData;
 };
+
+/** Fetch current company info for the dashboard Company page */
+export const fetchCompany = async () => {
+  const { data } = await axiosInstance.get<{ data: Partial<CompanyFormData> }>("/company");
+  return data.data ?? data;
+};
+
+/** Update the current company's info */
+export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
+  const payload = {
+    comId,
+    name: formData.custName,
+    mobNo: formData.custMob,
+    telNo: formData.custMob2 || "",
+    country: 1,
+    block: formData.block || "",
+    area: formData.area || "",
+    road: formData.road || "",
+    building: formData.building || "",
+    flatNo: formData.flatNo || "",
+    crNo: formData.crNo || "",
+    email: formData.email || "",
+    taxRegNo: formData.taxRegNo || "",
+    currencyId: formData.currency ? Number(formData.currency) : 0,
+    regId: formData.regId,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const { data } = await axiosInstance.put<unknown>("/company", payload);
+  return data;
+};
+

@@ -12,6 +12,7 @@ interface Props {
   onSubmit: (form: UnitFormState) => void;
   onCancel: () => void;
   onDelete?: () => void;
+  onClear?: () => void;
 }
 
 const createInitialForm = (initialData?: UnitDetail | null): UnitFormState => ({
@@ -22,7 +23,7 @@ const createInitialForm = (initialData?: UnitDetail | null): UnitFormState => ({
   parentId: initialData?.parentId ?? 0,
 });
 
-const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDelete }: Props) => {
+const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDelete, onClear }: Props) => {
   const [form, setForm] = useState<UnitFormState>(() => createInitialForm(initialData));
   const [parentOptions, setParentOptions] = useState<UnitNameListItem[]>([]);
   const [loadingParents, setLoadingParents] = useState(false);
@@ -68,7 +69,8 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
   };
 
   const handleClear = () => {
-    setForm(createInitialForm(initialData));
+    setForm(createInitialForm(null));
+    if (onClear) onClear();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -95,7 +97,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-100">
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100">
           {error}
         </div>
       )}

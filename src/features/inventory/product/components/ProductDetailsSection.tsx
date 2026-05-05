@@ -32,19 +32,31 @@ export const ProductDetailsSection = ({
   const vatOptions = masterData?.vat?.map(v => ({ label: `${v.name} (${v.value}%)`, value: String(v.id) })) ?? [];
   const typeOptions = masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions;
 
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
       <h3 className="mb-4 text-base font-semibold text-gray-900">Product Details</h3>
       <div className="grid gap-x-6 md:grid-cols-2">
         <FormInput
+          id="prod-name"
           label="Product Name"
           value={form.name}
           disabled={saving}
           onChange={(e) => onChange("name", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "prod-unit")}
           required
           autoFocus
         />
         <SearchableSelect
+          id="prod-unit"
           label="Unit"
           options={unitOptions}
           value={form.unitId}
@@ -54,12 +66,15 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <FormInput
+          id="prod-arabic"
           label="Arabic Name"
           value={form.arabicName}
           disabled={saving}
           onChange={(e) => onChange("arabicName", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "prod-p-vat")}
         />
         <SearchableSelect
+          id="prod-p-vat"
           label="Purchase VAT"
           options={vatOptions}
           value={form.pVatId}
@@ -69,13 +84,16 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <FormInput
+          id="prod-code"
           label="Product Code"
           value={form.code}
           disabled={saving}
           onChange={(e) => onChange("code", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "prod-s-vat")}
           required
         />
         <SearchableSelect
+          id="prod-s-vat"
           label="Sales VAT"
           options={vatOptions}
           value={form.sVatId}
@@ -85,6 +103,7 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <SearchableSelect
+          id="prod-group"
           label="Group"
           options={groupOptions}
           value={form.groupId}
@@ -94,6 +113,7 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <SearchableSelect
+          id="prod-category"
           label="Category"
           options={categoryOptions}
           value={form.categoryId}
@@ -103,6 +123,7 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <FormInput
+          id="prod-cost"
           label="Cost"
           type="text"
           inputMode="decimal"
@@ -118,9 +139,11 @@ export const ProductDetailsSection = ({
               onChange("cost", formatAmount(e.target.value, decimalPart));
             }
           }}
+          onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
           required
         />
         <SearchableSelect
+          id="prod-subcat"
           label="Sub Category"
           options={subCatOptions}
           value={form.subCatId}
@@ -129,6 +152,7 @@ export const ProductDetailsSection = ({
           disabled={saving || loadingSubs}
         />
         <SearchableSelect
+          id="prod-branch"
           label="Branch"
           options={branchOptions}
           value={form.branchId}
@@ -138,6 +162,7 @@ export const ProductDetailsSection = ({
           disabled={saving}
         />
         <SearchableSelect
+          id="prod-type"
           label="Type"
           options={typeOptions}
           value={form.typeId}

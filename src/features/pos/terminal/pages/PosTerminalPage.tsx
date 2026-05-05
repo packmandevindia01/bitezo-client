@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
 import PosOrderPanel from "../components/PosOrderPanel";
@@ -11,12 +12,27 @@ import ErrorBoundary from "../../../../components/common/ErrorBoundary";
 import { useToast } from "../../../../app/providers/useToast";
 import { formatCurrency } from "../../../../utils/formatters";
 import PosMoreModal from "../components/PosMoreModal";
+import { useCashierLog, CashierSessionModal } from "../../cashier";
+import { ConfirmDialog } from "../../../../components/common";
 
 
 const PosTerminalPage = () => {
   const { showToast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
+  const { status, refreshStatus, isLoading } = useCashierLog();
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    const state = location.state as { openMoreModal?: boolean };
+    if (state?.openMoreModal) {
+      setIsMoreModalOpen(true);
+      navigate('.', { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
 
   const {
@@ -54,9 +70,47 @@ const PosTerminalPage = () => {
     }
   });
 
+  // Loading state
+  if (isLoading && !status) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#fcf9fb]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
+          <p className="text-sm font-bold text-[#49293e] uppercase tracking-widest">Checking Cashier Status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // MANDATORY FLOW: If day or shift is closed, show the Cashier Session UI instead of POS
+  if (status && (status.isDayClosed || status.isShiftClosed)) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-100 p-4 md:p-8 overflow-hidden">
+        <CashierSessionModal 
+          isOpen={true} 
+          onClose={() => {}} 
+          status={status}
+          onSuccess={refreshStatus}
+          isFullPage
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen flex-col bg-slate-100 font-sans text-slate-900 overflow-hidden relative">
-      <PosTopNav onNewOrder={clearCart} onMore={() => setIsMoreModalOpen(true)} />
+    <div className="flex h-screen flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
+      <PosTopNav 
+        onNewOrder={clearCart} 
+        onMore={() => setIsMoreModalOpen(true)} 
+        onCashierOut={() => {
+          if (status && (!status.isDayClosed || !status.isShiftClosed)) {
+            setIsLogoutConfirmOpen(true);
+          } else {
+            navigate("/cashier/out");
+          }
+        }}
+        status={status}
+      />
 
 
       <main className="flex flex-col flex-1 overflow-hidden xl:grid xl:grid-cols-[280px_minmax(0,1fr)_460px]">
@@ -99,7 +153,7 @@ const PosTerminalPage = () => {
             </div>
 
             <div className="hidden xl:flex flex-col items-end bg-slate-50/50 px-4 py-2 rounded-xl border border-slate-100 min-w-[100px]">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Total</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Total Items</span>
               <span className="text-xl font-bold text-[#49293e] tracking-tighter mt-0.5">{visibleProducts.length}</span>
             </div>
           </div>
@@ -153,7 +207,11 @@ const PosTerminalPage = () => {
       </div>
 
       {/* More Modal */}
-      <PosMoreModal isOpen={isMoreModalOpen} onClose={() => setIsMoreModalOpen(false)} />
+      <PosMoreModal 
+        isOpen={isMoreModalOpen} 
+        onClose={() => setIsMoreModalOpen(false)} 
+        onCashierOut={() => setIsSessionModalOpen(true)}
+      />
 
       {/* Mobile Overlay */}
       {isCartOpen && (
@@ -162,6 +220,32 @@ const PosTerminalPage = () => {
           onClick={() => setIsCartOpen(false)}
         />
       )}
+
+      {/* Cashier Session Modal (For Close actions) */}
+      <CashierSessionModal 
+        isOpen={isSessionModalOpen} 
+        onClose={() => setIsSessionModalOpen(false)} 
+        status={status}
+        onSuccess={refreshStatus}
+      />
+
+      {/* Logout Reminder Dialog */}
+      <ConfirmDialog
+        isOpen={isLogoutConfirmOpen}
+        onConfirm={() => {
+          setIsLogoutConfirmOpen(false);
+          setIsSessionModalOpen(true);
+        }}
+        title="Active Session Reminder"
+        message="You still have an active cashier session (Day or Shift is open). Would you like to go to the Cashier Close screen first?"
+        confirmLabel="Go to Cashier Close"
+        cancelLabel="Logout Anyway"
+        onCancel={() => {
+          setIsLogoutConfirmOpen(false);
+          navigate("/cashier/out");
+        }}
+        confirmVariant="secondary"
+      />
 
     </div>
   );

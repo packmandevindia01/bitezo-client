@@ -4,7 +4,7 @@ export const createEmptyReceiptVoucherForm = (): ReceiptVoucherForm => ({
   series: "",
   vchNo: "",
   account: "",
-  amount: "0.000",
+  amount: "",
   paymode: "",
   narration: "",
 });
