@@ -1,8 +1,8 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { LoginResponse } from "../types";
 
-export const loginApi = async (username: string, password: string, clientDb = "app_db"): Promise<LoginResponse> => {
-  const url = `/auth/login?clientDb=${encodeURIComponent(clientDb)}`;
+export const loginApi = async (username: string, password: string): Promise<LoginResponse> => {
+  const url = `/auth/login`;
   
   const { data } = await axiosInstance.post<LoginResponse>(
     url,
@@ -15,10 +15,9 @@ export const loginApi = async (username: string, password: string, clientDb = "a
 export const posLoginApi = async (
   password: string, 
   branchId: number, 
-  counterId: number, 
-  clientDb = "app_db"
+  counterId: number
 ): Promise<LoginResponse> => {
-  const url = `/auth/pos-login?clientDb=${encodeURIComponent(clientDb)}&branchId=${branchId}&counterId=${counterId}`;
+  const url = `/auth/pos-login?branchId=${branchId}&counterId=${counterId}`;
   
   const { data } = await axiosInstance.post<LoginResponse>(
     url,

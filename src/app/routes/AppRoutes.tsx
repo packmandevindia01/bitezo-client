@@ -39,8 +39,8 @@ const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/Pos
 
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
-const CashierInPage = lazy(() => import("../../features/systemRegistration/pages/CashierInPage"));
-const CashierOutPage = lazy(() => import("../../features/systemRegistration/pages/CashierOutPage"));
+const CashierInPage = lazy(() => import("../../features/pos/cashier/pages/CashierInPage"));
+const CashierOutPage = lazy(() => import("../../features/pos/cashier/pages/CashierOutPage"));
 const PurchaseInvoicePage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoicePage"));
 const PurchaseReturnPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnPage"));
 const RecipePage = lazy(() => import("../../features/general/recipe/pages/RecipePage"));
@@ -58,31 +58,17 @@ const ReceiptVoucherPage = lazy(() => import("../../features/transaction/receipt
 const HappyHourPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourPage"));
 const HappyHourFormPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourFormPage"));
 const ProviderSettingsFormPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsFormPage"));
-const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
 const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockItemPage"));
+const PosMorePage = lazy(() => import("../../features/pos/terminal/pages/PosMorePage"));
 
 
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
   const hasToken = !!localStorage.getItem("accessToken");
-  const activeShiftRaw = localStorage.getItem("activeShift");
-  let hasOpenShift = false;
-
-  if (activeShiftRaw) {
-    try {
-      const shift = JSON.parse(activeShiftRaw);
-      hasOpenShift = shift?.status === "open";
-    } catch {
-      hasOpenShift = false;
-    }
-  }
-  
   if (isPos) {
-    if (hasToken && hasOpenShift) {
+    if (hasToken) {
       return <Navigate to="/pos" replace />;
     }
-    // If we have a token but no shift, go to cashier/in
-    // If we have no token, go to cashier/in
     return <Navigate to="/cashier/in" replace />;
   }
   
@@ -119,8 +105,8 @@ const AppRoutes = () => {
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}
                 <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
-                <Route path="pos/pay-in-out" element={<RoleGuard moduleName="Sales Invoice"><PayInOutPage /></RoleGuard>} />
                 <Route path="pos/lock-item" element={<RoleGuard moduleName="Sales Invoice"><LockItemPage /></RoleGuard>} />
+                <Route path="pos/more" element={<RoleGuard moduleName="Sales Invoice"><PosMorePage /></RoleGuard>} />
 
                 {/* Dashboard — fully guarded */}
                 <Route path="/dashboard" element={<MainLayout />}>

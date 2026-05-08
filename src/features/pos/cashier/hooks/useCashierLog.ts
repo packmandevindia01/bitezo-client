@@ -1,35 +1,47 @@
-import { useState, useEffect, useCallback } from 'react';
-import { cashierLogService, type CashierInStatus } from '../services/cashierLogService';
+import { useState, useEffect, useCallback } from "react";
+import {
+  cashierLogService,
+  type CashierInStatus,
+  type CashierStatusResponse,
+} from "../services/cashierLogService";
 
 export const useCashierLog = () => {
+  const [statusResponse, setStatusResponse] = useState<CashierStatusResponse | null>(null);
   const [status, setStatus] = useState<CashierInStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const checkStatus = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // For now, using default IDs if not found. 
-      // In a real app, these would come from global state or settings.
-      const branchId = Number(localStorage.getItem('systemBranchId')) || 0;
-      const counterId = Number(localStorage.getItem('systemCounterId')) || 0;
-      
-      const data = await cashierLogService.checkStatus(branchId, counterId);
-      setStatus(data);
-    } catch (error: any) {
-      console.error("Cashier status check failed:", error);
-      // Don't show toast on every check, might be annoying if it's just a background check
+      const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+      const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
+
+      const response = await cashierLogService.checkStatus(branchId, counterId);
+      setStatusResponse(response);
+      setStatus(response.cashierInStatus); // ← pull out the nested status
+    } catch (err: any) {
+      setError(err.message || "Failed to check cashier status");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    checkStatus();
+    void checkStatus();
   }, [checkStatus]);
 
+  // Convenience derived values
+  const isSessionOpen =
+    status !== null && !status.isDayClosed && !status.isShiftClosed;
+
   return {
-    status,
+    statusResponse,   // full response with tokens, company, user
+    status,           // just the cashierInStatus nested object
     isLoading,
+    error,
+    isSessionOpen,
     refreshStatus: checkStatus,
   };
 };

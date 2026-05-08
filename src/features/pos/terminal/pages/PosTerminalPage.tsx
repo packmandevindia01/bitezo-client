@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
 import PosOrderPanel from "../components/PosOrderPanel";
@@ -12,7 +12,7 @@ import ErrorBoundary from "../../../../components/common/ErrorBoundary";
 import { useToast } from "../../../../app/providers/useToast";
 import { formatCurrency } from "../../../../utils/formatters";
 import PosMoreModal from "../components/PosMoreModal";
-import { useCashierLog, CashierSessionModal } from "../../cashier";
+import { useCashierLog } from "../../cashier";
 import { ConfirmDialog } from "../../../../components/common";
 
 
@@ -22,17 +22,17 @@ const PosTerminalPage = () => {
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
-  const { status, refreshStatus, isLoading } = useCashierLog();
-  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     const state = location.state as { openMoreModal?: boolean };
     if (state?.openMoreModal) {
       setIsMoreModalOpen(true);
-      navigate('.', { replace: true, state: {} });
+      // Clear state to avoid reopening on refresh
+      window.history.replaceState({}, document.title);
     }
-  }, [location, navigate]);
+  }, [location.state]);
 
 
   const {
@@ -82,19 +82,9 @@ const PosTerminalPage = () => {
     );
   }
 
-  // MANDATORY FLOW: If day or shift is closed, show the Cashier Session UI instead of POS
+  // MANDATORY FLOW: If day or shift is closed, go to dashboard
   if (status && (status.isDayClosed || status.isShiftClosed)) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-100 p-4 md:p-8 overflow-hidden">
-        <CashierSessionModal 
-          isOpen={true} 
-          onClose={() => {}} 
-          status={status}
-          onSuccess={refreshStatus}
-          isFullPage
-        />
-      </div>
-    );
+    return <Navigate to="/cashier/out" replace />;
   }
 
   return (
@@ -206,11 +196,12 @@ const PosTerminalPage = () => {
         </button>
       </div>
 
+
       {/* More Modal */}
       <PosMoreModal 
         isOpen={isMoreModalOpen} 
         onClose={() => setIsMoreModalOpen(false)} 
-        onCashierOut={() => setIsSessionModalOpen(true)}
+        onCashierOut={() => navigate("/cashier/out")}
       />
 
       {/* Mobile Overlay */}
@@ -221,29 +212,18 @@ const PosTerminalPage = () => {
         />
       )}
 
-      {/* Cashier Session Modal (For Close actions) */}
-      <CashierSessionModal 
-        isOpen={isSessionModalOpen} 
-        onClose={() => setIsSessionModalOpen(false)} 
-        status={status}
-        onSuccess={refreshStatus}
-      />
-
       {/* Logout Reminder Dialog */}
       <ConfirmDialog
         isOpen={isLogoutConfirmOpen}
         onConfirm={() => {
           setIsLogoutConfirmOpen(false);
-          setIsSessionModalOpen(true);
+          navigate("/cashier/out");
         }}
         title="Active Session Reminder"
         message="You still have an active cashier session (Day or Shift is open). Would you like to go to the Cashier Close screen first?"
         confirmLabel="Go to Cashier Close"
-        cancelLabel="Logout Anyway"
-        onCancel={() => {
-          setIsLogoutConfirmOpen(false);
-          navigate("/cashier/out");
-        }}
+        cancelLabel="Stay in POS"
+        onCancel={() => setIsLogoutConfirmOpen(false)}
         confirmVariant="secondary"
       />
 

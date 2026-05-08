@@ -1,7 +1,7 @@
 import axios from "axios";
+import { getConfig } from "../config";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
   headers: {
     "Content-Type": "application/json",
     "Accept": "*/*",
@@ -9,6 +9,9 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
+  // Set baseURL dynamically from runtime config
+  config.baseURL = getConfig().apiBaseUrl;
+
   const token = localStorage.getItem("accessToken");
   const tenantId = localStorage.getItem("tenantId") ?? "app_db";
 
@@ -30,8 +33,9 @@ axiosInstance.interceptors.request.use((config) => {
   // Some endpoints (e.g. change-password, denomination) resolve tenant purely from the JWT token
   // and crash with 500 when clientDb is injected via header or query param.
   const normalizedUrl = url.toLowerCase();
+  const isCashierAction = normalizedUrl.includes("/cashier-log/") && !normalizedUrl.includes("iscashier-in");
   const isTokenResolvedOnly = normalizedUrl.includes("/change-password") || 
-                              normalizedUrl.includes("/denomination") || 
+                              isCashierAction ||
                               normalizedUrl.includes("/category/category-image") ||
                               normalizedUrl.includes("/product/product-image") ||
                               normalizedUrl.includes("/provider") ||
@@ -50,25 +54,15 @@ axiosInstance.interceptors.request.use((config) => {
   }
 
 
-  if (tenantId && !isAuthOrAdmin && !isTokenResolvedOnly) {
-    // Add as header
+  if (tenantId && !isTokenResolvedOnly) {
+    // Add as header only - backend now handles this consistently
     config.headers["clientDb"] = tenantId;
-
-    // Add as query parameter for all other requests
-    config.params = {
-      clientDb: tenantId,
-      ...config.params,
-    };
   } else if (isTokenResolvedOnly) {
     // Strictly ensure NO tenant info is sent for these endpoints
     if (config.headers.delete) {
       config.headers.delete("clientDb");
     } else {
       delete config.headers["clientDb"];
-    }
-    
-    if (config.params) {
-      delete config.params.clientDb;
     }
   }
 

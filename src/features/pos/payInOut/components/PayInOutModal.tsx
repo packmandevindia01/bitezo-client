@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowDownLeft, 
   ArrowUpRight, 
@@ -6,9 +6,15 @@ import {
   Save, 
   RotateCcw,
   RefreshCcw,
-  Receipt
+  Receipt,
+  XCircle
 } from 'lucide-react';
 import { Modal, Button, FormInput, SelectInput, Loader } from '../../../../components/common';
+import { payInOutService, type PayInOutItem } from '../services/payInOutService';
+import { paymodeService } from '../../../general/paymode/services/paymodeService';
+import { cashierLogService } from '../../cashier/services/cashierLogService';
+import { useToast } from '../../../../app/providers/useToast';
+import { useCurrency } from '../../../../hooks/useCurrency';
 
 interface PayInOutModalProps {
   isOpen: boolean;
@@ -16,28 +22,121 @@ interface PayInOutModalProps {
 }
 
 const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
+  const { showToast } = useToast();
+  const { formatAmount } = useCurrency();
+
   const [type, setType] = useState<'IN' | 'OUT'>('IN');
   const [vchNo, setVchNo] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [paymode, setPaymode] = useState('');
+  const [paymodeId, setPaymodeId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Dummy list state
   const [isLoading, setIsLoading] = useState(false);
-  const items: any[] = [];
+  const [isSaving, setIsSaving] = useState(false);
+  const [items, setItems] = useState<PayInOutItem[]>([]);
+  const [paymodes, setPaymodes] = useState<{ value: string; label: string }[]>([]);
+  const [cashierStatus, setCashierStatus] = useState<any>(null);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+      const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
+      const status = await cashierLogService.checkStatus(branchId, counterId);
+      setCashierStatus(status.cashierInStatus);
+    } catch (error) {
+      console.error("Failed to fetch cashier status", error);
+    }
+  }, []);
+
+  const fetchPaymodes = useCallback(async () => {
+    try {
+      const data = await paymodeService.list();
+      setPaymodes(data.map(p => ({ value: p.paymodeId.toString(), label: p.paymodeName })));
+      if (data.length > 0) setPaymodeId(data[0].paymodeId.toString());
+    } catch (error) {
+      console.error("Failed to fetch paymodes", error);
+    }
+  }, []);
+
+  const fetchTransactions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - 7);
+      const data = await payInOutService.list({
+        fromDate: fromDate.toISOString(),
+        toDate: new Date().toISOString(),
+        description: searchQuery || undefined
+      });
+      setItems(data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch transactions", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchStatus();
+      fetchPaymodes();
+      fetchTransactions();
+    }
+  }, [isOpen, fetchStatus, fetchPaymodes, fetchTransactions]);
 
   const handleClear = () => {
     setVchNo('');
     setDate(new Date().toISOString().split('T')[0]);
     setDescription('');
     setAmount('');
-    setPaymode('');
+    if (paymodes.length > 0) setPaymodeId(paymodes[0].value);
   };
 
-  const handleSave = () => {
-    // Save logic
+  const handleSave = async () => {
+    if (!description || !amount || !paymodeId) {
+      showToast("Please fill all required fields", "warning");
+      return;
+    }
+
+    if (!cashierStatus || cashierStatus.isDayClosed || cashierStatus.isShiftClosed) {
+      showToast("No active cashier session found.", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await payInOutService.create({
+        inOut: type,
+        voucherDate: new Date(date).toISOString(),
+        description,
+        amount: Number(amount),
+        paymodeId: Number(paymodeId),
+        dayId: cashierStatus.dayId,
+        shiftId: cashierStatus.shiftId,
+        createdAt: new Date().toISOString()
+      });
+      showToast("Transaction saved successfully", "success");
+      handleClear();
+      fetchTransactions();
+    } catch (error: any) {
+      showToast(error.message || "Failed to save transaction", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = async (transId: number) => {
+    if (!window.confirm("Are you sure you want to cancel this transaction?")) return;
+    
+    try {
+      await payInOutService.cancel(transId);
+      showToast("Transaction cancelled successfully", "success");
+      fetchTransactions();
+    } catch (error: any) {
+      showToast(error.message || "Failed to cancel transaction", "error");
+    }
   };
 
   return (
@@ -111,13 +210,9 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
             />
             <SelectInput
               label="PAYMODE"
-              value={paymode}
-              onChange={(e) => setPaymode(e.target.value)}
-              options={[
-                { value: 'cash', label: 'Cash' },
-                { value: 'card', label: 'Card' },
-                { value: 'bank', label: 'Bank Transfer' },
-              ]}
+              value={paymodeId}
+              onChange={(e) => setPaymodeId(e.target.value)}
+              options={paymodes}
             />
           </div>
 
@@ -132,13 +227,14 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
             </Button>
             <Button 
               onClick={handleSave}
+              disabled={isSaving}
               className={`px-8 h-[42px] text-xs font-bold uppercase tracking-widest shadow-lg ${
                 type === 'IN' 
                   ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' 
                   : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
               }`}
             >
-              <Save size={16} className="mr-2" />
+              {isSaving ? <Loader size="sm" /> : <Save size={16} className="mr-2" />}
               Save
             </Button>
           </div>
@@ -163,7 +259,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
               </h3>
               <button 
                 type="button"
-                onClick={() => setIsLoading(!isLoading)}
+                onClick={fetchTransactions}
                 className="p-1.5 text-slate-400 hover:text-[#49293e] transition-colors"
                 title="Refresh list"
               >
@@ -190,13 +286,38 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
                   <tr>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vch No</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Description</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Amount</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {/* Map items here */}
+                  {items.map((item) => (
+                    <tr key={item.transId} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          item.inOut === 'IN' 
+                            ? 'bg-emerald-50 text-emerald-600' 
+                            : 'bg-red-50 text-red-600'
+                        }`}>
+                          {item.inOut}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                        {new Date(item.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-xs font-black text-slate-900 text-right">
+                        {formatAmount(item.amount)}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleCancel(item.transId)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
@@ -208,3 +329,4 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
 };
 
 export default PayInOutModal;
+

@@ -11,7 +11,6 @@ import {
   Archive, 
   FileText,
   History,
-  Users,
   Search,
   ArrowLeftRight,
   LogOut,
@@ -28,7 +27,7 @@ const MORE_ITEMS = [
   { label: 'CONFIGURATION', icon: Settings },
   { label: 'REPORT', icon: BarChart },
   { label: 'PRIVILEGES', icon: Shield },
-  { label: 'PRINTER', icon: Printer },
+  { label: 'PRINTER', icon: Printer, action: 'printer' },
   { label: 'LOCK ITEM', icon: Lock, action: 'lock' },
   { label: 'CASH DRAWER', icon: Archive },
   { label: 'CHARGES', icon: DollarSign },
@@ -49,6 +48,11 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
   if (!isOpen) return null;
 
   const handleItemClick = (item: any) => {
+    if (item.action === 'printer') {
+      onClose();
+      navigate('/pos/more'); // Navigates to the separate Printer Settings page
+      return;
+    }
     if (item.action === 'lock') {
       onClose();
       navigate('/pos/lock-item');
@@ -56,7 +60,7 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
     }
     if (item.action === 'payInOut') {
       onClose();
-      navigate('/pos/pay-in-out');
+      navigate('/cashier/out', { state: { activeTab: 'TRANSACTIONS' } });
       return;
     }
     if (item.action === 'cashierOut') {
@@ -67,18 +71,6 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
     // All other items are just buttons, no navigation
   };
 
-  const footer = (
-    <div className="flex justify-start w-full">
-      <Button 
-        variant="secondary"
-        onClick={() => {}}
-        className="flex items-center gap-2 font-bold uppercase tracking-widest"
-      >
-        <Users size={18} />
-        Switch User
-      </Button>
-    </div>
-  );
 
   return (
     <Modal
@@ -86,7 +78,6 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
       onClose={onClose}
       title="Configuration & Orders"
       size="2xl"
-      footer={footer}
     >
       <div className="space-y-8">
         {/* Order Section */}
@@ -98,6 +89,7 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
             {ORDER_ITEMS.map((item) => (
               <button
                 key={item.label}
+                onClick={() => handleItemClick(item)}
                 className="bg-white border-2 border-gray-100 text-[#49293e] p-6 rounded-xl flex flex-col items-center justify-center gap-3 transition-all active:scale-95 shadow-sm hover:border-[#49293e] hover:bg-[#49293e]/5 group"
               >
                 <item.icon className="w-8 h-8 text-[#49293e] opacity-70 group-hover:opacity-100 transition-all" strokeWidth={1.5} />

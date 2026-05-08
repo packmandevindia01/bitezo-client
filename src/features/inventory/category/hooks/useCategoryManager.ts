@@ -181,10 +181,10 @@ export const useCategoryManager = () => {
         if (catImage.startsWith("http")) {
           imagePreviewUrl = catImage;
         } else {
-          const apiUrl = import.meta.env.VITE_API_BASE_URL || "";
+          const apiUrl = (window as any).RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
           const baseUrl = apiUrl 
             ? apiUrl.replace(/\/api\/?$/, "") 
-            : "http://84.255.173.131:8068";
+            : window.location.origin;
             
           const cleanPath = catImage.replace(/^\/?api\//i, "").replace(/^\//, "");
           imagePreviewUrl = `${baseUrl}/${cleanPath}`;

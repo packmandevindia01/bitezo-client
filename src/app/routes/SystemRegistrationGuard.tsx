@@ -46,19 +46,20 @@ const SystemRegistrationGuard = ({ children }: Props) => {
   }
 
   if (systemType === "pos") {
-    // If on a POS machine, we prefer the terminal, but don't force a redirect from dashboard
-    // to avoid infinite loops if RoleGuard sends the user to dashboard.
+    const hasToken = !!localStorage.getItem("accessToken");
 
-
-    if (!hasOpenShift()) {
-      return location.pathname === "/cashier/in"
-        ? content
-        : <Navigate to="/cashier/in" replace />;
+    // If we have a token (authenticated)
+    if (hasToken) {
+      // ONLY auto-redirect to terminal if the shift is already OPEN
+      if (location.pathname === "/cashier/in" && hasOpenShift()) {
+        return <Navigate to="/pos" replace />;
+      }
+      // Otherwise, allow the current page (Dashboard or Terminal)
+      return content;
     }
 
-    return location.pathname === "/cashier/in"
-      ? <Navigate to="/pos" replace />
-      : content;
+    // If not authenticated, force PIN screen
+    return location.pathname === "/cashier/in" ? content : <Navigate to="/cashier/in" replace />;
   }
 
   return content;

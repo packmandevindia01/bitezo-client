@@ -51,7 +51,9 @@ const LoginForm = () => {
     try {
       setLoading(true);
 
-      const data = await loginApi(username.trim(), password.trim(), clientDb);
+      // Save tenantId to localStorage so the axios interceptor picks it up for the header
+      localStorage.setItem("tenantId", clientDb);
+      const data = await loginApi(username.trim(), password.trim());
 
       if (data?.accessToken && data?.user?.userId) {
         localStorage.setItem("userId", String(data.user.userId));

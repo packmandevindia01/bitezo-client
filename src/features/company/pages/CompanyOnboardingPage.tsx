@@ -158,7 +158,7 @@ const CompanyOnboardingPage = () => {
     setLoadingPosSetup(true);
 
     try {
-      const branches = await fetchOnboardBranches(db, false);
+      const branches = await fetchOnboardBranches(false);
 
       const branchOptions = branches.map((branch) => ({
         id: branch.branchId,
@@ -194,7 +194,7 @@ const CompanyOnboardingPage = () => {
 
     try {
       setLoadingPosCounters(true);
-      const counters = await fetchOnboardCounters(db, branchId);
+      const counters = await fetchOnboardCounters(branchId);
       setPosCounters(
         counters.map((counter) => ({
           id: counter.counterId,

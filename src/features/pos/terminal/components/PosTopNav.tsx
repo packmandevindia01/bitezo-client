@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { MoreHorizontal } from "lucide-react";
 import PosActionButton from "./PosActionButton";
+import { useToast } from "../../../../app/providers/useToast";
 
 
 interface PosTopNavProps {
@@ -15,10 +16,12 @@ interface PosTopNavProps {
 const PosTopNav = ({ onNewOrder, onMore, onCashierOut, status }: PosTopNavProps) => {
 
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const handleLogoutClick = () => {
     // If Day or Shift is still OPEN, give a reminder
     if (status && (!status.isDayClosed || !status.isShiftClosed)) {
+      showToast("Attention: You have an active Business Day or Shift open.", "warning");
       if (onCashierOut) {
         onCashierOut(); // Open the Close Session dashboard
       } else {

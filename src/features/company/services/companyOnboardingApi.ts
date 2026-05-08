@@ -141,12 +141,10 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
 };
 
 export const fetchOnboardBranches = async (
-  clientDb: string,
   allStatus: boolean = false
 ): Promise<OnboardBranchOption[]> => {
   const { data } = await axiosInstance.get<ApiResponse<OnboardBranchOption[]>>(
-    `/Branch/${allStatus}/onboard-list-name`,
-    { params: { clientDb } }
+    `/Branch/${allStatus}/onboard-list-name`
   );
 
   if (!data.isSuccess) {
@@ -157,12 +155,10 @@ export const fetchOnboardBranches = async (
 };
 
 export const fetchOnboardCounters = async (
-  clientDb: string,
   branchId: string | number
 ): Promise<OnboardCounterOption[]> => {
   const { data } = await axiosInstance.get<ApiResponse<OnboardCounterOption[]>>(
-    `/counter/${branchId}/onboard-list-name`,
-    { params: { clientDb } }
+    `/counter/${branchId}/onboard-list-name`
   );
 
   if (!data.isSuccess) {

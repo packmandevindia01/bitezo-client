@@ -68,10 +68,10 @@ export const useProductActions = ({ formState, altState, productList, branches }
 
         if (p.filePath) {
           // Calculate base URL from API URL (strip /api)
-          const apiUrl = import.meta.env.VITE_API_BASE_URL || "";
+          const apiUrl = (window as any).RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
           const baseUrl = apiUrl 
             ? apiUrl.replace(/\/api\/?$/, "") 
-            : "http://84.255.173.131:8068";
+            : window.location.origin;
             
           // Strip /api if it exists at the start of the filePath returned by server
           const cleanPath = p.filePath.replace(/^\/?api\//i, "").replace(/^\//, "");

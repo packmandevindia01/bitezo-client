@@ -26,6 +26,12 @@ export const paymodeService = {
     );
   },
 
+  listByCounter(counterId: number): Promise<PaymodeRecord[]> {
+    return unwrap(
+      axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/list-name/${counterId}`)
+    );
+  },
+
   getById(paymodeId: number): Promise<PaymodeDetailResponse> {
     return unwrap(
       axiosInstance.get<ApiResponse<PaymodeDetailResponse>>(`${BASE}/${paymodeId}/paymodeid-data`)
