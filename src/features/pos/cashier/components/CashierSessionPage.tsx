@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { LogIn, LogOut, Sun, Moon, Clock, Calculator, ChevronRight, AlertCircle, CheckCircle2, Receipt, ArrowLeft, Trash2, Pencil } from "lucide-react";
+import { LogIn, LogOut, Sun, Moon, Clock, Calculator, ChevronRight, Receipt, ArrowLeft, Trash2, Pencil, LayoutDashboard, History, Edit3, SkipForward, Play } from "lucide-react";
 import { cashierLogService, type CashierInStatus } from "../services/cashierLogService";
 import { payInOutService } from "../../payInOut/services/payInOutService";
 import { paymodeService } from "../../../general/paymode/services/paymodeService";
@@ -28,7 +28,7 @@ const MODE_CONFIG: Record<Mode, { label: string; buttonLabel: string; balLabel: 
 
 const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialStatus }) => {
   const { showToast } = useToast();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, decimalPart } = useCurrency();
 
   const [cashierStatus, setCashierStatus] = useState<CashierInStatus | null>(initialStatus ?? null);
   const [statusLoading, setStatusLoading] = useState(!initialStatus);
@@ -41,7 +41,6 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
   const payDescRef = useRef<HTMLInputElement>(null);
   const manualInputRef = useRef<HTMLInputElement>(null);
 
-  const decimalPart = Number(localStorage.getItem("decimalPart")) || 2;
   const step = 1 / Math.pow(10, decimalPart);
 
   const location = useLocation();
@@ -196,7 +195,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
           paymodeId: Number(paymodeId),
           updatedAt: new Date().toISOString()
         });
-        showToast("Transaction updated", "success");
+        showToast("Updated", "success");
       } else {
         await payInOutService.create({
           inOut: payType,
@@ -208,17 +207,18 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
           shiftId: cashierStatus.shiftId,
           createdAt: new Date().toISOString()
         });
-        showToast("Transaction recorded", "success");
+        showToast("Saved", "success");
       }
       
       setEditingId(null);
       setPayDesc("");
       setPayAmount("");
+      setCounts(prev => Object.fromEntries(Object.keys(prev).map(k => [k, 0])));
       void loadPayData();
       // Refocus description for next entry
       setTimeout(() => payDescRef.current?.focus(), 100);
     } catch (err: any) {
-      showToast(err.message || "Failed to save", "error");
+      showToast(err.message || "Error", "error");
     } finally {
       setTransLoading(false);
     }
@@ -228,7 +228,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
     setEditingId(t.transId);
     setPayType(t.inOut);
     setPayDesc(t.description);
-    setPayAmount(String(t.amount));
+    setPayAmount(Number(t.amount).toFixed(decimalPart));
     // Find paymodeId if possible or just set it
     // Note: t.paymode is a string name, we might need to match it or check if t has paymodeId
     // Actually PayInOutItem from service has transId, sNo, inOut, vchNo, date, description, amount, paymode
@@ -245,7 +245,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
       setEditingId(id);
       setPayType(d.inOut);
       setPayDesc(d.description);
-      setPayAmount(String(d.amount));
+      setPayAmount(Number(d.amount).toFixed(decimalPart));
       setPaymodeId(String(d.paymodeId));
       payDescRef.current?.focus();
     } catch (err) {
@@ -292,7 +292,12 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
       const now        = new Date();
       const isoString  = now.toISOString();
       const dateOnly   = isoString.split("T")[0] + "T00:00:00Z";
-      const denominations: any[] = [];
+      const denominations: any[] = Object.entries(counts)
+        .filter(([_, count]) => count > 0)
+        .map(([id, count]) => ({
+          denominationId: Number(id),
+          cashCount: count
+        }));
 
       if (mode === "OPEN_DAY") {
         const res = await cashierLogService.openDay({ startDate: isoString, transDate: dateOnly, openingBal: totalAmount, denominations });
@@ -314,25 +319,30 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
 
       } else if (mode === "CLOSE_SHIFT") {
         await cashierLogService.closeShift({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations });
-        showToast("Shift Closed Successfully", "success");
-        setCounts(prev => Object.fromEntries(Object.keys(prev).map(k => [k, 0])));
-        hasFetched.current = false; // Allow one more fetch after action
-        void loadAll();
+        showToast("Shift Closed Successfully. Logging out...", "success");
+        
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("activeShift");
+        
+        setTimeout(() => {
+          window.location.href = "/cashier/in";
+        }, 1500);
 
       } else if (mode === "CLOSE_DAY") {
-        // Validation: Cannot close Day if Shift is still open
         if (!cashierStatus.isShiftClosed) {
           throw new Error("Cannot close Business Day while a Shift is still active. Please close your Shift first.");
         }
         await cashierLogService.closeDay({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations });
         showToast("Business Day Closed Successfully. Logging out...", "success");
         
-        // Clear session and redirect to login since the business day is over
         localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
         localStorage.removeItem("activeShift");
+        
         setTimeout(() => {
           window.location.href = "/cashier/in";
-        }, 2000);
+        }, 1500);
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -371,6 +381,10 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
           outline: none !important;
           background: #fff !important;
         }
+        input::placeholder {
+          color: #94a3b8 !important;
+          opacity: 1 !important;
+        }
         .hover-btn:hover {
           background: #fff !important;
           color: #49293e !important;
@@ -385,112 +399,317 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
 
       {/* Top bar */}
       <div style={S.topBar}>
-        {/* Back to POS Button (Always visible as an exit/skip path) */}
-        <button 
-          onClick={() => navigate("/pos")}
-          style={S.backBtn}
-          className="hover-btn"
-        >
-          <ArrowLeft size={16} />
-          <span>Terminal</span>
+        <button onClick={() => navigate("/pos")} style={S.backBtn}>
+          <ArrowLeft size={14} />
+          Terminal
         </button>
-        
         <div style={S.brandDot} />
-        <span style={S.brandLabel}>Cashier Dashboard</span>
-
-        <div style={{ flex: 1 }} />
+        <h1 style={S.brandLabel}>Cashier Dashboard</h1>
         
-        {/* Navigation Tabs */}
-        <div style={S.dashboardTabs}>
-          <button 
-            onClick={() => setActiveTab("SESSION")}
-            style={{ ...S.dashboardTab, ...(activeTab === "SESSION" ? S.dashboardTabOn : S.dashboardTabOff) }}
-          >
-            <Calculator size={14} /> Session
-          </button>
-          <button 
-            onClick={() => setActiveTab("TRANSACTIONS")}
-            style={{ ...S.dashboardTab, ...(activeTab === "TRANSACTIONS" ? S.dashboardTabOn : S.dashboardTabOff) }}
-          >
-            <Receipt size={14} /> Transactions
-          </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 12 }}>
+          <div style={S.dashboardTabs}>
+            <button 
+              onClick={() => setActiveTab("SESSION")}
+              style={{ ...S.dashboardTab, ...(activeTab === "SESSION" ? S.dashboardTabOn : S.dashboardTabOff) }}
+            >
+              <LayoutDashboard size={14} />
+              Session
+            </button>
+            <button 
+              onClick={() => setActiveTab("TRANSACTIONS")}
+              style={{ ...S.dashboardTab, ...(activeTab === "TRANSACTIONS" ? S.dashboardTabOn : S.dashboardTabOff) }}
+            >
+              <History size={14} />
+              Transactions
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px", borderLeft: "1px solid #e2e8f0", color: "#64748b" }}>
+            <Clock size={14} />
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
         </div>
-
-        <div style={{ flex: 1 }} />
-        <Clock size={13} color="#94a3b8" />
-        <span style={{ color: "#94a3b8", fontSize: 12 }}>
-          {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </span>
       </div>
 
       {activeTab === "SESSION" ? (
         <div style={S.layout}>
-          {/* ... existing session layout ... */}
           <div style={S.left}>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ ...S.modeIcon, background: cfg?.bgColor ?? "#f1f5f9" }}>
-                <span style={{ color: cfg?.color ?? "#64748b" }}>{cfg?.icon}</span>
+            <div style={{ marginBottom: 40 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Cashier Dashboard</p>
+              <h1 style={{ fontSize: 32, fontWeight: 900, color: "#fff", margin: "0 0 16px", letterSpacing: "-0.04em", lineHeight: 1.1 }}>{cfg?.label ?? "Session"}</h1>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", margin: 0, lineHeight: 1.6 }}>
+                {isOpening ? "This flow initializes your business day and shift. Count your opening cash to proceed." : "Count your closing cash before ending the session to reconcile your drawer."}
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <StepCard 
+                step="1" 
+                label="Day Status" 
+                value={cashierStatus?.isDayClosed ? "Closed" : "Open"} 
+                active={!cashierStatus?.isDayClosed} 
+              />
+              <StepCard 
+                step="2" 
+                label="Shift Status" 
+                value={cashierStatus?.isShiftClosed ? "Closed" : "Open"} 
+                active={!cashierStatus?.isShiftClosed} 
+              />
+              <StepCard 
+                step="3" 
+                label={cfg?.balLabel ?? "Balance"} 
+                value={formatAmount(totalAmount)} 
+                active={totalAmount > 0} 
+                isAmount 
+              />
+            </div>
+
+            <div style={{ marginTop: "auto", paddingTop: 32 }}>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>System Context</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Branch</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{localStorage.getItem("systemBranchName") || "MAIN"}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Terminal</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{localStorage.getItem("systemCounterName") || "C01"}</span>
+                  </div>
+                </div>
               </div>
-              <h1 style={S.title}>{cfg?.label ?? "Cashier Session"}</h1>
-              <p style={S.subtitle}>
-                {isOpening ? "Enter your opening cash to begin the session." : "Count your closing cash before ending the session."}
-              </p>
-            </div>
-
-            <div style={S.statusCard}>
-              <Row label="Day Status"   value={<Badge text={cashierStatus?.isDayClosed   ? "Closed" : "Open"} green={!cashierStatus?.isDayClosed} />} />
-              <div style={S.divider} />
-              <Row label="Shift Status" value={<Badge text={cashierStatus?.isShiftClosed ? "Closed" : "Open"} green={!cashierStatus?.isShiftClosed} />} />
-            </div>
-
-            <div style={{ ...S.balCard, borderColor: cfg?.color ?? "#e2e8f0" }}>
-              <p style={S.balLabel}>{cfg?.balLabel ?? "Balance"}</p>
-              <p style={{ ...S.balAmount, color: cfg?.color ?? "#1e293b" }}>
-                {formatAmount(totalAmount)}
-              </p>
             </div>
           </div>
 
           <div style={S.right}>
-            {/* Entry Mode Toggle */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button 
-                onClick={() => setEntryMode("DENOM")}
-                style={{ ...S.modeTab, ...(entryMode === "DENOM" ? S.modeTabOn : S.modeTabOff) }}
-              >
-                <Calculator size={13} /> Denominations
-              </button>
-              <button 
-                onClick={() => setEntryMode("MANUAL")}
-                style={{ ...S.modeTab, ...(entryMode === "MANUAL" ? S.modeTabOn : S.modeTabOff) }}
-              >
-                <Calculator size={13} /> Manual Amount
-              </button>
+            <div style={{ maxWidth: 1000, margin: "0 auto", width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 24, justifyContent: "center" }}>
+                <button onClick={() => setEntryMode("DENOM")} style={{ ...S.modeTab, padding: "10px 24px", ...(entryMode === "DENOM" ? S.modeTabOn : S.modeTabOff) }}>
+                  <Calculator size={14} /> Denominations
+                </button>
+                <button onClick={() => setEntryMode("MANUAL")} style={{ ...S.modeTab, padding: "10px 24px", ...(entryMode === "MANUAL" ? S.modeTabOn : S.modeTabOff) }}>
+                  <Edit3 size={14} /> Manual Amount
+                </button>
+              </div>
+
+              {cashierStatus && !cashierStatus.isDayClosed && (
+                <div style={{ ...S.tabs, maxWidth: 600, margin: "0 auto 24px", width: "100%" }}>
+                  {(["SHIFT", "DAY"] as CloseTab[]).map(tab => {
+                    if (tab === "SHIFT" && cashierStatus.isShiftClosed) return null;
+                    return (
+                      <button key={tab} onClick={() => setCloseTab(tab)}
+                        style={{ ...S.tab, padding: "12px 16px", ...(closeTab === tab ? S.tabOn : S.tabOff) }}>
+                        {tab === "SHIFT" ? <Moon size={14} /> : <LogOut size={14} />}
+                        Close {tab === "SHIFT" ? "Shift" : "Day"}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ ...S.tableCard, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.02)" }}>
+                <div style={S.tableHead}>
+                  <Calculator size={13} color="#94a3b8" />
+                  <span style={S.tableHeadTxt}>{entryMode === "DENOM" ? "Cash Breakdown" : "Total Cash Entry"}</span>
+                </div>
+
+                {entryMode === "DENOM" ? (
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        <th style={S.th}>Denomination</th>
+                        <th style={{ ...S.th, width: 130 }}>Count</th>
+                        <th style={{ ...S.th, textAlign: "right" }}>Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {denoms.length === 0 ? (
+                        <tr><td colSpan={3} style={S.empty}>No denominations configured</td></tr>
+                      ) : denoms.map((d, i) => {
+                        const count = counts[d.id ?? 0] ?? 0;
+                        const sub   = count * d.value;
+                        return (
+                          <tr key={d.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                            <td style={S.td}>
+                              <span style={S.dName}>{d.name}</span>
+                              <span style={S.dSub}>{formatAmount(d.value)} each</span>
+                            </td>
+                            <td style={S.td}>
+                              <input type="number" min="0" placeholder="0"
+                                ref={i === 0 ? firstDenoRef : null}
+                                value={count === 0 ? "" : count}
+                                onChange={e => handleCountChange(d.id!, e.target.value)}
+                                onFocus={e => e.target.select()}
+                                style={S.input}
+                              />
+                            </td>
+                            <td style={{ ...S.td, textAlign: "right" }}>
+                              <span style={{ fontWeight: 700, fontSize: 13, color: sub > 0 ? "#49293e" : "#cbd5e1" }}>
+                                {formatAmount(sub)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: "#f8fafc", borderTop: "2px solid #e2e8f0" }}>
+                        <td colSpan={2} style={{ ...S.td, fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#94a3b8" }}>Grand Total</td>
+                        <td style={{ ...S.td, textAlign: "right" }}>
+                          <span style={{ fontSize: 24, fontWeight: 900, color: "#49293e", letterSpacing: "-0.04em" }}>{formatAmount(totalAmount)}</span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  <div style={{ padding: 40, background: "#fff", textAlign: "center" }}>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", marginBottom: 16, letterSpacing: "0.1em" }}>Enter Total Amount</p>
+                    <input
+                      type="number" ref={manualInputRef} step={step} placeholder="0.000"
+                      value={manualAmount} 
+                      onChange={e => setManualAmount(e.target.value)} 
+                      onBlur={() => setManualAmount(prev => prev ? Number(prev).toFixed(decimalPart) : "")}
+                      onFocus={e => e.target.select()}
+                      style={{ ...S.input, fontSize: 36, padding: "24px", height: "auto", maxWidth: 400, margin: "0 auto", textAlign: "center", borderRadius: 20 }}
+                    />
+                    <p style={{ marginTop: 20, fontSize: 13, color: "#94a3b8", maxWidth: 500, margin: "20px auto 0", lineHeight: 1.6 }}>Entering the amount manually will bypass the denomination breakdown for this session.</p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: "auto", paddingTop: 32, display: "flex", justifyContent: "flex-end", gap: 16 }}>
+                {onSkip && isOpening && (
+                  <button onClick={handleSkip} style={S.skipBtn}>
+                    <SkipForward size={14} /> Skip for now
+                  </button>
+                )}
+                <button
+                  disabled={submitting}
+                  onClick={() => void handleSubmit()}
+                  style={{ 
+                    ...S.submitBtn, 
+                    background: `linear-gradient(135deg, ${closeTab === 'DAY' ? '#49293e' : '#3b82f6'}, ${closeTab === 'DAY' ? '#2d1a27' : '#2563eb'})`,
+                    boxShadow: `0 8px 20px -4px ${closeTab === 'DAY' ? 'rgba(73,41,62,0.4)' : 'rgba(59,130,246,0.4)'}`,
+                    minWidth: 240,
+                    justifyContent: "center"
+                  }}
+                >
+                  {submitting ? <span style={S.btnSpinner}></span> : (
+                    <>
+                      {isOpening ? <Play size={16} /> : (closeTab === "SHIFT" ? <Moon size={16} /> : <LogOut size={16} />)}
+                      {isOpening ? `Open ${closeTab === "SHIFT" ? "Shift" : "Day"}` : `Confirm Close ${closeTab === "SHIFT" ? "Shift" : "Day"}`}
+                      <ChevronRight size={16} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Transactions Tab — Left sidebar + Right panel (matches Session tab style) */
+        <div style={S.layout}>
+
+          {/* ── Left Sidebar ── */}
+          <div style={{ width: 340, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12, background: "linear-gradient(165deg, #49293e 0%, #2d1a27 100%)", padding: "40px 32px", color: "#fff", overflowY: "auto", borderRight: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ marginBottom: 28 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Cash movement entry</p>
+              <h1 style={{ fontSize: 28, fontWeight: 900, color: "#fff", margin: "0 0 12px", letterSpacing: "-0.02em" }}>Pay In / Out</h1>
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: "16px 20px", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginBottom: 6, letterSpacing: "0.05em" }}>Total Amount</p>
+                <div style={{ fontSize: 32, fontWeight: 900, color: "#10b981", letterSpacing: "-0.04em" }}>{formatAmount(Number(payAmount) || 0)}</div>
+              </div>
             </div>
 
-            {cashierStatus && !cashierStatus.isDayClosed && (
-              <div style={S.tabs}>
-                {(["SHIFT", "DAY"] as CloseTab[]).map(tab => {
-                  if (tab === "SHIFT" && cashierStatus.isShiftClosed) return null;
-                  return (
-                    <button key={tab} onClick={() => setCloseTab(tab)}
-                      className={closeTab !== tab ? "hover-btn" : ""}
-                      style={{ ...S.tab, ...(closeTab === tab ? S.tabOn : S.tabOff) }}>
-                      {tab === "SHIFT" ? <Moon size={13} /> : <LogOut size={13} />}
-                      Close {tab === "SHIFT" ? "Shift" : "Day"}
-                    </button>
-                  );
-                })}
+
+            <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 24, padding: "24px 20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>Transaction Form</p>
+              
+              {/* IN / OUT Toggle */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <button onClick={() => setPayType("IN")} style={{ padding: "10px 0", borderRadius: 12, border: payType === "IN" ? "none" : "1px solid rgba(255,255,255,0.1)", cursor: "pointer", fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", transition: "all 0.15s", background: payType === "IN" ? "linear-gradient(135deg, #10b981, #059669)" : "rgba(255,255,255,0.05)", color: "#fff", boxShadow: payType === "IN" ? "0 4px 12px rgba(16,185,129,0.35)" : "none" }}>
+                    ↑ IN
+                  </button>
+                  <button onClick={() => setPayType("OUT")} style={{ padding: "10px 0", borderRadius: 12, border: payType === "OUT" ? "none" : "1px solid rgba(255,255,255,0.1)", cursor: "pointer", fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", transition: "all 0.15s", background: payType === "OUT" ? "linear-gradient(135deg, #ef4444, #dc2626)" : "rgba(255,255,255,0.05)", color: "#fff", boxShadow: payType === "OUT" ? "0 4px 12px rgba(239,68,68,0.35)" : "none" }}>
+                    ↓ OUT
+                  </button>
+                </div>
               </div>
+
+            {/* Description */}
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Description <span style={{ color: "#f87171" }}>*</span></p>
+              <input
+                ref={payDescRef}
+                placeholder="e.g. Petty cash, purchase..."
+                value={payDesc}
+                onChange={e => setPayDesc(e.target.value)}
+                style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.95)", color: "#000", fontSize: 13, fontWeight: 700, outline: "none", boxSizing: "border-box", transition: "border-color 0.15s" }}
+              />
+            </div>
+
+            {/* Amount */}
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Amount <span style={{ color: "#f87171" }}>*</span></p>
+              <input
+                type="number" step={step} placeholder="0.000"
+                value={payAmount}
+                onChange={e => setPayAmount(e.target.value)}
+                onBlur={() => setPayAmount(prev => prev ? Number(prev).toFixed(decimalPart) : "")}
+                style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.95)", color: payType === "IN" ? "#059669" : "#dc2626", fontSize: 16, fontWeight: 800, outline: "none", textAlign: "right", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* Paymode */}
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Pay Mode</p>
+              <select
+                value={paymodeId}
+                onChange={e => setPaymodeId(e.target.value)}
+                style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.95)", color: "#000", fontSize: 13, fontWeight: 700, outline: "none", boxSizing: "border-box", cursor: "pointer" }}
+              >
+                <option value="" disabled style={{ background: "#1e293b" }}>Select pay mode...</option>
+                {paymodes.map(m => <option key={m.value} value={m.value} style={{ background: "#1e293b" }}>{m.label}</option>)}
+              </select>
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "2px 0" }} />
+
+            {/* Submit */}
+            <button
+              onClick={handlePaySave}
+              disabled={transLoading || !payDesc || !payAmount}
+              style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: transLoading || !payDesc || !payAmount ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: transLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.2s", boxShadow: transLoading || !payDesc || !payAmount ? "none" : "0 4px 14px rgba(99,102,241,0.4)", letterSpacing: "0.03em" }}
+            >
+              {transLoading
+                ? <span style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", display: "inline-block" }} />
+                : <ChevronRight size={14} />}
+              {transLoading ? "Saving..." : (editingId ? "Update Transaction" : "Record Transaction")}
+            </button>
+
+            {editingId && (
+              <button
+                onClick={() => { setEditingId(null); setPayDesc(""); setPayAmount(""); }}
+                style={{ width: "100%", padding: "8px 0", borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+              >
+                Cancel Edit
+              </button>
             )}
+          </div>
+        </div>
 
-            <div style={S.tableCard}>
-              <div style={S.tableHead}>
-                <Calculator size={13} color="#94a3b8" />
-                <span style={S.tableHeadTxt}>{entryMode === "DENOM" ? "Cash Breakdown" : "Total Cash Entry"}</span>
-              </div>
 
-              {entryMode === "DENOM" ? (
+          {/* ── Right Panel ── */}
+          <div style={S.right}>
+            <div style={{ maxWidth: 1100, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
+              
+              {/* Denomination Breakdown */}
+              <div style={{ ...S.tableCard, flexShrink: 0, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.02)" }}>
+                <div style={S.tableHead}>
+                  <Calculator size={13} color="#94a3b8" />
+                  <span style={S.tableHeadTxt}>Denomination Breakdown</span>
+                </div>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#f8fafc" }}>
@@ -503,8 +722,8 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                     {denoms.length === 0 ? (
                       <tr><td colSpan={3} style={S.empty}>No denominations configured</td></tr>
                     ) : denoms.map((d, i) => {
-                      const count = counts[d.id ?? 0] ?? 0;
-                      const sub   = count * d.value;
+                      const count = counts[d.id!] || 0;
+                      const sub = count * d.value;
                       return (
                         <tr key={d.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={S.td}>
@@ -513,17 +732,20 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                           </td>
                           <td style={S.td}>
                             <input type="number" min="0" placeholder="0"
-                              ref={i === 0 ? firstDenoRef : null}
                               value={count === 0 ? "" : count}
-                              onChange={e => handleCountChange(d.id!, e.target.value)}
+                              onChange={e => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                const newCounts = { ...counts, [d.id!]: val };
+                                setCounts(newCounts);
+                                const total = denoms.reduce((sum, den) => sum + (newCounts[den.id!] || 0) * den.value, 0);
+                                setPayAmount(total.toFixed(decimalPart));
+                              }}
                               onFocus={e => e.target.select()}
                               style={S.input}
                             />
                           </td>
                           <td style={{ ...S.td, textAlign: "right" }}>
-                            <span style={{ fontWeight: 700, fontSize: 13, color: sub > 0 ? "#49293e" : "#cbd5e1" }}>
-                              {formatAmount(sub)}
-                            </span>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: sub > 0 ? "#49293e" : "#cbd5e1" }}>{formatAmount(sub)}</span>
                           </td>
                         </tr>
                       );
@@ -531,197 +753,75 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                   </tbody>
                   <tfoot>
                     <tr style={{ background: "#f8fafc", borderTop: "2px solid #e2e8f0" }}>
-                      <td colSpan={2} style={{ ...S.td, fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#94a3b8" }}>
-                        Grand Total
-                      </td>
+                      <td colSpan={2} style={{ ...S.td, fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#94a3b8" }}>Total</td>
                       <td style={{ ...S.td, textAlign: "right" }}>
-                        <span style={{ fontSize: 20, fontWeight: 800, color: "#49293e", letterSpacing: "-0.03em" }}>
-                          {formatAmount(totalAmount)}
-                        </span>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: "#49293e", letterSpacing: "-0.03em" }}>{formatAmount(Number(payAmount) || 0)}</span>
                       </td>
                     </tr>
                   </tfoot>
                 </table>
-              ) : (
-                <div style={{ padding: 24, background: "#fff" }}>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>
-                    Enter Total Amount
-                  </label>
-                  <input 
-                    type="number"
-                    ref={manualInputRef}
-                    step={step}
-                    placeholder="0.000"
-                    value={manualAmount}
-                    onChange={e => setManualAmount(e.target.value)}
-                    onFocus={e => e.target.select()}
-                    style={{ ...S.input, fontSize: 24, padding: "16px 20px", height: "auto" }}
-                  />
-                  <p style={{ marginTop: 12, fontSize: 12, color: "#64748b" }}>
-                    Entering the amount manually will bypass the denomination breakdown for this session.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div style={S.actions}>
-              {onSkip && isOpening && (
-                <button onClick={handleSkip} style={S.skipBtn}>
-                  <AlertCircle size={13} /> Skip for now
-                </button>
-              )}
-              <button onClick={handleSubmit} disabled={submitting || !mode}
-                className="submit-hover"
-                style={{ ...S.submitBtn, background: submitting ? "#94a3b8" : (cfg?.color ?? "#49293e"), cursor: submitting ? "not-allowed" : "pointer", boxShadow: submitting ? "none" : `0 4px 14px ${cfg?.color ?? "#49293e"}40` }}>
-                {submitting ? <span style={S.btnSpinner} /> : <span style={{ display: "flex" }}>{cfg?.icon}</span>}
-                {submitting ? "Processing…" : (cfg?.buttonLabel ?? "Confirm")}
-                {!submitting && <ChevronRight size={15} />}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Transactions Tab Content */
-        <div style={S.layout}>
-          <div style={S.left}>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ ...S.modeIcon, background: "#f1f5f9" }}>
-                <span style={{ color: "#64748b" }}><Receipt size={20} /></span>
-              </div>
-              <h1 style={S.title}>Pay In / Out</h1>
-              <p style={S.subtitle}>Record cash movements during your shift.</p>
-            </div>
-            
-            <div style={S.payForm}>
-              <div style={S.payTypeSelector}>
-                <button onClick={() => setPayType("IN")} style={{ ...S.payTypeBtn, ...(payType === "IN" ? S.payTypeBtnIn : {}) }}>IN</button>
-                <button onClick={() => setPayType("OUT")} style={{ ...S.payTypeBtn, ...(payType === "OUT" ? S.payTypeBtnOut : {}) }}>OUT</button>
-              </div>
-              <input 
-                ref={payDescRef}
-                placeholder="Description" 
-                value={payDesc} 
-                onChange={e => setPayDesc(e.target.value)} 
-                style={{ ...S.payInput, textAlign: "left" }} 
-              />
-              <input 
-                type="number" 
-                placeholder="Amount" 
-                step={step}
-                value={payAmount} 
-                onChange={e => setPayAmount(e.target.value)} 
-                style={S.payInput} 
-              />
-              <select 
-                value={paymodeId} 
-                onChange={e => setPaymodeId(e.target.value)} 
-                style={{ ...S.payInput, textAlign: "left" }}
-              >
-                {paymodes.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
-               <button 
-                onClick={handlePaySave} 
-                disabled={transLoading}
-                style={S.paySubmit}
-              >
-                {transLoading ? "Processing..." : (editingId ? "Update Transaction" : "Record Transaction")}
-              </button>
-
-              {editingId && (
-                <button 
-                  onClick={() => {
-                    setEditingId(null);
-                    setPayDesc("");
-                    setPayAmount("");
-                  }}
-                  style={{ ...S.paySubmit, background: "#f1f5f9", color: "#64748b", marginTop: 4 }}
-                >
-                  Cancel Edit
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div style={S.right}>
-            <div style={S.tableCard}>
-              <div style={S.tableHead}>
-                <Receipt size={13} color="#94a3b8" />
-                <span style={S.tableHeadTxt}>Recent Transactions</span>
-              </div>
-              
-              {/* Filter Bar */}
-              <div style={{ padding: "12px 20px", background: "#f8fafc", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={S.filterLabel}>From</label>
-                  <input type="date" value={fFromDate} onChange={e => setFFromDate(e.target.value)} style={S.filterInput} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={S.filterLabel}>To</label>
-                  <input type="date" value={fToDate} onChange={e => setFToDate(e.target.value)} style={S.filterInput} />
-                </div>
-                <div style={{ flex: 2 }}>
-                  <label style={S.filterLabel}>Search Description</label>
-                  <input type="text" placeholder="Search..." value={fDesc} onChange={e => setFDesc(e.target.value)} style={S.filterInput} />
-                </div>
-                <button onClick={() => void loadPayData()} style={S.filterBtn}>Filter</button>
               </div>
 
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    <th style={S.th}>#Vch</th>
-                    <th style={S.th}>Type</th>
-                    <th style={S.th}>Description</th>
-                    <th style={{ ...S.th, textAlign: "right" }}>Amount</th>
-                    <th style={{ ...S.th, textAlign: "center", width: 50 }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.length === 0 ? (
-                    <tr><td colSpan={5} style={S.empty}>No transactions recorded</td></tr>
-                  ) : transactions.map((t, i) => (
-                    <tr key={t.transId} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                      <td style={S.td}>
-                         <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{t.vchNo || "—"}</span>
-                      </td>
-                      <td style={S.td}>
-                        <span style={{ fontSize: 10, fontWeight: 800, color: t.inOut === "IN" ? "#10b981" : "#ef4444" }}>{t.inOut}</span>
-                      </td>
-                      <td style={S.td}>
-                        <span style={S.dName}>{t.description}</span>
-                        <span style={S.dSub}>{new Date(t.date).toLocaleDateString()}</span>
-                      </td>
-                      <td style={{ ...S.td, textAlign: "right" }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>{formatAmount(t.amount)}</span>
-                      </td>
-                      <td style={{ ...S.td, textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                          <button 
-                            onClick={() => handleEdit(t)}
-                            style={{ border: "none", background: "none", color: "#94a3b8", cursor: "pointer", padding: 4 }}
-                            className="hover-btn"
-                            title="Edit Transaction"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button 
-                            onClick={() => openCancelConfirm(t.transId)}
-                            style={{ border: "none", background: "none", color: "#94a3b8", cursor: "pointer", padding: 4 }}
-                            className="hover-btn"
-                            title="Cancel Transaction"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* Recent Transactions */}
+              <div style={{ ...S.tableCard, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.02)" }}>
+                <div style={{ ...S.tableHead, flexShrink: 0 }}>
+                  <Receipt size={13} color="#94a3b8" />
+                  <span style={S.tableHeadTxt}>Recent Transactions</span>
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="date" value={fFromDate} onChange={e => setFFromDate(e.target.value)} style={{ ...S.filterInput, borderRadius: 8 }} />
+                    <input type="date" value={fToDate} onChange={e => setFToDate(e.target.value)} style={{ ...S.filterInput, borderRadius: 8 }} />
+                    <input type="text" placeholder="Search..." value={fDesc} onChange={e => setFDesc(e.target.value)} style={{ ...S.filterInput, width: 120, borderRadius: 8 }} />
+                    <button onClick={() => void loadPayData()} style={{ ...S.filterBtn, borderRadius: 8 }}>Filter</button>
+                  </div>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "#f8fafc" }}>
+                      <tr>
+                        <th style={S.th}>#Vch</th>
+                        <th style={S.th}>Type</th>
+                        <th style={S.th}>Description</th>
+                        <th style={S.th}>Date</th>
+                        <th style={{ ...S.th, textAlign: "right" }}>Amount</th>
+                        <th style={{ ...S.th, textAlign: "center", width: 70 }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={S.empty}>No transactions recorded</td>
+                        </tr>
+                      ) : transactions.map((t, i) => (
+                        <tr key={t.transId} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={S.td}><span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", fontFamily: "monospace" }}>{t.vchNo || "—"}</span></td>
+                          <td style={S.td}>
+                            <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: t.inOut === "IN" ? "#d1fae5" : "#fee2e2", color: t.inOut === "IN" ? "#065f46" : "#991b1b" }}>{t.inOut}</span>
+                          </td>
+                          <td style={S.td}><span style={S.dName}>{t.description}</span></td>
+                          <td style={S.td}><span style={{ fontSize: 11, color: "#64748b" }}>{new Date(t.date).toLocaleDateString()}</span></td>
+                          <td style={{ ...S.td, textAlign: "right" }}>
+                            <span style={{ fontWeight: 800, fontSize: 13, color: t.inOut === "IN" ? "#10b981" : "#ef4444" }}>{formatAmount(t.amount)}</span>
+                          </td>
+                          <td style={{ ...S.td, textAlign: "center" }}>
+                            <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                              <button onClick={() => handleEdit(t)} title="Edit" style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={12} /></button>
+                              <button onClick={() => openCancelConfirm(t.transId)} title="Cancel" style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Trash2 size={12} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+
+
+
 
       <ConfirmDialog 
         isOpen={isCancelConfirmOpen}
@@ -739,44 +839,65 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
-const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px" }}>
-    <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "#94a3b8" }}>{label}</span>
-    {value}
+const StepCard = ({ step, label, value, active, isAmount }: { step: string; label: string; value: string; active: boolean; isAmount?: boolean }) => (
+  <div style={{ 
+    display: "flex", 
+    alignItems: "center", 
+    gap: 16, 
+    padding: "16px 20px", 
+    borderRadius: 24, 
+    background: active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)", 
+    border: `1px solid ${active ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)"}`,
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+  }}>
+    <div style={{ 
+      width: 32, 
+      height: 32, 
+      borderRadius: 8, 
+      background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)", 
+      display: "flex", 
+      alignItems: "center", 
+      justifyContent: "center",
+      fontSize: 12,
+      fontWeight: 900,
+      color: active ? "#fff" : "rgba(255,255,255,0.3)"
+    }}>
+      {step}
+    </div>
+    <div style={{ flex: 1 }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 2px" }}>{label}</p>
+      <p style={{ fontSize: isAmount ? 18 : 14, fontWeight: 800, color: active ? "#fff" : "rgba(255,255,255,0.5)", margin: 0 }}>{value}</p>
+    </div>
   </div>
 );
 
-const Badge = ({ text, green }: { text: string; green: boolean }) => (
-  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, textTransform: "uppercase" as const, letterSpacing: "0.06em", background: green ? "#d1fae5" : "#fef3c7", color: green ? "#065f46" : "#92400e", display: "flex", alignItems: "center", gap: 4 }}>
-    {green && <CheckCircle2 size={10} />}{text}
-  </span>
-);
+
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const S: Record<string, React.CSSProperties> = {
-  page:       { minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+  page:       { height: "100vh", display: "flex", flexDirection: "column", background: "#f8fafc", overflow: "hidden", fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
   spinner:    { width: 36, height: 36, borderRadius: "50%", border: "3px solid #e2e8f0", borderTopColor: "#49293e", animation: "spin 0.8s linear infinite", margin: "auto" },
-  topBar:     { display: "flex", alignItems: "center", gap: 8, padding: "12px 32px", borderBottom: "1px solid #e2e8f0", background: "#fff" },
+  topBar:     { height: 65, flexShrink: 0, display: "flex", alignItems: "center", gap: 8, padding: "0 32px", borderBottom: "1px solid #e2e8f0", background: "#fff" },
   brandDot:   { width: 8, height: 8, borderRadius: "50%", background: "#49293e" },
   brandLabel: { fontSize: 12, fontWeight: 800, color: "#49293e", letterSpacing: "0.08em", textTransform: "uppercase" },
-  layout:     { display: "flex", flex: 1, gap: 48, maxWidth: 1080, margin: "0 auto", width: "100%", padding: "48px 32px", alignItems: "flex-start" },
-  left:       { width: 272, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 },
-  right:      { flex: 1, display: "flex", flexDirection: "column", gap: 20 },
+  layout:     { display: "flex", flex: 1, background: "#f1f5f9", height: "calc(100vh - 65px)", overflow: "hidden", padding: 12, gap: 12 },
+  left:       { width: 340, flexShrink: 0, display: "flex", flexDirection: "column", background: "linear-gradient(165deg, #49293e 0%, #2d1a27 100%)", padding: "40px 32px", color: "#fff", overflowY: "auto", borderRadius: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" },
+  right:      { flex: 1, display: "flex", flexDirection: "column", padding: "32px 40px", overflow: "hidden", background: "#fff", borderRadius: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" },
   modeIcon:   { width: 46, height: 46, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 },
   title:      { fontSize: 22, fontWeight: 800, color: "#1e293b", margin: "0 0 8px", letterSpacing: "-0.03em" },
   subtitle:   { fontSize: 13, color: "#64748b", margin: 0, lineHeight: 1.6 },
-  statusCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" },
+  statusCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden" },
   divider:    { height: 1, background: "#f1f5f9", margin: "0 16px" },
   mono:       { fontSize: 13, fontWeight: 700, color: "#1e293b", fontFamily: "monospace" },
-  balCard:    { background: "#fff", borderWidth: 2, borderStyle: "solid", borderColor: "#e2e8f0", borderRadius: 12, padding: "16px 20px" },
+  balCard:    { background: "#fff", borderWidth: 2, borderStyle: "solid", borderColor: "#e2e8f0", borderRadius: 24, padding: "16px 20px" },
   balLabel:   { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", margin: "0 0 6px" },
   balAmount:  { fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: "-0.04em" },
-  tabs:       { display: "flex", gap: 6, background: "#f1f5f9", padding: 4, borderRadius: 10 },
-  tab:        { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 16px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.07em", transition: "all 0.15s" },
+  tabs:       { display: "flex", gap: 6, background: "#f1f5f9", padding: 4, borderRadius: 16 },
+  tab:        { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 16px", borderRadius: 12, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.07em", transition: "all 0.15s" },
   tabOn:      { background: "#fff", color: "#49293e", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" },
   tabOff:     { background: "transparent", color: "#94a3b8" },
-  tableCard:  { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" },
+  tableCard:  { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden" },
   tableHead:  { display: "flex", alignItems: "center", gap: 8, padding: "13px 20px", borderBottom: "1px solid #f1f5f9" },
   tableHeadTxt: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#64748b" },
   th:         { padding: "10px 20px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#94a3b8", textAlign: "left", borderBottom: "1px solid #e2e8f0" },
@@ -784,34 +905,34 @@ const S: Record<string, React.CSSProperties> = {
   empty:      { padding: "28px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13 },
   dName:      { display: "block", fontSize: 13, fontWeight: 600, color: "#1e293b" },
   dSub:       { display: "block", fontSize: 11, color: "#94a3b8", marginTop: 2 },
-  input:      { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, fontWeight: 700, color: "#1e293b", outline: "none", background: "#f8fafc", textAlign: "right", boxSizing: "border-box", transition: "border-color 0.15s" },
+  input:      { width: "100%", padding: "8px 12px", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 14, fontWeight: 700, color: "#1e293b", outline: "none", background: "#f8fafc", textAlign: "right", boxSizing: "border-box", transition: "border-color 0.15s" },
   actions:    { display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, paddingTop: 4 },
-  skipBtn:    { display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" },
-  submitBtn:  { display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: "0.03em", transition: "all 0.15s" },
+  skipBtn:    { display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  submitBtn:  { display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 16, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: "0.03em", transition: "all 0.15s" },
   btnSpinner: { width: 15, height: 15, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#fff", display: "inline-block", animation: "spin 0.8s linear infinite" },
   
-  dashboardTabs: { display: "flex", gap: 4, background: "#f1f5f9", padding: 4, borderRadius: 10 },
-  dashboardTab: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em", transition: "all 0.1s" },
+  dashboardTabs: { display: "flex", gap: 4, background: "#f1f5f9", padding: 4, borderRadius: 16 },
+  dashboardTab: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 12, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em", transition: "all 0.1s" },
   dashboardTabOn: { background: "#fff", color: "#49293e", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
   dashboardTabOff: { background: "transparent", color: "#94a3b8" },
 
-  payForm: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12 },
+  payForm: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, padding: 20, display: "flex", flexDirection: "column", gap: 12 },
   payTypeSelector: { display: "flex", gap: 8, marginBottom: 4 },
-  payTypeBtn: { flex: 1, padding: "10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all 0.1s" },
+  payTypeBtn: { flex: 1, padding: "10px", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all 0.1s" },
   payTypeBtnIn: { background: "#10b981", color: "#fff", borderColor: "#10b981" },
   payTypeBtnOut: { background: "#ef4444", color: "#fff", borderColor: "#ef4444" },
-  payInput: { width: "100%", padding: "12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, outline: "none", boxSizing: "border-box", textAlign: "right" },
-  paySubmit: { padding: "14px", borderRadius: 10, border: "none", background: "#49293e", color: "#fff", fontWeight: 700, cursor: "pointer", marginTop: 8 },
+  payInput: { width: "100%", padding: "12px", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 14, outline: "none", boxSizing: "border-box", textAlign: "right" },
+  paySubmit: { padding: "14px", borderRadius: 16, border: "none", background: "#49293e", color: "#fff", fontWeight: 700, cursor: "pointer", marginTop: 8 },
 
-  modeTab: { display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.1s" },
+  modeTab: { display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.1s" },
   modeTabOn: { background: "#49293e", color: "#fff" },
   modeTabOff: { background: "#e2e8f0", color: "#64748b" },
 
-  backBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: "#e2e8f0", background: "#fff", color: "#49293e", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", marginRight: 12, transition: "all 0.1s" },
+  backBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12, borderWidth: 1, borderStyle: "solid", borderColor: "#e2e8f0", background: "#fff", color: "#49293e", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", marginRight: 12, transition: "all 0.1s" },
   
   filterLabel: { display: "block", fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4, letterSpacing: "0.05em" },
-  filterInput: { width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 12, outline: "none" },
-  filterBtn: { padding: "7px 16px", borderRadius: 6, border: "none", background: "#49293e", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }
+  filterInput: { width: "100%", padding: "8px 12px", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12, outline: "none", background: "#fff" },
+  filterBtn: { padding: "8px 20px", borderRadius: 12, border: "none", background: "#49293e", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.1s", boxShadow: "0 4px 12px rgba(73,41,62,0.2)" }
 };
 
 export default CashierSessionPage;

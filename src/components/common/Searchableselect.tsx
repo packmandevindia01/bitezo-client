@@ -50,6 +50,8 @@ const SearchableSelect = ({
   useEffect(() => {
     if (autoFocus && triggerRef.current) {
       triggerRef.current.focus();
+      // For searchable selects, we also want to open it so the user can start typing
+      setOpen(true);
     }
   }, [autoFocus]);
 
@@ -176,8 +178,8 @@ const SearchableSelect = ({
         onClick={toggleOpen}
         onKeyDown={handleKeyDown}
         className={`
-          relative flex w-full cursor-pointer items-center gap-2
-          rounded-md border px-3 py-2.5 text-xs outline-none transition md:px-4
+          relative flex w-full h-10.5 cursor-pointer items-center gap-2
+          rounded-md border px-3 text-xs outline-none transition md:px-4
           ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50" : ""}
           ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"}

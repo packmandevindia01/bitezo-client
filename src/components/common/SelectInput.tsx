@@ -19,6 +19,8 @@ interface Props {
   error?: string;
   disabled?: boolean;
   autoFocus?: boolean;
+  className?: string;
+  noMargin?: boolean;
 }
 
 const SelectInput = ({
@@ -35,12 +37,14 @@ const SelectInput = ({
   error,
   disabled,
   autoFocus,
+  className = "",
+  noMargin = false,
 }: Props) => {
 
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
   return (
-    <div className="flex flex-col gap-1 mb-4 w-full">
+    <div className={`flex flex-col gap-1 w-full ${noMargin ? "" : "mb-4"}`}>
 
       {/* LABEL */}
       {label && (
@@ -64,14 +68,15 @@ const SelectInput = ({
         disabled={disabled}
         autoFocus={autoFocus}
         className={`
-          w-full px-3 md:px-4 py-2
-          text-sm md:text-base
+          w-full px-3 md:px-4 h-10.5
+          text-sm
           rounded-md border outline-none transition
           
           ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "bg-gray-100 cursor-not-allowed opacity-50" : ""}
 
           focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
+          ${className}
         `}
       >
         {/* Placeholder */}

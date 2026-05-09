@@ -52,7 +52,8 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
 
   const fetchPaymodes = useCallback(async () => {
     try {
-      const data = await paymodeService.list();
+      const counterId = Number(localStorage.getItem("systemCounterId")) || 1;
+      const data = await paymodeService.listByCounter(counterId);
       setPaymodes(data.map(p => ({ value: p.paymodeId.toString(), label: p.paymodeName })));
       if (data.length > 0) setPaymodeId(data[0].paymodeId.toString());
     } catch (error) {
@@ -149,16 +150,16 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
       <div className="space-y-6">
         
         {/* Form Section */}
-        <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 shadow-inner">
+        <div className="bg-slate-50/50 p-6 rounded-[24px] border border-slate-100 shadow-inner">
           <div className="flex justify-center mb-6">
             <div className="inline-flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
               <button
                 type="button"
                 onClick={() => setType('IN')}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold tracking-widest uppercase transition-all ${
+                className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold tracking-widest uppercase transition-all ${
                   type === 'IN' 
-                    ? 'bg-emerald-50 text-emerald-600 shadow-sm border border-emerald-100/50' 
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-transparent'
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 <ArrowDownLeft size={16} />
@@ -167,10 +168,10 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
               <button
                 type="button"
                 onClick={() => setType('OUT')}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold tracking-widest uppercase transition-all ${
+                className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold tracking-widest uppercase transition-all ${
                   type === 'OUT' 
-                    ? 'bg-red-50 text-red-600 shadow-sm border border-red-100/50' 
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-transparent'
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' 
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 <ArrowUpRight size={16} />
@@ -228,7 +229,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
             <Button 
               onClick={handleSave}
               disabled={isSaving}
-              className={`px-8 h-[42px] text-xs font-bold uppercase tracking-widest shadow-lg ${
+              className={`px-8 h-[46px] rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg ${
                 type === 'IN' 
                   ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' 
                   : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
@@ -268,7 +269,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
           
-          <div className="min-h-[250px] max-h-[350px] overflow-y-auto border border-slate-200 rounded-2xl bg-white shadow-sm overflow-hidden">
+          <div className="min-h-[250px] max-h-[350px] overflow-y-auto border border-slate-200 rounded-[24px] bg-white shadow-sm overflow-hidden">
             {isLoading ? (
               <div className="h-[250px] flex items-center justify-center">
                 <Loader text="Loading records..." />

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, UtensilsCrossed, ShoppingBag, Truck, Car, Users } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -21,7 +21,6 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, status }: PosTopNavProps)
   const handleLogoutClick = () => {
     // If Day or Shift is still OPEN, give a reminder
     if (status && (!status.isDayClosed || !status.isShiftClosed)) {
-      showToast("Attention: You have an active Business Day or Shift open.", "warning");
       if (onCashierOut) {
         onCashierOut(); // Open the Close Session dashboard
       } else {
@@ -54,14 +53,28 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, status }: PosTopNavProps)
           <span className="hidden sm:inline">New Order</span>
         </PosActionButton>
 
-        <div className="hidden lg:flex gap-1 ml-2">
-          {["Dine In", "Take Out", "Drive Thru", "Delivery", "Provider"].map((type) => (
+        <div className="hidden md:flex gap-1 ml-2">
+          {[
+            { label: "Dine In", icon: UtensilsCrossed, color: "orange" },
+            { label: "Take Out", icon: ShoppingBag, color: "gray" },
+            { label: "Drive Thru", icon: Car, color: "gray" },
+            { label: "Delivery", icon: Truck, color: "gray" },
+            { label: "Provider", icon: Users, color: "gray" }
+          ].map((type) => (
             <PosActionButton
-              key={type}
-              accent={type === "Dine In" ? "orange" : "gray"}
-              className="h-10 xl:h-12 px-3 rounded-xl text-[10px] min-w-max shadow-sm"
+              key={type.label}
+              accent={type.color as any}
+              className="h-10 xl:h-12 px-2 xl:px-3 rounded-xl text-[10px] min-w-max shadow-sm flex items-center gap-1.5"
+              onClick={() => {
+                if (type.label === "Dine In") {
+                  navigate("/pos/dine-in");
+                } else {
+                  showToast(`${type.label} selected`, "success");
+                }
+              }}
             >
-              {type}
+              <type.icon size={14} className="xl:w-4 xl:h-4" />
+              <span className="hidden xl:inline">{type.label}</span>
             </PosActionButton>
           ))}
         </div>

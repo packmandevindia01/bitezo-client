@@ -178,4 +178,12 @@ export const productService = {
       axiosInstance.get<ApiResponse<any[]>>(url, { params: { productId } })
     );
   },
+
+  /** GET /api/product/list-name */
+  listName(productName?: string): Promise<{ productId: number; productName: string }[]> {
+    const url = `${BASE}/list-name`;
+    return unwrap(
+      axiosInstance.get<ApiResponse<{ productId: number; productName: string }[]>>(url, { params: { productName } })
+    );
+  },
 } as const;

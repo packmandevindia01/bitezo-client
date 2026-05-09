@@ -56,17 +56,17 @@ const PosTerminalPage = () => {
   // 1. Hardware Barcode Scanner Integration
   useBarcodeScanner((barcode) => {
     const success = addProductBySku(barcode);
-    if (success) showToast(`Scanned: ${barcode}`, "success");
-    else showToast(`SKU not found: ${barcode}`, "error");
+    if (success) showToast(barcode, "success");
+    else showToast("Not Found", "error");
   });
 
   // 2. Keyboard Hotkeys
   usePosShortcuts({
     onClearCart: clearCart,
-    onHoldTicket: () => showToast("Ticket put on hold", "success"),
+    onHoldTicket: () => showToast("Held", "success"),
     onCheckout: () => {
-      if (itemCount > 0) showToast(`Processing payment for ${formatCurrency(total)}`, "success");
-      else showToast("Cart is empty", "error");
+      if (itemCount > 0) showToast("Processing...", "success");
+      else showToast("Empty", "error");
     }
   });
 
@@ -219,10 +219,10 @@ const PosTerminalPage = () => {
           setIsLogoutConfirmOpen(false);
           navigate("/cashier/out");
         }}
-        title="Active Session Reminder"
-        message="You still have an active cashier session (Day or Shift is open). Would you like to go to the Cashier Close screen first?"
-        confirmLabel="Go to Cashier Close"
-        cancelLabel="Stay in POS"
+        title="Active Session"
+        message="Your shift is still open. Go to close session?"
+        confirmLabel="Go to Close"
+        cancelLabel="Stay"
         onCancel={() => setIsLogoutConfirmOpen(false)}
         confirmVariant="secondary"
       />

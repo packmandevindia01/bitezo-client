@@ -1,16 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft,
 } from 'lucide-react';
-import { Button } from '../../../../components/common';
+import { Button, Loader } from '../../../../components/common';
 import { PrinterSettingsTab } from '../components/PrinterSettingsTab';
+import { ProductWisePrinterTab } from '../components/ProductWisePrinterTab';
+import { SectionWisePrinterTab } from '../components/SectionWisePrinterTab';
+import { OrderTypeWisePrinterTab } from '../components/OrderTypeWisePrinterTab';
+import { CategoryWisePrinterTab } from '../components/CategoryWisePrinterTab';
+import { usePrinterSettings } from '../hooks/usePrinterSettings';
+
+type PrinterTab = 'GENERAL' | 'CATEGORY' | 'PRODUCT' | 'SECTION' | 'ORDER_TYPE';
 
 export const PosMorePage: React.FC = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<PrinterTab>('GENERAL');
+  
+  const { 
+    loading, 
+    general, 
+    categories, 
+    products, 
+    sections, 
+    orderTypes,
+    saveGeneral,
+    saveCategoryMappings,
+    saveProductMappings,
+    saveSectionMappings,
+    saveOrderTypeMappings
+  } = usePrinterSettings();
 
   const handleBack = () => {
     navigate('/pos', { state: { openMoreModal: true } });
+  };
+
+  const getSubtitle = () => {
+    switch (activeTab) {
+      case 'GENERAL': return "General Hardware Configuration";
+      case 'CATEGORY': return "Category-Specific Routing";
+      case 'PRODUCT': return "Product-Specific Routing";
+      case 'SECTION': return "Section-Specific Routing";
+      case 'ORDER_TYPE': return "Order Type Master KOT Routing";
+      default: return "";
+    }
   };
 
   return (
@@ -28,36 +61,94 @@ export const PosMorePage: React.FC = () => {
             <h1 className="text-2xl font-black text-[#49293e] uppercase tracking-tight">
               Printer Settings
             </h1>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              Hardware & Terminal Printing Configuration
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                {getSubtitle()}
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
+          {[
+            { id: 'GENERAL', label: 'General' },
+            { id: 'CATEGORY', label: 'Category' },
+            { id: 'PRODUCT', label: 'Product' },
+            { id: 'SECTION', label: 'Section' },
+            { id: 'ORDER_TYPE', label: 'Order Type' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as PrinterTab)}
+              className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-white text-[#49293e] shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-3">
           <Button 
-            variant="primary"
-            onClick={handleBack}
-            className="px-8 shadow-md"
-          >
-            Save Settings
-          </Button>
-          <Button 
             variant="secondary"
             onClick={handleBack}
-            className="px-6"
+            className="px-8"
           >
-            Back to Terminal
+            Done
           </Button>
         </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-auto p-6 md:p-10">
-        <div className="max-w-4xl mx-auto w-full">
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
-            <div className="p-8 md:p-12">
-              <PrinterSettingsTab onBack={handleBack} />
+      <main className="flex-1 overflow-hidden p-4 md:p-6">
+        <div className="max-w-7xl mx-auto h-full w-full relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex items-center justify-center rounded-3xl">
+              <Loader text="Syncing Hardware..." />
+            </div>
+          )}
+          
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden h-full flex flex-col">
+            <div className="p-6 md:p-8 flex-1 flex flex-col overflow-hidden">
+              {activeTab === 'GENERAL' && (
+                <PrinterSettingsTab 
+                  data={general} 
+                  onSave={saveGeneral} 
+                  loading={loading}
+                />
+              )}
+              {activeTab === 'CATEGORY' && (
+                <CategoryWisePrinterTab 
+                  initialData={categories} 
+                  onSave={saveCategoryMappings}
+                  loading={loading}
+                />
+              )}
+              {activeTab === 'PRODUCT' && (
+                <ProductWisePrinterTab 
+                  initialData={products} 
+                  onSave={saveProductMappings}
+                  loading={loading}
+                />
+              )}
+              {activeTab === 'SECTION' && (
+                <SectionWisePrinterTab 
+                  initialData={sections} 
+                  onSave={saveSectionMappings}
+                  loading={loading}
+                />
+              )}
+              {activeTab === 'ORDER_TYPE' && (
+                <OrderTypeWisePrinterTab 
+                  initialData={orderTypes} 
+                  onSave={saveOrderTypeMappings}
+                  loading={loading}
+                />
+              )}
             </div>
           </div>
         </div>

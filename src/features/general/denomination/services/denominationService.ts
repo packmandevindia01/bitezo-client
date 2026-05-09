@@ -23,7 +23,7 @@ export const DEFAULT_DENOMS: DenominationItem[] = [
 ];
 
 export const fetchDenominations = async (): Promise<DenominationItem[]> => {
-  const result = await unwrapEnvelope(axiosInstance.get<ApiResponse<DenominationItem[]>>("/denomination/denomination-data"));
+  const result = await unwrapEnvelope(axiosInstance.get<ApiResponse<DenominationItem[]>>("/denomination/list-data"));
   return result.data || [];
 };
 

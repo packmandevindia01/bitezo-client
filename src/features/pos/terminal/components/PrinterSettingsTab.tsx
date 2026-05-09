@@ -1,22 +1,19 @@
-import React, { useState } from 'react';
-import { SelectInput } from '../../../../components/common';
+import React, { useState, useEffect } from 'react';
+import { SelectInput, Button } from '../../../../components/common';
+import type { GeneralPrinterSettings } from '../../types';
 
 interface PrinterSettingsTabProps {
-  onBack: () => void;
+  data: GeneralPrinterSettings;
+  onSave: (data: GeneralPrinterSettings) => void;
+  loading?: boolean;
 }
 
-export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ onBack }) => {
-  const [settings, setSettings] = useState({
-    billPrinter: 'pos-80c',
-    kotPrinter: 'pos-80c',
-    packagerPrinter: 'pos-80c',
-    masterKotPrinter: 'No Printer',
-    masterKotPrintCount: '1',
-    masterKotBillCount: '1',
-    androidBillPrinter: 'delivery',
-    androidKotPrinter: 'delivery',
-    androidPackagerPrinter: 'No Printer',
-  });
+export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, onSave, loading }) => {
+  const [settings, setSettings] = useState<GeneralPrinterSettings>(data);
+
+  useEffect(() => {
+    setSettings(data);
+  }, [data]);
 
   const printerOptions = [
     { label: 'pos-80c', value: 'pos-80c' },
@@ -25,51 +22,72 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ onBack }
   ];
 
   const countOptions = [
-    { label: '1', value: '1' },
-    { label: '2', value: '2' },
-    { label: '3', value: '3' },
+    { label: '1', value: 1 },
+    { label: '2', value: 2 },
+    { label: '3', value: 3 },
   ];
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof GeneralPrinterSettings, value: string | number) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  const Row = ({ label, field, options }: { label: string; field: string; options: { label: string; value: string }[] }) => (
-    <div className="flex items-center gap-4 py-1.5 border-b border-gray-50 last:border-0">
-      <label className="text-[12px] font-bold text-[#49293e]/70 w-52 shrink-0 uppercase tracking-wider">{label}</label>
-      <div className="flex-1 max-w-xs">
-        <div className="[&>div]:mb-0">
-          <SelectInput
-            options={options}
-            value={(settings as any)[field]}
-            onChange={(e) => handleChange(field, e.target.value)}
-            placeholder="Select"
-          />
-        </div>
+  const Row = ({ label, field, options, isNumeric }: { label: string; field: keyof GeneralPrinterSettings; options: any[]; isNumeric?: boolean }) => (
+    <div className="flex flex-col gap-1 py-1 px-1">
+      <label className="text-[10px] font-black text-[#49293e]/50 uppercase tracking-[0.15em] ml-1">{label}</label>
+      <div className="w-full">
+        <SelectInput
+          options={options}
+          value={String(settings[field] ?? '')}
+          onChange={(e) => handleChange(field, isNumeric ? parseInt(e.target.value) : e.target.value)}
+          placeholder="Select"
+          className="h-9"
+        />
       </div>
     </div>
   );
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl">
-        <Row label="Bill Printer Name" field="billPrinter" options={printerOptions} />
-        <Row label="KOT Printer Name" field="kotPrinter" options={printerOptions} />
-        <Row label="Packager Printer" field="packagerPrinter" options={printerOptions} />
-        <Row label="Master KOT Printer" field="masterKotPrinter" options={printerOptions} />
-        <Row label="Master KOT Print Count" field="masterKotPrintCount" options={countOptions} />
-        <Row label="Master KOT Count(Bill)" field="masterKotBillCount" options={countOptions} />
+    <div className="space-y-6 flex flex-col h-full">
+      <div className="flex-1 overflow-auto space-y-4 pr-2">
+        {/* Main Settings Section */}
+        <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
+          <h3 className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-[#49293e] rounded-full" />
+            General Printing
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+            <Row label="Bill Printer" field="billPrinter" options={printerOptions} />
+            <Row label="KOT Printer" field="kotPrinter" options={printerOptions} />
+            <Row label="Packager Printer" field="packagerPrinter" options={printerOptions} />
+            <Row label="Master KOT Printer" field="masterKOT" options={printerOptions} />
+            <Row label="Master KOT Count" field="masterKOTCount" options={countOptions} isNumeric />
+            <Row label="Bill Count" field="masterKOTBillCount" options={countOptions} isNumeric />
+          </div>
+        </div>
+
+        {/* Android Print Section */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+          <h3 className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
+            Android Mobile Printing
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+            <Row label="Mobile Bill Printer" field="androidBillPrinter" options={printerOptions} />
+            <Row label="Mobile KOT Printer" field="androidKOTPrinter" options={printerOptions} />
+            <Row label="Mobile Packager" field="androidPackagerPrinter" options={printerOptions} />
+          </div>
+        </div>
       </div>
 
-      <div className="border-2 border-slate-100 rounded-2xl p-6 relative bg-slate-50/30">
-        <span className="absolute -top-3 left-6 bg-white px-3 py-0.5 border-2 border-slate-100 rounded-full text-[10px] font-black text-[#49293e] uppercase tracking-[0.2em]">
-          Android Print
-        </span>
-        <div className="space-y-0.5 mt-2">
-          <Row label="Bill Printer Name" field="androidBillPrinter" options={printerOptions} />
-          <Row label="KOT Printer Name" field="androidKotPrinter" options={printerOptions} />
-          <Row label="Packager Printer" field="androidPackagerPrinter" options={printerOptions} />
-        </div>
+      <div className="pt-4 border-t border-slate-100 flex justify-start">
+        <Button 
+          variant="primary" 
+          onClick={() => onSave(settings)}
+          loading={loading}
+          className="px-16 uppercase tracking-widest font-black text-[10px]"
+        >
+          Save Hardware Settings
+        </Button>
       </div>
     </div>
   );

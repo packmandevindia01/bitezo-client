@@ -5,13 +5,13 @@ import Table from "./Table";
 interface Column<T> {
   header: string;
   accessor: keyof T;
-  render?: (row: T) => React.ReactNode;
+  render?: (row: T, index: number) => React.ReactNode;
 }
 
 interface RecordTableCardProps<T> {
   title: string;
-  search: string;
-  onSearchChange: (value: string) => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
   columns: Column<T>[];
   data: T[];
   rowKey: keyof T | ((row: T) => string | number);
@@ -46,14 +46,16 @@ const RecordTableCard = <T,>({
         </div>
 
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
-          <div className="w-full md:w-72">
-            <SearchBar
-              value={search}
-              onChange={onSearchChange}
-              placeholder={`Search ${title.toLowerCase()}`}
-              autoFocus={autoFocusSearch}
-            />
-          </div>
+          {onSearchChange && (
+            <div className="w-full md:w-72">
+              <SearchBar
+                value={search || ""}
+                onChange={onSearchChange}
+                placeholder={`Search ${title.toLowerCase()}`}
+                autoFocus={autoFocusSearch}
+              />
+            </div>
+          )}
 
           {extraActions && (
             <div className="w-full md:w-auto">

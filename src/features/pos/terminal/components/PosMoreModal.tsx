@@ -14,8 +14,9 @@ import {
   Search,
   ArrowLeftRight,
   LogOut,
+  UtensilsCrossed,
 } from 'lucide-react';
-import { Modal, Button } from '../../../../components/common';
+import { Modal } from '../../../../components/common';
 
 interface PosMoreModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ const ORDER_ITEMS = [
   { label: 'ACTIVE ORDERS', icon: FileText },
   { label: 'TABLE STATUS', icon: LayoutGrid },
   { label: 'CUSTOMER SEARCH', icon: Search },
+  { label: 'SET MENU DINE IN', icon: UtensilsCrossed, action: 'setMenuDineIn' },
 ];
 
 const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut }) => {
@@ -56,6 +58,11 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
     if (item.action === 'lock') {
       onClose();
       navigate('/pos/lock-item');
+      return;
+    }
+    if (item.action === 'setMenuDineIn') {
+      onClose();
+      navigate('/pos/dine-in');
       return;
     }
     if (item.action === 'payInOut') {

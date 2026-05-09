@@ -173,4 +173,11 @@ export const categoryService = {
   deleteCategory,
   getBranches,
   uploadCategoryImage,
+  
+  /** GET /api/category/list-name */
+  listName: async (catName?: string): Promise<{ catId: number; catName: string }[]> => {
+    return unwrap(
+      axiosInstance.get<ApiResponse<{ catId: number; catName: string }[]>>("/category/list-name", { params: { catName } })
+    );
+  },
 } as const;
