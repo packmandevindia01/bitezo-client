@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, ListTree, X } from "lucide-react";
+import { LayoutGrid, ListTree, Palette, X } from "lucide-react";
 import { ImageUploadPanel } from "../../../../components/common";
 import type {
   AltProductDraft,
@@ -10,6 +10,7 @@ import type {
 import { useToast } from "../../../../app/providers/useToast";
 import { ProductDetailsSection } from "./ProductDetailsSection";
 import { AlternativePricingGrid } from "./AlternativePricingGrid";
+import { BranchColorsSection } from "./BranchColorsSection";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -50,10 +51,10 @@ const ProductMasterForm = ({
   onBackToList,
 }: ProductMasterFormProps) => {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<"product" | "alternatives">("product");
+  const [activeTab, setActiveTab] = useState<"product" | "alternatives" | "colors">("product");
   
-  const handleTabSwitch = (tab: "product" | "alternatives") => {
-    if (tab === "alternatives") {
+  const handleTabSwitch = (tab: "product" | "alternatives" | "colors") => {
+    if (tab !== "product") {
       const required = [
         { key: "name", label: "Name" },
         { key: "code", label: "Code" },
@@ -105,6 +106,17 @@ const ProductMasterForm = ({
             <ListTree size={18} />
             Alternative Products
           </button>
+          <button
+            onClick={() => handleTabSwitch("colors")}
+            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all ${
+              activeTab === "colors"
+                ? "bg-white text-[#49293e] shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Palette size={18} />
+            Branch Colors
+          </button>
         </div>
 
         {onBackToList && (
@@ -120,26 +132,39 @@ const ProductMasterForm = ({
         )}
       </div>
 
-      {activeTab === "product" ? (
-        <ProductDetailsSection
-          form={form}
-          saving={saving}
-          masterData={masterData}
-          branchOptions={branchOptions}
-          subCatOptions={subCatOptions}
-          loadingSubs={loadingSubs}
-          onChange={onChange}
-        />
-      ) : (
-        <AlternativePricingGrid
-          alternatives={alternatives}
-          masterData={masterData}
-          branches={branches}
-          mainUnitId={form.unitId}
-          mainBranchId={form.branchId}
-          onAlternativesChange={onAlternativesChange}
-        />
-      )}
+      <div className="flex-1 min-h-[400px]">
+        {activeTab === "product" && (
+          <ProductDetailsSection
+            form={form}
+            saving={saving}
+            masterData={masterData}
+            branchOptions={branchOptions}
+            subCatOptions={subCatOptions}
+            loadingSubs={loadingSubs}
+            onChange={onChange}
+          />
+        )}
+        
+        {activeTab === "alternatives" && (
+          <AlternativePricingGrid
+            alternatives={alternatives}
+            masterData={masterData}
+            branches={branches}
+            mainUnitId={form.unitId}
+            mainBranchId={form.branchId}
+            onAlternativesChange={onAlternativesChange}
+          />
+        )}
+
+        {activeTab === "colors" && (
+          <BranchColorsSection
+            productColors={form.productColors}
+            branches={branches}
+            onChange={(colors) => onChange("productColors", colors)}
+            disabled={saving}
+          />
+        )}
+      </div>
 
       {/* ── Image + Buttons footer ── */}
       <div className="mt-4 border-t border-gray-100 pt-6">

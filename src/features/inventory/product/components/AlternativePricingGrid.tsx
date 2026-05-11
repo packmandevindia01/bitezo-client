@@ -49,19 +49,13 @@ export const AlternativePricingGrid = ({
   const branchOptions = branches.map(b => ({ label: b.name, value: String(b.id) }));
   const mainUnitSelected = masterData?.unit?.find(u => String(u.id) === String(mainUnitId));
   const mainUnitCategory = mainUnitSelected?.category;
-  const mgUnit = masterData?.unit?.find(u => u.name === "Mg");
-  console.log("[Unit Filter Debug] mainUnitCategory raw:", mainUnitCategory);
-  console.log("[Unit Filter Debug] Mg category raw:", mgUnit?.category);
-  console.log("[Unit Filter Debug] Are they equal:", mainUnitCategory === mgUnit?.category);
-  
+
   const altUnitOptions = masterData?.unit
     ?.filter(u => {
       if (!mainUnitCategory || !u.category) return true;
       return u.category.toLowerCase().trim() === mainUnitCategory.toLowerCase().trim();
     })
     .map(u => ({ label: u.name, value: String(u.id) })) ?? [];
-
-  console.log("[Unit Filter Debug] Final altUnitOptions:", altUnitOptions);
 
   const ALL_BRANCH_ID = branches.find(b => b.name.toLowerCase() === "all")?.id ?? 0;
 

@@ -20,6 +20,8 @@ export const emptyForm: ProductFormState = {
   cost: "0",
   branchId: "",
   isActive: true,
+  colorCode: "#49293e",
+  productColors: [],
 };
 
 export const emptyAltDraft: Omit<AltProductDraft, "id"> = {

@@ -96,7 +96,7 @@ useEffect(() => {
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 min-h-0 text-sm md:text-base">
+        <div className="flex-1 min-h-0 overflow-y-auto text-sm md:text-base pr-1">
           {children}
         </div>
 

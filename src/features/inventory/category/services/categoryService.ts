@@ -56,6 +56,7 @@ export const getCategories = async (
     name: item.catName,
     isActive: item.isActive === "Active" || item.isActive === true,
     arabic: item.arabic || "",
+    colorCode: item.colorCode || "red",
     branches: [],
   }));
 };

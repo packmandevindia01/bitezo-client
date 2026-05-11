@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
+import PosGroupTabs from "../components/PosGroupTabs";
 import PosOrderPanel from "../components/PosOrderPanel";
 import PosProductGrid from "../components/PosProductGrid";
 import { POS_CART_ACTIONS, POS_MORE_ACTIONS } from "../../constants";
@@ -11,9 +12,11 @@ import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
 import { useToast } from "../../../../app/providers/useToast";
 import { formatCurrency } from "../../../../utils/formatters";
+import type { PosProduct, PosAlternative } from "../../types";
+import { ConfirmDialog } from "../../../../components/common";
+import { menuApi } from "../../services/menuApi";
 import PosMoreModal from "../components/PosMoreModal";
 import { useCashierLog } from "../../cashier";
-import { ConfirmDialog } from "../../../../components/common";
 
 
 const PosTerminalPage = () => {
@@ -24,6 +27,11 @@ const PosTerminalPage = () => {
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
+  // Alternative selection state
+  const [selectedProduct, setSelectedProduct] = useState<PosProduct | null>(null);
+  const [alternatives, setAlternatives] = useState<PosAlternative[]>([]);
+  const [fetchingAlts, setFetchingAlts] = useState(false);
 
   useEffect(() => {
     const state = location.state as { openMoreModal?: boolean };
@@ -36,15 +44,21 @@ const PosTerminalPage = () => {
 
 
   const {
+    groups,
     categories,
-    activeCategory,
+    subCategories,
+    activeGroupId,
     activeCategoryId,
+    activeSubCategoryId,
     cartDetails,
     itemCount,
     search,
     total,
     visibleProducts,
-    setActiveCategoryId,
+    loading,
+    setGroup,
+    setCategory,
+    setSubCategory,
     setSearch,
     addProduct,
     addProductBySku,
@@ -52,6 +66,45 @@ const PosTerminalPage = () => {
     decrementItem,
     incrementItem,
   } = usePosTerminal();
+
+  // Handle product click - check for alternatives
+  const handleProductSelect = async (productId: number) => {
+    const product = visibleProducts.find(p => p.id === productId);
+    if (!product) return;
+
+    setFetchingAlts(true);
+    try {
+      const alts = await menuApi.getAlternatives(productId);
+      
+      if (alts && alts.length > 0) {
+        setAlternatives(alts);
+        setSelectedProduct(product);
+      } else {
+        // No alternatives, add directly
+        addProduct(productId);
+      }
+    } catch (err) {
+      // Fallback: add directly if API fails
+      addProduct(productId);
+    } finally {
+      setFetchingAlts(false);
+    }
+  };
+
+  const handleAltSelect = (variant: PosAlternative) => {
+    if (selectedProduct) {
+      addProduct(selectedProduct.id, variant.altName, variant.price);
+    }
+  };
+
+  const handleGridBack = () => {
+    if (alternatives.length > 0) {
+      setAlternatives([]);
+      setSelectedProduct(null);
+    } else {
+      setSubCategory(null);
+    }
+  };
 
   // 1. Hardware Barcode Scanner Integration
   useBarcodeScanner((barcode) => {
@@ -101,60 +154,70 @@ const PosTerminalPage = () => {
         }}
         status={status}
       />
+      <div className="flex flex-col xl:flex-row xl:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-4 xl:px-6">
+        <div className="shrink-0">
+          <PosGroupTabs 
+            groups={groups} 
+            activeGroupId={activeGroupId} 
+            onSelect={setGroup} 
+          />
+        </div>
+        
+        <div className="flex-1 flex items-center justify-end py-2 xl:py-0">
+          <div className="relative w-full max-w-md group">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#49293e] transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-10 text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/10 transition-all outline-none"
+            />
+          </div>
+          
+          <div className="hidden xl:flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total</span>
+            <span className="text-sm font-bold text-[#49293e]">{visibleProducts.length}</span>
+          </div>
+        </div>
+      </div>
 
+      {(loading || fetchingAlts) && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
+            <p className="text-xs font-bold text-[#49293e] uppercase tracking-widest">
+              {fetchingAlts ? "Fetching Variations..." : "Updating Menu..."}
+            </p>
+          </div>
+        </div>
+      )}
 
-      <main className="flex flex-col flex-1 overflow-hidden xl:grid xl:grid-cols-[280px_minmax(0,1fr)_460px]">
+      <main className="flex flex-col flex-1 overflow-hidden xl:grid xl:grid-cols-[220px_minmax(0,1fr)_460px]">
         {/* Left Column: Categories */}
         <PosCategoryRail
           categories={categories}
-          activeCategoryId={activeCategoryId}
-          onSelect={setActiveCategoryId}
+          activeCategoryId={activeCategoryId ? activeCategoryId.toString() : ""}
+          onSelect={(id) => setCategory(parseInt(id, 10))}
         />
 
-        {/* Middle Column: Search + Grid */}
+        {/* Middle Column: Grid */}
         <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb]">
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between p-4 xl:px-8 xl:py-4 bg-white border-b border-slate-100 gap-4 xl:gap-10">
-            <div className="flex items-center gap-3 xl:gap-4 shrink-0">
-              <div className="space-y-0.5">
-                <h2 className="text-xl md:text-2xl xl:text-3xl font-bold text-[#49293e] tracking-tight whitespace-nowrap">
-                  {activeCategory?.name || "All Items"}
-                </h2>
-                <p className="hidden sm:block text-[9px] xl:text-xs font-bold text-slate-400 uppercase tracking-[0.15em]">
-                  {visibleProducts.length} Items Available
-                </p>
-              </div>
-              <div className="hidden xl:block w-px h-10 bg-slate-100" />
-            </div>
-
-
-            <div className="relative w-full group max-w-2xl">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400 group-focus-within:text-[#49293e] transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 xl:py-3 px-12 shadow-sm text-sm xl:text-base font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/10 transition-all outline-none"
-              />
-            </div>
-
-            <div className="hidden xl:flex flex-col items-end bg-slate-50/50 px-4 py-2 rounded-xl border border-slate-100 min-w-[100px]">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Total Items</span>
-              <span className="text-xl font-bold text-[#49293e] tracking-tighter mt-0.5">{visibleProducts.length}</span>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col p-4 xl:p-8 overflow-hidden pb-24 xl:pb-8">
+          <div className="flex-1 flex flex-col p-3 xl:p-4 overflow-hidden pb-24 xl:pb-4">
             <ErrorBoundary name="Product Grid">
               <PosProductGrid
                 products={visibleProducts}
-                activeCategory={activeCategory}
-                search={search}
-                onAdd={addProduct}
+                subCategories={subCategories}
+                alternatives={alternatives}
+                activeSubCategoryId={activeSubCategoryId}
+                onSelectSubCategory={setSubCategory}
+                onBack={handleGridBack}
+                onAdd={handleProductSelect}
+                onSelectAlt={handleAltSelect}
               />
             </ErrorBoundary>
           </div>

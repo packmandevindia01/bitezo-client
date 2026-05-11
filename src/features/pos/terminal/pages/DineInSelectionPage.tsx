@@ -32,8 +32,8 @@ export const DineInSelectionPage: React.FC = () => {
     navigate('/pos', { state: { openMoreModal: true } });
   };
 
-  const handleTableSelect = (tableId: number) => {
-    console.log(`Table ${tableId} selected`);
+  const handleTableSelect = (_tableId: number) => {
+
     // Here you would typically dispatch an action to set the table in the order state
     navigate('/pos');
   };

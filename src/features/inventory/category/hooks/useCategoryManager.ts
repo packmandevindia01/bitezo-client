@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getConfig } from "../../../../config";
 import {
   createCategory,
   deleteCategory,
@@ -8,24 +9,18 @@ import {
   getCategoryById,
 } from "../services/categoryService";
 import { useToast } from "../../../../app/providers/useToast";
-import type { BranchOption, CategoryListItem } from "../types";
-
-// ── Local form shape ──────────────────────────────────────────────────────────
-
-export interface CategoryFormState {
-  code: string;
-  name: string;
-  arabic: string;
-  isActive: boolean;
-  image: string;
-  imageFile?: File;
-}
+import { groupService } from "../../group/services/groupService";
+import type { GroupListItem } from "../../group/types";
+import type { BranchOption, CategoryListItem, CategoryFormState } from "../types";
 
 const emptyForm: CategoryFormState = {
   code: "",
   name: "",
   arabic: "",
   isActive: true,
+  colorCode: "red",
+  branchAllocations: [],
+  groupIds: [],
   image: "",
 };
 
@@ -35,13 +30,13 @@ export const useCategoryManager = () => {
   // ── data ────────────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState<CategoryListItem[]>([]);
   const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+  const [groups, setGroups] = useState<GroupListItem[]>([]);
 
   // ── ui state ────────────────────────────────────────────────────────────────
   const [form, setForm] = useState<CategoryFormState>(emptyForm);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [branchAllocOpen, setBranchAllocOpen] = useState(false);
-  const [selectedBranchIds, setSelectedBranchIds] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
   const { showToast } = useToast();
 
@@ -69,25 +64,28 @@ export const useCategoryManager = () => {
     }
   }, []);
 
-  const fetchBranches = useCallback(async () => {
+  const fetchBranchesAndGroups = useCallback(async () => {
     try {
-      const data = await getBranches();
-      setBranchOptions(data);
+      const [branches, groupsList] = await Promise.all([
+        getBranches(),
+        groupService.list()
+      ]);
+      setBranchOptions(branches);
+      setGroups(groupsList);
     } catch (err) {
-      console.error("Failed to load branches:", err);
+      console.error("Failed to load branches or groups:", err);
     }
   }, []);
 
   useEffect(() => {
     fetchCategories();
-    fetchBranches();
-  }, [fetchCategories, fetchBranches]);
+    fetchBranchesAndGroups();
+  }, [fetchCategories, fetchBranchesAndGroups]);
 
   // ── helpers ──────────────────────────────────────────────────────────────────
   const resetForm = () => {
     setForm(emptyForm);
     setEditingId(null);
-    setSelectedBranchIds([]);
     setBranchAllocOpen(false);
   };
 
@@ -127,8 +125,10 @@ export const useCategoryManager = () => {
           name: nameVal.trim(),
           arabic: arabicVal.trim(),
           isActive: form.isActive,
+          colorCode: form.colorCode,
           updatedAt: new Date().toISOString(),
-          branchIds: selectedBranchIds,
+          branchIds: form.branchAllocations,
+          groupIds: form.groupIds,
           imageFile: form.imageFile,
         });
       } else {
@@ -137,8 +137,10 @@ export const useCategoryManager = () => {
           name: nameVal.trim(),
           arabic: arabicVal.trim(),
           isActive: form.isActive,
+          colorCode: form.colorCode,
           createdAt: new Date().toISOString(),
-          branchIds: selectedBranchIds,
+          branchIds: form.branchAllocations,
+          groupIds: form.groupIds,
           imageFile: form.imageFile,
         });
       }
@@ -177,14 +179,13 @@ export const useCategoryManager = () => {
       setEditingId(catId);
       const catImage = cat?.fileurl || cat?.filePath || cat?.filepath || cat?.image || "";
       let imagePreviewUrl = "";
-      if (catImage) {
+
+      if (catImage && catImage !== "string") {
         if (catImage.startsWith("http")) {
           imagePreviewUrl = catImage;
         } else {
-          const apiUrl = (window as any).RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
-          const baseUrl = apiUrl 
-            ? apiUrl.replace(/\/api\/?$/, "") 
-            : window.location.origin;
+          const apiUrl = getConfig().apiBaseUrl || "";
+          const baseUrl = apiUrl.replace(/\/api\/?$/, "");
             
           const cleanPath = catImage.replace(/^\/?api\//i, "").replace(/^\//, "");
           imagePreviewUrl = `${baseUrl}/${cleanPath}`;
@@ -199,11 +200,14 @@ export const useCategoryManager = () => {
         name: catName,
         arabic: catArabic,
         isActive: catIsActive,
+        colorCode: cat?.colorCode || "red",
+        branchAllocations: (res?.branch || []).map((b: any) => ({
+          branchId: Number(b.id || b.branchId),
+          colorCode: b.colorCode || "red"
+        })),
+        groupIds: (res?.group || []).map((g: any) => Number(g.id || g.groupId)),
         image: imagePreviewUrl,
       });
-      // The API returns `branch` array of BranchOption or matching shape
-      const allocatedBranches = res?.branch || [];
-      setSelectedBranchIds(allocatedBranches.map((b: { id?: number; branchId?: number }) => Number(b.id || b.branchId)));
       setOpen(true);
     } catch (err) {
       setError("Failed to load category details. Please try again.");
@@ -240,9 +244,32 @@ export const useCategoryManager = () => {
 
   // ── branch toggle ────────────────────────────────────────────────────────────
   const toggleBranch = (branchId: number) => {
-    setSelectedBranchIds((prev) =>
-      prev.includes(branchId) ? prev.filter((id) => id !== branchId) : [...prev, branchId]
-    );
+    setForm((prev) => {
+      const isAllocated = prev.branchAllocations.some((b) => b.branchId === branchId);
+      if (isAllocated) {
+        return {
+          ...prev,
+          branchAllocations: prev.branchAllocations.filter((b) => b.branchId !== branchId),
+        };
+      } else {
+        return {
+          ...prev,
+          branchAllocations: [
+            ...prev.branchAllocations,
+            { branchId, colorCode: prev.colorCode || "red" }, // Default to main category color
+          ],
+        };
+      }
+    });
+  };
+
+  const toggleGroup = (groupId: number) => {
+    setForm((prev) => ({
+      ...prev,
+      groupIds: prev.groupIds.includes(groupId)
+        ? prev.groupIds.filter((id) => id !== groupId)
+        : [...prev.groupIds, groupId],
+    }));
   };
 
   // ── filtered list ────────────────────────────────────────────────────────────
@@ -266,9 +293,9 @@ export const useCategoryManager = () => {
     editingId,
     branchAllocOpen,
     setBranchAllocOpen,
-    selectedBranchIds,
     open,
     branchOptions,
+    groups,
     // async flags
     loading,
     saving,
@@ -288,6 +315,7 @@ export const useCategoryManager = () => {
     handleSave,
     handleEdit,
     toggleBranch,
+    toggleGroup,
     filteredCategories,
   };
 };

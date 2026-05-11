@@ -1,19 +1,36 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { 
-  POS_CATEGORIES, 
   POS_ORDER_TYPES, 
   POS_TENDER_OPTIONS, 
   POS_INITIAL_CART 
 } from '../../constants';
-import type { PosCartItem } from '../../types';
+import type { 
+  PosCartItem, 
+  MenuGroup, 
+  PosCategory, 
+  MenuSubCategory, 
+  PosProduct 
+} from '../../types';
 
 interface PosState {
   cartItems: PosCartItem[];
-  activeCategoryId: string;
   search: string;
   selectedOrderType: string;
   selectedTender: string;
+
+  // Dynamic Menu Data
+  groups: MenuGroup[];
+  categories: PosCategory[];
+  subCategories: MenuSubCategory[];
+  products: PosProduct[];
+  
+  activeGroupId: number | null;
+  activeCategoryId: number | null;
+  activeSubCategoryId: number | null;
+  
+  loading: boolean;
+  error: string | null;
 }
 
 const loadCart = (): PosCartItem[] => {
@@ -28,53 +45,81 @@ const loadCart = (): PosCartItem[] => {
 
 const initialState: PosState = {
   cartItems: loadCart(),
-  activeCategoryId: POS_CATEGORIES[0]?.id ?? '',
   search: '',
   selectedOrderType: POS_ORDER_TYPES[0]?.id ?? '',
   selectedTender: POS_TENDER_OPTIONS[0]?.id ?? '',
+  
+  groups: [],
+  categories: [],
+  subCategories: [],
+  products: [],
+  
+  activeGroupId: null,
+  activeCategoryId: null,
+  activeSubCategoryId: null,
+  
+  loading: false,
+  error: null,
 };
 
 const posSlice = createSlice({
   name: 'pos',
   initialState,
   reducers: {
-    addToCart: (state, action: PayloadAction<number>) => {
-      const existing = state.cartItems.find(item => item.productId === action.payload);
+    addToCart: (state, action: PayloadAction<{ productId: number; variantName?: string; price?: number }>) => {
+      const { productId, variantName, price } = action.payload;
+      const existing = state.cartItems.find(item => 
+        item.productId === productId && item.variantName === variantName
+      );
       if (existing) {
         existing.quantity += 1;
       } else {
-        state.cartItems.push({ productId: action.payload, quantity: 1 });
+        state.cartItems.push({ productId, quantity: 1, variantName, price });
       }
       localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
     },
-    incrementItem: (state, action: PayloadAction<number>) => {
-      const item = state.cartItems.find(i => i.productId === action.payload);
+    incrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
+      const { productId, variantName } = action.payload;
+      const item = state.cartItems.find(i => 
+        i.productId === productId && i.variantName === variantName
+      );
       if (item) {
         item.quantity += 1;
         localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
-    decrementItem: (state, action: PayloadAction<number>) => {
-      const item = state.cartItems.find(i => i.productId === action.payload);
+    decrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
+      const { productId, variantName } = action.payload;
+      const item = state.cartItems.find(i => 
+        i.productId === productId && i.variantName === variantName
+      );
       if (item) {
         if (item.quantity > 1) {
           item.quantity -= 1;
         } else {
-          state.cartItems = state.cartItems.filter(i => i.productId !== action.payload);
+          state.cartItems = state.cartItems.filter(i => 
+            !(i.productId === productId && i.variantName === variantName)
+          );
         }
         localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
-    removeFromCart: (state, action: PayloadAction<number>) => {
-      state.cartItems = state.cartItems.filter(i => i.productId !== action.payload);
+    removeFromCart: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
+      const { productId, variantName } = action.payload;
+      state.cartItems = state.cartItems.filter(i => 
+        !(i.productId === productId && i.variantName === variantName)
+      );
       localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
     },
     clearCart: (state) => {
       state.cartItems = [];
       localStorage.removeItem('posCartItems');
     },
-    setCategory: (state, action: PayloadAction<string>) => {
+    setCategory: (state, action: PayloadAction<number | null>) => {
       state.activeCategoryId = action.payload;
+      state.activeSubCategoryId = null; // reset subcat on cat change
+      state.subCategories = []; // clear subcategories to prevent stale data
+      state.products = []; // clear products to prevent stale data
     },
     setSearch: (state, action: PayloadAction<string>) => {
       state.search = action.payload;
@@ -84,6 +129,37 @@ const posSlice = createSlice({
     },
     setTenderOption: (state, action: PayloadAction<string>) => {
       state.selectedTender = action.payload;
+    },
+    
+    // Dynamic Menu Actions
+    setGroups: (state, action: PayloadAction<MenuGroup[]>) => {
+      state.groups = action.payload;
+    },
+    setGroup: (state, action: PayloadAction<number | null>) => {
+      state.activeGroupId = action.payload;
+      state.activeCategoryId = null; // reset hierarchy
+      state.activeSubCategoryId = null;
+      state.categories = [];
+      state.subCategories = [];
+      state.products = [];
+    },
+    setCategories: (state, action: PayloadAction<PosCategory[]>) => {
+      state.categories = action.payload;
+    },
+    setSubCategories: (state, action: PayloadAction<MenuSubCategory[]>) => {
+      state.subCategories = action.payload;
+    },
+    setSubCategory: (state, action: PayloadAction<number | null>) => {
+      state.activeSubCategoryId = action.payload;
+    },
+    setProducts: (state, action: PayloadAction<PosProduct[]>) => {
+      state.products = action.payload;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
     },
   },
 });
@@ -97,13 +173,20 @@ export const {
   setCategory,
   setSearch,
   setOrderType,
-  setTenderOption
+  setTenderOption,
+  setGroups,
+  setGroup,
+  setCategories,
+  setSubCategories,
+  setSubCategory,
+  setProducts,
+  setLoading,
+  setError
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../../../app/store';
-import { POS_PRODUCTS } from '../../constants';
 
 const TAX_RATE = 0.05;
 const DISCOUNT_RATE = 0.08;
@@ -114,12 +197,19 @@ export const selectCartDetails = createSelector(
   [selectPosState],
   (pos) => {
     return pos.cartItems.map((item: PosCartItem) => {
-      const product = POS_PRODUCTS.find(p => p.id === item.productId);
+      const product = pos.products.find(p => p.id === item.productId);
       if (!product) return null;
+      const price = item.price ?? product.price;
+      const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
+      
       return {
         ...item,
-        product,
-        lineTotal: product.price * item.quantity
+        product: {
+          ...product,
+          name: displayName,
+          price: price
+        },
+        lineTotal: price * item.quantity
       };
     }).filter((item): item is NonNullable<typeof item> => item !== null);
   }

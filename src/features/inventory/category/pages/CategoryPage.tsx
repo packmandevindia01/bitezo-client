@@ -15,9 +15,9 @@ const CategoryPage = () => {
     editingId,
     branchAllocOpen,
     setBranchAllocOpen,
-    selectedBranchIds,
     open,
     branchOptions,
+    groups,
     loading,
     saving,
     error,
@@ -33,6 +33,7 @@ const CategoryPage = () => {
     handleSave,
     handleEdit,
     toggleBranch,
+    toggleGroup,
     filteredCategories,
   } = useCategoryManager();
 
@@ -73,13 +74,14 @@ const CategoryPage = () => {
         form={form}
         saving={saving}
         branchAllocOpen={branchAllocOpen}
-        selectedBranchIds={selectedBranchIds}
         branchOptions={branchOptions}
+        groups={groups}
         onClose={closeModal}
         onImageSelect={handleImageSelect}
         onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
         onToggleBranchAlloc={() => setBranchAllocOpen((prev) => !prev)}
         onToggleBranch={toggleBranch}
+        onToggleGroup={toggleGroup}
         onClear={resetForm}
         onSave={handleSave}
       />

@@ -51,6 +51,11 @@ export interface AltProductItem {
   branchId: number;
 }
 
+export interface ProductColorItem {
+  branchId: number;
+  colorCode: string;
+}
+
 export interface ProductListItem {
   productId: number;
   sNo: number;
@@ -82,8 +87,10 @@ export interface ProductDetail {
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
+    colorCode: string | null;
   } | null;
   altProducts: AltProductItem[] | null;
+  productColors: ProductColorItem[] | null;
 }
 
 export interface CreateProductPayload {
@@ -102,8 +109,10 @@ export interface CreateProductPayload {
   fileName?: string;
   filePath?: string;
   isActive: boolean;
+  colorCode: string;
   createdAt: string;
   altProducts: AltProductItem[];
+  productColors: ProductColorItem[];
 }
 
 export interface UpdateProductPayload extends Omit<CreateProductPayload, "createdAt"> {
@@ -127,6 +136,8 @@ export interface ProductFormState {
   cost: string;
   branchId: string;
   isActive: boolean;
+  colorCode: string;
+  productColors: ProductColorItem[];
   // File handling
   fileName?: string;
   filePath?: string;

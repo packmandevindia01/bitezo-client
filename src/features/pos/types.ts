@@ -1,22 +1,28 @@
 export interface PosCategory {
-  id: string;
+  id: number;
   name: string;
-  description: string;
+  arabicName?: string;
+  imageUrl?: string | null;
+  colorCode?: string;
 }
 
 export interface PosProduct {
   id: number;
   name: string;
-  categoryId: string;
+  arabicName?: string;
+  categoryId: number;
   price: number;
-  sku: string;
-  prepTime: string;
-  bestseller?: boolean;
+  sku?: string;
+  prepTime?: string;
+  imageUrl?: string | null;
+  colorCode?: string;
 }
 
 export interface PosCartItem {
   productId: number;
   quantity: number;
+  variantName?: string;
+  price?: number;
 }
 
 export interface PosQuickAction {
@@ -77,4 +83,31 @@ export interface SectionPrinterSetting {
 export interface OrderTypePrinterSetting {
   orderType: string;
   printer: string;
+}
+// ─── Menu API Types ──────────────────────────────────────────────────────────
+
+export interface MenuGroup {
+  groupId: number;
+  groupName: string;
+  arabicName: string;
+}
+
+export interface MenuSubCategory {
+  subCategoryId: number;
+  subCategoryName: string;
+  arabicName: string;
+  imageUrl: string | null;
+}
+
+export interface MenuMasterData {
+  group: MenuGroup[];
+  category: PosCategory[];
+}
+
+export interface PosAlternative {
+  altName: string;
+  altArabic: string;
+  isIncl: boolean;
+  price: number;
+  unitId: number;
 }

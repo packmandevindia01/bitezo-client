@@ -14,7 +14,7 @@ export const loadConfig = async (): Promise<AppConfig> => {
       throw new Error("Failed to load runtime config");
     }
     config = await response.json();
-    console.log("[Config] Runtime config loaded:", config);
+
     return config!;
   } catch (error) {
     console.error("[Config] Error loading config, falling back to env:", error);

@@ -7,9 +7,10 @@ interface CartRow {
   productId: number;
   quantity: number;
   lineTotal: number;
+  variantName?: string;
   product: {
     name: string;
-    sku: string;
+    sku?: string;
     price: number;
   };
 }
@@ -19,8 +20,8 @@ interface PosOrderPanelProps {
   extraActions: PosQuickAction[];
   cartDetails: CartRow[];
   total: number;
-  onIncrement: (productId: number) => void;
-  onDecrement: (productId: number) => void;
+  onIncrement: (productId: number, variantName?: string) => void;
+  onDecrement: (productId: number, variantName?: string) => void;
   onClose?: () => void;
 }
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
+import { getConfig } from "../../../../config";
 
 interface ProductActionsDeps {
   formState: {
@@ -62,29 +63,29 @@ export const useProductActions = ({ formState, altState, productList, branches }
           cost: String(p.cost ?? "0"),
           branchId: String(p.branchId ?? ""),
           isActive: p.isActive ?? true,
+          colorCode: p.colorCode ?? "#49293e",
+          productColors: (detail.productColors ?? []).map((pc: any) => ({
+            branchId: Number(pc.branchId),
+            colorCode: pc.colorCode || "#49293e"
+          })),
           fileName: p.fileName ?? "",
           filePath: p.filePath ?? "",
         });
 
-        if (p.filePath) {
-          // Calculate base URL from API URL (strip /api)
-          const apiUrl = (window as any).RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
-          const baseUrl = apiUrl 
-            ? apiUrl.replace(/\/api\/?$/, "") 
-            : window.location.origin;
-            
-          // Strip /api if it exists at the start of the filePath returned by server
-          const cleanPath = p.filePath.replace(/^\/?api\//i, "").replace(/^\//, "");
+        if (p.fileUrl || p.fileurl || p.filePath) {
+          const rawUrl = p.fileUrl || p.fileurl || p.filePath;
           
-          let fullUrl = p.filePath.startsWith("http") 
-            ? p.filePath 
-            : `${baseUrl}/${cleanPath}`;
-            
-          // Clean up any other potential double slashes
-          fullUrl = fullUrl.replace(/([^:]\/)\/+/g, "$1");
-          
-          console.log("[Product Image Debug] Full URL:", fullUrl);
-          formState.setImagePreview(fullUrl);
+          if (rawUrl.startsWith("http")) {
+            formState.setImagePreview(rawUrl);
+          } else {
+            // Fallback for relative paths
+            const apiUrl = getConfig().apiBaseUrl || "";
+            const baseUrl = apiUrl.replace(/\/api\/?$/, "");
+            const cleanPath = rawUrl.replace(/^\/?api\//i, "").replace(/^\//, "");
+            let fullUrl = `${baseUrl}/${cleanPath}`;
+            fullUrl = fullUrl.replace(/([^:]\/)\/+/g, "$1");
+            formState.setImagePreview(fullUrl);
+          }
         }
       }
       
@@ -122,7 +123,7 @@ export const useProductActions = ({ formState, altState, productList, branches }
     
     const ALL_BRANCH_ID = branches.find(b => 
       b.name?.toLowerCase() === "all" || b.branchName?.toLowerCase() === "all"
-    )?.id ?? 1;
+    )?.id ?? null;
     
     const unitBranchPairs = [
       { unitId: parseInt(String(form.unitId)), branchId: parseInt(String(form.branchId)), source: "Main Product" },
@@ -142,19 +143,19 @@ export const useProductActions = ({ formState, altState, productList, branches }
       }))
     ];
 
-    // Validate Units
-    for (let i = 0; i < unitBranchPairs.length; i++) {
+    // Validate Units (Ignore main product vs alternatives for the same branch, only check for duplicates within alternatives themselves)
+    for (let i = 1; i < unitBranchPairs.length; i++) {
       const current = unitBranchPairs[i];
       for (let j = i + 1; j < unitBranchPairs.length; j++) {
         const other = unitBranchPairs[j];
         if (current.unitId === other.unitId) {
           // Rule 1: Unique per branch
           if (current.branchId === other.branchId) {
-            showToast(`Validation Error: Unit assigned multiple times to the same branch (${current.source} & ${other.source}).`, "warning");
+            showToast(`Validation Error: Unit assigned multiple times to the same branch in alternative products (${current.source} & ${other.source}).`, "warning");
             return;
           }
           // Rule 2: 'All' branch restriction
-          if (current.branchId === ALL_BRANCH_ID || other.branchId === ALL_BRANCH_ID) {
+          if (ALL_BRANCH_ID !== null && (current.branchId === ALL_BRANCH_ID || other.branchId === ALL_BRANCH_ID)) {
             showToast(`Validation Error: Unit assigned to 'All' branch cannot be assigned to individual branches.`, "warning");
             return;
           }
@@ -178,7 +179,7 @@ export const useProductActions = ({ formState, altState, productList, branches }
             return;
           }
           // Rule 2: 'All' branch restriction
-          if (current.branchId === ALL_BRANCH_ID || other.branchId === ALL_BRANCH_ID) {
+          if (ALL_BRANCH_ID !== null && (current.branchId === ALL_BRANCH_ID || other.branchId === ALL_BRANCH_ID)) {
             showToast(`Validation Error: Barcode "${current.code}" assigned to 'All' branch cannot be assigned to individual branches.`, "warning");
             return;
           }
@@ -203,6 +204,11 @@ export const useProductActions = ({ formState, altState, productList, branches }
         cost: parseFloat(String(form.cost)) || 0,
         branchId: parseInt(String(form.branchId)) || 1,
         isActive: form.isActive !== false,
+        colorCode: form.colorCode || "#49293e",
+        productColors: form.productColors.map((pc: any) => ({
+          branchId: parseInt(String(pc.branchId)) || 0,
+          colorCode: pc.colorCode || "#49293e"
+        })),
         altProducts: alternatives.map((alt: any) => ({
           unitId: parseInt(alt.unitId) || 0,
           barcode: alt.barcode || "",

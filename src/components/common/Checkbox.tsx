@@ -7,6 +7,7 @@ interface Props {
   disabled?: boolean;
   id?: string;
   error?: string;
+  tabIndex?: number;
 }
 
 const Checkbox = ({
@@ -16,6 +17,7 @@ const Checkbox = ({
   disabled,
   id,
   error,
+  tabIndex,
 }: Props) => {
   const inputId = id || label?.replace(/\s+/g, "-").toLowerCase();
 
@@ -34,6 +36,7 @@ const Checkbox = ({
           checked={checked}
           onChange={onChange}
           disabled={disabled}
+          tabIndex={tabIndex}
           className={`
             w-4 h-4 md:w-5 md:h-5
             accent-[#49293e]

@@ -26,14 +26,14 @@ export const usePosCartActions = () => {
   const itemCount = useAppSelector(selectItemCount);
   const { selectedOrderType, selectedTender } = useAppSelector((state) => state.pos);
 
-  const addProduct = (productId: number) => {
-    dispatch(addToCart(productId));
+  const addProduct = (productId: number, variantName?: string, price?: number) => {
+    dispatch(addToCart({ productId, variantName, price }));
   };
 
   const addProductBySku = (sku: string) => {
-    const product = POS_PRODUCTS.find((p) => p.sku.toLowerCase() === sku.toLowerCase());
+    const product = POS_PRODUCTS.find((p) => p.sku?.toLowerCase() === sku.toLowerCase());
     if (product) {
-      dispatch(addToCart(product.id));
+      dispatch(addToCart({ productId: product.id }));
       return true;
     }
     return false;
@@ -50,8 +50,8 @@ export const usePosCartActions = () => {
     selectedTender,
     addProduct,
     addProductBySku,
-    incrementItem: (id: number) => dispatch(incrementItem(id)),
-    decrementItem: (id: number) => dispatch(decrementItem(id)),
+    incrementItem: (productId: number, variantName?: string) => dispatch(incrementItem({ productId, variantName })),
+    decrementItem: (productId: number, variantName?: string) => dispatch(decrementItem({ productId, variantName })),
     clearCart: () => dispatch(clearCart()),
     setSelectedOrderType: (id: string) => dispatch(setOrderType(id)),
     setSelectedTender: (id: string) => dispatch(setTenderOption(id)),

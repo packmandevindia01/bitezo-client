@@ -171,6 +171,29 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
         />
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700">Default Product Color</label>
+          <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/30 px-3 py-2 h-[42px]">
+            <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+              <input
+                type="color"
+                value={form.colorCode || "#49293e"}
+                onChange={(e) => onChange("colorCode", e.target.value)}
+                disabled={saving}
+                className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
+              />
+            </div>
+            <input
+              type="text"
+              value={form.colorCode || "#49293e"}
+              onChange={(e) => onChange("colorCode", e.target.value)}
+              disabled={saving}
+              className="w-full rounded-md border-none bg-transparent text-sm font-mono outline-none focus:ring-0 uppercase"
+              placeholder="#000000"
+              maxLength={7}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

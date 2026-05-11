@@ -48,6 +48,9 @@ export const useGroupManager = () => {
             arabicName: form.arabicName,
             isActive: form.isActive,
             updatedAt: new Date().toISOString(),
+            posStatus: form.posStatus,
+            startTime: form.startTime,
+            endTime: form.endTime,
           });
         } else {
           await groupService.create({
@@ -56,6 +59,9 @@ export const useGroupManager = () => {
             arabicName: form.arabicName,
             isActive: form.isActive,
             createdAt: new Date().toISOString(),
+            posStatus: form.posStatus,
+            startTime: form.startTime,
+            endTime: form.endTime,
           });
         }
 

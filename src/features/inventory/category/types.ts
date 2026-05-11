@@ -12,11 +12,17 @@ export interface ApiResponse<T> {
   isSuccess: boolean;
 }
 
+export interface BranchAllocation {
+  branchId: number;
+  colorCode: string;
+}
+
 export interface CategoryListItem {
   id: number;
   code: string;
   name: string;
   arabic: string;
+  colorCode: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -25,7 +31,8 @@ export interface CategoryListItem {
 
 export interface CategoryDetailData {
   category: CategoryListItem | null;
-  branch: BranchOption[] | null;
+  branch: (BranchOption & { colorCode?: string })[] | null;
+  group: BranchOption[] | null;
 }
 
 export interface CategoryFormState {
@@ -33,7 +40,9 @@ export interface CategoryFormState {
   name: string;
   arabic: string;
   isActive: boolean;
-  branchIds: number[];
+  colorCode: string;
+  branchAllocations: BranchAllocation[];
+  groupIds: number[];
   imageFile?: File;
   image?: string; // Preview URL
 }
@@ -48,8 +57,10 @@ export interface CreateCategoryPayload {
   name: string;
   arabic: string;
   isActive: boolean;
+  colorCode: string;
   createdAt: string;
-  branchIds: number[];
+  branchIds: BranchAllocation[];
+  groupIds: number[];
 }
 
 export interface UpdateCategoryPayload {
@@ -58,6 +69,8 @@ export interface UpdateCategoryPayload {
   name: string;
   arabic: string;
   isActive: boolean;
+  colorCode: string;
   updatedAt: string;
-  branchIds: number[];
+  branchIds: BranchAllocation[];
+  groupIds: number[];
 }

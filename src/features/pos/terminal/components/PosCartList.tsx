@@ -5,17 +5,18 @@ interface CartRow {
   productId: number;
   quantity: number;
   lineTotal: number;
+  variantName?: string;
   product: {
     name: string;
-    sku: string;
+    sku?: string;
     price: number;
   };
 }
 
 interface PosCartListProps {
   cartDetails: CartRow[];
-  onIncrement: (productId: number) => void;
-  onDecrement: (productId: number) => void;
+  onIncrement: (productId: number, variantName?: string) => void;
+  onDecrement: (productId: number, variantName?: string) => void;
 }
 
 const PosCartList = ({ cartDetails, onIncrement, onDecrement }: PosCartListProps) => {
@@ -36,7 +37,7 @@ const PosCartList = ({ cartDetails, onIncrement, onDecrement }: PosCartListProps
         ) : (
           cartDetails.map((item) => (
             <div
-              key={item.productId}
+              key={`${item.productId}-${item.variantName || "main"}`}
               className="grid grid-cols-[1.5fr_0.8fr_0.7fr] items-center gap-2 px-4 py-3 border-b border-slate-50 transition-colors hover:bg-slate-50/50 group"
             >
               <div className="min-w-0">
@@ -46,7 +47,7 @@ const PosCartList = ({ cartDetails, onIncrement, onDecrement }: PosCartListProps
               <div className="flex items-center justify-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => onIncrement(item.productId)}
+                  onClick={() => onIncrement(item.productId, item.variantName)}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-pos-green/40 bg-white text-pos-green-dark text-xs font-bold shadow-sm transition-all hover:border-pos-green active:scale-90"
                 >
                   +
@@ -54,7 +55,7 @@ const PosCartList = ({ cartDetails, onIncrement, onDecrement }: PosCartListProps
                 <span className="min-w-[1.25rem] text-center text-xs font-bold text-slate-700">{item.quantity}</span>
                 <button
                   type="button"
-                  onClick={() => onDecrement(item.productId)}
+                  onClick={() => onDecrement(item.productId, item.variantName)}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-pos-green/40 bg-white text-pos-green-dark text-xs font-bold shadow-sm transition-all hover:border-pos-green active:scale-90"
                 >
                   -
