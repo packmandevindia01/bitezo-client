@@ -39,7 +39,6 @@ export const usePosProducts = () => {
       if (data.group.length > 0 && !activeGroupId) {
         dispatch(setGroup(data.group[0].groupId));
       }
-      // If we are already in a group, we might want to keep it
     } catch (err: any) {
       dispatch(setError(err.message));
     } finally {
@@ -62,24 +61,34 @@ export const usePosProducts = () => {
     }
   }, [dispatch, activeCategoryId]);
 
+  // Internal: fetches products WITHOUT touching the loading flag.
+  // Used inside fetchSubCategories so only one loading cycle occurs.
+  const _fetchProductsRaw = useCallback(async (catId: number, subCatId: number) => {
+    const data = await menuApi.getProducts(catId, subCatId);
+    dispatch(setProducts(data));
+  }, [dispatch]);
+
   const fetchSubCategories = useCallback(async (categoryId: number) => {
     dispatch(setLoading(true));
     try {
       const data = await menuApi.getSubCategories(categoryId);
       dispatch(setSubCategories(data));
-      if (data.length > 0) {
-        // Don't auto-select subcategory to allow card-based selection in the grid
-        dispatch(setSubCategory(null));
+
+      if (data.length === 0) {
+        // No subcategories — fetch products directly (no second loading cycle)
+        await _fetchProductsRaw(categoryId, 0);
       } else {
         dispatch(setSubCategory(null));
+        dispatch(setProducts([]));
       }
     } catch (err: any) {
       console.error(err);
     } finally {
       dispatch(setLoading(false));
     }
-  }, [dispatch]);
+  }, [dispatch, _fetchProductsRaw]);
 
+  // Public: fetches products when user explicitly selects a subcategory.
   const fetchProducts = useCallback(async (catId: number, subCatId: number) => {
     dispatch(setLoading(true));
     try {
@@ -112,18 +121,11 @@ export const usePosProducts = () => {
     }
   }, [activeCategoryId, fetchSubCategories]);
 
+  // Only fires when user explicitly picks a subcategory (activeSubCategoryId changes)
   useEffect(() => {
-    if (activeCategoryId && !loading) {
-      if (activeSubCategoryId) {
-        fetchProducts(activeCategoryId, activeSubCategoryId);
-      } else if (subCategories.length === 0) {
-        // Only fetch if we haven't already fetched products for this category (or if products are empty)
-        // This avoids the infinite loop
-        fetchProducts(activeCategoryId, 0);
-      }
+    if (activeCategoryId && activeSubCategoryId) {
+      fetchProducts(activeCategoryId, activeSubCategoryId);
     }
-    // We remove subCategories.length and loading from dependencies to avoid infinite loops
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategoryId, activeSubCategoryId, fetchProducts]);
 
   // ─── Search & Filtering ────────────────────────────────────────────────────

@@ -1,21 +1,48 @@
 import { formatAmount } from "../../../../utils/formatters";
 
 interface PosOrderSummaryProps {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  charges: number;
   total: number;
   onSettle?: () => void;
   onOrder?: () => void;
 }
 
-const PosOrderSummary = ({ total, onSettle, onOrder }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSettle, onOrder }: PosOrderSummaryProps) => {
   return (
     <div className="p-3 bg-slate-50/80 border-t border-slate-200 space-y-3">
+      {/* Financial Breakdown */}
+      <div className="space-y-1 border-b border-slate-200/60 pb-3">
+        <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+          <span>SUBTOTAL</span>
+          <span>{formatAmount(subtotal)}</span>
+        </div>
+        {discount > 0 && (
+          <div className="flex justify-between items-center text-[11px] font-bold text-red-500">
+            <span>DISCOUNT</span>
+            <span>- {formatAmount(discount)}</span>
+          </div>
+        )}
+        {charges > 0 && (
+          <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+            <span>CHARGES (SC+LEVY)</span>
+            <span>{formatAmount(charges)}</span>
+          </div>
+        )}
+        {tax > 0 && (
+          <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+            <span>VAT</span>
+            <span>{formatAmount(tax)}</span>
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1.5">
-          <button className="h-8 px-4 rounded-lg bg-pos-green text-white text-[10px] font-bold uppercase shadow-sm hover:bg-pos-green-dark transition-colors active:scale-95">
+          <button className="h-8 px-4 rounded-lg bg-[#ff9500] text-white text-[10px] font-black uppercase shadow-sm hover:bg-[#e68600] transition-colors active:scale-95">
             Discount
-          </button>
-          <button className="h-8 px-4 rounded-lg bg-pos-green text-white text-[10px] font-bold uppercase shadow-sm hover:bg-pos-green-dark transition-colors active:scale-95">
-            Com
           </button>
         </div>
         <div className="flex flex-col items-end leading-none">
@@ -79,4 +106,4 @@ const PosOrderSummary = ({ total, onSettle, onOrder }: PosOrderSummaryProps) => 
   );
 };
 
-export default PosOrderSummary;
+

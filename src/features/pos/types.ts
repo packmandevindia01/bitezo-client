@@ -16,6 +16,7 @@ export interface PosProduct {
   prepTime?: string;
   imageUrl?: string | null;
   colorCode?: string;
+  vatValue?: number;
 }
 
 export interface PosCartItem {
@@ -23,6 +24,10 @@ export interface PosCartItem {
   quantity: number;
   variantName?: string;
   price?: number;
+  discountValue?: number;
+  discountType?: 'percentage' | 'amount';
+  extras?: { id: number; name: string; price: number; qty: number }[];
+  modifiers?: { id: number; name: string; qty: number }[];
 }
 
 export interface PosQuickAction {
@@ -110,4 +115,29 @@ export interface PosAlternative {
   isIncl: boolean;
   price: number;
   unitId: number;
+}
+
+export interface PosExtra {
+  id: number;
+  name: string;
+  arabicName?: string;
+  price: number;
+}
+
+export interface PosExtraType {
+  typeId: number;
+  typeName: string;
+  arabicName?: string;
+}
+
+export interface PosModifier {
+  id: number;
+  name: string;
+  arabicName?: string;
+}
+
+export interface PosModifierType {
+  typeId: number;
+  typeName: string;
+  arabicName?: string;
 }

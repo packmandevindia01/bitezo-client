@@ -4,14 +4,20 @@ import {
   addToCart,
   incrementItem,
   decrementItem,
+  removeFromCart,
   clearCart,
   setOrderType,
   setTenderOption,
+  setBillDiscount,
+  setItemDiscount,
+  updateItemPrice,
+  setItemCustomizations,
   selectCartDetails,
   selectSubtotal,
   selectDiscount,
   selectTax,
   selectTotal,
+  selectCharges,
   selectItemCount,
 } from "../store/posSlice";
 
@@ -22,6 +28,7 @@ export const usePosCartActions = () => {
   const subtotal = useAppSelector(selectSubtotal);
   const discount = useAppSelector(selectDiscount);
   const tax = useAppSelector(selectTax);
+  const charges = useAppSelector(selectCharges);
   const total = useAppSelector(selectTotal);
   const itemCount = useAppSelector(selectItemCount);
   const { selectedOrderType, selectedTender } = useAppSelector((state) => state.pos);
@@ -44,6 +51,7 @@ export const usePosCartActions = () => {
     subtotal,
     discount,
     tax,
+    charges,
     total,
     itemCount,
     selectedOrderType,
@@ -52,8 +60,16 @@ export const usePosCartActions = () => {
     addProductBySku,
     incrementItem: (productId: number, variantName?: string) => dispatch(incrementItem({ productId, variantName })),
     decrementItem: (productId: number, variantName?: string) => dispatch(decrementItem({ productId, variantName })),
+    removeItem: (productId: number, variantName?: string) => dispatch(removeFromCart({ productId, variantName })),
     clearCart: () => dispatch(clearCart()),
     setSelectedOrderType: (id: string) => dispatch(setOrderType(id)),
     setSelectedTender: (id: string) => dispatch(setTenderOption(id)),
+    setBillDiscount: (value: number, type: 'percentage' | 'amount') => dispatch(setBillDiscount({ value, type })),
+    setItemDiscount: (productId: number, variantName: string | undefined, value: number, type: 'percentage' | 'amount') => 
+      dispatch(setItemDiscount({ productId, variantName, value, type })),
+    updateItemPrice: (productId: number, variantName: string | undefined, price: number) =>
+      dispatch(updateItemPrice({ productId, variantName, price })),
+    setItemCustomizations: (productId: number, variantName: string | undefined, extras?: any[], modifiers?: any[]) =>
+      dispatch(setItemCustomizations({ productId, variantName, extras, modifiers })),
   };
 };

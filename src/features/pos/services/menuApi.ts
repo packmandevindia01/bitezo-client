@@ -62,11 +62,28 @@ export const menuApi = {
       categoryId: categoryId,
       price: p.price,
       imageUrl: p.imageUrl,
-      colorCode: p.colorCode
+      colorCode: p.colorCode,
+      vatValue: p.vatValue
     })) as PosProduct[];
   },
 
   /** GET /api/menu/products/{productId}/alternatives */
   getAlternatives: (productId: number) => 
     unwrap(axiosInstance.get<ApiResponse<PosAlternative[]>>(`/menu/products/${productId}/alternatives`)),
+
+  /** GET /api/menu/extras */
+  getExtras: (typeId?: number, categoryId?: number) =>
+    unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { typeId, categoryId } })),
+
+  /** GET /api/menu/extras-type */
+  getExtraTypes: () =>
+    unwrap(axiosInstance.get<ApiResponse<any[]>>("/menu/extras-type")),
+
+  /** GET /api/menu/modifiers */
+  getModifiers: (typeId?: number, categoryId?: number) =>
+    unwrap(axiosInstance.get<ApiResponse<{ modifier: any[] | null }>>("/menu/modifiers", { params: { typeId, categoryId } })),
+
+  /** GET /api/menu/modifier-type */
+  getModifierTypes: () =>
+    unwrap(axiosInstance.get<ApiResponse<any[]>>("/menu/modifier-type")),
 };

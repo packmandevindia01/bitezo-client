@@ -35,7 +35,7 @@ const PaymodePage = lazy(() => import("../../features/general/paymode/pages/Paym
 const CounterPage = lazy(() => import("../../features/general/counter/pages/CounterPage"));
 const SectionPage = lazy(() => import("../../features/general/section/pages/SectionPage"));
 const TableMasterPage = lazy(() => import("../../features/general/tableMaster/pages/TableMasterPage"));
-const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/PosTerminalPage"));
+const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/PosTerminalPage").then(m => ({ default: m.PosTerminalPage })));
 
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));

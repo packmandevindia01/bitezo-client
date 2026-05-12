@@ -23,4 +23,8 @@ export interface LoginResponse {
     decimalPart: number;
     currencySymbol: string;
   };
+  configs?: {
+    configs: Record<string, any>;
+    deliverycharges?: any;
+  };
 }

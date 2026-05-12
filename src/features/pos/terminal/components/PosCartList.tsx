@@ -5,7 +5,16 @@ interface CartRow {
   productId: number;
   quantity: number;
   lineTotal: number;
+  itemDiscount?: number;
+  amount: number;
+  netValue: number;
+  sc: number;
+  levy: number;
+  vatRate: number;
+  vatAmount: number;
   variantName?: string;
+  extras?: { id: number; name: string; price: number; qty: number }[];
+  modifiers?: { id: number; name: string; qty: number }[];
   product: {
     name: string;
     sku?: string;
@@ -15,17 +24,18 @@ interface CartRow {
 
 interface PosCartListProps {
   cartDetails: CartRow[];
-  onIncrement: (productId: number, variantName?: string) => void;
-  onDecrement: (productId: number, variantName?: string) => void;
+  selectedKey: string | null;
+  onSelectRow: (key: string | null) => void;
 }
 
-const PosCartList = ({ cartDetails, onIncrement, onDecrement }: PosCartListProps) => {
+export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartListProps) => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      <div className="grid grid-cols-[1.5fr_0.8fr_0.7fr] border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+      <div className="grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
         <span>ITEM</span>
         <span className="text-center">QTY</span>
-        <span className="text-right">PRICE</span>
+        <span className="text-center">VAT</span>
+        <span className="text-right">TOTAL</span>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide py-1">
@@ -35,45 +45,121 @@ const PosCartList = ({ cartDetails, onIncrement, onDecrement }: PosCartListProps
             <p className="text-sm font-bold text-slate-400 tracking-tight">Active order is empty</p>
           </div>
         ) : (
-          cartDetails.map((item) => (
-            <div
-              key={`${item.productId}-${item.variantName || "main"}`}
-              className="grid grid-cols-[1.5fr_0.8fr_0.7fr] items-center gap-2 px-4 py-3 border-b border-slate-50 transition-colors hover:bg-slate-50/50 group"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-slate-800 leading-none">{item.product.name}</p>
-              </div>
+          cartDetails.map((item) => {
+            const key = `${item.productId}-${item.variantName || "main"}`;
+            const isSelected = selectedKey === key;
 
-              <div className="flex items-center justify-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onIncrement(item.productId, item.variantName)}
-                  className="flex h-6 w-6 items-center justify-center rounded-md border border-pos-green/40 bg-white text-pos-green-dark text-xs font-bold shadow-sm transition-all hover:border-pos-green active:scale-90"
-                >
-                  +
-                </button>
-                <span className="min-w-[1.25rem] text-center text-xs font-bold text-slate-700">{item.quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => onDecrement(item.productId, item.variantName)}
-                  className="flex h-6 w-6 items-center justify-center rounded-md border border-pos-green/40 bg-white text-pos-green-dark text-xs font-bold shadow-sm transition-all hover:border-pos-green active:scale-90"
-                >
-                  -
-                </button>
-              </div>
+            return (
+              <div
+                key={key}
+                onClick={() => onSelectRow(isSelected ? null : key)}
+                className={`
+                  grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] items-center gap-2 px-3 py-1.5 border-b border-slate-50
+                  cursor-pointer select-none transition-all duration-150
+                  ${isSelected
+                    ? "bg-[#49293e]/10 border-l-4 border-l-[#49293e]"
+                    : "hover:bg-slate-50 border-l-4 border-l-transparent"
+                  }
+                `}
+              >
+                <div className="min-w-0">
+                  <p className={`truncate text-[11px] font-black leading-tight uppercase ${isSelected ? "text-[#49293e]" : "text-slate-800"}`}>
+                    {item.product.name}
+                  </p>
+                  <p className={`text-[9px] font-bold leading-none mt-0.5 ${isSelected ? "text-[#49293e]/60" : "text-slate-400"}`}>
+                    @ {formatAmount(item.product.price || 0)}
+                  </p>
+                  
+                  {/* Extras Display */}
+                  {(item.extras && item.extras.length > 0) && (
+                    <div className="mt-1 space-y-0.5">
+                      {item.extras.map((ex, i) => (
+                        <p key={i} className="text-[9px] font-bold text-blue-600 uppercase leading-none italic">
+                          + {ex.name} ({formatAmount(ex.price)})
+                        </p>
+                      ))}
+                    </div>
+                  )}
 
-              <div className="text-right flex flex-col items-end">
-                <p className="text-sm font-bold text-slate-900 leading-none">{formatAmount(item.lineTotal || 0)}</p>
-                <p className="text-[9px] font-bold text-slate-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  @ {formatAmount(item.product.price || 0)}
-                </p>
+                  {/* Modifiers Display */}
+                  {(item.modifiers && item.modifiers.length > 0) && (
+                    <div className="mt-0.5 space-y-0.5">
+                      {item.modifiers.map((mod, i) => (
+                        <p key={i} className="text-[9px] font-bold text-orange-600 uppercase leading-none italic">
+                          * {mod.name}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <span className={`text-[11px] font-black ${isSelected ? "text-[#49293e]" : "text-slate-700"}`}>
+                    {item.quantity}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <span className={`text-[10px] font-bold ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
+                    {formatAmount(item.vatAmount || 0)}
+                  </span>
+                </div>
+
+                <div className="text-right flex flex-col items-end">
+                  {item.itemDiscount && item.itemDiscount > 0 ? (
+                    <>
+                      <p className="text-[9px] text-slate-400 line-through font-bold leading-none mb-0.5">
+                        {formatAmount(item.lineTotal + item.itemDiscount)}
+                      </p>
+                      <p className={`text-[11px] font-black leading-none ${isSelected ? "text-[#49293e]" : "text-red-600"}`}>
+                        {formatAmount(item.lineTotal || 0)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className={`text-[11px] font-black leading-none ${isSelected ? "text-[#49293e]" : "text-slate-900"}`}>
+                      {formatAmount(item.lineTotal || 0)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Detailed Billing Table (Test Mode) */}
+                {isSelected && (
+                  <div className="col-span-4 mt-3 bg-white/50 rounded-lg border border-[#49293e]/20 overflow-x-auto shadow-inner">
+                    <table className="w-full text-[9px] font-bold text-center border-collapse">
+                      <thead>
+                        <tr className="bg-[#49293e]/5 text-[#49293e]/70 border-b border-[#49293e]/10">
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Amount</th>
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Discount</th>
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Netvalue</th>
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Service Charge</th>
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Levy</th>
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Vat%</th>
+                          <th className="px-2 py-1 border-r border-[#49293e]/10">Vat Amount</th>
+                          <th className="px-2 py-1">Net Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="text-[#49293e]">
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.amount || 0)}</td>
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.itemDiscount || 0)}</td>
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.netValue || 0)}</td>
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.sc || 0)}</td>
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.levy || 0)}</td>
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{item.vatRate}%</td>
+                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.vatAmount || 0)}</td>
+                          <td className="px-2 py-1.5 font-black text-slate-900">{formatAmount(item.lineTotal || 0)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
   );
 };
 
-export default PosCartList;
+

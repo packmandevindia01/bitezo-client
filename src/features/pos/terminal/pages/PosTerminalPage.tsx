@@ -3,35 +3,52 @@ import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
 import PosGroupTabs from "../components/PosGroupTabs";
-import PosOrderPanel from "../components/PosOrderPanel";
+import { PosOrderPanel } from "../components/PosOrderPanel";
 import PosProductGrid from "../components/PosProductGrid";
 import { POS_CART_ACTIONS, POS_MORE_ACTIONS } from "../../constants";
 import { usePosTerminal } from "../hooks/usePosTerminal";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
-import { useToast } from "../../../../app/providers/useToast";
 import { formatCurrency } from "../../../../utils/formatters";
 import type { PosProduct, PosAlternative } from "../../types";
-import { ConfirmDialog } from "../../../../components/common";
+import { ConfirmDialog, Modal } from "../../../../components/common";
 import { menuApi } from "../../services/menuApi";
-import PosMoreModal from "../components/PosMoreModal";
+import { PosMoreModal } from "../components/PosMoreModal";
+import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
 import { useCashierLog } from "../../cashier";
+import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
+import { useToast } from "../../../../app/providers/useToast";
 
-
-const PosTerminalPage = () => {
-  const { showToast } = useToast();
+export const PosTerminalPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const { showToast } = useToast();
 
   // Alternative selection state
   const [selectedProduct, setSelectedProduct] = useState<PosProduct | null>(null);
   const [alternatives, setAlternatives] = useState<PosAlternative[]>([]);
   const [fetchingAlts, setFetchingAlts] = useState(false);
+
+  // Row selection state
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // Discount Flow States
+  const [discountStep, setDiscountStep] = useState<'none' | 'choice' | 'value'>('none');
+  const [discountType, setDiscountType] = useState<'bill' | 'item'>('bill');
+  const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
+  const [discountInputValue, setDiscountInputValue] = useState("");
+
+  // Price Flow States
+  const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
+  const [priceInputValue, setPriceInputValue] = useState("");
+
+  // Extras & Modifiers Flow States
+  const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
 
   useEffect(() => {
     const state = location.state as { openMoreModal?: boolean };
@@ -41,7 +58,6 @@ const PosTerminalPage = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
-
 
   const {
     groups,
@@ -53,6 +69,10 @@ const PosTerminalPage = () => {
     cartDetails,
     itemCount,
     search,
+    subtotal,
+    discount,
+    tax,
+    charges,
     total,
     visibleProducts,
     loading,
@@ -65,6 +85,11 @@ const PosTerminalPage = () => {
     clearCart,
     decrementItem,
     incrementItem,
+    removeItem,
+    setBillDiscount,
+    setItemDiscount,
+    updateItemPrice,
+    setItemCustomizations,
   } = usePosTerminal();
 
   // Handle product click - check for alternatives
@@ -80,11 +105,9 @@ const PosTerminalPage = () => {
         setAlternatives(alts);
         setSelectedProduct(product);
       } else {
-        // No alternatives, add directly
         addProduct(productId);
       }
-    } catch (err) {
-      // Fallback: add directly if API fails
+    } catch {
       addProduct(productId);
     } finally {
       setFetchingAlts(false);
@@ -108,20 +131,68 @@ const PosTerminalPage = () => {
 
   // 1. Hardware Barcode Scanner Integration
   useBarcodeScanner((barcode) => {
-    const success = addProductBySku(barcode);
-    if (success) showToast(barcode, "success");
-    else showToast("Not Found", "error");
+    addProductBySku(barcode);
   });
 
   // 2. Keyboard Hotkeys
   usePosShortcuts({
     onClearCart: clearCart,
-    onHoldTicket: () => showToast("Held", "success"),
-    onCheckout: () => {
-      if (itemCount > 0) showToast("Processing...", "success");
-      else showToast("Empty", "error");
-    }
+    onHoldTicket: () => {},
+    onCheckout: () => {}
   });
+
+  const handleApplyDiscount = (value: string) => {
+    const numValue = parseFloat(value);
+    const finalValue = isNaN(numValue) ? 0 : numValue;
+
+    if (discountType === 'bill') {
+      setBillDiscount(finalValue, discountMode);
+    } else if (selectedKey) {
+      const [idPart, ...variantParts] = selectedKey.split('-');
+      const productId = parseInt(idPart, 10);
+      const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
+      setItemDiscount(productId, variantName, finalValue, discountMode);
+    }
+    setDiscountStep('none');
+  };
+
+  const handleApplyPrice = (value: string) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue < 0) return;
+
+    if (selectedKey) {
+      const [idPart, ...variantParts] = selectedKey.split('-');
+      const productId = parseInt(idPart, 10);
+      const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
+      updateItemPrice(productId, variantName, numValue);
+    }
+    setIsPriceModalOpen(false);
+  };
+
+  const currentSelectedItem = selectedKey
+    ? cartDetails.find((item) => {
+        const key = `${item.productId}-${item.variantName || "main"}`;
+        return key === selectedKey;
+      })
+    : null;
+
+  const openPriceModal = () => {
+    if (!selectedKey) return;
+    const currentPrice = currentSelectedItem?.product.price || 0;
+    setPriceInputValue(currentPrice.toString());
+    setIsPriceModalOpen(true);
+  };
+
+  const openDiscountChoice = () => {
+    if (itemCount === 0) return;
+    setDiscountStep('choice');
+  };
+
+  const openDiscountInput = (type: 'bill' | 'item') => {
+    setDiscountType(type);
+    setDiscountInputValue("");
+    setDiscountStep('value');
+  };
 
   // Loading state
   if (isLoading && !status) {
@@ -135,7 +206,6 @@ const PosTerminalPage = () => {
     );
   }
 
-  // MANDATORY FLOW: If day or shift is closed, go to dashboard
   if (status && (status.isDayClosed || status.isShiftClosed)) {
     return <Navigate to="/cashier/out" replace />;
   }
@@ -154,6 +224,7 @@ const PosTerminalPage = () => {
         }}
         status={status}
       />
+      
       <div className="flex flex-col xl:flex-row xl:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-4 xl:px-6">
         <div className="shrink-0">
           <PosGroupTabs 
@@ -172,6 +243,7 @@ const PosTerminalPage = () => {
             </div>
             <input
               type="text"
+              autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products..."
@@ -207,7 +279,7 @@ const PosTerminalPage = () => {
 
         {/* Middle Column: Grid */}
         <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb]">
-          <div className="flex-1 flex flex-col p-3 xl:p-4 overflow-hidden pb-24 xl:pb-4">
+          <div className="flex-1 flex flex-col p-3 xl:p-4 overflow-hidden pb-4 xl:pb-4">
             <ErrorBoundary name="Product Grid">
               <PosProductGrid
                 products={visibleProducts}
@@ -220,6 +292,54 @@ const PosTerminalPage = () => {
                 onSelectAlt={handleAltSelect}
               />
             </ErrorBoundary>
+          </div>
+
+          {/* Action Button Bar */}
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
+            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+              Close
+            </button>
+            <button
+              onClick={clearCart}
+              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+            >
+              Clear
+            </button>
+            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+              Waiter
+            </button>
+            <button 
+              onClick={() => {
+                if (!selectedKey) {
+                  showToast("Please select an item in the cart first", "warning");
+                  return;
+                }
+                setExtrasModifierType('extras');
+              }}
+              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+            >
+              Extras
+            </button>
+            <button 
+              onClick={openDiscountChoice}
+              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={itemCount === 0}
+            >
+              Discount
+            </button>
+            <button 
+              onClick={openPriceModal}
+              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!selectedKey}
+            >
+              Price
+            </button>
+            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+              Note
+            </button>
+            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+              More
+            </button>
           </div>
         </div>
 
@@ -234,64 +354,282 @@ const PosTerminalPage = () => {
               cartActions={POS_CART_ACTIONS}
               extraActions={POS_MORE_ACTIONS}
               cartDetails={cartDetails}
+              subtotal={subtotal}
+              discount={discount}
+              tax={tax}
+              charges={charges}
               total={total}
+              selectedKey={selectedKey}
+              onSelectRow={setSelectedKey}
               onIncrement={incrementItem}
               onDecrement={decrementItem}
+              onRemove={removeItem}
+              onMod={() => setExtrasModifierType('modifiers')}
+              onPrice={openPriceModal}
+              onClearCart={clearCart}
               onClose={() => setIsCartOpen(false)}
             />
           </ErrorBoundary>
         </div>
       </main>
 
-      {/* Mobile Footer Toggle */}
-      <div className="xl:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 shadow-lg z-40">
-        <button
-          onClick={() => setIsCartOpen(true)}
-          className="w-full h-14 bg-[#49293e] rounded-2xl flex items-center justify-between px-6 text-white shadow-xl"
-        >
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 px-2 py-1 rounded-lg text-[10px] font-bold">
-              {itemCount} ITEMS
+      {/* Discount Choice Modal - Clean & Modern */}
+      <Modal
+        isOpen={discountStep === 'choice'}
+        onClose={() => setDiscountStep('none')}
+        noPadding
+        showClose={false}
+        className="max-w-[400px] border-none shadow-2xl rounded-2xl overflow-hidden"
+      >
+        <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
+          <h2 className="text-lg font-black uppercase tracking-[0.1em]">Discount Type</h2>
+          <button onClick={() => setDiscountStep('none')} className="p-1 hover:bg-white/10 rounded-full">
+            <XCircle size={24} />
+          </button>
+        </div>
+
+        <div className="bg-white p-6 grid grid-cols-1 gap-4">
+          <button
+            onClick={() => openDiscountInput('bill')}
+            className="flex items-center gap-4 p-5 bg-slate-50 border-2 border-slate-100 hover:border-[#ff9500] hover:bg-white transition-all rounded-2xl group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#49293e] text-white flex items-center justify-center shadow-lg">
+              <Receipt size={24} />
             </div>
-            <span className="text-sm font-bold uppercase tracking-widest">View Order</span>
+            <div className="flex-1 text-left">
+              <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">Whole Order</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Global Bill Reduction</p>
+            </div>
+            <ChevronRight size={20} className="text-slate-300 group-hover:text-[#ff9500]" />
+          </button>
+
+          <button
+            onClick={() => {
+              if (!selectedKey) {
+                alert("Please select an item in the cart first");
+                return;
+              }
+              openDiscountInput('item');
+            }}
+            className="flex items-center gap-4 p-5 bg-slate-50 border-2 border-slate-100 hover:border-[#ff9500] hover:bg-white transition-all rounded-2xl group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#ff9500] text-white flex items-center justify-center shadow-lg">
+              <Tag size={24} />
+            </div>
+            <div className="flex-1 text-left">
+              <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">Item Wise</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Specific Product Reduction</p>
+            </div>
+            <ChevronRight size={20} className="text-slate-300 group-hover:text-[#ff9500]" />
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modern POS Discount Keypad - Elegant & Standard */}
+      <Modal
+        isOpen={discountStep === 'value'}
+        onClose={() => setDiscountStep('none')}
+        noPadding
+        showClose={false}
+        className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
+      >
+        <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em]">{discountType === 'bill' ? 'BILL' : 'ITEM'} DISCOUNT</h2>
+          <button onClick={() => setDiscountStep('none')} className="opacity-60 hover:opacity-100">
+            <XCircle size={20} />
+          </button>
+        </div>
+
+        <div className="bg-[#f8fafc] p-6 space-y-6">
+          {/* Elegant Mode Toggle */}
+          <div className="flex p-1 bg-slate-200/60 rounded-2xl">
+            <button 
+              onClick={() => { setDiscountMode('percentage'); setDiscountInputValue(""); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+                discountMode === 'percentage' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Percent size={16} strokeWidth={3} />
+              Percentage
+            </button>
+            <button 
+              onClick={() => { setDiscountMode('amount'); setDiscountInputValue(""); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+                discountMode === 'amount' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Banknote size={16} strokeWidth={3} />
+              Amount
+            </button>
           </div>
-          <span className="text-xl font-bold">{formatCurrency(total || 0)}</span>
-        </button>
-      </div>
 
+          {/* Premium Input Display */}
+          <div className="bg-[#1e293b] p-6 rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Enter reduction</span>
+            <div className="text-5xl font-black text-white font-mono flex items-baseline gap-2">
+              {discountInputValue || "0"}
+              <span className="text-xl text-[#ff9500]">
+                {discountMode === 'percentage' ? "%" : formatCurrency(0).split(' ')[0]}
+              </span>
+            </div>
+          </div>
 
-      {/* More Modal */}
+          {/* Clean Keypad */}
+          <div className="grid grid-cols-3 gap-3">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "."].map((btn) => (
+              <button
+                key={btn}
+                onClick={() => {
+                  if (btn === "Clear") setDiscountInputValue("");
+                  else if (btn === ".") {
+                    if (!discountInputValue.includes(".")) setDiscountInputValue(prev => prev + ".");
+                  } else {
+                    if (discountInputValue.length < 8) setDiscountInputValue(prev => prev + btn);
+                  }
+                }}
+                className={`
+                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-100
+                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-100" : "bg-white text-slate-700 hover:bg-slate-50"}
+                `}
+              >
+                {btn}
+              </button>
+            ))}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              onClick={() => setDiscountStep('none')}
+              className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleApplyDiscount(discountInputValue)}
+              className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <Check size={18} strokeWidth={3} />
+              Apply Discount
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modern POS Price Override Modal */}
+      <Modal
+        isOpen={isPriceModalOpen}
+        onClose={() => setIsPriceModalOpen(false)}
+        noPadding
+        showClose={false}
+        className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
+      >
+        <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em]">Manual Price</h2>
+          <button onClick={() => setIsPriceModalOpen(false)} className="opacity-60 hover:opacity-100">
+            <XCircle size={20} />
+          </button>
+        </div>
+
+        <div className="bg-[#f8fafc] p-6 space-y-6">
+          <div className="bg-[#1e293b] p-6 rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
+            <div className="w-full flex justify-between items-center mb-1">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Price</span>
+              <span className="text-[9px] font-black text-[#ff9500] uppercase">Original: {formatCurrency(currentSelectedItem?.product.price || 0)}</span>
+            </div>
+            <div className="text-4xl font-black text-white font-mono">
+              {priceInputValue || "0"}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "."].map((btn) => (
+              <button
+                key={btn}
+                onClick={() => {
+                  if (btn === "Clear") setPriceInputValue("");
+                  else if (btn === ".") {
+                    if (!priceInputValue.includes(".")) setPriceInputValue(prev => prev + ".");
+                  } else {
+                    if (priceInputValue.length < 10) setPriceInputValue(prev => prev + btn);
+                  }
+                }}
+                className={`
+                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-100
+                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-100" : "bg-white text-slate-700 hover:bg-slate-50"}
+                `}
+              >
+                {btn}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              onClick={() => setIsPriceModalOpen(false)}
+              className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleApplyPrice(priceInputValue)}
+              className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <Check size={18} strokeWidth={3} />
+              Update Price
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Extras & Modifiers Modal */}
+      <PosExtrasModifierModal
+        isOpen={extrasModifierType !== 'none'}
+        onClose={() => setExtrasModifierType('none')}
+        type={extrasModifierType === 'extras' ? 'extras' : 'modifiers'}
+        cartItems={cartDetails}
+        selectedKey={selectedKey}
+        onSelectRow={setSelectedKey}
+        initialSelections={
+          extrasModifierType === 'extras' 
+            ? (currentSelectedItem?.extras || []) 
+            : (currentSelectedItem?.modifiers || [])
+        }
+        onDone={(selections) => {
+          if (!selectedKey) return;
+          const [idPart, ...variantParts] = selectedKey.split('-');
+          const productId = parseInt(idPart, 10);
+          const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
+
+          if (extrasModifierType === 'extras') {
+            setItemCustomizations(productId, variantName, selections, currentSelectedItem?.modifiers);
+          } else {
+            setItemCustomizations(productId, variantName, currentSelectedItem?.extras, selections);
+          }
+          setExtrasModifierType('none');
+        }}
+      />
+
       <PosMoreModal 
         isOpen={isMoreModalOpen} 
         onClose={() => setIsMoreModalOpen(false)} 
-        onCashierOut={() => navigate("/cashier/out")}
+        onCashierOut={() => {
+          setIsMoreModalOpen(false);
+          setIsLogoutConfirmOpen(true);
+        }}
       />
-
-      {/* Mobile Overlay */}
-      {isCartOpen && (
-        <div
-          className="xl:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-          onClick={() => setIsCartOpen(false)}
-        />
-      )}
-
-      {/* Logout Reminder Dialog */}
+      
       <ConfirmDialog
         isOpen={isLogoutConfirmOpen}
-        onConfirm={() => {
-          setIsLogoutConfirmOpen(false);
-          navigate("/cashier/out");
-        }}
-        title="Active Session"
-        message="Your shift is still open. Go to close session?"
-        confirmLabel="Go to Close"
-        cancelLabel="Stay"
         onCancel={() => setIsLogoutConfirmOpen(false)}
-        confirmVariant="secondary"
+        onConfirm={() => navigate("/cashier/out")}
+        title="Confirm Exit"
+        message="Are you sure you want to exit the terminal? Your current session is still active."
       />
-
     </div>
   );
 };
 
-export default PosTerminalPage;
+

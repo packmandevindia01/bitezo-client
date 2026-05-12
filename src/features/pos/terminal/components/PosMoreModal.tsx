@@ -44,7 +44,7 @@ const ORDER_ITEMS = [
   { label: 'SET MENU DINE IN', icon: UtensilsCrossed, action: 'setMenuDineIn' },
 ];
 
-const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut }) => {
+export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut }) => {
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -129,4 +129,4 @@ const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierO
   );
 };
 
-export default PosMoreModal;
+

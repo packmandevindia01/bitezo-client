@@ -9,6 +9,8 @@ interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl" | "2xl";
   showClose?: boolean;
   footer?: React.ReactNode;
+  className?: string;
+  noPadding?: boolean;
 }
 
 const Modal = ({
@@ -19,6 +21,8 @@ const Modal = ({
   size = "md",
   showClose = true,
   footer,
+  className = "",
+  noPadding = false,
 }: ModalProps) => {
 
   // 🔥 ESC + Scroll lock
@@ -65,38 +69,41 @@ useEffect(() => {
       <div
         className={`
           relative flex flex-col w-full ${sizes[size]}
-          max-h-[92vh] overflow-hidden rounded-xl bg-white p-4 shadow-lg z-10 sm:max-h-[90vh] sm:p-6
+          max-h-[92vh] overflow-hidden rounded-xl bg-white shadow-lg z-10 sm:max-h-[90vh]
           animate-[fadeIn_0.2s_ease-in-out]
+          ${noPadding ? "p-0" : "p-4 sm:p-6"}
+          ${className}
         `}
         onClick={(e) => e.stopPropagation()}
       >
 
         {/* HEADER */}
-        <div className="mb-4 flex items-start justify-between gap-3">
-          {title && (
-            <h2
-              id="modal-title"
-              className="text-base font-semibold md:text-lg"
-            >
-              {title}
-            </h2>
-          )}
-
-          <div className="flex items-center gap-2">
-
-            {showClose && (
-              <button
-                onClick={onClose}
-                className="p-1 rounded hover:bg-gray-100 transition"
+        {(title || showClose) && !noPadding && (
+          <div className="mb-4 flex items-start justify-between gap-3 shrink-0">
+            {title && (
+              <h2
+                id="modal-title"
+                className="text-base font-semibold md:text-lg"
               >
-                <X size={18} />
-              </button>
+                {title}
+              </h2>
             )}
+
+            <div className="flex items-center gap-2">
+              {showClose && (
+                <button
+                  onClick={onClose}
+                  className="p-1 rounded hover:bg-gray-100 transition"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* CONTENT */}
-        <div className="flex-1 min-h-0 overflow-y-auto text-sm md:text-base pr-1">
+        <div className={`flex-1 min-h-0 flex flex-col overflow-hidden text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
           {children}
         </div>
 

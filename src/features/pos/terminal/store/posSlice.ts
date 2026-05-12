@@ -19,11 +19,16 @@ interface PosState {
   selectedOrderType: string;
   selectedTender: string;
 
+  // Discount State
+  billDiscountValue: number;
+  billDiscountType: 'percentage' | 'amount';
+
   // Dynamic Menu Data
   groups: MenuGroup[];
   categories: PosCategory[];
   subCategories: MenuSubCategory[];
   products: PosProduct[];
+  productCache: Record<number, PosProduct>; // Keep track of all products for cart display
   
   activeGroupId: number | null;
   activeCategoryId: number | null;
@@ -49,10 +54,14 @@ const initialState: PosState = {
   selectedOrderType: POS_ORDER_TYPES[0]?.id ?? '',
   selectedTender: POS_TENDER_OPTIONS[0]?.id ?? '',
   
+  billDiscountValue: 0,
+  billDiscountType: 'percentage',
+
   groups: [],
   categories: [],
   subCategories: [],
   products: [],
+  productCache: {},
   
   activeGroupId: null,
   activeCategoryId: null,
@@ -113,6 +122,7 @@ const posSlice = createSlice({
     },
     clearCart: (state) => {
       state.cartItems = [];
+      state.billDiscountValue = 0;
       localStorage.removeItem('posCartItems');
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
@@ -129,6 +139,43 @@ const posSlice = createSlice({
     },
     setTenderOption: (state, action: PayloadAction<string>) => {
       state.selectedTender = action.payload;
+    },
+
+    // Discount Reducers
+    setBillDiscount: (state, action: PayloadAction<{ value: number; type: 'percentage' | 'amount' }>) => {
+      state.billDiscountValue = action.payload.value;
+      state.billDiscountType = action.payload.type;
+    },
+    setItemDiscount: (state, action: PayloadAction<{ productId: number; variantName?: string; value: number; type: 'percentage' | 'amount' }>) => {
+      const { productId, variantName, value, type } = action.payload;
+      const item = state.cartItems.find(i => i.productId === productId && i.variantName === variantName);
+      if (item) {
+        item.discountValue = value;
+        item.discountType = type;
+        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
+      }
+    },
+    updateItemPrice: (state, action: PayloadAction<{ productId: number; variantName?: string; price: number }>) => {
+      const { productId, variantName, price } = action.payload;
+      const item = state.cartItems.find(i => i.productId === productId && i.variantName === variantName);
+      if (item) {
+        item.price = price;
+        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
+      }
+    },
+    setItemCustomizations: (state, action: PayloadAction<{ 
+      productId: number; 
+      variantName?: string; 
+      extras?: { id: number; name: string; price: number; qty: number }[];
+      modifiers?: { id: number; name: string; qty: number }[];
+    }>) => {
+      const { productId, variantName, extras, modifiers } = action.payload;
+      const item = state.cartItems.find(i => i.productId === productId && i.variantName === variantName);
+      if (item) {
+        item.extras = extras;
+        item.modifiers = modifiers;
+        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
+      }
     },
     
     // Dynamic Menu Actions
@@ -154,6 +201,10 @@ const posSlice = createSlice({
     },
     setProducts: (state, action: PayloadAction<PosProduct[]>) => {
       state.products = action.payload;
+      // Add to cache
+      action.payload.forEach(p => {
+        state.productCache[p.id] = p;
+      });
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
@@ -174,6 +225,10 @@ export const {
   setSearch,
   setOrderType,
   setTenderOption,
+  setBillDiscount,
+  setItemDiscount,
+  updateItemPrice,
+  setItemCustomizations,
   setGroups,
   setGroup,
   setCategories,
@@ -187,21 +242,37 @@ export const {
 // ─── Selectors ──────────────────────────────────────────────────────────────
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../../../app/store';
-
-const TAX_RATE = 0.05;
-const DISCOUNT_RATE = 0.08;
+import { calculateLineItem, getBillingConfig } from '../utils/billing';
 
 export const selectPosState = (state: RootState) => state.pos;
 
 export const selectCartDetails = createSelector(
   [selectPosState],
   (pos) => {
+    const config = getBillingConfig(pos.selectedOrderType);
+
     return pos.cartItems.map((item: PosCartItem) => {
-      const product = pos.products.find(p => p.id === item.productId);
+      const product = pos.productCache[item.productId];
       if (!product) return null;
+      
       const price = item.price ?? product.price;
       const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
       
+      const extrasTotal = (item.extras || []).reduce((sum, extra) => sum + (extra.price * extra.qty), 0);
+      const basePrice = price + extrasTotal;
+      const itemGross = basePrice * item.quantity;
+
+      let itemDiscount = 0;
+      if (item.discountValue) {
+        if (item.discountType === 'percentage') {
+          itemDiscount = (itemGross * item.discountValue) / 100;
+        } else {
+          itemDiscount = item.discountValue;
+        }
+      }
+
+      const calcs = calculateLineItem(item.quantity, basePrice, itemDiscount, config, product.vatValue);
+
       return {
         ...item,
         product: {
@@ -209,7 +280,15 @@ export const selectCartDetails = createSelector(
           name: displayName,
           price: price
         },
-        lineTotal: price * item.quantity
+        extrasTotal,
+        itemDiscount,
+        amount: calcs.amount,
+        netValue: calcs.netValue,
+        sc: calcs.sc,
+        levy: calcs.levy,
+        vatAmount: calcs.vatAmount,
+        vatRate: (product.vatValue || config.vatRate * 100),
+        lineTotal: calcs.lineNetAmount
       };
     }).filter((item): item is NonNullable<typeof item> => item !== null);
   }
@@ -217,22 +296,49 @@ export const selectCartDetails = createSelector(
 
 export const selectSubtotal = createSelector(
   [selectCartDetails],
-  (details) => details.reduce((sum: number, item) => sum + item.lineTotal, 0)
+  (details) => details.reduce((sum, item) => sum + item.netValue, 0)
+);
+
+export const selectItemTotalDiscount = createSelector(
+  [selectCartDetails],
+  (details) => details.reduce((sum, item) => sum + item.itemDiscount, 0)
+);
+
+export const selectBillDiscount = createSelector(
+  [selectSubtotal, selectPosState],
+  (subtotal, pos) => {
+    if (pos.billDiscountType === 'percentage') {
+      return (subtotal * pos.billDiscountValue) / 100;
+    }
+    return pos.billDiscountValue;
+  }
 );
 
 export const selectDiscount = createSelector(
-  [selectSubtotal],
-  (subtotal) => Math.round(subtotal * DISCOUNT_RATE)
+  [selectItemTotalDiscount, selectBillDiscount],
+  (itemDisc, billDisc) => itemDisc + billDisc
+);
+
+export const selectCharges = createSelector(
+  [selectCartDetails],
+  (details) => details.reduce((sum, item) => sum + item.sc + item.levy, 0)
 );
 
 export const selectTax = createSelector(
-  [selectSubtotal, selectDiscount],
-  (subtotal, discount) => Math.round((subtotal - discount) * TAX_RATE)
+  [selectCartDetails, selectPosState],
+  (details, pos) => {
+    const config = getBillingConfig(pos.selectedOrderType);
+    if (config.vatType === 'Inclusive') return 0;
+    
+    return details.reduce((sum, item) => sum + item.vatAmount, 0);
+  }
 );
 
 export const selectTotal = createSelector(
-  [selectSubtotal, selectDiscount, selectTax],
-  (subtotal, discount, tax) => (subtotal - discount) + tax
+  [selectSubtotal, selectBillDiscount, selectCharges, selectTax],
+  (subtotal, billDisc, charges, tax) => {
+    return (subtotal - billDisc) + charges + tax;
+  }
 );
 
 export const selectItemCount = createSelector(

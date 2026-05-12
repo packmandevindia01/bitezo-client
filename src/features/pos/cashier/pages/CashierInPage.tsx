@@ -118,6 +118,10 @@ const CashierInPage = () => {
         const currencySymbol = data.company?.currencySymbol ?? "BHD";
         localStorage.setItem("decimalPart", String(decimalPart));
         localStorage.setItem("currencySymbol", currencySymbol);
+        
+        if (data.configs) {
+          localStorage.setItem("posConfigs", JSON.stringify(data.configs));
+        }
 
         dispatch(
           setCredentials({
