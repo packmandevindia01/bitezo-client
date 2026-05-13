@@ -17,6 +17,8 @@ import { menuApi } from "../../services/menuApi";
 import { PosMoreModal } from "../components/PosMoreModal";
 import { PosCustomerModal } from "../../customer/components/PosCustomerModal";
 import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
+import { PosDeliveryModal } from "../../customer/components/PosDeliveryModal";
+import { PosDriveThroughModal } from "../../customer/components/PosDriveThroughModal";
 import { useCashierLog } from "../../cashier";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
@@ -27,6 +29,8 @@ export const PosTerminalPage = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+  const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const { showToast } = useToast();
@@ -229,6 +233,8 @@ export const PosTerminalPage = () => {
         onNewOrder={clearCart} 
         onMore={() => setIsMoreModalOpen(true)} 
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
+        onDelivery={() => setIsDeliveryModalOpen(true)}
+        onDriveThrough={() => setIsDriveThroughModalOpen(true)}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
             setIsLogoutConfirmOpen(true);
@@ -639,6 +645,16 @@ export const PosTerminalPage = () => {
         onClose={() => setIsCustomerModalOpen(false)}
       />
       
+      <PosDeliveryModal
+        isOpen={isDeliveryModalOpen}
+        onClose={() => setIsDeliveryModalOpen(false)}
+      />
+
+      <PosDriveThroughModal
+        isOpen={isDriveThroughModalOpen}
+        onClose={() => setIsDriveThroughModalOpen(false)}
+      />
+
       <ConfirmDialog
         isOpen={isLogoutConfirmOpen}
         onCancel={() => setIsLogoutConfirmOpen(false)}

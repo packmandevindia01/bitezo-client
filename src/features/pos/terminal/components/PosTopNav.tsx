@@ -10,11 +10,13 @@ interface PosTopNavProps {
   onMore?: () => void;
   onCashierOut?: () => void;
   onCustomerMaster?: () => void;
+  onDelivery?: () => void;
+  onDriveThrough?: () => void;
   status: any;
 }
 
 
-const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, status }: PosTopNavProps) => {
+const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDelivery, onDriveThrough, status }: PosTopNavProps) => {
 
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -69,6 +71,10 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, status 
               onClick={() => {
                 if (type.label === "Dine In") {
                   navigate("/pos/dine-in");
+                } else if (type.label === "Delivery" && onDelivery) {
+                  onDelivery();
+                } else if (type.label === "Drive Thru" && onDriveThrough) {
+                  onDriveThrough();
                 } else {
                   showToast(`${type.label} selected`, "success");
                 }

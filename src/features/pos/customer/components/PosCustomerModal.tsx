@@ -11,7 +11,7 @@ interface PosCustomerModalProps {
 export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => {
   const { form, setForm, loading, saveCustomer, deleteCustomer, resetForm } = useCustomer();
   const [activeField, setActiveField] = useState<keyof typeof form | null>(null);
-  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [showKeyboard, setShowKeyboard] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +38,11 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
   };
 
   const handleFieldFocus = (field: keyof typeof form) => {
+    setActiveField(field);
+    setShowKeyboard(true);
+  };
+
+  const handleFieldClick = (field: keyof typeof form) => {
     setActiveField(field);
     setShowKeyboard(true);
   };
@@ -90,37 +95,47 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 value={form.customerCode}
                 onChange={(e) => setForm({ ...form, customerCode: e.target.value.toUpperCase() })}
                 onFocus={() => handleFieldFocus("customerCode")}
+                onClick={() => handleFieldClick("customerCode")}
                 placeholder="AUTO"
                 readOnly
+                inputMode="none"
               />
               <FormInput
                 label="Customer Name"
                 value={form.customerName}
                 onChange={(e) => setForm({ ...form, customerName: e.target.value })}
                 onFocus={() => handleFieldFocus("customerName")}
+                onClick={() => handleFieldClick("customerName")}
                 ref={firstInputRef}
                 autoFocus
                 required
+                inputMode="none"
               />
               <FormInput
                 label="Arabic Name"
                 value={form.arabicName}
                 onChange={(e) => setForm({ ...form, arabicName: e.target.value })}
                 onFocus={() => handleFieldFocus("arabicName")}
+                onClick={() => handleFieldClick("arabicName")}
                 inputClassName="text-right font-arabic"
+                inputMode="none"
               />
               <FormInput
                 label="Mobile No"
                 value={form.mobileNo}
                 onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
                 onFocus={() => handleFieldFocus("mobileNo")}
+                onClick={() => handleFieldClick("mobileNo")}
                 required
+                inputMode="none"
               />
               <FormInput
                 label="Tel No"
                 value={form.telNo}
                 onChange={(e) => setForm({ ...form, telNo: e.target.value })}
                 onFocus={() => handleFieldFocus("telNo")}
+                onClick={() => handleFieldClick("telNo")}
+                inputMode="none"
               />
               <FormInput
                 label="Email"
@@ -128,6 +143,8 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 type="email"
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 onFocus={() => handleFieldFocus("email")}
+                onClick={() => handleFieldClick("email")}
+                inputMode="none"
               />
             </div>
 
@@ -138,8 +155,10 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   onFocus={() => handleFieldFocus("address")}
+                  onClick={() => handleFieldClick("address")}
                   className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-y min-h-[80px]"
                   placeholder="Enter full address"
+                  inputMode="none"
                 />
               </div>
 
@@ -148,24 +167,31 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 value={form.area}
                 onChange={(e) => setForm({ ...form, area: e.target.value })}
                 onFocus={() => handleFieldFocus("area")}
+                onClick={() => handleFieldClick("area")}
+                inputMode="none"
               />
               <FormInput
                 label="Identity No"
                 value={form.identityNo}
                 onChange={(e) => setForm({ ...form, identityNo: e.target.value })}
                 onFocus={() => handleFieldFocus("identityNo")}
+                onClick={() => handleFieldClick("identityNo")}
+                inputMode="none"
               />
               <FormInput
                 label="TRN No"
                 value={form.trnNo}
                 onChange={(e) => setForm({ ...form, trnNo: e.target.value })}
                 onFocus={() => handleFieldFocus("trnNo")}
+                onClick={() => handleFieldClick("trnNo")}
+                inputMode="none"
               />
               <SelectInput
                 label="Branch"
                 value={form.branch}
                 onChange={(e) => setForm({ ...form, branch: e.target.value })}
                 onFocus={() => handleFieldFocus("branch")}
+                onClick={() => handleFieldClick("branch")}
                 options={[{ label: "Select Branch...", value: "" }, { label: "Main Branch", value: "main" }]}
               />
               <FormInput
@@ -174,7 +200,9 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 value={form.openingBalance}
                 onChange={(e) => setForm({ ...form, openingBalance: e.target.value })}
                 onFocus={() => handleFieldFocus("openingBalance")}
+                onClick={() => handleFieldClick("openingBalance")}
                 inputClassName="text-right"
+                inputMode="none"
               />
             </div>
           </div>

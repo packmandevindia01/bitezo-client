@@ -20,10 +20,15 @@ const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) =>
     return res.data.data;
   });
 
+const getTenantQuery = () => {
+  const tenantId = localStorage.getItem("tenantId") || "app_db";
+  return `?clientDb=${tenantId}`;
+};
+
 export const menuApi = {
   /** GET /api/menu/master-data */
   getMasterData: async () => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>("/menu/master-data"));
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data${getTenantQuery()}`));
     return {
       group: raw.group,
       category: raw.category.map((c: any) => ({
@@ -38,7 +43,7 @@ export const menuApi = {
 
   /** GET /api/menu/{groupId}/categories */
   getGroupCategories: async (groupId: number) => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories`));
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories${getTenantQuery()}`));
     return raw.map((c: any) => ({
       id: c.categoryId,
       name: c.categoryName,
@@ -50,11 +55,11 @@ export const menuApi = {
 
   /** GET /api/menu/categories/{categoryId}/sub-categories */
   getSubCategories: (categoryId: number) => 
-    unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories`)),
+    unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories${getTenantQuery()}`)),
 
   /** GET /api/menu/categories/{categoryId}/sub-categories/{subCategoryId}/products */
   getProducts: async (categoryId: number, subCategoryId: number) => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products`));
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products${getTenantQuery()}`));
     return raw.map((p: any) => ({
       id: p.productId,
       name: p.productName,
@@ -69,21 +74,21 @@ export const menuApi = {
 
   /** GET /api/menu/products/{productId}/alternatives */
   getAlternatives: (productId: number) => 
-    unwrap(axiosInstance.get<ApiResponse<PosAlternative[]>>(`/menu/products/${productId}/alternatives`)),
+    unwrap(axiosInstance.get<ApiResponse<PosAlternative[]>>(`/menu/products/${productId}/alternatives${getTenantQuery()}`)),
 
   /** GET /api/menu/extras */
   getExtras: (typeId?: number, categoryId?: number) =>
-    unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { typeId, categoryId } })),
+    unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "app_db", typeId, categoryId } })),
 
   /** GET /api/menu/extras-type */
   getExtraTypes: () =>
-    unwrap(axiosInstance.get<ApiResponse<any[]>>("/menu/extras-type")),
+    unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/extras-type${getTenantQuery()}`)),
 
   /** GET /api/menu/modifiers */
   getModifiers: (typeId?: number, categoryId?: number) =>
-    unwrap(axiosInstance.get<ApiResponse<{ modifier: any[] | null }>>("/menu/modifiers", { params: { typeId, categoryId } })),
+    unwrap(axiosInstance.get<ApiResponse<{ modifier: any[] | null }>>("/menu/modifiers", { params: { clientDb: localStorage.getItem("tenantId") || "app_db", typeId, categoryId } })),
 
   /** GET /api/menu/modifier-type */
   getModifierTypes: () =>
-    unwrap(axiosInstance.get<ApiResponse<any[]>>("/menu/modifier-type")),
+    unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/modifier-type${getTenantQuery()}`)),
 };
