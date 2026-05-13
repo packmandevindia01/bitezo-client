@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, UtensilsCrossed, ShoppingBag, Truck, Car, Users } from "lucide-react";
+import { MoreHorizontal, UtensilsCrossed, ShoppingBag, Truck, Car, Users, UserPlus } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -9,11 +9,12 @@ interface PosTopNavProps {
   onHoldTicket?: () => void;
   onMore?: () => void;
   onCashierOut?: () => void;
+  onCustomerMaster?: () => void;
   status: any;
 }
 
 
-const PosTopNav = ({ onNewOrder, onMore, onCashierOut, status }: PosTopNavProps) => {
+const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, status }: PosTopNavProps) => {
 
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -99,6 +100,16 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, status }: PosTopNavProps)
         </PosActionButton>
 
         <div className="w-px h-6 xl:h-8 bg-slate-200 mx-1" />
+
+        <PosActionButton
+          accent="gray"
+          noPadding
+          className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md"
+          onClick={onCustomerMaster}
+          title="Customer Master"
+        >
+          <UserPlus size={18} strokeWidth={2.5} color="white" />
+        </PosActionButton>
 
         <PosActionButton
           accent="gray"

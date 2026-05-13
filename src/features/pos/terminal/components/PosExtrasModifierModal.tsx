@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { menuApi } from "../../services/menuApi";
 import { formatAmount } from "../../../../utils/formatters";
 
@@ -36,6 +36,8 @@ export const PosExtrasModifierModal = ({
   const [items, setItems] = useState<any[]>([]);
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedSummaryId, setSelectedSummaryId] = useState<number | null>(null);
+  const prevRef = useRef<{ key: string | null; type: string | null }>({ key: null, type: null });
 
   const currentItem = cartItems.find(item => {
     const key = `${item.productId}-${item.variantName || "main"}`;
@@ -44,15 +46,20 @@ export const PosExtrasModifierModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      fetchTypes();
-      setSelectedItems(initialSelections);
+      // Only reset selections if we switched products or types
+      if (prevRef.current.key !== selectedKey || prevRef.current.type !== type) {
+        fetchTypes();
+        setSelectedItems(initialSelections || []);
+        prevRef.current = { key: selectedKey, type };
+      }
     } else {
       setTypes([]);
       setActiveTypeId(null);
       setItems([]);
       setSelectedItems([]);
+      prevRef.current = { key: null, type: null };
     }
-  }, [isOpen, type, selectedKey, initialSelections]); // Refetch if product or initial state changes
+  }, [isOpen, type, selectedKey, initialSelections]); 
 
   useEffect(() => {
     if (isOpen) {
@@ -90,7 +97,7 @@ export const PosExtrasModifierModal = ({
         const res = await menuApi.getExtras(activeTypeId || undefined);
         const mapped = (res.extras || []).map((e: any) => ({
           ...e,
-          id: e.extraId || e.id,
+          id: e.extraId ?? e.id ?? e.extraID ?? e.ID ?? Math.random(),
           name: getNormalizedName(e),
           price: e.price || 0
         }));
@@ -99,7 +106,7 @@ export const PosExtrasModifierModal = ({
         const res = await menuApi.getModifiers(activeTypeId || undefined);
         const mapped = (res.modifier || []).map((m: any) => ({
           ...m,
-          id: m.modifierId || m.id,
+          id: m.modifierId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
           name: getNormalizedName(m)
         }));
         setItems(mapped);
@@ -114,14 +121,34 @@ export const PosExtrasModifierModal = ({
   const handleItemToggle = (item: any) => {
     const exists = selectedItems.find(si => si.id === item.id);
     if (exists) {
-      setSelectedItems(selectedItems.filter(si => si.id !== item.id));
+      // If it exists, increment quantity instead of removing
+      setSelectedItems(selectedItems.map(si => 
+        si.id === item.id ? { ...si, qty: si.qty + 1 } : si
+      ));
     } else {
+      // If new, add with qty 1
       setSelectedItems([...selectedItems, { ...item, qty: 1 }]);
     }
   };
 
+  const handleIncrement = (id: number) => {
+    setSelectedItems(prev => prev.map(item => 
+      item.id === id ? { ...item, qty: item.qty + 1 } : item
+    ));
+  };
+
+  const handleDecrement = (id: number) => {
+    setSelectedItems(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, qty: Math.max(1, item.qty - 1) };
+      }
+      return item;
+    }));
+  };
+
   const handleRemove = (id: number) => {
     setSelectedItems(prev => prev.filter(item => item.id !== id));
+    if (selectedSummaryId === id) setSelectedSummaryId(null);
   };
 
   if (!isOpen) return null;
@@ -161,11 +188,11 @@ export const PosExtrasModifierModal = ({
         <div className="w-20 bg-[#1e293b] border-r border-slate-700 flex flex-col items-center py-6 gap-3 overflow-y-auto scrollbar-hide">
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Cart</span>
           {cartItems.map((item, index) => {
-            const key = `${item.productId}-${item.variantName || "main"}-${index}`;
-            const isActive = key === selectedKey;
+            const key = `${item.productId}-${item.variantName || "main"}`;
+            const isActive = key === selectedKey || (selectedKey?.startsWith(`${key}-`));
             return (
               <button
-                key={key}
+                key={`${key}-${index}`}
                 onClick={() => onSelectRow(key)}
                 className={`w-12 h-12 rounded-lg font-black text-lg flex items-center justify-center active:scale-95 transition-all shadow-md shrink-0 ${
                   isActive 
@@ -228,6 +255,11 @@ export const PosExtrasModifierModal = ({
                         : "bg-[#a3bfa8] border-[#a3bfa8] text-[#1e293b] hover:bg-[#92ad97] hover:border-[#92ad97] active:scale-95"
                     }`}
                   >
+                    {isSelected && isSelected.qty > 1 && (
+                      <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-[#eb8127] text-white flex items-center justify-center text-xs font-black shadow-lg border-2 border-white ring-4 ring-[#eb8127]/20">
+                        {isSelected.qty}
+                      </div>
+                    )}
                     <span className="mb-1">{item.name}</span>
                     {type === 'extras' && (
                       <span className={`text-[10px] font-black opacity-60 ${isSelected ? "text-white" : "text-[#1e293b]"}`}>
@@ -243,50 +275,85 @@ export const PosExtrasModifierModal = ({
 
         {/* Right Panel: Selected Summary */}
         <div className="w-80 bg-white border-l border-slate-200 flex flex-col overflow-hidden shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
+          
+          {/* Action Bar — Matching POS Style */}
+          <div className="grid grid-cols-3 gap-1 p-2 bg-slate-50 border-b border-slate-200">
+            <button
+              onClick={() => selectedSummaryId && handleDecrement(selectedSummaryId)}
+              disabled={!selectedSummaryId}
+              className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 shadow-sm ${
+                selectedSummaryId ? "bg-[#49293e] text-white" : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14" /></svg>
+              <span className="text-[7px] font-black uppercase tracking-tighter">Minus</span>
+            </button>
+            <button
+              onClick={() => selectedSummaryId && handleIncrement(selectedSummaryId)}
+              disabled={!selectedSummaryId}
+              className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 shadow-sm ${
+                selectedSummaryId ? "bg-[#49293e] text-white" : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
+              <span className="text-[7px] font-black uppercase tracking-tighter">Plus</span>
+            </button>
+            <button
+              onClick={() => selectedSummaryId && handleRemove(selectedSummaryId)}
+              disabled={!selectedSummaryId}
+              className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 shadow-sm ${
+                selectedSummaryId ? "bg-red-500 text-white" : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+              <span className="text-[7px] font-black uppercase tracking-tighter">Void</span>
+            </button>
+          </div>
+
           {/* Summary Table Header */}
-          <div className="grid grid-cols-[50px_1fr_70px] bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            <div className="bg-[#eb8127] text-white flex items-center justify-center py-3">Qty</div>
-            <div className="flex items-center pl-4 py-3">Description</div>
-            <div className="bg-[#9c142c] text-white flex items-center justify-center py-3">
-              {type === 'extras' ? 'Price' : 'X'}
-            </div>
+          <div className="grid grid-cols-[50px_1fr_70px] bg-white border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <div className="flex items-center justify-center py-3 border-r border-slate-50">Qty</div>
+            <div className="flex items-center pl-4 py-3">Item</div>
+            <div className="flex items-center justify-center py-3">Total</div>
           </div>
 
           {/* Selected List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto bg-white">
             {selectedItems.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center p-8 text-center opacity-20">
                 <div className="w-16 h-16 border-2 border-dashed border-slate-400 rounded-full mb-4" />
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">No Selections</p>
               </div>
             ) : (
-              selectedItems.map((item, index) => (
-                <div 
-                  key={`${item.id}-${index}`} 
-                  className="grid grid-cols-[50px_1fr_70px] items-center border-b border-slate-50 group hover:bg-slate-50/50"
-                >
-                  <div className="flex flex-col items-center justify-center border-r border-slate-100 py-3">
-                    <span className="text-sm font-black text-[#eb8127]">{item.qty}</span>
+              selectedItems.map((item) => {
+                const isSelectedRow = selectedSummaryId === item.id;
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => setSelectedSummaryId(isSelectedRow ? null : item.id)}
+                    className={`grid grid-cols-[50px_1fr_70px] items-center border-b border-slate-50 cursor-pointer transition-all ${
+                      isSelectedRow ? "bg-[#49293e]/10 ring-1 ring-inset ring-[#49293e]/20" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className={`flex items-center justify-center py-4 border-r border-slate-50 text-sm font-black ${isSelectedRow ? "text-[#eb8127]" : "text-slate-400"}`}>
+                      {item.qty}
+                    </div>
+                    <div className="pl-4 py-3 flex flex-col min-w-0">
+                      <span className={`text-[11px] font-black uppercase truncate ${isSelectedRow ? "text-[#49293e]" : "text-slate-800"}`}>
+                        {item.name}
+                      </span>
+                      {type === 'extras' && (
+                        <span className="text-[9px] font-bold text-slate-400">
+                          @ {formatAmount(item.price)}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`flex items-center justify-center py-3 text-[11px] font-black ${isSelectedRow ? "text-[#49293e]" : "text-slate-900"}`}>
+                      {type === 'extras' ? formatAmount(item.price * item.qty) : '-'}
+                    </div>
                   </div>
-                  <div className="pl-4 py-3 text-[11px] font-black text-slate-800 truncate uppercase tracking-tight">
-                    {item.name}
-                  </div>
-                  <div className="flex items-center justify-center py-3">
-                    {type === 'extras' ? (
-                      <span className="text-[11px] font-black text-slate-900">{formatAmount(item.price * item.qty)}</span>
-                    ) : (
-                      <button 
-                        onClick={() => handleRemove(item.id)}
-                        className="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all active:scale-90"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M18 6 6 18M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

@@ -19,6 +19,8 @@ import {
   selectTotal,
   selectCharges,
   selectItemCount,
+  selectTotalExtras,
+  selectBaseSubtotal,
 } from "../store/posSlice";
 
 export const usePosCartActions = () => {
@@ -31,6 +33,8 @@ export const usePosCartActions = () => {
   const charges = useAppSelector(selectCharges);
   const total = useAppSelector(selectTotal);
   const itemCount = useAppSelector(selectItemCount);
+  const totalExtras = useAppSelector(selectTotalExtras);
+  const baseSubtotal = useAppSelector(selectBaseSubtotal);
   const { selectedOrderType, selectedTender } = useAppSelector((state) => state.pos);
 
   const addProduct = (productId: number, variantName?: string, price?: number) => {
@@ -54,6 +58,8 @@ export const usePosCartActions = () => {
     charges,
     total,
     itemCount,
+    totalExtras,
+    baseSubtotal,
     selectedOrderType,
     selectedTender,
     addProduct,

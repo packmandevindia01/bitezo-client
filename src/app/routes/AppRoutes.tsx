@@ -17,6 +17,7 @@ const DashboardPage = lazy(() => import("../../features/dashboard/pages/Dashboar
 const UserList = lazy(() => import("../../features/general/user/pages/UserList"));
 const UserRolePage = lazy(() => import("../../features/general/userRole/pages/UserRolePage"));
 const CompanyPage = lazy(() => import("../../features/company/pages/CompanyPage"));
+const CustomerList = lazy(() => import("../../features/company/customer/pages/CustomerList"));
 const EmployeePage = lazy(() => import("../../features/general/employee/pages/EmployeePage"));
 const BranchListPage = lazy(() => import("../../features/inventory/branches/pages/BranchListPage"));
 const BranchFormPage = lazy(() => import("../../features/inventory/branches/pages/BranchFormPage"));
@@ -116,6 +117,7 @@ const AppRoutes = () => {
                   <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
                   <Route path="user-roles" element={<RoleGuard moduleName="User Master"><UserRolePage /></RoleGuard>} />
                   <Route path="company" element={<RoleGuard moduleName="Customer Master"><CompanyPage /></RoleGuard>} />
+                  <Route path="customers" element={<RoleGuard moduleName="Customer Master"><CustomerList /></RoleGuard>} />
                   <Route path="employees" element={<RoleGuard moduleName="Employee Master"><EmployeePage /></RoleGuard>} />
                   <Route path="paymodes" element={<RoleGuard moduleName="Paymode Master"><PaymodePage /></RoleGuard>} />
                   <Route path="counters" element={<RoleGuard moduleName="Counter Master"><CounterPage /></RoleGuard>} />

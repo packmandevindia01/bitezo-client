@@ -30,6 +30,8 @@ interface PosOrderPanelProps {
   tax: number;
   charges: number;
   total: number;
+  totalExtras: number;
+  baseSubtotal: number;
   selectedKey: string | null;
   onSelectRow: (key: string | null) => void;
   onIncrement: (productId: number, variantName?: string) => void;
@@ -48,6 +50,8 @@ export const PosOrderPanel = ({
   tax,
   charges,
   total,
+  totalExtras,
+  baseSubtotal,
   selectedKey,
   onSelectRow,
   onIncrement,
@@ -238,6 +242,8 @@ export const PosOrderPanel = ({
         tax={tax}
         charges={charges}
         total={total}
+        totalExtras={totalExtras}
+        baseSubtotal={baseSubtotal}
       />
     </aside>
   );

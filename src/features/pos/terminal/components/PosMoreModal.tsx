@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   LogOut,
   UtensilsCrossed,
+  UserPlus,
 } from 'lucide-react';
 import { Modal } from '../../../../components/common';
 
@@ -22,6 +23,7 @@ interface PosMoreModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCashierOut: () => void;
+  onCustomerMaster: () => void;
 }
 
 const MORE_ITEMS = [
@@ -41,10 +43,11 @@ const ORDER_ITEMS = [
   { label: 'ACTIVE ORDERS', icon: FileText },
   { label: 'TABLE STATUS', icon: LayoutGrid },
   { label: 'CUSTOMER SEARCH', icon: Search },
+  { label: 'CUSTOMER MASTER', icon: UserPlus, action: 'customerMaster' },
   { label: 'SET MENU DINE IN', icon: UtensilsCrossed, action: 'setMenuDineIn' },
 ];
 
-export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut }) => {
+export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut, onCustomerMaster }) => {
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -73,6 +76,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onC
     if (item.action === 'cashierOut') {
       onClose();
       onCashierOut();
+      return;
+    }
+    if (item.action === 'customerMaster') {
+      onClose();
+      onCustomerMaster();
       return;
     }
     // All other items are just buttons, no navigation

@@ -36,10 +36,11 @@ export const calculateLineItem = (
   qty: number,
   price: number,
   discount: number,
+  extras: number,
   config: BillingConfig,
   itemVatRate?: number
 ) => {
-  const amount = qty * price;
+  const amount = (qty * price) + extras;
   const netValue = amount - discount;
   
   // SC applies only to Dine-In
@@ -61,6 +62,7 @@ export const calculateLineItem = (
   const lineNetAmount = vatBase + vatAmount;
 
   return {
+    baseAmount: qty * price,
     amount,
     netValue,
     sc,

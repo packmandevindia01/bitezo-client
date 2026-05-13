@@ -5,6 +5,9 @@ import {
   POS_TENDER_OPTIONS, 
   POS_INITIAL_CART 
 } from '../../constants';
+import { createSelector } from '@reduxjs/toolkit';
+import type { RootState } from '../../../../app/store';
+import { calculateLineItem, getBillingConfig } from '../utils/billing';
 import type { 
   PosCartItem, 
   MenuGroup, 
@@ -240,9 +243,6 @@ export const {
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
-import { createSelector } from '@reduxjs/toolkit';
-import type { RootState } from '../../../../app/store';
-import { calculateLineItem, getBillingConfig } from '../utils/billing';
 
 export const selectPosState = (state: RootState) => state.pos;
 
@@ -259,8 +259,7 @@ export const selectCartDetails = createSelector(
       const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
       
       const extrasTotal = (item.extras || []).reduce((sum, extra) => sum + (extra.price * extra.qty), 0);
-      const basePrice = price + extrasTotal;
-      const itemGross = basePrice * item.quantity;
+      const itemGross = (price * item.quantity) + extrasTotal;
 
       let itemDiscount = 0;
       if (item.discountValue) {
@@ -271,7 +270,7 @@ export const selectCartDetails = createSelector(
         }
       }
 
-      const calcs = calculateLineItem(item.quantity, basePrice, itemDiscount, config, product.vatValue);
+      const calcs = calculateLineItem(item.quantity, price, itemDiscount, extrasTotal, config, product.vatValue);
 
       return {
         ...item,
@@ -282,6 +281,7 @@ export const selectCartDetails = createSelector(
         },
         extrasTotal,
         itemDiscount,
+        baseAmount: calcs.baseAmount,
         amount: calcs.amount,
         netValue: calcs.netValue,
         sc: calcs.sc,
@@ -294,9 +294,14 @@ export const selectCartDetails = createSelector(
   }
 );
 
+export const selectBaseSubtotal = createSelector(
+  [selectCartDetails],
+  (details) => details.reduce((sum, item) => sum + item.baseAmount, 0)
+);
+
 export const selectSubtotal = createSelector(
   [selectCartDetails],
-  (details) => details.reduce((sum, item) => sum + item.netValue, 0)
+  (details) => details.reduce((sum, item) => sum + item.amount, 0)
 );
 
 export const selectItemTotalDiscount = createSelector(
@@ -317,6 +322,11 @@ export const selectBillDiscount = createSelector(
 export const selectDiscount = createSelector(
   [selectItemTotalDiscount, selectBillDiscount],
   (itemDisc, billDisc) => itemDisc + billDisc
+);
+
+export const selectTotalExtras = createSelector(
+  [selectCartDetails],
+  (details) => details.reduce((sum, item) => sum + item.extrasTotal, 0)
 );
 
 export const selectCharges = createSelector(

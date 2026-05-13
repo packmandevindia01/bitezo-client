@@ -3,12 +3,14 @@ import React, { forwardRef } from "react";
 interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  inputClassName?: string;
 }
 
 const FormInput = forwardRef<HTMLInputElement, Props>(({
   label,
   error,
   className = "",
+  inputClassName = "",
   type = "text",
   id,
   name,
@@ -62,6 +64,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
 
           focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
           ${className}
+          ${inputClassName}
         `}
         {...props}
       />

@@ -75,7 +75,7 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                     <div className="mt-1 space-y-0.5">
                       {item.extras.map((ex, i) => (
                         <p key={i} className="text-[9px] font-bold text-blue-600 uppercase leading-none italic">
-                          + {ex.name} ({formatAmount(ex.price)})
+                          + {ex.name} {ex.qty > 1 ? `(x${ex.qty})` : ""} ({formatAmount(ex.price * ex.qty)})
                         </p>
                       ))}
                     </div>

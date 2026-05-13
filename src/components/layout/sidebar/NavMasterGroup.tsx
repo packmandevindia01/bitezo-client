@@ -74,6 +74,15 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
           </div>
         )}
 
+        {hasPermission("Customer Master", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/customers")} className={itemClassName}>
+            <div className="flex items-center gap-2">
+              <UserCog size={14} />
+              <span>Customer</span>
+            </div>
+          </div>
+        )}
+
         {hasPermission("Employee Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/employees")} className={itemClassName}>
             <div className="flex items-center gap-2">

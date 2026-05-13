@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
@@ -15,6 +15,7 @@ import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
 import { menuApi } from "../../services/menuApi";
 import { PosMoreModal } from "../components/PosMoreModal";
+import { PosCustomerModal } from "../../customer/components/PosCustomerModal";
 import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
 import { useCashierLog } from "../../cashier";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
@@ -25,6 +26,7 @@ export const PosTerminalPage = () => {
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const { showToast } = useToast();
@@ -74,6 +76,8 @@ export const PosTerminalPage = () => {
     tax,
     charges,
     total,
+    totalExtras,
+    baseSubtotal,
     visibleProducts,
     loading,
     setGroup,
@@ -169,12 +173,21 @@ export const PosTerminalPage = () => {
     setIsPriceModalOpen(false);
   };
 
-  const currentSelectedItem = selectedKey
-    ? cartDetails.find((item) => {
-        const key = `${item.productId}-${item.variantName || "main"}`;
-        return key === selectedKey;
-      })
-    : null;
+  const currentSelectedItem = useMemo(() => {
+    if (!selectedKey) return null;
+    return cartDetails.find((item) => {
+      const key = `${item.productId}-${item.variantName || "main"}`;
+      // Support both indexed and non-indexed keys for robustness
+      return key === selectedKey || selectedKey.startsWith(`${key}-`);
+    });
+  }, [selectedKey, cartDetails]);
+
+  const initialSelections = useMemo(() => {
+    if (!currentSelectedItem) return [];
+    return extrasModifierType === 'extras'
+      ? (currentSelectedItem.extras || [])
+      : (currentSelectedItem.modifiers || []);
+  }, [currentSelectedItem, extrasModifierType]);
 
   const openPriceModal = () => {
     if (!selectedKey) return;
@@ -215,6 +228,7 @@ export const PosTerminalPage = () => {
       <PosTopNav 
         onNewOrder={clearCart} 
         onMore={() => setIsMoreModalOpen(true)} 
+        onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
             setIsLogoutConfirmOpen(true);
@@ -359,6 +373,8 @@ export const PosTerminalPage = () => {
               tax={tax}
               charges={charges}
               total={total}
+              totalExtras={totalExtras}
+              baseSubtotal={baseSubtotal}
               selectedKey={selectedKey}
               onSelectRow={setSelectedKey}
               onIncrement={incrementItem}
@@ -592,11 +608,7 @@ export const PosTerminalPage = () => {
         cartItems={cartDetails}
         selectedKey={selectedKey}
         onSelectRow={setSelectedKey}
-        initialSelections={
-          extrasModifierType === 'extras' 
-            ? (currentSelectedItem?.extras || []) 
-            : (currentSelectedItem?.modifiers || [])
-        }
+        initialSelections={initialSelections}
         onDone={(selections) => {
           if (!selectedKey) return;
           const [idPart, ...variantParts] = selectedKey.split('-');
@@ -619,6 +631,12 @@ export const PosTerminalPage = () => {
           setIsMoreModalOpen(false);
           setIsLogoutConfirmOpen(true);
         }}
+        onCustomerMaster={() => setIsCustomerModalOpen(true)}
+      />
+
+      <PosCustomerModal
+        isOpen={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
       />
       
       <ConfirmDialog

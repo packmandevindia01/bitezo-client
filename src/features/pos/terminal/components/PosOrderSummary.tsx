@@ -6,23 +6,31 @@ interface PosOrderSummaryProps {
   tax: number;
   charges: number;
   total: number;
+  totalExtras: number;
+  baseSubtotal: number;
   onSettle?: () => void;
   onOrder?: () => void;
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSettle, onOrder }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder }: PosOrderSummaryProps) => {
   return (
     <div className="p-3 bg-slate-50/80 border-t border-slate-200 space-y-3">
       {/* Financial Breakdown */}
       <div className="space-y-1 border-b border-slate-200/60 pb-3">
         <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
-          <span>SUBTOTAL</span>
-          <span>{formatAmount(subtotal)}</span>
+          <span>ITEMS TOTAL</span>
+          <span>{formatAmount(baseSubtotal)}</span>
         </div>
         {discount > 0 && (
           <div className="flex justify-between items-center text-[11px] font-bold text-red-500">
             <span>DISCOUNT</span>
             <span>- {formatAmount(discount)}</span>
+          </div>
+        )}
+        {totalExtras > 0 && (
+          <div className="flex justify-between items-center text-[11px] font-bold text-blue-500">
+            <span>EXTRAS</span>
+            <span>{formatAmount(totalExtras)}</span>
           </div>
         )}
         {charges > 0 && (
