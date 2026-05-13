@@ -67,7 +67,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
           </div>
           <div className="flex gap-3">
             <Button 
-              variant="outline" 
+              variant="secondary" 
               onClick={() => {
                 resetForm();
                 setTimeout(() => firstInputRef.current?.focus(), 50);
@@ -158,7 +158,6 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onClick={() => handleFieldClick("address")}
                   className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-y min-h-[80px]"
                   placeholder="Enter full address"
-                  inputMode="none"
                 />
               </div>
 
@@ -190,8 +189,6 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 label="Branch"
                 value={form.branch}
                 onChange={(e) => setForm({ ...form, branch: e.target.value })}
-                onFocus={() => handleFieldFocus("branch")}
-                onClick={() => handleFieldClick("branch")}
                 options={[{ label: "Select Branch...", value: "" }, { label: "Main Branch", value: "main" }]}
               />
               <FormInput
@@ -208,26 +205,28 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
           </div>
         </div>
 
-        {/* Keyboard Section */}
+        {/* Keyboard Section - Slides up over content */}
         {showKeyboard && (
-          <TouchKeyboard
-            onInput={handleInput}
-            onBackspace={handleBackspace}
-            onClear={handleClear}
-            onClose={() => setShowKeyboard(false)}
-          />
+          <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[-0_-10px_40px_rgba(0,0,0,0.1)] z-10 transition-transform duration-300 transform translate-y-0 p-2 md:p-3">
+            <TouchKeyboard
+              onInput={handleInput}
+              onBackspace={handleBackspace}
+              onClear={handleClear}
+              onClose={() => setShowKeyboard(false)}
+            />
+          </div>
         )}
       </div>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
+        onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={() => {
           if (form.id) deleteCustomer(form.id);
           setShowDeleteConfirm(false);
         }}
         title="Delete Customer"
-        message={`Are you sure you want to delete '${form.customerName}'?`}
+        message="Are you sure you want to delete this customer? This action cannot be undone."
       />
     </Modal>
   );

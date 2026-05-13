@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
 import { isRequired } from "../../../../lib/validators";
 import type { Customer } from "../../../pos/customer/types/customer";

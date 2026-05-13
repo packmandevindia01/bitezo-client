@@ -8,7 +8,7 @@ interface TouchKeyboardProps {
   layout?: "qwerty" | "numeric";
 }
 
-export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose, layout = "qwerty" }: TouchKeyboardProps) => {
+export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose }: TouchKeyboardProps) => {
   const [isCaps, setIsCaps] = useState(false);
 
   const rows = [
@@ -49,7 +49,6 @@ export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose, layout =
           <div key={rowIndex} className="flex justify-center gap-1.5">
             {row.map((key) => {
               const isSpecial = ["Shift", "Back", "Clear", "Space", "Done"].includes(key);
-              const isWide = ["Space", "Done", "Shift", "Back", "Clear"].includes(key);
               
               return (
                 <button

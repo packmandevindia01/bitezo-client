@@ -8,6 +8,11 @@ export interface Customer {
   email: string;
   address: string;
   area: string;
+  flatNo?: string;
+  buildingNo?: string;
+  blockNo?: string;
+  roadNo?: string;
+  callType?: string;
   identityNo: string;
   trnNo: string;
   branch: string;

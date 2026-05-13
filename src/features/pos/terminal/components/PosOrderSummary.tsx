@@ -12,7 +12,7 @@ interface PosOrderSummaryProps {
   onOrder?: () => void;
 }
 
-export const PosOrderSummary = ({ subtotal, baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder }: PosOrderSummaryProps) => {
   return (
     <div className="p-3 bg-slate-50/80 border-t border-slate-200 space-y-3">
       {/* Financial Breakdown */}
