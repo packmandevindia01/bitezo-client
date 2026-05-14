@@ -40,7 +40,9 @@ interface PosOrderPanelProps {
   onMod?: () => void;
   onPrice?: () => void;
   onClearCart?: () => void;
+  onOrder?: () => void;
   onClose?: () => void;
+  orderLoading?: boolean;
 }
 
 export const PosOrderPanel = ({
@@ -59,7 +61,9 @@ export const PosOrderPanel = ({
   onRemove,
   onMod,
   onPrice,
+  onOrder,
   onClose,
+  orderLoading
 }: PosOrderPanelProps) => {
 
   // Parse selected key back into productId + variantName
@@ -244,6 +248,8 @@ export const PosOrderPanel = ({
         total={total}
         totalExtras={totalExtras}
         baseSubtotal={baseSubtotal}
+        onOrder={onOrder}
+        orderLoading={orderLoading}
       />
     </aside>
   );

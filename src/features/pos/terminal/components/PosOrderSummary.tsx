@@ -10,9 +10,10 @@ interface PosOrderSummaryProps {
   baseSubtotal: number;
   onSettle?: () => void;
   onOrder?: () => void;
+  orderLoading?: boolean;
 }
 
-export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading }: PosOrderSummaryProps) => {
   return (
     <div className="p-3 bg-slate-50/80 border-t border-slate-200 space-y-3">
       {/* Financial Breakdown */}
@@ -98,15 +99,17 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
         <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={onOrder}
-            className="h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all"
+            disabled={orderLoading}
+            className="h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
           >
-            Order
+            {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={onOrder}
-            className="h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all"
+            disabled={orderLoading}
+            className="h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
           >
-            Order & <br />Print
+            {orderLoading ? "Wait..." : "Order & Print"}
           </button>
         </div>
       </div>

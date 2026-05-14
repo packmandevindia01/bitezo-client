@@ -218,188 +218,258 @@ const CompanyForm = ({
     }
   };
 
+  const handleIdChange = (field: keyof CompanyFormData, value: string) => {
+    const formatted = value.toUpperCase().replace(/\s/g, "");
+    handleChange(field, formatted);
+  };
+
   return (
     <>
       {submitting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <Loader />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <Loader text="Creating Company..." />
         </div>
       )}
 
       {loadingMasterData && (
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Loading company master data...
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 flex items-center gap-2 animate-pulse">
+          <span className="h-2 w-2 bg-amber-400 rounded-full" />
+          Loading secure configuration data...
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormInput
-          id="co-regId"
-          label="Registration ID"
-          required
-          value={form.regId}
-          onChange={(e) => handleChange("regId", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-custName")}
-          disabled={submitting}
-          readOnly={isLocked("regId")}
-          autoFocus
-        />
+      <div className="space-y-8">
+        {/* SECTION 1: GENERAL INFO */}
+        <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-[#49293e] rounded-full" />
+            <h3 className="text-sm font-black text-[#49293e] uppercase tracking-[0.2em]">General Information</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <FormInput
+              id="co-regId"
+              label="Registration ID"
+              required
+              tabIndex={1}
+              value={form.regId}
+              onChange={(e) => handleIdChange("regId", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-custName")}
+              disabled={submitting}
+              readOnly={isLocked("regId")}
+              autoFocus
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-custName"
-          label="Company Name"
-          required
-          value={form.custName}
-          onChange={(e) => handleChange("custName", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-crNo")}
-          error={errors.custName}
-          disabled={submitting}
-          readOnly={isLocked("custName")}
-        />
+            <FormInput
+              id="co-custName"
+              label="Company Name"
+              required
+              tabIndex={2}
+              value={form.custName}
+              onChange={(e) => handleChange("custName", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-crNo")}
+              error={errors.custName}
+              disabled={submitting}
+              readOnly={isLocked("custName")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-crNo"
-          label="CR No"
-          required
-          value={form.crNo}
-          onChange={(e) => handleChange("crNo", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-custMob")}
-          error={errors.crNo}
-          disabled={submitting}
-          readOnly={isLocked("crNo")}
-        />
+            <FormInput
+              id="co-crNo"
+              label="CR Number"
+              required
+              tabIndex={3}
+              value={form.crNo}
+              onChange={(e) => handleIdChange("crNo", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-taxRegNo")}
+              error={errors.crNo}
+              disabled={submitting}
+              readOnly={isLocked("crNo")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-custMob"
-          label="Mobile No"
-          required
-          placeholder="+973 36001234"
-          value={form.custMob}
-          onChange={(e) => handleChange("custMob", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-email")}
-          error={errors.custMob}
-          disabled={submitting}
-          readOnly={isLocked("custMob")}
-        />
+            <FormInput
+              id="co-taxRegNo"
+              label="Tax Registration No"
+              tabIndex={4}
+              value={form.taxRegNo}
+              onChange={(e) => handleIdChange("taxRegNo", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-currency")}
+              disabled={submitting}
+              readOnly={isLocked("taxRegNo")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-email"
-          label="Email"
-          value={form.email}
-          onChange={(e) => handleChange("email", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-custMob2")}
-          error={errors.email}
-          disabled={submitting}
-          readOnly={isLocked("email")}
-        />
+            <SelectInput
+              id="co-currency"
+              label="Primary Currency"
+              required
+              tabIndex={5}
+              value={form.currency}
+              onChange={(e) => handleChange("currency", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-custMob")}
+              options={currencyOptions}
+              error={errors.currency}
+              disabled={submitting}
+              className="bg-white"
+            />
+          </div>
+        </div>
 
-        <FormInput
-          id="co-custMob2"
-          label="Tel No"
-          value={form.custMob2}
-          onChange={(e) => handleChange("custMob2", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-taxRegNo")}
-          disabled={submitting}
-          readOnly={isLocked("custMob2")}
-        />
+        {/* SECTION 2: CONTACT DETAILS */}
+        <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-[#49293e] rounded-full" />
+            <h3 className="text-sm font-black text-[#49293e] uppercase tracking-[0.2em]">Contact Details</h3>
+          </div>
 
-        <FormInput
-          id="co-taxRegNo"
-          label="Tax Reg No"
-          value={form.taxRegNo}
-          onChange={(e) => handleChange("taxRegNo", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-currency")}
-          disabled={submitting}
-          readOnly={isLocked("taxRegNo")}
-        />
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <FormInput
+              id="co-custMob"
+              label="Mobile Number"
+              required
+              tabIndex={6}
+              placeholder="+973 36001234"
+              value={form.custMob}
+              onChange={(e) => handleChange("custMob", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-custMob2")}
+              error={errors.custMob}
+              disabled={submitting}
+              readOnly={isLocked("custMob")}
+              className="bg-white"
+            />
 
-        <SelectInput
-          id="co-currency"
-          label="Currency"
-          required
-          value={form.currency}
-          onChange={(e) => handleChange("currency", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-block")}
-          options={currencyOptions}
-          error={errors.currency}
-          disabled={submitting}
-        />
+            <FormInput
+              id="co-custMob2"
+              label="Landline / Alt Mobile"
+              tabIndex={7}
+              value={form.custMob2}
+              onChange={(e) => handleChange("custMob2", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-email")}
+              disabled={submitting}
+              readOnly={isLocked("custMob2")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-block"
-          label="Block No"
-          value={form.block}
-          onChange={(e) => handleChange("block", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-area")}
-          disabled={submitting}
-          readOnly={isLocked("block")}
-        />
+            <FormInput
+              id="co-email"
+              label="Email Address"
+              tabIndex={8}
+              type="email"
+              value={form.email}
+              onChange={(e) => handleChange("email", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-area")}
+              error={errors.email}
+              disabled={submitting}
+              readOnly={isLocked("email")}
+              className="bg-white"
+            />
+          </div>
+        </div>
 
-        <FormInput
-          id="co-area"
-          label="Area / Street"
-          value={form.area}
-          onChange={(e) => handleChange("area", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-customerId")}
-          disabled={submitting}
-          readOnly={isLocked("area")}
-        />
+        {/* SECTION 3: ADDRESS INFORMATION */}
+        <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-[#49293e] rounded-full" />
+            <h3 className="text-sm font-black text-[#49293e] uppercase tracking-[0.2em]">Address Information</h3>
+          </div>
 
-        <FormInput
-          id="co-customerId"
-          label="Customer ID"
-          value={form.customerId}
-          onChange={(e) => handleChange("customerId", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-building")}
-          disabled={submitting}
-          readOnly={isLocked("customerId")}
-        />
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-2">
+            <FormInput
+              id="co-area"
+              label="Area / Street"
+              tabIndex={9}
+              value={form.area}
+              onChange={(e) => handleChange("area", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-block")}
+              disabled={submitting}
+              readOnly={isLocked("area")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-building"
-          label="Building No"
-          value={form.building}
-          onChange={(e) => handleChange("building", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-road")}
-          disabled={submitting}
-          readOnly={isLocked("building")}
-        />
+            <FormInput
+              id="co-block"
+              label="Block No"
+              tabIndex={10}
+              value={form.block}
+              onChange={(e) => handleChange("block", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-building")}
+              disabled={submitting}
+              readOnly={isLocked("block")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-road"
-          label="Road No"
-          value={form.road}
-          onChange={(e) => handleChange("road", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "co-flatNo")}
-          disabled={submitting}
-          readOnly={isLocked("road")}
-        />
+            <FormInput
+              id="co-building"
+              label="Building"
+              tabIndex={11}
+              value={form.building}
+              onChange={(e) => handleChange("building", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-road")}
+              disabled={submitting}
+              readOnly={isLocked("building")}
+              className="bg-white"
+            />
 
-        <FormInput
-          id="co-flatNo"
-          label="Flat No"
-          value={form.flatNo}
-          onChange={(e) => handleChange("flatNo", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e)}
-          disabled={submitting}
-          readOnly={isLocked("flatNo")}
-        />
+            <FormInput
+              id="co-road"
+              label="Road No"
+              tabIndex={12}
+              value={form.road}
+              onChange={(e) => handleChange("road", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-flatNo")}
+              disabled={submitting}
+              readOnly={isLocked("road")}
+              className="bg-white"
+            />
+
+            <FormInput
+              id="co-flatNo"
+              label="Flat / Shop No"
+              tabIndex={13}
+              value={form.flatNo}
+              onChange={(e) => handleChange("flatNo", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "co-customerId")}
+              disabled={submitting}
+              readOnly={isLocked("flatNo")}
+              className="bg-white"
+            />
+
+            <FormInput
+              id="co-customerId"
+              label="Internal Customer ID"
+              tabIndex={14}
+              value={form.customerId}
+              onChange={(e) => handleIdChange("customerId", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e)}
+              disabled={submitting}
+              readOnly={isLocked("customerId")}
+              className="bg-white"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-3">
-        <Button variant="secondary" onClick={() => setForm(createFormState())} disabled={submitting}>
-          Clear
+      <div className="mt-10 flex flex-wrap items-center justify-end gap-4 border-t border-slate-100 pt-8">
+        <Button 
+          variant="secondary" 
+          onClick={() => setForm(createFormState())} 
+          disabled={submitting}
+          className="px-8 font-bold border-slate-200"
+          tabIndex={16}
+        >
+          Reset Form
         </Button>
 
-        <Button ref={saveBtnRef} onClick={handleSubmit} disabled={submitting}>
-          {submitting ? (
-            <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Saving...
-            </span>
-          ) : (
-            submitLabel
-          )}
+        <Button 
+          ref={saveBtnRef} 
+          onClick={handleSubmit} 
+          disabled={submitting}
+          tabIndex={15}
+          className="px-16 py-3 font-black uppercase tracking-[0.1em] shadow-lg shadow-[#49293e]/20"
+        >
+          {submitting ? "Processing..." : submitLabel}
         </Button>
       </div>
     </>
@@ -407,3 +477,4 @@ const CompanyForm = ({
 };
 
 export default CompanyForm;
+

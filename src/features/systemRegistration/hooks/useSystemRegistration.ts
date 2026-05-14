@@ -38,6 +38,12 @@ export const useSystemRegistration = () => {
     if (existingType) setSystemType(existingType);
   }, []);
 
+  // Handle system type change with persistence
+  const handleSystemTypeChange = (type: SystemType) => {
+    setSystemType(type);
+    localStorage.setItem("systemType", type);
+  };
+
   // Fetch branch list
   useEffect(() => {
     setLoadingBranches(true);
@@ -127,7 +133,7 @@ export const useSystemRegistration = () => {
 
   return {
     systemType,
-    setSystemType,
+    setSystemType: handleSystemTypeChange,
     systemName,
     branchId,
     counterId,
@@ -141,3 +147,4 @@ export const useSystemRegistration = () => {
     handleSubmit,
   };
 };
+

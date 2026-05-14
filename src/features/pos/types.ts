@@ -141,3 +141,82 @@ export interface PosModifierType {
   typeName: string;
   arabicName?: string;
 }
+
+// ─── Order API Types ──────────────────────────────────────────────────────────
+
+export interface MenuOrderDetail {
+  productId: number;
+  unitId: number;
+  qty: number;
+  price: number;
+  discPer: number;
+  discAmount: number;
+  serviceCharge: number;
+  levy: number;
+  vatId: number;
+  vatAmount: number;
+  netAmount: number;
+  modifierId: number;
+  modifierType: number;
+  mapId: number;
+  complimentaryStatus: boolean;
+}
+
+export interface MenuOrderRequest {
+  voucherDate: string;
+  customerId: number;
+  employeeId: number;
+  dayId: number;
+  shiftId: number;
+  discAmount: number;
+  discPer: number;
+  serviceCharge: number;
+  levy: number;
+  vatExclAmount: number;
+  vatAmount: number;
+  netAmount: number;
+  createdAt: string;
+  orderType: string;
+  sectionId: number;
+  tableId: number;
+  guestNo: number;
+  addressId: number;
+  status: string;
+  details: MenuOrderDetail[];
+}
+
+export interface MenuOrderResponse {
+  data: {
+    id: number;
+  };
+  status: number;
+  message: string;
+  isSuccess: boolean;
+}
+
+// ─── Recall API Types ─────────────────────────────────────────────────────────
+
+export interface RecallParams {
+  DayId?: number;
+  EmployeeId?: number;
+  OrderType?: string;
+  SearchStatus?: string;
+  SearchValue?: string;
+  DeliveryOutStatus?: boolean;
+  DeliveryOutOnlyStatus?: boolean;
+  ProviderName?: string;
+}
+
+export interface RecallOrder {
+  transId: number;
+  details: string;
+  isPrinted: boolean;
+}
+
+export interface RecallResponse {
+  data: RecallOrder[];
+  status: number;
+  message: string;
+  isSuccess: boolean;
+}
+

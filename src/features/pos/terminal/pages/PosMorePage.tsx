@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft,
+  LogOut,
 } from 'lucide-react';
 import { Button, Loader } from '../../../../components/common';
 import { PrinterSettingsTab } from '../components/PrinterSettingsTab';
@@ -35,6 +36,15 @@ export const PosMorePage: React.FC = () => {
     navigate('/pos', { state: { openMoreModal: true } });
   };
 
+  const handleSwitchToBackOffice = () => {
+    localStorage.setItem("systemType", "backoffice");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("activeShift");
+    navigate("/", { replace: true });
+  };
+
   const getSubtitle = () => {
     switch (activeTab) {
       case 'GENERAL': return "General Hardware Configuration";
@@ -47,7 +57,7 @@ export const PosMorePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcf9fb] flex flex-col">
+    <div className="min-h-screen bg-[#fcf9fb] flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
@@ -93,6 +103,14 @@ export const PosMorePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button 
+            variant="secondary"
+            onClick={handleSwitchToBackOffice}
+            className="px-4 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2"
+          >
+            <LogOut size={16} />
+            <span className="hidden sm:inline">Back Office Login</span>
+          </Button>
           <Button 
             variant="secondary"
             onClick={handleBack}

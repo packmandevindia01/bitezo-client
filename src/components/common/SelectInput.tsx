@@ -21,6 +21,7 @@ interface Props {
   autoFocus?: boolean;
   className?: string;
   noMargin?: boolean;
+  tabIndex?: number;
 }
 
 const SelectInput = ({
@@ -39,6 +40,7 @@ const SelectInput = ({
   autoFocus,
   className = "",
   noMargin = false,
+  tabIndex,
 }: Props) => {
 
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
@@ -67,6 +69,7 @@ const SelectInput = ({
         onKeyDown={onKeyDown}
         disabled={disabled}
         autoFocus={autoFocus}
+        tabIndex={tabIndex}
         className={`
           w-full px-3 md:px-4 h-10.5
           text-sm

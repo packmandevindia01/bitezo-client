@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Modal, FormInput, Button, Checkbox } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { Search } from "lucide-react";
+import { useDelivery } from "../hooks/useDelivery";
 
 interface PosDeliveryModalProps {
   isOpen: boolean;
@@ -9,16 +10,18 @@ interface PosDeliveryModalProps {
 }
 
 export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => {
+  const { loading, fetchAddressByMobile, saveAddress } = useDelivery();
+  
   const [form, setForm] = useState({
     mobileNo: "",
     customerName: "",
     isComing: false,
     flatNo: "",
     buildingNo: "",
-    road: "",
-    block: "",
+    roadNo: "",
+    blockNo: "",
     area: "",
-    notes: "",
+    note: "",
     callBack: "",
     isMissedCall: false,
     keepChanges: ""
@@ -26,17 +29,59 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
   const [activeField, setActiveField] = useState<keyof typeof form | null>("mobileNo");
   const [showKeyboard, setShowKeyboard] = useState(true);
-
   // Focus
   const mobileRef = useRef<HTMLInputElement>(null);
 
+  const handleClearForm = () => {
+    setForm({
+      mobileNo: "",
+      customerName: "",
+      isComing: false,
+      flatNo: "",
+      buildingNo: "",
+      roadNo: "",
+      blockNo: "",
+      area: "",
+      note: "",
+      callBack: "",
+      isMissedCall: false,
+      keepChanges: ""
+    });
+    setTimeout(() => mobileRef.current?.focus(), 50);
+  };
+
   useEffect(() => {
     if (isOpen) {
+      handleClearForm(); // Clear form on every open
       setTimeout(() => mobileRef.current?.focus(), 100);
       setActiveField("mobileNo");
       setShowKeyboard(true); 
+    } else {
+      handleClearForm(); // Clear form on close as well
     }
   }, [isOpen]);
+
+  // Lookup address when mobileNo changes
+  useEffect(() => {
+    const lookupMobile = async () => {
+      if (form.mobileNo.length >= 4) { // Trigger lookup for mobile numbers like '1234'
+        const existingAddress = await fetchAddressByMobile(form.mobileNo);
+        if (existingAddress) {
+          setForm(prev => ({
+            ...prev,
+            customerName: existingAddress.customerName || "",
+            flatNo: existingAddress.flatNo || "",
+            buildingNo: existingAddress.buildingNo || "",
+            roadNo: existingAddress.roadNo || "",
+            blockNo: existingAddress.blockNo || "",
+            area: existingAddress.area || "",
+            note: existingAddress.note || ""
+          }));
+        }
+      }
+    };
+    lookupMobile();
+  }, [form.mobileNo, fetchAddressByMobile]);
 
   const handleInput = (val: string) => {
     if (!activeField) return;
@@ -69,22 +114,23 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     setShowKeyboard(true);
   };
 
-  const handleClearForm = () => {
-    setForm({
-      mobileNo: "",
-      customerName: "",
-      isComing: false,
-      flatNo: "",
-      buildingNo: "",
-      road: "",
-      block: "",
-      area: "",
-      notes: "",
-      callBack: "",
-      isMissedCall: false,
-      keepChanges: ""
+  const handleSave = async () => {
+    if (!form.mobileNo) return;
+    
+    const success = await saveAddress({
+      mobileNo: form.mobileNo,
+      flatNo: form.flatNo,
+      buildingNo: form.buildingNo,
+      roadNo: form.roadNo,
+      blockNo: form.blockNo,
+      area: form.area,
+      customerName: form.customerName,
+      note: form.note
     });
-    setTimeout(() => mobileRef.current?.focus(), 50);
+
+    if (success) {
+      // Logic after successful save if needed
+    }
   };
 
   return (
@@ -115,6 +161,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               onClick={() => handleFieldClick("mobileNo")}
               ref={mobileRef}
               inputMode="none"
+              autoFocus
             />
           </div>
           <div className="w-full md:w-[45%]">
@@ -135,8 +182,12 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
             />
             <span className="text-[#9c142c] font-bold text-[10px] md:text-xs shrink-0">Coming(Come and Collect)</span>
             
-            <button className="ml-auto flex items-center justify-center w-8 h-8 md:w-9 md:h-9 bg-gradient-to-br from-pink-400 to-rose-500 rounded-lg text-white shadow-md hover:scale-105 active:scale-95 transition-all">
-              <Search size={16} strokeWidth={2.5} />
+            <button 
+              className="ml-auto flex items-center justify-center w-8 h-8 md:w-9 md:h-9 bg-gradient-to-br from-pink-400 to-rose-500 rounded-lg text-white shadow-md hover:scale-105 active:scale-95 transition-all"
+              onClick={() => fetchAddressByMobile(form.mobileNo)}
+              disabled={loading}
+            >
+              <Search size={16} strokeWidth={2.5} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
@@ -160,19 +211,19 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
             inputMode="none"
           />
           <FormInput
-            label="Road"
-            value={form.road}
-            onChange={(e) => setForm({ ...form, road: e.target.value })}
-            onFocus={() => handleFieldFocus("road")}
-            onClick={() => handleFieldClick("road")}
+            label="Road No"
+            value={form.roadNo}
+            onChange={(e) => setForm({ ...form, roadNo: e.target.value })}
+            onFocus={() => handleFieldFocus("roadNo")}
+            onClick={() => handleFieldClick("roadNo")}
             inputMode="none"
           />
           <FormInput
-            label="Block"
-            value={form.block}
-            onChange={(e) => setForm({ ...form, block: e.target.value })}
-            onFocus={() => handleFieldFocus("block")}
-            onClick={() => handleFieldClick("block")}
+            label="Block No"
+            value={form.blockNo}
+            onChange={(e) => setForm({ ...form, blockNo: e.target.value })}
+            onFocus={() => handleFieldFocus("blockNo")}
+            onClick={() => handleFieldClick("blockNo")}
             inputMode="none"
           />
           <FormInput
@@ -190,10 +241,10 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           <div className="w-full md:w-[50%]">
             <FormInput
               label="Notes"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              onFocus={() => handleFieldFocus("notes")}
-              onClick={() => handleFieldClick("notes")}
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              onFocus={() => handleFieldFocus("note")}
+              onClick={() => handleFieldClick("note")}
               inputMode="none"
             />
           </div>
@@ -277,8 +328,13 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
       {/* Footer Actions */}
       <div className="bg-slate-200 p-3 flex justify-end gap-3 shrink-0 rounded-b-xl border-t border-slate-300">
-        <Button onClick={() => {}} className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md">
-          Save
+        <Button 
+          onClick={handleSave} 
+          className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md min-w-[120px]"
+          loading={loading}
+          disabled={loading || !form.mobileNo}
+        >
+          {loading ? "Saving..." : "Save"}
         </Button>
         <Button onClick={handleClearForm} className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md">
           Clear
@@ -288,3 +344,4 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     </Modal>
   );
 };
+

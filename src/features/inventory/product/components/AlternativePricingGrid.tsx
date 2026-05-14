@@ -208,8 +208,8 @@ export const AlternativePricingGrid = ({
         </div>
       </div>
       
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full border-collapse text-left table-fixed">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">

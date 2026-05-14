@@ -1,5 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, UtensilsCrossed, ShoppingBag, Truck, Car, Users, UserPlus } from "lucide-react";
+import { 
+  MoreHorizontal, 
+  UtensilsCrossed, 
+  ShoppingBag, 
+  Truck, 
+  Car, 
+  Users, 
+  UserPlus,
+} from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -12,11 +20,12 @@ interface PosTopNavProps {
   onCustomerMaster?: () => void;
   onDelivery?: () => void;
   onDriveThrough?: () => void;
+  onRecall?: () => void;
   status: any;
 }
 
 
-const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDelivery, onDriveThrough, status }: PosTopNavProps) => {
+const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDelivery, onDriveThrough, onRecall, status }: PosTopNavProps) => {
 
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -99,7 +108,7 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
             <path d="m21 3-9 9" /><path d="m3 21 9-9" /><path d="M16 12h5V7" /><path d="M8 12H3v5" />
           </svg>
         </PosActionButton>
-        <PosActionButton accent="orange" noPadding className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md" title="Recall">
+        <PosActionButton accent="orange" noPadding className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md" title="Recall" onClick={onRecall}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
           </svg>

@@ -141,16 +141,26 @@ const RegistrationForm = ({
       </div>
 
       {/* Action */}
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex flex-col sm:flex-row gap-3">
         <Button
           id="register-system-btn"
           onClick={onSubmit}
           disabled={saving}
           loading={saving}
           size="lg"
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto px-10"
         >
           {saving ? "Saving…" : "Register System"}
+        </Button>
+
+        <Button
+          variant="secondary"
+          onClick={() => window.history.back()}
+          disabled={saving}
+          size="lg"
+          className="w-full sm:w-auto"
+        >
+          Cancel / Back
         </Button>
       </div>
     </section>

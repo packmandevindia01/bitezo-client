@@ -1,5 +1,6 @@
 import { ChevronDown, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ interface Props {
   /** Show a clear (×) button when a value is selected. Default: true */
   clearable?: boolean;
   autoFocus?: boolean;
+  tabIndex?: number;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -37,6 +39,7 @@ const SearchableSelect = ({
   error,
   clearable = true,
   autoFocus = false,
+  tabIndex,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -45,12 +48,12 @@ const SearchableSelect = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, placement: "bottom" as "top" | "bottom" });
 
   // Auto focus logic
   useEffect(() => {
     if (autoFocus && triggerRef.current) {
       triggerRef.current.focus();
-      // For searchable selects, we also want to open it so the user can start typing
       setOpen(true);
     }
   }, [autoFocus]);
@@ -84,6 +87,10 @@ const SearchableSelect = ({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        // If clicking inside the portal, don't close
+        const portal = document.getElementById("select-portal-root");
+        if (portal && portal.contains(e.target as Node)) return;
+        
         setOpen(false);
         setQuery("");
       }
@@ -91,6 +98,55 @@ const SearchableSelect = ({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Update coordinates when opening or scrolling
+  useLayoutEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 250; // Estimated max height (search + list)
+      
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      const placement = spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom";
+
+      setCoords({
+        top: placement === "bottom" ? rect.bottom + window.scrollY : rect.top + window.scrollY - dropdownHeight,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+        placement
+      });
+    }
+  }, [open]);
+
+  // Re-calculate on window resize or scroll
+  useEffect(() => {
+    if (!open) return;
+    const handleUpdate = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 250;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const placement = spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom";
+
+        setCoords({
+          top: placement === "bottom" ? rect.bottom + window.scrollY : rect.top + window.scrollY - dropdownHeight,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          placement
+        });
+      }
+    };
+    window.addEventListener("resize", handleUpdate);
+    window.addEventListener("scroll", handleUpdate, true);
+    return () => {
+      window.removeEventListener("resize", handleUpdate);
+      window.removeEventListener("scroll", handleUpdate, true);
+    };
+  }, [open]);
 
   // Focus input when dropdown opens
   useEffect(() => {
@@ -150,7 +206,6 @@ const SearchableSelect = ({
         setQuery("");
         break;
       case "Tab":
-        // Let normal tab behavior happen, but close dropdown
         setOpen(false);
         setQuery("");
         break;
@@ -174,7 +229,7 @@ const SearchableSelect = ({
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
-        tabIndex={disabled ? -1 : 0}
+        tabIndex={disabled ? -1 : (tabIndex ?? 0)}
         onClick={toggleOpen}
         onKeyDown={handleKeyDown}
         className={`
@@ -210,10 +265,22 @@ const SearchableSelect = ({
         />
       </div>
 
-      {/* Dropdown */}
-      {open && (
-        <div className="relative z-50">
-          <div className="absolute top-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+      {/* Dropdown - Portaled */}
+      {open && createPortal(
+        <div 
+          id="select-portal-root"
+          className="fixed z-[9999]"
+          style={{
+            top: coords.top,
+            left: coords.left,
+            width: coords.width,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`
+            w-full rounded-md border border-gray-200 bg-white shadow-xl duration-100
+            ${coords.placement === "bottom" ? "mt-1 animate-in fade-in zoom-in-95" : "mb-1 animate-in fade-in slide-in-from-bottom-2"}
+          `}>
             {/* Search input */}
             <div className="border-b border-gray-100 p-2">
               <input
@@ -224,7 +291,6 @@ const SearchableSelect = ({
                 onKeyDown={handleKeyDown}
                 placeholder="Type to search…"
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
-                onClick={(e) => e.stopPropagation()}
               />
             </div>
 
@@ -256,7 +322,8 @@ const SearchableSelect = ({
               )}
             </ul>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Error */}
@@ -270,4 +337,4 @@ const SearchableSelect = ({
   );
 };
 
-export default SearchableSelect;
+export default SearchableSelect;

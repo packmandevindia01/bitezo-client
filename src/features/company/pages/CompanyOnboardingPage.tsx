@@ -55,6 +55,35 @@ const CompanyOnboardingPage = () => {
   const [loadingPosSetup, setLoadingPosSetup] = useState(false);
   const [loadingPosCounters, setLoadingPosCounters] = useState(false);
 
+  // Resume onboarding state on mount
+  useEffect(() => {
+    const savedStage = localStorage.getItem("onboardingStage") as OnboardingStage | null;
+    const savedRegId = localStorage.getItem("onboardingRegId");
+    const savedEmail = localStorage.getItem("onboardingEmail");
+    const savedOtpToken = localStorage.getItem("onboardingOtpToken");
+    const savedDb = localStorage.getItem("tenantId");
+
+    if (savedRegId) setFormState(s => ({ ...s, regId: savedRegId }));
+    if (savedEmail) setFormState(s => ({ ...s, email: savedEmail }));
+    if (savedOtpToken) setFormState(s => ({ ...s, otpToken: savedOtpToken }));
+    if (savedDb) setClientDatabase(savedDb);
+
+    if (savedStage && savedStage !== "identify") {
+      // If we are resuming at pos-setup, we need to trigger the branch load
+      if (savedStage === "pos-setup" && savedDb) {
+        void beginPosSetup(savedDb);
+      } else {
+        setStage(savedStage);
+      }
+    }
+  }, []);
+
+  // Persistence wrapper for setStage
+  const setStageWithPersistence = (newStage: OnboardingStage) => {
+    setStage(newStage);
+    localStorage.setItem("onboardingStage", newStage);
+  };
+
   useEffect(() => {
     if (stage !== "verify" || timer <= 0) return;
     const timeout = window.setTimeout(() => {
@@ -98,7 +127,12 @@ const CompanyOnboardingPage = () => {
     try {
       setLoading(true);
       await sendCompanyOtp(formState.regId.trim(), formState.email.trim());
-      setStage("verify");
+      
+      // Persist identity for resume
+      localStorage.setItem("onboardingRegId", formState.regId.trim());
+      localStorage.setItem("onboardingEmail", formState.email.trim());
+      
+      setStageWithPersistence("verify");
       setTimer(30);
       showToast("OTP sent successfully", "success");
     } catch (error) {
@@ -147,6 +181,13 @@ const CompanyOnboardingPage = () => {
     localStorage.setItem("systemRegisteredAt", new Date().toISOString());
 
     showToast("POS Terminal Registered! Opening system...", "success");
+    
+    // Clear onboarding persistence
+    localStorage.removeItem("onboardingStage");
+    localStorage.removeItem("onboardingRegId");
+    localStorage.removeItem("onboardingEmail");
+    localStorage.removeItem("onboardingOtpToken");
+
     navigate("/cashier/in", { replace: true });
   };
 
@@ -169,7 +210,7 @@ const CompanyOnboardingPage = () => {
       setPosCounters([]);
       setPosCounterId("");
       setPosSetupErrors({ branchId: "", counterId: "" });
-      setStage("pos-setup");
+      setStageWithPersistence("pos-setup");
 
       if (branchOptions.length === 1) {
         const onlyBranchId = String(branchOptions[0].id);
@@ -226,7 +267,7 @@ const CompanyOnboardingPage = () => {
       setFormNotice(
         registration.message || "No client database found. Continue to create the company."
       );
-      setStage("form");
+      setStageWithPersistence("form");
       return;
     }
 
@@ -267,7 +308,7 @@ const CompanyOnboardingPage = () => {
       String(companyCheck.message ||
         `Client database "${clientDb}" is ready. Complete the form to create your company.`)
     );
-    setStage("form");
+    setStageWithPersistence("form");
   };
 
   const handleVerifyOtp = async () => {
@@ -291,10 +332,12 @@ const CompanyOnboardingPage = () => {
       }
 
       setField("otpToken", verification.otpToken);
+      localStorage.setItem("onboardingOtpToken", verification.otpToken);
+      
       showToast("OTP verified! Now choose your system type.", "success");
 
       // ── Go to system-type step before post-OTP flow ──
-      setStage("system-type");
+      setStageWithPersistence("system-type");
     } catch (error) {
       const message = error instanceof Error ? error.message : "OTP verification failed";
       showToast(message, "error");
@@ -355,7 +398,7 @@ const CompanyOnboardingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10">
+    <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
         {/* ── Sidebar ── */}
         <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#49293e] via-[#5c3450] to-[#7b556c] p-6 text-white shadow-lg sm:p-8">
@@ -499,7 +542,10 @@ const CompanyOnboardingPage = () => {
                 <button
                   type="button"
                   id="system-type-pos"
-                  onClick={() => setSystemType("pos")}
+                  onClick={() => {
+                    setSystemType("pos");
+                    localStorage.setItem("systemType", "pos");
+                  }}
                   className={`relative w-full rounded-2xl border-2 bg-white p-6 text-left transition-all duration-200 hover:shadow-md ${
                     systemType === "pos"
                       ? "border-[#49293e] shadow-md"
@@ -530,7 +576,10 @@ const CompanyOnboardingPage = () => {
                 <button
                   type="button"
                   id="system-type-backoffice"
-                  onClick={() => setSystemType("backoffice")}
+                  onClick={() => {
+                    setSystemType("backoffice");
+                    localStorage.setItem("systemType", "backoffice");
+                  }}
                   className={`relative w-full rounded-2xl border-2 bg-white p-6 text-left transition-all duration-200 hover:shadow-md ${
                     systemType === "backoffice"
                       ? "border-slate-600 shadow-md"
@@ -569,7 +618,7 @@ const CompanyOnboardingPage = () => {
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={() => setStage("verify")}
+                  onClick={() => setStageWithPersistence("verify")}
                   disabled={loading}
                 >
                   Back
@@ -649,7 +698,7 @@ const CompanyOnboardingPage = () => {
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={() => setStage("system-type")}
+                  onClick={() => setStageWithPersistence("system-type")}
                   disabled={loadingPosSetup}
                 >
                   Back

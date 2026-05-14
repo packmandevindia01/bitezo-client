@@ -67,9 +67,14 @@ const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages
 const LoginRedirect = () => {
   const isPos = localStorage.getItem("systemType") === "pos";
   const hasToken = !!localStorage.getItem("accessToken");
+  const isRegistered = !!localStorage.getItem("systemBranchId");
+
   if (isPos) {
     if (hasToken) {
       return <Navigate to="/pos" replace />;
+    }
+    if (!isRegistered) {
+      return <Navigate to="/system/register" replace />;
     }
     return <Navigate to="/cashier/in" replace />;
   }

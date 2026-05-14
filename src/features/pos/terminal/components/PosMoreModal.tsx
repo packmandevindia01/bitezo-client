@@ -27,6 +27,7 @@ interface PosMoreModalProps {
 }
 
 const MORE_ITEMS = [
+  { label: 'BACK OFFICE', icon: LogOut, action: 'backoffice' },
   { label: 'CONFIGURATION', icon: Settings },
   { label: 'REPORT', icon: BarChart },
   { label: 'PRIVILEGES', icon: Shield },
@@ -71,6 +72,16 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onC
     if (item.action === 'payInOut') {
       onClose();
       navigate('/cashier/out', { state: { activeTab: 'TRANSACTIONS' } });
+      return;
+    }
+    if (item.action === 'backoffice') {
+      onClose();
+      localStorage.setItem("systemType", "backoffice");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("activeShift");
+      navigate("/", { replace: true });
       return;
     }
     if (item.action === 'cashierOut') {

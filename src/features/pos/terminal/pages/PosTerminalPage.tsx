@@ -19,6 +19,7 @@ import { PosCustomerModal } from "../../customer/components/PosCustomerModal";
 import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
 import { PosDeliveryModal } from "../../customer/components/PosDeliveryModal";
 import { PosDriveThroughModal } from "../../customer/components/PosDriveThroughModal";
+import { PosRecallModal } from "../components/PosRecallModal";
 import { useCashierLog } from "../../cashier";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
@@ -31,6 +32,7 @@ export const PosTerminalPage = () => {
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
+  const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const { showToast } = useToast();
@@ -98,7 +100,19 @@ export const PosTerminalPage = () => {
     setItemDiscount,
     updateItemPrice,
     setItemCustomizations,
+    orderLoading,
+    submitOrder,
   } = usePosTerminal();
+
+  // Handle Order Submission
+  const handleOrder = async () => {
+    if (!status) return;
+    await submitOrder({
+      dayId: status.dayId,
+      shiftId: status.shiftId,
+      userId: status.userId
+    });
+  };
 
   // Handle product click - check for alternatives
   const handleProductSelect = async (productId: number) => {
@@ -235,6 +249,7 @@ export const PosTerminalPage = () => {
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onDelivery={() => setIsDeliveryModalOpen(true)}
         onDriveThrough={() => setIsDriveThroughModalOpen(true)}
+        onRecall={() => setIsRecallModalOpen(true)}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
             setIsLogoutConfirmOpen(true);
@@ -389,6 +404,8 @@ export const PosTerminalPage = () => {
               onMod={() => setExtrasModifierType('modifiers')}
               onPrice={openPriceModal}
               onClearCart={clearCart}
+              onOrder={handleOrder}
+              orderLoading={orderLoading}
               onClose={() => setIsCartOpen(false)}
             />
           </ErrorBoundary>
@@ -653,6 +670,11 @@ export const PosTerminalPage = () => {
       <PosDriveThroughModal
         isOpen={isDriveThroughModalOpen}
         onClose={() => setIsDriveThroughModalOpen(false)}
+      />
+
+      <PosRecallModal
+        isOpen={isRecallModalOpen}
+        onClose={() => setIsRecallModalOpen(false)}
       />
 
       <ConfirmDialog

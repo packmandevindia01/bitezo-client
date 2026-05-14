@@ -39,6 +39,9 @@ interface PosState {
   
   loading: boolean;
   error: string | null;
+
+  selectedCustomerId: number;
+  selectedAddressId: number;
 }
 
 const loadCart = (): PosCartItem[] => {
@@ -72,6 +75,9 @@ const initialState: PosState = {
   
   loading: false,
   error: null,
+
+  selectedCustomerId: 1, // Default to 1 (General Customer)
+  selectedAddressId: 0,
 };
 
 const posSlice = createSlice({
@@ -215,6 +221,12 @@ const posSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
+    setCustomerId: (state, action: PayloadAction<number>) => {
+      state.selectedCustomerId = action.payload;
+    },
+    setAddressId: (state, action: PayloadAction<number>) => {
+      state.selectedAddressId = action.payload;
+    },
   },
 });
 
@@ -239,7 +251,9 @@ export const {
   setSubCategory,
   setProducts,
   setLoading,
-  setError
+  setError,
+  setCustomerId,
+  setAddressId
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
