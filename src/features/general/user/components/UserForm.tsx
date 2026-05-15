@@ -2,6 +2,7 @@ import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import { useEffect, useState } from "react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
+import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { isRequired } from "../../../../lib/validators";
 import type { User, UserFormData, UserPayload } from "../types";
 import { userRoleService } from "../../userRole/services/userRoleService";
@@ -208,18 +209,30 @@ const UserForm = ({
       </div>
 
       <div className="mt-6 flex flex-wrap justify-end gap-3">
-        <Button variant="secondary" className="h-10 w-20" onClick={handleClear}>
-          Clear
-        </Button>
+        <Button 
+          variant="secondary" 
+          onClick={handleClear} 
+          tabIndex={-1}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
 
-        <Button className="h-10 w-20" onClick={handleSubmit} loading={submitting}>
-          {initialData ? "Update" : "Save"}
-        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          loading={submitting}
+          isAction
+          icon={<Save size={18} />}
+        />
 
         {initialData && onDelete && (
-          <Button variant="danger" onClick={onDelete} loading={deleting}>
-            Delete
-          </Button>
+          <Button 
+            variant="danger" 
+            onClick={onDelete} 
+            loading={deleting} 
+            tabIndex={-1}
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         )}
       </div>
     </>

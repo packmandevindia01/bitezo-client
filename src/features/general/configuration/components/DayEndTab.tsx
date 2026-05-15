@@ -20,13 +20,13 @@ const DayEndTab = ({ form, onChange }: Props) => {
   ] as const;
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-6">
-        <h3 className="text-xl font-bold text-[#49293e]">Day End Requirements</h3>
-        <p className="text-sm text-gray-500">Configure which entities must be settled or checked before performing a Day End.</p>
+    <div className="max-w-4xl">
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-[#49293e] uppercase tracking-wider border-b border-gray-100 pb-2">Day End Requirements</h3>
+        <p className="mt-1 text-[11px] text-gray-500">Configure which entities must be settled or checked before performing a Day End.</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 rounded-2xl border border-gray-100 bg-gray-50/30 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 rounded-xl border border-gray-100 bg-gray-50/30 p-4 shadow-sm">
         {flags.map((flag) => (
           <Toggle
             key={flag.key}

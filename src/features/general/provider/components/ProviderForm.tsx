@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Building2, Camera, Loader2, Trash2, X } from "lucide-react";
-import { Button, FormInput } from "../../../../components/common";
+import { Button, FormInput, Checkbox } from "../../../../components/common";
+import { RotateCcw, Save } from "lucide-react";
 import type { ProviderPayload } from "../types";
 
 interface BranchOption {
@@ -74,12 +75,12 @@ const ProviderForm: React.FC<Props> = ({
 
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-      <div className="grid gap-8 lg:grid-cols-[1fr_240px]">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
         {/* Main Form Fields */}
-        <div className="flex flex-col gap-6">
-          <div className="grid gap-5 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-500">Provider Name</p>
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Provider Name</p>
             <FormInput
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -87,12 +88,12 @@ const ProviderForm: React.FC<Props> = ({
               required
             />
 
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-500">Paymode</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Paymode</p>
             <div className="relative">
               <select
                 value={paymodeId}
                 onChange={(e) => setPaymodeId(Number(e.target.value))}
-                className="w-full appearance-none rounded-2xl border border-gray-200 bg-gray-50 px-5 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#49293e] focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
+                className="w-full appearance-none rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#49293e] focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                 required
               >
                 <option value={0} disabled>Select Paymode</option>
@@ -102,39 +103,24 @@ const ProviderForm: React.FC<Props> = ({
               </select>
             </div>
 
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-500">Delivery Status</p>
-            <label className="flex cursor-pointer items-center gap-3 w-fit">
-              <div
-                role="switch"
-                aria-checked={deliveryStatus}
-                onClick={() => setDeliveryStatus(!deliveryStatus)}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                  deliveryStatus ? "bg-[#49293e]" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
-                    deliveryStatus ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </div>
-              <span className="text-sm font-bold text-gray-700">
-                {deliveryStatus ? "Enabled" : "Disabled"}
-              </span>
-            </label>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Delivery Status</p>
+            <Checkbox
+              checked={deliveryStatus}
+              onChange={(e) => setDeliveryStatus(e.target.checked)}
+              label={deliveryStatus ? "Enabled" : "Disabled"}
+            />
           </div>
 
           {/* Branch Allocation Trigger */}
-          <div className="mt-4">
+          <div className="mt-2">
             <Button
               type="button"
               variant="secondary"
               className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
               onClick={() => setAllocationOpen(!allocationOpen)}
-            >
-              <Building2 size={18} />
-              Branch Allocation ({selectedBranches.length})
-            </Button>
+              isAction
+              icon={<Building2 size={18} />}
+            />
           </div>
 
           {/* Branch Allocation Panel */}
@@ -205,35 +191,33 @@ const ProviderForm: React.FC<Props> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="mt-8 flex items-center justify-end gap-4 border-t border-gray-100 pt-8">
+      <div className="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-6">
         {initialData && onDelete && (
           <Button
             type="button"
             variant="danger"
             onClick={onDelete}
             disabled={submitting || deleting}
-          >
-            {deleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-            Delete Provider
-          </Button>
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         )}
-        <div className="flex gap-4">
-          <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Saving...
-              </>
-            ) : initialData ? (
-              "Update Provider"
-            ) : (
-              "Create Provider"
-            )}
-          </Button>
-        </div>
+        <Button 
+          type="button" 
+          variant="secondary" 
+          onClick={onCancel} 
+          disabled={submitting} 
+          tabIndex={-1}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
+        <Button 
+          type="submit" 
+          disabled={submitting}
+          isAction
+          loading={submitting}
+          icon={<Save size={18} />}
+        />
       </div>
     </form>
   );

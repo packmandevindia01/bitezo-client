@@ -1,4 +1,5 @@
 import { Modal, Button } from "../../../../components/common";
+import { X, Check } from "lucide-react";
 import { FONT_FAMILIES, FONT_STYLES, FONT_SIZES } from "../utils/lineHelpers";
 import type { FontModalState } from "../types";
 
@@ -17,8 +18,18 @@ const FontModal = ({ state, sampleText, onChange, onApply, onClose }: Props) => 
     title="Font Picker"
     footer={
       <>
-        <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button onClick={onApply}>Apply</Button>
+        <Button 
+          variant="secondary" 
+          onClick={onClose} 
+          tabIndex={-1}
+          isAction
+          icon={<X size={18} />}
+        />
+        <Button 
+          onClick={onApply}
+          isAction
+          icon={<Check size={18} />}
+        />
       </>
     }
   >

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Ban, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
@@ -117,7 +117,6 @@ const ProductFormPage = () => {
             
             <ProductMasterForm
               form={form}
-
               saving={saving}
               imagePreview={imagePreview}
               alternatives={alternatives}
@@ -142,33 +141,43 @@ const ProductFormPage = () => {
         </div>
 
         {/* Sticky Action Footer */}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-2xl">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3 rounded-b-2xl">
           {Boolean(editingId) && (
             <Button
               variant="danger"
               disabled={saving}
               onClick={() => { if (editingId) requestDelete({ productId: editingId, name: form.name }); }}
               type="button"
-            >
-              <Trash2 size={16} />
-              Delete Product
-            </Button>
+              isAction
+              icon={<Trash2 size={18} />}
+            />
           )}
-          <Button variant="secondary" onClick={handleClearClick} type="button" disabled={saving}>
-            Clear
-          </Button>
-          <Button onClick={onSave} type="button" disabled={saving}>
-            {saving ? "Saving…" : Boolean(editingId) ? "Update Product" : "Save Product"}
-          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={handleClearClick} 
+            type="button" 
+            disabled={saving} 
+            tabIndex={-1}
+            isAction
+            icon={<RotateCcw size={18} />}
+          />
+          <Button 
+            onClick={onSave} 
+            type="button" 
+            disabled={saving}
+            isAction
+            loading={saving}
+            icon={<Save size={18} />}
+          />
           <Button
             variant="secondary"
             className="text-red-600 border-red-100 hover:bg-red-50"
             disabled={!Boolean(editingId) || saving}
             onClick={handleDeactivate}
             type="button"
-          >
-            Deactivate
-          </Button>
+            isAction
+            icon={<Ban size={18} />}
+          />
         </div>
       </div>
 

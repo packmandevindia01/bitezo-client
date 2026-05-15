@@ -94,36 +94,34 @@ const HappyHourForm = ({ initialData, onSubmit, onCancel, submitting }: Props) =
       </div>
 
       {/* ── Sticky Action Footer ── */}
-      <div className="flex justify-end gap-3 pt-3 mt-1 bg-white border-t border-slate-100">
+      <div className="flex justify-end gap-2 pt-3 mt-1 bg-white border-t border-slate-100">
         <Button
           variant="secondary"
           onClick={onCancel}
-          className="h-10.5 px-6 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 border-none shadow-sm"
-        >
-          <X size={14} /> Cancel
-        </Button>
+          isAction
+          icon={<X size={18} />}
+        />
         <Button
-          variant="secondary"
+          variant="danger"
           onClick={() => setShowDeleteAllConfirm(true)}
-          className="h-10.5 px-6 text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-50 hover:bg-red-100 border-none shadow-sm"
-        >
-          <Trash2 size={14} /> Delete
-        </Button>
+          isAction
+          icon={<Trash2 size={18} />}
+          tabIndex={-1}
+        />
         <Button
           variant="secondary"
           onClick={handleClearClick}
-          className="h-10.5 px-6 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 border-none shadow-sm"
-        >
-          <RotateCcw size={14} /> Clear
-        </Button>
+          isAction
+          icon={<RotateCcw size={18} />}
+          tabIndex={-1}
+        />
         <Button
           onClick={form.handleSubmit}
           disabled={submitting || form.entries.length === 0}
-          className="h-10.5 px-10 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-pos-primary/20"
-        >
-          {submitting ? <Loader size="sm" /> : <Save size={14} />}
-          Save Promotion
-        </Button>
+          isAction
+          loading={submitting}
+          icon={<Save size={18} />}
+        />
       </div>
 
       <ConfirmDialog

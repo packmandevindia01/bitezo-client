@@ -331,12 +331,13 @@ export const PosTerminalPage = () => {
 
           {/* Action Button Bar */}
           <div className="grid grid-cols-4 md:grid-cols-8 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
-            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm" tabIndex={-1}>
               Close
             </button>
             <button
               onClick={clearCart}
               className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+              tabIndex={-1}
             >
               Clear
             </button>
@@ -422,7 +423,7 @@ export const PosTerminalPage = () => {
       >
         <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
           <h2 className="text-lg font-black uppercase tracking-[0.1em]">Discount Type</h2>
-          <button onClick={() => setDiscountStep('none')} className="p-1 hover:bg-white/10 rounded-full">
+          <button onClick={() => setDiscountStep('none')} className="p-1 hover:bg-white/10 rounded-full" tabIndex={-1}>
             <XCircle size={24} />
           </button>
         </div>
@@ -474,7 +475,7 @@ export const PosTerminalPage = () => {
       >
         <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
           <h2 className="text-sm font-black uppercase tracking-[0.2em]">{discountType === 'bill' ? 'BILL' : 'ITEM'} DISCOUNT</h2>
-          <button onClick={() => setDiscountStep('none')} className="opacity-60 hover:opacity-100">
+          <button onClick={() => setDiscountStep('none')} className="opacity-60 hover:opacity-100" tabIndex={-1}>
             <XCircle size={20} />
           </button>
         </div>
@@ -542,6 +543,7 @@ export const PosTerminalPage = () => {
             <button
               onClick={() => setDiscountStep('none')}
               className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+              tabIndex={-1}
             >
               Cancel
             </button>
@@ -566,7 +568,7 @@ export const PosTerminalPage = () => {
       >
         <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
           <h2 className="text-sm font-black uppercase tracking-[0.2em]">Manual Price</h2>
-          <button onClick={() => setIsPriceModalOpen(false)} className="opacity-60 hover:opacity-100">
+          <button onClick={() => setIsPriceModalOpen(false)} className="opacity-60 hover:opacity-100" tabIndex={-1}>
             <XCircle size={20} />
           </button>
         </div>
@@ -609,6 +611,7 @@ export const PosTerminalPage = () => {
             <button
               onClick={() => setIsPriceModalOpen(false)}
               className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+              tabIndex={-1}
             >
               Cancel
             </button>

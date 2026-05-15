@@ -23,7 +23,7 @@ const ExtrasTypeForm = ({
 }: ExtrasTypeFormProps) => {
   return (
     <>
-      <div className="flex flex-col gap-4 mb-6">
+      <div className="flex flex-col gap-3">
         <FormInput
           label="Name"
           required
@@ -37,25 +37,6 @@ const ExtrasTypeForm = ({
           value={form.arabicName}
           onChange={(e) => onChange("arabicName", e.target.value)}
         />
-      </div>
-
-      <div className="flex flex-wrap justify-end gap-3 mt-2">
-        <Button variant="secondary" onClick={onClear} disabled={saving}>
-          Clear
-        </Button>
-        <Button onClick={onSave} disabled={saving}>
-          {saving ? "Saving..." : isEditing ? "Update" : "Save"}
-        </Button>
-        {isEditing && (
-          <Button
-            variant="danger"
-            onClick={onDelete}
-            disabled={saving}
-          >
-            <Trash2 size={16} />
-            Delete
-          </Button>
-        )}
       </div>
     </>
   );

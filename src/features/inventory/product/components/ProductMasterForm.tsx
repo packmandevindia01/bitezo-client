@@ -83,38 +83,38 @@ const ProductMasterForm = ({
     <div className="flex flex-col gap-6">
       {/* ── Custom Tab Navigation ────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex w-fit gap-1 rounded-xl bg-gray-100 p-1">
+        <div className="flex w-fit gap-2 rounded-xl bg-gray-50 p-1.5 border border-gray-100">
           <button
             onClick={() => handleTabSwitch("product")}
-            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
               activeTab === "product"
-                ? "bg-white text-[#49293e] shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
+                : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
             }`}
           >
-            <LayoutGrid size={18} />
-            Product Section
+            <LayoutGrid size={14} />
+            Product Details
           </button>
           <button
             onClick={() => handleTabSwitch("alternatives")}
-            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
               activeTab === "alternatives"
-                ? "bg-white text-[#49293e] shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
+                : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
             }`}
           >
-            <ListTree size={18} />
-            Alternative Products
+            <ListTree size={14} />
+            Alternatives
           </button>
           <button
             onClick={() => handleTabSwitch("colors")}
-            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
               activeTab === "colors"
-                ? "bg-white text-[#49293e] shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
+                : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
             }`}
           >
-            <Palette size={18} />
+            <Palette size={14} />
             Branch Colors
           </button>
         </div>
@@ -125,26 +125,36 @@ const ProductMasterForm = ({
             onClick={onBackToList}
             aria-label="Back to product list"
             title="Back to product list"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-[#49293e] focus:outline-none focus:ring-2 focus:ring-[#49293e]/30"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-[#49293e] focus:outline-none focus:ring-2 focus:ring-[#49293e]/30 shadow-sm"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         )}
       </div>
 
       <div className="flex-1 min-h-[400px]">
         {activeTab === "product" && (
-          <ProductDetailsSection
-            form={form}
-            saving={saving}
-            masterData={masterData}
-            branchOptions={branchOptions}
-            subCatOptions={subCatOptions}
-            loadingSubs={loadingSubs}
-            onChange={onChange}
-          />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_240px]">
+            <ProductDetailsSection
+              form={form}
+              saving={saving}
+              masterData={masterData}
+              branchOptions={branchOptions}
+              subCatOptions={subCatOptions}
+              loadingSubs={loadingSubs}
+              onChange={onChange}
+            />
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Product Image</label>
+              <ImageUploadPanel
+                title=""
+                preview={imagePreview}
+                onSelect={onImageSelect}
+              />
+            </div>
+          </div>
         )}
-        
+
         {activeTab === "alternatives" && (
           <AlternativePricingGrid
             alternatives={alternatives}
@@ -164,15 +174,6 @@ const ProductMasterForm = ({
             disabled={saving}
           />
         )}
-      </div>
-
-      {/* ── Image + Buttons footer ── */}
-      <div className="mt-4 border-t border-gray-100 pt-6">
-        <ImageUploadPanel
-          title="Product Image"
-          preview={imagePreview}
-          onSelect={onImageSelect}
-        />
       </div>
     </div>
   );

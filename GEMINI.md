@@ -180,6 +180,7 @@ This is a POS system used with keyboard. Input behavior must be consistent acros
 - Never use `tabIndex={-1}` on a field the user needs to reach via keyboard
 - Use `tabIndex` explicitly only when the natural DOM order is wrong (e.g. multi-column layouts)
 - Buttons (Save, Cancel, Submit) must also be reachable via Tab after the last input field
+- **EXCEPTION**: "Clear", "Reset Form", and "New" buttons must use `tabIndex={-1}` to avoid interrupting the flow to the primary action.
 - SelectInput and SearchableSelect must support Tab to move focus out after selection
 - Do not trap focus inside a section unless it is a modal (modals should trap focus within themselves)
 
@@ -273,6 +274,7 @@ onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/
 ### 8. Status / Active-Inactive Toggle
 - Every master record (Product, Customer, Category, etc.) must have an Active/Inactive status
 - Display status as a colored badge in the list: green for Active, red/gray for Inactive
+- Use the standardized `Checkbox` (Toggle Switch) in the edit form for this status.
 - Inactive records must NOT appear in POS transaction dropdowns/searches
 - When deleting is not allowed (due to existing transactions), deactivate instead of delete
 - Show a clear message when a record cannot be deleted: "This record is used in transactions. Deactivate it instead."
@@ -456,6 +458,41 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 - Always use `ConfirmDialog` before: Delete, Deactivate, Cancel Transaction, Clear Form
 - Confirmation message must name the record: "Delete 'Chicken Burger'?" not just "Are you sure?"
 - Never auto-delete on single click — always require a second confirmation step
+
+### 19. Clear / Reset Buttons — Skip Keyboard Focus
+- To optimize speed for keyboard users, "Clear", "Reset Form", or "New" buttons must NOT receive focus during Tab key navigation.
+- Apply `tabIndex={-1}` to all buttons that clear or reset form data.
+- This allows the user to tab directly from the last input field to the primary action button (Save, Update, Create) without interruption.
+
+### 20. Standardized Action Buttons (isAction) — REQUIRED
+- All primary and secondary action buttons in form footers, headers, or sticky bars must use the `isAction` prop from the `Button` component.
+- This prop enforces a uniform, professional dimension of **120px x 44px**.
+- Transition text-heavy action buttons to **icon-only** representations for a premium, clean aesthetic.
+- Always provide a `lucide-react` icon via the `icon` prop of the `Button`.
+- Primary actions (Save/Update) use `variant="primary"` (default). Secondary actions (Clear/New/Cancel) use `variant="secondary"`. Destructive actions (Delete) use `variant="danger"`.
+
+```tsx
+<Button
+  onClick={handleSave}
+  isAction
+  loading={saving}
+  icon={<Save size={18} />}
+/>
+```
+
+### 21. Toggle Switch Design (Checkbox) — REQUIRED
+- All binary settings, active/inactive states, or "Yes/No" choices must use the `Checkbox` component from `src/components/common/`.
+- The `Checkbox` component is globally styled as a premium **Toggle Switch**.
+- Never use native HTML checkboxes or manual toggle implementations — this breaks visual consistency.
+- Ensure the `label` prop is used to provide context to the switch.
+
+```tsx
+<Checkbox
+  checked={form.isActive}
+  onChange={(e) => setField("isActive", e.target.checked)}
+  label={form.isActive ? "Active" : "Inactive"}
+/>
+```
 
 ---
 

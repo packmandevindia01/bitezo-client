@@ -1,6 +1,7 @@
 import React from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
 import {
+  Button,
   ConfirmDialog,
   Modal,
   PageShell,
@@ -87,6 +88,40 @@ const ModifierTypePage = () => {
         isOpen={open} 
         onClose={closeModal} 
         title={editingId ? "Edit Modifier Type" : "Add Modifier Type"}
+        size="lg"
+        footer={
+          <div className="flex gap-3">
+            <Button 
+              variant="secondary" 
+              onClick={resetForm} 
+              disabled={saving} 
+              tabIndex={-1}
+              isAction
+              icon={<RotateCcw size={18} />}
+            />
+            <Button 
+              onClick={handleSave} 
+              loading={saving}
+              isAction
+              icon={<Save size={18} />}
+            />
+            {editingId && canDelete && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  const record = filteredRecords.find(r => r.typeId === editingId);
+                  if (record) {
+                    setDeleteRecord(record);
+                    closeModal();
+                  }
+                }}
+                disabled={saving}
+                isAction
+                icon={<Trash2 size={18} />}
+              />
+            )}
+          </div>
+        }
       >
         <ModifierTypeForm
           form={form}
@@ -95,13 +130,6 @@ const ModifierTypePage = () => {
           onChange={setField}
           onClear={resetForm}
           onSave={handleSave}
-          onDelete={editingId && canDelete ? () => {
-            const record = filteredRecords.find(r => r.typeId === editingId);
-            if (record) {
-              setDeleteRecord(record);
-              closeModal();
-            }
-          } : undefined}
         />
       </Modal>
 

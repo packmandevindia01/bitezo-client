@@ -174,6 +174,7 @@ export const PosExtrasModifierModal = ({
           <button 
             onClick={onClose}
             className="px-6 h-11 rounded-lg bg-white/10 hover:bg-white/20 text-white font-black uppercase text-xs transition-all flex items-center gap-2 border border-white/20"
+            tabIndex={-1}
           >
             <span>Close Screen</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -375,6 +376,7 @@ export const PosExtrasModifierModal = ({
             <button
               onClick={onClose}
               className="w-full h-12 bg-[#9c142c] text-white font-black uppercase text-xs rounded-xl shadow-md hover:bg-[#850f24] active:scale-[0.98] transition-all"
+              tabIndex={-1}
             >
               Cancel
             </button>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, Printer, RotateCcw, Save, X } from "lucide-react";
+import { FileText, Printer, RotateCcw, Save, X, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyPurchaseInvoiceForm } from "../constants";
@@ -145,62 +145,50 @@ const PurchaseInvoicePage = () => {
     <PageShell title="Purchase Invoice">
       <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
         {/* ── Scrollable Body ── */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="mb-5 border-b border-gray-100 pb-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
-              Transaction
-            </p>
-            <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900">
-              <FileText size={24} className="text-[#49293e]" />
-              Purchase Invoice
-            </h1>
-          </div>
+        <div className="flex-1 overflow-y-auto p-3 md:p-4">
 
-        <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 xl:grid-cols-5">
-          <FormInput id="pi-series" label="Series" key="series" type={undefined} value={form.series} onChange={(e) => setField("series", e.target.value)} onKeyDown={(e) => hk(e, "pi-purchaseNo")} placeholder="Series" required readOnly={!canSave} />
-          <FormInput id="pi-purchaseNo" label="P No" key="purchaseNo" value={form.purchaseNo} onChange={(e) => setField("purchaseNo", e.target.value)} onKeyDown={(e) => hk(e, "pi-purchaseDate")} placeholder="P No" required readOnly={!canSave} />
-          <FormInput id="pi-purchaseDate" label="P Date" key="purchaseDate" type="date" value={form.purchaseDate} onChange={(e) => setField("purchaseDate", e.target.value)} onKeyDown={(e) => hk(e, "pi-invoiceNo")} placeholder="P Date" required readOnly={!canSave} />
-          <FormInput id="pi-invoiceNo" label="Inv No" key="invoiceNo" value={form.invoiceNo} onChange={(e) => setField("invoiceNo", e.target.value)} onKeyDown={(e) => hk(e, "pi-invoiceDate")} placeholder="Inv No" required readOnly={!canSave} />
-          <FormInput id="pi-invoiceDate" label="Inv Date" key="invoiceDate" type="date" value={form.invoiceDate} onChange={(e) => setField("invoiceDate", e.target.value)} onKeyDown={(e) => hk(e, "pi-supplier")} placeholder="Inv Date" required readOnly={!canSave} />
+        <div className="grid gap-x-3 gap-y-2 md:grid-cols-5 xl:grid-cols-8">
+          <FormInput id="pi-series" label="Series" value={form.series} onChange={(e) => setField("series", e.target.value)} onKeyDown={(e) => hk(e, "pi-purchaseNo")} required readOnly={!canSave} />
+          <FormInput id="pi-purchaseNo" label="P No" value={form.purchaseNo} onChange={(e) => setField("purchaseNo", e.target.value)} onKeyDown={(e) => hk(e, "pi-purchaseDate")} required readOnly={!canSave} />
+          <FormInput id="pi-purchaseDate" label="P Date" type="date" value={form.purchaseDate} onChange={(e) => setField("purchaseDate", e.target.value)} onKeyDown={(e) => hk(e, "pi-invoiceNo")} required readOnly={!canSave} />
+          <FormInput id="pi-invoiceNo" label="Inv No" value={form.invoiceNo} onChange={(e) => setField("invoiceNo", e.target.value)} onKeyDown={(e) => hk(e, "pi-invoiceDate")} required readOnly={!canSave} />
+          <FormInput id="pi-invoiceDate" label="Inv Date" type="date" value={form.invoiceDate} onChange={(e) => setField("invoiceDate", e.target.value)} onKeyDown={(e) => hk(e, "pi-supplier")} required readOnly={!canSave} />
+          <FormInput id="pi-supplier" label="Supplier" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} onKeyDown={(e) => hk(e, "pi-branch")} required readOnly={!canSave} />
+          <FormInput id="pi-branch" label="Branch" value={form.branch} onChange={(e) => setField("branch", e.target.value)} onKeyDown={(e) => hk(e, "pi-salesman")} required readOnly={!canSave} />
+          <FormInput id="pi-salesman" label="Salesman" value={form.salesman} onChange={(e) => setField("salesman", e.target.value)} onKeyDown={(e) => hk(e, "pi-product")} required readOnly={!canSave} />
         </div>
 
-        <div className="grid gap-x-4 gap-y-1 md:grid-cols-3">
-          <FormInput id="pi-supplier" label="Supplier" key="supplier" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} onKeyDown={(e) => hk(e, "pi-branch")} placeholder="Supplier" required readOnly={!canSave} />
-          <FormInput id="pi-branch" label="Branch" key="branch" value={form.branch} onChange={(e) => setField("branch", e.target.value)} onKeyDown={(e) => hk(e, "pi-salesman")} placeholder="Branch" required readOnly={!canSave} />
-          <FormInput id="pi-salesman" label="Salesman" key="salesman" value={form.salesman} onChange={(e) => setField("salesman", e.target.value)} onKeyDown={(e) => hk(e, "pi-product")} placeholder="Salesman" required readOnly={!canSave} />
-        </div>
-
-        <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
-          <div className="grid gap-x-3 gap-y-1 md:grid-cols-[1.1fr_1fr_1fr_0.55fr_0.55fr_0.75fr_0.65fr_0.65fr_0.8fr_0.9fr_auto]">
+        <div className="mt-1 rounded-xl border border-gray-200 bg-gray-50/70 p-2">
+          <div className="grid gap-x-2 gap-y-1 md:grid-cols-[1.5fr_1fr_1fr_0.6fr_0.6fr_0.8fr_0.7fr_0.7fr_0.8fr_0.9fr_auto]">
             <FormInput id="pi-product" label="Product" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "pi-code")} readOnly={!canSave} />
             <FormInput id="pi-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "pi-unit")} readOnly={!canSave} />
             <FormInput id="pi-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "pi-qty")} readOnly={!canSave} />
-            <FormInput id="pi-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "pi-foc")} readOnly={!canSave} />
-            <FormInput id="pi-foc" label="FOC" value={form.foc} onChange={(e) => setField("foc", e.target.value)} onKeyDown={(e) => hk(e, "pi-price")} readOnly={!canSave} />
-            <FormInput id="pi-price" label="Price" value={form.price} onChange={(e) => setField("price", e.target.value)} onKeyDown={(e) => hk(e, "pi-vatPercent")} readOnly={!canSave} />
-            <FormInput id="pi-vatPercent" label="VAT(%)" value={form.vatPercent} onChange={(e) => setField("vatPercent", e.target.value)} onKeyDown={(e) => hk(e, "pi-discPercent")} readOnly={!canSave} />
-            <FormInput id="pi-discPercent" label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} onKeyDown={(e) => hk(e, "pi-add-btn")} readOnly={!canSave} />
-            <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} readOnly />
-            <FormInput label="Amount" value={formatAmount(currentLineTotals.netAmount)} readOnly />
+            <FormInput id="pi-qty" label="Qty" value={form.qty} inputClassName="text-right" onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "pi-foc")} readOnly={!canSave} />
+            <FormInput id="pi-foc" label="FOC" value={form.foc} inputClassName="text-right" onChange={(e) => setField("foc", e.target.value)} onKeyDown={(e) => hk(e, "pi-price")} readOnly={!canSave} />
+            <FormInput id="pi-price" label="Price" value={form.price} inputClassName="text-right" onChange={(e) => setField("price", e.target.value)} onKeyDown={(e) => hk(e, "pi-vatPercent")} readOnly={!canSave} />
+            <FormInput id="pi-vatPercent" label="VAT(%)" value={form.vatPercent} inputClassName="text-right" onChange={(e) => setField("vatPercent", e.target.value)} onKeyDown={(e) => hk(e, "pi-discPercent")} readOnly={!canSave} />
+            <FormInput id="pi-discPercent" label="Disc(%)" value={form.discPercent} inputClassName="text-right" onChange={(e) => setField("discPercent", e.target.value)} onKeyDown={(e) => hk(e, "pi-add-btn")} readOnly={!canSave} />
+            <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} inputClassName="text-right" readOnly />
+            <FormInput label="Amount" value={formatAmount(currentLineTotals.netAmount)} inputClassName="text-right font-bold text-[#49293e]" readOnly />
             <div className="flex items-end pb-4">
-              <Button id="pi-add-btn" onClick={addItem} className="h-10 w-full" disabled={!canSave}
+              <Button id="pi-add-btn" onClick={addItem} className="h-[38px] w-full" disabled={!canSave}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                Add
+                <Plus size={18} />
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-gray-200 bg-gray-50/50">
                   {["Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc Amt", "VAT Amt", "Net Amount"].map(
                     (column) => (
                       <th
                         key={column}
-                        className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        className="whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400"
                       >
                         {column}
                       </th>
@@ -241,52 +229,56 @@ const PurchaseInvoicePage = () => {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="grid gap-x-4 gap-y-1 md:grid-cols-2">
-            <FormInput label="Disc(%)" value={form.discPercent} onChange={(e) => setField("discPercent", e.target.value)} readOnly={!canSave} />
+        <div className="mt-2 grid gap-3 lg:grid-cols-[1fr_300px]">
+          <div className="grid gap-x-3 gap-y-1 md:grid-cols-2 lg:grid-cols-3">
             <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} readOnly={!canSave} />
-            <FormInput label="Disc Amt" value={form.discAmount} onChange={(e) => setField("discAmount", e.target.value)} readOnly={!canSave} />
-            <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} readOnly={!canSave} />
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-            <FormInput
-              label="Other Charge"
-              value={form.otherCharge}
-              onChange={(e) => setField("otherCharge", e.target.value)}
-              readOnly={!canSave}
-            />
-            <FormInput label="Round Off" value={form.roundOff} onChange={(e) => setField("roundOff", e.target.value)} readOnly={!canSave} />
-            <div className="rounded-xl border border-[#49293e]/15 bg-white px-4 py-3">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
-              <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
+            <FormInput label="Disc(%)" value={form.discPercent} inputClassName="text-right" onChange={(e) => setField("discPercent", e.target.value)} readOnly={!canSave} />
+            <FormInput label="Disc Amt" value={form.discAmount} inputClassName="text-right" onChange={(e) => setField("discAmount", e.target.value)} readOnly={!canSave} />
+            <div className="md:col-span-2 lg:col-span-3">
+              <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} readOnly={!canSave} />
             </div>
           </div>
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-3 flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <FormInput label="Other Charge" value={form.otherCharge} inputClassName="text-right" onChange={(e) => setField("otherCharge", e.target.value)} readOnly={!canSave} />
+              <FormInput label="Round Off" value={form.roundOff} inputClassName="text-right" onChange={(e) => setField("roundOff", e.target.value)} readOnly={!canSave} />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-[#49293e]/10 bg-white px-3 py-2 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Grand Total</p>
+              <p className="text-xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
+            </div>
           </div>
+        </div>
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
           {canAdd && (
-            <Button variant="secondary" onClick={handleClearClick}>
-              <RotateCcw size={16} />
-              New
-            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleClearClick} 
+              tabIndex={-1}
+              isAction
+              icon={<Plus size={18} />}
+            />
           )}
           {canSave && (
-            <Button>
-              <Save size={16} />
-              Save
-            </Button>
+            <Button
+              isAction
+              icon={<Save size={18} />}
+            />
           )}
-          <Button variant="secondary">
-            <Printer size={16} />
-            Print
-          </Button>
-          <Button variant="secondary">
-            <X size={16} />
-            Cancel
-          </Button>
+          <Button 
+            variant="secondary"
+            isAction
+            icon={<Printer size={18} />}
+          />
+          <Button 
+            variant="secondary"
+            isAction
+            icon={<X size={18} />}
+          />
         </div>
       </div>
 

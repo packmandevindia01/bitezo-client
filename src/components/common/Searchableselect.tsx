@@ -58,8 +58,8 @@ const SearchableSelect = ({
     }
   }, [autoFocus]);
 
-  // Derive selected label from value
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
+  // Derive selected label from value - robust comparison
+  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? "";
 
   // Filtered options based on search query
   const filtered = query.trim()
@@ -87,9 +87,8 @@ const SearchableSelect = ({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // If clicking inside the portal, don't close
-        const portal = document.getElementById("select-portal-root");
-        if (portal && portal.contains(e.target as Node)) return;
+        // If clicking inside a portal, don't close
+        if ((e.target as HTMLElement).closest(".select-portal-content")) return;
         
         setOpen(false);
         setQuery("");
@@ -104,16 +103,17 @@ const SearchableSelect = ({
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
-      const dropdownHeight = 250; // Estimated max height (search + list)
+      const dropdownHeight = 280; // Estimated height including search
       
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
       
+      // If not enough space below AND there is more space above, flip to top
       const placement = spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom";
 
       setCoords({
-        top: placement === "bottom" ? rect.bottom + window.scrollY : rect.top + window.scrollY - dropdownHeight,
-        left: rect.left + window.scrollX,
+        top: placement === "bottom" ? rect.bottom : rect.top,
+        left: rect.left,
         width: rect.width,
         placement
       });
@@ -127,14 +127,14 @@ const SearchableSelect = ({
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        const dropdownHeight = 250;
+        const dropdownHeight = 280;
         const spaceBelow = viewportHeight - rect.bottom;
         const spaceAbove = rect.top;
         const placement = spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom";
 
         setCoords({
-          top: placement === "bottom" ? rect.bottom + window.scrollY : rect.top + window.scrollY - dropdownHeight,
-          left: rect.left + window.scrollX,
+          top: placement === "bottom" ? rect.bottom : rect.top,
+          left: rect.left,
           width: rect.width,
           placement
         });
@@ -150,7 +150,12 @@ const SearchableSelect = ({
 
   // Focus input when dropdown opens
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (open) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
   }, [open]);
 
   const handleSelect = (optValue: string) => {
@@ -216,7 +221,15 @@ const SearchableSelect = ({
     <div className="flex w-full flex-col gap-1" ref={containerRef}>
       {/* Label */}
       {label && (
-        <label className="text-xs font-medium text-gray-700 md:text-sm">
+        <label 
+          htmlFor={id}
+          className="text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit"
+          onClick={() => {
+            if (disabled) return;
+            triggerRef.current?.focus();
+            setOpen(true);
+          }}
+        >
           {label}
           {required && <span className="ml-1 font-bold text-amber-500">*</span>}
         </label>
@@ -230,7 +243,14 @@ const SearchableSelect = ({
         aria-expanded={open}
         aria-haspopup="listbox"
         tabIndex={disabled ? -1 : (tabIndex ?? 0)}
-        onClick={toggleOpen}
+        onMouseDown={(e) => {
+          if (disabled) return;
+          // If clicking the clear button, don't toggle open here
+          if ((e.target as HTMLElement).closest(".clear-btn")) return;
+          
+          e.preventDefault(); // Prevent trigger focus to avoid flash, we'll focus the search input
+          toggleOpen();
+        }}
         onKeyDown={handleKeyDown}
         className={`
           relative flex w-full h-10.5 cursor-pointer items-center gap-2
@@ -241,7 +261,7 @@ const SearchableSelect = ({
         `}
       >
         {/* Displayed value or placeholder */}
-        <span className={`flex-1 truncate ${!selectedLabel ? "text-gray-400" : "text-gray-900"}`}>
+        <span className={`flex-1 truncate ${!selectedLabel ? "text-gray-400 font-normal" : "text-gray-900 font-medium"}`}>
           {selectedLabel || placeholder}
         </span>
 
@@ -250,7 +270,8 @@ const SearchableSelect = ({
           <button
             type="button"
             onClick={handleClear}
-            className="shrink-0 text-gray-400 hover:text-gray-600"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="clear-btn shrink-0 text-gray-400 hover:text-gray-600 p-1 -mr-1"
             tabIndex={-1}
             aria-label="Clear selection"
           >
@@ -266,20 +287,21 @@ const SearchableSelect = ({
       </div>
 
       {/* Dropdown - Portaled */}
-      {open && createPortal(
+      {open && coords.width > 0 && createPortal(
         <div 
-          id="select-portal-root"
-          className="fixed z-[9999]"
+          className="fixed z-[10001] select-portal-content"
           style={{
-            top: coords.top,
+            top: coords.placement === "bottom" ? coords.top + 4 : coords.top - 4,
             left: coords.left,
             width: coords.width,
+            transform: coords.placement === "top" ? "translateY(-100%)" : "none"
           }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className={`
-            w-full rounded-md border border-gray-200 bg-white shadow-xl duration-100
-            ${coords.placement === "bottom" ? "mt-1 animate-in fade-in zoom-in-95" : "mb-1 animate-in fade-in slide-in-from-bottom-2"}
+            w-full rounded-md border border-gray-200 bg-white shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] duration-100
+            ${coords.placement === "bottom" ? "animate-in fade-in zoom-in-95" : "animate-in fade-in slide-in-from-bottom-2"}
           `}>
             {/* Search input */}
             <div className="border-b border-gray-100 p-2">
@@ -307,13 +329,16 @@ const SearchableSelect = ({
                   <li
                     key={opt.value}
                     role="option"
-                    aria-selected={opt.value === value}
-                    onClick={() => handleSelect(opt.value)}
+                    aria-selected={String(opt.value) === String(value)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelect(opt.value);
+                    }}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     className={`
-                      cursor-pointer px-4 py-2 text-sm transition
+                      cursor-pointer px-4 py-2.5 text-sm transition
                       ${index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e]" : "text-gray-700"}
-                      ${opt.value === value ? "font-bold underline decoration-[#49293e]/30 underline-offset-4" : ""}
+                      ${String(opt.value) === String(value) ? "font-bold underline decoration-[#49293e]/30 underline-offset-4" : ""}
                     `}
                   >
                     {opt.label}
@@ -337,4 +362,4 @@ const SearchableSelect = ({
   );
 };
 
-export default SearchableSelect;
+export default SearchableSelect;

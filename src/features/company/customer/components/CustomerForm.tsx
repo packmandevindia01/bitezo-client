@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
 import { isRequired } from "../../../../lib/validators";
 import type { Customer } from "../../../pos/customer/types/customer";
@@ -184,18 +185,29 @@ const CustomerForm = ({
       </div>
 
       <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
-        <Button variant="secondary" className="h-10 w-20" onClick={handleClear}>
-          Clear
-        </Button>
+        <Button 
+          variant="secondary" 
+          onClick={handleClear} 
+          tabIndex={-1}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
 
-        <Button className="h-10 w-24 bg-[#49293e] hover:bg-[#3a2131]" onClick={handleSubmit} loading={submitting}>
-          {initialData ? "Update" : "Save"}
-        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          loading={submitting}
+          isAction
+          icon={<Save size={18} />}
+        />
 
         {initialData && onDelete && (
-          <Button variant="danger" onClick={onDelete} loading={deleting}>
-            Delete
-          </Button>
+          <Button 
+            variant="danger" 
+            onClick={onDelete} 
+            loading={deleting}
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         )}
       </div>
     </>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Save, RotateCcw } from "lucide-react";
 import { Button, Checkbox, FormInput } from "../../../../components/common";
 import type { GroupDetail, GroupForm as GroupFormState } from "../types";
 
@@ -38,10 +38,20 @@ const TimePicker = ({
   onChange: (val: string) => void;
   disabled?: boolean;
 }) => {
-  const [hh, mm, ss] = value.split(":");
+  const [hh24, mm, ss] = value.split(":");
+  const h24 = parseInt(hh24, 10);
   
-  const update = (h: string, m: string, s: string) => {
-    onChange(`${h}:${m}:${s}`);
+  const isPM = h24 >= 12;
+  const h12 = h24 % 12 || 12;
+  const ampm = isPM ? "PM" : "AM";
+  
+  const update = (h12Val: string, mmVal: string, ssVal: string, ampmVal: string) => {
+    let h24Val = parseInt(h12Val, 10);
+    if (ampmVal === "PM" && h24Val < 12) h24Val += 12;
+    if (ampmVal === "AM" && h24Val === 12) h24Val = 0;
+    
+    const finalH = h24Val.toString().padStart(2, "0");
+    onChange(`${finalH}:${mmVal}:${ssVal}`);
   };
 
   return (
@@ -59,36 +69,51 @@ const TimePicker = ({
         
         <div className="flex flex-1 items-center gap-0.5">
           <select 
-            value={hh} 
+            value={h12.toString().padStart(2, "0")} 
             disabled={disabled}
-            onChange={(e) => update(e.target.value, mm, ss)}
+            onChange={(e) => update(e.target.value, mm, ss, ampm)}
             className="bg-transparent text-xs font-bold text-slate-700 outline-none w-full cursor-pointer appearance-none text-center"
           >
-            {Array.from({ length: 24 }).map((_, i) => (
-              <option key={i} value={i.toString().padStart(2, "0")}>{i.toString().padStart(2, "0")}</option>
-            ))}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const val = (i + 1).toString().padStart(2, "0");
+              return <option key={val} value={val}>{val}</option>;
+            })}
           </select>
           <span className="text-slate-300 font-bold">:</span>
           <select 
             value={mm} 
             disabled={disabled}
-            onChange={(e) => update(hh, e.target.value, ss)}
+            onChange={(e) => update(h12.toString(), e.target.value, ss, ampm)}
             className="bg-transparent text-xs font-bold text-slate-700 outline-none w-full cursor-pointer appearance-none text-center"
           >
-            {Array.from({ length: 60 }).map((_, i) => (
-              <option key={i} value={i.toString().padStart(2, "0")}>{i.toString().padStart(2, "0")}</option>
-            ))}
+            {Array.from({ length: 60 }).map((_, i) => {
+              const val = i.toString().padStart(2, "0");
+              return <option key={val} value={val}>{val}</option>;
+            })}
           </select>
           <span className="text-slate-300 font-bold">:</span>
           <select 
             value={ss} 
             disabled={disabled}
-            onChange={(e) => update(hh, mm, e.target.value)}
+            onChange={(e) => update(h12.toString(), mm, e.target.value, ampm)}
             className="bg-transparent text-xs font-bold text-slate-700 outline-none w-full cursor-pointer appearance-none text-center"
           >
-            {Array.from({ length: 60 }).map((_, i) => (
-              <option key={i} value={i.toString().padStart(2, "0")}>{i.toString().padStart(2, "0")}</option>
-            ))}
+            {Array.from({ length: 60 }).map((_, i) => {
+              const val = i.toString().padStart(2, "0");
+              return <option key={val} value={val}>{val}</option>;
+            })}
+          </select>
+          
+          <div className="w-px h-4 bg-slate-200 mx-1" />
+          
+          <select 
+            value={ampm}
+            disabled={disabled}
+            onChange={(e) => update(h12.toString(), mm, ss, e.target.value)}
+            className="bg-transparent text-[10px] font-black text-[#49293e] outline-none cursor-pointer appearance-none px-1"
+          >
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
           </select>
         </div>
       </div>
@@ -183,7 +208,7 @@ const GroupForm = ({
                 onChange={(e) => handleChange("isActive", e.target.checked)}
               />
               <Checkbox
-                label="Visible on POS Terminal"
+                label="Show on POS"
                 tabIndex={5}
                 checked={form.posStatus}
                 disabled={saving}
@@ -221,7 +246,7 @@ const GroupForm = ({
 
               <div className="mt-4 p-3 bg-[#49293e]/5 rounded-lg border border-[#49293e]/10">
                 <p className="text-[10px] text-[#49293e] font-medium leading-relaxed italic">
-                  This group will only be visible in the POS terminal during the specified hours.
+                  This group will only show on POS during the specified hours.
                 </p>
               </div>
             </div>
@@ -230,26 +255,31 @@ const GroupForm = ({
       </div>
 
       <div className="flex flex-wrap justify-end gap-3 mt-2">
-        <Button variant="secondary" tabIndex={8} onClick={handleClear} disabled={saving}>
-          Clear
-        </Button>
+        <Button 
+          variant="secondary" 
+          tabIndex={-1} 
+          onClick={handleClear} 
+          disabled={saving}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
         <Button 
           tabIndex={9}
           onClick={handleSubmit} 
           disabled={saving || !form.code.trim() || !form.name.trim()}
-        >
-          {saving ? "Saving…" : initialData ? "Update" : "Save"}
-        </Button>
+          isAction
+          loading={saving}
+          icon={<Save size={18} />}
+        />
         {initialData && (
           <Button
             variant="danger"
             tabIndex={10}
             onClick={onDelete}
             disabled={saving}
-          >
-            <Trash2 size={16} />
-            Delete Group
-          </Button>
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         )}
       </div>
     </>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput, Modal, Loader } from "../../../../components/common";
 import { useDenominationManager } from "../hooks/useDenominationManager";
 
@@ -143,12 +143,21 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
 
         {/* ── Sticky footer ── */}
         <div className="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-4">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button onClick={onSave} loading={loading} disabled={loading}>
-            {isExisting ? "Update" : "Save"}
-          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={onClose} 
+            disabled={loading} 
+            tabIndex={-1}
+            isAction
+            icon={<RotateCcw size={18} />}
+          />
+          <Button 
+            onClick={onSave} 
+            loading={loading} 
+            disabled={loading}
+            isAction
+            icon={<Save size={18} />}
+          />
         </div>
       </div>
     </Modal>

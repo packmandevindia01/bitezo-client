@@ -1,4 +1,4 @@
-import { Loader2, Trash2 } from "lucide-react";
+import { Save, RotateCcw, Trash2 } from "lucide-react";
 import {
   Button,
   Checkbox,
@@ -94,28 +94,29 @@ const SubCategoryModal = ({
           </div>
 
           <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
-            <Button variant="secondary" onClick={onClear} disabled={saving}>
-              Clear
-            </Button>
-            <Button onClick={onSave} disabled={saving}>
-              {saving ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 size={15} className="animate-spin" />
-                  Saving…
-                </span>
-              ) : (
-                editingId ? "Update" : "Save"
-              )}
-            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={onClear} 
+              disabled={saving} 
+              tabIndex={-1}
+              isAction
+              icon={<RotateCcw size={18} />}
+            />
+            <Button 
+              onClick={onSave} 
+              disabled={saving}
+              isAction
+              loading={saving}
+              icon={<Save size={18} />}
+            />
             {editingId && (
               <Button
                 variant="danger"
                 onClick={onDelete}
                 disabled={saving}
-              >
-                <Trash2 size={16} />
-                Delete Sub Category
-              </Button>
+                isAction
+                icon={<Trash2 size={18} />}
+              />
             )}
           </div>
         </div>

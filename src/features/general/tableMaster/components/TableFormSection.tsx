@@ -1,4 +1,4 @@
-import { Trash2, Loader2, Minus, Plus, X } from "lucide-react";
+import { Trash2, Loader2, Minus, Plus, X, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import { statusOptions } from "../constants";
 import type { TableForm } from "../types";
@@ -114,29 +114,25 @@ const TableFormSection = ({
         <Button 
           variant="secondary" 
           onClick={onReset} 
-          className="h-11 px-6 text-xs rounded-xl font-bold border-gray-200 shadow-sm"
           disabled={loading}
-        >
-          Clear
-        </Button>
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
         <Button 
           onClick={onSave} 
-          className="h-11 px-8 text-xs rounded-xl font-bold shadow-md bg-[#49293e] hover:bg-[#3a2131]"
           disabled={loading}
-        >
-          {loading ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
-          {mode === "edit" ? "Update Table" : "Save Table"}
-        </Button>
+          isAction
+          loading={loading}
+          icon={<Save size={18} />}
+        />
         {mode === "edit" && onDeleteRequest && (
           <Button
             variant="danger"
             onClick={onDeleteRequest}
             disabled={loading}
-            className="h-11 px-4 text-xs rounded-xl font-bold"
-          >
-            <Trash2 size={16} className="mr-2" />
-            Delete
-          </Button>
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         )}
       </div>
     </div>

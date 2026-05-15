@@ -1,4 +1,5 @@
 import { Button, FormInput, Modal } from "../../../../components/common";
+import { Save, RotateCcw, Trash2 } from "lucide-react";
 import type { BranchRecord } from "../../../inventory/branches/types";
 import type { CounterForm } from "../types";
 
@@ -34,9 +35,35 @@ const CounterModal = ({
       onClose={onClose}
       title={editingId ? "Edit Counter Master" : "Add Counter Master"}
       size="lg"
+      footer={
+        <div className="flex gap-3">
+          <Button 
+            variant="secondary" 
+            onClick={onClear} 
+            disabled={saving} 
+            tabIndex={-1}
+            isAction
+            icon={<RotateCcw size={18} />}
+          />
+          <Button 
+            onClick={onSave} 
+            loading={saving}
+            isAction
+            icon={<Save size={18} />}
+          />
+          {editingId && (
+            <Button
+              variant="danger"
+              onClick={onDelete}
+              disabled={saving}
+              isAction
+              icon={<Trash2 size={18} />}
+            />
+          )}
+        </div>
+      }
     >
-      <div className="mx-auto max-w-3xl">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {/* NAME FIELD */}
         <FormInput
           label="Name"
@@ -47,12 +74,12 @@ const CounterModal = ({
         />
 
         {/* BRANCH FIELD */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Branch Name</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Branch Name</label>
           <select
             value={form.branchId}
             onChange={(e) => onChange("branchId", e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
           >
             <option value="">Select a branch</option>
             {branches.map((b) => (
@@ -61,26 +88,6 @@ const CounterModal = ({
               </option>
             ))}
           </select>
-        </div>
-      </div>
-
-        {/* ACTIONS */}
-        <div className="mt-8 flex flex-wrap justify-end gap-3">
-          <Button variant="secondary" onClick={onClear} disabled={saving}>
-            Clear
-          </Button>
-          <Button onClick={onSave} loading={saving}>
-            {editingId ? "Update" : "Save"}
-          </Button>
-          {editingId && (
-            <Button
-              variant="danger"
-              onClick={onDelete}
-              disabled={saving}
-            >
-              Delete Counter
-            </Button>
-          )}
         </div>
       </div>
     </Modal>

@@ -237,7 +237,7 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
             />
           </div>
           <div className="flex justify-end items-end gap-3 pb-4">
-            <Button variant="secondary" className="h-10 px-8 uppercase" onClick={handleClear}>
+            <Button variant="secondary" className="h-10 px-8 uppercase" onClick={handleClear} tabIndex={-1}>
               Clear
             </Button>
             <Button 

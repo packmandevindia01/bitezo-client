@@ -1,4 +1,4 @@
-import { Building2, Loader2, Trash2 } from "lucide-react";
+import { Building2, Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, Checkbox, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
 import type { BranchOption, CategoryFormState } from "../types";
 import type { GroupListItem } from "../../group/types";
@@ -53,32 +53,34 @@ const CategoryModal = ({
             className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
             onClick={onToggleBranchAlloc}
             disabled={saving}
-          >
-            <Building2 size={16} />
-            Branch Allocation
-          </Button>
-          <Button variant="secondary" onClick={onClear} disabled={saving}>
-            Clear
-          </Button>
-          <Button onClick={onSave} disabled={saving}>
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <Loader2 size={15} className="animate-spin" />
-                Saving…
-              </span>
-            ) : (
-              editingId ? "Update" : "Save"
-            )}
-          </Button>
+            tabIndex={-1}
+            isAction
+            icon={<Building2 size={18} />}
+          />
+          <Button 
+            variant="secondary" 
+            onClick={onClear} 
+            disabled={saving} 
+            tabIndex={-1}
+            isAction
+            icon={<RotateCcw size={18} />}
+          />
+          <Button 
+            onClick={onSave} 
+            disabled={saving}
+            isAction
+            loading={saving}
+            icon={<Save size={18} />}
+          />
           {editingId && (
             <Button
               variant="danger"
               onClick={onDelete}
               disabled={saving}
-            >
-              <Trash2 size={16} />
-              Delete Category
-            </Button>
+              tabIndex={-1}
+              isAction
+              icon={<Trash2 size={18} />}
+            />
           )}
         </div>
       }
@@ -138,6 +140,7 @@ const CategoryModal = ({
                           ? "border-[#49293e] bg-[#49293e]/10 text-[#49293e] font-medium"
                           : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 shadow-sm"
                       }`}
+                      tabIndex={-1}
                     >
                       {group.name}
                     </button>
@@ -169,6 +172,7 @@ const CategoryModal = ({
                               ? "bg-[#49293e] text-white"
                               : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
                           }`}
+                          tabIndex={-1}
                         >
                           {active ? "Allocated" : "Allocate"}
                         </button>

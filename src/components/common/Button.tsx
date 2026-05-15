@@ -1,11 +1,13 @@
 import React from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   variant?: "primary" | "secondary" | "danger";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
   fullWidth?: boolean;
+  isAction?: boolean; // NEW: Enforces uniform size for form actions
+  icon?: React.ReactNode; // NEW: Optional icon for standardizing
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -19,22 +21,29 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       disabled = false,
       loading = false,
       fullWidth = false,
+      isAction = false,
+      icon,
       className = "",
       ...props
     },
     ref
   ) => {
     const variants = {
-      primary: "bg-[#49293e] text-white hover:bg-[#3c2232]",
-      secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300",
-      danger: "bg-red-500 text-white hover:bg-red-600",
+      primary: "bg-[#49293e] text-white hover:bg-[#3c2232] border border-[#49293e]",
+      secondary: "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200",
+      danger: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200",
     };
 
     const sizes = {
-      sm: "px-3 py-1 text-xs md:text-sm",
-      md: "px-3 md:px-4 py-2 text-sm",
-      lg: "px-4 md:px-6 py-2 md:py-3 text-sm md:text-base",
+      sm: "px-3 py-1.5 text-xs",
+      md: "px-4 py-2 text-sm",
+      lg: "px-6 py-3 text-base",
     };
+
+    // Uniform sizing for form action buttons
+    const actionClasses = isAction 
+      ? "min-w-[120px] h-[44px] shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200" 
+      : "";
 
     return (
       <button
@@ -43,21 +52,30 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         onClick={onClick}
         disabled={disabled || loading}
         className={`
-          rounded-md font-medium transition
-          inline-flex items-center justify-center gap-2
+          rounded-xl font-bold transition-all
+          inline-flex items-center justify-center gap-2.5
           ${variants[variant]}
-          ${sizes[size]}
+          ${!isAction ? sizes[size] : ""}
+          ${actionClasses}
           ${fullWidth ? "w-full" : ""}
           ${disabled || loading ? "opacity-50 cursor-not-allowed" : ""}
-          focus:outline-none focus:ring-2 focus:ring-[#49293e] focus:ring-offset-1
+          focus:outline-none focus:ring-2 focus:ring-[#49293e]/30 focus:ring-offset-1
           ${className}
         `}
         {...props}
       >
-        {loading && (
-          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        {loading ? (
+          <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <>
+            {icon && <span className="shrink-0">{icon}</span>}
+            {children && (
+              <span className={icon ? "hidden md:inline" : ""}>
+                {children}
+              </span>
+            )}
+          </>
         )}
-        {loading ? "Please wait..." : children}
       </button>
     );
   }

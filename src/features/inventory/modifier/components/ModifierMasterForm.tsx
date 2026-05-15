@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Trash2, Save, RotateCcw } from "lucide-react";
 import { Button } from "../../../../components/common";
 import type { ModifierForm } from "../types";
 import type { ModifierTypeRecord } from "../../modifierType/types";
@@ -56,7 +56,7 @@ const ModifierMasterForm = ({
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <ModifierBasicFields 
           form={form}
           modifierTypes={modifierTypes}
@@ -74,25 +74,6 @@ const ModifierMasterForm = ({
           onToggleBranchAlloc={onToggleBranchAlloc}
           onToggleCategoryAlloc={onToggleCategoryAlloc}
         />
-      </div>
-
-      <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
-        <Button variant="secondary" onClick={onClear} disabled={saving}>
-          Clear
-        </Button>
-        <Button onClick={onSave} disabled={saving}>
-          {saving ? "Saving..." : isEditing ? "Update" : "Save"}
-        </Button>
-        {isEditing && (
-          <Button
-            variant="danger"
-            onClick={onDelete}
-            disabled={saving}
-          >
-            <Trash2 size={16} />
-            Delete Modifier
-          </Button>
-        )}
       </div>
     </>
   );

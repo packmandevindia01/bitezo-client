@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Save, X, FileText, Download } from "lucide-react";
+import { RotateCcw, Save, X, FileText, Download, Plus, Trash2 } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyProductionForm } from "../constants";
@@ -98,50 +98,41 @@ const ProductionPage = () => {
     <PageShell title="Production">
       <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
         {/* ── Scrollable Body ── */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="mb-5 border-b border-gray-100 pb-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
-              Transaction
-            </p>
-            <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900">
-              <FileText size={24} className="text-[#49293e]" />
-              Production
-            </h1>
-          </div>
+        <div className="flex-1 overflow-y-auto p-3 md:p-4">
 
-        <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 lg:grid-cols-5">
           <FormInput id="prod-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "prod-finCode")} required />
-          <FormInput id="prod-finCode" label="Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "prod-finUnit")} required />
+          <FormInput id="prod-finCode" label="Product Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "prod-finUnit")} required />
           <FormInput id="prod-finUnit" label="Unit" value={form.finishedProductUnit} onChange={(e) => setField("finishedProductUnit", e.target.value)} onKeyDown={(e) => hk(e, "prod-finQty")} required />
-          <FormInput id="prod-finQty" label="Qty" value={form.finishedProductQty} onChange={(e) => setField("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "prod-product")} required />
+          <FormInput id="prod-finQty" label="Output Qty" value={form.finishedProductQty} inputClassName="text-right" onChange={(e) => setField("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "prod-product")} required />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
-          <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
-            <FormInput id="prod-product" label="Finished Product" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "prod-code")} />
+        <div className="mt-1 rounded-xl border border-gray-200 bg-gray-50/70 p-2">
+          <div className="grid gap-x-2 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
+            <FormInput id="prod-product" label="Raw Material / Ingredient" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "prod-code")} />
             <FormInput id="prod-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "prod-unit")} />
             <FormInput id="prod-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "prod-qty")} />
-            <FormInput id="prod-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
-            <FormInput id="prod-cost" label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
+            <FormInput id="prod-qty" label="Qty" value={form.qty} inputClassName="text-right" onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
+            <FormInput id="prod-cost" label="Cost" value={form.cost} inputClassName="text-right" onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
             <div className="flex items-end pb-4">
-              <Button id="prod-add-btn" onClick={addItem} className="h-10 w-full px-8"
+              <Button id="prod-add-btn" onClick={addItem} className="h-[38px] w-full"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                Add
+                <Plus size={18} />
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-gray-200 bg-gray-50/50">
                   {["Product", "Code", "Unit", "Qty", "Cost", "Amount"].map(
                     (column) => (
                       <th
                         key={column}
-                        className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        className="whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400"
                       >
                         {column}
                       </th>
@@ -175,48 +166,53 @@ const ProductionPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div className="pt-2 md:pb-6">
-            <Button variant="secondary" className="border-gray-200 shadow-sm mb-2 text-gray-700 min-w-[140px] justify-center">
-              <Download size={16} className="text-gray-500" />
-              Load BOM
-            </Button>
+        <div className="mt-3 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div className="pb-4">
+            <Button 
+              variant="secondary" 
+              isAction
+              icon={<Download size={18} />}
+            />
           </div>
 
-          <div className="w-full md:w-80 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+          <div className="w-full md:w-80 rounded-xl border border-gray-100 bg-gray-50/40 p-3 flex flex-col gap-2">
             <FormInput
               label="Other Charge"
               value={form.otherCharge}
+              inputClassName="text-right"
               onChange={(e) => setField("otherCharge", e.target.value)}
             />
-            <div className="mt-2 rounded-xl border border-[#49293e]/15 bg-white px-4 py-3 mb-2">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
-              <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
+            <div className="flex items-center justify-between rounded-lg border border-[#49293e]/10 bg-white px-3 py-2 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Grand Total</p>
+              <p className="text-xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
             </div>
-            <FormInput
-              label="Cost/Unit"
-              value={formatAmount(totals.costPerUnit)}
-              readOnly
-            />
-            
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Cost / Unit</p>
+              <p className="text-sm font-bold text-gray-700">{formatAmount(totals.costPerUnit)}</p>
+            </div>
           </div>
         </div>
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
-          <Button variant="secondary" onClick={handleClearClick}>
-            <RotateCcw size={16} />
-            New
-          </Button>
-          <Button>
-            <Save size={16} />
-            Save
-          </Button>
-          <Button variant="secondary" className="text-red-500 hover:text-red-600">
-            <X size={16} />
-            Delete
-          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={handleClearClick} 
+            tabIndex={-1}
+            isAction
+            icon={<Plus size={18} />}
+          />
+          <Button
+            isAction
+            icon={<Save size={18} />}
+          />
+          <Button 
+            variant="danger" 
+            onClick={() => setItems([])}
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         </div>
       </div>
 

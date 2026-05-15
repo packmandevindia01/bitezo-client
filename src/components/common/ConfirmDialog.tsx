@@ -31,7 +31,7 @@ const ConfirmDialog = ({
         <p className="text-gray-700">{message}</p>
 
         <div className="flex justify-center gap-3">
-          <Button variant="secondary" onClick={onCancel} disabled={loading}>
+          <Button variant="secondary" onClick={onCancel} disabled={loading} tabIndex={-1}>
             {cancelLabel}
           </Button>
           <Button variant={confirmVariant} onClick={onConfirm} disabled={loading}>

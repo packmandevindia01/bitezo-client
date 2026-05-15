@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Plus, Trash2, Save } from "lucide-react";
 import { Modal, FormInput, Button, ConfirmDialog, SelectInput } from "../../../../components/common";
 import { useCustomer } from "../hooks/useCustomer";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
@@ -73,16 +74,22 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 setTimeout(() => firstInputRef.current?.focus(), 50);
               }} 
               disabled={loading} 
-              className="px-6 border-[#49293e] text-[#49293e] hover:bg-[#49293e]/5"
-            >
-              New
-            </Button>
-            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} disabled={loading || !form.id} className="px-6">
-              Delete
-            </Button>
-            <Button onClick={saveCustomer} loading={loading} className="px-10 bg-[#49293e] hover:bg-[#3a2131]">
-              Save
-            </Button>
+              isAction
+              icon={<Plus size={20} />}
+            />
+            <Button 
+              variant="danger" 
+              onClick={() => setShowDeleteConfirm(true)} 
+              disabled={loading || !form.id} 
+              isAction
+              icon={<Trash2 size={20} />}
+            />
+            <Button 
+              onClick={saveCustomer} 
+              loading={loading} 
+              isAction
+              icon={<Save size={20} />}
+            />
           </div>
         </div>
 

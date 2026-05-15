@@ -41,6 +41,7 @@ const ProductListCard = ({
         { header: "S No", accessor: "sNo" },
         { header: "Product Name", accessor: "name" },
         { header: "Code", accessor: "code" },
+        { header: "Barcode", accessor: "barcode" },
         { header: "Category", accessor: "category" },
         { header: "Group", accessor: "group" },
         { header: "Unit", accessor: "unit" },
@@ -48,6 +49,11 @@ const ProductListCard = ({
           header: "Cost", 
           accessor: "cost",
           render: (row: ProductListItem) => formatCurrency(row.cost, decimalPart)
+        },
+        { 
+          header: "Price", 
+          accessor: "price",
+          render: (row: ProductListItem) => formatCurrency(row.price, decimalPart)
         },
         {
           header: "Actions",

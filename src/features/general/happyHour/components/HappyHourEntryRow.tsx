@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from "react";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { Button, SearchableSelect } from "../../../../components/common";
+import { Button, SearchableSelect, FormInput, SelectInput } from "../../../../components/common";
+import { Save } from "lucide-react";
 import type { ProductSearchItem, AltNameItem } from "../../providerSettings/types";
 
 interface Props {
@@ -25,8 +26,6 @@ interface Props {
   onPromoPriceChange: (val: string) => void;
   onAdd: () => void;
 }
-
-const labelClass = "text-[11px] font-bold uppercase tracking-widest text-slate-600";
 
 const HappyHourEntryRow = ({
   allProducts,
@@ -72,12 +71,12 @@ const HappyHourEntryRow = ({
   };
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+    <section className="rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-12 items-end">
         
         {/* Product Search */}
-        <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-1.5">
-          <label className={labelClass}>Product</label>
+        <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product</label>
           <SearchableSelect
             id="hp-entry-product"
             options={productOptions}
@@ -88,53 +87,55 @@ const HappyHourEntryRow = ({
         </div>
 
         {/* Barcode */}
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
-          <label className={labelClass}>Barcode</label>
-          <input
+        <div className="lg:col-span-2">
+          <FormInput
             id="hp-entry-barcode"
+            label="Barcode"
             value={entryCode}
             readOnly
+            inputClassName="bg-gray-50 font-bold text-gray-500"
             onKeyDown={(e) => handleKeyDown(e, "hp-entry-alt")}
-            className="w-full h-10.5 px-3 text-sm font-bold text-gray-400 bg-gray-50 rounded-lg border border-gray-200 outline-none transition"
           />
         </div>
 
         {/* Alt Name */}
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
-          <label className={labelClass}>Alt Name</label>
-          <select
+        <div className="lg:col-span-2">
+          <SelectInput
             id="hp-entry-alt"
+            label="Alt Name"
             value={entryUnitId?.toString() ?? ""}
             onChange={(e) => onAltNameChange(e.target.value, entryProductId ?? undefined)}
             onKeyDown={(e) => handleKeyDown(e, "hp-entry-price")}
             disabled={!selectedProductKey || loadingAltNames}
-            className="w-full h-10.5 px-3 text-sm rounded-lg border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition disabled:bg-gray-50"
-          >
-            <option value="">{loadingAltNames ? "..." : "Alt Name"}</option>
-            {altNameOptions.map(a => <option key={`${a.unitId}-${a.altName}`} value={String(a.unitId)}>{a.altName}</option>)}
-          </select>
+            options={[
+              { value: "", label: loadingAltNames ? "..." : "Select Unit" },
+              ...altNameOptions.map(a => ({ value: String(a.unitId), label: a.altName }))
+            ]}
+          />
         </div>
 
         {/* Price */}
-        <div className="flex flex-col gap-1.5 lg:col-span-1">
-          <div className="flex justify-end items-center gap-1">
-            <label className={`${labelClass} text-right`}>Price</label>
-            <div className="flex items-center gap-1">
+        <div className="lg:col-span-1 flex flex-col gap-1">
+          <div className="flex justify-between items-center px-1">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Price</label>
+            <div className="flex items-center gap-1.5">
               <label className="text-[8px] font-black uppercase text-slate-400">Incl</label>
-              <input
-                type="checkbox"
-                checked={entryIsIncl}
-                onChange={(e) => onIsInclChange(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e]/20 transition cursor-pointer"
-              />
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={entryIsIncl}
+                  onChange={(e) => onIsInclChange(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-7 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-pos-primary"></div>
+              </label>
             </div>
           </div>
-          <input
+          <FormInput
              id="hp-entry-price"
              type="number"
-             min="0"
              value={entryPrice ?? ""}
-             style={{ textAlign: 'right' }}
+             inputClassName="text-right font-black text-pos-primary bg-pos-primary/5"
              onChange={(e) => {
                const val = e.target.value;
                if (val === "" || Number(val) >= 0) {
@@ -145,19 +146,16 @@ const HappyHourEntryRow = ({
                if (e.key === '-' || e.key === 'e') e.preventDefault();
                handleKeyDown(e, "hp-entry-disc-per");
              }}
-             className="w-full h-10.5 px-3 text-sm font-black text-[#49293e] bg-[#49293e]/5 rounded-lg border border-[#49293e]/10 outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 lg:col-span-1">
-          <label className={`${labelClass} text-right`}>Disc(%)</label>
-          <input
+        <div className="lg:col-span-1">
+          <FormInput
             id="hp-entry-disc-per"
-            ref={discPercentRef}
+            label="Disc(%)"
             type="number"
-            min="0"
+            inputClassName="text-right"
             value={entryDiscPercent ?? ""}
-            style={{ textAlign: 'right' }}
             onChange={(e) => {
               const val = e.target.value;
               if (val === "" || Number(val) >= 0) {
@@ -169,19 +167,16 @@ const HappyHourEntryRow = ({
               handleKeyDown(e, "hp-entry-disc-val");
             }}
             placeholder="0"
-            className="w-full h-10.5 px-3 text-xs rounded-lg border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 lg:col-span-1">
-          <label className={`${labelClass} text-right`}>Disc</label>
-          <input
+        <div className="lg:col-span-1">
+          <FormInput
             id="hp-entry-disc-val"
-            ref={discValueRef}
+            label="Disc"
             type="number"
-            min="0"
+            inputClassName="text-right"
             value={entryDiscValue ?? ""}
-            style={{ textAlign: 'right' }}
             onChange={(e) => {
               const val = e.target.value;
               if (val === "" || Number(val) >= 0) {
@@ -193,19 +188,16 @@ const HappyHourEntryRow = ({
               handleKeyDown(e, "hp-entry-promo");
             }}
             placeholder={formatAmount(0)}
-            className="w-full h-10.5 px-3 text-xs rounded-lg border border-gray-300 bg-white outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition"
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 lg:col-span-1">
-          <label className={`${labelClass} text-right`}>Promo Price</label>
-          <input
+        <div className="lg:col-span-1">
+          <FormInput
             id="hp-entry-promo"
-            ref={promoPriceRef}
+            label="Promo"
             type="number"
-            min="0"
+            inputClassName="text-right font-black text-pos-primary bg-pos-primary/10 border-pos-primary/30"
             value={entryPromoPrice ?? ""}
-            style={{ textAlign: 'right' }}
             onChange={(e) => {
               const val = e.target.value;
               if (val === "" || Number(val) >= 0) {
@@ -217,24 +209,23 @@ const HappyHourEntryRow = ({
               if (e.key === 'Enter') {
                 e.preventDefault();
                 onAdd();
+                setTimeout(() => document.getElementById("hp-entry-product")?.focus(), 0);
               }
             }}
             placeholder={formatAmount(0)}
-            className="w-full h-10.5 px-3 text-lg font-black text-pos-primary border-pos-primary/40 rounded-lg border bg-pos-primary/5 outline-none focus:border-pos-primary focus:ring-1 focus:ring-pos-primary/20 transition"
           />
         </div>
 
 
         {/* Add Button */}
-        <div className="flex flex-col gap-1.5 lg:col-span-1">
-          <label className="h-[15px]"></label>
+        <div className="lg:col-span-1">
           <Button 
             id="hp-entry-add-btn" 
-            onClick={onAdd}
-            className="w-full h-10.5 text-xs font-black uppercase tracking-widest bg-slate-800 hover:bg-slate-900 shadow-sm"
-          >
-            Add
-          </Button>
+            onClick={() => { onAdd(); setTimeout(() => document.getElementById("hp-entry-product")?.focus(), 0); }}
+            isAction
+            className="w-full bg-slate-800 hover:bg-slate-900"
+            icon={<Save size={18} />}
+          />
         </div>
       </div>
     </section>

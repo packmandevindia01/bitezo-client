@@ -1,4 +1,3 @@
-import { useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -9,6 +8,8 @@ import {
 } from "@dnd-kit/core";
 
 import { Button, Checkbox, DragHandle, Loader } from "../../../../components/common";
+import { useRef, useState } from "react";
+import { Trash2, Save, RotateCcw } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useBranchLines } from "../hooks/useBranchLines";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
@@ -164,7 +165,7 @@ const BranchForm = ({
                 }}
               />
 
-              <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <PrintSection
                   section="header"
                   lines={headerLines}
@@ -190,7 +191,7 @@ const BranchForm = ({
             </div>
 
             {/* ── Sticky Action Footer ── */}
-            <div className="mt-6 pt-4 border-t border-slate-100 bg-white flex flex-wrap items-center justify-end gap-3">
+            <div className="mt-8 pt-4 border-t border-slate-100 bg-white flex flex-wrap items-center justify-end gap-3">
               <Checkbox
                 label="Active"
                 checked={isActive}
@@ -198,30 +199,32 @@ const BranchForm = ({
                 disabled={submitting}
               />
 
-              <Button variant="secondary" onClick={handleClear} disabled={submitting}>
-                Clear
-              </Button>
+              <Button 
+                variant="secondary" 
+                onClick={handleClear} 
+                disabled={submitting} 
+                tabIndex={-1}
+                isAction
+                icon={<RotateCcw size={18} />}
+              />
 
-              <Button ref={saveBtnRef} onClick={handleSubmit} disabled={submitting}>
-                {submitting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-white" />
-                    Saving...
-                  </span>
-                ) : (
-                  initialData ? "Update" : "Save"
-                )}
-              </Button>
+              <Button 
+                ref={saveBtnRef} 
+                onClick={handleSubmit} 
+                disabled={submitting}
+                isAction
+                loading={submitting}
+                icon={<Save size={18} />}
+              />
 
               {initialData && (
                 <Button 
-                  variant="secondary" 
+                  variant="danger" 
                   onClick={onDelete} 
                   disabled={submitting}
-                  className="!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100"
-                >
-                  Delete Branch
-                </Button>
+                  isAction
+                  icon={<Trash2 size={18} />}
+                />
               )}
             </div>
           </div>

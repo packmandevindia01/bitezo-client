@@ -18,6 +18,8 @@ export const emptyForm: ProductFormState = {
   pVatId: "",
   sVatId: "",
   cost: "0",
+  price: "0",
+  barcode: "",
   branchId: "",
   isActive: true,
   colorCode: "#49293e",

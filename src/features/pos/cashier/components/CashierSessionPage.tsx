@@ -399,7 +399,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
 
       {/* Top bar */}
       <div style={S.topBar}>
-        <button onClick={() => navigate("/pos")} style={S.backBtn}>
+        <button onClick={() => navigate("/pos")} style={S.backBtn} tabIndex={-1}>
           <ArrowLeft size={14} />
           Terminal
         </button>
@@ -805,7 +805,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                           <td style={{ ...S.td, textAlign: "center" }}>
                             <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
                               <button onClick={() => handleEdit(t)} title="Edit" style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={12} /></button>
-                              <button onClick={() => openCancelConfirm(t.transId)} title="Cancel" style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Trash2 size={12} /></button>
+                              <button onClick={() => openCancelConfirm(t.transId)} title="Cancel" tabIndex={-1} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Trash2 size={12} /></button>
                             </div>
                           </td>
                         </tr>

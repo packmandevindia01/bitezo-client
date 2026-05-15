@@ -61,6 +61,8 @@ export interface ProductListItem {
   sNo: number;
   code: string;
   name: string;
+  barcode: string;
+  price: number;
   unit: string;
   cost: number;
   category: string;
@@ -81,6 +83,8 @@ export interface ProductDetail {
     pVatId: number;
     sVatId: number;
     cost: number;
+    price: number;
+    barcode: string;
     branchId: number;
     fileName: string;
     filePath: string;
@@ -105,6 +109,8 @@ export interface CreateProductPayload {
   pVatId: number;
   sVatId: number;
   cost: number;
+  price: number;
+  barcode: string;
   branchId: number;
   fileName?: string;
   filePath?: string;
@@ -134,6 +140,8 @@ export interface ProductFormState {
   pVatId: string;
   sVatId: string;
   cost: string;
+  price: string;
+  barcode: string;
   branchId: string;
   isActive: boolean;
   colorCode: string;

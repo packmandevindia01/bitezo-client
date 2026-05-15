@@ -37,8 +37,8 @@ const SearchBar = ({
         autoComplete="off"
         autoFocus={autoFocus}
         className={`
-          w-full pl-9 pr-9 py-2
-          text-sm md:text-base
+          w-full pl-9 pr-9 py-1.5
+          text-sm
           border rounded-md outline-none transition
           
           ${disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"}

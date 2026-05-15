@@ -24,7 +24,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   const isNumericField = type === 'number' || (label && /\b(price|cost|amount|qty|quantity|vat|disc|discount|rate|total|net|gross|percentage|%)\b/i.test(label));
 
   return (
-    <div className="flex flex-col gap-1 mb-4 w-full">
+    <div className="flex flex-col gap-1 mb-1 w-full">
 
       {/* LABEL */}
       {label && (
@@ -53,7 +53,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
           if (props.onKeyDown) props.onKeyDown(e);
         }}
         className={`
-          w-full px-3 md:px-4 py-2
+          w-full px-3 md:px-4 py-1.5
           text-sm md:text-base
           rounded-md border outline-none transition
           ${isNumericField ? 'text-right' : 'text-left'}

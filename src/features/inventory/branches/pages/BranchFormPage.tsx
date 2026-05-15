@@ -69,9 +69,9 @@ const BranchFormPage = () => {
           <Button 
             variant="secondary" 
             onClick={() => navigate("/dashboard/branches")}
-            className="flex items-center gap-2 shadow-sm border-slate-200 !py-1.5 w-fit"
+            className="flex items-center gap-1 px-2.5 !py-1 w-fit shadow-sm border-slate-200 text-[10px] font-bold uppercase tracking-wider"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             Back
           </Button>
         </div>

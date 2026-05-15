@@ -59,7 +59,7 @@ export const DineInSelectionPage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={handleBack} className="px-6">
+          <Button variant="secondary" onClick={handleBack} className="px-6" tabIndex={-1}>
             Cancel
           </Button>
         </div>
@@ -83,6 +83,7 @@ export const DineInSelectionPage: React.FC = () => {
                         : 'text-slate-400 hover:text-slate-600'
                       }
                     `}
+                    tabIndex={-1}
                   >
                     {status}
                   </button>
@@ -150,6 +151,7 @@ export const DineInSelectionPage: React.FC = () => {
                       }
                     `}
                     disabled={table.status === 'occupied'}
+                    tabIndex={-1}
                   >
                     <div className={`
                       p-4 rounded-2xl mb-2 transition-all duration-500 transform group-hover:scale-110 group-hover:rotate-3

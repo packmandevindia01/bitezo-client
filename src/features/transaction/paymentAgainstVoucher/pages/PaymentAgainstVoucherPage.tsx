@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Plus, Save } from "lucide-react";
 
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
@@ -99,66 +99,51 @@ const PaymentAgainstVoucherPage = () => {
     <PageShell title="Payment Against Voucher">
       <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
         {/* ── Scrollable Body ── */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="mb-5 border-b border-gray-100 pb-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
-              Transaction
-            </p>
-            <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900">
-              <FileText size={24} className="text-[#49293e]" />
-              Payment Against Voucher
-            </h1>
-          </div>
+        <div className="flex-1 overflow-y-auto p-3 md:p-4">
 
-        <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 xl:grid-cols-5">
           <FormInput id="pav-page-series" label="Series" value={form.series} onChange={(e) => setField("series", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchNo")} />
           <FormInput id="pav-page-vchNo" label="Vch No" value={form.vchNo} onChange={(e) => setField("vchNo", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-date")} />
           <FormInput id="pav-page-date" label="Date" type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-supplier")} />
-          <div className="md:col-span-2 xl:col-span-2 flex items-end gap-2">
+          <div className="md:col-span-2 flex items-end gap-2">
             <div className="flex-1">
               <FormInput id="pav-page-supplier" label="Supplier" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchType")} />
             </div>
             <div className="pb-4">
-              <Button variant="secondary" className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
+              <Button variant="secondary" className="h-[38px] px-3 bg-[#49293e]/5 text-[#49293e] border-[#49293e]/10 hover:bg-[#49293e]/10 text-xs font-bold">
                 MULTI
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
-          <div className="grid gap-x-3 gap-y-1 md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <div className="mt-1 rounded-xl border border-gray-200 bg-gray-50/70 p-2">
+          <div className="grid gap-x-2 gap-y-1 md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto]">
             <FormInput id="pav-page-vchType" label="Vch Type" value={form.vchType} onChange={(e) => setField("vchType", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchNoInput")} />
             <FormInput id="pav-page-vchNoInput" label="Vch No" value={form.vchNoInput} onChange={(e) => setField("vchNoInput", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-invAmnt")} />
-            <FormInput id="pav-page-invAmnt" label="Inv Amnt" value={form.invAmnt} onChange={(e) => setField("invAmnt", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-paid")} />
-            <FormInput id="pav-page-paid" label="Paid" value={form.paid} onChange={(e) => setField("paid", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-balance")} />
-            <FormInput id="pav-page-balance" label="Balance" value={form.balance} onChange={(e) => setField("balance", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-amount")} />
-            <FormInput id="pav-page-amount" label="Amount" value={form.amount} onChange={(e) => setField("amount", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-add-btn")} />
+            <FormInput id="pav-page-invAmnt" label="Inv Amnt" value={form.invAmnt} inputClassName="text-right" onChange={(e) => setField("invAmnt", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-paid")} />
+            <FormInput id="pav-page-paid" label="Paid" value={form.paid} inputClassName="text-right" onChange={(e) => setField("paid", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-balance")} />
+            <FormInput id="pav-page-balance" label="Balance" value={form.balance} inputClassName="text-right" onChange={(e) => setField("balance", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-amount")} />
+            <FormInput id="pav-page-amount" label="Amount" value={form.amount} inputClassName="text-right font-bold text-[#49293e]" onChange={(e) => setField("amount", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-add-btn")} />
             <div className="flex items-end pb-4">
-              <Button
-                id="pav-page-add-btn"
-                onClick={addItem}
-                className="h-10 w-full px-8"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); addItem(); }
-                }}
-              >
-                ADD
+              <Button id="pav-page-add-btn" onClick={addItem} className="h-[38px] w-full"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
+                <Plus size={18} />
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white min-h-[250px]">
+        <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-gray-200 bg-gray-50/50">
                   {["Vch Type", "Vch No", "Inv Amnt", "Paid", "Balance", "Amount"].map(
                     (column) => (
                       <th
                         key={column}
-                        className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        className="whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400"
                       >
                         {column}
                       </th>
@@ -193,33 +178,36 @@ const PaymentAgainstVoucherPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_350px]">
-          <div className="grid gap-x-4 gap-y-1 md:grid-cols-2">
+        <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_300px]">
+          <div className="grid gap-x-3 gap-y-1 md:grid-cols-2">
             <FormInput id="pav-page-narration" label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-paymode")} />
             <FormInput id="pav-page-paymode" label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-save-btn")} />
           </div>
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-              <div className="rounded-xl border border-[#49293e]/15 bg-white px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Total Amount</p>
-                <p className="mt-1 text-2xl font-bold text-[#49293e]">
-                  {formatAmount(items.reduce((acc, item) => acc + item.amount, 0))}
-                </p>
-              </div>
+          <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between rounded-lg border border-[#49293e]/10 bg-white px-3 py-2 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Amount</p>
+              <p className="text-xl font-bold text-[#49293e]">
+                {formatAmount(items.reduce((acc, item) => acc + item.amount, 0))}
+              </p>
             </div>
-            
           </div>
         </div>
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
-          <Button variant="secondary" className="h-10 px-6" onClick={handleClearClick}>
-            CLEAR
-          </Button>
-          <Button id="pav-page-save-btn" className="h-10 px-6">
-            SAVE
-          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={handleClearClick} 
+            tabIndex={-1}
+            isAction
+            icon={<Plus size={18} />}
+          />
+          <Button 
+            id="pav-page-save-btn" 
+            isAction
+            icon={<Save size={18} />}
+          />
         </div>
       </div>
 

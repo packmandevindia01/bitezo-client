@@ -1,5 +1,5 @@
 import axiosInstance from "../../../api/axiosInstance";
-import type { CompanyFormData, CompanyMasterloadResponse } from "../types";
+import type { CompanyFormData, CompanyMasterloadResponse, CurrencyOption } from "../types";
 
 export const fetchCompanyMasterload = async () => {
   const { data } = await axiosInstance.get<CompanyMasterloadResponse>("/company/masterload");
@@ -82,5 +82,11 @@ export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
 
   const { data } = await axiosInstance.put<unknown>("/company", payload);
   return data;
+};
+
+/** Fetch currencies for company dropdown */
+export const fetchCurrencyList = async () => {
+  const { data } = await axiosInstance.get<{ data: CurrencyOption[] }>("/currency/company-list-name");
+  return data.data;
 };
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Modal, FormInput, Button, Checkbox } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
-import { Search } from "lucide-react";
+import { Search, Save, RotateCcw } from "lucide-react";
 import { useDelivery } from "../hooks/useDelivery";
 
 interface PosDeliveryModalProps {
@@ -143,7 +143,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       {/* Header */}
       <div className="flex items-center justify-between bg-[#49293e] px-4 py-2.5 text-white shrink-0 border-b-2 border-white/10">
         <h2 className="text-sm md:text-base font-black tracking-widest mx-auto uppercase">DELIVERY DETAILS</h2>
-        <button onClick={onClose} className="text-white hover:text-red-400 absolute right-4 transition-colors">
+        <button onClick={onClose} className="text-white hover:text-red-400 absolute right-4 transition-colors" tabIndex={-1}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
       </div>
@@ -330,15 +330,17 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       <div className="bg-slate-200 p-3 flex justify-end gap-3 shrink-0 rounded-b-xl border-t border-slate-300">
         <Button 
           onClick={handleSave} 
-          className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md min-w-[120px]"
-          loading={loading}
           disabled={loading || !form.mobileNo}
-        >
-          {loading ? "Saving..." : "Save"}
-        </Button>
-        <Button onClick={handleClearForm} className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md">
-          Clear
-        </Button>
+          isAction
+          loading={loading}
+          icon={<Save size={18} />}
+        />
+        <Button 
+          onClick={handleClearForm} 
+          tabIndex={-1}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
       </div>
 
     </Modal>

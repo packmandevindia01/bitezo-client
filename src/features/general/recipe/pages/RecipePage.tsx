@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Save, X, Ban, FileText, Trash2 } from "lucide-react";
+import { RotateCcw, Save, X, Ban, FileText, Trash2, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyRecipeForm } from "../constants";
@@ -195,10 +195,13 @@ const RecipePage = () => {
 
         <div className="mt-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="pt-2">
-            <Button variant="secondary" className="border-gray-200 shadow-sm mb-2 text-gray-700" disabled={!canSave}>
-              <Ban size={16} className="text-gray-500" />
-              Exclude Order
-            </Button>
+            <Button 
+              variant="secondary" 
+              className="border-gray-200 shadow-sm mb-2 text-gray-700" 
+              disabled={!canSave}
+              isAction
+              icon={<Ban size={18} className="text-gray-500" />}
+            />
             <p className="text-xs text-gray-500 max-w-xs">
               Exclude product from some orders (eg: dine in no need container)
             </p>
@@ -228,26 +231,27 @@ const RecipePage = () => {
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
           {canAdd && (
-            <Button variant="secondary" onClick={handleClearClick}>
-              <RotateCcw size={16} />
-              New
-            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleClearClick} 
+              tabIndex={-1}
+              isAction
+              icon={<Plus size={18} />}
+            />
           )}
           {canSave && (
-            <Button>
-              <Save size={16} />
-              Save
-            </Button>
+            <Button
+              isAction
+              icon={<Save size={18} />}
+            />
           )}
           {canDelete && (
             <Button 
-              variant="secondary" 
+              variant="danger" 
               onClick={() => setItems([])}
-              className="text-red-500 hover:text-red-600"
-            >
-              <X size={16} />
-              Delete
-            </Button>
+              isAction
+              icon={<Trash2 size={18} />}
+            />
           )}
         </div>
       </div>

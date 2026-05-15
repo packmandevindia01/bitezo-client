@@ -20,34 +20,37 @@ const ConfigurationPage = () => {
 
   return (
     <PageShell title="POS Configuration">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {/* Header Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1 rounded-xl bg-gray-100 p-1 shadow-inner">
+        <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex gap-1 rounded-xl bg-gray-50 p-1 shadow-inner">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all duration-200 ${
                   activeTab === tab.id
-                    ? "bg-white text-[#49293e] shadow-md"
-                    : "text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                    ? "bg-white text-[#49293e] shadow-sm"
+                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 }`}
               >
                 {tab.icon}
-                {tab.label}
+                <span className="hidden md:inline">{tab.label}</span>
               </button>
             ))}
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="shadow-lg">
-            <Save size={18} />
-            {saving ? "Saving..." : "Save Configuration"}
-          </Button>
+          <Button 
+            onClick={handleSave} 
+            disabled={saving} 
+            isAction
+            loading={saving}
+            icon={<Save size={18} />}
+          />
         </div>
 
         {/* Tab Content */}
-        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-xl min-h-[600px]">
+        <div className="rounded-3xl border border-gray-200 bg-white p-4 md:p-6 shadow-sm min-h-[500px]">
           {activeTab === "pos" && (
             <PosSettingsTab form={form} employeeOptions={employeeOptions} onChange={setField} />
           )}

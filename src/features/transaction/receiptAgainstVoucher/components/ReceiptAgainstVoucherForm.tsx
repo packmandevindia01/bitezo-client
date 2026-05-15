@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus } from "lucide-react";
+import { Plus, RotateCcw, Save } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import { createEmptyReceiptAgainstVoucherForm } from "../constants";
 import type { ReceiptAgainstVoucherForm as ReceiptAgainstVoucherFormType, ReceiptAgainstVoucherLineItem } from "../types";
@@ -133,12 +133,19 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
             <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} />
           </div>
           <div className="flex justify-end items-end gap-3 pb-4">
-            <Button variant="secondary" className="h-10 px-8 uppercase" onClick={handleClear}>
-              Clear
-            </Button>
-            <Button className="h-10 px-8 uppercase" onClick={() => onSubmit(form, items)} loading={submitting}>
-              {initialData ? "Update" : "Save"}
-            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleClear} 
+              tabIndex={-1}
+              isAction
+              icon={<RotateCcw size={18} />}
+            />
+            <Button 
+              onClick={() => onSubmit(form, items)} 
+              loading={submitting}
+              isAction
+              icon={<Save size={18} />}
+            />
           </div>
       </div>
     </div>

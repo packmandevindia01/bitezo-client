@@ -3,7 +3,7 @@ import Modal from "../../../../components/common/Modal";
 import Button from "../../../../components/common/Button";
 import Checkbox from "../../../../components/common/Checkbox";
 import { Loader } from "../../../../components/common";
-import { Printer, Search } from "lucide-react";
+import { Printer, Search, RotateCcw, CheckCircle } from "lucide-react";
 import { usePosRecall } from "../hooks/usePosRecall";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -227,18 +227,20 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
           Total Records: {orders.length}
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onClose} size="lg" className="rounded-xl px-8 border border-gray-200 font-bold">
-            CANCEL
-          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={onClose} 
+            tabIndex={-1}
+            isAction
+            icon={<RotateCcw size={18} />}
+          />
           <Button 
             variant="primary" 
             onClick={onClose} 
-            size="lg" 
-            className="rounded-xl px-12 font-bold shadow-lg shadow-[#49293e]/20"
             disabled={!selectedOrderId}
-          >
-            LOAD ORDER
-          </Button>
+            isAction
+            icon={<CheckCircle size={18} />}
+          />
         </div>
       </div>
     </Modal>

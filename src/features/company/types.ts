@@ -73,6 +73,11 @@ export interface CompanyMasterOption {
   code?: string;
 }
 
+export interface CurrencyOption {
+  currencyId: number;
+  currencyName: string;
+}
+
 export interface CompanyMasterloadResponse {
   data?: {
     countries?: CompanyMasterOption[];

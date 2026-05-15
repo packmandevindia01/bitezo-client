@@ -4,22 +4,10 @@ import { Building2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput, Loader, PageShell, SelectInput } from "../../../components/common";
 import { useToast } from "../../../app/providers/useToast";
 import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
-import { fetchCompany, updateCompany } from "../services/companyApi";
-import type { CompanyFormData, CompanyMasterOption } from "../types";
+import { fetchCompany, updateCompany, fetchCurrencyList } from "../services/companyApi";
+import type { CompanyFormData, CompanyMasterOption, CurrencyOption } from "../types";
 import { formatPhone } from "../utils/formatters";
 
-const fallbackCurrencies: CompanyMasterOption[] = [
-  { id: 1, name: "INR - Indian Rupee", code: "INR" },
-  { id: 2, name: "AED - UAE Dirham", code: "AED" },
-  { id: 3, name: "SAR - Saudi Riyal", code: "SAR" },
-  { id: 4, name: "BHD - Bahraini Dinar", code: "BHD" },
-  { id: 5, name: "OMR - Omani Rial", code: "OMR" },
-  { id: 6, name: "QAR - Qatari Riyal", code: "QAR" },
-  { id: 7, name: "KWD - Kuwaiti Dinar", code: "KWD" },
-  { id: 8, name: "SGD - Singapore Dollar", code: "SGD" },
-  { id: 9, name: "MYR - Malaysian Ringgit", code: "MYR" },
-  { id: 10, name: "THB - Thai Baht", code: "THB" },
-];
 
 const emptyForm = (): CompanyFormData => ({
   custName: "",
@@ -52,8 +40,7 @@ const CompanyPage = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyFormData, string>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  // Use fallback currencies — masterload is only for onboarding context
-  const currencyMaster: CompanyMasterOption[] = fallbackCurrencies;
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
 
   const countryCode = "BH" as CountryCode;
 
@@ -63,10 +50,18 @@ const CompanyPage = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const raw = await fetchCompany() as Record<string, unknown>;
+        // Fetch company info and currency list in parallel
+        const [raw, currencyData] = await Promise.all([
+          fetchCompany(),
+          fetchCurrencyList()
+        ]);
+        
         if (cancelled) return;
 
+        setCurrencies(currencyData);
+
         // Map backend fields → CompanyFormData
+        const companyInfo = raw as Record<string, any>;
         const filled: CompanyFormData = {
           ...emptyForm(),
           custName:   String(raw.name    ?? ""),
@@ -149,9 +144,9 @@ const CompanyPage = () => {
     setErrors({});
   };
 
-  const currencyOptions = currencyMaster.map((item) => ({
-    label: item.name,
-    value: item.id.toString(),
+  const currencyOptions = currencies.map((item) => ({
+    label: item.currencyName,
+    value: item.currencyId.toString(),
   }));
 
   if (loading) {
@@ -295,23 +290,22 @@ const CompanyPage = () => {
 
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4 rounded-b-3xl">
-          <Button variant="secondary" onClick={handleReset} disabled={saving}>
-            <RotateCcw size={16} />
-            Reset
-          </Button>
-          <Button ref={saveBtnRef} onClick={handleSave} disabled={saving}>
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-white" />
-                Saving...
-              </span>
-            ) : (
-              <>
-                <Save size={16} />
-                Update
-              </>
-            )}
-          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={handleReset} 
+            disabled={saving} 
+            tabIndex={-1}
+            isAction
+            icon={<RotateCcw size={18} />}
+          />
+          <Button 
+            ref={saveBtnRef} 
+            onClick={handleSave} 
+            disabled={saving}
+            isAction
+            loading={saving}
+            icon={<Save size={18} />}
+          />
         </div>
       </div>
     </PageShell>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Save, X, FileText } from "lucide-react";
+import { RotateCcw, Save, Trash2, FileText, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyBomForm } from "../constants";
@@ -158,22 +158,26 @@ const BomPage = () => {
 
         <div className="mt-8 flex flex-wrap justify-end gap-3">
           {canAdd && (
-            <Button variant="secondary" onClick={handleClearClick} className="min-w-[120px] justify-center">
-              <RotateCcw size={16} />
-              New
-            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleClearClick} 
+              tabIndex={-1}
+              isAction
+              icon={<Plus size={18} />}
+            />
           )}
           {canSave && (
-            <Button className="min-w-[120px] justify-center">
-              <Save size={16} />
-              Save
-            </Button>
+            <Button
+              isAction
+              icon={<Save size={18} />}
+            />
           )}
           {canDelete && (
-            <Button variant="secondary" className="min-w-[120px] justify-center text-red-500 hover:text-red-600">
-              <X size={16} />
-              Delete
-            </Button>
+            <Button 
+              variant="danger" 
+              isAction
+              icon={<Trash2 size={18} />}
+            />
           )}
         </div>
       </div>

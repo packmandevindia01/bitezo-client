@@ -71,7 +71,7 @@ const SelectInput = ({
         autoFocus={autoFocus}
         tabIndex={tabIndex}
         className={`
-          w-full px-3 md:px-4 h-10.5
+          w-full px-3 md:px-4 h-9
           text-sm
           rounded-md border outline-none transition
           

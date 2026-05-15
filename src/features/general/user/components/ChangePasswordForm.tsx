@@ -89,7 +89,7 @@ const ChangePasswordForm = ({ user, onSubmit, onCancel, submitting = false }: Pr
       </div>
 
       <div className="mt-6 flex gap-3">
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel} tabIndex={-1}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>

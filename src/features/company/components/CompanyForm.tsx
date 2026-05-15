@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { Save, RotateCcw } from "lucide-react";
 import type { CountryCode } from "libphonenumber-js";
 import { Button, FormInput, Loader, SelectInput } from "../../../components/common";
 import { useToast } from "../../../app/providers/useToast";
 import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
-import { createCompany, fetchCompanyMasterload } from "../services/companyApi";
-import type { CompanyFormData, CompanyMasterOption } from "../types";
+import { createCompany, fetchCompanyMasterload, fetchCurrencyList } from "../services/companyApi";
+import type { CompanyFormData, CompanyMasterOption, CurrencyOption } from "../types";
 
 import { formatPhone } from "../utils/formatters";
 
@@ -34,18 +35,6 @@ const initialState: CompanyFormData = {
 
 
 
-const fallbackCurrencies: CompanyMasterOption[] = [
-  { id: 1, name: "INR - Indian Rupee", code: "INR" },
-  { id: 2, name: "AED - UAE Dirham", code: "AED" },
-  { id: 3, name: "SAR - Saudi Riyal", code: "SAR" },
-  { id: 4, name: "BHD - Bahraini Dinar", code: "BHD" },
-  { id: 5, name: "OMR - Omani Rial", code: "OMR" },
-  { id: 6, name: "QAR - Qatari Riyal", code: "QAR" },
-  { id: 7, name: "KWD - Kuwaiti Dinar", code: "KWD" },
-  { id: 8, name: "SGD - Singapore Dollar", code: "SGD" },
-  { id: 9, name: "MYR - Malaysian Ringgit", code: "MYR" },
-  { id: 10, name: "THB - Thai Baht", code: "THB" },
-];
 
 const resetCompanyForm = () => ({
   ...initialState,
@@ -86,8 +75,7 @@ const CompanyForm = ({
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyFormData, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [loadingMasterData, setLoadingMasterData] = useState(true);
-
-  const [currencyMaster, setCurrencyMaster] = useState<CompanyMasterOption[]>(fallbackCurrencies);
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
 
   const isLocked = (field: keyof CompanyFormData) => lockedFields.includes(field);
 
@@ -109,22 +97,19 @@ const CompanyForm = ({
     const loadMasterData = async () => {
       try {
         setLoadingMasterData(true);
-        const response = await fetchCompanyMasterload();
-        const currencies =
-          response.data?.currencies ??
-          response.data?.currencyList ??
-          response.data?.currency ??
-          [];
+        const [masterResponse, currencyData] = await Promise.all([
+          fetchCompanyMasterload(),
+          fetchCurrencyList()
+        ]);
 
         if (cancelled) return;
+        setCurrencies(currencyData);
 
-        if (currencies.length > 0) {
-          setCurrencyMaster(currencies);
-        }
+        // Map backend fields from masterload (for countries, etc. if needed)
+        // But for currencies, we use the specific currency endpoint
       } catch {
         if (!cancelled) {
-          setCurrencyMaster(fallbackCurrencies);
-          showToast("Company master data is unavailable, so demo fallback values are being used.", "error");
+          showToast("Company master data is unavailable. Please check your connection.", "error");
         }
       } finally {
         if (!cancelled) {
@@ -172,9 +157,9 @@ const CompanyForm = ({
   // Default to Bahrain for mobile formatting since country select is removed
   const countryCode = "BH" as CountryCode;
 
-  const currencyOptions = currencyMaster.map((item) => ({
-    label: item.name,
-    value: item.id.toString(),
+  const currencyOptions = currencies.map((item) => ({
+    label: item.currencyName,
+    value: item.currencyId.toString(),
   }));
 
   const handleSubmit = async () => {
@@ -456,21 +441,20 @@ const CompanyForm = ({
           variant="secondary" 
           onClick={() => setForm(createFormState())} 
           disabled={submitting}
-          className="px-8 font-bold border-slate-200"
-          tabIndex={16}
-        >
-          Reset Form
-        </Button>
+          tabIndex={-1}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
 
         <Button 
           ref={saveBtnRef} 
           onClick={handleSubmit} 
           disabled={submitting}
           tabIndex={15}
-          className="px-16 py-3 font-black uppercase tracking-[0.1em] shadow-lg shadow-[#49293e]/20"
-        >
-          {submitting ? "Processing..." : submitLabel}
-        </Button>
+          isAction
+          loading={submitting}
+          icon={<Save size={18} />}
+        />
       </div>
     </>
   );

@@ -38,63 +38,55 @@ export const BranchColorsSection = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-semibold text-gray-900">Branch-wise Colors</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Define custom visual styles for this product in specific branches.</p>
-        </div>
+      <div className="mb-4 flex items-center justify-end">
         <Button
           variant="secondary"
           size="sm"
           onClick={handleAdd}
           disabled={disabled || unassignedBranches.length === 0}
-          className="flex items-center gap-2"
+          className="flex items-center gap-1.5 !py-1 text-[10px] font-bold uppercase tracking-wider"
         >
-          <Plus size={16} />
-          Add Branch Color
+          <Plus size={14} />
+          Add Color
         </Button>
       </div>
 
       {productColors.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 py-12">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-gray-400 shadow-sm mb-3">
-            <Palette size={24} />
-          </div>
-          <p className="text-sm font-medium text-gray-900">No branch colors defined</p>
-          <p className="text-xs text-gray-500 mt-1">Click the button above to add a branch-specific color.</p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 py-8">
+          <p className="text-xs font-medium text-gray-400">No branch colors defined</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {productColors.map((pc, index) => {
             const branch = branches.find(b => b.id === pc.branchId);
             return (
               <div 
                 key={index} 
-                className="group relative flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[#49293e]/20"
+                className="group relative flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2.5 shadow-sm transition hover:border-[#49293e]/20"
               >
                 <div className="flex-1 min-w-0">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1 block">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5 block">
                     Branch
                   </label>
                   <select
                     value={pc.branchId}
                     onChange={(e) => handleUpdate(index, { branchId: Number(e.target.value) })}
                     disabled={disabled}
-                    className="w-full bg-transparent text-sm font-semibold text-gray-900 outline-none focus:ring-0 appearance-none cursor-pointer"
+                    className="w-full bg-transparent text-[11px] font-bold text-gray-900 outline-none focus:ring-0 appearance-none cursor-pointer truncate"
                   >
-                    <option value={pc.branchId}>{branch?.name || "Unknown Branch"}</option>
+                    <option value={pc.branchId}>{branch?.name || "Unknown"}</option>
                     {unassignedBranches.map(b => (
                       <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className="flex flex-col items-end">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1 block">
+                <div className="flex flex-col items-end shrink-0">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5 block">
                     Color
                   </label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative h-6 w-6 overflow-hidden rounded-md border border-gray-200 shadow-sm">
                       <input
                         type="color"
                         value={pc.colorCode}
@@ -108,7 +100,7 @@ export const BranchColorsSection = ({
                       value={pc.colorCode}
                       onChange={(e) => handleUpdate(index, { colorCode: e.target.value })}
                       disabled={disabled}
-                      className="w-16 bg-transparent text-[10px] font-mono font-medium text-gray-500 outline-none uppercase"
+                      className="w-12 bg-transparent text-[10px] font-mono font-bold text-gray-500 outline-none uppercase"
                       maxLength={7}
                     />
                   </div>
@@ -117,9 +109,9 @@ export const BranchColorsSection = ({
                 <button
                   onClick={() => handleRemove(index)}
                   disabled={disabled}
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-red-500 shadow-sm border border-red-50 opacity-0 transition group-hover:opacity-100 hover:bg-red-50"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-red-500 shadow-sm border border-red-50 opacity-0 transition group-hover:opacity-100 hover:bg-red-50"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={10} />
                 </button>
               </div>
             );

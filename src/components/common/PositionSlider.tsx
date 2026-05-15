@@ -16,13 +16,13 @@ const PositionSlider = ({ value, onChange, disabled }: Props) => {
   return (
     <div className="flex items-center gap-1.5 flex-1 min-w-0">
       {/* Ruler track */}
-      <div className="relative flex-1 h-6 flex items-center">
+      <div className="relative flex-1 h-4 flex items-center">
         {/* Track */}
-        <div className="w-full h-1.5 bg-gray-100 rounded-full relative">
+        <div className="w-full h-1 bg-gray-100 rounded-full relative">
           {/* Snap markers */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3 bg-gray-300 rounded-full -translate-x-0.5" />
-          <div className="absolute left-1/2 top-1/2 -translate-y-1/2 w-1 h-3 bg-gray-300 rounded-full -translate-x-0.5" />
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-3 bg-gray-300 rounded-full translate-x-0.5" />
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-2 bg-gray-300 rounded-full -translate-x-0.25" />
+          <div className="absolute left-1/2 top-1/2 -translate-y-1/2 w-0.5 h-2 bg-gray-300 rounded-full -translate-x-0.25" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-2 bg-gray-300 rounded-full translate-x-0.25" />
 
           {/* Fill */}
           <div
@@ -45,8 +45,8 @@ const PositionSlider = ({ value, onChange, disabled }: Props) => {
 
         {/* Custom thumb */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-[#49293e] rounded-full shadow-md border-2 border-white pointer-events-none transition-all"
-          style={{ left: `calc(${value}% - 8px)` }}
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-[#49293e] rounded-full shadow-sm border border-white pointer-events-none transition-all"
+          style={{ left: `calc(${value}% - 6px)` }}
         />
       </div>
 

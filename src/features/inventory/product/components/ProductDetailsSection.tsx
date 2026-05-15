@@ -43,8 +43,7 @@ export const ProductDetailsSection = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-      <h3 className="mb-4 text-base font-semibold text-gray-900">Product Details</h3>
-      <div className="grid gap-x-6 md:grid-cols-2">
+      <div className="grid gap-x-3 gap-y-0 md:grid-cols-2 lg:grid-cols-3">
         <FormInput
           id="prod-name"
           label="Product Name"
@@ -89,8 +88,16 @@ export const ProductDetailsSection = ({
           value={form.code}
           disabled={saving}
           onChange={(e) => onChange("code", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "prod-s-vat")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-barcode")}
           required
+        />
+        <FormInput
+          id="prod-barcode"
+          label="Barcode"
+          value={form.barcode}
+          disabled={saving}
+          onChange={(e) => onChange("barcode", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "prod-s-vat")}
         />
         <SearchableSelect
           id="prod-s-vat"
@@ -127,6 +134,7 @@ export const ProductDetailsSection = ({
           label="Cost"
           type="text"
           inputMode="decimal"
+          inputClassName="text-right"
           value={form.cost === "0" ? formatAmount(0, decimalPart) : form.cost}
           disabled={saving}
           onChange={(e) => {
@@ -137,6 +145,27 @@ export const ProductDetailsSection = ({
           onBlur={(e) => {
             if (e.target.value !== "" && e.target.value !== ".") {
               onChange("cost", formatAmount(e.target.value, decimalPart));
+            }
+          }}
+          onKeyDown={(e) => handleKeyDown(e, "prod-price")}
+          required
+        />
+        <FormInput
+          id="prod-price"
+          label="Price"
+          type="text"
+          inputMode="decimal"
+          inputClassName="text-right"
+          value={form.price === "0" ? formatAmount(0, decimalPart) : form.price}
+          disabled={saving}
+          onChange={(e) => {
+            const next = sanitizeAmountInput(e.target.value, decimalPart);
+            if (next !== null) onChange("price", next);
+          }}
+          onFocus={(e) => e.target.select()}
+          onBlur={(e) => {
+            if (e.target.value !== "" && e.target.value !== ".") {
+              onChange("price", formatAmount(e.target.value, decimalPart));
             }
           }}
           onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
@@ -171,9 +200,9 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
         />
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Default Product Color</label>
-          <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/30 px-3 py-2 h-[42px]">
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product Color</label>
+          <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/30 px-3 py-1 h-10.5">
             <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
               <input
                 type="color"
@@ -188,7 +217,7 @@ export const ProductDetailsSection = ({
               value={form.colorCode || "#49293e"}
               onChange={(e) => onChange("colorCode", e.target.value)}
               disabled={saving}
-              className="w-full rounded-md border-none bg-transparent text-sm font-mono outline-none focus:ring-0 uppercase"
+              className="w-full rounded-md border-none bg-transparent text-xs font-mono outline-none focus:ring-0 uppercase"
               placeholder="#000000"
               maxLength={7}
             />

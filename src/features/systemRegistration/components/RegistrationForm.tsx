@@ -1,4 +1,5 @@
 import { Button, FormInput } from "../../../components/common";
+import { CheckCircle, ChevronLeft } from "lucide-react";
 import SystemTypeCard from "./SystemTypeCard";
 import type { BranchOption, CounterOption, SystemType } from "../types";
 
@@ -146,22 +147,19 @@ const RegistrationForm = ({
           id="register-system-btn"
           onClick={onSubmit}
           disabled={saving}
+          isAction
           loading={saving}
-          size="lg"
-          className="w-full sm:w-auto px-10"
-        >
-          {saving ? "Saving…" : "Register System"}
-        </Button>
+          icon={<CheckCircle size={20} />}
+        />
 
         <Button
           variant="secondary"
           onClick={() => window.history.back()}
           disabled={saving}
-          size="lg"
-          className="w-full sm:w-auto"
-        >
-          Cancel / Back
-        </Button>
+          isAction
+          tabIndex={-1}
+          icon={<ChevronLeft size={20} />}
+        />
       </div>
     </section>
   );

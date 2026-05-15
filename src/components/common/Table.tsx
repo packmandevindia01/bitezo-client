@@ -56,9 +56,9 @@ const Table = <T,>({
                     <th
                       key={index}
                       className={`
-                        px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap md:px-5
+                        px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap md:px-4
                         ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
-                        ${index === 0 ? "pl-[19px] md:pl-[23px]" : ""} 
+                        ${index === 0 ? "pl-[18px] md:pl-[22px]" : ""} 
                       `}
                     >
                       {col.header}
@@ -93,7 +93,7 @@ const Table = <T,>({
                         <td
                           key={colIndex}
                         className={`
-                          px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap md:px-5
+                          px-3 py-1.5 text-xs text-gray-700 whitespace-nowrap md:px-4
                           ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
                           ${colIndex === 0
                             ? "font-medium text-gray-900 border-l-[3px] border-l-[#49293e] group-hover:border-l-[#6b3d5a]"

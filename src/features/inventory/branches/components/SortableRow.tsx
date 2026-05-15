@@ -25,51 +25,51 @@ const SortableRow = ({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 }}
-      className="flex flex-col gap-0.5 bg-white rounded-lg py-0.5"
+      className="flex items-center gap-1.5 bg-white rounded-md py-1.5 px-2 group border border-transparent hover:border-gray-100 transition-colors"
     >
-      <div className="flex items-center gap-1.5">
-        {/* Drag handle */}
-        <DragHandle listeners={listeners} attributes={attributes} />
+      {/* Drag handle */}
+      <DragHandle listeners={listeners} attributes={attributes} />
 
-        {/* Label */}
-        <span className="text-[11px] text-gray-400 font-bold w-10 shrink-0">
-          {item.section === "header" ? "H" : "F"}{index + 1}
-        </span>
+      {/* Label */}
+      <span className="text-[10px] text-gray-400 font-bold w-5 shrink-0">
+        {item.section === "header" ? "H" : "F"}{index + 1}
+      </span>
 
-        {/* Input */}
-        <input
-          className="flex-1 text-sm border border-gray-100 rounded-lg px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#49293e]/20 focus:border-[#49293e]/40 transition disabled:bg-gray-50 min-w-0"
-          value={item.value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          onKeyDown={onKeyDown}
-          style={{
-            fontFamily: item.fontFamily,
-            fontWeight: item.fontStyle.includes("Bold") ? "bold" : "normal",
-            fontStyle: item.fontStyle.includes("Italic") ? "italic" : "normal",
-            fontSize: `${item.fontSize}px`,
-          }}
-        />
+      {/* Input */}
+      <input
+        className="flex-1 text-[11px] border border-gray-100 rounded-md px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#49293e]/20 focus:border-[#49293e]/40 transition disabled:bg-gray-50 min-w-0"
+        value={item.value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        onKeyDown={onKeyDown}
+        placeholder="Enter text..."
+        style={{
+          fontFamily: item.fontFamily,
+          fontWeight: item.fontStyle.includes("Bold") ? "bold" : "normal",
+          fontStyle: item.fontStyle.includes("Italic") ? "italic" : "normal",
+          fontSize: `${item.fontSize}px`,
+        }}
+      />
 
-        {/* Font button */}
-        <button
-          onClick={onOpenFont}
-          disabled={disabled}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[#49293e] hover:bg-[#5c3550] transition whitespace-nowrap disabled:opacity-40 shrink-0"
-        >
-          <Type size={10} /> Font
-        </button>
-      </div>
-
-      {/* Position slider below input */}
-      <div className="flex items-center gap-2 pl-[calc(1.5rem+2.5rem+0.5rem)] -mt-1">
-        <span className="text-[9px] font-bold text-slate-300 uppercase shrink-0">Pos</span>
+      {/* Position slider */}
+      <div className="flex items-center gap-1.5 w-24 sm:w-32 shrink-0">
+        <span className="text-[8px] font-bold text-slate-300 uppercase shrink-0">POS</span>
         <PositionSlider
           value={item.offsetX}
           onChange={onOffsetChange}
           disabled={disabled}
         />
       </div>
+
+      {/* Font button */}
+      <button
+        onClick={onOpenFont}
+        disabled={disabled}
+        title="Font Settings"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-white bg-[#49293e] hover:bg-[#5c3550] transition disabled:opacity-40 shrink-0 shadow-sm"
+      >
+        <Type size={12} />
+      </button>
     </div>
   );
 };

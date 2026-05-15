@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Save, RotateCcw, X } from "lucide-react";
 import { Button, FormInput, SelectInput } from "../../../../components/common";
 import { unitCategoryOptions } from "../constants";
 import { unitService } from "../services/unitService";
@@ -160,24 +160,39 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
       </section>
 
       <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
-        <Button variant="secondary" onClick={onCancel} type="button" disabled={saving}>
-          Cancel
-        </Button>
-        <Button variant="secondary" onClick={handleClear} type="button" disabled={saving}>
-          Clear
-        </Button>
-        <Button type="submit" loading={saving}>
-          {initialData ? "Update Unit" : "Create Unit"}
-        </Button>
+        <Button 
+          variant="secondary" 
+          onClick={onCancel} 
+          type="button" 
+          disabled={saving} 
+          tabIndex={-1}
+          isAction
+          icon={<X size={18} />}
+        />
+        <Button 
+          variant="secondary" 
+          onClick={handleClear} 
+          type="button" 
+          disabled={saving} 
+          tabIndex={-1}
+          isAction
+          icon={<RotateCcw size={18} />}
+        />
+        <Button 
+          type="submit" 
+          loading={saving}
+          isAction
+          icon={<Save size={18} />}
+        />
         {initialData && (initialData.unitId > 4) && (
           <Button
             variant="danger"
             onClick={onDelete}
             disabled={saving}
-          >
-            <Trash2 size={16} />
-            Delete Unit
-          </Button>
+            tabIndex={-1}
+            isAction
+            icon={<Trash2 size={18} />}
+          />
         )}
       </div>
     </form>

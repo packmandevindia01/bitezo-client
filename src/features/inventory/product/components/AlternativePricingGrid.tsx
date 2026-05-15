@@ -201,32 +201,31 @@ export const AlternativePricingGrid = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-right-2 duration-300">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-gray-900">Alternative Pricing Grid</h3>
-        <div className="flex gap-2 text-[10px] font-black uppercase tracking-widest text-[#49293e]/40">
-           <span>Kbd Arrows: Nav</span> • <span>Enter: Add Row</span>
+      <div className="flex items-center justify-end mb-3">
+        <div className="flex gap-2 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/40">
+           <span>Arrows: Nav</span> • <span>Enter: Add Row</span>
         </div>
       </div>
       
-      <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-visible rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full border-collapse text-left table-fixed">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e]">Branch</th>
-<th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Barcode</th>
-<th className="w-[15%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Unit</th>
-<th className="w-[8%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-center">Incl.</th>
-<th className="w-[12%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200 text-right">Price</th>
-<th className="w-[18%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name</th>
-<th className="w-[20%] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#49293e] border-l border-gray-200">Alt Name (Arabic)</th>
-                <th className="w-12.5 px-2 py-3 border-l border-gray-200"></th>
+              <tr className="bg-gray-50/50 border-b border-gray-200">
+                <th className="w-[18%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch</th>
+                <th className="w-[15%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Barcode</th>
+                <th className="w-[15%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Unit</th>
+                <th className="w-[8%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200 text-center">Incl.</th>
+                <th className="w-[12%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200 text-right">Price</th>
+                <th className="w-[18%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Alt Name</th>
+                <th className="w-[20%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Alt Name (Arabic)</th>
+                <th className="w-8 px-1 py-1 border-l border-gray-200"></th>
               </tr>
             </thead>
             <tbody>
               {alternatives.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-400 text-sm">
+                  <td colSpan={8} className="py-4 text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                     No alternative prices added.
                   </td>
                 </tr>
@@ -240,7 +239,7 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 0 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 0)}
                         onChange={(e) => handleGridChange(rIdx, "branchId", parseInt(e.target.value))}
-                        className="h-full w-full appearance-none border-none bg-transparent px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10"
+                        className="h-8 w-full appearance-none border-none bg-transparent px-2 py-0 text-[11px] font-bold outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                       >
                         {branchOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                       </select>
@@ -253,13 +252,13 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 1 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 1)}
                         onChange={(e) => handleGridChange(rIdx, "barcode", e.target.value)}
-                        className="h-full w-full border-none bg-transparent px-4 py-3 font-mono text-xs font-bold text-[#49293e] outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 font-mono text-[11px] font-bold text-[#49293e] outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">
                       <div
                         onFocus={() => setFocusPos({ r: rIdx, c: 2 })}
-                        className="px-2 py-1"
+                        className="px-0.5 py-0"
                       >
                         <SearchableSelect
                           key={`unit-select-${rIdx}-${alt.id}`}
@@ -267,20 +266,26 @@ export const AlternativePricingGrid = ({
                           options={altUnitOptions}
                           value={String(alt.unitId || "")}
                           onChange={(value) => handleGridChange(rIdx, "unitId", parseInt(value) || 0)}
-                          placeholder="Search unit..."
+                          placeholder="Unit"
                         />
                       </div>
                     </td>
                     <td className="p-0 border-r border-gray-100 text-center">
-                       <input
-                        ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-3`, el); }}
-                        type="checkbox"
-                        checked={alt.isIncl}
-                        onFocus={() => setFocusPos({ r: rIdx, c: 3 })}
-                        onKeyDown={(e) => handleKeyDown(e, rIdx, 3)}
-                        onChange={(e) => handleGridChange(rIdx, "isIncl", e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e]"
-                       />
+                        <div className="flex items-center justify-center h-8 w-full">
+                          <label className="relative inline-flex items-center cursor-pointer group scale-75">
+                            <input
+                              ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-3`, el); }}
+                              type="checkbox"
+                              checked={alt.isIncl}
+                              onFocus={() => setFocusPos({ r: rIdx, c: 3 })}
+                              onKeyDown={(e) => handleKeyDown(e, rIdx, 3)}
+                              onChange={(e) => handleGridChange(rIdx, "isIncl", e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className={`w-7 h-3.5 rounded-full transition-all duration-200 ease-in-out peer-focus:ring-1 peer-focus:ring-[#49293e]/20 ${alt.isIncl ? "bg-[#49293e]" : "bg-slate-200"}`} />
+                            <div className={`absolute left-0.5 top-0.5 w-2.5 h-2.5 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${alt.isIncl ? "translate-x-3.5" : "translate-x-0"}`} />
+                          </label>
+                        </div>
                     </td>
                     <td className="p-0 border-r border-gray-100">
                       <input
@@ -302,7 +307,7 @@ export const AlternativePricingGrid = ({
                             handleGridChange(rIdx, "price", formatAmount(e.target.value, decimalPart));
                           }
                         }}
-                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10 font-mono text-right"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 font-mono text-right"
                         style={{ textAlign: 'right' }}
                       />
                     </td>
@@ -314,7 +319,7 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 5 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 5)}
                         onChange={(e) => handleGridChange(rIdx, "altName", e.target.value)}
-                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">
@@ -326,15 +331,15 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 6 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 6)}
                         onChange={(e) => handleGridChange(rIdx, "altArabic", e.target.value)}
-                        className="h-full w-full border-none bg-transparent px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#49293e]/10 text-right"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 text-right"
                       />
                     </td>
-                    <td className="px-2 py-1 text-center">
+                    <td className="px-1 py-0 text-center">
                        <button
                         onClick={() => removeGridRow(rIdx)}
-                        className="rounded-lg p-1.5 text-gray-300 transition-all hover:bg-red-50 hover:text-red-500"
+                        className="rounded-lg p-1 text-gray-300 transition-all hover:bg-red-50 hover:text-red-500"
                        >
-                         <Trash2 size={14} />
+                         <Trash2 size={12} />
                        </button>
                     </td>
                   </tr>

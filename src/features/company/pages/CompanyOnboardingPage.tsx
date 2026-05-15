@@ -471,7 +471,7 @@ const CompanyOnboardingPage = () => {
                 <Button onClick={handleSendOtp} disabled={loading}>
                   {loading ? "Sending OTP…" : "Send OTP"}
                 </Button>
-                <Button variant="secondary" onClick={() => navigate("/")} disabled={loading}>
+                <Button variant="secondary" onClick={() => navigate("/")} disabled={loading} tabIndex={-1}>
                   Back to Login
                 </Button>
               </div>
@@ -760,12 +760,6 @@ const CompanyOnboardingPage = () => {
         </section>
       </div>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
-        Existing customer?{" "}
-        <Link to="/" className="font-semibold text-[#49293e] hover:underline">
-          Return to login
-        </Link>
-      </p>
     </div>
   );
 };
