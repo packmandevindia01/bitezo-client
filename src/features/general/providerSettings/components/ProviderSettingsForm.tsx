@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Save, RotateCcw, X, Trash2 } from "lucide-react";
-import { Loader, Button } from "../../../../components/common";
+import { Button } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useProviderSettingsForm } from "../hooks/useProviderSettingsForm";
 import ProviderSettingsFilters from "./ProviderSettingsFilters";
@@ -82,34 +82,42 @@ const ProviderSettingsForm = ({ initialData, onSubmit, onCancel, submitting }: P
       </div>
 
       {/* ── Sticky Action Footer ── */}
-      <div className="flex justify-end gap-2 pt-3 mt-1 bg-white border-t border-slate-100">
+      <div className="flex justify-end gap-3 pt-4 mt-2 bg-white border-t border-gray-100">
         <Button
           variant="danger"
           onClick={() => setShowDeleteAllConfirm(true)}
           isAction
           icon={<Trash2 size={18} />}
           tabIndex={-1}
-        />
+        >
+          Delete All
+        </Button>
         <Button
           variant="secondary"
           onClick={onCancel}
           isAction
           icon={<X size={18} />}
-        />
+        >
+          Cancel
+        </Button>
         <Button
           variant="secondary"
           onClick={handleClearClick}
           isAction
           icon={<RotateCcw size={18} />}
           tabIndex={-1}
-        />
+        >
+          Clear
+        </Button>
         <Button
           onClick={form.handleSubmit}
           disabled={submitting || form.entries.length === 0}
           isAction
           loading={submitting}
           icon={<Save size={18} />}
-        />
+        >
+          Save
+        </Button>
       </div>
 
       <ConfirmDialog

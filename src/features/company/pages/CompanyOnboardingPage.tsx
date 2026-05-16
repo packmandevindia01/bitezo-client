@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Mail, Monitor, LayoutGrid, ShieldCheck, UserRoundPlus } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button, FormInput, SelectInput } from "../../../components/common";
 import OtpInput from "../../auth/components/OtpInput";
 import { useToast } from "../../../app/providers/useToast";
@@ -57,7 +57,6 @@ const CompanyOnboardingPage = () => {
 
   // Resume onboarding state on mount
   useEffect(() => {
-    const savedStage = localStorage.getItem("onboardingStage") as OnboardingStage | null;
     const savedRegId = localStorage.getItem("onboardingRegId");
     const savedEmail = localStorage.getItem("onboardingEmail");
     const savedOtpToken = localStorage.getItem("onboardingOtpToken");
@@ -65,23 +64,13 @@ const CompanyOnboardingPage = () => {
 
     if (savedRegId) setFormState(s => ({ ...s, regId: savedRegId }));
     if (savedEmail) setFormState(s => ({ ...s, email: savedEmail }));
-    if (savedOtpToken) setFormState(s => ({ ...s, otpToken: savedOtpToken }));
+    if (savedOtpToken) setField("otpToken", savedOtpToken);
     if (savedDb) setClientDatabase(savedDb);
-
-    if (savedStage && savedStage !== "identify") {
-      // If we are resuming at pos-setup, we need to trigger the branch load
-      if (savedStage === "pos-setup" && savedDb) {
-        void beginPosSetup(savedDb);
-      } else {
-        setStage(savedStage);
-      }
-    }
   }, []);
 
   // Persistence wrapper for setStage
   const setStageWithPersistence = (newStage: OnboardingStage) => {
     setStage(newStage);
-    localStorage.setItem("onboardingStage", newStage);
   };
 
   useEffect(() => {

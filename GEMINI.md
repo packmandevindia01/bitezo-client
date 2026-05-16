@@ -191,10 +191,11 @@ This is a POS system used with keyboard. Input behavior must be consistent acros
 <FormInput tabIndex={4} label="Price" ... />
 ```
 
-### 3. Money / Numeric Fields — Right-Aligned Text
-- Any input field that deals with money, price, cost, amount, quantity, rate, discount, or tax MUST have right-aligned text
-- Apply `text-right` Tailwind class to the inner input element via `inputClassName`
-- Never left-align a numeric/money field — it is confusing for cashiers reading values
+### 3. Money / Numeric Fields — Right-Aligned Text (Input Only)
+- Any input field that deals with money, price, cost, amount, quantity, rate, discount, or tax MUST have right-aligned text.
+- Apply `text-right` Tailwind class to the inner input element via `inputClassName`.
+- **CRITICAL**: Only the text *inside* the input box is right-aligned. The **Label** must always remain **left-aligned** for visual consistency in form grids.
+- Never left-align a numeric/money value — it is confusing for cashiers reading values.
 
 ```tsx
 <FormInput
@@ -380,9 +381,15 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 
 **Layout rules by screen size:**
 
-- Mobile (base → sm): single column, stacked layout, full-width inputs and buttons
-- Tablet (md): 2-column grids where applicable, sidebar collapses or becomes a drawer
-- Desktop (lg+): full multi-column layout, sidebar visible, data tables show all columns
+- Mobile (base → sm): single column, stacked layout, full-width inputs and buttons. Sidebar is hidden.
+- Tablet (md) & Laptop (lg): 2-column or 3-column grids. **Sidebar is collapsed/hidden by default** to maximize data entry space (critical for 1024x768 terminals).
+- Desktop (xl+): Full multi-column layout, sidebar visible by default, data tables show all columns.
+
+**ERP High-Density Typography & Spacing:**
+- **Labels**: All form labels must be `text-[10px] font-bold uppercase tracking-widest text-slate-600`.
+- **Vertical Spacing**: Use `gap-y-3` for form grids and `mb-1` for individual input wrappers.
+- **Component Height**: Standardize all `FormInput`, `SelectInput`, and `SearchableSelect` components to a fixed height of **`h-10.5` (42px)**.
+- **Text Size**: All text *inside* input boxes and selects must be **`text-sm`** (14px).
 
 **Grid and form layouts:**
 ```tsx
@@ -467,8 +474,9 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 ### 20. Standardized Action Buttons (isAction) — REQUIRED
 - All primary and secondary action buttons in form footers, headers, or sticky bars must use the `isAction` prop from the `Button` component.
 - This prop enforces a uniform, professional dimension of **120px x 44px**.
-- Transition text-heavy action buttons to **icon-only** representations for a premium, clean aesthetic.
-- Always provide a `lucide-react` icon via the `icon` prop of the `Button`.
+- **Icons + Labels**: Every action button MUST feature both a `lucide-react` icon and a clear text label (e.g., Save, Delete, Clear).
+- Labels must be **always visible** alongside icons across all screen sizes (no hiding on mobile).
+- Always provide the icon via the `icon` prop of the `Button`.
 - Primary actions (Save/Update) use `variant="primary"` (default). Secondary actions (Clear/New/Cancel) use `variant="secondary"`. Destructive actions (Delete) use `variant="danger"`.
 
 ```tsx
@@ -477,7 +485,9 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
   isAction
   loading={saving}
   icon={<Save size={18} />}
-/>
+>
+  Save
+</Button>
 ```
 
 ### 21. Toggle Switch Design (Checkbox) — REQUIRED

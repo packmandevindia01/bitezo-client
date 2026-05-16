@@ -206,7 +206,9 @@ const BranchForm = ({
                 tabIndex={-1}
                 isAction
                 icon={<RotateCcw size={18} />}
-              />
+              >
+                Reset
+              </Button>
 
               <Button 
                 ref={saveBtnRef} 
@@ -215,7 +217,9 @@ const BranchForm = ({
                 isAction
                 loading={submitting}
                 icon={<Save size={18} />}
-              />
+              >
+                Save
+              </Button>
 
               {initialData && (
                 <Button 
@@ -224,7 +228,9 @@ const BranchForm = ({
                   disabled={submitting}
                   isAction
                   icon={<Trash2 size={18} />}
-                />
+                >
+                  Delete
+                </Button>
               )}
             </div>
           </div>
@@ -242,6 +248,9 @@ const BranchForm = ({
           {activeItem ? (
             <div className="flex items-center gap-2 rounded-lg border border-[#49293e]/20 bg-white px-3 py-2 shadow-xl">
               <DragHandle size={14} />
+              <span className="text-[10px] text-slate-600 font-bold w-5 shrink-0 uppercase tracking-widest">
+                {activeItem.section === "header" ? "H" : "F"}
+              </span>
               <span className="text-sm" style={getLineStyle(activeItem)}>
                 {activeItem.value || `${activeItem.section} line`}
               </span>

@@ -50,7 +50,9 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
   );
   
   // Pay In / Out State
-  const [payType, setPayType] = useState<"IN" | "OUT">("IN");
+  const [payType, setPayType] = useState<"IN" | "OUT">(
+    (location.state as any)?.payType || "IN"
+  );
   const [payAmount, setPayAmount] = useState("");
   const [payDesc, setPayDesc] = useState("");
   const [paymodeId, setPaymodeId] = useState<string>("");

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Save, X, Ban, FileText, Trash2, Plus } from "lucide-react";
+import { Save, Ban, Trash2, Plus, FileText } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyRecipeForm } from "../constants";
@@ -201,8 +201,10 @@ const RecipePage = () => {
               disabled={!canSave}
               isAction
               icon={<Ban size={18} className="text-gray-500" />}
-            />
-            <p className="text-xs text-gray-500 max-w-xs">
+            >
+              Exclude
+            </Button>
+            <p className="text-[10px] font-medium text-gray-500 max-w-[200px] leading-relaxed">
               Exclude product from some orders (eg: dine in no need container)
             </p>
           </div>
@@ -211,16 +213,18 @@ const RecipePage = () => {
             <FormInput
               label="Other Charge"
               value={form.otherCharge}
+              inputClassName="text-right"
               onChange={(e) => setField("otherCharge", e.target.value)}
               readOnly={!canSave}
             />
             <div className="mt-2 rounded-xl border border-[#49293e]/15 bg-white px-4 py-3 mb-2">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Grand Total</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Grand Total</p>
               <p className="mt-1 text-2xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
             </div>
             <FormInput
               label="Cost/Unit"
               value={formatAmount(totals.costPerUnit)}
+              inputClassName="text-right"
               readOnly
             />
             
@@ -229,7 +233,7 @@ const RecipePage = () => {
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
           {canAdd && (
             <Button 
               variant="secondary" 
@@ -237,13 +241,17 @@ const RecipePage = () => {
               tabIndex={-1}
               isAction
               icon={<Plus size={18} />}
-            />
+            >
+              New
+            </Button>
           )}
           {canSave && (
             <Button
               isAction
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
           )}
           {canDelete && (
             <Button 
@@ -251,7 +259,9 @@ const RecipePage = () => {
               onClick={() => setItems([])}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       </div>

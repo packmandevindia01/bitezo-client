@@ -1,7 +1,7 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { Button, SearchableSelect, FormInput, SelectInput } from "../../../../components/common";
-import { Save } from "lucide-react";
+import { Button, SearchableSelect, FormInput, SelectInput, Checkbox } from "../../../../components/common";
+import { Plus } from "lucide-react";
 import type { ProductSearchItem, AltNameItem } from "../../providerSettings/types";
 
 interface Props {
@@ -50,9 +50,6 @@ const HappyHourEntryRow = ({
   onAdd,
 }: Props) => {
   const { formatAmount } = useCurrency();
-  const discPercentRef = useRef<HTMLInputElement>(null);
-  const discValueRef = useRef<HTMLInputElement>(null);
-  const promoPriceRef = useRef<HTMLInputElement>(null);
 
   const productOptions = useMemo(() => 
     allProducts.map((p) => ({
@@ -75,7 +72,7 @@ const HappyHourEntryRow = ({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-12 items-end">
         
         {/* Product Search */}
-        <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-1">
+        <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-1.5">
           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product</label>
           <SearchableSelect
             id="hp-entry-product"
@@ -115,27 +112,22 @@ const HappyHourEntryRow = ({
         </div>
 
         {/* Price */}
-        <div className="lg:col-span-1 flex flex-col gap-1">
+        <div className="lg:col-span-1 flex flex-col gap-1.5">
           <div className="flex justify-between items-center px-1">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Price</label>
-            <div className="flex items-center gap-1.5">
-              <label className="text-[8px] font-black uppercase text-slate-400">Incl</label>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={entryIsIncl}
-                  onChange={(e) => onIsInclChange(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-7 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-pos-primary"></div>
-              </label>
+            <div className="scale-75 origin-right">
+              <Checkbox
+                checked={entryIsIncl}
+                onChange={(e) => onIsInclChange(e.target.checked)}
+                label="Incl"
+              />
             </div>
           </div>
           <FormInput
              id="hp-entry-price"
              type="number"
              value={entryPrice ?? ""}
-             inputClassName="text-right font-black text-pos-primary bg-pos-primary/5"
+             inputClassName="text-right font-black text-[#49293e] bg-[#49293e]/5"
              onChange={(e) => {
                const val = e.target.value;
                if (val === "" || Number(val) >= 0) {
@@ -196,7 +188,7 @@ const HappyHourEntryRow = ({
             id="hp-entry-promo"
             label="Promo"
             type="number"
-            inputClassName="text-right font-black text-pos-primary bg-pos-primary/10 border-pos-primary/30"
+            inputClassName="text-right font-black text-[#49293e] bg-[#49293e]/10 border-[#49293e]/30"
             value={entryPromoPrice ?? ""}
             onChange={(e) => {
               const val = e.target.value;
@@ -216,16 +208,17 @@ const HappyHourEntryRow = ({
           />
         </div>
 
-
         {/* Add Button */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 pb-0.5">
           <Button 
             id="hp-entry-add-btn" 
             onClick={() => { onAdd(); setTimeout(() => document.getElementById("hp-entry-product")?.focus(), 0); }}
             isAction
-            className="w-full bg-slate-800 hover:bg-slate-900"
-            icon={<Save size={18} />}
-          />
+            className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+            icon={<Plus size={18} />}
+          >
+            Add
+          </Button>
         </div>
       </div>
     </section>

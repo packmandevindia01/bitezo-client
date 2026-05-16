@@ -5,7 +5,7 @@ import { Button, FormInput, Loader, PageShell, SelectInput } from "../../../comp
 import { useToast } from "../../../app/providers/useToast";
 import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
 import { fetchCompany, updateCompany, fetchCurrencyList } from "../services/companyApi";
-import type { CompanyFormData, CompanyMasterOption, CurrencyOption } from "../types";
+import type { CompanyFormData, CurrencyOption } from "../types";
 import { formatPhone } from "../utils/formatters";
 
 
@@ -52,7 +52,7 @@ const CompanyPage = () => {
         setLoading(true);
         // Fetch company info and currency list in parallel
         const [raw, currencyData] = await Promise.all([
-          fetchCompany(),
+          fetchCompany() as Promise<any>,
           fetchCurrencyList()
         ]);
         
@@ -60,8 +60,6 @@ const CompanyPage = () => {
 
         setCurrencies(currencyData);
 
-        // Map backend fields → CompanyFormData
-        const companyInfo = raw as Record<string, any>;
         const filled: CompanyFormData = {
           ...emptyForm(),
           custName:   String(raw.name    ?? ""),
@@ -175,111 +173,204 @@ const CompanyPage = () => {
         </div>
 
         {/* ── Scrollable Body ── */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-1 md:grid-cols-2 lg:grid-cols-3">
             <FormInput
+              id="co-reg-id"
               label="Registration ID"
               value={form.regId}
               onChange={(e) => handleChange("regId", e.target.value)}
               disabled={saving}
               readOnly
+              tabIndex={-1}
             />
 
             <FormInput
+              id="co-name"
               label="Company Name"
               required
+              autoFocus
               value={form.custName}
               onChange={(e) => handleChange("custName", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-cr-no")?.focus();
+                }
+              }}
               error={errors.custName}
               disabled={saving}
+              tabIndex={1}
             />
 
             <FormInput
+              id="co-cr-no"
               label="CR No"
               required
               value={form.crNo}
               onChange={(e) => handleChange("crNo", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-mobile")?.focus();
+                }
+              }}
               error={errors.crNo}
               disabled={saving}
+              tabIndex={2}
             />
 
             <FormInput
+              id="co-mobile"
               label="Mobile No"
               required
               placeholder="+973 36001234"
               value={form.custMob}
               onChange={(e) => handleChange("custMob", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-email")?.focus();
+                }
+              }}
               error={errors.custMob}
               disabled={saving}
+              tabIndex={3}
             />
 
             <FormInput
-              label="Email"
+              id="co-email"
+              label="Email Address"
               value={form.email}
               onChange={(e) => handleChange("email", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-tel")?.focus();
+                }
+              }}
               error={errors.email}
               disabled={saving}
+              tabIndex={4}
             />
 
             <FormInput
-              label="Tel No"
+              id="co-tel"
+              label="Tel No / Landline"
               value={form.custMob2}
               onChange={(e) => handleChange("custMob2", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-tax-no")?.focus();
+                }
+              }}
               disabled={saving}
+              tabIndex={5}
             />
 
             <FormInput
+              id="co-tax-no"
               label="Tax Reg No"
               value={form.taxRegNo}
               onChange={(e) => handleChange("taxRegNo", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-currency")?.focus();
+                }
+              }}
               disabled={saving}
+              tabIndex={6}
             />
 
             <SelectInput
+              id="co-currency"
               label="Currency"
               required
               value={form.currency}
               onChange={(e) => handleChange("currency", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-block")?.focus();
+                }
+              }}
               options={currencyOptions}
               error={errors.currency}
               disabled={saving}
+              tabIndex={7}
             />
 
             <FormInput
+              id="co-block"
               label="Block No"
               value={form.block}
               onChange={(e) => handleChange("block", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-area")?.focus();
+                }
+              }}
               disabled={saving}
+              tabIndex={8}
             />
 
             <FormInput
+              id="co-area"
               label="Area / Street"
               value={form.area}
               onChange={(e) => handleChange("area", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-building")?.focus();
+                }
+              }}
               disabled={saving}
+              tabIndex={9}
             />
 
             <FormInput
+              id="co-building"
               label="Building No"
               value={form.building}
               onChange={(e) => handleChange("building", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-road")?.focus();
+                }
+              }}
               disabled={saving}
+              tabIndex={10}
             />
 
             <FormInput
+              id="co-road"
               label="Road No"
               value={form.road}
               onChange={(e) => handleChange("road", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-flat")?.focus();
+                }
+              }}
               disabled={saving}
+              tabIndex={11}
             />
 
             <FormInput
-              label="Flat No"
+              id="co-flat"
+              label="Flat / Shop No"
               value={form.flatNo}
               onChange={(e) => handleChange("flatNo", e.target.value)}
               disabled={saving}
+              tabIndex={12}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   saveBtnRef.current?.focus();
                 }
@@ -297,7 +388,9 @@ const CompanyPage = () => {
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Reset
+          </Button>
           <Button 
             ref={saveBtnRef} 
             onClick={handleSave} 
@@ -305,7 +398,9 @@ const CompanyPage = () => {
             isAction
             loading={saving}
             icon={<Save size={18} />}
-          />
+          >
+            Update
+          </Button>
         </div>
       </div>
     </PageShell>

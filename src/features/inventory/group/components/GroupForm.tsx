@@ -141,26 +141,32 @@ const GroupForm = ({
   };
 
   const handleClear = () => {
-    setForm(buildInitialForm(initialData));
+    setForm(buildInitialForm(null));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!form.code.trim() || !form.name.trim()) return;
+    onSubmit(form);
+  };
 
-    onSubmit({
-      ...form,
-      code: form.code.trim().toUpperCase().replace(/\s/g, '_'),
-      name: form.name.trim(),
-      arabicName: form.arabicName.trim(),
-    });
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      } else {
+        handleSubmit(e as any);
+      }
+    }
   };
 
   if (detailLoading) {
     return (
-      <div className="flex flex-col gap-4 animate-pulse">
+      <div className="flex flex-col gap-3 animate-pulse">
         <div className="h-4 w-32 rounded bg-gray-200" />
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-10 rounded bg-gray-200" />
+          <div key={i} className="h-10.5 rounded bg-gray-200" />
         ))}
       </div>
     );
@@ -168,27 +174,32 @@ const GroupForm = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 mb-4">
+        <div className="space-y-3">
           <FormInput
+            id="grp-code"
             label="Code"
             autoFocus
             tabIndex={1}
             value={form.code}
             disabled={saving}
             onChange={(e) => handleChange("code", e.target.value.toUpperCase().replace(/\s/g, '_'))}
+            onKeyDown={(e) => handleKeyDown(e, "grp-name")}
             className="uppercase font-mono"
           />
 
           <FormInput
+            id="grp-name"
             label="Name"
             tabIndex={2}
             value={form.name}
             disabled={saving}
             onChange={(e) => handleChange("name", e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "grp-arabic")}
           />
 
           <FormInput
+            id="grp-arabic"
             label="Arabic Name"
             tabIndex={3}
             value={form.arabicName}
@@ -197,8 +208,8 @@ const GroupForm = ({
             onChange={(e) => handleChange("arabicName", e.target.value)}
           />
 
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Display & Status</h4>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Display & Status</h4>
             <div className="flex flex-col gap-3">
               <Checkbox
                 label="Active Status"
@@ -218,18 +229,18 @@ const GroupForm = ({
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="p-4 bg-white rounded-xl border-2 border-slate-100 shadow-sm flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-4">
+        <div className="space-y-3">
+          <div className="p-3 bg-white rounded-xl border-2 border-slate-100 shadow-sm flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-3">
               <div className="p-2 bg-[#49293e]/5 rounded-lg">
                 <svg className="w-4 h-4 text-[#49293e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-700">Service Schedule</h4>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Service Schedule</h4>
             </div>
 
-            <div className="space-y-6 flex-1">
+            <div className="space-y-4 flex-1">
               <TimePicker 
                 label="Opening Time" 
                 value={form.startTime} 
@@ -244,7 +255,7 @@ const GroupForm = ({
                 disabled={saving}
               />
 
-              <div className="mt-4 p-3 bg-[#49293e]/5 rounded-lg border border-[#49293e]/10">
+              <div className="mt-auto p-3 bg-[#49293e]/5 rounded-lg border border-[#49293e]/10">
                 <p className="text-[10px] text-[#49293e] font-medium leading-relaxed italic">
                   This group will only show on POS during the specified hours.
                 </p>
@@ -254,7 +265,7 @@ const GroupForm = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-end gap-3 mt-2">
+      <div className="flex flex-wrap justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
         <Button 
           variant="secondary" 
           tabIndex={-1} 
@@ -262,7 +273,9 @@ const GroupForm = ({
           disabled={saving}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          Clear
+        </Button>
         <Button 
           tabIndex={9}
           onClick={handleSubmit} 
@@ -270,7 +283,9 @@ const GroupForm = ({
           isAction
           loading={saving}
           icon={<Save size={18} />}
-        />
+        >
+          Save
+        </Button>
         {initialData && (
           <Button
             variant="danger"
@@ -279,7 +294,9 @@ const GroupForm = ({
             disabled={saving}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Delete
+          </Button>
         )}
       </div>
     </>

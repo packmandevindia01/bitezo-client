@@ -76,6 +76,10 @@ export const menuApi = {
   getAlternatives: (productId: number) => 
     unwrap(axiosInstance.get<ApiResponse<PosAlternative[]>>(`/menu/products/${productId}/alternatives${getTenantQuery()}`)),
 
+  /** GET /api/menu/products/{productId}/data */
+  getProductData: (productId: number) => 
+    unwrap(axiosInstance.get<ApiResponse<{ isIncl: boolean, price: number, unitId: number, unitValue: number }>>(`/menu/products/${productId}/data${getTenantQuery()}`)),
+
   /** GET /api/menu/extras */
   getExtras: (typeId?: number, categoryId?: number) =>
     unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "app_db", typeId, categoryId } })),

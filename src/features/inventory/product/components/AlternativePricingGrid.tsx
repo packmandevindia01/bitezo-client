@@ -272,19 +272,15 @@ export const AlternativePricingGrid = ({
                     </td>
                     <td className="p-0 border-r border-gray-100 text-center">
                         <div className="flex items-center justify-center h-8 w-full">
-                          <label className="relative inline-flex items-center cursor-pointer group scale-75">
-                            <input
-                              ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-3`, el); }}
-                              type="checkbox"
-                              checked={alt.isIncl}
-                              onFocus={() => setFocusPos({ r: rIdx, c: 3 })}
-                              onKeyDown={(e) => handleKeyDown(e, rIdx, 3)}
-                              onChange={(e) => handleGridChange(rIdx, "isIncl", e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className={`w-7 h-3.5 rounded-full transition-all duration-200 ease-in-out peer-focus:ring-1 peer-focus:ring-[#49293e]/20 ${alt.isIncl ? "bg-[#49293e]" : "bg-slate-200"}`} />
-                            <div className={`absolute left-0.5 top-0.5 w-2.5 h-2.5 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${alt.isIncl ? "translate-x-3.5" : "translate-x-0"}`} />
-                          </label>
+                          <input
+                            ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-3`, el); }}
+                            type="checkbox"
+                            checked={alt.isIncl}
+                            onFocus={() => setFocusPos({ r: rIdx, c: 3 })}
+                            onKeyDown={(e) => handleKeyDown(e, rIdx, 3)}
+                            onChange={(e) => handleGridChange(rIdx, "isIncl", e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] transition-all cursor-pointer"
+                          />
                         </div>
                     </td>
                     <td className="p-0 border-r border-gray-100">

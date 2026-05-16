@@ -1,27 +1,17 @@
-import { Button, FormInput } from "../../../../components/common";
+import { FormInput } from "../../../../components/common";
 import type { ModifierTypeForm as ModifierTypeFormType } from "../types";
 
 interface ModifierTypeFormProps {
   form: ModifierTypeFormType;
-  isEditing: boolean;
-  saving?: boolean;
   onChange: <K extends keyof ModifierTypeFormType>(
     key: K,
     value: ModifierTypeFormType[K]
   ) => void;
-  onClear: () => void;
-  onSave: () => void;
-  onDelete?: () => void;
 }
 
 const ModifierTypeForm = ({
   form,
-  isEditing,
-  saving = false,
   onChange,
-  onClear,
-  onSave,
-  onDelete,
 }: ModifierTypeFormProps) => {
   return (
     <>

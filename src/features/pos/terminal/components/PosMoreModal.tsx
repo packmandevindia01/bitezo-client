@@ -4,11 +4,7 @@ import {
   Settings, 
   Printer, 
   LayoutGrid, 
-  Lock, 
   BarChart, 
-  Shield, 
-  DollarSign, 
-  Archive, 
   FileText,
   History,
   Search,
@@ -16,6 +12,7 @@ import {
   LogOut,
   UtensilsCrossed,
   UserPlus,
+  Monitor,
 } from 'lucide-react';
 import { Modal } from '../../../../components/common';
 
@@ -26,19 +23,6 @@ interface PosMoreModalProps {
   onCustomerMaster: () => void;
 }
 
-const MORE_ITEMS = [
-  { label: 'BACK OFFICE', icon: LogOut, action: 'backoffice' },
-  { label: 'CONFIGURATION', icon: Settings },
-  { label: 'REPORT', icon: BarChart },
-  { label: 'PRIVILEGES', icon: Shield },
-  { label: 'PRINTER', icon: Printer, action: 'printer' },
-  { label: 'LOCK ITEM', icon: Lock, action: 'lock' },
-  { label: 'CASH DRAWER', icon: Archive },
-  { label: 'CHARGES', icon: DollarSign },
-  { label: 'PAY IN / OUT', icon: ArrowLeftRight, action: 'payInOut' },
-  { label: 'CASHIER OUT', icon: LogOut, action: 'cashierOut' },
-];
-
 const ORDER_ITEMS = [
   { label: 'ORDER HISTORY', icon: History },
   { label: 'ACTIVE ORDERS', icon: FileText },
@@ -46,6 +30,18 @@ const ORDER_ITEMS = [
   { label: 'CUSTOMER SEARCH', icon: Search },
   { label: 'CUSTOMER MASTER', icon: UserPlus, action: 'customerMaster' },
   { label: 'SET MENU DINE IN', icon: UtensilsCrossed, action: 'setMenuDineIn' },
+];
+
+const CASHIER_ITEMS = [
+  { label: 'PAY IN / OUT', icon: ArrowLeftRight, action: 'payInOut' },
+  { label: 'CASHIER OUT', icon: LogOut, action: 'cashierOut', color: 'text-amber-500' },
+];
+
+const SYSTEM_ITEMS = [
+  { label: 'BACK OFFICE', icon: Monitor, action: 'backoffice' },
+  { label: 'CONFIGURATION', icon: Settings },
+  { label: 'REPORT', icon: BarChart },
+  { label: 'PRINTER', icon: Printer, action: 'printer' },
 ];
 
 export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut, onCustomerMaster }) => {
@@ -105,37 +101,59 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onC
       title="Configuration & Orders"
       size="2xl"
     >
-      <div className="space-y-8">
+      <div className="space-y-10 py-2">
         {/* Order Section */}
         <div>
-          <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">
-            Order Management
+          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center gap-3">
+            <span className="w-8 h-px bg-slate-200"></span>
+            SALES & CUSTOMERS
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {ORDER_ITEMS.map((item) => (
               <button
                 key={item.label}
                 onClick={() => handleItemClick(item)}
-                className="bg-white border-2 border-gray-100 text-[#49293e] p-6 rounded-xl flex flex-col items-center justify-center gap-3 transition-all active:scale-95 shadow-sm hover:border-[#49293e] hover:bg-[#49293e]/5 group"
+                className="bg-white border-2 border-slate-100 text-[#49293e] p-5 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all active:scale-[0.96] shadow-sm hover:border-[#49293e] hover:bg-[#49293e]/5 group"
               >
                 <item.icon className="w-8 h-8 text-[#49293e] opacity-70 group-hover:opacity-100 transition-all" strokeWidth={1.5} />
-                <span className="text-xs font-bold tracking-wider text-center uppercase">{item.label}</span>
+                <span className="text-[10px] font-black tracking-wider text-center uppercase">{item.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Configuration Grid */}
+        {/* Cashier Section */}
         <div>
-          <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">
-            System Configuration
+          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center gap-3">
+            <span className="w-8 h-px bg-slate-200"></span>
+            CASHIER SERVICES
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {MORE_ITEMS.map((item) => (
+            {CASHIER_ITEMS.map((item) => (
               <button
                 key={item.label}
                 onClick={() => handleItemClick(item)}
-                className="bg-white border-2 border-gray-100 text-[#49293e] h-28 flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.98] rounded-xl hover:border-[#49293e] hover:bg-[#49293e]/5 shadow-sm group"
+                className="bg-white border-2 border-slate-100 text-[#49293e] h-28 flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.96] rounded-2xl hover:border-[#49293e] hover:bg-[#49293e]/5 shadow-sm group"
+              >
+                <item.icon className={`w-8 h-8 ${item.color || 'text-[#49293e]'} opacity-80 group-hover:opacity-100 transition-all`} strokeWidth={2} />
+                <span className="text-[10px] font-black tracking-widest text-center px-2 uppercase">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Configuration Section */}
+        <div>
+          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center gap-3">
+            <span className="w-8 h-px bg-slate-200"></span>
+            SYSTEM & CONFIGURATION
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {SYSTEM_ITEMS.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => handleItemClick(item)}
+                className="bg-white border-2 border-slate-100 text-[#49293e] h-28 flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.96] rounded-2xl hover:border-[#49293e] hover:bg-[#49293e]/5 shadow-sm group"
               >
                 <item.icon className="w-7 h-7 text-[#49293e] opacity-70 group-hover:opacity-100 transition-all" strokeWidth={1.5} />
                 <span className="text-[10px] font-bold tracking-widest text-center px-2 uppercase">{item.label}</span>

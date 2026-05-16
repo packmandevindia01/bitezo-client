@@ -5,6 +5,7 @@ import { logout } from "../../features/auth/store/authSlice";
 
 const SKIP_CHECK_ROUTES = [
   "/company/onboarding",
+  "/system/register",
   "/forgot-password",
   "/verify-otp",
   "/reset-password",

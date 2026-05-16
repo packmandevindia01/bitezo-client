@@ -22,6 +22,7 @@ export const emptyForm: ProductFormState = {
   barcode: "",
   branchId: "",
   isActive: true,
+  priceIsIncl: true,
   colorCode: "#49293e",
   productColors: [],
 };

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Save, X, FileText, Ban, Trash2, Plus } from "lucide-react";
+import { Save, X, Ban, Trash2, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyStockAdjustmentForm } from "../constants";
@@ -152,10 +152,16 @@ const StockAdjustmentPage = () => {
               </select>
             </div>
 
-            <div className="flex items-end pb-4">
-              <Button id="sa-add-btn" onClick={addItem} className="h-[38px] w-full"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                <Plus size={18} />
+            <div className="flex items-end pb-0.5">
+              <Button 
+                id="sa-add-btn" 
+                onClick={addItem} 
+                isAction
+                className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}
+                icon={<Plus size={18} />}
+              >
+                Add
               </Button>
             </div>
           </div>
@@ -235,24 +241,39 @@ const StockAdjustmentPage = () => {
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-3xl">
           <Button 
             variant="secondary" 
             onClick={handleClearClick} 
             tabIndex={-1}
             isAction
             icon={<Plus size={18} />}
-          />
+          >
+            New
+          </Button>
           <Button
+            onClick={() => {}} // TODO: Implement save
             isAction
             icon={<Save size={18} />}
-          />
+          >
+            Save
+          </Button>
           <Button 
             variant="danger" 
             onClick={() => setItems([])}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Clear All
+          </Button>
+          <Button 
+            variant="secondary"
+            onClick={() => {}} // TODO: Implement close
+            isAction
+            icon={<X size={18} />}
+          >
+            Close
+          </Button>
         </div>
       </div>
 

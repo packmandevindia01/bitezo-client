@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Plus, Trash2, DollarSign } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { ConfigurationState } from "../types";
-import { Button, Table } from "../../../../components/common";
+import { Button, Table, FormInput } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface Props {
@@ -25,9 +25,9 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
   return (
     <div className="flex flex-col gap-6">
       {/* Standard Charges */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-[#49293e] uppercase tracking-wider border-b border-gray-100 pb-2">Global Percentage Charges</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-bold text-[#49293e]/60 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Global Percentage Charges</h3>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
           <FormInput
             id="conf-charge-service"
             label="Service Charge (%)"
@@ -57,10 +57,10 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
       </div>
 
       {/* Multi Delivery Charges Section */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-[#49293e] uppercase tracking-wider border-b border-gray-100 pb-2">Multi Delivery Zones</h3>
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-bold text-[#49293e]/60 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Multi Delivery Zones</h3>
         
-        <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-3">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
           <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1.5fr_1fr_auto]">
             <FormInput
               id="conf-charge-name"
@@ -79,13 +79,13 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
               onChange={(e) => setNewCharge(e.target.value)}
             />
             <div className="pb-4">
-              <Button onClick={handleAdd} className="h-[38px] whitespace-nowrap">
-                <Plus size={18} />
+              <Button onClick={handleAdd} className="h-10.5 whitespace-nowrap px-6" isAction icon={<Plus size={18} />}>
+                Add Zone
               </Button>
             </div>
           </div>
 
-          <div className="mt-3 max-h-[250px] overflow-y-auto rounded-xl border border-gray-200 bg-white">
+          <div className="mt-3 max-h-[300px] overflow-y-auto rounded-xl border border-gray-200 bg-white">
             <Table
               columns={[
                 { 
@@ -120,8 +120,6 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
         </div>
       </div>
     </div>
-  );
-};
   );
 };
 

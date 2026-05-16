@@ -55,7 +55,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
 
 /** Fetch current company info for the dashboard Company page */
 export const fetchCompany = async () => {
-  const { data } = await axiosInstance.get<{ data: Partial<CompanyFormData> }>("/company");
+  const { data } = await axiosInstance.get<{ data: any }>("/company");
   return data.data ?? data;
 };
 

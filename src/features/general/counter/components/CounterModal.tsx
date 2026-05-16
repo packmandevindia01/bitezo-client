@@ -1,4 +1,4 @@
-import { Button, FormInput, Modal } from "../../../../components/common";
+import { Button, FormInput, Modal, SelectInput } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import type { BranchRecord } from "../../../inventory/branches/types";
 import type { CounterForm } from "../types";
@@ -44,13 +44,17 @@ const CounterModal = ({
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Reset
+          </Button>
           <Button 
             onClick={onSave} 
             loading={saving}
             isAction
             icon={<Save size={18} />}
-          />
+          >
+            {editingId ? "Update" : "Save"}
+          </Button>
           {editingId && (
             <Button
               variant="danger"
@@ -58,7 +62,9 @@ const CounterModal = ({
               disabled={saving}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       }
@@ -74,21 +80,16 @@ const CounterModal = ({
         />
 
         {/* BRANCH FIELD */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Branch Name</label>
-          <select
-            value={form.branchId}
-            onChange={(e) => onChange("branchId", e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
-          >
-            <option value="">Select a branch</option>
-            {branches.map((b) => (
-              <option key={b.id} value={String(b.id)}>
-                {b.branchName}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectInput
+          label="Branch Name"
+          value={form.branchId}
+          onChange={(e) => onChange("branchId", e.target.value)}
+          options={branches.map((b) => ({
+            label: b.branchName,
+            value: String(b.id),
+          }))}
+          placeholder="Select a branch"
+        />
       </div>
     </Modal>
   );

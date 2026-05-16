@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, Printer, RotateCcw, Save, X, Plus } from "lucide-react";
+import { Printer, Save, X, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyPurchaseInvoiceForm } from "../constants";
@@ -170,10 +170,17 @@ const PurchaseInvoicePage = () => {
             <FormInput id="pi-discPercent" label="Disc(%)" value={form.discPercent} inputClassName="text-right" onChange={(e) => setField("discPercent", e.target.value)} onKeyDown={(e) => hk(e, "pi-add-btn")} readOnly={!canSave} />
             <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} inputClassName="text-right" readOnly />
             <FormInput label="Amount" value={formatAmount(currentLineTotals.netAmount)} inputClassName="text-right font-bold text-[#49293e]" readOnly />
-            <div className="flex items-end pb-4">
-              <Button id="pi-add-btn" onClick={addItem} className="h-[38px] w-full" disabled={!canSave}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                <Plus size={18} />
+            <div className="flex items-end pb-0.5">
+              <Button 
+                id="pi-add-btn" 
+                onClick={addItem} 
+                isAction
+                className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+                disabled={!canSave}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}
+                icon={<Plus size={18} />}
+              >
+                Add
               </Button>
             </div>
           </div>
@@ -253,7 +260,7 @@ const PurchaseInvoicePage = () => {
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-3xl">
           {canAdd && (
             <Button 
               variant="secondary" 
@@ -261,24 +268,34 @@ const PurchaseInvoicePage = () => {
               tabIndex={-1}
               isAction
               icon={<Plus size={18} />}
-            />
+            >
+              New
+            </Button>
           )}
           {canSave && (
             <Button
+              onClick={() => {}} // TODO: Implement save
               isAction
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
           )}
           <Button 
             variant="secondary"
             isAction
             icon={<Printer size={18} />}
-          />
+          >
+            Print
+          </Button>
           <Button 
             variant="secondary"
+            onClick={() => {}} // TODO: Implement close
             isAction
             icon={<X size={18} />}
-          />
+          >
+            Close
+          </Button>
         </div>
       </div>
 

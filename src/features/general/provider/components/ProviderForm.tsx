@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
-import { Building2, Camera, Loader2, Trash2, X } from "lucide-react";
-import { Button, FormInput, Checkbox } from "../../../../components/common";
-import { RotateCcw, Save } from "lucide-react";
+import { Building2, Camera, Trash2, X, RotateCcw, Save } from "lucide-react";
+import { Button, FormInput, Checkbox, SelectInput } from "../../../../components/common";
 import type { ProviderPayload } from "../types";
 
 interface BranchOption {
@@ -75,44 +74,42 @@ const ProviderForm: React.FC<Props> = ({
 
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[1fr_240px]">
         {/* Main Form Fields */}
         <div className="flex flex-col gap-4">
-          <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Provider Name</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
             <FormInput
+              label="Provider Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter provider name"
               required
+              autoFocus
             />
 
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Paymode</p>
-            <div className="relative">
-              <select
-                value={paymodeId}
-                onChange={(e) => setPaymodeId(Number(e.target.value))}
-                className="w-full appearance-none rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-bold text-gray-700 outline-none transition-all focus:border-[#49293e] focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
-                required
-              >
-                <option value={0} disabled>Select Paymode</option>
-                {paymodeOptions.map((pm) => (
-                  <option key={pm.id} value={pm.id}>{pm.name}</option>
-                ))}
-              </select>
+            <SelectInput
+              label="Paymode"
+              value={String(paymodeId)}
+              onChange={(e) => setPaymodeId(Number(e.target.value))}
+              required
+              options={[
+                { value: "0", label: "Select Paymode", disabled: true },
+                ...paymodeOptions.map((pm) => ({ value: String(pm.id), label: pm.name })),
+              ]}
+            />
+
+            <div className="flex items-center pt-2">
+              <Checkbox
+                checked={deliveryStatus}
+                onChange={(e) => setDeliveryStatus(e.target.checked)}
+                label={deliveryStatus ? "Delivery Enabled" : "Delivery Disabled"}
+              />
             </div>
-
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Delivery Status</p>
-            <Checkbox
-              checked={deliveryStatus}
-              onChange={(e) => setDeliveryStatus(e.target.checked)}
-              label={deliveryStatus ? "Enabled" : "Disabled"}
-            />
           </div>
 
           {/* Branch Allocation Trigger */}
-          <div className="mt-2">
+          <div className="mt-4">
             <Button
               type="button"
               variant="secondary"
@@ -120,13 +117,15 @@ const ProviderForm: React.FC<Props> = ({
               onClick={() => setAllocationOpen(!allocationOpen)}
               isAction
               icon={<Building2 size={18} />}
-            />
+            >
+              Branch Allocation
+            </Button>
           </div>
 
           {/* Branch Allocation Panel */}
           {allocationOpen && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300 rounded-2xl border border-[#49293e]/10 bg-[#49293e]/5 p-6">
-              <p className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-2">Select Branches</p>
+              <p className="text-[10px] font-bold text-gray-800 uppercase tracking-widest mb-4">Select Branches</p>
               <div className="flex flex-wrap gap-2.5">
                 {branchOptions.map((branch) => {
                   const active = selectedBranches.includes(branch.id);
@@ -135,7 +134,7 @@ const ProviderForm: React.FC<Props> = ({
                       key={branch.id}
                       type="button"
                       onClick={() => toggleBranch(branch.id)}
-                      className={`rounded-full border px-5 py-2 text-sm font-bold transition-all ${
+                      className={`rounded-full border px-5 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
                         active
                           ? "border-[#49293e] bg-[#49293e] text-white shadow-md scale-105"
                           : "border-gray-200 bg-white text-gray-500 hover:border-[#49293e]/30 hover:bg-gray-50"
@@ -152,10 +151,10 @@ const ProviderForm: React.FC<Props> = ({
 
         {/* Image Upload Column */}
         <div className="flex flex-col items-center gap-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400">Provider Image</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Provider Image</p>
           <div 
             onClick={() => fileInputRef.current?.click()}
-            className="group relative h-48 w-full cursor-pointer overflow-hidden rounded-[2.5rem] border-2 border-dashed border-gray-200 bg-gray-50 transition-all hover:border-[#49293e]/30 hover:bg-white"
+            className="group relative h-48 w-full cursor-pointer overflow-hidden rounded-[2rem] border-2 border-dashed border-gray-200 bg-gray-50 transition-all hover:border-[#49293e]/30 hover:bg-white"
           >
             {imagePreview ? (
               <>
@@ -167,7 +166,7 @@ const ProviderForm: React.FC<Props> = ({
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
                 <Camera size={40} strokeWidth={1.5} />
-                <span className="text-xs font-bold uppercase tracking-widest">Upload Image</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Upload Image</span>
               </div>
             )}
             <input
@@ -191,7 +190,7 @@ const ProviderForm: React.FC<Props> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-6">
+      <div className="mt-8 flex items-center justify-end gap-3 border-t border-gray-100 pt-6">
         {initialData && onDelete && (
           <Button
             type="button"
@@ -200,7 +199,9 @@ const ProviderForm: React.FC<Props> = ({
             disabled={submitting || deleting}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Delete
+          </Button>
         )}
         <Button 
           type="button" 
@@ -210,14 +211,18 @@ const ProviderForm: React.FC<Props> = ({
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          Cancel
+        </Button>
         <Button 
           type="submit" 
           disabled={submitting}
           isAction
           loading={submitting}
           icon={<Save size={18} />}
-        />
+        >
+          {initialData ? "Update" : "Save"}
+        </Button>
       </div>
     </form>
   );

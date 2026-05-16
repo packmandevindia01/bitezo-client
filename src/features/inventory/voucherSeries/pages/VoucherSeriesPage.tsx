@@ -1,5 +1,5 @@
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 import {
   Button,
   ConfirmDialog,
@@ -100,13 +100,17 @@ const VoucherSeriesPage = () => {
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
-            />
+            >
+              Clear
+            </Button>
             <Button 
               onClick={handleSave} 
               loading={saving}
               isAction
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
             {editingId && canDelete && (
               <Button
                 variant="danger"
@@ -120,7 +124,9 @@ const VoucherSeriesPage = () => {
                 disabled={saving}
                 isAction
                 icon={<Trash2 size={18} />}
-              />
+              >
+                Delete
+              </Button>
             )}
           </div>
         }
@@ -128,11 +134,8 @@ const VoucherSeriesPage = () => {
         <VoucherSeriesForm
           form={form}
           branches={branches}
-          isEditing={Boolean(editingId)}
           saving={saving}
           onChange={setField}
-          onClear={resetForm}
-          onSave={handleSave}
         />
       </Modal>
 

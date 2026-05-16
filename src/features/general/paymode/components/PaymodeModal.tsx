@@ -50,7 +50,9 @@ const PaymodeModal = ({
             disabled={saving}
             isAction
             icon={<Building2 size={18} />}
-          />
+          >
+            Counters
+          </Button>
           <Button 
             variant="secondary" 
             onClick={onClear} 
@@ -58,14 +60,18 @@ const PaymodeModal = ({
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Reset
+          </Button>
           <Button 
             onClick={onSave} 
             disabled={saving}
             isAction
             loading={saving}
             icon={<Save size={18} />}
-          />
+          >
+            {editingId ? "Update" : "Save"}
+          </Button>
           {editingId && (
             <Button
               variant="danger"
@@ -73,7 +79,9 @@ const PaymodeModal = ({
               disabled={saving}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       }
@@ -82,37 +90,37 @@ const PaymodeModal = ({
         <div className="flex flex-col gap-6">
           <div className="grid gap-5 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
             {/* Paymode Code */}
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
               Paymode Code
             </p>
             <FormInput
               value={form.code}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, ""); // Remove non-numeric characters
+                const val = e.target.value.toUpperCase().replace(/\s/g, "");
                 onChange({ code: val });
               }}
               placeholder="Enter paymode code"
+              autoFocus
             />
 
             {/* Paymode Name */}
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
               Paymode Name
             </p>
             <FormInput
               value={form.paymodeName}
               onChange={(e) => onChange({ paymodeName: e.target.value })}
               placeholder="Enter paymode name"
-              autoFocus
             />
 
             {/* Active toggle */}
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
               Active
             </p>
             <Checkbox
               checked={form.isActive}
               onChange={(e) => onChange({ isActive: e.target.checked })}
-              label={form.isActive ? "Active" : "Inactive"}
+              label="Active"
             />
           </div>
 

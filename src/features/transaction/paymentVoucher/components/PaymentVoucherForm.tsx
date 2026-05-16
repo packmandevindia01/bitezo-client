@@ -88,21 +88,25 @@ const PaymentVoucherForm = ({ initialData, onSubmit, onCancel, onClear, submitti
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end gap-2 pt-4 border-t border-slate-100">
+      <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-gray-100">
         <Button 
           variant="secondary" 
           onClick={onCancel}
           tabIndex={-1}
           isAction
           icon={<X size={18} />}
-        />
+        >
+          Cancel
+        </Button>
         <Button 
           variant="secondary" 
           onClick={handleClear}
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          Clear
+        </Button>
         <Button 
           id="vch-save-btn"
           onClick={() => onSubmit(form)} 
@@ -110,11 +114,11 @@ const PaymentVoucherForm = ({ initialData, onSubmit, onCancel, onClear, submitti
           isAction
           loading={submitting}
           icon={<Save size={18} />}
-        />
+        >
+          Save
+        </Button>
       </div>
     </div>
-  );
-};
   );
 };
 

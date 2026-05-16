@@ -89,6 +89,7 @@ export interface ProductDetail {
     fileName: string;
     filePath: string;
     isActive: boolean;
+    priceIsIncl: boolean;
     createdAt: string;
     updatedAt: string;
     colorCode: string | null;
@@ -115,6 +116,7 @@ export interface CreateProductPayload {
   fileName?: string;
   filePath?: string;
   isActive: boolean;
+  priceIsIncl: boolean;
   colorCode: string;
   createdAt: string;
   altProducts: AltProductItem[];
@@ -144,6 +146,7 @@ export interface ProductFormState {
   barcode: string;
   branchId: string;
   isActive: boolean;
+  priceIsIncl: boolean;
   colorCode: string;
   productColors: ProductColorItem[];
   // File handling

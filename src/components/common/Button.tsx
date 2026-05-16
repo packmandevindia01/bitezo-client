@@ -70,7 +70,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           <>
             {icon && <span className="shrink-0">{icon}</span>}
             {children && (
-              <span className={icon ? "hidden md:inline" : ""}>
+              <span>
                 {children}
               </span>
             )}

@@ -41,35 +41,50 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
     });
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100">
           {error}
         </div>
       )}
 
-      <section className="grid gap-5 md:grid-cols-2">
+      <section className="grid gap-x-4 gap-y-3 md:grid-cols-2">
         <FormInput
+          id="tax-name"
           label="Tax Name"
           value={form.name}
           onChange={(e) => handleChange("name", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "tax-value")}
           placeholder="e.g. VAT 10%"
           required
           autoFocus
         />
 
         <FormInput
+          id="tax-value"
           label="Tax Value (%)"
           type="number"
           step="0.01"
+          inputClassName="text-right"
           value={form.value}
           onChange={(e) => handleChange("value", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "tax-date")}
           placeholder="e.g. 10"
           required
         />
 
         <FormInput
+          id="tax-date"
           label="End Date"
           type="date"
           value={form.expireAt}
@@ -87,13 +102,17 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          Clear
+        </Button>
         <Button 
           type="submit" 
           loading={saving}
           isAction
           icon={<Save size={18} />}
-        />
+        >
+          Save
+        </Button>
         {initialData && (
           <Button
             variant="danger"
@@ -101,7 +120,9 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
             disabled={saving}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Delete
+          </Button>
         )}
       </div>
     </form>

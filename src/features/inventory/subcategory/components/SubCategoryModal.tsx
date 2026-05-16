@@ -44,6 +44,15 @@ const SubCategoryModal = ({
   onSave,
   onDelete,
 }: Props) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -52,33 +61,42 @@ const SubCategoryModal = ({
       size="xl"
     >
       <div className="flex flex-col gap-6 lg:flex-row">
-        <ImageUploadPanel preview={form.image} onSelect={onImageSelect} />
+        <div className="shrink-0">
+          <ImageUploadPanel preview={form.image} onSelect={onImageSelect} />
+        </div>
 
         <div className="flex-1">
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
             <FormInput
+              id="subcat-code"
               label="Code"
               value={form.code}
-              onChange={(e) => onChange({ code: e.target.value })}
-              placeholder="Enter sub category code"
+              onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+              onKeyDown={(e) => handleKeyDown(e, "subcat-name")}
+              placeholder="Enter code"
               autoFocus
             />
 
             <FormInput
+              id="subcat-name"
               label="Name"
               value={form.name}
               onChange={(e) => onChange({ name: e.target.value })}
-              placeholder="Enter sub category name"
+              onKeyDown={(e) => handleKeyDown(e, "subcat-arabic")}
+              placeholder="Enter name"
             />
 
             <FormInput
+              id="subcat-arabic"
               label="Arabic Name"
               value={form.arabicName}
               onChange={(e) => onChange({ arabicName: e.target.value })}
+              onKeyDown={(e) => handleKeyDown(e, "subcat-category")}
               placeholder="أدخل اسم الفئة الفرعية"
             />
 
             <SelectInput
+              id="subcat-category"
               label="Category"
               options={categoryOptions.map(opt => ({ label: opt.label, value: String(opt.value) }))}
               value={String(form.categoryId)}
@@ -86,14 +104,16 @@ const SubCategoryModal = ({
               placeholder="Choose category"
             />
 
-            <Checkbox
-              label="Active"
-              checked={form.isActive}
-              onChange={(e) => onChange({ isActive: e.target.checked })}
-            />
+            <div className="md:col-span-2 flex items-center pt-1">
+              <Checkbox
+                label="Active Status"
+                checked={form.isActive}
+                onChange={(e) => onChange({ isActive: e.target.checked })}
+              />
+            </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
+          <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
               onClick={onClear} 
@@ -101,14 +121,18 @@ const SubCategoryModal = ({
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
-            />
+            >
+              Clear
+            </Button>
             <Button 
               onClick={onSave} 
               disabled={saving}
               isAction
               loading={saving}
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
             {editingId && (
               <Button
                 variant="danger"
@@ -116,7 +140,9 @@ const SubCategoryModal = ({
                 disabled={saving}
                 isAction
                 icon={<Trash2 size={18} />}
-              />
+              >
+                Delete
+              </Button>
             )}
           </div>
         </div>

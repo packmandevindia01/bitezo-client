@@ -1,4 +1,4 @@
-import { Button, FormInput, Modal } from "../../../../components/common";
+import { Button, FormInput, Modal, SelectInput } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import type { CounterRecord } from "../../counter/types";
 import type { SectionForm } from "../types";
@@ -44,13 +44,17 @@ const SectionModal = ({
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Reset
+          </Button>
           <Button 
             onClick={onSave} 
             loading={saving}
             isAction
             icon={<Save size={18} />}
-          />
+          >
+            {editingId ? "Update" : "Save"}
+          </Button>
           {editingId && (
             <Button
               variant="danger"
@@ -58,14 +62,16 @@ const SectionModal = ({
               disabled={saving}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       }
     >
       <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
         {/* NAME FIELD */}
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
           Section Name
         </p>
         <FormInput
@@ -76,21 +82,18 @@ const SectionModal = ({
         />
 
         {/* COUNTER FIELD */}
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
           Counter Name
         </p>
-        <select
+        <SelectInput
           value={form.counterId}
           onChange={(e) => onChange("counterId", e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
-        >
-          <option value="">Select a counter</option>
-          {counters.map((c) => (
-            <option key={c.counterId} value={String(c.counterId)}>
-              {c.counterName}
-            </option>
-          ))}
-        </select>
+          options={counters.map((c) => ({
+            label: c.counterName,
+            value: String(c.counterId),
+          }))}
+          placeholder="Select a counter"
+        />
       </div>
     </Modal>
   );

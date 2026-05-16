@@ -1,7 +1,7 @@
 import React from "react";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { Button, SearchableSelect, FormInput, SelectInput } from "../../../../components/common";
-import { Save } from "lucide-react";
+import { Button, SearchableSelect, FormInput, SelectInput, Checkbox } from "../../../../components/common";
+import { Plus } from "lucide-react";
 import type { ProductSearchItem, AltNameItem } from "../types";
 
 interface Props {
@@ -45,7 +45,7 @@ const ProviderSettingsEntryRow = ({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-12 items-end">
         
         {/* Product Search */}
-        <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-1">
+        <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-1.5">
           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product</label>
           <SearchableSelect
             id="ps-entry-product"
@@ -89,27 +89,22 @@ const ProviderSettingsEntryRow = ({
         </div>
 
         {/* Price with Tax Toggle */}
-        <div className="lg:col-span-2 flex flex-col gap-1">
+        <div className="lg:col-span-2 flex flex-col gap-1.5">
           <div className="flex justify-between items-center px-1">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Price</label>
-            <div className="flex items-center gap-1.5">
-              <label className="text-[8px] font-black uppercase text-slate-400">Incl</label>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={entryIsIncl}
-                  onChange={(e) => onIsInclChange(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-7 h-3.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-pos-primary"></div>
-              </label>
+            <div className="scale-75 origin-right">
+              <Checkbox
+                checked={entryIsIncl}
+                onChange={(e) => onIsInclChange(e.target.checked)}
+                label="Incl"
+              />
             </div>
           </div>
           <FormInput
             id="ps-entry-price"
             type="number"
             value={entryPrice}
-            inputClassName="text-right font-black text-pos-primary bg-pos-primary/5 border-pos-primary/20"
+            inputClassName="text-right font-black text-[#49293e] bg-[#49293e]/5 border-[#49293e]/20"
             onChange={(e) => onPriceChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -123,14 +118,16 @@ const ProviderSettingsEntryRow = ({
         </div>
 
         {/* Add Button */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 pb-0.5">
           <Button 
             id="ps-entry-add-btn"
             onClick={() => { onAdd(); setTimeout(() => document.getElementById("ps-entry-product")?.focus(), 0); }} 
             isAction
-            className="w-full bg-slate-800 hover:bg-slate-900"
-            icon={<Save size={18} />}
-          />
+            className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+            icon={<Plus size={18} />}
+          >
+            Add Entry
+          </Button>
         </div>
       </div>
     </section>

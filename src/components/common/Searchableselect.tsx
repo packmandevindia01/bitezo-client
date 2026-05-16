@@ -23,6 +23,7 @@ interface Props {
   clearable?: boolean;
   autoFocus?: boolean;
   tabIndex?: number;
+  labelIcon?: React.ReactNode;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ const SearchableSelect = ({
   clearable = true,
   autoFocus = false,
   tabIndex,
+  labelIcon,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -162,6 +164,10 @@ const SearchableSelect = ({
     onChange(optValue);
     setOpen(false);
     setQuery("");
+    // Return focus to trigger so Tab key works
+    setTimeout(() => {
+      triggerRef.current?.focus();
+    }, 0);
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -209,10 +215,13 @@ const SearchableSelect = ({
         e.preventDefault();
         setOpen(false);
         setQuery("");
+        triggerRef.current?.focus();
         break;
       case "Tab":
+        // Do not e.preventDefault() here, we want the browser to move focus
         setOpen(false);
         setQuery("");
+        triggerRef.current?.focus();
         break;
     }
   };
@@ -223,15 +232,16 @@ const SearchableSelect = ({
       {label && (
         <label 
           htmlFor={id}
-          className="text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit"
+          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit"
           onClick={() => {
             if (disabled) return;
             triggerRef.current?.focus();
             setOpen(true);
           }}
         >
-          {label}
-          {required && <span className="ml-1 font-bold text-amber-500">*</span>}
+          {labelIcon && <span className="shrink-0">{labelIcon}</span>}
+          <span>{label}</span>
+          {required && <span className="text-amber-500 ml-1 font-bold">*</span>}
         </label>
       )}
 
@@ -254,7 +264,7 @@ const SearchableSelect = ({
         onKeyDown={handleKeyDown}
         className={`
           relative flex w-full h-10.5 cursor-pointer items-center gap-2
-          rounded-md border px-3 text-xs outline-none transition md:px-4
+          rounded-md border px-3 text-sm outline-none transition md:px-4
           ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50" : ""}
           ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"}

@@ -143,7 +143,7 @@ const HappyHourFilters = ({
             onKeyDown={(e) => handleKeyDown(e, "hp-entry-product")}
             placeholder="%"
           />
-          <div className="pb-4">
+          <div className="pb-0.5">
             <Button 
               id="hp-load-btn" 
               onClick={onLoad} 
@@ -151,7 +151,9 @@ const HappyHourFilters = ({
               isAction
               loading={loading}
               icon={<RefreshCcw size={18} className={loading ? "animate-spin" : ""} />}
-            />
+            >
+              Load
+            </Button>
           </div>
         </div>
       </div>

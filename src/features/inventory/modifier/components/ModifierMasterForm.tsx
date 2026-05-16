@@ -1,5 +1,3 @@
-import { Trash2, Save, RotateCcw } from "lucide-react";
-import { Button } from "../../../../components/common";
 import type { ModifierForm } from "../types";
 import type { ModifierTypeRecord } from "../../modifierType/types";
 import type { CategoryListItem } from "../../category/types";
@@ -8,8 +6,6 @@ import ModifierAllocationSections from "./form/ModifierAllocationSections";
 
 interface ModifierMasterFormProps {
   form: ModifierForm;
-  isEditing: boolean;
-  saving?: boolean;
   loading?: boolean;
   branches: { id: number; name: string }[];
   categories: CategoryListItem[];
@@ -21,15 +17,10 @@ interface ModifierMasterFormProps {
   onToggleCategory: (id: number) => void;
   onToggleBranchAlloc: () => void;
   onToggleCategoryAlloc: () => void;
-  onClear: () => void;
-  onSave: () => void;
-  onDelete?: () => void;
 }
 
 const ModifierMasterForm = ({
   form,
-  isEditing,
-  saving = false,
   loading = false,
   branches,
   categories,
@@ -41,9 +32,6 @@ const ModifierMasterForm = ({
   onToggleCategory,
   onToggleBranchAlloc,
   onToggleCategoryAlloc,
-  onClear,
-  onSave,
-  onDelete,
 }: ModifierMasterFormProps) => {
   if (loading) {
     return (

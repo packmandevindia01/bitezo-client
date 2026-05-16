@@ -1,5 +1,5 @@
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 import {
   Button,
   ConfirmDialog,
@@ -142,7 +142,7 @@ const ModifierPage = () => {
         title={editingId ? "Edit Modifier" : "Add Modifier"} 
         size="lg"
         footer={
-          <div className="flex gap-3">
+          <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
               onClick={resetForm} 
@@ -150,13 +150,17 @@ const ModifierPage = () => {
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
-            />
+            >
+              Clear
+            </Button>
             <Button 
               onClick={handleSave} 
               loading={saving}
               isAction
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
             {editingId && canDelete && (
               <Button
                 variant="danger"
@@ -170,15 +174,15 @@ const ModifierPage = () => {
                 disabled={saving}
                 isAction
                 icon={<Trash2 size={18} />}
-              />
+              >
+                Delete
+              </Button>
             )}
           </div>
         }
       >
         <ModifierMasterForm
           form={form}
-          isEditing={Boolean(editingId)}
-          saving={saving}
           loading={loading && Boolean(editingId)}
           branches={branches}
           categories={categories}
@@ -190,8 +194,6 @@ const ModifierPage = () => {
           onToggleCategory={toggleCategory}
           onToggleBranchAlloc={() => setBranchAllocOpen(!branchAllocOpen)}
           onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
-          onClear={resetForm}
-          onSave={handleSave}
         />
       </Modal>
 

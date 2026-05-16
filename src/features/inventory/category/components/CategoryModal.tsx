@@ -22,7 +22,7 @@ interface Props {
   onDelete?: () => void;
 }
 
-const CategoryModal = ({
+export const CategoryModal = ({
   isOpen,
   editingId,
   form,
@@ -40,6 +40,15 @@ const CategoryModal = ({
   onSave,
   onDelete,
 }: Props) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -56,7 +65,9 @@ const CategoryModal = ({
             tabIndex={-1}
             isAction
             icon={<Building2 size={18} />}
-          />
+          >
+            Branch
+          </Button>
           <Button 
             variant="secondary" 
             onClick={onClear} 
@@ -64,14 +75,18 @@ const CategoryModal = ({
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Clear
+          </Button>
           <Button 
             onClick={onSave} 
             disabled={saving}
             isAction
             loading={saving}
             icon={<Save size={18} />}
-          />
+          >
+            Save
+          </Button>
           {editingId && (
             <Button
               variant="danger"
@@ -80,32 +95,41 @@ const CategoryModal = ({
               tabIndex={-1}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       }
     >
       <div className="flex flex-col gap-6 lg:flex-row">
-        <ImageUploadPanel preview={form.image} onSelect={onImageSelect} />
+        <div className="shrink-0">
+          <ImageUploadPanel preview={form.image} onSelect={onImageSelect} />
+        </div>
 
         <div className="flex-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
             <FormInput
+              id="cat-code"
               label="Code"
               value={form.code}
-              onChange={(e) => onChange({ code: e.target.value })}
-              placeholder="Enter category code"
+              onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+              onKeyDown={(e) => handleKeyDown(e, "cat-name")}
+              placeholder="Enter code"
               autoFocus
             />
 
             <FormInput
+              id="cat-name"
               label="Name"
               value={form.name}
               onChange={(e) => onChange({ name: e.target.value })}
-              placeholder="Enter category name"
+              onKeyDown={(e) => handleKeyDown(e, "cat-arabic")}
+              placeholder="Enter name"
             />
 
             <FormInput
+              id="cat-arabic"
               label="Arabic Name"
               value={form.arabic}
               onChange={(e) => onChange({ arabic: e.target.value })}
@@ -123,10 +147,10 @@ const CategoryModal = ({
 
           {/* Group allocation panel */}
           <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/50 p-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Group Allocation</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Group Allocation</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {groups.length === 0 ? (
-                <p className="text-xs text-gray-400">No groups available.</p>
+                <p className="text-[10px] text-gray-400">No groups available.</p>
               ) : (
                 groups.map((group) => {
                   const active = form.groupIds.includes(group.grpId);
@@ -135,9 +159,9 @@ const CategoryModal = ({
                       key={group.grpId}
                       type="button"
                       onClick={() => onToggleGroup(group.grpId)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                      className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                         active
-                          ? "border-[#49293e] bg-[#49293e]/10 text-[#49293e] font-medium"
+                          ? "border-[#49293e] bg-[#49293e]/10 text-[#49293e]"
                           : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 shadow-sm"
                       }`}
                       tabIndex={-1}
@@ -153,10 +177,10 @@ const CategoryModal = ({
           {/* Branch allocation panel */}
           {branchAllocOpen && (
             <div className="mt-4 rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#49293e]/60">Branch Allocation</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation</p>
               <div className="mt-3 flex flex-col gap-2">
                 {branchOptions.length === 0 ? (
-                  <p className="text-xs text-gray-400">No branches available.</p>
+                  <p className="text-[10px] text-gray-400">No branches available.</p>
                 ) : (
                   branchOptions.map((branch) => {
                     const allocation = form.branchAllocations.find((b) => b.branchId === branch.id);
@@ -167,7 +191,7 @@ const CategoryModal = ({
                         <button
                           type="button"
                           onClick={() => onToggleBranch(branch.id)}
-                          className={`rounded-md px-4 py-1.5 text-xs transition ${
+                          className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                             active
                               ? "bg-[#49293e] text-white"
                               : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"

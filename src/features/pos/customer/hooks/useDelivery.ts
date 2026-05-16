@@ -7,6 +7,7 @@ export const useDelivery = () => {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState<DeliveryAddress | null>(null);
+  const [addressList, setAddressList] = useState<DeliveryAddress[]>([]);
 
   const fetchAddressByMobile = useCallback(async (mobileNo: string) => {
     if (!mobileNo || mobileNo.length < 3) return;
@@ -15,16 +16,19 @@ export const useDelivery = () => {
     try {
       const response = await deliveryApi.getDeliveryAddress(mobileNo);
       if (response.isSuccess && response.data && response.data.length > 0) {
+        setAddressList(response.data);
         setAddress(response.data[0]);
-        return response.data[0];
+        return response.data;
       } else {
+        setAddressList([]);
         setAddress(null);
-        return null;
+        return [];
       }
     } catch (error) {
       console.error("Error fetching delivery address:", error);
+      setAddressList([]);
       setAddress(null);
-      return null;
+      return [];
     } finally {
       setLoading(false);
     }
@@ -36,6 +40,8 @@ export const useDelivery = () => {
       const response = await deliveryApi.saveDeliveryAddress(data);
       if (response.isSuccess) {
         showToast(response.message || "Delivery address saved successfully.", "success");
+        // Refresh list
+        if (data.mobileNo) fetchAddressByMobile(data.mobileNo);
         return response.data;
       } else {
         showToast(response.message || "Failed to save delivery address.", "error");
@@ -47,11 +53,12 @@ export const useDelivery = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, fetchAddressByMobile]);
 
   return {
     loading,
     address,
+    addressList,
     fetchAddressByMobile,
     saveAddress,
     setAddress

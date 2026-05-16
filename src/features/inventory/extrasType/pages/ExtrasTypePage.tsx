@@ -1,5 +1,5 @@
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 import {
   Button,
   ConfirmDialog,
@@ -98,13 +98,17 @@ const ExtrasTypePage = () => {
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
-            />
+            >
+              Clear
+            </Button>
             <Button 
               onClick={handleSave} 
               loading={saving}
               isAction
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
             {editingId && canDelete && (
               <Button
                 variant="danger"
@@ -118,18 +122,16 @@ const ExtrasTypePage = () => {
                 disabled={saving}
                 isAction
                 icon={<Trash2 size={18} />}
-              />
+              >
+                Delete
+              </Button>
             )}
           </div>
         }
       >
         <ExtrasTypeForm
           form={form}
-          isEditing={Boolean(editingId)}
-          saving={saving}
           onChange={setField}
-          onClear={resetForm}
-          onSave={handleSave}
         />
       </Modal>
 

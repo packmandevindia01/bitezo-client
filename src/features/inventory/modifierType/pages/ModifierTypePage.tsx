@@ -98,13 +98,17 @@ const ModifierTypePage = () => {
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
-            />
+            >
+              Clear
+            </Button>
             <Button 
               onClick={handleSave} 
               loading={saving}
               isAction
               icon={<Save size={18} />}
-            />
+            >
+              Save
+            </Button>
             {editingId && canDelete && (
               <Button
                 variant="danger"
@@ -118,18 +122,16 @@ const ModifierTypePage = () => {
                 disabled={saving}
                 isAction
                 icon={<Trash2 size={18} />}
-              />
+              >
+                Delete
+              </Button>
             )}
           </div>
         }
       >
         <ModifierTypeForm
           form={form}
-          isEditing={Boolean(editingId)}
-          saving={saving}
           onChange={setField}
-          onClear={resetForm}
-          onSave={handleSave}
         />
       </Modal>
 

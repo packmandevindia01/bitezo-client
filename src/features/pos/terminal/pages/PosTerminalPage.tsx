@@ -127,7 +127,8 @@ export const PosTerminalPage = () => {
         setAlternatives(alts);
         setSelectedProduct(product);
       } else {
-        addProduct(productId);
+        const data = await menuApi.getProductData(productId);
+        addProduct(productId, undefined, data.price);
       }
     } catch {
       addProduct(productId);

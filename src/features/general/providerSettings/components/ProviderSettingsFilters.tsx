@@ -121,7 +121,7 @@ const ProviderSettingsFilters = ({
           ]}
         />
 
-        <div className="flex flex-col gap-1 w-full">
+        <div className="flex flex-col gap-1 w-full pb-0.5">
           <Button 
             id="ps-load-btn"
             onClick={onLoad} 
@@ -129,7 +129,9 @@ const ProviderSettingsFilters = ({
             isAction
             loading={loading}
             icon={<RefreshCcw size={18} className={loading ? "animate-spin" : ""} />}
-          />
+          >
+            Load Data
+          </Button>
         </div>
       </div>
     </section>

@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Modal, FormInput, Button, Checkbox } from "../../../../components/common";
+import { Modal, FormInput, Checkbox } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
-import { Search, Save, RotateCcw } from "lucide-react";
+import { Search, Save, RotateCcw, Plus, X } from "lucide-react";
 import { useDelivery } from "../hooks/useDelivery";
+import { PosMoreAddressModal } from "./PosMoreAddressModal";
+import type { DeliveryAddress } from "../types/delivery";
 
 interface PosDeliveryModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface PosDeliveryModalProps {
 
 export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => {
   const { loading, fetchAddressByMobile, saveAddress } = useDelivery();
+  const [isMoreAddressOpen, setIsMoreAddressOpen] = useState(false);
   
   const [form, setForm] = useState({
     mobileNo: "",
@@ -29,7 +32,6 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
   const [activeField, setActiveField] = useState<keyof typeof form | null>("mobileNo");
   const [showKeyboard, setShowKeyboard] = useState(true);
-  // Focus
   const mobileRef = useRef<HTMLInputElement>(null);
 
   const handleClearForm = () => {
@@ -52,21 +54,20 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
   useEffect(() => {
     if (isOpen) {
-      handleClearForm(); // Clear form on every open
+      handleClearForm();
       setTimeout(() => mobileRef.current?.focus(), 100);
       setActiveField("mobileNo");
       setShowKeyboard(true); 
-    } else {
-      handleClearForm(); // Clear form on close as well
     }
   }, [isOpen]);
 
   // Lookup address when mobileNo changes
   useEffect(() => {
     const lookupMobile = async () => {
-      if (form.mobileNo.length >= 4) { // Trigger lookup for mobile numbers like '1234'
-        const existingAddress = await fetchAddressByMobile(form.mobileNo);
-        if (existingAddress) {
+      if (form.mobileNo.length >= 8) { 
+        const response = await fetchAddressByMobile(form.mobileNo);
+        if (response && response.length > 0) {
+          const existingAddress = response[0];
           setForm(prev => ({
             ...prev,
             customerName: existingAddress.customerName || "",
@@ -109,11 +110,6 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     setShowKeyboard(true);
   };
 
-  const handleFieldClick = (field: keyof typeof form) => {
-    setActiveField(field);
-    setShowKeyboard(true);
-  };
-
   const handleSave = async () => {
     if (!form.mobileNo) return;
     
@@ -129,8 +125,21 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     });
 
     if (success) {
-      // Logic after successful save if needed
+      onClose();
     }
+  };
+
+  const handleSelectAddressFromMore = (address: DeliveryAddress) => {
+    setForm(prev => ({
+      ...prev,
+      flatNo: address.flatNo || "",
+      buildingNo: address.buildingNo || "",
+      roadNo: address.roadNo || "",
+      blockNo: address.blockNo || "",
+      area: address.area || "",
+      customerName: address.customerName || "",
+      note: address.note || ""
+    }));
   };
 
   return (
@@ -138,212 +147,158 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       isOpen={isOpen}
       onClose={onClose}
       noPadding
-      className="!max-w-[95vw] w-[95vw] xl:!max-w-[900px] !max-h-[95vh] h-auto bg-[#f8f9fa] flex flex-col"
+      className="!max-w-full w-screen !max-h-full h-screen !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between bg-[#49293e] px-4 py-2.5 text-white shrink-0 border-b-2 border-white/10">
-        <h2 className="text-sm md:text-base font-black tracking-widest mx-auto uppercase">DELIVERY DETAILS</h2>
-        <button onClick={onClose} className="text-white hover:text-red-400 absolute right-4 transition-colors" tabIndex={-1}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
+      {/* Header - Premium Maroon */}
+      <div className="flex items-center justify-between bg-[#49293e] px-6 py-3 text-white shrink-0 border-b border-white/10 relative">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+            <Search size={18} className="text-white" />
+          </div>
+          <h2 className="text-sm font-black tracking-[0.2em] uppercase">Delivery Details</h2>
+        </div>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-all active:scale-90">
+          <X size={20} strokeWidth={3} />
         </button>
       </div>
 
-      {/* Content */}
-      <div className="p-2 md:p-3 flex flex-col gap-1.5 overflow-y-auto min-h-0 flex-1 [&_.mb-4]:mb-0 [&_label]:text-[10px] [&_label]:md:text-xs [&_input]:h-8 [&_input]:md:h-9 [&_.h-12]:h-9 [&_.h-12]:md:h-10">
-        {/* Row 1 */}
-        <div className="flex flex-wrap md:flex-nowrap items-end gap-1.5">
-          <div className="w-full md:w-[25%]">
-            <FormInput
-              label="Mobile No"
-              value={form.mobileNo}
-              onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
-              onFocus={() => handleFieldFocus("mobileNo")}
-              onClick={() => handleFieldClick("mobileNo")}
-              ref={mobileRef}
-              inputMode="none"
-              autoFocus
-            />
-          </div>
-          <div className="w-full md:w-[45%]">
-            <FormInput
-              label="Customer Name"
-              value={form.customerName}
-              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-              onFocus={() => handleFieldFocus("customerName")}
-              onClick={() => handleFieldClick("customerName")}
-              inputMode="none"
-            />
-          </div>
-          <div className="flex items-center gap-2 mb-0.5 md:w-[30%] shrink-0">
-            <Checkbox
-              label=""
-              checked={form.isComing}
-              onChange={(e) => setForm({ ...form, isComing: e.target.checked })}
-            />
-            <span className="text-[#9c142c] font-bold text-[10px] md:text-xs shrink-0">Coming(Come and Collect)</span>
-            
-            <button 
-              className="ml-auto flex items-center justify-center w-8 h-8 md:w-9 md:h-9 bg-gradient-to-br from-pink-400 to-rose-500 rounded-lg text-white shadow-md hover:scale-105 active:scale-95 transition-all"
-              onClick={() => fetchAddressByMobile(form.mobileNo)}
-              disabled={loading}
-            >
-              <Search size={16} strokeWidth={2.5} className={loading ? "animate-spin" : ""} />
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2 */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
-          <FormInput
-            label="Flat No"
-            value={form.flatNo}
-            onChange={(e) => setForm({ ...form, flatNo: e.target.value })}
-            onFocus={() => handleFieldFocus("flatNo")}
-            onClick={() => handleFieldClick("flatNo")}
-            inputMode="none"
-          />
-          <FormInput
-            label="Building No"
-            value={form.buildingNo}
-            onChange={(e) => setForm({ ...form, buildingNo: e.target.value })}
-            onFocus={() => handleFieldFocus("buildingNo")}
-            onClick={() => handleFieldClick("buildingNo")}
-            inputMode="none"
-          />
-          <FormInput
-            label="Road No"
-            value={form.roadNo}
-            onChange={(e) => setForm({ ...form, roadNo: e.target.value })}
-            onFocus={() => handleFieldFocus("roadNo")}
-            onClick={() => handleFieldClick("roadNo")}
-            inputMode="none"
-          />
-          <FormInput
-            label="Block No"
-            value={form.blockNo}
-            onChange={(e) => setForm({ ...form, blockNo: e.target.value })}
-            onFocus={() => handleFieldFocus("blockNo")}
-            onClick={() => handleFieldClick("blockNo")}
-            inputMode="none"
-          />
-          <FormInput
-            label="Area"
-            value={form.area}
-            onChange={(e) => setForm({ ...form, area: e.target.value })}
-            onFocus={() => handleFieldFocus("area")}
-            onClick={() => handleFieldClick("area")}
-            inputMode="none"
-          />
-        </div>
-
-        {/* Row 3 */}
-        <div className="flex flex-wrap md:flex-nowrap items-end gap-1.5">
-          <div className="w-full md:w-[50%]">
-            <FormInput
-              label="Notes"
-              value={form.note}
-              onChange={(e) => setForm({ ...form, note: e.target.value })}
-              onFocus={() => handleFieldFocus("note")}
-              onClick={() => handleFieldClick("note")}
-              inputMode="none"
-            />
-          </div>
-          <div className="w-full md:w-[25%]">
-            <FormInput
-              label="Call Back"
-              value={form.callBack}
-              onChange={(e) => setForm({ ...form, callBack: e.target.value })}
-              onFocus={() => handleFieldFocus("callBack")}
-              onClick={() => handleFieldClick("callBack")}
-              inputMode="none"
-            />
-          </div>
-          <div className="flex items-center gap-2 mb-0.5 md:w-[25%]">
-            <Checkbox
-              label=""
-              checked={form.isMissedCall}
-              onChange={(e) => setForm({ ...form, isMissedCall: e.target.checked })}
-            />
-            <span className="text-[#9c142c] font-bold text-[10px] md:text-xs">Missed Call</span>
-          </div>
-        </div>
-
-        {/* Row 4: Keep Changes + Action Buttons */}
-        <div className="flex flex-wrap md:flex-nowrap items-end justify-between gap-1.5">
-          <div className="w-full md:w-[30%]">
-            <FormInput
-              label="Keep Changes"
-              value={form.keepChanges}
-              onChange={(e) => setForm({ ...form, keepChanges: e.target.value })}
-              onFocus={() => handleFieldFocus("keepChanges")}
-              onClick={() => handleFieldClick("keepChanges")}
-              inputClassName="text-right"
-              inputMode="none"
-            />
+      {/* Content Area - Restored Original Vertical Design (High Density) */}
+      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+        <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+          
+          {/* Row 1: Primary Identity */}
+          <div className="grid grid-cols-12 gap-4 items-end shrink-0">
+            <div className="col-span-3">
+              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Mobile Number</span>
+              <FormInput
+                value={form.mobileNo}
+                onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
+                onFocus={() => handleFieldFocus("mobileNo")}
+                ref={mobileRef}
+                inputMode="none"
+                autoFocus
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
+            <div className="col-span-6">
+              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Customer Name</span>
+              <FormInput
+                value={form.customerName}
+                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                onFocus={() => handleFieldFocus("customerName")}
+                inputMode="none"
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
+            <div className="col-span-3 flex items-center gap-3 bg-slate-50 px-3 h-10 rounded-lg border border-slate-200">
+               <Checkbox checked={form.isComing} onChange={(e) => setForm({ ...form, isComing: e.target.checked })} />
+               <span className="text-[#9c142c] font-black text-[10px] uppercase">Coming</span>
+               <button className="w-8 h-8 bg-[#49293e] rounded text-white flex items-center justify-center ml-auto" onClick={() => fetchAddressByMobile(form.mobileNo)}>
+                 <Search size={16} />
+               </button>
+            </div>
           </div>
 
-          <div className="flex gap-1 mb-0.5">
-            {["5.000", "10.000", "20.000"].map((amt) => (
-              <button 
-                key={amt}
-                onClick={() => {
-                  setForm({ ...form, keepChanges: amt });
-                  setActiveField("keepChanges");
-                }}
-                className="bg-[#49293e] hover:bg-[#3a2131] text-white font-bold text-[10px] md:text-xs py-1.5 px-3 md:px-5 rounded shadow active:scale-95 transition-all"
-              >
-                {amt}
-              </button>
+          {/* Row 2: Address Grid (5 Fields) */}
+          <div className="grid grid-cols-5 gap-4 shrink-0">
+            {[
+              { id: 'flatNo', label: 'Flat' },
+              { id: 'buildingNo', label: 'Building' },
+              { id: 'roadNo', label: 'Road' },
+              { id: 'blockNo', label: 'Block' },
+              { id: 'area', label: 'Area' }
+            ].map((field) => (
+              <div key={field.id}>
+                <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">{field.label}</span>
+                <FormInput
+                  value={(form as any)[field.id]}
+                  onChange={(e) => setForm({ ...form, [field.id]: e.target.value })}
+                  onFocus={() => handleFieldFocus(field.id as any)}
+                  inputMode="none"
+                  className="!mb-0"
+                  inputClassName="!h-10 border-slate-200"
+                />
+              </div>
             ))}
           </div>
 
-          <div className="flex flex-col gap-1 w-full md:w-auto mb-0.5">
-            <div className="flex gap-1">
-              <button className="flex-1 bg-[#49293e] hover:bg-[#3a2131] text-white font-bold text-[10px] md:text-xs py-1.5 px-2 md:px-4 rounded shadow active:scale-95 transition-all">
-                Update
-              </button>
-              <button className="flex-1 bg-[#49293e] hover:bg-[#3a2131] text-white font-bold text-[10px] md:text-xs py-1.5 px-2 md:px-4 rounded shadow active:scale-95 transition-all">
-                More Address
+          {/* Row 3: Notes & Quick Actions */}
+          <div className="grid grid-cols-12 gap-4 items-start shrink-0">
+            <div className="col-span-4">
+              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Notes</span>
+              <FormInput 
+                value={form.note} 
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                onFocus={() => handleFieldFocus("note")} 
+                inputMode="none" 
+                className="!mb-0" 
+                inputClassName="!h-10 border-slate-200" 
+              />
+            </div>
+            <div className="col-span-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Call Back</span>
+              <FormInput 
+                value={form.callBack} 
+                onChange={(e) => setForm({ ...form, callBack: e.target.value })}
+                onFocus={() => handleFieldFocus("callBack")} 
+                inputMode="none" 
+                className="!mb-0" 
+                inputClassName="!h-10 border-slate-200" 
+              />
+            </div>
+            <div className="col-span-3">
+              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Changes</span>
+              <div className="flex gap-2 h-10">
+                {["5.000", "10.000", "20.000"].map((amt) => (
+                  <button key={amt} onClick={() => setForm({ ...form, keepChanges: amt })} className="flex-1 bg-slate-50 hover:bg-[#49293e] hover:text-white text-slate-600 font-black text-[10px] rounded-lg border border-slate-200 transition-all">{amt}</button>
+                ))}
+              </div>
+            </div>
+            <div className="col-span-3 flex flex-col gap-2 pt-5">
+              <button onClick={() => setIsMoreAddressOpen(true)} className="h-10 w-full bg-slate-800 text-white font-black text-[10px] uppercase rounded-lg flex items-center justify-center gap-2">
+                <Plus size={14} /> More Address
               </button>
             </div>
-            <button className="w-full bg-[#49293e] hover:bg-[#3a2131] text-white font-bold text-[10px] md:text-xs py-1.5 px-4 rounded shadow active:scale-95 transition-all">
-              Logs
-            </button>
           </div>
+
+          {/* Row 4: Custom Exclusive Keyboard (Zero-Waste Alignment) */}
+          {showKeyboard && (
+            <div className="mt-auto shrink-0 flex justify-center">
+              <div className="w-full max-w-[980px] bg-slate-900 rounded-2xl p-1.5 shadow-2xl border border-white/10 [&_button]:!h-14 [&_button]:!text-base [&_div]:!gap-1 [&_button]:!px-2 [&_.mb-3]:!hidden">
+                <TouchKeyboard
+                  onInput={handleInput}
+                  onBackspace={handleBackspace}
+                  onClear={handleClearKey}
+                  onClose={() => setShowKeyboard(false)}
+                  size="md"
+                />
+              </div>
+            </div>
+          )}
         </div>
-        
-        {/* Keyboard Area */}
-        {showKeyboard && (
-          <div className="mt-1 shrink-0 bg-white border border-slate-200 rounded-xl shadow-inner p-1 overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
-            <TouchKeyboard
-              onInput={handleInput}
-              onBackspace={handleBackspace}
-              onClear={handleClearKey}
-              onClose={() => setShowKeyboard(false)}
-            />
-          </div>
-        )}
 
-      </div>
-
-      {/* Footer Actions */}
-      <div className="bg-slate-200 p-3 flex justify-end gap-3 shrink-0 rounded-b-xl border-t border-slate-300">
-        <Button 
-          onClick={handleSave} 
-          disabled={loading || !form.mobileNo}
-          isAction
-          loading={loading}
-          icon={<Save size={18} />}
+        <PosMoreAddressModal
+          isOpen={isMoreAddressOpen}
+          onClose={() => setIsMoreAddressOpen(false)}
+          mobileNo={form.mobileNo}
+          onSelectAddress={handleSelectAddressFromMore}
         />
-        <Button 
-          onClick={handleClearForm} 
-          tabIndex={-1}
-          isAction
-          icon={<RotateCcw size={18} />}
-        />
-      </div>
 
+        {/* Action Footer */}
+        <div className="bg-slate-100 p-3 flex justify-end gap-3 shrink-0 border-t border-slate-200">
+          <button onClick={handleClearForm} className="h-11 px-8 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs uppercase rounded-xl border border-slate-200">Clear Form</button>
+          <button 
+            onClick={handleSave} 
+            disabled={loading || !form.mobileNo}
+            className="h-11 px-12 bg-[#49293e] hover:bg-[#633854] text-white font-black text-xs uppercase rounded-xl shadow-lg flex items-center gap-2"
+          >
+            {loading ? <RotateCcw className="animate-spin" size={16} /> : <Save size={16} />}
+            Save Details
+          </button>
+        </div>
+      </div>
     </Modal>
   );
 };
-

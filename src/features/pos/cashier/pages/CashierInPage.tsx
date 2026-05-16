@@ -18,15 +18,15 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
   return (
     <div className="w-full max-w-sm mx-auto">
       {/* PIN Display Area */}
-      <div className="mb-4 relative">
-        <div className="flex justify-center gap-3 mb-2">
+      <div className="mb-6 relative">
+        <div className="flex justify-center gap-4 py-4 px-6 border-2 border-slate-100 bg-white rounded-2xl shadow-sm">
           {[...Array(6)].map((_, i) => (
             <div 
               key={i} 
-              className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
+              className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
                 value.length > i 
-                  ? "bg-[#49293e] border-[#49293e] scale-125 shadow-[0_0_10px_rgba(73,41,62,0.3)]" 
-                  : "bg-transparent border-slate-300"
+                  ? "bg-[#49293e] border-[#49293e] scale-110 shadow-[0_0_10px_rgba(73,41,62,0.3)]" 
+                  : "bg-slate-50 border-slate-200"
               }`}
             />
           ))}
@@ -50,10 +50,10 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
               else handleNumClick(btn);
             }}
             disabled={loading}
-            className={`h-12 md:h-14 rounded-xl flex items-center justify-center text-lg md:text-xl font-black transition-all active:scale-95 shadow-sm border ${
+            className={`h-12 md:h-14 rounded-xl flex items-center justify-center text-lg md:text-xl font-black transition-all active:scale-95 shadow-sm border-2 ${
               btn === "Clear" || btn === "Del"
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-white border-slate-100 text-[#49293e] hover:border-[#49293e]/20 hover:shadow-md"
+                ? "bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200"
+                : "bg-white border-slate-300 text-[#49293e] hover:border-[#49293e]/20 hover:shadow-md"
             }`}
           >
             {btn === "Del" ? <Delete size={20} /> : btn}

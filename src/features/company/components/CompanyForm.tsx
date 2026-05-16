@@ -5,7 +5,7 @@ import { Button, FormInput, Loader, SelectInput } from "../../../components/comm
 import { useToast } from "../../../app/providers/useToast";
 import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
 import { createCompany, fetchCompanyMasterload, fetchCurrencyList } from "../services/companyApi";
-import type { CompanyFormData, CompanyMasterOption, CurrencyOption } from "../types";
+import type { CompanyFormData, CurrencyOption } from "../types";
 
 import { formatPhone } from "../utils/formatters";
 
@@ -58,7 +58,6 @@ interface CompanyFormProps {
 const CompanyForm = ({
   initialValues,
   lockedFields = [],
-  submitLabel = "Save",
   onSuccess,
   clientDb = "",
   tempToken = "",
@@ -97,7 +96,7 @@ const CompanyForm = ({
     const loadMasterData = async () => {
       try {
         setLoadingMasterData(true);
-        const [masterResponse, currencyData] = await Promise.all([
+        const [, currencyData] = await Promise.all([
           fetchCompanyMasterload(),
           fetchCurrencyList()
         ]);

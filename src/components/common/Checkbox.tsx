@@ -8,6 +8,7 @@ interface Props {
   id?: string;
   error?: string;
   tabIndex?: number;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 const Checkbox = ({
@@ -18,6 +19,7 @@ const Checkbox = ({
   id,
   error,
   tabIndex,
+  onKeyDown,
 }: Props) => {
   const inputId = id || label?.replace(/\s+/g, "-").toLowerCase();
 
@@ -41,6 +43,7 @@ const Checkbox = ({
             type="checkbox"
             checked={checked}
             onChange={onChange}
+            onKeyDown={onKeyDown}
             disabled={disabled}
             tabIndex={tabIndex}
             className="sr-only peer"

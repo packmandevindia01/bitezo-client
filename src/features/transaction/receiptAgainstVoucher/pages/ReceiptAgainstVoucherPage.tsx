@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from "react";
-import { FileText, Save, RotateCcw, Plus } from "lucide-react";
+import { Save, RotateCcw, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyReceiptAgainstVoucherForm } from "../constants";
@@ -189,19 +189,23 @@ const ReceiptAgainstVoucherPage = () => {
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 md:px-6 rounded-b-3xl">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-3xl">
           <Button 
             variant="secondary" 
             onClick={handleClearClick} 
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Clear
+          </Button>
           <Button 
             id="rav-page-save-btn"
             isAction
             icon={<Save size={18} />}
-          />
+          >
+            Save
+          </Button>
         </div>
       </div>
 

@@ -62,7 +62,6 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
     }
   };
 
-  const isExisting = denominations.length > 0 && "id" in denominations[0];
 
   return (
     <Modal
@@ -150,14 +149,18 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Cancel
+          </Button>
           <Button 
             onClick={onSave} 
             loading={loading} 
             disabled={loading}
             isAction
             icon={<Save size={18} />}
-          />
+          >
+            Save
+          </Button>
         </div>
       </div>
     </Modal>

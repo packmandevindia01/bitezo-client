@@ -99,7 +99,21 @@ const ProductFormPage = () => {
 
   useBarcodeScanner(handleScan);
 
+  const [showPriceWarning, setShowPriceWarning] = useState(false);
+
   const onSave = () => {
+    const hasGeneralPrice = parseFloat(String(form.price || "0")) > 0;
+    const hasAlternatives = alternatives && alternatives.length > 0;
+
+    if (hasGeneralPrice && hasAlternatives) {
+      setShowPriceWarning(true);
+    } else {
+      handleSave(() => navigate("/dashboard/products"));
+    }
+  };
+
+  const handleConfirmSaveWithWarning = () => {
+    setShowPriceWarning(false);
     handleSave(() => navigate("/dashboard/products"));
   };
 
@@ -141,7 +155,7 @@ const ProductFormPage = () => {
         </div>
 
         {/* Sticky Action Footer */}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3 rounded-b-2xl">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-2xl">
           {Boolean(editingId) && (
             <Button
               variant="danger"
@@ -150,7 +164,9 @@ const ProductFormPage = () => {
               type="button"
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
           <Button 
             variant="secondary" 
@@ -160,7 +176,9 @@ const ProductFormPage = () => {
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Clear
+          </Button>
           <Button 
             onClick={onSave} 
             type="button" 
@@ -168,7 +186,9 @@ const ProductFormPage = () => {
             isAction
             loading={saving}
             icon={<Save size={18} />}
-          />
+          >
+            Save
+          </Button>
           <Button
             variant="secondary"
             className="text-red-600 border-red-100 hover:bg-red-50"
@@ -177,7 +197,9 @@ const ProductFormPage = () => {
             type="button"
             isAction
             icon={<Ban size={18} />}
-          />
+          >
+            Deactivate
+          </Button>
         </div>
       </div>
 
@@ -202,6 +224,16 @@ const ProductFormPage = () => {
         title="Clear Form"
         message="Are you sure you want to clear the form? All unsaved data will be lost."
         confirmLabel="Clear"
+      />
+
+      <ConfirmDialog
+        isOpen={showPriceWarning}
+        onCancel={() => setShowPriceWarning(false)}
+        onConfirm={handleConfirmSaveWithWarning}
+        title="Pricing Conflict"
+        message="⚠️ Alternatives Found: Alternative prices will take priority. The General Price will be ignored in POS. Proceed?"
+        confirmLabel="Save Anyway"
+        confirmVariant="primary"
       />
     </PageShell>
   );

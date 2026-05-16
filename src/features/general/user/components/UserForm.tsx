@@ -201,7 +201,7 @@ const UserForm = ({
 
         <div className="md:col-span-2">
           <Checkbox
-            label="Active/not"
+            label="Active"
             checked={form.isActive}
             onChange={(e) => handleChange("isActive", e.target.checked)}
           />
@@ -215,14 +215,18 @@ const UserForm = ({
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          {initialData ? "Reset" : "Clear"}
+        </Button>
 
         <Button 
           onClick={handleSubmit} 
           loading={submitting}
           isAction
           icon={<Save size={18} />}
-        />
+        >
+          {initialData ? "Update" : "Save"}
+        </Button>
 
         {initialData && onDelete && (
           <Button 
@@ -232,7 +236,9 @@ const UserForm = ({
             tabIndex={-1}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Delete
+          </Button>
         )}
       </div>
     </>

@@ -3,6 +3,7 @@ import React from "react";
 interface Option {
   label: string;
   value: string;
+  disabled?: boolean;
 }
 
 interface Props {
@@ -46,13 +47,13 @@ const SelectInput = ({
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
   return (
-    <div className={`flex flex-col gap-1 w-full ${noMargin ? "" : "mb-4"}`}>
+    <div className={`flex flex-col gap-1 w-full ${noMargin ? "" : "mb-1"}`}>
 
       {/* LABEL */}
       {label && (
         <label
           htmlFor={selectId}
-          className="text-xs md:text-sm font-medium text-gray-700"
+          className="text-[10px] font-bold uppercase tracking-widest text-slate-600"
         >
           {label}
           {required && <span className="text-amber-500 ml-1 font-bold">*</span>}
@@ -71,7 +72,7 @@ const SelectInput = ({
         autoFocus={autoFocus}
         tabIndex={tabIndex}
         className={`
-          w-full px-3 md:px-4 h-9
+          w-full px-3 md:px-4 h-10.5
           text-sm
           rounded-md border outline-none transition
           
@@ -89,7 +90,7 @@ const SelectInput = ({
 
         {/* Options */}
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <option key={opt.value} value={opt.value} disabled={opt.disabled}>
             {opt.label}
           </option>
         ))}

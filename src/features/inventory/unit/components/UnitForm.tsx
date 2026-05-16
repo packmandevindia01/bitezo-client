@@ -94,16 +94,26 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
     value: String(p.unitId)
   }));
 
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100">
           {error}
         </div>
       )}
 
-      <section className="grid gap-5 md:grid-cols-2">
+      <section className="grid gap-x-4 gap-y-3 md:grid-cols-2">
         <SelectInput
+          id="unit-category"
           label="Category"
           options={unitCategoryOptions}
           value={form.category}
@@ -111,34 +121,40 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
             handleChange("category", e.target.value);
             handleChange("parentId", 0); // Reset parent on category change
           }}
+          onKeyDown={(e) => handleKeyDown(e, "unit-name")}
           placeholder="Select category"
           required
           autoFocus
         />
 
         <FormInput
+          id="unit-name"
           label="Unit Name"
           value={form.name}
           onChange={(e) => handleChange("name", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "unit-conversion")}
           placeholder="e.g. Box, Dozen"
           required
         />
 
         <FormInput
+          id="unit-conversion"
           label="Conversion Factor"
           type="number"
           min="1"
+          inputClassName="text-right"
           value={form.conversion <= 0 ? "" : String(form.conversion)}
           onChange={(e) => {
             const val = e.target.value === "" ? 0 : Number(e.target.value);
-            // Allow typing 0 temporarily if empty, but we'll validate on submit
             handleChange("conversion", Math.max(0, val));
           }}
+          onKeyDown={(e) => handleKeyDown(e, "unit-parent")}
           placeholder="e.g. 12"
           required
         />
 
         <SelectInput
+          id="unit-parent"
           label="Parent Unit"
           options={selectOptions}
           value={form.parentId ? String(form.parentId) : ""}
@@ -150,7 +166,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
 
         <div className="md:col-span-2">
            <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#49293e]/60">Calculated Current Value</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Calculated Current Value</p>
               <p className="mt-1 text-2xl font-black text-[#49293e]">{form.currentValue}</p>
               <p className="mt-1 text-[10px] text-slate-500">
                 Formula: {form.conversion} (Conversion) × {parentOptions.find(p => p.unitId === form.parentId)?.currentValue ?? 1} (Parent Value)
@@ -168,7 +184,9 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           tabIndex={-1}
           isAction
           icon={<X size={18} />}
-        />
+        >
+          Cancel
+        </Button>
         <Button 
           variant="secondary" 
           onClick={handleClear} 
@@ -177,13 +195,17 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          Clear
+        </Button>
         <Button 
           type="submit" 
           loading={saving}
           isAction
           icon={<Save size={18} />}
-        />
+        >
+          Save
+        </Button>
         {initialData && (initialData.unitId > 4) && (
           <Button
             variant="danger"
@@ -192,7 +214,9 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
             tabIndex={-1}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Delete
+          </Button>
         )}
       </div>
     </form>

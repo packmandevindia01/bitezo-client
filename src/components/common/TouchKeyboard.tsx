@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 
 interface TouchKeyboardProps {
   onInput: (value: string) => void;
@@ -6,9 +7,10 @@ interface TouchKeyboardProps {
   onClear: () => void;
   onClose: () => void;
   layout?: "qwerty" | "numeric";
+  size?: "sm" | "md";
 }
 
-export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose }: TouchKeyboardProps) => {
+export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose, size = "md" }: TouchKeyboardProps) => {
   const [isCaps, setIsCaps] = useState(false);
 
   const rows = [
@@ -36,15 +38,17 @@ export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose }: TouchK
   };
 
   return (
-    <div className="bg-slate-800 p-3 rounded-t-2xl shadow-2xl w-full select-none animate-in slide-in-from-bottom duration-300">
-      <div className="flex justify-between items-center mb-3 px-2">
-        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Touch Keyboard</span>
-        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
-        </button>
-      </div>
+    <div className={`bg-slate-800 ${size === 'sm' ? 'p-1.5' : 'p-3'} rounded-xl shadow-2xl w-full select-none animate-in slide-in-from-bottom duration-300`}>
+      {size === "md" && (
+        <div className="flex justify-between items-center mb-3 px-2">
+          <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Touch Keyboard</span>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+      )}
       
-      <div className="flex flex-col gap-1.5">
+      <div className={`flex flex-col ${size === 'sm' ? 'gap-1' : 'gap-1.5'}`}>
         {rows.map((row, rowIndex) => (
           <div key={rowIndex} className="flex justify-center gap-1.5">
             {row.map((key) => {
@@ -55,7 +59,7 @@ export const TouchKeyboard = ({ onInput, onBackspace, onClear, onClose }: TouchK
                   key={key}
                   onClick={() => handleKeyClick(key)}
                   className={`
-                    h-12 flex items-center justify-center rounded-lg text-sm font-bold transition-all active:scale-95
+                    ${size === "sm" ? "h-9" : "h-12"} flex items-center justify-center rounded-lg text-sm font-bold transition-all active:scale-95
                     ${isSpecial 
                       ? "bg-slate-700 text-slate-300 px-4" 
                       : "bg-slate-600 text-white w-12"

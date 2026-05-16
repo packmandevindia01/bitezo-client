@@ -1,4 +1,4 @@
-import { Button, Checkbox, FormInput, Modal } from "../../../../components/common";
+import { Button, Checkbox, FormInput, Modal, SelectInput } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import type { BranchOption } from "../types";
 
@@ -51,13 +51,17 @@ const EmployeeModal = ({
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Reset
+          </Button>
           <Button 
             onClick={onSave} 
             loading={saving}
             isAction
             icon={<Save size={18} />}
-          />
+          >
+            {editingId ? "Update" : "Save"}
+          </Button>
           {editingId && (
             <Button
               variant="danger"
@@ -65,13 +69,15 @@ const EmployeeModal = ({
               disabled={saving}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       }
     >
       <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Name</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Name</p>
         <FormInput
           value={form.name}
           onChange={(e) => onChange({ name: e.target.value })}
@@ -79,30 +85,25 @@ const EmployeeModal = ({
           autoFocus
         />
 
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Code</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Code</p>
         <FormInput
           value={form.code}
-          onChange={(e) => onChange({ code: e.target.value })}
+          onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
           placeholder="Enter employee code"
         />
 
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
           Branch Name
         </p>
-        <select
+        <SelectInput
           value={form.branchId}
           onChange={(e) => onChange({ branchId: e.target.value })}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-[#49293e]/40 disabled:cursor-not-allowed disabled:bg-slate-50"
-        >
-          <option value="">
-            {branches.length === 0 ? "Loading branches…" : "Select a branch"}
-          </option>
-          {branches.map((b) => (
-            <option key={b.branchId} value={String(b.branchId)}>
-              {b.branchName}
-            </option>
-          ))}
-        </select>
+          options={branches.map((b) => ({
+            label: b.branchName,
+            value: String(b.branchId),
+          }))}
+          placeholder={branches.length === 0 ? "Loading branches…" : "Select a branch"}
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-4 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">

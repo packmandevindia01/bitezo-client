@@ -65,6 +65,7 @@ export const useProductActions = ({ formState, altState, productList, branches }
           barcode: p.barcode ?? "",
           branchId: String(p.branchId ?? ""),
           isActive: p.isActive ?? true,
+          priceIsIncl: p.priceIsIncl ?? true,
           colorCode: p.colorCode ?? "#49293e",
           productColors: (detail.productColors ?? []).map((pc: any) => ({
             branchId: Number(pc.branchId),
@@ -208,6 +209,7 @@ export const useProductActions = ({ formState, altState, productList, branches }
         barcode: String(form.barcode || "").trim(),
         branchId: parseInt(String(form.branchId)) || 1,
         isActive: form.isActive !== false,
+        priceIsIncl: form.priceIsIncl !== false,
         colorCode: form.colorCode || "#49293e",
         productColors: form.productColors.map((pc: any) => ({
           branchId: parseInt(String(pc.branchId)) || 0,

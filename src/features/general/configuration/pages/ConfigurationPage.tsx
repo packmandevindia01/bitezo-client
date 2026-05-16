@@ -46,7 +46,9 @@ const ConfigurationPage = () => {
             isAction
             loading={saving}
             icon={<Save size={18} />}
-          />
+          >
+            Save Changes
+          </Button>
         </div>
 
         {/* Tab Content */}

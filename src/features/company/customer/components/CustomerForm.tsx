@@ -127,11 +127,11 @@ const CustomerForm = ({
 
         {/* Address Full Width on mobile/tablet, 2 cols on lg+ */}
         <div className="md:col-span-2 lg:col-span-2 flex flex-col gap-1 mb-4 w-full">
-          <label className="text-xs md:text-sm font-medium text-gray-700">Address</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Address</label>
           <textarea
             value={form.address}
             onChange={(e) => handleChange("address", e.target.value)}
-            className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-none h-[42px]"
+            className="w-full px-3 md:px-4 py-2 text-sm rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-none h-[42px]"
             placeholder="Enter full address"
           />
         </div>
@@ -191,14 +191,18 @@ const CustomerForm = ({
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          {initialData ? "Reset" : "Clear"}
+        </Button>
 
         <Button 
           onClick={handleSubmit} 
           loading={submitting}
           isAction
           icon={<Save size={18} />}
-        />
+        >
+          {initialData ? "Update" : "Save"}
+        </Button>
 
         {initialData && onDelete && (
           <Button 
@@ -207,7 +211,9 @@ const CustomerForm = ({
             loading={deleting}
             isAction
             icon={<Trash2 size={18} />}
-          />
+          >
+            Delete
+          </Button>
         )}
       </div>
     </>

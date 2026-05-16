@@ -1,4 +1,4 @@
-import { Palette, Trash2, Plus } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import type { MasterItem, ProductColorItem } from "../types";
 import { Button } from "../../../../components/common";
 

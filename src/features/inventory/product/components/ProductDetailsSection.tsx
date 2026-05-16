@@ -43,7 +43,7 @@ export const ProductDetailsSection = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-      <div className="grid gap-x-3 gap-y-0 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-x-3 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
         <FormInput
           id="prod-name"
           label="Product Name"
@@ -87,7 +87,7 @@ export const ProductDetailsSection = ({
           label="Product Code"
           value={form.code}
           disabled={saving}
-          onChange={(e) => onChange("code", e.target.value)}
+          onChange={(e) => onChange("code", e.target.value.toUpperCase().replace(/\s/g, '_'))}
           onKeyDown={(e) => handleKeyDown(e, "prod-barcode")}
           required
         />
@@ -150,27 +150,41 @@ export const ProductDetailsSection = ({
           onKeyDown={(e) => handleKeyDown(e, "prod-price")}
           required
         />
-        <FormInput
-          id="prod-price"
-          label="Price"
-          type="text"
-          inputMode="decimal"
-          inputClassName="text-right"
-          value={form.price === "0" ? formatAmount(0, decimalPart) : form.price}
-          disabled={saving}
-          onChange={(e) => {
-            const next = sanitizeAmountInput(e.target.value, decimalPart);
-            if (next !== null) onChange("price", next);
-          }}
-          onFocus={(e) => e.target.select()}
-          onBlur={(e) => {
-            if (e.target.value !== "" && e.target.value !== ".") {
-              onChange("price", formatAmount(e.target.value, decimalPart));
-            }
-          }}
-          onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
-          required
-        />
+        <div className="flex flex-col gap-1">
+          <FormInput
+            id="prod-price"
+            label="Price"
+            type="text"
+            inputMode="decimal"
+            inputClassName="text-right"
+            value={form.price === "0" ? formatAmount(0, decimalPart) : form.price}
+            disabled={saving}
+            onChange={(e) => {
+              const next = sanitizeAmountInput(e.target.value, decimalPart);
+              if (next !== null) onChange("price", next);
+            }}
+            onFocus={(e) => e.target.select()}
+            onBlur={(e) => {
+              if (e.target.value !== "" && e.target.value !== ".") {
+                onChange("price", formatAmount(e.target.value, decimalPart));
+              }
+            }}
+            onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
+            required
+          />
+          <div className="flex items-center px-1">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={form.priceIsIncl}
+                onChange={(e) => onChange("priceIsIncl", e.target.checked)}
+                disabled={saving}
+                className="h-4 w-4 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] transition-all cursor-pointer"
+              />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">INCL.</span>
+            </label>
+          </div>
+        </div>
         <SearchableSelect
           id="prod-subcat"
           label="Sub Category"

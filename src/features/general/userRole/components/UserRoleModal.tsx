@@ -108,14 +108,18 @@ const UserRoleModal = ({
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Reset
+          </Button>
           <Button 
             onClick={onSave} 
             disabled={saving || deleting}
             isAction
             loading={saving}
             icon={<Save size={18} />}
-          />
+          >
+            {editingId ? "Update" : "Save"}
+          </Button>
           {editingId && (
             <Button 
               variant="danger" 
@@ -124,7 +128,9 @@ const UserRoleModal = ({
               tabIndex={-1}
               isAction
               icon={<Trash2 size={18} />}
-            />
+            >
+              Delete
+            </Button>
           )}
         </div>
       }
@@ -137,7 +143,7 @@ const UserRoleModal = ({
         <div className="flex flex-col overflow-y-auto pr-1" style={{ maxHeight: "calc(90vh - 120px)" }}>
           <section className="rounded-3xl border border-gray-200 bg-white p-2 md:p-3">
             <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
-              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
                 Role Name
               </p>
               <FormInput
@@ -147,7 +153,7 @@ const UserRoleModal = ({
                 autoFocus
               />
 
-              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
                 Permissions
               </p>
               <div className="overflow-hidden rounded-xl border border-gray-200">

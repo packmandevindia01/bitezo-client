@@ -6,7 +6,6 @@ import type { VoucherSeriesForm as VoucherSeriesFormType } from "../types";
 interface VoucherSeriesFormProps {
   form: VoucherSeriesFormType;
   branches: BranchRecord[];
-  isEditing: boolean;
   saving?: boolean;
   onChange: <K extends keyof VoucherSeriesFormType>(
     key: K,
@@ -17,7 +16,6 @@ interface VoucherSeriesFormProps {
 const VoucherSeriesForm = ({
   form,
   branches,
-  isEditing,
   saving = false,
   onChange,
 }: VoucherSeriesFormProps) => {

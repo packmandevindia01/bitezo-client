@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, FormInput } from "../../../../components/common";
+import { X, KeyRound } from "lucide-react";
 import { isRequired } from "../../../../lib/validators";
 import type { ChangePasswordPayload, User } from "../types";
 
@@ -89,10 +90,21 @@ const ChangePasswordForm = ({ user, onSubmit, onCancel, submitting = false }: Pr
       </div>
 
       <div className="mt-6 flex gap-3">
-        <Button variant="secondary" onClick={onCancel} tabIndex={-1}>
+        <Button 
+          variant="secondary" 
+          onClick={onCancel} 
+          tabIndex={-1}
+          isAction
+          icon={<X size={18} />}
+        >
           Cancel
         </Button>
-        <Button onClick={handleSubmit} loading={submitting}>
+        <Button 
+          onClick={handleSubmit} 
+          loading={submitting}
+          isAction
+          icon={<KeyRound size={18} />}
+        >
           Update Password
         </Button>
       </div>

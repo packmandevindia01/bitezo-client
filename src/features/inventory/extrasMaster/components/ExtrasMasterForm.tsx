@@ -1,5 +1,3 @@
-import { Trash2, Save, RotateCcw } from "lucide-react";
-import { Button } from "../../../../components/common";
 import type { ExtrasMasterForm as ExtrasMasterFormType } from "../types";
 import type { ExtrasTypeRecord } from "../../extrasType/types";
 import type { CategoryListItem } from "../../category/types";
@@ -8,7 +6,6 @@ import ExtrasAllocationSections from "./form/ExtrasAllocationSections";
 
 interface ExtrasMasterFormProps {
   form: ExtrasMasterFormType;
-  isEditing: boolean;
   saving: boolean;
   loading: boolean;
   branches: { id: number; name: string }[];
@@ -24,14 +21,10 @@ interface ExtrasMasterFormProps {
   onToggleCategory: (categoryId: number) => void;
   onToggleBranchAlloc: () => void;
   onToggleCategoryAlloc: () => void;
-  onClear: () => void;
-  onSave: () => void;
-  onDelete?: () => void;
 }
 
 const ExtrasMasterForm = ({
   form,
-  isEditing,
   saving,
   loading,
   branches,
@@ -44,9 +37,6 @@ const ExtrasMasterForm = ({
   onToggleCategory,
   onToggleBranchAlloc,
   onToggleCategoryAlloc,
-  onClear,
-  onSave,
-  onDelete,
 }: ExtrasMasterFormProps) => {
   const typeOptions = extrasTypes.map((t) => ({
     label: t.name,
