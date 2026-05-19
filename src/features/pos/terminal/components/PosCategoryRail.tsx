@@ -25,20 +25,41 @@ const PosCategoryRail = ({
             type="button"
             onClick={() => onSelect(category.id.toString())}
             className={`
-              relative flex flex-col items-center justify-center 
-              rounded-xl px-4 py-2 text-center transition-all duration-300 
+              relative flex items-center gap-3
+              rounded-xl px-3 py-1.5 text-left transition-all duration-300 
               active:scale-[0.98] group shrink-0
               ${
                 isActive
                   ? "bg-[#49293e] text-white shadow-lg shadow-[#49293e]/20 z-10"
                   : "bg-white text-slate-700 border border-slate-200/60 shadow-sm hover:border-[#49293e]/30"
               }
-              min-w-[120px] h-[45px] xl:min-h-[48px] xl:w-full
+              min-w-[140px] xl:w-full
             `}
           >
-            <p className={`text-xs xl:text-sm font-bold tracking-tight uppercase ${isActive ? "text-white" : "text-[#49293e]"}`}>
-              {category.name}
-            </p>
+            {category.imageUrl ? (
+              <img 
+                src={category.imageUrl} 
+                alt={category.name} 
+                className="w-8 h-8 rounded-lg object-cover shrink-0" 
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-xs font-black uppercase ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>
+                {category.name.substring(0, 2)}
+              </div>
+            )}
+            <div className="flex flex-col min-w-0">
+              <p className={`text-xs xl:text-sm font-bold tracking-tight uppercase leading-tight truncate ${isActive ? "text-white" : "text-[#49293e]"}`}>
+                {category.name}
+              </p>
+              {category.arabicName && (
+                <p className={`text-[10px] xl:text-xs font-semibold leading-tight mt-0.5 truncate ${isActive ? "text-white/80" : "text-slate-400"}`}>
+                  {category.arabicName}
+                </p>
+              )}
+            </div>
           </button>
         );
       })}

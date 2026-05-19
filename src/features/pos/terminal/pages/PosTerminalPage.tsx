@@ -55,6 +55,10 @@ export const PosTerminalPage = () => {
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [priceInputValue, setPriceInputValue] = useState("");
 
+  // Quantity Flow States
+  const [isQtyModalOpen, setIsQtyModalOpen] = useState(false);
+  const [qtyInputValue, setQtyInputValue] = useState("");
+
   // Extras & Modifiers Flow States
   const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
 
@@ -98,19 +102,38 @@ export const PosTerminalPage = () => {
     setBillDiscount,
     setItemDiscount,
     updateItemPrice,
+    updateItemQty,
     setItemCustomizations,
     orderLoading,
     submitOrder,
   } = usePosTerminal();
 
+  // Reset alternatives and selectedProduct when activeGroupId, activeCategoryId, activeSubCategoryId, or search changes
+  useEffect(() => {
+    setAlternatives([]);
+    setSelectedProduct(null);
+  }, [activeGroupId, activeCategoryId, activeSubCategoryId, search]);
+
+  const handleClearCart = () => {
+    clearCart();
+    setSelectedKey(null);
+    setSelectedProduct(null);
+    setAlternatives([]);
+  };
+
   // Handle Order Submission
   const handleOrder = async () => {
     if (!status) return;
-    await submitOrder({
+    const orderId = await submitOrder({
       dayId: status.dayId,
       shiftId: status.shiftId,
       userId: status.userId
     });
+    if (orderId) {
+      setSelectedKey(null);
+      setSelectedProduct(null);
+      setAlternatives([]);
+    }
   };
 
   // Handle product click - check for alternatives
@@ -128,9 +151,11 @@ export const PosTerminalPage = () => {
       } else {
         const data = await menuApi.getProductData(productId);
         addProduct(productId, undefined, data.price);
+        setSelectedKey(`${productId}-main`);
       }
     } catch {
       addProduct(productId);
+      setSelectedKey(`${productId}-main`);
     } finally {
       setFetchingAlts(false);
     }
@@ -139,6 +164,7 @@ export const PosTerminalPage = () => {
   const handleAltSelect = (variant: PosAlternative) => {
     if (selectedProduct) {
       addProduct(selectedProduct.id, variant.altName, variant.price);
+      setSelectedKey(`${selectedProduct.id}-${variant.altName}`);
     }
   };
 
@@ -158,7 +184,7 @@ export const PosTerminalPage = () => {
 
   // 2. Keyboard Hotkeys
   usePosShortcuts({
-    onClearCart: clearCart,
+    onClearCart: handleClearCart,
     onHoldTicket: () => {},
     onCheckout: () => {}
   });
@@ -191,12 +217,35 @@ export const PosTerminalPage = () => {
     setIsPriceModalOpen(false);
   };
 
+  const handleApplyQty = (value: string) => {
+    const numValue = parseInt(value, 10);
+    if (isNaN(numValue) || numValue < 1) return;
+
+    if (selectedKey) {
+      const [idPart, ...variantParts] = selectedKey.split('-');
+      const productId = parseInt(idPart, 10);
+      const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
+      updateItemQty(productId, variantName, numValue);
+    }
+    setIsQtyModalOpen(false);
+  };
+
   const currentSelectedItem = useMemo(() => {
     if (!selectedKey) return null;
+    const getNormalizedVariant = (name?: string) => {
+      const n = (name || '').toLowerCase().trim();
+      if (!n || n === 'main' || n === 'variation') return 'main';
+      return n;
+    };
+    const [selIdPart, ...selVariantParts] = selectedKey.split('-');
+    const selVariantName = getNormalizedVariant(selVariantParts.join('-'));
+    const normalizedSelected = `${selIdPart}-${selVariantName}`.toLowerCase().trim();
+
     return cartDetails.find((item) => {
-      const key = `${item.productId}-${item.variantName || "main"}`;
+      const itemVarName = getNormalizedVariant(item.variantName);
+      const key = `${item.productId}-${itemVarName}`.toLowerCase().trim();
       // Support both indexed and non-indexed keys for robustness
-      return key === selectedKey || selectedKey.startsWith(`${key}-`);
+      return key === normalizedSelected || normalizedSelected.startsWith(`${key}-`);
     });
   }, [selectedKey, cartDetails]);
 
@@ -209,9 +258,14 @@ export const PosTerminalPage = () => {
 
   const openPriceModal = () => {
     if (!selectedKey) return;
-    const currentPrice = currentSelectedItem?.product.price || 0;
-    setPriceInputValue(currentPrice.toString());
+    setPriceInputValue("");
     setIsPriceModalOpen(true);
+  };
+
+  const openQtyModal = () => {
+    if (!selectedKey) return;
+    setQtyInputValue("");
+    setIsQtyModalOpen(true);
   };
 
   const openDiscountChoice = () => {
@@ -244,7 +298,7 @@ export const PosTerminalPage = () => {
   return (
     <div className="flex h-screen flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
       <PosTopNav 
-        onNewOrder={clearCart} 
+        onNewOrder={handleClearCart} 
         onMore={() => setIsMoreModalOpen(true)} 
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onDelivery={() => setIsDeliveryModalOpen(true)}
@@ -339,12 +393,12 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Action Button Bar */}
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
             <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm" tabIndex={-1}>
               Close
             </button>
             <button
-              onClick={clearCart}
+              onClick={handleClearCart}
               className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
               tabIndex={-1}
             >
@@ -352,18 +406,6 @@ export const PosTerminalPage = () => {
             </button>
             <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
               Waiter
-            </button>
-            <button 
-              onClick={() => {
-                if (!selectedKey) {
-                  showToast("Please select an item in the cart first", "warning");
-                  return;
-                }
-                setExtrasModifierType('extras');
-              }}
-              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
-            >
-              Extras
             </button>
             <button 
               onClick={openDiscountChoice}
@@ -412,8 +454,15 @@ export const PosTerminalPage = () => {
               onDecrement={decrementItem}
               onRemove={removeItem}
               onMod={() => setExtrasModifierType('modifiers')}
-              onPrice={openPriceModal}
-              onClearCart={clearCart}
+              onExtras={() => {
+                if (!selectedKey) {
+                  showToast("Please select an item in the cart first", "warning");
+                  return;
+                }
+                setExtrasModifierType('extras');
+              }}
+              onQty={openQtyModal}
+              onClearCart={handleClearCart}
               onOrder={handleOrder}
               orderLoading={orderLoading}
               onClose={() => setIsCartOpen(false)}
@@ -538,8 +587,8 @@ export const PosTerminalPage = () => {
                   }
                 }}
                 className={`
-                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-100
-                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-100" : "bg-white text-slate-700 hover:bg-slate-50"}
+                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
                 `}
               >
                 {btn}
@@ -589,9 +638,24 @@ export const PosTerminalPage = () => {
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Price</span>
               <span className="text-[9px] font-black text-[#ff9500] uppercase">Original: {formatCurrency(currentSelectedItem?.product.price || 0)}</span>
             </div>
-            <div className="text-4xl font-black text-white font-mono">
-              {priceInputValue || "0"}
-            </div>
+            <input
+              type="text"
+              autoFocus
+              value={priceInputValue}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^[0-9]*\.?[0-9]*$/.test(val)) {
+                  setPriceInputValue(val);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApplyPrice(priceInputValue);
+                }
+              }}
+              placeholder="0"
+              className="w-full bg-transparent text-right text-4xl font-black text-white font-mono outline-none border-none p-0 focus:ring-0 focus:outline-none placeholder:text-white/30"
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -607,8 +671,8 @@ export const PosTerminalPage = () => {
                   }
                 }}
                 className={`
-                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-100
-                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-100" : "bg-white text-slate-700 hover:bg-slate-50"}
+                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
                 `}
               >
                 {btn}
@@ -630,6 +694,90 @@ export const PosTerminalPage = () => {
             >
               <Check size={18} strokeWidth={3} />
               Update Price
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modern POS Qty Override Modal */}
+      <Modal
+        isOpen={isQtyModalOpen}
+        onClose={() => setIsQtyModalOpen(false)}
+        noPadding
+        showClose={false}
+        className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
+      >
+        <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em]">Manual Quantity</h2>
+          <button onClick={() => setIsQtyModalOpen(false)} className="opacity-60 hover:opacity-100" tabIndex={-1}>
+            <XCircle size={20} />
+          </button>
+        </div>
+
+        <div className="bg-[#f8fafc] p-6 space-y-6">
+          <div className="bg-[#1e293b] p-6 rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#002b5c]" />
+            <div className="w-full flex justify-between items-center mb-1">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Qty</span>
+              <span className="text-[9px] font-black text-[#002b5c] uppercase">Current: x{currentSelectedItem?.quantity || 1}</span>
+            </div>
+            <input
+              type="text"
+              autoFocus
+              value={qtyInputValue}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^[0-9]*$/.test(val)) {
+                  setQtyInputValue(val);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApplyQty(qtyInputValue);
+                }
+              }}
+              placeholder="0"
+              className="w-full bg-transparent text-right text-4xl font-black text-white font-mono outline-none border-none p-0 focus:ring-0 focus:outline-none placeholder:text-white/30"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", ""].map((btn, idx) => {
+              if (btn === "") return <div key={idx} />;
+              return (
+                <button
+                  key={btn}
+                  onClick={() => {
+                    if (btn === "Clear") setQtyInputValue("");
+                    else {
+                      if (qtyInputValue.length < 5) setQtyInputValue(prev => prev + btn);
+                    }
+                  }}
+                  className={`
+                    h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                    ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
+                  `}
+                >
+                  {btn}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              onClick={() => setIsQtyModalOpen(false)}
+              className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+              tabIndex={-1}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleApplyQty(qtyInputValue)}
+              className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <Check size={18} strokeWidth={3} />
+              Update Qty
             </button>
           </div>
         </div>

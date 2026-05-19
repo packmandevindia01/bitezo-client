@@ -2,6 +2,7 @@ import { useState } from "react";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import { getConfig } from "../../../../config";
+import { formatAmount, getDecimalPart } from "../../../../utils/formatters";
 
 interface ProductActionsDeps {
   formState: {
@@ -60,8 +61,8 @@ export const useProductActions = ({ formState, altState, productList, branches }
           unitId: String(p.unitId ?? ""),
           pVatId: String(p.pVatId ?? (p as Record<string, unknown>).pvatId ?? ""),
           sVatId: String(p.sVatId ?? (p as Record<string, unknown>).svatId ?? ""),
-          cost: String(p.cost ?? "0"),
-          price: String(p.price ?? "0"),
+          cost: formatAmount(p.cost ?? 0, getDecimalPart()),
+          price: formatAmount(p.price ?? 0, getDecimalPart()),
           barcode: p.barcode ?? "",
           branchId: String(p.branchId ?? ""),
           isActive: p.isActive ?? true,
@@ -99,7 +100,7 @@ export const useProductActions = ({ formState, altState, productList, branches }
           altData.map((alt: Record<string, unknown>, idx: number) => ({
             ...alt,
             id: (alt.id as number) || Date.now() + idx,
-            price: String(alt.price ?? "0"),
+            price: formatAmount((alt.price as string | number) ?? 0, getDecimalPart()),
           }))
         );
       }

@@ -80,6 +80,15 @@ const initialState: PosState = {
   selectedAddressId: 0,
 };
 
+const getNormalizedVariant = (name?: string) => {
+  const n = (name || '').toLowerCase().trim();
+  if (!n || n === 'main' || n === 'variation') return 'main';
+  return n;
+};
+
+const matchVariant = (a?: string, b?: string) => 
+  getNormalizedVariant(a) === getNormalizedVariant(b);
+
 const posSlice = createSlice({
   name: 'pos',
   initialState,
@@ -87,7 +96,7 @@ const posSlice = createSlice({
     addToCart: (state, action: PayloadAction<{ productId: number; variantName?: string; price?: number }>) => {
       const { productId, variantName, price } = action.payload;
       const existing = state.cartItems.find(item => 
-        item.productId === productId && item.variantName === variantName
+        item.productId === productId && matchVariant(item.variantName, variantName)
       );
       if (existing) {
         existing.quantity += 1;
@@ -99,7 +108,7 @@ const posSlice = createSlice({
     incrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
       const { productId, variantName } = action.payload;
       const item = state.cartItems.find(i => 
-        i.productId === productId && i.variantName === variantName
+        i.productId === productId && matchVariant(i.variantName, variantName)
       );
       if (item) {
         item.quantity += 1;
@@ -109,14 +118,14 @@ const posSlice = createSlice({
     decrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
       const { productId, variantName } = action.payload;
       const item = state.cartItems.find(i => 
-        i.productId === productId && i.variantName === variantName
+        i.productId === productId && matchVariant(i.variantName, variantName)
       );
       if (item) {
         if (item.quantity > 1) {
           item.quantity -= 1;
         } else {
           state.cartItems = state.cartItems.filter(i => 
-            !(i.productId === productId && i.variantName === variantName)
+            !(i.productId === productId && matchVariant(i.variantName, variantName))
           );
         }
         localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
@@ -125,13 +134,15 @@ const posSlice = createSlice({
     removeFromCart: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
       const { productId, variantName } = action.payload;
       state.cartItems = state.cartItems.filter(i => 
-        !(i.productId === productId && i.variantName === variantName)
+        !(i.productId === productId && matchVariant(i.variantName, variantName))
       );
       localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
     },
     clearCart: (state) => {
       state.cartItems = [];
       state.billDiscountValue = 0;
+      state.selectedCustomerId = 1;
+      state.selectedAddressId = 0;
       localStorage.removeItem('posCartItems');
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
@@ -157,7 +168,7 @@ const posSlice = createSlice({
     },
     setItemDiscount: (state, action: PayloadAction<{ productId: number; variantName?: string; value: number; type: 'percentage' | 'amount' }>) => {
       const { productId, variantName, value, type } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && i.variantName === variantName);
+      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
       if (item) {
         item.discountValue = value;
         item.discountType = type;
@@ -166,9 +177,17 @@ const posSlice = createSlice({
     },
     updateItemPrice: (state, action: PayloadAction<{ productId: number; variantName?: string; price: number }>) => {
       const { productId, variantName, price } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && i.variantName === variantName);
+      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
       if (item) {
         item.price = price;
+        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
+      }
+    },
+    updateItemQty: (state, action: PayloadAction<{ productId: number; variantName?: string; quantity: number }>) => {
+      const { productId, variantName, quantity } = action.payload;
+      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
+      if (item) {
+        item.quantity = Math.max(1, quantity);
         localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
@@ -179,7 +198,7 @@ const posSlice = createSlice({
       modifiers?: { id: number; name: string; qty: number }[];
     }>) => {
       const { productId, variantName, extras, modifiers } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && i.variantName === variantName);
+      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
       if (item) {
         item.extras = extras;
         item.modifiers = modifiers;
@@ -243,6 +262,7 @@ export const {
   setBillDiscount,
   setItemDiscount,
   updateItemPrice,
+  updateItemQty,
   setItemCustomizations,
   setGroups,
   setGroup,

@@ -29,20 +29,33 @@ const PosProductGrid = ({
   const [columns, setColumns] = useState(1);
 
   useEffect(() => {
-    const updateColumns = () => {
-      if (!parentRef.current) return;
-      const width = parentRef.current.offsetWidth;
-      if (width > 1500) setColumns(8);
-      else if (width > 1200) setColumns(7);
-      else if (width > 900) setColumns(6);
-      else if (width > 600) setColumns(4);
-      else setColumns(2);
-    };
+    if (!parentRef.current) return;
 
-    updateColumns();
-    window.addEventListener("resize", updateColumns);
-    return () => window.removeEventListener("resize", updateColumns);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        if (width > 1200) setColumns(8);
+        else if (width > 1000) setColumns(7);
+        else if (width > 800) setColumns(6);
+        else if (width > 450) setColumns(5);
+        else setColumns(4);
+      }
+    });
+
+    observer.observe(parentRef.current);
+    return () => observer.disconnect();
   }, []);
+
+  const firstAltRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (alternatives && alternatives.length > 0) {
+      const timer = setTimeout(() => {
+        firstAltRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [alternatives]);
 
   const showSubCategories = !activeSubCategoryId && subCategories.length > 0 && alternatives.length === 0;
   const showAlternatives = alternatives.length > 0;
@@ -64,7 +77,10 @@ const PosProductGrid = ({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => (showSubCategories ? 160 : 120),
+    estimateSize: () => {
+      if (showSubCategories) return 160;
+      return 145;
+    },
     overscan: 5,
   });
 
@@ -138,10 +154,21 @@ const PosProductGrid = ({
                           h-[140px]
                         "
                       >
-                        <div className="w-10 h-10 rounded-lg bg-[#49293e]/5 flex items-center justify-center mb-2 group-hover:bg-[#49293e] transition-colors duration-300">
-                          <svg className="w-5 h-5 text-[#49293e] group-hover:text-white transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
-                          </svg>
+                        <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center mb-2 shrink-0 bg-slate-50 border border-slate-100 group-hover:border-transparent transition-colors duration-300">
+                          {sub.imageUrl ? (
+                            <img 
+                              src={sub.imageUrl} 
+                              alt={sub.subCategoryName} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <svg className="w-5 h-5 text-[#49293e] group-hover:text-white transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
+                            </svg>
+                          )}
                         </div>
                         <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase">{sub.subCategoryName}</h3>
                         <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest">{sub.arabicName || "ITEMS"}</p>
@@ -149,35 +176,51 @@ const PosProductGrid = ({
                     );
                   } else if (showAlternatives) {
                     const alt = item as PosAlternative;
+                    const isFirstAlt = alternatives.indexOf(alt) === 0;
                     return (
                       <button
                         key={alt.altName}
+                        ref={isFirstAlt ? firstAltRef : undefined}
                         onClick={() => onSelectAlt?.(alt)}
                         className="
                           group relative flex flex-col justify-between
-                          rounded-xl border border-[#49293e]/20 bg-white p-3 text-left
-                          transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/10 hover:-translate-y-1
-                          h-full w-full outline-none ring-1 ring-inset ring-transparent hover:ring-[#49293e]/30
+                          rounded-xl border border-[#49293e]/20 bg-white p-2 text-left
+                          transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
+                          h-[135px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                         "
                       >
-                        <div className="w-full">
-                          <h3 className="text-sm font-black text-[#49293e] leading-tight pr-1 uppercase tracking-tight">
-                            {alt.altName}
-                          </h3>
-                          <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                            {alt.altArabic || "VARIATION"}
-                          </p>
+                        <div className="w-full h-[58px] rounded-lg overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center mb-1 shrink-0">
+                          <span className="text-sm font-black text-slate-300 uppercase select-none">
+                            {alt.altName.substring(0, 2)}
+                          </span>
                         </div>
 
-                        <div className="mt-2 flex items-center justify-between w-full">
-                          <div className="text-base font-black text-[#49293e]">
-                            {formatCurrency(alt.price)}
+                        <div className="w-full flex-1 flex flex-col justify-between min-h-0">
+                          <div className="w-full">
+                            <h3 className="text-[10px] font-extrabold text-[#49293e] leading-tight line-clamp-1 uppercase tracking-tight">
+                              {alt.altName}
+                            </h3>
+                            <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
+                              {alt.altArabic || "VARIATION"}
+                            </p>
                           </div>
 
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#49293e] text-white shadow-md shadow-[#49293e]/10 group-hover:scale-110 transition-transform">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
-                              <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                          <div className="mt-1 flex items-center justify-between w-full">
+                            <div className="text-[10px] font-black text-[#49293e] tracking-tight">
+                              {formatCurrency(alt.price)}
+                            </div>
+
+                            <div
+                              className="
+                                flex h-5 w-5 items-center justify-center 
+                                rounded-full bg-[#49293e] text-white shadow-sm
+                                transition-all group-hover:scale-110 active:scale-95 shrink-0
+                              "
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14M12 5v14" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
                       </button>

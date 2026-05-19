@@ -22,13 +22,18 @@ const PosGroupTabs = ({
             key={group.groupId}
             onClick={() => onSelect(group.groupId)}
             className={`
-              whitespace-nowrap px-6 py-2 rounded-full text-sm font-bold transition-all
+              whitespace-nowrap px-6 py-1 rounded-full text-sm font-bold transition-all flex flex-col items-center justify-center
               ${isActive 
                 ? "bg-[#49293e] text-white shadow-lg" 
                 : "bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200"}
             `}
           >
-            {group.groupName}
+            <span>{group.groupName}</span>
+            {group.arabicName && (
+              <span className={`text-[10px] ${isActive ? "text-white/80" : "text-slate-400"} font-medium mt-0.5`}>
+                {group.arabicName}
+              </span>
+            )}
           </button>
         );
       })}

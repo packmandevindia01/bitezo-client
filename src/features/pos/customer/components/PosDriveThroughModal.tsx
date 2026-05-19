@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Modal, FormInput, Button } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
+import { Save, RotateCcw } from "lucide-react";
+import { useAppDispatch } from "../../../../app/hooks";
+import { setOrderType } from "../../terminal/store/posSlice";
 
 interface PosDriveThroughModalProps {
   isOpen: boolean;
@@ -8,6 +11,7 @@ interface PosDriveThroughModalProps {
 }
 
 export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalProps) => {
+  const dispatch = useAppDispatch();
   const [form, setForm] = useState({
     vehicleNo: "",
     customerName: ""
@@ -58,6 +62,21 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
       customerName: ""
     });
     setTimeout(() => firstInputRef.current?.focus(), 50);
+  };
+
+  const handleSave = () => {
+    dispatch(setOrderType("drive-thru"));
+    if (form.vehicleNo) {
+      localStorage.setItem("driveThruVehicleNo", form.vehicleNo);
+    } else {
+      localStorage.removeItem("driveThruVehicleNo");
+    }
+    if (form.customerName) {
+      localStorage.setItem("driveThruCustomerName", form.customerName);
+    } else {
+      localStorage.removeItem("driveThruCustomerName");
+    }
+    onClose();
   };
 
   return (
@@ -116,11 +135,22 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
 
       {/* Footer Actions */}
       <div className="bg-slate-200 p-3 flex justify-end gap-3 shrink-0 rounded-b-xl border-t border-slate-300">
-        <Button onClick={() => {}} className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md">
-          Save
-        </Button>
-        <Button onClick={handleClearForm} className="bg-[#49293e] hover:bg-[#3a2131] px-10 shadow-md" tabIndex={-1}>
+        <Button
+          onClick={handleClearForm}
+          variant="secondary"
+          isAction
+          icon={<RotateCcw size={16} />}
+          tabIndex={-1}
+        >
           Clear
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="primary"
+          isAction
+          icon={<Save size={16} />}
+        >
+          Save
         </Button>
       </div>
     </Modal>

@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { 
-  MoreHorizontal, 
-  UtensilsCrossed, 
-  ShoppingBag, 
-  Truck, 
-  Car, 
-  Users, 
+import {
+  MoreHorizontal,
+  UtensilsCrossed,
+  ShoppingBag,
+  Truck,
+  Car,
+  Users,
   UserPlus,
 } from "lucide-react";
 import PosActionButton from "./PosActionButton";
@@ -47,13 +47,13 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
   return (
     <nav className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-1 shadow-sm shrink-0">
       <div className="flex items-center gap-4 xl:gap-6">
-        <div className="flex items-center justify-center p-1.5 border border-slate-200 rounded-xl bg-white overflow-hidden w-32 md:w-36 xl:w-44 h-9 xl:h-10 shadow-sm">
-          <img src="/bitezo-logo-hq.png" alt="Bitezo" className="w-full h-full object-contain" />
+        <div className="flex items-center justify-center overflow-hidden w-28 md:w-32 xl:w-36 h-9 xl:h-10">
+          <img src="/LOGO6.png" alt="Bitezo" className="w-full h-full object-contain" style={{ transform: 'scale(3.2) translateY(1.5px)' }} />
         </div>
 
-        <PosActionButton 
-          accent="orange" 
-          size="lg" 
+        <PosActionButton
+          accent="orange"
+          size="lg"
           className="rounded-xl px-4 h-9 xl:h-10 shadow-md flex items-center gap-2"
           onClick={onNewOrder}
         >

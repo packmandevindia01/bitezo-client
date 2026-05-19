@@ -394,12 +394,12 @@ export const TouchKeyboard = ({
   return (
     <div
       className={`
-        w-full select-none transition-all duration-300 ease-out
+        w-full ${isCompact ? "max-w-[550px]" : "max-w-[920px]"} mx-auto select-none transition-all duration-300 ease-out
         ${embedded ? "" : `
-          bg-gradient-to-b from-[#2c1924] to-[#170c12]
-          border border-white/10
-          shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.06)]
-          ${isCompact ? "rounded-xl p-1.5" : "rounded-2xl p-3 sm:p-4"}
+          bg-gradient-to-b from-[#faf8f9] to-[#f3edf0]
+          border border-slate-300
+          shadow-[0_15px_40px_rgba(73,41,62,0.08),0_1px_3px_rgba(0,0,0,0.05)]
+          ${isCompact ? "rounded-xl p-1.5" : "rounded-2xl p-2 sm:p-2.5"}
         `}
       `}
       style={{
@@ -416,15 +416,15 @@ export const TouchKeyboard = ({
               <span className="w-2 h-2 rounded-full bg-[#ffbd2e] opacity-80" />
               <span className="w-2 h-2 rounded-full bg-[#28ca41] opacity-80" />
             </div>
-            <span className="text-[9px] font-black tracking-[0.25em] uppercase text-white/30 ml-1.5 flex items-center gap-1">
-              <Sparkles size={8} className="text-amber-500/50 animate-pulse" />
+            <span className="text-[9px] font-black tracking-[0.25em] uppercase text-slate-450 ml-1.5 flex items-center gap-1">
+              <Sparkles size={8} className="text-[#49293e]/60 animate-pulse" />
               POS SMART KEYBOARD
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             {/* Quick Status indicators */}
-            <span className="text-[8px] font-black uppercase text-white/20 tracking-wider">
+            <span className="text-[8px] font-black uppercase text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded tracking-wider border border-slate-300">
               Layout: {currentLayout}
             </span>
             <button
@@ -434,9 +434,9 @@ export const TouchKeyboard = ({
               }}
               className="
                 w-7 h-7 flex items-center justify-center rounded-lg
-                bg-white/5 hover:bg-white/10 active:bg-white/20
-                text-white/40 hover:text-white/80
-                transition-all duration-150 border border-white/5
+                bg-slate-200 hover:bg-slate-300 active:bg-slate-450/40
+                text-slate-600 hover:text-slate-900
+                transition-all duration-150 border border-slate-350
               "
             >
               <X size={14} strokeWidth={2.5} />
@@ -446,9 +446,9 @@ export const TouchKeyboard = ({
       )}
 
       {/* Grid of keys */}
-      <div className={`flex flex-col ${isCompact ? "gap-1" : "gap-1.5 sm:gap-2"}`}>
+      <div className={`flex flex-col ${isCompact ? "gap-0.5" : "gap-1 sm:gap-1.25"}`}>
         {activeRows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-1 sm:gap-1.5 w-full">
+          <div key={rowIndex} className="flex justify-center gap-0.5 sm:gap-1 w-full">
             {row.map((key) => {
               const isSpecial = ["Shift", "Back", "Back Space", "Clear", "Space", "Enter", "Close", "Symbols", "ABC", "123"].includes(key);
               const isActive = !!pressedKeys[key];
@@ -471,10 +471,10 @@ export const TouchKeyboard = ({
 
               // Height class matching standard touch billing counter ergonomic preferences
               const hClass = isCompact 
-                ? "h-9" 
+                ? "h-7.5" 
                 : currentLayout === "numeric" 
-                  ? "h-14 sm:h-16" 
-                  : "h-11 sm:h-12.5 md:h-13.5";
+                  ? "h-11.5 sm:h-12.5" 
+                  : "h-9.5 sm:h-10 md:h-10.5";
 
               // Color styles matching the Backoffice Crimson/Maroon design rules
               let bgClass = "";
@@ -483,39 +483,39 @@ export const TouchKeyboard = ({
               let shadowClass = "";
 
               if (isShiftOn) {
-                bgClass = "bg-[#a6152f]";
+                bgClass = "bg-[#49293e]";
                 textClass = "text-white";
-                borderClass = "border-[#cf1837]";
-                shadowClass = "shadow-[0_2px_0_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.22)]";
+                borderClass = "border-[#20101a]";
+                shadowClass = "shadow-[0_2px_0_rgba(73,41,62,0.3)]";
               } else if (key === "Enter") {
                 bgClass = isActive
-                  ? "bg-[#8a1329]"
-                  : "bg-gradient-to-b from-[#a6152f] to-[#800f22]";
+                  ? "bg-[#351e2d]"
+                  : "bg-gradient-to-b from-[#49293e] to-[#3a2031]";
                 textClass = "text-white font-bold";
-                borderClass = "border-[#c41634]/70";
-                shadowClass = "shadow-[0_3px_0_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.22)]";
+                borderClass = "border-[#20101a]";
+                shadowClass = "shadow-[0_2.5px_0_rgba(73,41,62,0.25)]";
               } else if (key === "Close") {
                 bgClass = isActive
-                  ? "bg-[#1f121a]"
-                  : "bg-gradient-to-b from-[#3b2231] to-[#2c1824]";
-                textClass = "text-white/80 font-black";
-                borderClass = "border-white/5";
-                shadowClass = "shadow-[0_2px_0_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.08)]";
+                  ? "bg-slate-300"
+                  : "bg-gradient-to-b from-slate-200 to-slate-250";
+                textClass = "text-slate-700 font-black";
+                borderClass = "border-slate-500";
+                shadowClass = "shadow-[0_2px_0_rgba(148,163,184,0.15)]";
               } else if (isSpecial) {
                 bgClass = isActive
-                  ? "bg-[#150a10]"
-                  : "bg-gradient-to-b from-[#2e1c27] to-[#21131c]";
-                textClass = "text-white/60 font-semibold";
-                borderClass = "border-white/5";
-                shadowClass = "shadow-[0_2px_0_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]";
+                  ? "bg-slate-200"
+                  : "bg-gradient-to-b from-slate-100 to-slate-200/90";
+                textClass = "text-slate-600 font-semibold";
+                borderClass = "border-slate-500";
+                shadowClass = "shadow-[0_2px_0_rgba(148,163,184,0.15)]";
               } else {
                 // Alpha-numeric standard key
                 bgClass = isActive
-                  ? "bg-[#180e14]"
-                  : "bg-gradient-to-b from-[#472a3e] to-[#361e2e]";
-                textClass = "text-white/90";
-                borderClass = "border-white/10";
-                shadowClass = "shadow-[0_2.5px_0_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)]";
+                  ? "bg-slate-100"
+                  : "bg-gradient-to-b from-white to-slate-50";
+                textClass = "text-[#49293e] font-bold";
+                borderClass = "border-slate-500";
+                shadowClass = "shadow-[0_2.5px_0_rgba(148,163,184,0.2)]";
               }
 
               return (
@@ -536,7 +536,7 @@ export const TouchKeyboard = ({
                     focus:outline-none focus:ring-0
                     cursor-pointer
                     overflow-hidden
-                    ${isCompact ? "text-xs" : "text-sm sm:text-base"}
+                    ${isCompact ? "text-[10px]" : "text-xs sm:text-sm"}
                   `}
                   style={{
                     WebkitTapHighlightColor: "transparent",
@@ -544,49 +544,49 @@ export const TouchKeyboard = ({
                   }}
                 >
                   {key === "Back" || key === "Back Space" ? (
-                    <div className="flex items-center gap-1.5 text-white/80">
+                    <div className="flex items-center gap-1.5 text-slate-700">
                       <Delete
-                        size={isCompact ? 14 : currentLayout === "numeric" ? 22 : 18}
+                        size={isCompact ? 12 : currentLayout === "numeric" ? 18 : 16}
                         strokeWidth={2.2}
                       />
                       {key === "Back Space" && !isCompact && (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Back Space</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Back Space</span>
                       )}
                     </div>
                   ) : key === "Shift" ? (
                     <ChevronUp
-                      size={isCompact ? 14 : 18}
+                      size={isCompact ? 12 : 16}
                       strokeWidth={3}
-                      className={isCaps ? "text-white animate-bounce" : "text-white/60"}
+                      className={isCaps ? "text-white animate-bounce" : "text-slate-600"}
                     />
                   ) : key === "Space" ? (
-                    <div className="flex items-center gap-1.5 text-white/40">
-                      <div className="h-[2px] flex-1 max-w-[20px] rounded-full bg-white/10" />
-                      <Space size={13} className="opacity-60" />
-                      <div className="h-[2px] flex-1 max-w-[20px] rounded-full bg-white/10" />
+                    <div className="flex items-center gap-1.5 text-slate-400 w-full px-2">
+                      <div className="h-[2px] flex-1 max-w-[20px] rounded-full bg-slate-300" />
+                      <Space size={12} className="opacity-75" />
+                      <div className="h-[2px] flex-1 max-w-[20px] rounded-full bg-slate-300" />
                     </div>
                   ) : key === "Clear" ? (
-                    <span className={`${isCompact ? "text-[8px]" : "text-[10px] sm:text-[11px]"} font-black tracking-wider uppercase text-amber-500/80`}>
+                    <span className={`${isCompact ? "text-[7.5px]" : "text-[9px] sm:text-[10px]"} font-black tracking-wider uppercase text-amber-600`}>
                       Clear
                     </span>
                   ) : key === "Enter" ? (
                     <div className="flex items-center gap-1">
-                      <CornerDownLeft size={isCompact ? 11 : 14} strokeWidth={2.5} />
-                      <span className={`${isCompact ? "text-[9px]" : "text-[10px] sm:text-[11px]"} font-bold tracking-wider uppercase`}>
+                      <CornerDownLeft size={isCompact ? 10 : 12} strokeWidth={2.5} />
+                      <span className={`${isCompact ? "text-[8px]" : "text-[9px] sm:text-[10px]"} font-bold tracking-wider uppercase`}>
                         Enter
                       </span>
                     </div>
                   ) : key === "Close" ? (
                     <div className="flex items-center gap-1">
-                      <ArrowRight size={isCompact ? 11 : 14} strokeWidth={2.5} />
-                      <span className={`${isCompact ? "text-[9px]" : "text-[10px] sm:text-[11px]"} font-bold tracking-wider uppercase`}>
+                      <ArrowRight size={isCompact ? 10 : 12} strokeWidth={2.5} />
+                      <span className={`${isCompact ? "text-[8px]" : "text-[9px] sm:text-[10px]"} font-bold tracking-wider uppercase`}>
                         Hide
                       </span>
                     </div>
                   ) : (
                     <span
                       className={`
-                        ${isCompact ? "text-sm" : currentLayout === "numeric" ? "text-xl sm:text-2xl font-black" : "text-base sm:text-lg"}
+                        ${isCompact ? "text-xs" : currentLayout === "numeric" ? "text-lg sm:text-xl font-black" : "text-sm sm:text-base"}
                         font-bold tabular-nums leading-none
                       `}
                     >
@@ -602,7 +602,7 @@ export const TouchKeyboard = ({
 
       {/* Zero-waste decorative bottom line */}
       {!isCompact && !embedded && (
-        <div className="mt-2.5 h-[2px] w-full rounded-full bg-gradient-to-r from-transparent via-[#a6152f]/30 to-transparent shrink-0" />
+        <div className="mt-2.5 h-[2px] w-full rounded-full bg-gradient-to-r from-transparent via-[#49293e]/20 to-transparent shrink-0" />
       )}
     </div>
   );

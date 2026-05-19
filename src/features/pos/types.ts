@@ -183,6 +183,8 @@ export interface MenuOrderRequest {
   addressId: number;
   status: string;
   details: MenuOrderDetail[];
+  vehicleNo?: string;
+  customerName?: string;
 }
 
 export interface MenuOrderResponse {

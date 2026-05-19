@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ReceiptText } from "lucide-react";
 import { formatAmount } from "../../../../utils/formatters";
 
@@ -19,6 +20,7 @@ interface CartRow {
     name: string;
     sku?: string;
     price: number;
+    arabicName?: string;
   };
 }
 
@@ -28,17 +30,42 @@ interface PosCartListProps {
   onSelectRow: (key: string | null) => void;
 }
 
+const getNormalizedVariant = (name?: string) => {
+  const n = (name || '').toLowerCase().trim();
+  if (!n || n === 'main' || n === 'variation') return 'main';
+  return n;
+};
+
 export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartListProps) => {
+  const listContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedKey) {
+      const [idPart, ...variantParts] = selectedKey.split('-');
+      const selectedVar = getNormalizedVariant(variantParts.join('-'));
+      const normalizedSelected = `${idPart}-${selectedVar}`.toLowerCase().trim();
+      const element = document.getElementById(`cart-row-${normalizedSelected}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    } else if (listContainerRef.current) {
+      listContainerRef.current.scrollTo({
+        top: listContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  }, [selectedKey, cartDetails.length]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
       <div className="grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
         <span>ITEM</span>
         <span className="text-center">QTY</span>
-        <span className="text-center">VAT</span>
+        <span className="text-center">PRICE</span>
         <span className="text-right">TOTAL</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide py-1">
+      <div ref={listContainerRef} className="flex-1 overflow-y-auto py-1 scroll-smooth">
         {cartDetails.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-slate-50/30">
             <ReceiptText className="w-12 h-12 text-slate-200 mb-3" strokeWidth={1.5} />
@@ -46,12 +73,21 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
           </div>
         ) : (
           cartDetails.map((item) => {
-            const key = `${item.productId}-${item.variantName || "main"}`;
-            const isSelected = selectedKey === key;
+            const normalizedVar = getNormalizedVariant(item.variantName);
+            const key = `${item.productId}-${normalizedVar}`;
+            const normalizedKey = key.toLowerCase().trim();
+            
+            let isSelected = false;
+            if (selectedKey) {
+              const [idPart, ...variantParts] = selectedKey.split('-');
+              const selectedVar = getNormalizedVariant(variantParts.join('-'));
+              isSelected = `${idPart}-${selectedVar}`.toLowerCase().trim() === normalizedKey;
+            }
 
             return (
               <div
                 key={key}
+                id={`cart-row-${normalizedKey}`}
                 onClick={() => onSelectRow(isSelected ? null : key)}
                 className={`
                   grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] items-center gap-2 px-3 py-1.5 border-b border-slate-50
@@ -66,10 +102,12 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                   <p className={`truncate text-[11px] font-black leading-tight uppercase ${isSelected ? "text-[#49293e]" : "text-slate-800"}`}>
                     {item.product.name}
                   </p>
-                  <p className={`text-[9px] font-bold leading-none mt-0.5 ${isSelected ? "text-[#49293e]/60" : "text-slate-400"}`}>
-                    @ {formatAmount(item.product.price || 0)}
-                  </p>
-                  
+                  {item.product.arabicName && (
+                    <p className="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5">
+                      {item.product.arabicName}
+                    </p>
+                  )}
+
                   {/* Extras Display */}
                   {(item.extras && item.extras.length > 0) && (
                     <div className="mt-1 space-y-0.5">
@@ -101,7 +139,7 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
 
                 <div className="flex items-center justify-center">
                   <span className={`text-[10px] font-bold ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
-                    {formatAmount(item.vatAmount || 0)}
+                    {formatAmount(item.product.price || 0)}
                   </span>
                 </div>
 

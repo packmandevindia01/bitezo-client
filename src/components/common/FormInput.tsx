@@ -6,6 +6,7 @@ interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
   error?: string;
   inputClassName?: string;
+  hideLabel?: boolean;
 }
 
 const FormInput = forwardRef<HTMLInputElement, Props>(({
@@ -20,6 +21,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   name,
   required,
   placeholder,
+  hideLabel = false,
   ...props
 }, ref) => {
   const inputId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
@@ -31,7 +33,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
     <div className="flex flex-col gap-1 mb-1 w-full">
 
       {/* LABEL */}
-      {label && (
+      {label && !hideLabel && (
         <label
           htmlFor={inputId}
           className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-600"

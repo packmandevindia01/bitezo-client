@@ -39,9 +39,22 @@ export const PosExtrasModifierModal = ({
   const [selectedSummaryId, setSelectedSummaryId] = useState<number | null>(null);
   const prevRef = useRef<{ key: string | null; type: string | null }>({ key: null, type: null });
 
+  const getNormalizedVariant = (name?: string) => {
+    const n = (name || '').toLowerCase().trim();
+    if (!n || n === 'main' || n === 'variation') return 'main';
+    return n;
+  };
+
   const currentItem = cartItems.find(item => {
-    const key = `${item.productId}-${item.variantName || "main"}`;
-    return key === selectedKey;
+    const itemVar = getNormalizedVariant(item.variantName);
+    const itemKey = `${item.productId}-${itemVar}`.toLowerCase().trim();
+    
+    if (!selectedKey) return false;
+    const [selId, ...selVarParts] = selectedKey.split('-');
+    const selVar = getNormalizedVariant(selVarParts.join('-'));
+    const selKeyNormalized = `${selId}-${selVar}`.toLowerCase().trim();
+    
+    return itemKey === selKeyNormalized;
   });
 
   useEffect(() => {

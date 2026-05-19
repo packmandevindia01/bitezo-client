@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
 import { POS_PRODUCTS } from "../../constants";
+import type { MenuOrderRequest } from "../../types";
 import {
   addToCart,
   incrementItem,
@@ -14,6 +15,7 @@ import {
   setBillDiscount,
   setItemDiscount,
   updateItemPrice,
+  updateItemQty,
   setItemCustomizations,
   setCustomerId,
   setAddressId,
@@ -69,7 +71,7 @@ export const usePosCartActions = () => {
     setOrderError(null);
 
     try {
-      const payload = {
+      const payload: MenuOrderRequest = {
         voucherDate: new Date().toISOString(),
         customerId: selectedCustomerId,
         employeeId: session.userId,
@@ -105,13 +107,19 @@ export const usePosCartActions = () => {
           modifierType: 0,
           mapId: 0,
           complimentaryStatus: false
-        }))
+        })),
+        ...(selectedOrderType === "drive-thru" ? {
+          vehicleNo: localStorage.getItem("driveThruVehicleNo") || "",
+          customerName: localStorage.getItem("driveThruCustomerName") || ""
+        } : {})
       };
 
       const response = await orderApi.submitOrder(payload);
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
         dispatch(clearCart());
+        localStorage.removeItem("driveThruVehicleNo");
+        localStorage.removeItem("driveThruCustomerName");
         return response.data.id;
       } else {
         throw new Error(response.message || "Failed to submit order");
@@ -157,6 +165,8 @@ export const usePosCartActions = () => {
       dispatch(setItemDiscount({ productId, variantName, value, type })),
     updateItemPrice: (productId: number, variantName: string | undefined, price: number) =>
       dispatch(updateItemPrice({ productId, variantName, price })),
+    updateItemQty: (productId: number, variantName: string | undefined, quantity: number) =>
+      dispatch(updateItemQty({ productId, variantName, quantity })),
     setItemCustomizations: (productId: number, variantName: string | undefined, extras?: any[], modifiers?: any[]) =>
       dispatch(setItemCustomizations({ productId, variantName, extras, modifiers })),
   };

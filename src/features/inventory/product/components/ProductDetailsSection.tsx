@@ -50,9 +50,17 @@ export const ProductDetailsSection = ({
           value={form.name}
           disabled={saving}
           onChange={(e) => onChange("name", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "prod-unit")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-arabic")}
           required
           autoFocus
+        />
+        <FormInput
+          id="prod-arabic"
+          label="Arabic Name"
+          value={form.arabicName}
+          disabled={saving}
+          onChange={(e) => onChange("arabicName", e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, "prod-code")}
         />
         <SearchableSelect
           id="prod-unit"
@@ -64,24 +72,7 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
         />
-        <FormInput
-          id="prod-arabic"
-          label="Arabic Name"
-          value={form.arabicName}
-          disabled={saving}
-          onChange={(e) => onChange("arabicName", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "prod-p-vat")}
-        />
-        <SearchableSelect
-          id="prod-p-vat"
-          label="Purchase VAT"
-          options={vatOptions}
-          value={form.pVatId}
-          placeholder="Select purchase VAT"
-          onChange={(v) => onChange("pVatId", v)}
-          required
-          disabled={saving}
-        />
+
         <FormInput
           id="prod-code"
           label="Product Code"
@@ -97,18 +88,19 @@ export const ProductDetailsSection = ({
           value={form.barcode}
           disabled={saving}
           onChange={(e) => onChange("barcode", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "prod-s-vat")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-cost")}
         />
         <SearchableSelect
-          id="prod-s-vat"
-          label="Sales VAT"
-          options={vatOptions}
-          value={form.sVatId}
-          placeholder="Select sales VAT"
-          onChange={(v) => onChange("sVatId", v)}
+          id="prod-branch"
+          label="Branch"
+          options={branchOptions}
+          value={form.branchId}
+          placeholder="Select branch"
+          onChange={(v) => onChange("branchId", v)}
           required
           disabled={saving}
         />
+
         <SearchableSelect
           id="prod-group"
           label="Group"
@@ -129,6 +121,16 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
         />
+        <SearchableSelect
+          id="prod-subcat"
+          label="Sub Category"
+          options={subCatOptions}
+          value={form.subCatId}
+          placeholder={loadingSubs ? "Loading…" : "Select sub category"}
+          onChange={(v) => onChange("subCatId", v)}
+          disabled={saving || loadingSubs}
+        />
+
         <FormInput
           id="prod-cost"
           label="Cost"
@@ -138,8 +140,8 @@ export const ProductDetailsSection = ({
           value={form.cost === "0" ? formatAmount(0, decimalPart) : form.cost}
           disabled={saving}
           onChange={(e) => {
-            const next = sanitizeAmountInput(e.target.value, decimalPart);
-            if (next !== null) onChange("cost", next);
+            const textVal = sanitizeAmountInput(e.target.value, decimalPart);
+            if (textVal !== null) onChange("cost", textVal);
           }}
           onFocus={(e) => e.target.select()}
           onBlur={(e) => {
@@ -150,18 +152,34 @@ export const ProductDetailsSection = ({
           onKeyDown={(e) => handleKeyDown(e, "prod-price")}
           required
         />
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest mb-1 px-1">
+            <label htmlFor="prod-price" className="text-slate-600">
+              Price <span className="text-amber-500 font-bold">*</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer group text-slate-500 select-none">
+              <input
+                type="checkbox"
+                checked={form.priceIsIncl}
+                onChange={(e) => onChange("priceIsIncl", e.target.checked)}
+                disabled={saving}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] transition-all cursor-pointer"
+              />
+              <span>INCL.</span>
+            </label>
+          </div>
           <FormInput
             id="prod-price"
-            label="Price"
+            label="price"
+            hideLabel
             type="text"
             inputMode="decimal"
             inputClassName="text-right"
             value={form.price === "0" ? formatAmount(0, decimalPart) : form.price}
             disabled={saving}
             onChange={(e) => {
-              const next = sanitizeAmountInput(e.target.value, decimalPart);
-              if (next !== null) onChange("price", next);
+              const textVal = sanitizeAmountInput(e.target.value, decimalPart);
+              if (textVal !== null) onChange("price", textVal);
             }}
             onFocus={(e) => e.target.select()}
             onBlur={(e) => {
@@ -169,41 +187,20 @@ export const ProductDetailsSection = ({
                 onChange("price", formatAmount(e.target.value, decimalPart));
               }
             }}
-            onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
             required
           />
-          <div className="flex items-center px-1">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={form.priceIsIncl}
-                onChange={(e) => onChange("priceIsIncl", e.target.checked)}
-                disabled={saving}
-                className="h-4 w-4 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] transition-all cursor-pointer"
-              />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">INCL.</span>
-            </label>
-          </div>
         </div>
         <SearchableSelect
-          id="prod-subcat"
-          label="Sub Category"
-          options={subCatOptions}
-          value={form.subCatId}
-          placeholder={loadingSubs ? "Loading…" : "Select sub category"}
-          onChange={(v) => onChange("subCatId", v)}
-          disabled={saving || loadingSubs}
-        />
-        <SearchableSelect
-          id="prod-branch"
-          label="Branch"
-          options={branchOptions}
-          value={form.branchId}
-          placeholder="Select branch"
-          onChange={(v) => onChange("branchId", v)}
+          id="prod-p-vat"
+          label="Purchase VAT"
+          options={vatOptions}
+          value={form.pVatId}
+          placeholder="Select purchase VAT"
+          onChange={(v) => onChange("pVatId", v)}
           required
           disabled={saving}
         />
+
         <SearchableSelect
           id="prod-type"
           label="Type"
@@ -237,6 +234,16 @@ export const ProductDetailsSection = ({
             />
           </div>
         </div>
+        <SearchableSelect
+          id="prod-s-vat"
+          label="Sales VAT"
+          options={vatOptions}
+          value={form.sVatId}
+          placeholder="Select sales VAT"
+          onChange={(v) => onChange("sVatId", v)}
+          required
+          disabled={saving}
+        />
       </div>
     </div>
   );

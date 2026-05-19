@@ -175,9 +175,9 @@ export const PosMoreAddressModal = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+      <div className="flex-1 flex flex-col bg-white overflow-y-auto justify-start">
         {/* Left/Right Split Layout */}
-        <div className="flex-grow p-2.5 pb-1 grid grid-cols-12 gap-2.5 overflow-hidden shrink-0">
+        <div className="p-2.5 pb-1 grid grid-cols-12 gap-2.5 shrink-0 items-start">
           {/* Left Column: Form Fields (Col span 7) */}
           <div className="col-span-7 flex flex-col gap-y-1.5 bg-[#f8f9fa] p-2.5 border border-slate-100 rounded-xl">
             {/* Form row 1 */}
@@ -302,7 +302,7 @@ export const PosMoreAddressModal = ({
             </div>
 
             {/* Form row 5 (Clear & Add buttons) */}
-            <div className="mt-2 flex justify-end gap-3">
+            <div className="mt-2 flex justify-end gap-3 shrink-0">
               <Button
                 onClick={handleClearForm}
                 variant="secondary"
@@ -323,8 +323,8 @@ export const PosMoreAddressModal = ({
             </div>
           </div>
 
-          {/* Right Column: Address History Table (Col span 5 - perfectly aligned height) */}
-          <div className="col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col h-full">
+          {/* Right Column: Address History Table (Col span 5 - scrollable and compact height) */}
+          <div className="col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col h-[210px] shrink-0">
             <div className="bg-slate-50 px-2.5 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0">
               <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Address History</span>
               <span className="bg-[#49293e] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
@@ -352,7 +352,7 @@ export const PosMoreAddressModal = ({
                     addressList.map((addr, idx) => {
                       return (
                         <tr
-                          key={idx}
+                           key={idx}
                           onClick={() => {
                             onSelectAddress(addr);
                             onClose();
@@ -388,10 +388,10 @@ export const PosMoreAddressModal = ({
           </div>
         </div>
 
-        {/* Row 5: Touch Keyboard (Spacious Tapping Chassis - MD Size) */}
+        {/* Row 5: Touch Keyboard (Full width below the panels, size="md") */}
         {showKeyboard && (
           <div className="shrink-0 w-full bg-[#f8f9fa] px-4 pb-1.5 border-t border-slate-100">
-            <div className="w-full bg-gradient-to-b from-[#2c1924] to-[#170c12] border border-[#49293e]/40 shadow-lg rounded-xl p-2">
+            <div className="w-full max-w-[920px] mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-lg rounded-xl p-2">
               <TouchKeyboard
                 onInput={handleInput}
                 onBackspace={handleBackspace}

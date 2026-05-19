@@ -474,7 +474,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
         {/* Row 5: Touch Keyboard (Centered, Spacious Native Chassis - Zero Overlapping) */}
         {showKeyboard && (
           <div className="shrink-0 w-full bg-[#f8f9fa] px-4 pb-2 border-t border-slate-100">
-            <div className="w-full bg-gradient-to-b from-[#2c1924] to-[#170c12] border border-[#49293e]/40 shadow-xl rounded-2xl p-3 sm:p-4">
+            <div className="w-full max-w-[920px] mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl p-2 sm:p-2.5">
               <TouchKeyboard
                 onInput={handleInput}
                 onBackspace={handleBackspace}
