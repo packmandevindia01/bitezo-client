@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Save, Ban, Trash2, Plus, FileText } from "lucide-react";
+import { Save, Ban, Trash2, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyRecipeForm } from "../constants";
@@ -107,15 +107,6 @@ const RecipePage = () => {
       <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="mb-5 border-b border-gray-100 pb-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
-              Master
-            </p>
-            <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900">
-              <FileText size={24} className="text-[#49293e]" />
-              Recipe
-            </h1>
-          </div>
 
         <div className="grid gap-x-4 gap-y-1 md:grid-cols-4 lg:grid-cols-5">
           <FormInput id="rec-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "rec-finCode")} required readOnly={!canSave} />
@@ -131,9 +122,20 @@ const RecipePage = () => {
             <FormInput id="rec-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "rec-qty")} readOnly={!canAdd} />
             <FormInput id="rec-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "rec-cost")} readOnly={!canAdd} />
             <FormInput id="rec-cost" label="Cost" value={form.cost} onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "rec-add-btn")} readOnly={!canAdd} />
-            <div className="flex items-end pb-4">
-              <Button id="rec-add-btn" onClick={addItem} className="h-10 w-full px-8" disabled={!canAdd}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
+            <div className="flex items-end pb-1">
+              <Button
+                id="rec-add-btn"
+                onClick={addItem}
+                className="h-10.5 w-full px-8"
+                disabled={!canAdd}
+                icon={<Plus size={18} />}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+              >
                 Add
               </Button>
             </div>

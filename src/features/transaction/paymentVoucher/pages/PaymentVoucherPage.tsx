@@ -72,7 +72,6 @@ const PaymentVoucherPage = () => {
           <div className="p-1">
             <PaymentVoucherForm 
               onSubmit={handleSave}
-              onCancel={() => setOpen(false)}
             />
           </div>
        </Modal>

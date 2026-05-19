@@ -1,6 +1,7 @@
 import { ChevronDown, X } from "lucide-react";
-import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { useEffect, useRef, useState, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { handleFocusNextInput } from "../../utils/keyboard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,12 @@ const SearchableSelect = ({
   const listRef = useRef<HTMLUListElement>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, placement: "bottom" as "top" | "bottom" });
+  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
+
+  const inputCallbackRef = useCallback((node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    setInputElement(node);
+  }, []);
 
   // Auto focus logic
   useEffect(() => {
@@ -160,13 +167,59 @@ const SearchableSelect = ({
     }
   }, [open]);
 
+  // Listen for keydown events natively on the search input to ensure
+  // programmatically dispatched KeyboardEvents from virtual/touch keyboards are captured reliably.
+  useEffect(() => {
+    if (!open || !inputElement) return;
+
+    const handleNativeKeyDown = (e: KeyboardEvent) => {
+      if (disabled) return;
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightedIndex((prev) => (prev + 1) % filtered.length);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+            handleSelect(filtered[highlightedIndex].value);
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setOpen(false);
+          setQuery("");
+          triggerRef.current?.focus();
+          break;
+        case "Tab":
+          // Do not e.preventDefault() here, we want the browser to move focus
+          setOpen(false);
+          setQuery("");
+          triggerRef.current?.focus();
+          break;
+      }
+    };
+
+    inputElement.addEventListener("keydown", handleNativeKeyDown);
+    return () => {
+      inputElement.removeEventListener("keydown", handleNativeKeyDown);
+    };
+  }, [inputElement, open, highlightedIndex, filtered, disabled]);
+
   const handleSelect = (optValue: string) => {
     onChange(optValue);
     setOpen(false);
     setQuery("");
-    // Return focus to trigger so Tab key works
+    // Focus the next logical input field after this SearchableSelect component
     setTimeout(() => {
-      triggerRef.current?.focus();
+      if (triggerRef.current) {
+        handleFocusNextInput(triggerRef.current);
+      }
     }, 0);
   };
 
@@ -185,7 +238,7 @@ const SearchableSelect = ({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
 
     if (!open) {
@@ -193,36 +246,6 @@ const SearchableSelect = ({
         e.preventDefault();
         setOpen(true);
       }
-      return;
-    }
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setHighlightedIndex((prev) => (prev + 1) % filtered.length);
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
-          handleSelect(filtered[highlightedIndex].value);
-        }
-        break;
-      case "Escape":
-        e.preventDefault();
-        setOpen(false);
-        setQuery("");
-        triggerRef.current?.focus();
-        break;
-      case "Tab":
-        // Do not e.preventDefault() here, we want the browser to move focus
-        setOpen(false);
-        setQuery("");
-        triggerRef.current?.focus();
-        break;
     }
   };
 
@@ -261,7 +284,13 @@ const SearchableSelect = ({
           e.preventDefault(); // Prevent trigger focus to avoid flash, we'll focus the search input
           toggleOpen();
         }}
-        onKeyDown={handleKeyDown}
+        onFocus={() => {
+          if (disabled) return;
+          if (!open) {
+            setOpen(true);
+          }
+        }}
+        onKeyDown={handleTriggerKeyDown}
         className={`
           relative flex w-full h-10.5 cursor-pointer items-center gap-2
           rounded-md border px-3 text-sm outline-none transition md:px-4
@@ -316,11 +345,10 @@ const SearchableSelect = ({
             {/* Search input */}
             <div className="border-b border-gray-100 p-2">
               <input
-                ref={inputRef}
+                ref={inputCallbackRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
                 placeholder="Type to search…"
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
               />

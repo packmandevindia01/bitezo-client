@@ -504,6 +504,43 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 />
 ```
 
+### 22. Grid Alignment of Action/Trigger Buttons inside Forms
+- Contextual form actions, setup triggers, or panel toggles (such as "Branch Allocation", "Modifier Allocation") that belong inside the form fields section must NOT hang in their own full-width row below the fields if there is an odd number of fields.
+- Instead, place them **inside the primary form fields grid container** (e.g., `grid-cols-1 md:grid-cols-2`) side-by-side with other fields or toggles (such as a status Checkbox/Toggle switch).
+- Wrap the button in a layout div like `<div className="flex items-center pt-2">` to align it perfectly with the height of neighbouring inputs or checkboxes in the same grid row, ensuring a clean and symmetric appearance.
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+  <div className="flex flex-col gap-1 mb-1 w-full">
+    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+      Delivery Status
+    </span>
+    <div className="flex items-center h-10.5">
+      <Checkbox
+        checked={deliveryStatus}
+        onChange={...}
+        label="Delivery Disabled"
+      />
+    </div>
+  </div>
+
+  <div className="flex flex-col gap-1 mb-1 w-full">
+    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+      Branch Allocation
+    </span>
+    <Button
+      type="button"
+      variant="secondary"
+      className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2] w-full h-10.5 justify-center font-bold"
+      onClick={...}
+      icon={<Building2 size={18} />}
+    >
+      Branch Allocation
+    </Button>
+  </div>
+</div>
+```
+
 ---
 
 ## Styling Rules

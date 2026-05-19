@@ -45,7 +45,7 @@ const CounterModal = ({
             isAction
             icon={<RotateCcw size={18} />}
           >
-            Reset
+            Clear
           </Button>
           <Button 
             onClick={onSave} 

@@ -72,7 +72,6 @@ const ReceiptVoucherPage = () => {
           <div className="p-1">
             <ReceiptVoucherForm 
               onSubmit={handleSave}
-              onCancel={() => setOpen(false)}
             />
           </div>
        </Modal>

@@ -1,5 +1,5 @@
 import { RefreshCcw } from "lucide-react";
-import { Button, SelectInput, FormInput } from "../../../../components/common";
+import { Button, FormInput, SearchableSelect } from "../../../../components/common";
 import type { 
   BranchMasterItem, 
   CategoryMasterItem 
@@ -94,42 +94,33 @@ const HappyHourFilters = ({
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-end">
-        <SelectInput
+        <SearchableSelect
           id="hp-category"
           label="Category"
           value={selectedCategory}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "hp-subcategory")}
-          options={[
-            { value: "", label: "Select Category" },
-            ...categories.map(c => ({ value: String(c.categoryId), label: c.categoryName }))
-          ]}
+          onChange={onCategoryChange}
+          placeholder="Select Category"
+          options={categories.map(c => ({ value: String(c.categoryId), label: c.categoryName }))}
         />
 
-        <SelectInput
+        <SearchableSelect
           id="hp-subcategory"
           label="Sub Category"
           value={selectedSubCategory}
-          onChange={(e) => onSubCategoryChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "hp-branch")}
+          onChange={onSubCategoryChange}
           disabled={loadingSubs || !selectedCategory}
-          options={[
-            { value: "", label: loadingSubs ? "Loading..." : "Select Sub Category" },
-            ...subCategories.map(s => ({ value: String(s.id), label: s.name }))
-          ]}
+          placeholder={loadingSubs ? "Loading..." : "Select Sub Category"}
+          options={subCategories.map(s => ({ value: String(s.id), label: s.name }))}
         />
 
-        <SelectInput
+        <SearchableSelect
           id="hp-branch"
           label="Branch"
           value={selectedBranch}
           error={errors?.selectedBranch}
-          onChange={(e) => onBranchChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "hp-percentage")}
-          options={[
-            { value: "", label: "Select Branch" },
-            ...branches.map(b => ({ value: String(b.branchId), label: b.branchName }))
-          ]}
+          onChange={onBranchChange}
+          placeholder="Select Branch"
+          options={branches.map(b => ({ value: String(b.branchId), label: b.branchName }))}
         />
 
         <div className="grid grid-cols-[1fr_auto] gap-2 items-end">

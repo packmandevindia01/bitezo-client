@@ -99,27 +99,34 @@ const ProviderForm: React.FC<Props> = ({
               ]}
             />
 
-            <div className="flex items-center pt-2">
-              <Checkbox
-                checked={deliveryStatus}
-                onChange={(e) => setDeliveryStatus(e.target.checked)}
-                label={deliveryStatus ? "Delivery Enabled" : "Delivery Disabled"}
-              />
+            <div className="flex flex-col gap-1 mb-1 w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                Delivery Status
+              </span>
+              <div className="flex items-center h-10.5">
+                <Checkbox
+                  checked={deliveryStatus}
+                  onChange={(e) => setDeliveryStatus(e.target.checked)}
+                  label={deliveryStatus ? "Delivery Enabled" : "Delivery Disabled"}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Branch Allocation Trigger */}
-          <div className="mt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
-              onClick={() => setAllocationOpen(!allocationOpen)}
-              isAction
-              icon={<Building2 size={18} />}
-            >
-              Branch Allocation
-            </Button>
+            {/* Branch Allocation Trigger */}
+            <div className="flex flex-col gap-1 mb-1 w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                Branch Allocation
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2] w-full h-10.5 justify-center font-bold"
+                onClick={() => setAllocationOpen(!allocationOpen)}
+                icon={<Building2 size={18} />}
+              >
+                Branch Allocation
+              </Button>
+            </div>
           </div>
 
           {/* Branch Allocation Panel */}
@@ -212,7 +219,7 @@ const ProviderForm: React.FC<Props> = ({
           isAction
           icon={<RotateCcw size={18} />}
         >
-          Cancel
+          Clear
         </Button>
         <Button 
           type="submit" 

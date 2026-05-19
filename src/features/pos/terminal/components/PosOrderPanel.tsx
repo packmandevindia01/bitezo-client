@@ -81,12 +81,10 @@ export const PosOrderPanel = ({
   const handleDecrement = () => {
     if (!selectedItem) return;
     if (selectedItem.quantity <= 1) {
-      // Last item — void removes it
-      onRemove(selectedItem.productId, selectedItem.variantName);
-      onSelectRow(null);
-    } else {
-      onDecrement(selectedItem.productId, selectedItem.variantName);
+      // Set as minimum 1 so cashier cannot reduce below 1 (must use Void to remove)
+      return;
     }
+    onDecrement(selectedItem.productId, selectedItem.variantName);
   };
 
   const handleVoid = () => {

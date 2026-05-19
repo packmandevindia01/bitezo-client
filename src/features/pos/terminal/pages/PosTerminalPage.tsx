@@ -85,7 +85,6 @@ export const PosTerminalPage = () => {
     totalExtras,
     baseSubtotal,
     visibleProducts,
-    loading,
     setGroup,
     setCategory,
     setSubCategory,
@@ -266,7 +265,11 @@ export const PosTerminalPage = () => {
           <PosGroupTabs 
             groups={groups} 
             activeGroupId={activeGroupId} 
-            onSelect={setGroup} 
+            onSelect={(id) => {
+              if (id !== activeGroupId) {
+                setGroup(id);
+              }
+            }} 
           />
         </div>
         
@@ -294,12 +297,12 @@ export const PosTerminalPage = () => {
         </div>
       </div>
 
-      {(loading || fetchingAlts) && (
+      {fetchingAlts && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
           <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
             <p className="text-xs font-bold text-[#49293e] uppercase tracking-widest">
-              {fetchingAlts ? "Fetching Variations..." : "Updating Menu..."}
+              Fetching Variations...
             </p>
           </div>
         </div>
@@ -310,7 +313,12 @@ export const PosTerminalPage = () => {
         <PosCategoryRail
           categories={categories}
           activeCategoryId={activeCategoryId ? activeCategoryId.toString() : ""}
-          onSelect={(id) => setCategory(parseInt(id, 10))}
+          onSelect={(id) => {
+            const parsedId = parseInt(id, 10);
+            if (parsedId !== activeCategoryId) {
+              setCategory(parsedId);
+            }
+          }}
         />
 
         {/* Middle Column: Grid */}

@@ -233,14 +233,18 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
-          />
+          >
+            Clear
+          </Button>
           <Button 
             variant="primary" 
             onClick={onClose} 
             disabled={!selectedOrderId}
             isAction
             icon={<CheckCircle size={18} />}
-          />
+          >
+            Select
+          </Button>
         </div>
       </div>
     </Modal>

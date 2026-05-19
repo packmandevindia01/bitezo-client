@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Save, Trash2, FileText, Plus } from "lucide-react";
+import { Save, Trash2, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyBomForm } from "../constants";
@@ -81,18 +81,6 @@ const BomPage = () => {
   return (
     <PageShell title="BOM">
       <div className="mx-auto max-w-5xl rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-        <div className="mb-5 flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
-              Master
-            </p>
-            <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900">
-              <FileText size={24} className="text-[#49293e]" />
-              BOM
-            </h1>
-          </div>
-        </div>
-
         <div className="grid gap-x-4 gap-y-1 md:grid-cols-4">
           <FormInput id="bom-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "bom-finCode")} required readOnly={!canSave} />
           <FormInput id="bom-finCode" label="Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "bom-finUnit")} required readOnly={!canSave} />
@@ -106,9 +94,20 @@ const BomPage = () => {
             <FormInput id="bom-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "bom-unit")} readOnly={!canAdd} />
             <FormInput id="bom-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "bom-qty")} readOnly={!canAdd} />
             <FormInput id="bom-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "bom-add-btn")} readOnly={!canAdd} />
-            <div className="flex items-end pb-4">
-              <Button id="bom-add-btn" onClick={addItem} className="h-10 w-full px-8" disabled={!canAdd}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
+            <div className="flex items-end pb-1">
+              <Button
+                id="bom-add-btn"
+                onClick={addItem}
+                className="h-10.5 w-full px-8"
+                disabled={!canAdd}
+                icon={<Plus size={18} />}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+              >
                 Add
               </Button>
             </div>

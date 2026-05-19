@@ -118,12 +118,11 @@ const ProviderSettingsEntryRow = ({
         </div>
 
         {/* Add Button */}
-        <div className="lg:col-span-2 pb-0.5">
+        <div className="lg:col-span-2">
           <Button 
             id="ps-entry-add-btn"
             onClick={() => { onAdd(); setTimeout(() => document.getElementById("ps-entry-product")?.focus(), 0); }} 
-            isAction
-            className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+            className="w-full h-10.5 bg-[#49293e] hover:bg-[#3a2032]"
             icon={<Plus size={18} />}
           >
             Add Entry

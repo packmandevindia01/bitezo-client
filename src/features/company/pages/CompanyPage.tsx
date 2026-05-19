@@ -389,7 +389,7 @@ const CompanyPage = () => {
             isAction
             icon={<RotateCcw size={18} />}
           >
-            Reset
+            Clear
           </Button>
           <Button 
             ref={saveBtnRef} 

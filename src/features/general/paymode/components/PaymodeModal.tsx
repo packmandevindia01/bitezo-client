@@ -61,7 +61,7 @@ const PaymodeModal = ({
             isAction
             icon={<RotateCcw size={18} />}
           >
-            Reset
+            Clear
           </Button>
           <Button 
             onClick={onSave} 
@@ -120,7 +120,6 @@ const PaymodeModal = ({
             <Checkbox
               checked={form.isActive}
               onChange={(e) => onChange({ isActive: e.target.checked })}
-              label="Active"
             />
           </div>
 

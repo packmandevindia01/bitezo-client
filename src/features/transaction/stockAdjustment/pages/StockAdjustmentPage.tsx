@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Save, X, Ban, Trash2, Plus } from "lucide-react";
+import { Save, RotateCcw, Ban, Trash2, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyStockAdjustmentForm } from "../constants";
@@ -121,11 +121,11 @@ const StockAdjustmentPage = () => {
             <FormInput id="sa-cost" label="Cost" value={form.cost} inputClassName="text-right" onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "sa-type")} />
             <FormInput label="Amt" value={formatAmount(currentLine.amount)} inputClassName="text-right" readOnly />
             
-            <div className="flex flex-col gap-1 w-full">
-              <label className="text-xs font-medium text-gray-700">Type</label>
+            <div className="flex flex-col gap-1 mb-1 w-full">
+              <label htmlFor="sa-type" className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Type</label>
               <select 
                 id="sa-type"
-                className="w-full px-3 h-9 text-sm rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
+                className="w-full px-3 h-10.5 text-sm rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
                 value={form.type}
                 onChange={(e) => setField("type", e.target.value)}
                 onKeyDown={(e) => hk(e, "sa-effect")}
@@ -137,11 +137,11 @@ const StockAdjustmentPage = () => {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1 w-full">
-              <label className="text-xs font-medium text-gray-700">Effect</label>
+            <div className="flex flex-col gap-1 mb-1 w-full">
+              <label htmlFor="sa-effect" className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Effect</label>
               <select 
                 id="sa-effect"
-                className="w-full px-3 h-9 text-sm rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
+                className="w-full px-3 h-10.5 text-sm rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
                 value={form.effect}
                 onChange={(e) => setField("effect", e.target.value)}
                 onKeyDown={(e) => hk(e, "sa-add-btn")}
@@ -152,12 +152,11 @@ const StockAdjustmentPage = () => {
               </select>
             </div>
 
-            <div className="flex items-end pb-0.5">
+            <div className="flex items-end pb-1">
               <Button 
                 id="sa-add-btn" 
                 onClick={addItem} 
-                isAction
-                className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+                className="h-10.5 w-full"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}
                 icon={<Plus size={18} />}
               >
@@ -268,11 +267,11 @@ const StockAdjustmentPage = () => {
           </Button>
           <Button 
             variant="secondary"
-            onClick={() => {}} // TODO: Implement close
+            onClick={handleClearClick}
             isAction
-            icon={<X size={18} />}
+            icon={<RotateCcw size={18} />}
           >
-            Close
+            Clear
           </Button>
         </div>
       </div>

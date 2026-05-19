@@ -2,18 +2,17 @@ import { useState } from "react";
 import { Button, FormInput } from "../../../../components/common";
 import { createEmptyPaymentVoucherForm } from "../constants";
 import type { PaymentVoucherForm as PaymentVoucherFormType } from "../types";
-import { Save, RotateCcw, X } from "lucide-react";
+import { Save, RotateCcw } from "lucide-react";
 import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface Props {
   initialData?: PaymentVoucherFormType | null;
   onSubmit: (data: PaymentVoucherFormType) => void;
-  onCancel: () => void;
   onClear?: () => void;
   submitting?: boolean;
 }
 
-const PaymentVoucherForm = ({ initialData, onSubmit, onCancel, onClear, submitting }: Props) => {
+const PaymentVoucherForm = ({ initialData, onSubmit, onClear, submitting }: Props) => {
   const { formatAmount } = useCurrency();
   const [form, setForm] = useState<PaymentVoucherFormType>(initialData || createEmptyPaymentVoucherForm());
 
@@ -89,15 +88,6 @@ const PaymentVoucherForm = ({ initialData, onSubmit, onCancel, onClear, submitti
       </div>
 
       <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-gray-100">
-        <Button 
-          variant="secondary" 
-          onClick={onCancel}
-          tabIndex={-1}
-          isAction
-          icon={<X size={18} />}
-        >
-          Cancel
-        </Button>
         <Button 
           variant="secondary" 
           onClick={handleClear}

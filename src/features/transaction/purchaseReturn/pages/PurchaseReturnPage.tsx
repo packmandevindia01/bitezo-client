@@ -162,10 +162,20 @@ const PurchaseReturnPage = () => {
             <FormInput id="pr-discPercent" label="Disc(%)" value={form.discPercent} inputClassName="text-right" onChange={(e) => setField("discPercent", e.target.value)} onKeyDown={(e) => hk(e, "pr-add-btn")} />
             <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} inputClassName="text-right" readOnly />
             <FormInput label="Amount" value={formatAmount(currentLineTotals.netAmount)} inputClassName="text-right font-bold text-[#49293e]" readOnly />
-            <div className="flex items-end pb-4">
-              <Button id="pr-add-btn" onClick={addItem} className="h-[38px] w-full"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                <Plus size={18} />
+            <div className="flex items-end pb-1">
+              <Button
+                id="pr-add-btn"
+                onClick={addItem}
+                className="h-10.5 w-full"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+                icon={<Plus size={18} />}
+              >
+                Add
               </Button>
             </div>
           </div>

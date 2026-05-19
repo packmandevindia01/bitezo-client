@@ -121,38 +121,6 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                     </p>
                   )}
                 </div>
-
-                {/* Detailed Billing Table (Test Mode) */}
-                {isSelected && (
-                  <div className="col-span-4 mt-3 bg-white/50 rounded-lg border border-[#49293e]/20 overflow-x-auto shadow-inner">
-                    <table className="w-full text-[9px] font-bold text-center border-collapse">
-                      <thead>
-                        <tr className="bg-[#49293e]/5 text-[#49293e]/70 border-b border-[#49293e]/10">
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Amount</th>
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Discount</th>
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Netvalue</th>
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Service Charge</th>
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Levy</th>
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Vat%</th>
-                          <th className="px-2 py-1 border-r border-[#49293e]/10">Vat Amount</th>
-                          <th className="px-2 py-1">Net Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="text-[#49293e]">
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.amount || 0)}</td>
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.itemDiscount || 0)}</td>
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.netValue || 0)}</td>
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.sc || 0)}</td>
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.levy || 0)}</td>
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{item.vatRate}%</td>
-                          <td className="px-2 py-1.5 border-r border-[#49293e]/10">{formatAmount(item.vatAmount || 0)}</td>
-                          <td className="px-2 py-1.5 font-black text-slate-900">{formatAmount(item.lineTotal || 0)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
             );
           })

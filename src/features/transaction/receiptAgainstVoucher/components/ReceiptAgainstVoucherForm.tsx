@@ -70,8 +70,8 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
             <div className="flex-1">
               <FormInput label="Customer" value={form.customer} onChange={(e) => setField("customer", e.target.value)} />
             </div>
-            <div className="pb-4">
-              <Button variant="secondary" className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
+            <div className="flex items-end pb-1">
+              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
                 MULTI
               </Button>
             </div>
@@ -87,10 +87,14 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
             <FormInput label="Paid" value={form.paid} onChange={(e) => setField("paid", e.target.value)} />
             <FormInput label="Balance" value={form.balance} onChange={(e) => setField("balance", e.target.value)} />
             <FormInput label="Amount" value={form.amount} onChange={(e) => setField("amount", e.target.value)} />
-            <div className="flex items-end pb-4">
-              <Button onClick={addItem} className="h-10 w-full" disabled={submitting}>
-                <Plus size={16} />
-                ADD
+            <div className="flex items-end pb-1">
+              <Button
+                onClick={addItem}
+                className="h-10.5 w-full"
+                disabled={submitting}
+                icon={<Plus size={18} />}
+              >
+                Add
               </Button>
             </div>
 

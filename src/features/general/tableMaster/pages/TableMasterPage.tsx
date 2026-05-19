@@ -56,7 +56,7 @@ const TableMasterPage = () => {
   return (
     <PageShell title="Table Master">
       <MasterScreen
-        title="Table Master"
+        title=""
         search={search}
         onSearchChange={setSearch}
         listEmptyLabel="No tables found"

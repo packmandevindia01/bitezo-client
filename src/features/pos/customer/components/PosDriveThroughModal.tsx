@@ -103,7 +103,7 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
 
         {/* Keyboard Area */}
         {showKeyboard && (
-          <div className="mt-2 shrink-0 bg-white border border-slate-200 rounded-xl shadow-inner p-1 overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200 [&_.h-12]:h-10">
+          <div className="mt-2 shrink-0 flex justify-center w-full">
             <TouchKeyboard
               onInput={handleInput}
               onBackspace={handleBackspace}

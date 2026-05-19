@@ -114,10 +114,20 @@ const ProductionPage = () => {
             <FormInput id="prod-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "prod-qty")} />
             <FormInput id="prod-qty" label="Qty" value={form.qty} inputClassName="text-right" onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
             <FormInput id="prod-cost" label="Cost" value={form.cost} inputClassName="text-right" onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
-            <div className="flex items-end pb-4">
-              <Button id="prod-add-btn" onClick={addItem} className="h-[38px] w-full"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                <Plus size={18} />
+            <div className="flex items-end pb-1">
+              <Button
+                id="prod-add-btn"
+                onClick={addItem}
+                className="h-10.5 w-full"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+                icon={<Plus size={18} />}
+              >
+                Add
               </Button>
             </div>
           </div>

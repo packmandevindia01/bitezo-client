@@ -443,7 +443,9 @@ const CompanyForm = ({
           tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
-        />
+        >
+          Clear
+        </Button>
 
         <Button 
           ref={saveBtnRef} 
@@ -453,7 +455,9 @@ const CompanyForm = ({
           isAction
           loading={submitting}
           icon={<Save size={18} />}
-        />
+        >
+          Save
+        </Button>
       </div>
     </>
   );

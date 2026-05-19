@@ -13,6 +13,12 @@ import {
   setError
 } from "../store/posSlice";
 import { menuApi } from "../../services/menuApi";
+import type { PosCategory, MenuSubCategory, PosProduct } from "../../types";
+
+// Module-level caches for premium instantaneous SWR (Stale-While-Revalidate) performance
+const groupCategoriesCache: Record<number, PosCategory[]> = {};
+const subCategoriesCache: Record<number, MenuSubCategory[]> = {};
+const productsCache: Record<string, PosProduct[]> = {}; // key: `${catId}-${subCatId}`
 
 export const usePosProducts = () => {
   const dispatch = useAppDispatch();
@@ -47,9 +53,27 @@ export const usePosProducts = () => {
   }, [dispatch, activeGroupId]);
 
   const fetchGroupCategories = useCallback(async (groupId: number) => {
+    const cachedCats = groupCategoriesCache[groupId];
+    if (cachedCats) {
+      dispatch(setCategories(cachedCats));
+      if (cachedCats.length > 0 && !activeCategoryId) {
+        dispatch(setCategory(cachedCats[0].id));
+      }
+      // Silent background revalidation
+      try {
+        const freshCats = await menuApi.getGroupCategories(groupId);
+        groupCategoriesCache[groupId] = freshCats;
+        dispatch(setCategories(freshCats));
+      } catch (err) {
+        console.error("Background category revalidation failed:", err);
+      }
+      return;
+    }
+
     dispatch(setLoading(true));
     try {
       const data = await menuApi.getGroupCategories(groupId);
+      groupCategoriesCache[groupId] = data;
       dispatch(setCategories(data));
       if (data.length > 0 && !activeCategoryId) {
         dispatch(setCategory(data[0].id));
@@ -65,13 +89,47 @@ export const usePosProducts = () => {
   // Used inside fetchSubCategories so only one loading cycle occurs.
   const _fetchProductsRaw = useCallback(async (catId: number, subCatId: number) => {
     const data = await menuApi.getProducts(catId, subCatId);
+    productsCache[`${catId}-${subCatId}`] = data;
     dispatch(setProducts(data));
   }, [dispatch]);
 
   const fetchSubCategories = useCallback(async (categoryId: number) => {
+    const cachedSubs = subCategoriesCache[categoryId];
+    if (cachedSubs) {
+      dispatch(setSubCategories(cachedSubs));
+
+      if (cachedSubs.length === 0) {
+        const cacheKey = `${categoryId}-0`;
+        const cachedProds = productsCache[cacheKey];
+        if (cachedProds) {
+          dispatch(setProducts(cachedProds));
+        }
+      } else {
+        dispatch(setSubCategory(null));
+        dispatch(setProducts([]));
+      }
+
+      // Silent background revalidation
+      try {
+        const freshSubs = await menuApi.getSubCategories(categoryId);
+        subCategoriesCache[categoryId] = freshSubs;
+        dispatch(setSubCategories(freshSubs));
+
+        if (freshSubs.length === 0) {
+          const freshProds = await menuApi.getProducts(categoryId, 0);
+          productsCache[`${categoryId}-0`] = freshProds;
+          dispatch(setProducts(freshProds));
+        }
+      } catch (err) {
+        console.error("Background subcategories revalidation failed:", err);
+      }
+      return;
+    }
+
     dispatch(setLoading(true));
     try {
       const data = await menuApi.getSubCategories(categoryId);
+      subCategoriesCache[categoryId] = data;
       dispatch(setSubCategories(data));
 
       if (data.length === 0) {
@@ -90,9 +148,26 @@ export const usePosProducts = () => {
 
   // Public: fetches products when user explicitly selects a subcategory.
   const fetchProducts = useCallback(async (catId: number, subCatId: number) => {
+    const cacheKey = `${catId}-${subCatId}`;
+    const cachedProds = productsCache[cacheKey];
+
+    if (cachedProds) {
+      dispatch(setProducts(cachedProds));
+      // Silent background revalidation
+      try {
+        const freshProds = await menuApi.getProducts(catId, subCatId);
+        productsCache[cacheKey] = freshProds;
+        dispatch(setProducts(freshProds));
+      } catch (err) {
+        console.error("Background products revalidation failed:", err);
+      }
+      return;
+    }
+
     dispatch(setLoading(true));
     try {
       const data = await menuApi.getProducts(catId, subCatId);
+      productsCache[cacheKey] = data;
       dispatch(setProducts(data));
     } catch (err: any) {
       console.error(err);

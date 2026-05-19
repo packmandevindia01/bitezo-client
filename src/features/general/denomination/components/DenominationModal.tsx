@@ -150,7 +150,7 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
             isAction
             icon={<RotateCcw size={18} />}
           >
-            Cancel
+            Clear
           </Button>
           <Button 
             onClick={onSave} 

@@ -78,8 +78,8 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
               value={newCharge}
               onChange={(e) => setNewCharge(e.target.value)}
             />
-            <div className="pb-4">
-              <Button onClick={handleAdd} className="h-10.5 whitespace-nowrap px-6" isAction icon={<Plus size={18} />}>
+            <div className="pb-1">
+              <Button onClick={handleAdd} className="h-10.5 whitespace-nowrap px-6" icon={<Plus size={18} />}>
                 Add Zone
               </Button>
             </div>

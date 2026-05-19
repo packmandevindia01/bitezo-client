@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Printer, Save, X, Plus } from "lucide-react";
+import { Printer, Save, RotateCcw, Plus } from "lucide-react";
 import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyPurchaseInvoiceForm } from "../constants";
@@ -170,12 +170,11 @@ const PurchaseInvoicePage = () => {
             <FormInput id="pi-discPercent" label="Disc(%)" value={form.discPercent} inputClassName="text-right" onChange={(e) => setField("discPercent", e.target.value)} onKeyDown={(e) => hk(e, "pi-add-btn")} readOnly={!canSave} />
             <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} inputClassName="text-right" readOnly />
             <FormInput label="Amount" value={formatAmount(currentLineTotals.netAmount)} inputClassName="text-right font-bold text-[#49293e]" readOnly />
-            <div className="flex items-end pb-0.5">
+            <div className="flex items-end pb-1">
               <Button 
                 id="pi-add-btn" 
                 onClick={addItem} 
-                isAction
-                className="w-full bg-[#49293e] hover:bg-[#3a2032]"
+                className="h-10.5 w-full"
                 disabled={!canSave}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}
                 icon={<Plus size={18} />}
@@ -290,11 +289,11 @@ const PurchaseInvoicePage = () => {
           </Button>
           <Button 
             variant="secondary"
-            onClick={() => {}} // TODO: Implement close
+            onClick={handleClearClick}
             isAction
-            icon={<X size={18} />}
+            icon={<RotateCcw size={18} />}
           >
-            Close
+            Clear
           </Button>
         </div>
       </div>

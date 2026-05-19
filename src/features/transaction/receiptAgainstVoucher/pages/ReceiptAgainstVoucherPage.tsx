@@ -104,8 +104,8 @@ const ReceiptAgainstVoucherPage = () => {
             <div className="flex-1">
               <FormInput id="rav-page-customer" label="Customer" value={form.customer} onChange={(e) => setField("customer", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "rav-page-vchType")} />
             </div>
-            <div className="pb-4">
-              <Button variant="secondary" className="h-[38px] px-3 bg-[#49293e]/5 text-[#49293e] border-[#49293e]/10 hover:bg-[#49293e]/10 text-xs font-bold">
+            <div className="flex items-end pb-1">
+              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/5 text-[#49293e] border-[#49293e]/10 hover:bg-[#49293e]/10 text-xs font-bold">
                 MULTI
               </Button>
             </div>
@@ -120,10 +120,20 @@ const ReceiptAgainstVoucherPage = () => {
             <FormInput id="rav-page-paid" label="Paid" value={form.paid} inputClassName="text-right" onChange={(e) => setField("paid", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "rav-page-balance")} />
             <FormInput id="rav-page-balance" label="Balance" value={form.balance} inputClassName="text-right" onChange={(e) => setField("balance", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "rav-page-amount")} />
             <FormInput id="rav-page-amount" label="Amount" value={form.amount} inputClassName="text-right font-bold text-[#49293e]" onChange={(e) => setField("amount", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "rav-page-add-btn")} />
-            <div className="flex items-end pb-4">
-              <Button id="rav-page-add-btn" onClick={addItem} className="h-[38px] w-full"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}>
-                <Plus size={18} />
+            <div className="flex items-end pb-1">
+              <Button
+                id="rav-page-add-btn"
+                onClick={addItem}
+                className="h-10.5 w-full"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+                icon={<Plus size={18} />}
+              >
+                Add
               </Button>
             </div>
           </div>

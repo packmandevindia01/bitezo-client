@@ -27,17 +27,11 @@ const Checkbox = ({
     <div className="flex flex-col gap-1">
       <label
         htmlFor={inputId}
-        className={`flex items-center justify-between gap-4 group py-1.5 px-1 rounded-lg transition-colors
+        className={`flex items-center justify-start gap-3.5 group py-1.5 px-1 rounded-lg transition-colors
           ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-slate-50"}
         `}
       >
-        {label && (
-          <span className="text-sm font-bold text-slate-700 tracking-tight">
-            {label}
-          </span>
-        )}
-        
-        <div className="relative inline-flex items-center">
+        <div className="relative inline-flex items-center shrink-0">
           <input
             id={inputId}
             type="checkbox"
@@ -64,6 +58,12 @@ const Checkbox = ({
             ${checked ? "translate-x-4.5" : "translate-x-0"}
           `} />
         </div>
+
+        {label && (
+          <span className="text-sm font-bold text-slate-700 tracking-tight">
+            {label}
+          </span>
+        )}
       </label>
 
       {/* ERROR */}

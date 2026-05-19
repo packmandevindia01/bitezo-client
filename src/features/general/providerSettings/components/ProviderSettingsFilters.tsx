@@ -1,5 +1,5 @@
 import { RefreshCcw } from "lucide-react";
-import { Button, SelectInput, FormInput } from "../../../../components/common";
+import { Button, FormInput, SearchableSelect } from "../../../../components/common";
 import type { 
   ProviderMasterItem, 
   BranchMasterItem, 
@@ -60,18 +60,15 @@ const ProviderSettingsFilters = ({
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6 items-end">
-        <SelectInput
+        <SearchableSelect
           id="ps-provider"
           label="Provider"
           autoFocus
           value={selectedProvider}
-          onChange={(e) => onProviderChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "ps-date")}
+          onChange={onProviderChange}
           disabled={isEdit}
-          options={[
-            { value: "", label: "Select Provider" },
-            ...providers.map(p => ({ value: String(p.providerId), label: p.providerName }))
-          ]}
+          placeholder="Select Provider"
+          options={providers.map(p => ({ value: String(p.providerId), label: p.providerName }))}
         />
 
         <FormInput
@@ -83,42 +80,33 @@ const ProviderSettingsFilters = ({
           onKeyDown={(e) => handleKeyDown(e, "ps-branch")}
         />
 
-        <SelectInput
+        <SearchableSelect
           id="ps-branch"
           label="Branch"
           value={selectedBranch}
-          onChange={(e) => onBranchChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "ps-category")}
+          onChange={onBranchChange}
           disabled={isEdit}
-          options={[
-            { value: "", label: "Select Branch" },
-            ...branches.map(b => ({ value: String(b.branchId), label: b.branchName }))
-          ]}
+          placeholder="Select Branch"
+          options={branches.map(b => ({ value: String(b.branchId), label: b.branchName }))}
         />
 
-        <SelectInput
+        <SearchableSelect
           id="ps-category"
           label="Category"
           value={selectedCategory}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "ps-subcategory")}
-          options={[
-            { value: "", label: "Select Category" },
-            ...categories.map(c => ({ value: String(c.categoryId), label: c.categoryName }))
-          ]}
+          onChange={onCategoryChange}
+          placeholder="Select Category"
+          options={categories.map(c => ({ value: String(c.categoryId), label: c.categoryName }))}
         />
 
-        <SelectInput
+        <SearchableSelect
           id="ps-subcategory"
           label="Sub Category"
           value={selectedSubCategory}
-          onChange={(e) => onSubCategoryChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "ps-entry-product")}
+          onChange={onSubCategoryChange}
           disabled={loadingSubs || !selectedCategory}
-          options={[
-            { value: "", label: loadingSubs ? "Loading..." : "Select Sub Category" },
-            ...subCategories.map(s => ({ value: String(s.id), label: s.name }))
-          ]}
+          placeholder={loadingSubs ? "Loading..." : "Select Sub Category"}
+          options={subCategories.map(s => ({ value: String(s.id), label: s.name }))}
         />
 
         <div className="flex flex-col gap-1 w-full pb-0.5">

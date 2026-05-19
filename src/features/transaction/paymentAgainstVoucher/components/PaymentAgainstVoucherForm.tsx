@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Plus } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import { createEmptyPaymentAgainstVoucherForm } from "../constants";
 import type { PaymentAgainstVoucherForm as PaymentAgainstVoucherFormType, PaymentAgainstVoucherLineItem } from "../types";
@@ -115,8 +116,8 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
                 onKeyDown={(e) => handleKeyDown(e, "pav-vchType")}
               />
             </div>
-            <div className="pb-4">
-              <Button variant="secondary" className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
+            <div className="flex items-end pb-1">
+              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
                 MULTI
               </Button>
             </div>
@@ -168,12 +169,13 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
                 onChange={(e) => setField("amount", e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, "pav-add-btn")}
             />
-            <div className="flex items-end pb-4">
+            <div className="flex items-end pb-1">
               <Button 
                 id="pav-add-btn"
                 onClick={addItem} 
-                className="h-10 w-full" 
+                className="h-10.5 w-full" 
                 disabled={submitting}
+                icon={<Plus size={18} />}
                 onKeyDown={(e) => {
                     if (e.key === "Enter") {
                         e.preventDefault();
@@ -182,7 +184,7 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
                     }
                 }}
               >
-                ADD
+                Add
               </Button>
             </div>
 

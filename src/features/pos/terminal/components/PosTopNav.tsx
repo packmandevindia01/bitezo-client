@@ -47,8 +47,8 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
   return (
     <nav className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-1 shadow-sm shrink-0">
       <div className="flex items-center gap-4 xl:gap-6">
-        <div className="flex items-center justify-center p-1 border-2 border-slate-100 rounded-lg bg-white overflow-hidden w-10 h-10 xl:w-14 xl:h-14 shadow-sm">
-          <img src="/bitezo-logo-hq.png" alt="Bitezo" className="w-8 h-8 xl:w-10 xl:h-10 object-contain" />
+        <div className="flex items-center justify-center p-1.5 border border-slate-200 rounded-xl bg-white overflow-hidden w-32 md:w-36 xl:w-44 h-9 xl:h-10 shadow-sm">
+          <img src="/bitezo-logo-hq.png" alt="Bitezo" className="w-full h-full object-contain" />
         </div>
 
         <PosActionButton 

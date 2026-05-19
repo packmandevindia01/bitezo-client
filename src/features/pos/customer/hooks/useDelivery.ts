@@ -10,24 +10,59 @@ export const useDelivery = () => {
   const [addressList, setAddressList] = useState<DeliveryAddress[]>([]);
 
   const fetchAddressByMobile = useCallback(async (mobileNo: string) => {
-    if (!mobileNo || mobileNo.length < 3) return;
+    if (!mobileNo || mobileNo.length < 3) return [];
     
     setLoading(true);
     try {
       const response = await deliveryApi.getDeliveryAddress(mobileNo);
-      if (response.isSuccess && response.data && response.data.length > 0) {
-        setAddressList(response.data);
-        setAddress(response.data[0]);
-        return response.data;
-      } else {
-        setAddressList([]);
-        setAddress(null);
-        return [];
+      if (response.isSuccess && response.data) {
+        let addresses: DeliveryAddress[] = [];
+        if (Array.isArray(response.data)) {
+          addresses = response.data;
+        } else if (typeof response.data === "object" && response.data !== null) {
+          addresses = [response.data as DeliveryAddress];
+        }
+        
+        if (addresses.length > 0) {
+          setAddressList(addresses);
+          setAddress(addresses[0]);
+          return addresses;
+        }
       }
+      setAddressList([]);
+      setAddress(null);
+      return [];
     } catch (error) {
       console.error("Error fetching delivery address:", error);
       setAddressList([]);
       setAddress(null);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchAllAddressesByMobile = useCallback(async (mobileNo: string) => {
+    if (!mobileNo || mobileNo.length < 3) return [];
+    
+    setLoading(true);
+    try {
+      const response = await deliveryApi.getDeliveryAddressesAll(mobileNo);
+      if (response.isSuccess && response.data) {
+        let addresses: DeliveryAddress[] = [];
+        if (Array.isArray(response.data)) {
+          addresses = response.data;
+        } else if (typeof response.data === "object" && response.data !== null) {
+          addresses = [response.data as DeliveryAddress];
+        }
+        setAddressList(addresses);
+        return addresses;
+      }
+      setAddressList([]);
+      return [];
+    } catch (error) {
+      console.error("Error fetching all delivery addresses:", error);
+      setAddressList([]);
       return [];
     } finally {
       setLoading(false);
@@ -60,6 +95,7 @@ export const useDelivery = () => {
     address,
     addressList,
     fetchAddressByMobile,
+    fetchAllAddressesByMobile,
     saveAddress,
     setAddress
   };

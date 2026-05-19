@@ -22,7 +22,7 @@ export interface SaveDeliveryAddressRequest {
 }
 
 export interface DeliveryAddressResponse {
-  data: DeliveryAddress[];
+  data: DeliveryAddress | DeliveryAddress[];
   status: number;
   message: string;
   isSuccess: boolean;

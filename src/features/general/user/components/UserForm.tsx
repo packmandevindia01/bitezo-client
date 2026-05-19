@@ -216,7 +216,7 @@ const UserForm = ({
           isAction
           icon={<RotateCcw size={18} />}
         >
-          {initialData ? "Reset" : "Clear"}
+          Clear
         </Button>
 
         <Button 

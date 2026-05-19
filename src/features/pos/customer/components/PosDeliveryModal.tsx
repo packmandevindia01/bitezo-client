@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Modal, FormInput, Checkbox } from "../../../../components/common";
+import { Modal, FormInput, Checkbox, Button } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
-import { Search, Save, RotateCcw, Plus, X } from "lucide-react";
+import { Search, Save, RotateCcw, X } from "lucide-react";
 import { useDelivery } from "../hooks/useDelivery";
 import { PosMoreAddressModal } from "./PosMoreAddressModal";
 import type { DeliveryAddress } from "../types/delivery";
+import { useAppDispatch } from "../../../../app/hooks";
+import { setOrderType, setAddressId } from "../../terminal/store/posSlice";
 
 interface PosDeliveryModalProps {
   isOpen: boolean;
@@ -13,7 +15,11 @@ interface PosDeliveryModalProps {
 
 export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => {
   const { loading, fetchAddressByMobile, saveAddress } = useDelivery();
+  const dispatch = useAppDispatch();
   const [isMoreAddressOpen, setIsMoreAddressOpen] = useState(false);
+  const [currentAddressId, setCurrentAddressId] = useState<number | null>(null);
+  const lastLookedUpMobileRef = useRef("");
+  const lastLoadedAddressRef = useRef<Partial<DeliveryAddress> | null>(null);
   
   const [form, setForm] = useState({
     mobileNo: "",
@@ -32,7 +38,43 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
   const [activeField, setActiveField] = useState<keyof typeof form | null>("mobileNo");
   const [showKeyboard, setShowKeyboard] = useState(true);
+
+  // High-density sequential focus refs for smooth cashier navigation
   const mobileRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const flatRef = useRef<HTMLInputElement>(null);
+  const buildingRef = useRef<HTMLInputElement>(null);
+  const roadRef = useRef<HTMLInputElement>(null);
+  const blockRef = useRef<HTMLInputElement>(null);
+  const areaRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
+  const callBackRef = useRef<HTMLInputElement>(null);
+  const keepChangesRef = useRef<HTMLInputElement>(null);
+
+  // Seamless Enter key focus router with text auto-selection
+  const handleEnterKey = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    nextFieldRef: React.RefObject<HTMLInputElement | null> | "save"
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldRef === "save") {
+        handleSave();
+      } else {
+        const nextEl = nextFieldRef.current;
+        if (nextEl) {
+          nextEl.focus();
+          setTimeout(() => {
+            try {
+              nextEl.setSelectionRange(0, nextEl.value.length);
+            } catch (err) {
+              nextEl.select?.();
+            }
+          }, 20);
+        }
+      }
+    }
+  };
 
   const handleClearForm = () => {
     setForm({
@@ -49,6 +91,9 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       isMissedCall: false,
       keepChanges: ""
     });
+    setCurrentAddressId(null);
+    lastLookedUpMobileRef.current = "";
+    lastLoadedAddressRef.current = null;
     setTimeout(() => mobileRef.current?.focus(), 50);
   };
 
@@ -64,12 +109,13 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
   // Lookup address when mobileNo changes
   useEffect(() => {
     const lookupMobile = async () => {
-      if (form.mobileNo.length >= 8) { 
-        const response = await fetchAddressByMobile(form.mobileNo);
+      const trimmed = form.mobileNo.trim();
+      if (trimmed.length >= 8 && trimmed !== lastLookedUpMobileRef.current) { 
+        lastLookedUpMobileRef.current = trimmed;
+        const response = await fetchAddressByMobile(trimmed);
         if (response && response.length > 0) {
           const existingAddress = response[0];
-          setForm(prev => ({
-            ...prev,
+          const addrData = {
             customerName: existingAddress.customerName || "",
             flatNo: existingAddress.flatNo || "",
             buildingNo: existingAddress.buildingNo || "",
@@ -77,8 +123,20 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
             blockNo: existingAddress.blockNo || "",
             area: existingAddress.area || "",
             note: existingAddress.note || ""
+          };
+          setForm(prev => ({
+            ...prev,
+            ...addrData
           }));
+          if (existingAddress.addressId) {
+            setCurrentAddressId(existingAddress.addressId);
+            lastLoadedAddressRef.current = { ...addrData, addressId: existingAddress.addressId };
+          }
         }
+      } else if (trimmed.length < 8) {
+        lastLookedUpMobileRef.current = "";
+        setCurrentAddressId(null);
+        lastLoadedAddressRef.current = null;
       }
     };
     lookupMobile();
@@ -113,7 +171,26 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
   const handleSave = async () => {
     if (!form.mobileNo) return;
     
-    const success = await saveAddress({
+    // Check if the current form matches the last loaded/saved address exactly
+    const isUnchanged = lastLoadedAddressRef.current &&
+      currentAddressId === lastLoadedAddressRef.current.addressId &&
+      form.customerName === (lastLoadedAddressRef.current.customerName || "") &&
+      form.flatNo === (lastLoadedAddressRef.current.flatNo || "") &&
+      form.buildingNo === (lastLoadedAddressRef.current.buildingNo || "") &&
+      form.roadNo === (lastLoadedAddressRef.current.roadNo || "") &&
+      form.blockNo === (lastLoadedAddressRef.current.blockNo || "") &&
+      form.area === (lastLoadedAddressRef.current.area || "") &&
+      form.note === (lastLoadedAddressRef.current.note || "");
+
+    if (isUnchanged && currentAddressId) {
+      // Bypasses the POST API to prevent duplicate records!
+      dispatch(setAddressId(currentAddressId));
+      dispatch(setOrderType("delivery"));
+      onClose();
+      return;
+    }
+    
+    const responseData = await saveAddress({
       mobileNo: form.mobileNo,
       flatNo: form.flatNo,
       buildingNo: form.buildingNo,
@@ -124,14 +201,23 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       note: form.note
     });
 
-    if (success) {
+    if (responseData) {
+      if (responseData.id) {
+        dispatch(setAddressId(responseData.id));
+      } else if (currentAddressId) {
+        dispatch(setAddressId(currentAddressId));
+      }
+      dispatch(setOrderType("delivery"));
+      onClose();
+    } else if (currentAddressId) {
+      dispatch(setAddressId(currentAddressId));
+      dispatch(setOrderType("delivery"));
       onClose();
     }
   };
 
   const handleSelectAddressFromMore = (address: DeliveryAddress) => {
-    setForm(prev => ({
-      ...prev,
+    const addrData = {
       flatNo: address.flatNo || "",
       buildingNo: address.buildingNo || "",
       roadNo: address.roadNo || "",
@@ -139,7 +225,15 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       area: address.area || "",
       customerName: address.customerName || "",
       note: address.note || ""
+    };
+    setForm(prev => ({
+      ...prev,
+      ...addrData
     }));
+    if (address.addressId) {
+      setCurrentAddressId(address.addressId);
+      lastLoadedAddressRef.current = { ...addrData, addressId: address.addressId };
+    }
   };
 
   return (
@@ -147,7 +241,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       isOpen={isOpen}
       onClose={onClose}
       noPadding
-      className="!max-w-full w-screen !max-h-full h-screen !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
+      className="!max-w-full w-screen !max-h-full h-[100dvh] max-h-[100dvh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
       {/* Header - Premium Maroon */}
       <div className="flex items-center justify-between bg-[#49293e] px-6 py-3 text-white shrink-0 border-b border-white/10 relative">
@@ -162,141 +256,265 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
         </button>
       </div>
 
-      {/* Content Area - Restored Original Vertical Design (High Density) */}
+      {/* Content Area - Carbon Copy Layout from Reference Image (High Density) */}
       <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+        {/* Scrollable Form Fields (prevents clipping on smaller viewports!) */}
+        <div className="flex-1 overflow-y-auto p-4 gap-y-3.5 flex flex-col">
           
-          {/* Row 1: Primary Identity */}
-          <div className="grid grid-cols-12 gap-4 items-end shrink-0">
+          {/* Row 1: Primary Identity & Round Search Icon */}
+          <div className="grid grid-cols-12 gap-3 items-end shrink-0">
             <div className="col-span-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Mobile Number</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Mobile No</span>
               <FormInput
                 value={form.mobileNo}
                 onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
                 onFocus={() => handleFieldFocus("mobileNo")}
+                onClick={() => setShowKeyboard(true)}
                 ref={mobileRef}
+                onKeyDown={(e) => handleEnterKey(e, nameRef)}
                 inputMode="none"
                 autoFocus
                 className="!mb-0"
                 inputClassName="!h-10 border-slate-200"
               />
             </div>
-            <div className="col-span-6">
-              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Customer Name</span>
+            <div className="col-span-5">
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Customer Name</span>
               <FormInput
+                ref={nameRef}
                 value={form.customerName}
                 onChange={(e) => setForm({ ...form, customerName: e.target.value })}
                 onFocus={() => handleFieldFocus("customerName")}
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, flatRef)}
                 inputMode="none"
                 className="!mb-0"
                 inputClassName="!h-10 border-slate-200"
               />
             </div>
-            <div className="col-span-3 flex items-center gap-3 bg-slate-50 px-3 h-10 rounded-lg border border-slate-200">
+            <div className="col-span-3 flex items-center gap-2 h-10 self-end pb-2">
                <Checkbox checked={form.isComing} onChange={(e) => setForm({ ...form, isComing: e.target.checked })} />
-               <span className="text-[#9c142c] font-black text-[10px] uppercase">Coming</span>
-               <button className="w-8 h-8 bg-[#49293e] rounded text-white flex items-center justify-center ml-auto" onClick={() => fetchAddressByMobile(form.mobileNo)}>
-                 <Search size={16} />
+               <span className="text-[#9c142c] font-black text-[10px] uppercase">Coming(Come and Collect)</span>
+            </div>
+            <div className="col-span-1 flex justify-end">
+               <button 
+                 onClick={() => fetchAddressByMobile(form.mobileNo)}
+                 className="w-10 h-10 bg-[#e01a4f] hover:bg-[#c91241] rounded-full text-white flex items-center justify-center shadow-lg active:scale-95 transition-all self-end"
+               >
+                 <Search size={18} strokeWidth={3} />
                </button>
             </div>
           </div>
 
-          {/* Row 2: Address Grid (5 Fields) */}
-          <div className="grid grid-cols-5 gap-4 shrink-0">
-            {[
-              { id: 'flatNo', label: 'Flat' },
-              { id: 'buildingNo', label: 'Building' },
-              { id: 'roadNo', label: 'Road' },
-              { id: 'blockNo', label: 'Block' },
-              { id: 'area', label: 'Area' }
-            ].map((field) => (
-              <div key={field.id}>
-                <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">{field.label}</span>
-                <FormInput
-                  value={(form as any)[field.id]}
-                  onChange={(e) => setForm({ ...form, [field.id]: e.target.value })}
-                  onFocus={() => handleFieldFocus(field.id as any)}
-                  inputMode="none"
-                  className="!mb-0"
-                  inputClassName="!h-10 border-slate-200"
-                />
-              </div>
-            ))}
+          {/* Row 2: Address Grid (5 Fields - explicitly mapped for precise Enter progression) */}
+          <div className="grid grid-cols-5 gap-3 shrink-0">
+            <div>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Flat No</span>
+              <FormInput
+                ref={flatRef}
+                value={form.flatNo}
+                onChange={(e) => setForm({ ...form, flatNo: e.target.value })}
+                onFocus={() => handleFieldFocus("flatNo")}
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, buildingRef)}
+                inputMode="none"
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Building No</span>
+              <FormInput
+                ref={buildingRef}
+                value={form.buildingNo}
+                onChange={(e) => setForm({ ...form, buildingNo: e.target.value })}
+                onFocus={() => handleFieldFocus("buildingNo")}
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, roadRef)}
+                inputMode="none"
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Road</span>
+              <FormInput
+                ref={roadRef}
+                value={form.roadNo}
+                onChange={(e) => setForm({ ...form, roadNo: e.target.value })}
+                onFocus={() => handleFieldFocus("roadNo")}
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, blockRef)}
+                inputMode="none"
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Block</span>
+              <FormInput
+                ref={blockRef}
+                value={form.blockNo}
+                onChange={(e) => setForm({ ...form, blockNo: e.target.value })}
+                onFocus={() => handleFieldFocus("blockNo")}
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, areaRef)}
+                inputMode="none"
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Area</span>
+              <FormInput
+                ref={areaRef}
+                value={form.area}
+                onChange={(e) => setForm({ ...form, area: e.target.value })}
+                onFocus={() => handleFieldFocus("area")}
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, noteRef)}
+                inputMode="none"
+                className="!mb-0"
+                inputClassName="!h-10 border-slate-200"
+              />
+            </div>
           </div>
 
           {/* Row 3: Notes & Quick Actions */}
-          <div className="grid grid-cols-12 gap-4 items-start shrink-0">
+          <div className="grid grid-cols-12 gap-3 items-end shrink-0">
             <div className="col-span-4">
-              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Notes</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Notes</span>
               <FormInput 
+                ref={noteRef}
                 value={form.note} 
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
                 onFocus={() => handleFieldFocus("note")} 
-                inputMode="none" 
-                className="!mb-0" 
-                inputClassName="!h-10 border-slate-200" 
-              />
-            </div>
-            <div className="col-span-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Call Back</span>
-              <FormInput 
-                value={form.callBack} 
-                onChange={(e) => setForm({ ...form, callBack: e.target.value })}
-                onFocus={() => handleFieldFocus("callBack")} 
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, callBackRef)}
                 inputMode="none" 
                 className="!mb-0" 
                 inputClassName="!h-10 border-slate-200" 
               />
             </div>
             <div className="col-span-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase ml-1 block mb-1">Changes</span>
-              <div className="flex gap-2 h-10">
-                {["5.000", "10.000", "20.000"].map((amt) => (
-                  <button key={amt} onClick={() => setForm({ ...form, keepChanges: amt })} className="flex-1 bg-slate-50 hover:bg-[#49293e] hover:text-white text-slate-600 font-black text-[10px] rounded-lg border border-slate-200 transition-all">{amt}</button>
-                ))}
-              </div>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Call Back</span>
+              <FormInput 
+                ref={callBackRef}
+                value={form.callBack} 
+                onChange={(e) => setForm({ ...form, callBack: e.target.value })}
+                onFocus={() => handleFieldFocus("callBack")} 
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, keepChangesRef)}
+                inputMode="none" 
+                className="!mb-0" 
+                inputClassName="!h-10 border-slate-200" 
+              />
             </div>
-            <div className="col-span-3 flex flex-col gap-2 pt-5">
-              <button onClick={() => setIsMoreAddressOpen(true)} className="h-10 w-full bg-slate-800 text-white font-black text-[10px] uppercase rounded-lg flex items-center justify-center gap-2">
-                <Plus size={14} /> More Address
+            <div className="col-span-2 flex items-center gap-2 h-10 pb-2">
+               <Checkbox checked={form.isMissedCall} onChange={(e) => setForm({ ...form, isMissedCall: e.target.checked })} />
+               <span className="text-[#9c142c] font-black text-[10px] uppercase">Missed Call</span>
+            </div>
+            <div className="col-span-3 grid grid-cols-2 gap-2">
+              <button 
+                onClick={handleSave} 
+                disabled={loading || !form.mobileNo}
+                className="h-10 bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
+              >
+                Update
+              </button>
+              <button 
+                onClick={() => setIsMoreAddressOpen(true)} 
+                className="h-10 bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center"
+              >
+                More Address
               </button>
             </div>
           </div>
 
-          {/* Row 4: Custom Exclusive Keyboard (Zero-Waste Alignment) */}
-          {showKeyboard && (
-            <div className="mt-auto shrink-0 flex justify-center">
-              <div className="w-full max-w-[980px] bg-slate-900 rounded-2xl p-1.5 shadow-2xl border border-white/10 [&_button]:!h-14 [&_button]:!text-base [&_div]:!gap-1 [&_button]:!px-2 [&_.mb-3]:!hidden">
-                <TouchKeyboard
-                  onInput={handleInput}
-                  onBackspace={handleBackspace}
-                  onClear={handleClearKey}
-                  onClose={() => setShowKeyboard(false)}
-                  size="md"
-                />
+          {/* Row 4: Keep Changes, Currency, Logs */}
+          <div className="grid grid-cols-12 gap-3 items-end shrink-0">
+            <div className="col-span-4">
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Keep Changes</span>
+              <FormInput 
+                ref={keepChangesRef}
+                value={form.keepChanges} 
+                onChange={(e) => setForm({ ...form, keepChanges: e.target.value })}
+                onFocus={() => handleFieldFocus("keepChanges")} 
+                onClick={() => setShowKeyboard(true)}
+                onKeyDown={(e) => handleEnterKey(e, "save")}
+                inputMode="none" 
+                className="!mb-0" 
+                inputClassName="!h-10 border-slate-200" 
+              />
+            </div>
+            <div className="col-span-5">
+              <div className="grid grid-cols-3 gap-2 h-10">
+                {["5.000", "10.000", "20.000"].map((amt) => (
+                  <button 
+                    key={amt} 
+                    onClick={() => setForm({ ...form, keepChanges: amt })} 
+                    className="bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] rounded-lg shadow-md transition-all active:scale-95"
+                  >
+                    {amt}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
+            <div className="col-span-3">
+              <button 
+                onClick={() => alert("Logs Clicked")}
+                className="h-10 w-full bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center"
+              >
+                Logs
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Row 5: Touch Keyboard (Centered, Spacious Native Chassis - Zero Overlapping) */}
+        {showKeyboard && (
+          <div className="shrink-0 w-full bg-[#f8f9fa] px-4 pb-2 border-t border-slate-100">
+            <div className="w-full bg-gradient-to-b from-[#2c1924] to-[#170c12] border border-[#49293e]/40 shadow-xl rounded-2xl p-3 sm:p-4">
+              <TouchKeyboard
+                onInput={handleInput}
+                onBackspace={handleBackspace}
+                onClear={handleClearKey}
+                onClose={() => setShowKeyboard(false)}
+                size="md"
+                embedded={true}
+              />
+            </div>
+          </div>
+        )}
 
         <PosMoreAddressModal
           isOpen={isMoreAddressOpen}
           onClose={() => setIsMoreAddressOpen(false)}
           mobileNo={form.mobileNo}
+          customerName={form.customerName}
           onSelectAddress={handleSelectAddressFromMore}
         />
 
-        {/* Action Footer */}
+        {/* Action Footer - High Density, Elegant Buttons */}
         <div className="bg-slate-100 p-3 flex justify-end gap-3 shrink-0 border-t border-slate-200">
-          <button onClick={handleClearForm} className="h-11 px-8 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs uppercase rounded-xl border border-slate-200">Clear Form</button>
-          <button 
+          <Button 
+            onClick={handleClearForm} 
+            variant="secondary"
+            isAction
+            tabIndex={-1}
+            icon={<RotateCcw size={18} />}
+          >
+            Clear
+          </Button>
+          <Button 
             onClick={handleSave} 
             disabled={loading || !form.mobileNo}
-            className="h-11 px-12 bg-[#49293e] hover:bg-[#633854] text-white font-black text-xs uppercase rounded-xl shadow-lg flex items-center gap-2"
+            loading={loading}
+            isAction
+            icon={<Save size={18} />}
           >
-            {loading ? <RotateCcw className="animate-spin" size={16} /> : <Save size={16} />}
-            Save Details
-          </button>
+            Save
+          </Button>
         </div>
       </div>
     </Modal>
