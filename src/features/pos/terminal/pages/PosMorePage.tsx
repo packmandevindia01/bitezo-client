@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft,
-  LogOut,
 } from 'lucide-react';
-import { Button, Loader } from '../../../../components/common';
+import { Loader } from '../../../../components/common';
 import { PrinterSettingsTab } from '../components/PrinterSettingsTab';
 import { ProductWisePrinterTab } from '../components/ProductWisePrinterTab';
 import { SectionWisePrinterTab } from '../components/SectionWisePrinterTab';
@@ -34,15 +33,6 @@ export const PosMorePage: React.FC = () => {
 
   const handleBack = () => {
     navigate('/pos', { state: { openMoreModal: true } });
-  };
-
-  const handleSwitchToBackOffice = () => {
-    localStorage.setItem("systemType", "backoffice");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("activeShift");
-    navigate("/", { replace: true });
   };
 
   const getSubtitle = () => {
@@ -102,23 +92,7 @@ export const PosMorePage: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="secondary"
-            onClick={handleSwitchToBackOffice}
-            className="px-4 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2"
-          >
-            <LogOut size={16} />
-            <span className="hidden sm:inline">Back Office Login</span>
-          </Button>
-          <Button 
-            variant="secondary"
-            onClick={handleBack}
-            className="px-8"
-          >
-            Done
-          </Button>
-        </div>
+        <div />
       </header>
 
       {/* Content */}

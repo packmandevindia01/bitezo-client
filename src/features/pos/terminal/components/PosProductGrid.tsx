@@ -2,7 +2,11 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../types";
 import PosProductCard from "./PosProductCard";
-import { formatCurrency } from "../../../../utils/formatters";
+import { formatAmount } from "../../../../utils/formatters";
+import { menuApi } from "../../services/menuApi";
+
+// Cache to prevent duplicate API fetches for product prices/alternatives
+const productDetailsCache: Record<number, { price?: number; hasAlts?: boolean }> = {};
 
 interface PosProductGridProps {
   products: PosProduct[];
@@ -13,6 +17,9 @@ interface PosProductGridProps {
   onBack: () => void;
   onAdd: (productId: number) => void;
   onSelectAlt?: (variant: PosAlternative) => void;
+  categoryName?: string;
+  subCategoryName?: string;
+  selectedProduct?: PosProduct | null;
 }
 
 const PosProductGrid = ({
@@ -24,9 +31,13 @@ const PosProductGrid = ({
   onBack,
   onAdd,
   onSelectAlt,
+  categoryName,
+  subCategoryName,
+  selectedProduct,
 }: PosProductGridProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(1);
+  const [productDetails, setProductDetails] = useState<Record<number, { price?: number; hasAlts?: boolean }>>(productDetailsCache);
 
   useEffect(() => {
     if (!parentRef.current) return;
@@ -36,8 +47,8 @@ const PosProductGrid = ({
         const width = entry.contentRect.width;
         if (width > 1200) setColumns(8);
         else if (width > 1000) setColumns(7);
-        else if (width > 800) setColumns(6);
-        else if (width > 450) setColumns(5);
+        else if (width > 820) setColumns(6);
+        else if (width > 520) setColumns(5);
         else setColumns(4);
       }
     });
@@ -45,6 +56,55 @@ const PosProductGrid = ({
     observer.observe(parentRef.current);
     return () => observer.disconnect();
   }, []);
+
+  // Background fetch of product prices and alternatives info
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+
+    let isMounted = true;
+
+    const fetchDetails = async () => {
+      const missing = products.filter(p => !productDetails[p.id]);
+      if (missing.length === 0) return;
+
+      const promises = missing.map(async (p) => {
+        try {
+          const alts = await menuApi.getAlternatives(p.id);
+          if (alts && alts.length > 0) {
+            return { id: p.id, hasAlts: true, price: undefined };
+          } else {
+            const data = await menuApi.getProductData(p.id);
+            return { id: p.id, hasAlts: false, price: data.price };
+          }
+        } catch (e) {
+          console.error(`Failed to fetch details for product ${p.id}:`, e);
+          return { id: p.id, hasAlts: false, price: 0 };
+        }
+      });
+
+      const results = await Promise.all(promises);
+      
+      if (!isMounted) return;
+
+      setProductDetails(prev => {
+        const next = { ...prev };
+        results.forEach(res => {
+          if (res) {
+            next[res.id] = { price: res.price, hasAlts: res.hasAlts };
+            // Save to module level cache
+            productDetailsCache[res.id] = { price: res.price, hasAlts: res.hasAlts };
+          }
+        });
+        return next;
+      });
+    };
+
+    fetchDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [products]);
 
   const firstAltRef = useRef<HTMLButtonElement | null>(null);
 
@@ -59,6 +119,14 @@ const PosProductGrid = ({
 
   const showSubCategories = !activeSubCategoryId && subCategories.length > 0 && alternatives.length === 0;
   const showAlternatives = alternatives.length > 0;
+
+  const breadcrumbs = useMemo(() => {
+    const segments: string[] = [];
+    if (categoryName) segments.push(categoryName);
+    if (subCategoryName) segments.push(subCategoryName);
+    if (showAlternatives && selectedProduct) segments.push(selectedProduct.name);
+    return segments;
+  }, [categoryName, subCategoryName, showAlternatives, selectedProduct]);
 
   const rows = useMemo(() => {
     let data = [];
@@ -78,8 +146,8 @@ const PosProductGrid = ({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => {
-      if (showSubCategories) return 160;
-      return 145;
+      if (showSubCategories) return 152;
+      return 136;
     },
     overscan: 5,
   });
@@ -98,10 +166,14 @@ const PosProductGrid = ({
             BACK
           </button>
           
-          {showAlternatives && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-[#49293e]/5 rounded-full">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#49293e] animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#49293e]">Select Variation</span>
+          {breadcrumbs.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[13px] font-bold text-slate-500 uppercase tracking-wider select-none">
+              {breadcrumbs.map((seg, idx) => (
+                <div key={seg} className="flex items-center gap-1.5">
+                  {idx > 0 && <span className="text-slate-300 font-medium font-sans">&gt;</span>}
+                  <span>{seg}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -128,7 +200,7 @@ const PosProductGrid = ({
             {rowVirtualizer.getVirtualItems().map((virtualRow) => (
               <div
                 key={virtualRow.index}
-                className="grid gap-3 xl:gap-4"
+                className="grid gap-2.5 lg:gap-3 xl:gap-4"
                 style={{
                   position: "absolute",
                   top: 0,
@@ -170,8 +242,8 @@ const PosProductGrid = ({
                             </svg>
                           )}
                         </div>
-                        <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase">{sub.subCategoryName}</h3>
-                        <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest">{sub.arabicName || "ITEMS"}</p>
+                        <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1">{sub.subCategoryName}</h3>
+                        <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest text-center line-clamp-2 break-words px-1">{sub.arabicName || "ITEMS"}</p>
                       </button>
                     );
                   } else if (showAlternatives) {
@@ -184,32 +256,37 @@ const PosProductGrid = ({
                         onClick={() => onSelectAlt?.(alt)}
                         className="
                           group relative flex flex-col justify-between
-                          rounded-xl border border-[#49293e]/20 bg-white p-2 text-left
+                          rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
                           transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
                           h-[135px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                         "
                       >
-                        <div className="w-full h-[58px] rounded-lg overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center mb-1 shrink-0">
+                        <div className="relative w-full h-[60px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
                           <span className="text-sm font-black text-slate-300 uppercase select-none">
                             {alt.altName.substring(0, 2)}
                           </span>
+
+                          {/* Price Badge Overlay */}
+                          {alt.price > 0 && (
+                            <div className="absolute top-1 right-1 bg-white px-1.5 py-0.5 rounded-md text-[9px] font-black text-[#49293e] shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-slate-100/50 select-none">
+                              {formatAmount(alt.price)}
+                            </div>
+                          )}
                         </div>
 
-                        <div className="w-full flex-1 flex flex-col justify-between min-h-0">
+                        <div className="w-full flex-1 flex flex-col justify-between min-h-0 p-2 pt-1.5">
                           <div className="w-full">
-                            <h3 className="text-[10px] font-extrabold text-[#49293e] leading-tight line-clamp-1 uppercase tracking-tight">
+                            <h3 className="text-[10px] font-extrabold text-[#49293e] leading-tight line-clamp-3 uppercase tracking-tight break-words">
                               {alt.altName}
                             </h3>
-                            <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
-                              {alt.altArabic || "VARIATION"}
-                            </p>
+                            {alt.altArabic && (
+                              <p className="text-[13px] font-bold text-slate-500 leading-tight line-clamp-2 mt-0.5 break-words">
+                                {alt.altArabic}
+                              </p>
+                            )}
                           </div>
 
-                          <div className="mt-1 flex items-center justify-between w-full">
-                            <div className="text-[10px] font-black text-[#49293e] tracking-tight">
-                              {formatCurrency(alt.price)}
-                            </div>
-
+                          <div className="mt-1 flex items-center justify-end w-full">
                             <div
                               className="
                                 flex h-5 w-5 items-center justify-center 
@@ -227,11 +304,14 @@ const PosProductGrid = ({
                     );
                   } else {
                     const product = item as PosProduct;
+                    const details = productDetails[product.id];
                     return (
                       <PosProductCard 
                         key={product.id} 
                         product={product} 
                         onAdd={onAdd} 
+                        price={details?.hasAlts ? undefined : details?.price}
+                        hasAlts={details?.hasAlts}
                       />
                     );
                   }

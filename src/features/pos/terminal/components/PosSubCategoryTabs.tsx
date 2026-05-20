@@ -27,13 +27,13 @@ const PosSubCategoryTabs = ({
               key={sub.subCategoryId}
               onClick={() => onSelect(sub.subCategoryId)}
               className={`
-                whitespace-nowrap px-5 py-2 rounded-xl text-xs font-bold transition-all duration-300
+                whitespace-normal break-words text-center px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 max-w-[140px] shrink-0
                 ${isActive 
                   ? "bg-[#49293e] text-white shadow-lg shadow-[#49293e]/20 scale-105" 
                   : "bg-white text-slate-500 hover:bg-slate-50 border border-slate-200/60 hover:border-[#49293e]/20"}
               `}
             >
-              {sub.subCategoryName}
+              <span className="line-clamp-2 break-words leading-tight">{sub.subCategoryName}</span>
             </button>
           );
         })}

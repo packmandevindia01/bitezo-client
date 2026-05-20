@@ -38,6 +38,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
   const [activeField, setActiveField] = useState<keyof typeof form | null>("mobileNo");
   const [showKeyboard, setShowKeyboard] = useState(true);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
 
   // High-density sequential focus refs for smooth cashier navigation
   const mobileRef = useRef<HTMLInputElement>(null);
@@ -105,6 +106,15 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       setShowKeyboard(true); 
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const updateViewportMode = () => {
+      setIsCompactViewport(window.innerWidth < 1200 || window.innerHeight < 820);
+    };
+    updateViewportMode();
+    window.addEventListener("resize", updateViewportMode);
+    return () => window.removeEventListener("resize", updateViewportMode);
+  }, []);
 
   // Lookup address when mobileNo changes
   useEffect(() => {
@@ -256,15 +266,15 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
         </button>
       </div>
 
-      {/* Content Area - Carbon Copy Layout from Reference Image (High Density) */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        {/* Scrollable Form Fields (prevents clipping on smaller viewports!) */}
-        <div className="flex-1 overflow-y-auto p-4 gap-y-3.5 flex flex-col">
+      {/* Content Area */}
+      <div className="flex-1 flex flex-col justify-between bg-white overflow-hidden min-h-0">
+        {/* Form Fields - NO scroll, compact, fits screen */}
+        <div className={`shrink-0 ${isCompactViewport ? "p-2 gap-y-1.5" : "p-3 gap-y-2"} flex flex-col`}>
           
           {/* Row 1: Primary Identity & Round Search Icon */}
-          <div className="grid grid-cols-12 gap-3 items-end shrink-0">
+          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
             <div className="col-span-3">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Mobile No</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Mobile No</span>
               <FormInput
                 value={form.mobileNo}
                 onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
@@ -275,11 +285,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 inputMode="none"
                 autoFocus
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
             <div className="col-span-5">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Customer Name</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Customer Name</span>
               <FormInput
                 ref={nameRef}
                 value={form.customerName}
@@ -289,17 +299,17 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, flatRef)}
                 inputMode="none"
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
-            <div className="col-span-3 flex items-center gap-2 h-10 self-end pb-2">
+            <div className={`col-span-3 flex items-center gap-2 ${isCompactViewport ? "h-9 pb-1" : "h-10 pb-2"} self-end`}>
                <Checkbox checked={form.isComing} onChange={(e) => setForm({ ...form, isComing: e.target.checked })} />
                <span className="text-[#9c142c] font-black text-[10px] uppercase">Coming(Come and Collect)</span>
             </div>
             <div className="col-span-1 flex justify-end">
                <button 
                  onClick={() => fetchAddressByMobile(form.mobileNo)}
-                 className="w-10 h-10 bg-[#e01a4f] hover:bg-[#c91241] rounded-full text-white flex items-center justify-center shadow-lg active:scale-95 transition-all self-end"
+                 className={`${isCompactViewport ? "w-9 h-9" : "w-10 h-10"} bg-[#e01a4f] hover:bg-[#c91241] rounded-full text-white flex items-center justify-center shadow-lg active:scale-95 transition-all self-end`}
                >
                  <Search size={18} strokeWidth={3} />
                </button>
@@ -307,9 +317,9 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           </div>
 
           {/* Row 2: Address Grid (5 Fields - explicitly mapped for precise Enter progression) */}
-          <div className="grid grid-cols-5 gap-3 shrink-0">
+          <div className={`grid grid-cols-5 ${isCompactViewport ? "gap-2" : "gap-3"} shrink-0`}>
             <div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Flat No</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Flat No</span>
               <FormInput
                 ref={flatRef}
                 value={form.flatNo}
@@ -319,11 +329,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, buildingRef)}
                 inputMode="none"
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Building No</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Building No</span>
               <FormInput
                 ref={buildingRef}
                 value={form.buildingNo}
@@ -333,11 +343,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, roadRef)}
                 inputMode="none"
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Road</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Road</span>
               <FormInput
                 ref={roadRef}
                 value={form.roadNo}
@@ -347,11 +357,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, blockRef)}
                 inputMode="none"
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Block</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Block</span>
               <FormInput
                 ref={blockRef}
                 value={form.blockNo}
@@ -361,11 +371,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, areaRef)}
                 inputMode="none"
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Area</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Area</span>
               <FormInput
                 ref={areaRef}
                 value={form.area}
@@ -375,15 +385,15 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, noteRef)}
                 inputMode="none"
                 className="!mb-0"
-                inputClassName="!h-10 border-slate-200"
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />
             </div>
           </div>
 
           {/* Row 3: Notes & Quick Actions */}
-          <div className="grid grid-cols-12 gap-3 items-end shrink-0">
+          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
             <div className="col-span-4">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Notes</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Notes</span>
               <FormInput 
                 ref={noteRef}
                 value={form.note} 
@@ -393,11 +403,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, callBackRef)}
                 inputMode="none" 
                 className="!mb-0" 
-                inputClassName="!h-10 border-slate-200" 
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"} 
               />
             </div>
             <div className="col-span-3">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Call Back</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Call Back</span>
               <FormInput 
                 ref={callBackRef}
                 value={form.callBack} 
@@ -407,10 +417,10 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, keepChangesRef)}
                 inputMode="none" 
                 className="!mb-0" 
-                inputClassName="!h-10 border-slate-200" 
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"} 
               />
             </div>
-            <div className="col-span-2 flex items-center gap-2 h-10 pb-2">
+            <div className={`col-span-2 flex items-center gap-2 ${isCompactViewport ? "h-9 pb-1" : "h-10 pb-2"}`}>
                <Checkbox checked={form.isMissedCall} onChange={(e) => setForm({ ...form, isMissedCall: e.target.checked })} />
                <span className="text-[#9c142c] font-black text-[10px] uppercase">Missed Call</span>
             </div>
@@ -418,13 +428,13 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <button 
                 onClick={handleSave} 
                 disabled={loading || !form.mobileNo}
-                className="h-10 bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
+                className={`${isCompactViewport ? "h-9" : "h-10"} bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center disabled:opacity-50`}
               >
                 Update
               </button>
               <button 
                 onClick={() => setIsMoreAddressOpen(true)} 
-                className="h-10 bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center"
+                className={`${isCompactViewport ? "h-9" : "h-10"} bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center`}
               >
                 More Address
               </button>
@@ -432,9 +442,9 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           </div>
 
           {/* Row 4: Keep Changes, Currency, Logs */}
-          <div className="grid grid-cols-12 gap-3 items-end shrink-0">
+          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
             <div className="col-span-4">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-1">Keep Changes</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Keep Changes</span>
               <FormInput 
                 ref={keepChangesRef}
                 value={form.keepChanges} 
@@ -444,11 +454,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 onKeyDown={(e) => handleEnterKey(e, "save")}
                 inputMode="none" 
                 className="!mb-0" 
-                inputClassName="!h-10 border-slate-200" 
+                inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"} 
               />
             </div>
             <div className="col-span-5">
-              <div className="grid grid-cols-3 gap-2 h-10">
+              <div className={`grid grid-cols-3 gap-2 ${isCompactViewport ? "h-9" : "h-10"}`}>
                 {["5.000", "10.000", "20.000"].map((amt) => (
                   <button 
                     key={amt} 
@@ -463,7 +473,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
             <div className="col-span-3">
               <button 
                 onClick={() => alert("Logs Clicked")}
-                className="h-10 w-full bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center"
+                className={`${isCompactViewport ? "h-9" : "h-10"} w-full bg-[#1d2736] hover:bg-[#2b3a4f] text-white font-black text-[10px] uppercase rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center`}
               >
                 Logs
               </button>
@@ -473,14 +483,14 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
         {/* Row 5: Touch Keyboard (Centered, Spacious Native Chassis - Zero Overlapping) */}
         {showKeyboard && (
-          <div className="shrink-0 w-full bg-[#f8f9fa] px-4 pb-2 border-t border-slate-100">
-            <div className="w-full max-w-[920px] mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl p-2 sm:p-2.5">
+          <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-2 pb-1.5" : "px-3 lg:px-4 pb-2"} border-t border-slate-100`}>
+            <div className={`w-full ${isCompactViewport ? "max-w-[900px]" : "max-w-[1000px]"} mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl ${isCompactViewport ? "p-2" : "p-2 lg:p-2.5"}`}>
               <TouchKeyboard
                 onInput={handleInput}
                 onBackspace={handleBackspace}
                 onClear={handleClearKey}
                 onClose={() => setShowKeyboard(false)}
-                size="md"
+                size={isCompactViewport ? "md" : "lg"}
                 embedded={true}
               />
             </div>
@@ -496,7 +506,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
         />
 
         {/* Action Footer - High Density, Elegant Buttons */}
-        <div className="bg-slate-100 p-3 flex justify-end gap-3 shrink-0 border-t border-slate-200">
+        <div className={`${isCompactViewport ? "bg-slate-100 p-2.5" : "bg-slate-100 p-3"} flex justify-end gap-3 shrink-0 border-t border-slate-200`}>
           <Button 
             onClick={handleClearForm} 
             variant="secondary"

@@ -68,6 +68,7 @@ export const PosMoreAddressModal = ({
 
   const [activeField, setActiveField] = useState<keyof typeof form | null>("phoneNo");
   const [showKeyboard, setShowKeyboard] = useState(true);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
 
   useEffect(() => {
     if (isOpen && mobileNo) {
@@ -87,6 +88,15 @@ export const PosMoreAddressModal = ({
       setShowKeyboard(true);
     }
   }, [isOpen, mobileNo, customerName, fetchAllAddressesByMobile]);
+
+  useEffect(() => {
+    const updateViewportMode = () => {
+      setIsCompactViewport(window.innerWidth < 1200 || window.innerHeight < 820);
+    };
+    updateViewportMode();
+    window.addEventListener("resize", updateViewportMode);
+    return () => window.removeEventListener("resize", updateViewportMode);
+  }, []);
 
   // Instantly selects on single tap, removing the need for selectedId state and side effects
 
@@ -175,11 +185,11 @@ export const PosMoreAddressModal = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col bg-white overflow-y-auto justify-start">
+      <div className="flex-1 flex flex-col justify-between bg-white overflow-hidden min-h-0">
         {/* Left/Right Split Layout */}
-        <div className="p-2.5 pb-1 grid grid-cols-12 gap-2.5 shrink-0 items-start">
+        <div className={`${isCompactViewport ? "p-1.5 gap-1.5" : "p-2 lg:p-2.5 gap-2 lg:gap-2.5"} pb-1 grid grid-cols-12 shrink-0 items-start`}>
           {/* Left Column: Form Fields (Col span 7) */}
-          <div className="col-span-7 flex flex-col gap-y-1.5 bg-[#f8f9fa] p-2.5 border border-slate-100 rounded-xl">
+          <div className={`col-span-7 flex flex-col gap-y-1.5 bg-[#f8f9fa] border border-slate-100 rounded-xl ${isCompactViewport ? "p-1.5" : "p-2 lg:p-2.5"}`}>
             {/* Form row 1 */}
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -324,7 +334,7 @@ export const PosMoreAddressModal = ({
           </div>
 
           {/* Right Column: Address History Table (Col span 5 - scrollable and compact height) */}
-          <div className="col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col h-[210px] shrink-0">
+          <div className={`col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col shrink-0 ${isCompactViewport ? "h-[170px]" : "h-[180px] lg:h-[190px]"}`}>
             <div className="bg-slate-50 px-2.5 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0">
               <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Address History</span>
               <span className="bg-[#49293e] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
@@ -390,14 +400,14 @@ export const PosMoreAddressModal = ({
 
         {/* Row 5: Touch Keyboard (Full width below the panels, size="md") */}
         {showKeyboard && (
-          <div className="shrink-0 w-full bg-[#f8f9fa] px-4 pb-1.5 border-t border-slate-100">
-            <div className="w-full max-w-[920px] mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-lg rounded-xl p-2">
+          <div className={`shrink-0 w-full bg-[#f8f9fa] border-t border-slate-100 mt-auto ${isCompactViewport ? "px-2 pb-1" : "px-3 lg:px-4 pb-1.5"}`}>
+            <div className={`w-full mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-lg rounded-xl ${isCompactViewport ? "max-w-[860px] p-1.5" : "max-w-[1000px] p-2 lg:p-2.5"}`}>
               <TouchKeyboard
                 onInput={handleInput}
                 onBackspace={handleBackspace}
                 onClear={handleClearKey}
                 onClose={() => setShowKeyboard(false)}
-                size="md"
+                size={isCompactViewport ? "md" : "lg"}
                 embedded={true}
               />
             </div>

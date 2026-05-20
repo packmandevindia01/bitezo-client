@@ -45,16 +45,16 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
   };
 
   return (
-    <nav className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-1 shadow-sm shrink-0">
-      <div className="flex items-center gap-4 xl:gap-6">
-        <div className="flex items-center justify-center overflow-hidden w-28 md:w-32 xl:w-36 h-9 xl:h-10">
+    <nav className="flex items-center justify-between gap-2 lg:gap-3 border-b border-slate-200 bg-white px-3 lg:px-4 py-1 shadow-sm shrink-0">
+      <div className="flex items-center gap-2 lg:gap-3 xl:gap-5 min-w-0">
+        <div className="flex items-center justify-center overflow-hidden w-24 md:w-28 lg:w-30 xl:w-36 h-9 lg:h-10 shrink-0">
           <img src="/LOGO6.png" alt="Bitezo" className="w-full h-full object-contain" style={{ transform: 'scale(3.2) translateY(1.5px)' }} />
         </div>
 
         <PosActionButton
           accent="orange"
           size="lg"
-          className="rounded-xl px-4 h-9 xl:h-10 shadow-md flex items-center gap-2"
+          className="rounded-xl px-3 lg:px-4 h-9 lg:h-10 shadow-md flex items-center gap-1.5 lg:gap-2 shrink-0"
           onClick={onNewOrder}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -65,7 +65,7 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
           <span className="hidden sm:inline text-xs">New Order</span>
         </PosActionButton>
 
-        <div className="hidden md:flex gap-1 ml-2">
+        <div className="hidden md:flex gap-1 ml-1 lg:ml-2 min-w-0">
           {[
             { label: "Dine In", icon: UtensilsCrossed, color: "orange" },
             { label: "Take Out", icon: ShoppingBag, color: "gray" },
@@ -76,7 +76,7 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
             <PosActionButton
               key={type.label}
               accent={type.color as any}
-              className="h-9 xl:h-10 px-2 xl:px-3 rounded-xl text-[10px] min-w-max shadow-sm flex items-center gap-1.5"
+              className="h-9 lg:h-10 px-2 rounded-xl text-[10px] min-w-0 shadow-sm flex items-center gap-1"
               onClick={() => {
                 if (type.label === "Dine In") {
                   navigate("/pos/dine-in");
@@ -97,29 +97,29 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
 
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        <PosActionButton accent="orange" noPadding className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md" title="Split">
+      <div className="flex items-center gap-1 lg:gap-1.5 shrink-0">
+        <PosActionButton accent="orange" noPadding className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md" title="Split">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M16 3h5v5" /><path d="M8 21H3v-5" /><path d="M12 12 21 3" /><path d="m12 12-9 9" />
           </svg>
         </PosActionButton>
-        <PosActionButton accent="orange" noPadding className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md" title="Combine">
+        <PosActionButton accent="orange" noPadding className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md" title="Combine">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m21 3-9 9" /><path d="m3 21 9-9" /><path d="M16 12h5V7" /><path d="M8 12H3v5" />
           </svg>
         </PosActionButton>
-        <PosActionButton accent="orange" noPadding className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md" title="Recall" onClick={onRecall}>
+        <PosActionButton accent="orange" noPadding className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md" title="Recall" onClick={onRecall}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
           </svg>
         </PosActionButton>
 
-        <div className="w-px h-6 xl:h-8 bg-slate-200 mx-1" />
+        <div className="w-px h-6 lg:h-8 bg-slate-200 mx-1" />
 
         <PosActionButton
           accent="gray"
           noPadding
-          className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md"
+          className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md"
           onClick={onCustomerMaster}
           title="Customer Master"
         >
@@ -129,7 +129,7 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
         <PosActionButton
           accent="gray"
           noPadding
-          className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md"
+          className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md"
           onClick={onMore}
           title="More Options"
         >
@@ -140,7 +140,7 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
         <PosActionButton
           accent="red"
           noPadding
-          className="h-9 w-9 xl:h-10 xl:w-10 rounded-xl shadow-md"
+          className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md"
           onClick={handleLogoutClick}
           title="Logout"
         >

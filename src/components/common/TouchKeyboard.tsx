@@ -8,7 +8,7 @@ interface TouchKeyboardProps {
   onClear?: () => void;
   onClose?: () => void;
   layout?: "qwerty" | "numeric" | "symbols";
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   embedded?: boolean;
 }
 
@@ -389,17 +389,18 @@ export const TouchKeyboard = ({
       : qwertyLayout;
 
   const isCompact = size === "sm";
+  const isLarge = size === "lg";
   const showHeader = !isCompact && !embedded;
 
   return (
     <div
       className={`
-        w-full ${isCompact ? "max-w-[550px]" : "max-w-[920px]"} mx-auto select-none transition-all duration-300 ease-out
+        w-full ${embedded ? "max-w-none" : isCompact ? "max-w-[550px]" : isLarge ? "max-w-[1100px]" : "max-w-[920px]"} mx-auto select-none transition-all duration-300 ease-out
         ${embedded ? "" : `
           bg-gradient-to-b from-[#faf8f9] to-[#f3edf0]
           border border-slate-300
           shadow-[0_15px_40px_rgba(73,41,62,0.08),0_1px_3px_rgba(0,0,0,0.05)]
-          ${isCompact ? "rounded-xl p-1.5" : "rounded-2xl p-2 sm:p-2.5"}
+          ${isCompact ? "rounded-xl p-1.5" : isLarge ? "rounded-2xl p-2.5 sm:p-3" : "rounded-2xl p-2 sm:p-2.5"}
         `}
       `}
       style={{
@@ -446,7 +447,7 @@ export const TouchKeyboard = ({
       )}
 
       {/* Grid of keys */}
-      <div className={`flex flex-col ${isCompact ? "gap-0.5" : "gap-1 sm:gap-1.25"}`}>
+      <div className={`flex flex-col ${isCompact ? "gap-0.5" : isLarge ? "gap-1.5 sm:gap-2" : "gap-1 sm:gap-1.5"}`}>
         {activeRows.map((row, rowIndex) => (
           <div key={rowIndex} className="flex justify-center gap-0.5 sm:gap-1 w-full">
             {row.map((key) => {
@@ -470,11 +471,11 @@ export const TouchKeyboard = ({
               }
 
               // Height class matching standard touch billing counter ergonomic preferences
-              const hClass = isCompact 
-                ? "h-7.5" 
-                : currentLayout === "numeric" 
-                  ? "h-11.5 sm:h-12.5" 
-                  : "h-9.5 sm:h-10 md:h-10.5";
+              const hClass = isCompact
+                ? "h-8"
+                : currentLayout === "numeric"
+                  ? isLarge ? "h-[56px] sm:h-[62px]" : "h-[48px] sm:h-[52px]"
+                  : isLarge ? "h-[48px] sm:h-[52px]" : "h-[42px] sm:h-[46px]";
 
               // Color styles matching the Backoffice Crimson/Maroon design rules
               let bgClass = "";
@@ -536,7 +537,7 @@ export const TouchKeyboard = ({
                     focus:outline-none focus:ring-0
                     cursor-pointer
                     overflow-hidden
-                    ${isCompact ? "text-[10px]" : "text-xs sm:text-sm"}
+                    ${isCompact ? "text-[10px]" : isLarge ? "text-sm" : "text-xs sm:text-sm"}
                   `}
                   style={{
                     WebkitTapHighlightColor: "transparent",
@@ -546,7 +547,7 @@ export const TouchKeyboard = ({
                   {key === "Back" || key === "Back Space" ? (
                     <div className="flex items-center gap-1.5 text-slate-700">
                       <Delete
-                        size={isCompact ? 12 : currentLayout === "numeric" ? 18 : 16}
+                        size={isCompact ? 12 : isLarge ? 18 : currentLayout === "numeric" ? 18 : 16}
                         strokeWidth={2.2}
                       />
                       {key === "Back Space" && !isCompact && (
@@ -566,7 +567,7 @@ export const TouchKeyboard = ({
                       <div className="h-[2px] flex-1 max-w-[20px] rounded-full bg-slate-300" />
                     </div>
                   ) : key === "Clear" ? (
-                    <span className={`${isCompact ? "text-[7.5px]" : "text-[9px] sm:text-[10px]"} font-black tracking-wider uppercase text-amber-600`}>
+                    <span className={`${isCompact ? "text-[8px]" : "text-[9px] sm:text-[10px]"} font-black tracking-wider uppercase text-amber-600`}>
                       Clear
                     </span>
                   ) : key === "Enter" ? (
@@ -586,7 +587,7 @@ export const TouchKeyboard = ({
                   ) : (
                     <span
                       className={`
-                        ${isCompact ? "text-xs" : currentLayout === "numeric" ? "text-lg sm:text-xl font-black" : "text-sm sm:text-base"}
+                        ${isCompact ? "text-xs" : currentLayout === "numeric" ? (isLarge ? "text-xl sm:text-2xl font-black" : "text-lg sm:text-xl font-black") : (isLarge ? "text-base sm:text-lg" : "text-sm sm:text-base")}
                         font-bold tabular-nums leading-none
                       `}
                     >

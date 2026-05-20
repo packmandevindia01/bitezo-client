@@ -45,13 +45,7 @@ interface PosState {
 }
 
 const loadCart = (): PosCartItem[] => {
-  try {
-    const saved = localStorage.getItem('posCartItems');
-    return saved ? JSON.parse(saved) : POS_INITIAL_CART;
-  } catch (err) {
-    console.warn('Failed to load cart from storage:', err);
-    return POS_INITIAL_CART;
-  }
+  return POS_INITIAL_CART;
 };
 
 const initialState: PosState = {
@@ -103,7 +97,6 @@ const posSlice = createSlice({
       } else {
         state.cartItems.push({ productId, quantity: 1, variantName, price });
       }
-      localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
     },
     incrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
       const { productId, variantName } = action.payload;
@@ -112,7 +105,6 @@ const posSlice = createSlice({
       );
       if (item) {
         item.quantity += 1;
-        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
     decrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
@@ -128,7 +120,6 @@ const posSlice = createSlice({
             !(i.productId === productId && matchVariant(i.variantName, variantName))
           );
         }
-        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
     removeFromCart: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
@@ -136,14 +127,12 @@ const posSlice = createSlice({
       state.cartItems = state.cartItems.filter(i => 
         !(i.productId === productId && matchVariant(i.variantName, variantName))
       );
-      localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
     },
     clearCart: (state) => {
       state.cartItems = [];
       state.billDiscountValue = 0;
       state.selectedCustomerId = 1;
       state.selectedAddressId = 0;
-      localStorage.removeItem('posCartItems');
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
       state.activeCategoryId = action.payload;
@@ -172,7 +161,6 @@ const posSlice = createSlice({
       if (item) {
         item.discountValue = value;
         item.discountType = type;
-        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
     updateItemPrice: (state, action: PayloadAction<{ productId: number; variantName?: string; price: number }>) => {
@@ -180,7 +168,6 @@ const posSlice = createSlice({
       const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
       if (item) {
         item.price = price;
-        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
     updateItemQty: (state, action: PayloadAction<{ productId: number; variantName?: string; quantity: number }>) => {
@@ -188,7 +175,6 @@ const posSlice = createSlice({
       const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
       if (item) {
         item.quantity = Math.max(1, quantity);
-        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
     setItemCustomizations: (state, action: PayloadAction<{ 
@@ -202,7 +188,6 @@ const posSlice = createSlice({
       if (item) {
         item.extras = extras;
         item.modifiers = modifiers;
-        localStorage.setItem('posCartItems', JSON.stringify(state.cartItems));
       }
     },
     

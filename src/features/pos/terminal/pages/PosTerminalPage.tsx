@@ -71,6 +71,8 @@ export const PosTerminalPage = () => {
     }
   }, [location.state]);
 
+
+
   const {
     groups,
     categories,
@@ -107,6 +109,9 @@ export const PosTerminalPage = () => {
     orderLoading,
     submitOrder,
   } = usePosTerminal();
+
+  const activeCategory = categories.find(c => c.id === activeCategoryId);
+  const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
 
   // Reset alternatives and selectedProduct when activeGroupId, activeCategoryId, activeSubCategoryId, or search changes
   useEffect(() => {
@@ -314,7 +319,7 @@ export const PosTerminalPage = () => {
         status={status}
       />
       
-      <div className="flex flex-col xl:flex-row xl:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-4 xl:px-6">
+      <div className="flex flex-col lg:flex-row lg:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-3 lg:px-4 xl:px-6">
         <div className="shrink-0">
           <PosGroupTabs 
             groups={groups} 
@@ -327,7 +332,7 @@ export const PosTerminalPage = () => {
           />
         </div>
         
-        <div className="flex-1 flex items-center justify-end py-2 xl:py-0">
+        <div className="flex-1 flex items-center justify-end py-2 lg:py-1">
           <div className="relative w-full max-w-md group">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#49293e] transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,7 +349,7 @@ export const PosTerminalPage = () => {
             />
           </div>
           
-          <div className="hidden xl:flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+          <div className="hidden lg:flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total</span>
             <span className="text-sm font-bold text-[#49293e]">{visibleProducts.length}</span>
           </div>
@@ -362,7 +367,7 @@ export const PosTerminalPage = () => {
         </div>
       )}
 
-      <main className="flex flex-col flex-1 overflow-hidden xl:grid xl:grid-cols-[220px_minmax(0,1fr)_460px]">
+      <main className="flex flex-col flex-1 overflow-hidden lg:grid lg:grid-cols-[190px_minmax(0,1fr)_370px] xl:grid-cols-[220px_minmax(0,1fr)_460px]">
         {/* Left Column: Categories */}
         <PosCategoryRail
           categories={categories}
@@ -371,13 +376,18 @@ export const PosTerminalPage = () => {
             const parsedId = parseInt(id, 10);
             if (parsedId !== activeCategoryId) {
               setCategory(parsedId);
+            } else {
+              // Same category clicked again — reset to fresh top-level state
+              setSubCategory(null);
+              setAlternatives([]);
+              setSelectedProduct(null);
             }
           }}
         />
 
         {/* Middle Column: Grid */}
         <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb]">
-          <div className="flex-1 flex flex-col p-3 xl:p-4 overflow-hidden pb-4 xl:pb-4">
+          <div className="flex-1 flex flex-col p-2 lg:p-2.5 xl:p-4 overflow-hidden pb-2.5 xl:pb-4">
             <ErrorBoundary name="Product Grid">
               <PosProductGrid
                 products={visibleProducts}
@@ -388,43 +398,46 @@ export const PosTerminalPage = () => {
                 onBack={handleGridBack}
                 onAdd={handleProductSelect}
                 onSelectAlt={handleAltSelect}
+                categoryName={activeCategory?.name}
+                subCategoryName={activeSubCategory?.subCategoryName}
+                selectedProduct={selectedProduct}
               />
             </ErrorBoundary>
           </div>
 
           {/* Action Button Bar */}
           <div className="grid grid-cols-4 md:grid-cols-7 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
-            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm" tabIndex={-1}>
+            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm" tabIndex={-1}>
               Close
             </button>
             <button
               onClick={handleClearCart}
-              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
               tabIndex={-1}
             >
               Clear
             </button>
-            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
               Waiter
             </button>
             <button 
               onClick={openDiscountChoice}
-              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={itemCount === 0}
             >
               Discount
             </button>
             <button 
               onClick={openPriceModal}
-              className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!selectedKey}
             >
               Price
             </button>
-            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
               Note
             </button>
-            <button className="h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
               More
             </button>
           </div>
@@ -433,7 +446,7 @@ export const PosTerminalPage = () => {
         {/* Right Column: Order Panel */}
         <div className={`
           fixed inset-y-0 right-0 z-50 w-[85%] max-w-[460px] transform transition-transform duration-300 ease-in-out bg-white shadow-2xl
-          xl:static xl:w-auto xl:translate-x-0 xl:shadow-none xl:z-auto
+          lg:static lg:w-auto lg:translate-x-0 lg:shadow-none lg:z-auto lg:h-full lg:overflow-hidden
           ${isCartOpen ? "translate-x-0" : "translate-x-full"}
         `}>
           <ErrorBoundary name="Order Panel">
@@ -658,26 +671,42 @@ export const PosTerminalPage = () => {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "."].map((btn) => (
-              <button
-                key={btn}
-                onClick={() => {
-                  if (btn === "Clear") setPriceInputValue("");
-                  else if (btn === ".") {
-                    if (!priceInputValue.includes(".")) setPriceInputValue(prev => prev + ".");
-                  } else {
-                    if (priceInputValue.length < 10) setPriceInputValue(prev => prev + btn);
-                  }
-                }}
-                className={`
-                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
-                  ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
-                `}
-              >
-                {btn}
-              </button>
-            ))}
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              "1", "2", "3", "Back",
+              "4", "5", "6", "7",
+              "8", "9", "0", ".",
+              "Clear",
+            ].map((btn) => {
+              return (
+                <button
+                  key={btn}
+                  onClick={() => {
+                    if (btn === "Clear") setPriceInputValue("");
+                    else if (btn === "Back") setPriceInputValue(prev => prev.slice(0, -1));
+                    else if (btn === ".") {
+                      if (!priceInputValue.includes(".")) setPriceInputValue(prev => prev + ".");
+                    } else {
+                      if (priceInputValue.length < 10) {
+                        const next = `${priceInputValue}${btn}`;
+                        setPriceInputValue(next.slice(0, 10));
+                      }
+                    }
+                  }}
+                  className={`
+                    h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                    ${btn === 'Clear'
+                      ? "bg-red-50 text-red-600 border-red-400"
+                      : btn === 'Back'
+                        ? "bg-slate-100 text-slate-700 border-slate-300"
+                        : "bg-white text-slate-700 hover:bg-slate-50"}
+                    ${btn === 'Clear' ? "col-span-4" : ""}
+                  `}
+                >
+                  {btn === "Back" ? "⌫" : btn}
+                </button>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
@@ -742,23 +771,23 @@ export const PosTerminalPage = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", ""].map((btn, idx) => {
-              if (btn === "") return <div key={idx} />;
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"].map((btn) => {
               return (
                 <button
                   key={btn}
                   onClick={() => {
                     if (btn === "Clear") setQtyInputValue("");
+                    else if (btn === "Back") setQtyInputValue(prev => prev.slice(0, -1));
                     else {
                       if (qtyInputValue.length < 5) setQtyInputValue(prev => prev + btn);
                     }
                   }}
                   className={`
                     h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
-                    ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
+                    ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : btn === 'Back' ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-white text-slate-700 hover:bg-slate-50"}
                   `}
                 >
-                  {btn}
+                  {btn === "Back" ? "⌫" : btn}
                 </button>
               );
             })}

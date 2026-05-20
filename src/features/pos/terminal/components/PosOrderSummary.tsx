@@ -15,7 +15,7 @@ interface PosOrderSummaryProps {
 
 export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading }: PosOrderSummaryProps) => {
   return (
-    <div className="p-3 bg-slate-50/80 border-t border-slate-200 space-y-3">
+    <div className="shrink-0 p-2.5 lg:p-3 bg-slate-50/80 border-t border-slate-200 space-y-2.5 lg:space-y-3">
       {/* Financial Breakdown */}
       <div className="space-y-1 border-b border-slate-200/60 pb-3">
         <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
@@ -50,13 +50,13 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
 
       <div className="flex items-center justify-between">
         <div className="flex gap-1.5">
-          <button className="h-8 px-4 rounded-lg bg-[#ff9500] text-white text-[10px] font-black uppercase shadow-sm hover:bg-[#e68600] transition-colors active:scale-95">
+          <button className="h-8 px-3 lg:px-4 rounded-lg bg-[#ff9500] text-white text-[10px] font-black uppercase shadow-sm hover:bg-[#e68600] transition-colors active:scale-95">
             Discount
           </button>
         </div>
         <div className="flex flex-col items-end leading-none">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Due</span>
-          <span className="text-3xl font-bold text-slate-900 tracking-tighter">
+          <span className="text-[28px] lg:text-3xl font-bold text-slate-900 tracking-tighter">
             {formatAmount(total || 0)}
           </span>
         </div>
@@ -68,7 +68,7 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
           <button
             key={mode}
             className={`
-              h-11 rounded-xl border-2 text-[10px] font-bold transition-all shadow-sm active:scale-95
+              h-10 lg:h-11 rounded-xl border-2 text-[10px] font-bold transition-all shadow-sm active:scale-95
               ${mode === "CASH"
                 ? "border-pos-green bg-pos-green/10 text-pos-green-dark"
                 : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"}
@@ -77,7 +77,7 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
             {mode}
           </button>
         ))}
-        <div className="h-11 rounded-xl border-2 border-dashed border-slate-200" />
+        <div className="h-10 lg:h-11 rounded-xl border-2 border-dashed border-slate-200" />
       </div>
 
       {/* Bottom Actions */}
@@ -85,13 +85,13 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
         <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={onSettle}
-            className="h-14 rounded-xl bg-pos-green text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all"
+            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all"
           >
             Settle
           </button>
           <button
             onClick={onSettle}
-            className="h-14 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all"
+            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all"
           >
             Settle & <br />Print
           </button>
@@ -100,14 +100,14 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
           <button
             onClick={onOrder}
             disabled={orderLoading}
-            className="h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
+            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={onOrder}
             disabled={orderLoading}
-            className="h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
+            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
           >
             {orderLoading ? "Wait..." : "Order & Print"}
           </button>

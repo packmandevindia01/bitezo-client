@@ -112,12 +112,12 @@ export const PosOrderPanel = ({
   const hasSelection = !!selectedItem;
 
   return (
-    <aside className="flex h-full flex-col border-l border-slate-200 bg-white shadow-premium relative">
+    <aside className="flex h-full flex-col border-l border-slate-200 bg-white shadow-premium relative overflow-hidden">
       {/* Mobile Close Button */}
       {onClose && (
         <button
           onClick={onClose}
-          className="xl:hidden absolute -left-12 top-4 bg-white p-3 rounded-l-2xl shadow-premium text-slate-400"
+          className="lg:hidden absolute -left-12 top-4 bg-white p-3 rounded-l-2xl shadow-premium text-slate-400"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -126,7 +126,7 @@ export const PosOrderPanel = ({
       )}
 
       {/* Utility Action Bar */}
-      <div className="grid grid-cols-6 gap-1.5 p-2 shrink-0 border-b border-slate-100 bg-slate-50/50">
+      <div className="grid grid-cols-6 gap-1 lg:gap-1.5 p-1.5 lg:p-2 shrink-0 border-b border-slate-100 bg-slate-50/50">
 
         {/* VOID — removes selected row */}
         <button
@@ -134,7 +134,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Void selected item"
           className={`
-            h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-11 lg:h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
             transition-all active:scale-95 shadow-sm
             ${hasSelection
               ? "bg-red-500 hover:bg-red-600 cursor-pointer"
@@ -154,7 +154,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Decrease quantity"
           className={`
-            h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-11 lg:h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
             transition-all active:scale-95 shadow-sm
             ${hasSelection
               ? "bg-[#49293e] hover:bg-[#3a1f2f] cursor-pointer"
@@ -174,7 +174,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Increase quantity"
           className={`
-            h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-11 lg:h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
             transition-all active:scale-95 shadow-sm
             ${hasSelection
               ? "bg-[#49293e] hover:bg-[#3a1f2f] cursor-pointer"
@@ -194,7 +194,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Mod"
           className={`
-            h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-11 lg:h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
             transition-all active:scale-95 shadow-sm
             ${hasSelection
               ? "bg-[#002b5c] hover:bg-[#001d3d] cursor-pointer"
@@ -215,7 +215,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Extras"
           className={`
-            h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-11 lg:h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
             transition-all active:scale-95 shadow-sm
             ${hasSelection
               ? "bg-[#002b5c] hover:bg-[#001d3d] cursor-pointer"
@@ -235,7 +235,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Manual Quantity"
           className={`
-            h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-11 lg:h-12 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
             transition-all active:scale-95 shadow-sm
             ${hasSelection
               ? "bg-[#002b5c] hover:bg-[#001d3d] cursor-pointer"
