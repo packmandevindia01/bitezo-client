@@ -17,16 +17,20 @@ export interface AuthState {
   };
 }
 
+const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+
 const initialState: AuthState = {
-  // Manual re-hydration from localStorage to persist state across refreshes
-  isAuthenticated: !!localStorage.getItem("accessToken"),
+  // Manual re-hydration from localStorage or sessionStorage to persist state across refreshes
+  isAuthenticated: isBackoffice ? !!sessionStorage.getItem("backoffice_accessToken") : !!localStorage.getItem("accessToken"),
   tenantId: localStorage.getItem("tenantId"),
-  accessToken: localStorage.getItem("accessToken"),
-  refreshToken: localStorage.getItem("refreshToken"),
-  userId: localStorage.getItem("userId"),
-  userName: localStorage.getItem("userName"),
-  isMaster: localStorage.getItem("isMaster") === "true",
-  userRoles: localStorage.getItem("userRoles") ? JSON.parse(localStorage.getItem("userRoles")!) : [],
+  accessToken: isBackoffice ? sessionStorage.getItem("backoffice_accessToken") : localStorage.getItem("accessToken"),
+  refreshToken: isBackoffice ? sessionStorage.getItem("backoffice_refreshToken") : localStorage.getItem("refreshToken"),
+  userId: isBackoffice ? sessionStorage.getItem("backoffice_userId") : localStorage.getItem("userId"),
+  userName: isBackoffice ? sessionStorage.getItem("backoffice_userName") : localStorage.getItem("userName"),
+  isMaster: isBackoffice ? sessionStorage.getItem("backoffice_isMaster") === "true" : localStorage.getItem("isMaster") === "true",
+  userRoles: isBackoffice
+    ? (sessionStorage.getItem("backoffice_userRoles") ? JSON.parse(sessionStorage.getItem("backoffice_userRoles")!) : [])
+    : (localStorage.getItem("userRoles") ? JSON.parse(localStorage.getItem("userRoles")!) : []),
   decimalPart: Number(localStorage.getItem("decimalPart")) || 2,
   currencySymbol: localStorage.getItem("currencySymbol") || "BHD",
   companyConfig: {
@@ -65,17 +69,32 @@ const authSlice = createSlice({
       state.decimalPart = p.decimalPart;
       state.currencySymbol = p.currencySymbol;
 
-      // Persist to localStorage
-      localStorage.setItem("accessToken", p.accessToken);
-      localStorage.setItem("refreshToken", p.refreshToken);
-      localStorage.setItem("userId", String(p.userId));
-      localStorage.setItem("userName", p.userName);
-      localStorage.setItem("isMaster", String(p.isMaster));
-      localStorage.setItem("userRoles", JSON.stringify(p.userRoles));
+      const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+
+      if (isBackofficeMode) {
+        sessionStorage.setItem("backoffice_accessToken", p.accessToken);
+        sessionStorage.setItem("backoffice_refreshToken", p.refreshToken);
+        sessionStorage.setItem("backoffice_userId", String(p.userId));
+        sessionStorage.setItem("backoffice_userName", p.userName);
+        sessionStorage.setItem("backoffice_isMaster", String(p.isMaster));
+        sessionStorage.setItem("backoffice_userRoles", JSON.stringify(p.userRoles));
+      } else {
+        localStorage.setItem("accessToken", p.accessToken);
+        localStorage.setItem("refreshToken", p.refreshToken);
+        localStorage.setItem("userId", String(p.userId));
+        localStorage.setItem("userName", p.userName);
+        localStorage.setItem("isMaster", String(p.isMaster));
+        localStorage.setItem("userRoles", JSON.stringify(p.userRoles));
+      }
+      
+      // Global settings
       localStorage.setItem("decimalPart", String(p.decimalPart));
       localStorage.setItem("currencySymbol", p.currencySymbol);
       if (p.tenantId) localStorage.setItem("tenantId", p.tenantId);
-      if (p.sessionExpiresAt) localStorage.setItem("sessionExpiresAt", p.sessionExpiresAt);
+      if (p.sessionExpiresAt) {
+        if (isBackofficeMode) sessionStorage.setItem("backoffice_sessionExpiresAt", p.sessionExpiresAt);
+        else localStorage.setItem("sessionExpiresAt", p.sessionExpiresAt);
+      }
     },
 
     logout: (state) => {
@@ -89,17 +108,25 @@ const authSlice = createSlice({
       state.decimalPart = 2;
       state.currencySymbol = "BHD";
       
-      // Essential cleanup: Only remove user-session data.
-      // Do NOT remove "companyRegistered" or "tenantId" as they identify the device.
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("userName");
-      localStorage.removeItem("isMaster");
-      localStorage.removeItem("userRoles");
-      localStorage.removeItem("decimalPart");
-      localStorage.removeItem("currencySymbol");
-      localStorage.removeItem("sessionExpiresAt");
+      const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+
+      if (isBackofficeMode) {
+        sessionStorage.removeItem("backoffice_accessToken");
+        sessionStorage.removeItem("backoffice_refreshToken");
+        sessionStorage.removeItem("backoffice_userId");
+        sessionStorage.removeItem("backoffice_userName");
+        sessionStorage.removeItem("backoffice_isMaster");
+        sessionStorage.removeItem("backoffice_userRoles");
+        sessionStorage.removeItem("backoffice_sessionExpiresAt");
+      } else {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("isMaster");
+        localStorage.removeItem("userRoles");
+        localStorage.removeItem("sessionExpiresAt");
+      }
     },
     setCompanyConfig: (
       state,

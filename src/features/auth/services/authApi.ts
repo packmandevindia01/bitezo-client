@@ -15,13 +15,14 @@ export const loginApi = async (username: string, password: string): Promise<Logi
 export const posLoginApi = async (
   password: string, 
   branchId: number, 
-  counterId: number
+  counterId: number,
+  seriesId: number
 ): Promise<LoginResponse> => {
-  const url = `/auth/pos-login?branchId=${branchId}&counterId=${counterId}`;
+  const url = `/auth/pos-login`;
   
   const { data } = await axiosInstance.post<LoginResponse>(
     url,
-    { password }
+    { password, branchId, counterId, seriesId }
   );
 
   return data;

@@ -83,6 +83,7 @@ const CashierInPage = () => {
 
   const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
   const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
+  const seriesId = Number(localStorage.getItem("systemSeriesId")) || 0;
   const clientDb = localStorage.getItem("tenantId") || "app_db";
 
   const handleLogin = async () => {
@@ -91,15 +92,15 @@ const CashierInPage = () => {
       return;
     }
 
-    if (!branchId || !counterId) {
-      showToast("Terminal not registered. Please register first.", "error");
+    if (!branchId || !counterId || !seriesId) {
+      showToast("Terminal not fully registered. Please register first.", "error");
       navigate("/system/register");
       return;
     }
 
     setLoading(true);
     try {
-      const data = await posLoginApi(pin, branchId, counterId);
+      const data = await posLoginApi(pin, branchId, counterId, seriesId);
 
       if (data?.accessToken && data?.user?.userId) {
         localStorage.setItem("userId", String(data.user.userId));
@@ -256,6 +257,11 @@ const CashierInPage = () => {
               <div className="flex-1 flex flex-col items-center gap-0.5">
                 <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Terminal</span>
                 <span className="text-[10px] font-bold text-[#49293e] uppercase">{localStorage.getItem("systemCounterName") || "COUNTER 01"}</span>
+              </div>
+              <div className="w-px h-6 bg-slate-200" />
+              <div className="flex-1 flex flex-col items-center gap-0.5">
+                <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Series</span>
+                <span className="text-[10px] font-bold text-[#49293e] uppercase">{localStorage.getItem("systemSeriesName") || "MAIN"}</span>
               </div>
             </div>
           </div>

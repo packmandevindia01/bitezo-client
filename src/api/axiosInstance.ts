@@ -12,7 +12,9 @@ axiosInstance.interceptors.request.use((config) => {
   // Set baseURL dynamically from runtime config
   config.baseURL = getConfig().apiBaseUrl;
 
-  const token = localStorage.getItem("accessToken");
+  const backofficeToken = sessionStorage.getItem("backoffice_accessToken");
+  const posToken = localStorage.getItem("accessToken");
+  const token = backofficeToken || posToken;
   const tenantId = localStorage.getItem("tenantId") ?? "app_db";
 
   // Identify onboarding/auth endpoints that should be "clean"

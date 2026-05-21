@@ -57,4 +57,21 @@ export interface BranchOption {
   branchName: string;
 }
 
+export interface ValidateEmployeePasswordRequest {
+  password: string;
+}
+
+export interface ValidateEmployeePasswordData {
+  employeeId: number;
+  hasPrivilege: boolean;
+}
+
+export interface ValidateEmployeePasswordResponse {
+  data: ValidateEmployeePasswordData;
+  status: number;
+  message: string;
+  correlationId?: string;
+  errors?: string[];
+  isSuccess: boolean;
+}
 

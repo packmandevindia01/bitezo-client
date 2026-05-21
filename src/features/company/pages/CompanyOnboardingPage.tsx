@@ -10,6 +10,7 @@ import {
   fetchCompanyRegistration,
   fetchOnboardBranches,
   fetchOnboardCounters,
+  fetchOnboardSeries,
   sendCompanyOtp,
   verifyCompanyOtp,
 } from "../services/companyOnboardingApi";
@@ -49,11 +50,14 @@ const CompanyOnboardingPage = () => {
   const [systemType, setSystemType] = useState<SystemType>("pos");
   const [posBranchId, setPosBranchId] = useState("");
   const [posCounterId, setPosCounterId] = useState("");
+  const [posSeriesId, setPosSeriesId] = useState("");
   const [posBranches, setPosBranches] = useState<{ id: number; name: string }[]>([]);
   const [posCounters, setPosCounters] = useState<PosCounterOption[]>([]);
-  const [posSetupErrors, setPosSetupErrors] = useState({ branchId: "", counterId: "" });
+  const [posSeriesList, setPosSeriesList] = useState<{ id: number; name: string }[]>([]);
+  const [posSetupErrors, setPosSetupErrors] = useState({ branchId: "", counterId: "", seriesId: "" });
   const [loadingPosSetup, setLoadingPosSetup] = useState(false);
   const [loadingPosCounters, setLoadingPosCounters] = useState(false);
+  const [loadingPosSeries, setLoadingPosSeries] = useState(false);
 
   // Resume onboarding state on mount
   useEffect(() => {
@@ -132,11 +136,13 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  const setupPosSession = (db: string, branchId: string, counterId: string) => {
+  const setupPosSession = (db: string, branchId: string, counterId: string, seriesId: string) => {
     const selectedBranch = posBranches.find((branch) => String(branch.id) === branchId);
     const selectedCounter = posCounters.find((counter) => String(counter.id) === counterId);
+    const selectedSeries = posSeriesList.find((series) => String(series.id) === seriesId);
     const branchName = selectedBranch?.name ?? "";
     const counterName = selectedCounter?.name ?? "";
+    const seriesName = selectedSeries?.name ?? "";
 
     localStorage.setItem("companyRegistered", "true");
     dispatch(
@@ -167,6 +173,8 @@ const CompanyOnboardingPage = () => {
     localStorage.setItem("systemBranchName", branchName);
     localStorage.setItem("systemCounterId", counterId);
     localStorage.setItem("systemCounterName", counterName);
+    localStorage.setItem("systemSeriesId", seriesId);
+    localStorage.setItem("systemSeriesName", seriesName);
     localStorage.setItem("systemRegisteredAt", new Date().toISOString());
 
     showToast("POS Terminal Registered! Opening system...", "success");
@@ -198,7 +206,9 @@ const CompanyOnboardingPage = () => {
       setPosBranches(branchOptions);
       setPosCounters([]);
       setPosCounterId("");
-      setPosSetupErrors({ branchId: "", counterId: "" });
+      setPosSeriesList([]);
+      setPosSeriesId("");
+      setPosSetupErrors({ branchId: "", counterId: "", seriesId: "" });
       setStageWithPersistence("pos-setup");
 
       if (branchOptions.length === 1) {
@@ -224,19 +234,34 @@ const CompanyOnboardingPage = () => {
 
     try {
       setLoadingPosCounters(true);
-      const counters = await fetchOnboardCounters(branchId);
+      setLoadingPosSeries(true);
+      
+      const [counters, series] = await Promise.all([
+        fetchOnboardCounters(branchId),
+        fetchOnboardSeries(branchId)
+      ]);
+
       setPosCounters(
         counters.map((counter) => ({
           id: counter.counterId,
           name: counter.counterName,
         }))
       );
+
+      setPosSeriesList(
+        series.map((s) => ({
+          id: s.seriesId,
+          name: s.seriesName,
+        }))
+      );
     } catch (error) {
       setPosCounters([]);
-      const message = error instanceof Error ? error.message : "Failed to load counters";
+      setPosSeriesList([]);
+      const message = error instanceof Error ? error.message : "Failed to load counters/series";
       showToast(message, "error");
     } finally {
       setLoadingPosCounters(false);
+      setLoadingPosSeries(false);
     }
   };
 
@@ -351,15 +376,16 @@ const CompanyOnboardingPage = () => {
   };
 
   const handleCompletePosSetup = () => {
-    const nextErrors = { branchId: "", counterId: "" };
+    const nextErrors = { branchId: "", counterId: "", seriesId: "" };
 
     if (!posBranchId) nextErrors.branchId = "Please select a branch";
     if (!posCounterId) nextErrors.counterId = "Please select a counter";
+    if (!posSeriesId) nextErrors.seriesId = "Please select a series";
 
     setPosSetupErrors(nextErrors);
-    if (nextErrors.branchId || nextErrors.counterId) return;
+    if (nextErrors.branchId || nextErrors.counterId || nextErrors.seriesId) return;
 
-    setupPosSession(clientDatabase, posBranchId, posCounterId);
+    setupPosSession(clientDatabase, posBranchId, posCounterId, posSeriesId);
   };
 
   const handleResendOtp = async () => {
@@ -624,7 +650,7 @@ const CompanyOnboardingPage = () => {
                 Select where this POS terminal will operate. These details are saved on this device.
               </p>
 
-              <div className="mt-8 grid gap-4 md:grid-cols-2">
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
                 <SelectInput
                   label="Branch"
                   required
@@ -641,7 +667,9 @@ const CompanyOnboardingPage = () => {
                     setPosBranchId(branchId);
                     setPosCounterId("");
                     setPosCounters([]);
-                    setPosSetupErrors((current) => ({ ...current, branchId: "" }));
+                    setPosSeriesId("");
+                    setPosSeriesList([]);
+                    setPosSetupErrors((current) => ({ ...current, branchId: "", counterId: "", seriesId: "" }));
                     void loadPosCounters(branchId);
                   }}
                 />
@@ -666,6 +694,29 @@ const CompanyOnboardingPage = () => {
                   onChange={(e) => {
                     setPosCounterId(e.target.value);
                     setPosSetupErrors((current) => ({ ...current, counterId: "" }));
+                  }}
+                />
+
+                <SelectInput
+                  label="Series"
+                  required
+                  value={posSeriesId}
+                  placeholder={
+                    !posBranchId
+                      ? "Select branch first"
+                      : loadingPosSeries
+                        ? "Loading series..."
+                        : "Select series"
+                  }
+                  disabled={loadingPosSetup || loadingPosSeries || !posBranchId}
+                  error={posSetupErrors.seriesId}
+                  options={posSeriesList.map((series) => ({
+                    label: series.name,
+                    value: String(series.id),
+                  }))}
+                  onChange={(e) => {
+                    setPosSeriesId(e.target.value);
+                    setPosSetupErrors((current) => ({ ...current, seriesId: "" }));
                   }}
                 />
               </div>

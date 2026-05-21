@@ -17,6 +17,11 @@ export interface OnboardCounterOption {
   counterName: string;
 }
 
+export interface OnboardSeriesOption {
+  seriesId: number;
+  seriesName: string;
+}
+
 export const sendCompanyOtp = async (regId: string, email: string): Promise<SendOtpResponse> => {
   const { data } = await axiosInstance.post<SendOtpResponse>("/auth/send-otp", { email }, {
     params: { regId, email },
@@ -163,6 +168,20 @@ export const fetchOnboardCounters = async (
 
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load counters");
+  }
+
+  return data.data ?? [];
+};
+
+export const fetchOnboardSeries = async (
+  branchId: string | number
+): Promise<OnboardSeriesOption[]> => {
+  const { data } = await axiosInstance.get<ApiResponse<OnboardSeriesOption[]>>(
+    `/voucherseries/${branchId}/onboard-list-name`
+  );
+
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load voucher series");
   }
 
   return data.data ?? [];

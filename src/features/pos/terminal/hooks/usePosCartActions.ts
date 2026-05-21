@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
 import { POS_PRODUCTS } from "../../constants";
-import type { MenuOrderRequest } from "../../types";
+import type { MenuOrderRequest, PosCartItem } from "../../types";
 import {
   addToCart,
   incrementItem,
@@ -46,7 +46,7 @@ export const usePosCartActions = () => {
   const itemCount = useAppSelector(selectItemCount);
   const totalExtras = useAppSelector(selectTotalExtras);
   const baseSubtotal = useAppSelector(selectBaseSubtotal);
-  const { selectedOrderType, selectedTender, selectedCustomerId, selectedAddressId } = useAppSelector((state) => state.pos);
+  const { orderTypes, selectedOrderTypeId, selectedOrderTypeName, selectedTender, selectedCustomerId, selectedAddressId } = useAppSelector((state) => state.pos);
 
   const addProduct = (productId: number, variantName?: string, price?: number) => {
     dispatch(addToCart({ productId, variantName, price }));
@@ -61,7 +61,7 @@ export const usePosCartActions = () => {
     return false;
   };
 
-  const submitOrder = async (session: { dayId: number; shiftId: number; userId: number }) => {
+  const submitOrder = async (session: { dayId: number; shiftId: number; userId: number; employeeId?: number }) => {
     if (cartDetails.length === 0) {
       showToast("Cart is empty", "warning");
       return;
@@ -74,44 +74,51 @@ export const usePosCartActions = () => {
       const payload: MenuOrderRequest = {
         voucherDate: new Date().toISOString(),
         customerId: selectedCustomerId,
-        employeeId: session.userId,
+        employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
-        discAmount: discount,
+        discAmount: Number(discount.toFixed(3)),
         discPer: 0,
-        serviceCharge: charges,
+        serviceCharge: Number(charges.toFixed(3)),
         levy: 0,
-        vatExclAmount: subtotal,
-        vatAmount: tax,
-        netAmount: total,
+        vatExclAmount: Number(subtotal.toFixed(3)),
+        vatAmount: Number(tax.toFixed(3)),
+        netAmount: Number(total.toFixed(3)),
         createdAt: new Date().toISOString(),
-        orderType: selectedOrderType,
-        sectionId: 0, // Dynamic later
-        tableId: 0,   // Dynamic later
+        orderTypeId: selectedOrderTypeId,
+        sectionId: selectedOrderTypeName.toLowerCase() === "dinein" ? 1 : 0, // 0 for non-DineIn
+        tableId: selectedOrderTypeName.toLowerCase() === "dinein" ? 1 : 0,   // 0 for non-DineIn
         guestNo: 0,
         addressId: selectedAddressId,
-        status: "Pending",
+        missedCall: false,
+        contactNo: "",
+        note: "",
+        change: "",
+        isComing: false,
+        comingTime: new Date().toISOString(),
         details: cartDetails.map((item) => ({
           productId: item.productId,
-          unitId: 5, // Default unit
+          unitId: item.product.unitId ?? 5, // Use product's own unit, fallback to 5
           qty: item.quantity,
-          price: item.product.price,
-          discPer: item.discountType === 'percentage' ? (item.discountValue || 0) : 0,
-          discAmount: item.discountType === 'amount' ? (item.discountValue || 0) : 0,
+          price: Number(item.product.price.toFixed(3)),
+          discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
+          discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
           serviceCharge: 0,
           levy: 0,
           vatId: 1, // Default VAT
-          vatAmount: item.vatAmount,
-          netAmount: item.lineTotal,
+          vatAmount: Number(item.vatAmount.toFixed(3)),
+          netAmount: Number(item.lineTotal.toFixed(3)),
           modifierId: 0,
           modifierType: 0,
           mapId: 0,
           complimentaryStatus: false
         })),
-        ...(selectedOrderType === "drive-thru" ? {
-          vehicleNo: localStorage.getItem("driveThruVehicleNo") || "",
-          customerName: localStorage.getItem("driveThruCustomerName") || ""
-        } : {})
+        vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
+          ? (localStorage.getItem("driveThruVehicleNo") || "")
+          : "",
+        vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
+          ? (localStorage.getItem("driveThruCustomerName") || "")
+          : "",
       };
 
       const response = await orderApi.submitOrder(payload);
@@ -125,9 +132,29 @@ export const usePosCartActions = () => {
         throw new Error(response.message || "Failed to submit order");
       }
     } catch (err: any) {
-      const msg = err.message || "Order submission failed";
+      // Extract the actual backend error — handles .NET validation ProblemDetails
+      const responseData = err?.response?.data;
+      console.error("[ORDER ERROR]", JSON.stringify(responseData, null, 2));
+
+      let msg = responseData?.message;
+      if (!msg && responseData?.errors) {
+        try {
+          const fieldErrors = Object.entries(responseData.errors).map(([field, val]) => {
+            if (Array.isArray(val)) return `${field}: ${val.join(", ")}`;
+            if (typeof val === "string") return `${field}: ${val}`;
+            return `${field}: ${JSON.stringify(val)}`;
+          });
+          msg = fieldErrors.join(" | ");
+        } catch {
+          msg = responseData?.title;
+        }
+      }
+      msg = msg || responseData?.title || err?.message || "Order submission failed";
       setOrderError(msg);
       showToast(msg, "error");
+
+
+
     } finally {
       setOrderLoading(false);
     }
@@ -143,7 +170,9 @@ export const usePosCartActions = () => {
     itemCount,
     totalExtras,
     baseSubtotal,
-    selectedOrderType,
+    orderTypes,
+    selectedOrderTypeId,
+    selectedOrderTypeName,
     selectedTender,
     selectedCustomerId,
     selectedAddressId,
@@ -156,7 +185,7 @@ export const usePosCartActions = () => {
     decrementItem: (productId: number, variantName?: string) => dispatch(decrementItem({ productId, variantName })),
     removeItem: (productId: number, variantName?: string) => dispatch(removeFromCart({ productId, variantName })),
     clearCart: () => dispatch(clearCart()),
-    setSelectedOrderType: (id: string) => dispatch(setOrderType(id)),
+    setSelectedOrderType: (orderTypeId: number, orderType: string) => dispatch(setOrderType({ orderTypeId, orderType })),
     setSelectedTender: (id: string) => dispatch(setTenderOption(id)),
     setCustomerId: (id: number) => dispatch(setCustomerId(id)),
     setAddressId: (id: number) => dispatch(setAddressId(id)),
@@ -167,7 +196,7 @@ export const usePosCartActions = () => {
       dispatch(updateItemPrice({ productId, variantName, price })),
     updateItemQty: (productId: number, variantName: string | undefined, quantity: number) =>
       dispatch(updateItemQty({ productId, variantName, quantity })),
-    setItemCustomizations: (productId: number, variantName: string | undefined, extras?: any[], modifiers?: any[]) =>
+    setItemCustomizations: (productId: number, variantName: string | undefined, extras?: PosCartItem["extras"], modifiers?: PosCartItem["modifiers"]) =>
       dispatch(setItemCustomizations({ productId, variantName, extras, modifiers })),
   };
 };

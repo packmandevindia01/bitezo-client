@@ -20,9 +20,12 @@ import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
 import { PosDeliveryModal } from "../../customer/components/PosDeliveryModal";
 import { PosDriveThroughModal } from "../../customer/components/PosDriveThroughModal";
 import { PosRecallModal } from "../components/PosRecallModal";
+import { EmployeePasswordModal } from "../components/EmployeePasswordModal";
 import { useCashierLog } from "../../cashier";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
+import { POS_CONFIGS_STORAGE_KEY, posConfigApi, type RuntimePosConfig } from "../../services/posConfigApi";
+import { useEmployeeAuthorization } from "../hooks/useEmployeeAuthorization";
 
 export const PosTerminalPage = () => {
   const location = useLocation();
@@ -36,6 +39,7 @@ export const PosTerminalPage = () => {
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const { showToast } = useToast();
+  const { authorizationModalKey, authorizationModalProps, requestAuthorization } = useEmployeeAuthorization();
 
   // Alternative selection state
   const [selectedProduct, setSelectedProduct] = useState<PosProduct | null>(null);
@@ -90,6 +94,9 @@ export const PosTerminalPage = () => {
     total,
     totalExtras,
     baseSubtotal,
+    orderTypes,
+    selectedOrderTypeId,
+    setSelectedOrderType,
     visibleProducts,
     setGroup,
     setCategory,
@@ -113,6 +120,37 @@ export const PosTerminalPage = () => {
   const activeCategory = categories.find(c => c.id === activeCategoryId);
   const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
 
+  const readStoredPosConfig = (): RuntimePosConfig | null => {
+    const savedConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
+    if (!savedConfig) return null;
+  
+    try {
+      const parsed = JSON.parse(savedConfig) as { configs?: RuntimePosConfig };
+      return parsed.configs ?? null;
+    } catch {
+      localStorage.removeItem(POS_CONFIGS_STORAGE_KEY);
+      return null;
+    }
+  };
+
+  const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> => {
+    const storedConfig = readStoredPosConfig();
+    if (storedConfig?.defaultEmployee !== undefined && storedConfig.employeeId !== undefined) {
+      return storedConfig;
+    }
+
+    const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+    if (!branchId) return storedConfig;
+
+    const response = await posConfigApi.getPosConfig(branchId);
+    if (response.isSuccess && response.data) {
+      localStorage.setItem(POS_CONFIGS_STORAGE_KEY, JSON.stringify(response.data));
+      return response.data.configs;
+    }
+
+    return storedConfig;
+  };
+
   // Reset alternatives and selectedProduct when activeGroupId, activeCategoryId, activeSubCategoryId, or search changes
   useEffect(() => {
     setAlternatives([]);
@@ -127,18 +165,55 @@ export const PosTerminalPage = () => {
   };
 
   // Handle Order Submission
-  const handleOrder = async () => {
+  const submitOrderForEmployee = async (employeeId: number) => {
     if (!status) return;
     const orderId = await submitOrder({
       dayId: status.dayId,
       shiftId: status.shiftId,
-      userId: status.userId
+      userId: status.userId,
+      employeeId,
     });
     if (orderId) {
       setSelectedKey(null);
       setSelectedProduct(null);
       setAlternatives([]);
     }
+  };
+
+  // Handle Order Submission
+  const handleOrder = async () => {
+    if (itemCount === 0) {
+      showToast("Cart is empty", "warning");
+      return;
+    }
+
+    if (!status) return;
+
+    let config: RuntimePosConfig | null = null;
+    try {
+      config = await getRuntimePosConfig();
+    } catch {
+      showToast("Unable to load POS configuration", "error");
+      return;
+    }
+
+    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+    const defaultEmployeeId = Number(config?.employeeId ?? 0);
+
+    if (defaultEmployeeEnabled) {
+      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
+        showToast("Default employee is not configured", "error");
+        return;
+      }
+
+      await submitOrderForEmployee(defaultEmployeeId);
+      return;
+    }
+
+    requestAuthorization({
+      actionLabel: "Order",
+      onAuthorized: submitOrderForEmployee,
+    });
   };
 
   // Handle product click - check for alternatives
@@ -317,6 +392,9 @@ export const PosTerminalPage = () => {
           }
         }}
         status={status}
+        orderTypes={orderTypes}
+        selectedOrderTypeId={selectedOrderTypeId}
+        onSelectOrderType={(type) => setSelectedOrderType(type.orderTypeId, type.orderType)}
       />
       
       <div className="flex flex-col lg:flex-row lg:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-3 lg:px-4 xl:px-6">
@@ -866,6 +944,8 @@ export const PosTerminalPage = () => {
         onClose={() => setIsRecallModalOpen(false)}
       />
 
+      <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />
+
       <ConfirmDialog
         isOpen={isLogoutConfirmOpen}
         onCancel={() => setIsLogoutConfirmOpen(false)}
@@ -876,5 +956,3 @@ export const PosTerminalPage = () => {
     </div>
   );
 };
-
-

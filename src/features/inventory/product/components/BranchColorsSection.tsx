@@ -15,6 +15,10 @@ export const BranchColorsSection = ({
   onChange,
   disabled = false,
 }: BranchColorsSectionProps) => {
+  const normalizeHexColor = (value?: string) => {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value! : "#49293e";
+  };
+
   const handleAdd = () => {
     const availableBranch = branches.find(b => !productColors.some(pc => pc.branchId === b.id));
     if (!availableBranch) return;
@@ -59,6 +63,7 @@ export const BranchColorsSection = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {productColors.map((pc, index) => {
             const branch = branches.find(b => b.id === pc.branchId);
+            const colorValue = normalizeHexColor(pc.colorCode);
             return (
               <div 
                 key={index} 
@@ -89,7 +94,7 @@ export const BranchColorsSection = ({
                     <div className="relative h-6 w-6 overflow-hidden rounded-md border border-gray-200 shadow-sm">
                       <input
                         type="color"
-                        value={pc.colorCode}
+                        value={colorValue}
                         onChange={(e) => handleUpdate(index, { colorCode: e.target.value })}
                         disabled={disabled}
                         className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
@@ -97,7 +102,7 @@ export const BranchColorsSection = ({
                     </div>
                     <input
                       type="text"
-                      value={pc.colorCode}
+                      value={colorValue}
                       onChange={(e) => handleUpdate(index, { colorCode: e.target.value })}
                       disabled={disabled}
                       className="w-12 bg-transparent text-[10px] font-mono font-bold text-gray-500 outline-none uppercase"

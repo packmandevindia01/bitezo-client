@@ -83,7 +83,7 @@ export const useConfigurationManager = () => {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       showToast("Configuration saved successfully", "success");
-    } catch (error) {
+    } catch {
       showToast("Failed to save configuration", "error");
     } finally {
       setSaving(false);

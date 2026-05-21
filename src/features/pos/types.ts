@@ -17,6 +17,7 @@ export interface PosProduct {
   imageUrl?: string | null;
   colorCode?: string;
   vatValue?: number;
+  unitId?: number;
 }
 
 export interface PosCartItem {
@@ -33,6 +34,11 @@ export interface PosCartItem {
 export interface PosQuickAction {
   id: string;
   label: string;
+}
+
+export interface PosOrderType {
+  orderTypeId: number;
+  orderType: string;
 }
 
 export interface PosTenderOption {
@@ -107,6 +113,7 @@ export interface MenuSubCategory {
 export interface MenuMasterData {
   group: MenuGroup[];
   category: PosCategory[];
+  orderTypes: PosOrderType[];
 }
 
 export interface PosAlternative {
@@ -176,15 +183,20 @@ export interface MenuOrderRequest {
   vatAmount: number;
   netAmount: number;
   createdAt: string;
-  orderType: string;
+  orderTypeId: number;
   sectionId: number;
   tableId: number;
   guestNo: number;
   addressId: number;
-  status: string;
+  missedCall: boolean;
+  contactNo: string;
+  note: string;
+  change: string;
+  isComing: boolean;
+  comingTime: string;
   details: MenuOrderDetail[];
   vehicleNo?: string;
-  customerName?: string;
+  vehicleCustomerName?: string;
 }
 
 export interface MenuOrderResponse {
@@ -221,4 +233,3 @@ export interface RecallResponse {
   message: string;
   isSuccess: boolean;
 }
-

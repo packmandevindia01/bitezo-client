@@ -97,11 +97,11 @@ const LoginForm = () => {
         localStorage.setItem("companyRegistered", "true");
 
         showToast("Login successful", "success");
-        const systemType = localStorage.getItem("systemType");
+        const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
         if (systemType === "pos") {
           navigate("/", { replace: true });
         } else {
-          navigate("/dashboard");
+          navigate("/dashboard", { replace: true });
         }
         return;
       }

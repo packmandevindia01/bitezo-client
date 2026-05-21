@@ -72,12 +72,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onC
     }
     if (item.action === 'backoffice') {
       onClose();
-      localStorage.setItem("systemType", "backoffice");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("activeShift");
-      navigate("/", { replace: true });
+      window.open('/?system=backoffice', '_blank');
       return;
     }
     if (item.action === 'cashierOut') {

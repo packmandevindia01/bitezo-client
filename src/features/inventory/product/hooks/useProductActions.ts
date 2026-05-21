@@ -32,6 +32,10 @@ export const useProductActions = ({ formState, altState, productList, branches }
   const [pendingDelete, setPendingDelete] = useState<{ productId: number; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const normalizeHexColor = (value?: string | null) => {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value! : "#49293e";
+  };
+
   const resetForm = () => {
     formState.resetFormState();
     altState.resetAlternatives();
@@ -67,10 +71,10 @@ export const useProductActions = ({ formState, altState, productList, branches }
           branchId: String(p.branchId ?? ""),
           isActive: p.isActive ?? true,
           priceIsIncl: p.priceIsIncl ?? true,
-          colorCode: p.colorCode ?? "#49293e",
+          colorCode: normalizeHexColor(p.colorCode),
           productColors: (detail.productColors ?? []).map((pc: any) => ({
             branchId: Number(pc.branchId),
-            colorCode: pc.colorCode || "#49293e"
+            colorCode: normalizeHexColor(pc.colorCode)
           })),
           fileName: p.fileName ?? "",
           filePath: p.filePath ?? "",
@@ -211,10 +215,10 @@ export const useProductActions = ({ formState, altState, productList, branches }
         branchId: parseInt(String(form.branchId)) || 1,
         isActive: form.isActive !== false,
         priceIsIncl: form.priceIsIncl !== false,
-        colorCode: form.colorCode || "#49293e",
+        colorCode: normalizeHexColor(form.colorCode),
         productColors: form.productColors.map((pc: any) => ({
           branchId: parseInt(String(pc.branchId)) || 0,
-          colorCode: pc.colorCode || "#49293e"
+          colorCode: normalizeHexColor(pc.colorCode)
         })),
         altProducts: alternatives.map((alt: any) => ({
           unitId: parseInt(alt.unitId) || 0,

@@ -6,7 +6,7 @@ import { useDelivery } from "../hooks/useDelivery";
 import { PosMoreAddressModal } from "./PosMoreAddressModal";
 import type { DeliveryAddress } from "../types/delivery";
 import { useAppDispatch } from "../../../../app/hooks";
-import { setOrderType, setAddressId } from "../../terminal/store/posSlice";
+import { setOrderTypeByName, setAddressId } from "../../terminal/store/posSlice";
 
 interface PosDeliveryModalProps {
   isOpen: boolean;
@@ -195,7 +195,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     if (isUnchanged && currentAddressId) {
       // Bypasses the POST API to prevent duplicate records!
       dispatch(setAddressId(currentAddressId));
-      dispatch(setOrderType("delivery"));
+      dispatch(setOrderTypeByName("Delivery"));
       onClose();
       return;
     }
@@ -217,11 +217,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       } else if (currentAddressId) {
         dispatch(setAddressId(currentAddressId));
       }
-      dispatch(setOrderType("delivery"));
+      dispatch(setOrderTypeByName("Delivery"));
       onClose();
     } else if (currentAddressId) {
       dispatch(setAddressId(currentAddressId));
-      dispatch(setOrderType("delivery"));
+      dispatch(setOrderTypeByName("Delivery"));
       onClose();
     }
   };
@@ -254,16 +254,39 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       className="!max-w-full w-screen !max-h-full h-[100dvh] max-h-[100dvh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
       {/* Header - Premium Maroon */}
-      <div className="flex items-center justify-between bg-[#49293e] px-6 py-3 text-white shrink-0 border-b border-white/10 relative">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between bg-[#49293e] px-3 md:px-6 py-3 text-white shrink-0 border-b border-white/10 relative flex-wrap gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
           <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
             <Search size={18} className="text-white" />
           </div>
-          <h2 className="text-sm font-black tracking-[0.2em] uppercase">Delivery Details</h2>
+          <h2 className="text-sm font-black tracking-[0.2em] uppercase whitespace-nowrap">Delivery Details</h2>
         </div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-all active:scale-90">
-          <X size={20} strokeWidth={3} />
-        </button>
+        
+        {/* Action Buttons in Header (Strict isAction compliance) */}
+        <div className="flex items-center gap-2 md:gap-3 ml-auto">
+          <Button 
+            onClick={handleClearForm} 
+            variant="secondary"
+            isAction
+            tabIndex={-1}
+            icon={<RotateCcw size={18} />}
+          >
+            Clear
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            disabled={loading || !form.mobileNo}
+            loading={loading}
+            isAction
+            icon={<Save size={18} />}
+            className="bg-emerald-500 hover:bg-emerald-600 border-transparent text-white"
+          >
+            Save
+          </Button>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-all active:scale-90 ml-1 md:ml-2 shrink-0">
+            <X size={20} strokeWidth={3} />
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}
@@ -504,28 +527,6 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           customerName={form.customerName}
           onSelectAddress={handleSelectAddressFromMore}
         />
-
-        {/* Action Footer - High Density, Elegant Buttons */}
-        <div className={`${isCompactViewport ? "bg-slate-100 p-2.5" : "bg-slate-100 p-3"} flex justify-end gap-3 shrink-0 border-t border-slate-200`}>
-          <Button 
-            onClick={handleClearForm} 
-            variant="secondary"
-            isAction
-            tabIndex={-1}
-            icon={<RotateCcw size={18} />}
-          >
-            Clear
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={loading || !form.mobileNo}
-            loading={loading}
-            isAction
-            icon={<Save size={18} />}
-          >
-            Save
-          </Button>
-        </div>
       </div>
     </Modal>
   );

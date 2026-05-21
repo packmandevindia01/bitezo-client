@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { 
-  POS_ORDER_TYPES, 
   POS_TENDER_OPTIONS, 
   POS_INITIAL_CART 
 } from '../../constants';
@@ -13,13 +12,16 @@ import type {
   MenuGroup, 
   PosCategory, 
   MenuSubCategory, 
-  PosProduct 
+  PosProduct,
+  PosOrderType
 } from '../../types';
 
 interface PosState {
   cartItems: PosCartItem[];
   search: string;
-  selectedOrderType: string;
+  orderTypes: PosOrderType[];
+  selectedOrderTypeId: number;
+  selectedOrderTypeName: string;
   selectedTender: string;
 
   // Discount State
@@ -51,7 +53,9 @@ const loadCart = (): PosCartItem[] => {
 const initialState: PosState = {
   cartItems: loadCart(),
   search: '',
-  selectedOrderType: POS_ORDER_TYPES[0]?.id ?? '',
+  orderTypes: [],
+  selectedOrderTypeId: 1,
+  selectedOrderTypeName: "DineIn",
   selectedTender: POS_TENDER_OPTIONS[0]?.id ?? '',
   
   billDiscountValue: 0,
@@ -82,6 +86,16 @@ const getNormalizedVariant = (name?: string) => {
 
 const matchVariant = (a?: string, b?: string) => 
   getNormalizedVariant(a) === getNormalizedVariant(b);
+
+const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().replace(/[\s_-]/g, "");
+
+const fallbackOrderTypeByName = (name: string): PosOrderType => {
+  const normalized = normalizeOrderTypeName(name);
+  if (normalized.includes("takeout") || normalized.includes("takeaway")) return { orderTypeId: 2, orderType: "TakeOut" };
+  if (normalized.includes("drive")) return { orderTypeId: 3, orderType: "DriveThru" };
+  if (normalized.includes("delivery")) return { orderTypeId: 4, orderType: "Delivery" };
+  return { orderTypeId: 1, orderType: "DineIn" };
+};
 
 const posSlice = createSlice({
   name: 'pos',
@@ -143,8 +157,24 @@ const posSlice = createSlice({
     setSearch: (state, action: PayloadAction<string>) => {
       state.search = action.payload;
     },
-    setOrderType: (state, action: PayloadAction<string>) => {
-      state.selectedOrderType = action.payload;
+    setOrderTypes: (state, action: PayloadAction<PosOrderType[]>) => {
+      state.orderTypes = action.payload;
+      const selectedTypeExists = action.payload.some((type) => type.orderTypeId === state.selectedOrderTypeId);
+      if ((!state.selectedOrderTypeId || !selectedTypeExists) && action.payload.length > 0) {
+        state.selectedOrderTypeId = action.payload[0].orderTypeId;
+        state.selectedOrderTypeName = action.payload[0].orderType;
+      }
+    },
+    setOrderType: (state, action: PayloadAction<PosOrderType>) => {
+      state.selectedOrderTypeId = action.payload.orderTypeId;
+      state.selectedOrderTypeName = action.payload.orderType;
+    },
+    setOrderTypeByName: (state, action: PayloadAction<string>) => {
+      const normalized = normalizeOrderTypeName(action.payload);
+      const match = state.orderTypes.find((type) => normalizeOrderTypeName(type.orderType) === normalized);
+      const type = match ?? fallbackOrderTypeByName(action.payload);
+      state.selectedOrderTypeId = type.orderTypeId;
+      state.selectedOrderTypeName = type.orderType;
     },
     setTenderOption: (state, action: PayloadAction<string>) => {
       state.selectedTender = action.payload;
@@ -242,7 +272,9 @@ export const {
   clearCart,
   setCategory,
   setSearch,
+  setOrderTypes,
   setOrderType,
+  setOrderTypeByName,
   setTenderOption,
   setBillDiscount,
   setItemDiscount,
@@ -268,7 +300,7 @@ export const selectPosState = (state: RootState) => state.pos;
 export const selectCartDetails = createSelector(
   [selectPosState],
   (pos) => {
-    const config = getBillingConfig(pos.selectedOrderType);
+    const config = getBillingConfig(pos.selectedOrderTypeName);
 
     return pos.cartItems.map((item: PosCartItem) => {
       const product = pos.productCache[item.productId];
@@ -356,7 +388,7 @@ export const selectCharges = createSelector(
 export const selectTax = createSelector(
   [selectCartDetails, selectPosState],
   (details, pos) => {
-    const config = getBillingConfig(pos.selectedOrderType);
+    const config = getBillingConfig(pos.selectedOrderTypeName);
     if (config.vatType === 'Inclusive') return 0;
     
     return details.reduce((sum, item) => sum + item.vatAmount, 0);

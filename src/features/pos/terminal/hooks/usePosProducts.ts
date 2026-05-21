@@ -4,6 +4,7 @@ import {
   setCategory,
   setSearch,
   setGroups,
+  setOrderTypes,
   setGroup,
   setCategories,
   setSubCategories,
@@ -42,6 +43,7 @@ export const usePosProducts = () => {
     try {
       const data = await menuApi.getMasterData();
       dispatch(setGroups(data.group));
+      dispatch(setOrderTypes(data.orderTypes));
       if (data.group.length > 0 && !activeGroupId) {
         dispatch(setGroup(data.group[0].groupId));
       }

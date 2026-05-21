@@ -65,8 +65,15 @@ const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages
 
 
 const LoginRedirect = () => {
-  const isPos = localStorage.getItem("systemType") === "pos";
-  const hasToken = !!localStorage.getItem("accessToken");
+  if (window.location.search.includes("system=backoffice")) {
+    sessionStorage.setItem("tempSystemType", "backoffice");
+    // Clean up the URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
+  const isPos = systemType === "pos";
+  const hasToken = isPos ? !!localStorage.getItem("accessToken") : !!sessionStorage.getItem("backoffice_accessToken");
   const isRegistered = !!localStorage.getItem("systemBranchId");
 
   if (isPos) {

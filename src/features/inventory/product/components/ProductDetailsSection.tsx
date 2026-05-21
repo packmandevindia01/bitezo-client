@@ -31,6 +31,7 @@ export const ProductDetailsSection = ({
   const unitOptions = masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
   const vatOptions = masterData?.vat?.map(v => ({ label: `${v.name} (${v.value}%)`, value: String(v.id) })) ?? [];
   const typeOptions = masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions;
+  const colorValue = /^#[0-9a-fA-F]{6}$/.test(form.colorCode || "") ? form.colorCode : "#49293e";
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
@@ -217,7 +218,7 @@ export const ProductDetailsSection = ({
             <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
               <input
                 type="color"
-                value={form.colorCode || "#49293e"}
+                value={colorValue}
                 onChange={(e) => onChange("colorCode", e.target.value)}
                 disabled={saving}
                 className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
@@ -225,7 +226,7 @@ export const ProductDetailsSection = ({
             </div>
             <input
               type="text"
-              value={form.colorCode || "#49293e"}
+              value={colorValue}
               onChange={(e) => onChange("colorCode", e.target.value)}
               disabled={saving}
               className="w-full rounded-md border-none bg-transparent text-xs font-mono outline-none focus:ring-0 uppercase"

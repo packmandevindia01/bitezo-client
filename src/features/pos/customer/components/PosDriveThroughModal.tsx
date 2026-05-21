@@ -3,7 +3,7 @@ import { Modal, FormInput, Button } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { Save, RotateCcw } from "lucide-react";
 import { useAppDispatch } from "../../../../app/hooks";
-import { setOrderType } from "../../terminal/store/posSlice";
+import { setOrderTypeByName } from "../../terminal/store/posSlice";
 
 interface PosDriveThroughModalProps {
   isOpen: boolean;
@@ -65,7 +65,7 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
   };
 
   const handleSave = () => {
-    dispatch(setOrderType("drive-thru"));
+    dispatch(setOrderTypeByName("DriveThru"));
     if (form.vehicleNo) {
       localStorage.setItem("driveThruVehicleNo", form.vehicleNo);
     } else {

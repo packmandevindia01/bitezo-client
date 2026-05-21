@@ -5,6 +5,7 @@ import type {
   EmployeeListResponse,
   UpdateEmployeePayload,
   BranchOption,
+  ValidateEmployeePasswordResponse,
 } from "../types";
 
 export type { BranchOption };
@@ -50,6 +51,13 @@ export const getBranches = async (): Promise<BranchOption[]> => {
   return res.data?.data ?? [];
 };
 
+export const validateEmployeePassword = async (
+  password: string
+): Promise<ValidateEmployeePasswordResponse> => {
+  const res = await axiosInstance.post("/employee/validate-password", { password });
+  return res.data;
+};
+
 export const employeeService = {
   getEmployees,
   getEmployeeById,
@@ -57,4 +65,5 @@ export const employeeService = {
   updateEmployee,
   deleteEmployee,
   getBranches,
+  validateEmployeePassword,
 } as const;

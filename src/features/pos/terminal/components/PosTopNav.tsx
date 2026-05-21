@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import { useToast } from "../../../../app/providers/useToast";
+import type { PosOrderType } from "../../types";
 
 
 interface PosTopNavProps {
@@ -21,14 +22,51 @@ interface PosTopNavProps {
   onDelivery?: () => void;
   onDriveThrough?: () => void;
   onRecall?: () => void;
+  orderTypes?: PosOrderType[];
+  selectedOrderTypeId?: number;
+  onSelectOrderType?: (type: PosOrderType) => void;
   status: any;
 }
 
 
-const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDelivery, onDriveThrough, onRecall, status }: PosTopNavProps) => {
+const fallbackOrderTypes: PosOrderType[] = [
+  { orderTypeId: 1, orderType: "DineIn" },
+  { orderTypeId: 2, orderType: "TakeOut" },
+  { orderTypeId: 3, orderType: "DriveThru" },
+  { orderTypeId: 4, orderType: "Delivery" },
+];
+
+const normalizeOrderType = (value: string) => value.toLowerCase().replace(/[\s_-]/g, "");
+
+const getOrderTypeIcon = (name: string) => {
+  const normalized = normalizeOrderType(name);
+  if (normalized.includes("takeout") || normalized.includes("takeaway")) return ShoppingBag;
+  if (normalized.includes("drive")) return Car;
+  if (normalized.includes("delivery")) return Truck;
+  return UtensilsCrossed;
+};
+
+const formatOrderTypeLabel = (name: string) => {
+  return name.replace(/([a-z])([A-Z])/g, "$1 $2");
+};
+
+const PosTopNav = ({
+  onNewOrder,
+  onMore,
+  onCashierOut,
+  onCustomerMaster,
+  onDelivery,
+  onDriveThrough,
+  onRecall,
+  orderTypes = fallbackOrderTypes,
+  selectedOrderTypeId,
+  onSelectOrderType,
+  status
+}: PosTopNavProps) => {
 
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const visibleOrderTypes = orderTypes.length > 0 ? orderTypes : fallbackOrderTypes;
 
   const handleLogoutClick = () => {
     // If Day or Shift is still OPEN, give a reminder
@@ -66,33 +104,42 @@ const PosTopNav = ({ onNewOrder, onMore, onCashierOut, onCustomerMaster, onDeliv
         </PosActionButton>
 
         <div className="hidden md:flex gap-1 ml-1 lg:ml-2 min-w-0">
-          {[
-            { label: "Dine In", icon: UtensilsCrossed, color: "orange" },
-            { label: "Take Out", icon: ShoppingBag, color: "gray" },
-            { label: "Drive Thru", icon: Car, color: "gray" },
-            { label: "Delivery", icon: Truck, color: "gray" },
-            { label: "Provider", icon: Users, color: "gray" }
-          ].map((type) => (
+          {visibleOrderTypes.map((type) => {
+            const Icon = getOrderTypeIcon(type.orderType);
+            const label = formatOrderTypeLabel(type.orderType);
+            const normalized = normalizeOrderType(type.orderType);
+            const isActive = selectedOrderTypeId === type.orderTypeId;
+
+            return (
             <PosActionButton
-              key={type.label}
-              accent={type.color as any}
+              key={type.orderTypeId}
+              accent={isActive ? "orange" : "gray"}
               className="h-9 lg:h-10 px-2 rounded-xl text-[10px] min-w-0 shadow-sm flex items-center gap-1"
               onClick={() => {
-                if (type.label === "Dine In") {
+                onSelectOrderType?.(type);
+                if (normalized.includes("dine")) {
                   navigate("/pos/dine-in");
-                } else if (type.label === "Delivery" && onDelivery) {
+                } else if (normalized.includes("delivery") && onDelivery) {
                   onDelivery();
-                } else if (type.label === "Drive Thru" && onDriveThrough) {
+                } else if (normalized.includes("drive") && onDriveThrough) {
                   onDriveThrough();
                 } else {
-                  showToast(`${type.label} selected`, "success");
+                  showToast(`${label} selected`, "success");
                 }
               }}
             >
-              <type.icon size={13} className="xl:w-3.5 xl:h-3.5" />
-              <span className="hidden xl:inline">{type.label}</span>
+              <Icon size={13} className="xl:w-3.5 xl:h-3.5" />
+              <span className="hidden xl:inline">{label}</span>
             </PosActionButton>
-          ))}
+          )})}
+          <PosActionButton
+            accent="gray"
+            className="h-9 lg:h-10 px-2 rounded-xl text-[10px] min-w-0 shadow-sm flex items-center gap-1"
+            onClick={() => showToast("Provider selected", "success")}
+          >
+            <Users size={13} className="xl:w-3.5 xl:h-3.5" />
+            <span className="hidden xl:inline">Provider</span>
+          </PosActionButton>
         </div>
 
       </div>

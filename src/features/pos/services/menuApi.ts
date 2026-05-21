@@ -4,7 +4,8 @@ import type {
   MenuSubCategory, 
   PosProduct, 
   MenuMasterData,
-  PosAlternative
+  PosAlternative,
+  PosOrderType
 } from "../types";
 
 export interface ApiResponse<T> {
@@ -29,17 +30,26 @@ export const menuApi = {
   /** GET /api/menu/master-data */
   getMasterData: async () => {
     const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data${getTenantQuery()}`));
+    const groups = raw.groups ?? raw.group ?? [];
+    const categories = raw.categories ?? raw.category ?? [];
+    const orderTypes = raw.orderTypes ?? [];
+
     return {
-      group: raw.group,
-      category: raw.category.map((c: any) => ({
+      group: groups,
+      category: categories.map((c: any) => ({
         id: c.categoryId,
         name: c.categoryName,
         arabicName: c.arabicName,
         imageUrl: c.imageUrl,
         colorCode: c.colorCode
-      }))
+      })),
+      orderTypes
     } as MenuMasterData;
   },
+
+  /** GET /api/menu/order-types */
+  getOrderTypes: () =>
+    unwrap(axiosInstance.get<ApiResponse<PosOrderType[]>>(`/menu/order-types${getTenantQuery()}`)),
 
   /** GET /api/menu/{groupId}/categories */
   getGroupCategories: async (groupId: number) => {
@@ -68,7 +78,8 @@ export const menuApi = {
       price: p.price,
       imageUrl: p.imageUrl,
       colorCode: p.colorCode,
-      vatValue: p.vatValue
+      vatValue: p.vatValue,
+      unitId: p.unitId ?? p.defaultUnitId ?? undefined,
     })) as PosProduct[];
   },
 

@@ -33,7 +33,7 @@ const SystemRegistrationGuard = ({ children }: Props) => {
     return content;
   }
 
-  const systemType = localStorage.getItem("systemType");
+  const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
   if (!systemType) {
     return <Navigate to="/system/register" replace />;
   }

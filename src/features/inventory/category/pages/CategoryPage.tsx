@@ -13,8 +13,6 @@ const CategoryPage = () => {
     search,
     setSearch,
     editingId,
-    branchAllocOpen,
-    setBranchAllocOpen,
     open,
     branchOptions,
     groups,
@@ -73,13 +71,11 @@ const CategoryPage = () => {
         editingId={editingId}
         form={form}
         saving={saving}
-        branchAllocOpen={branchAllocOpen}
         branchOptions={branchOptions}
         groups={groups}
         onClose={closeModal}
         onImageSelect={handleImageSelect}
         onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
-        onToggleBranchAlloc={() => setBranchAllocOpen((prev) => !prev)}
         onToggleBranch={toggleBranch}
         onToggleGroup={toggleGroup}
         onClear={resetForm}
