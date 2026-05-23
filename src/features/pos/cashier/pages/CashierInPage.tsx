@@ -5,7 +5,7 @@ import { cashierLogService } from "../services/cashierLogService";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../app/hooks";
 import { setCredentials } from "../../../../features/auth/store/authSlice";
-import { Settings, ShieldCheck, Sparkles, Delete } from "lucide-react";
+import { Settings, Delete } from "lucide-react";
 
 // --- Custom Premium Numpad Component ---
 const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {

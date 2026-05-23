@@ -5,7 +5,7 @@ import Checkbox from "../../../../components/common/Checkbox";
 import FormInput from "../../../../components/common/FormInput";
 import { Loader } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
-import { Search, RotateCcw, X, Trash2, CheckCircle } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { usePosVoid } from "../hooks/usePosVoid";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 

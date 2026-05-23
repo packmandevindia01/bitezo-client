@@ -63,7 +63,7 @@ export const PosProviderOrderModal = ({ isOpen, onClose, provider, onSubmit }: P
 
           <div className="flex justify-end gap-3 pt-2">
             <Button 
-              variant="outline" 
+              variant="secondary" 
               onClick={() => setOrderNo("")} 
               className="px-6"
               disabled={!orderNo}

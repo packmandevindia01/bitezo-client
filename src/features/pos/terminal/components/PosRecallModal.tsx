@@ -50,18 +50,6 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
 
   const handlePrint = (transId: number) => {
     showToast(`Printing Order #${transId}...`, "success");
-    // TODO: Integrate with actual printing service
-  };
-
-  const handleSearch = () => {
-    const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
-    void fetchOrders({
-      OrderTypeId: typeValue,
-      SearchValue: search,
-      SearchStatus: searchStatus,
-      DeliveryOutStatus: includeDeliveryOut,
-      DeliveryOutOnlyStatus: deliveryOutOnly
-    });
   };
 
   const handleApplySearch = (value: string, status: string) => {

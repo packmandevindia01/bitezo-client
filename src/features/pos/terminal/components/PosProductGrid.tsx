@@ -28,7 +28,6 @@ const PosProductGrid = ({
   alternatives = [],
   activeSubCategoryId,
   onSelectSubCategory,
-  onBack,
   onAdd,
   onSelectAlt,
   categoryName,
