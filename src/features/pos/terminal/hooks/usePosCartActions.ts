@@ -25,6 +25,8 @@ import {
   selectTax,
   selectTotal,
   selectCharges,
+  selectTotalServiceCharge,
+  selectTotalLevy,
   selectItemCount,
   selectTotalExtras,
   selectBaseSubtotal,
@@ -42,11 +44,33 @@ export const usePosCartActions = () => {
   const discount = useAppSelector(selectDiscount);
   const tax = useAppSelector(selectTax);
   const charges = useAppSelector(selectCharges);
+  const totalServiceCharge = useAppSelector(selectTotalServiceCharge);
+  const totalLevy = useAppSelector(selectTotalLevy);
   const total = useAppSelector(selectTotal);
   const itemCount = useAppSelector(selectItemCount);
   const totalExtras = useAppSelector(selectTotalExtras);
   const baseSubtotal = useAppSelector(selectBaseSubtotal);
-  const { orderTypes, selectedOrderTypeId, selectedOrderTypeName, selectedTender, selectedCustomerId, selectedAddressId } = useAppSelector((state) => state.pos);
+  const {
+    orderTypes,
+    selectedOrderTypeId,
+    selectedOrderTypeName,
+    selectedTender,
+    selectedCustomerId,
+    selectedAddressId,
+    selectedSectionId,
+    selectedTableId,
+    guestNo,
+    missedCall,
+    contactNo,
+    note,
+    change,
+    isComing,
+    comingTime,
+    vehicleCustomerName,
+    vehicleNo,
+    billDiscountType,
+    billDiscountValue
+  } = useAppSelector((state) => state.pos);
 
   const addProduct = (productId: number, variantName?: string, price?: number) => {
     dispatch(addToCart({ productId, variantName, price }));
@@ -61,9 +85,16 @@ export const usePosCartActions = () => {
     return false;
   };
 
-  const submitOrder = async (session: { dayId: number; shiftId: number; userId: number; employeeId?: number }) => {
+  const submitOrder = async (session: { dayId: number; shiftId: number; userId: number; employeeId?: number; providerId?: number; providerOrderNo?: string }) => {
     if (cartDetails.length === 0) {
       showToast("Cart is empty", "warning");
+      return;
+    }
+
+    const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
+    
+    if (isDineIn && !session.providerId && (!selectedSectionId || selectedSectionId <= 0)) {
+      showToast("Please select a Dine In Section / Table before placing the order.", "warning");
       return;
     }
 
@@ -77,50 +108,100 @@ export const usePosCartActions = () => {
         employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
+        // TODO: Backend does not support provider details yet
+        // providerId: session.providerId,
+        // providerOrderNo: session.providerOrderNo,
         discAmount: Number(discount.toFixed(3)),
-        discPer: 0,
-        serviceCharge: Number(charges.toFixed(3)),
-        levy: 0,
+        discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
+        serviceCharge: Number(totalServiceCharge.toFixed(3)),
+        levy: Number(totalLevy.toFixed(3)),
         vatExclAmount: Number(subtotal.toFixed(3)),
         vatAmount: Number(tax.toFixed(3)),
         netAmount: Number(total.toFixed(3)),
         createdAt: new Date().toISOString(),
         orderTypeId: selectedOrderTypeId,
-        sectionId: selectedOrderTypeName.toLowerCase() === "dinein" ? 1 : 0, // 0 for non-DineIn
-        tableId: selectedOrderTypeName.toLowerCase() === "dinein" ? 1 : 0,   // 0 for non-DineIn
-        guestNo: 0,
+        sectionId: isDineIn ? selectedSectionId : 0,
+        tableId: isDineIn ? selectedTableId : 0,
+        guestNo,
         addressId: selectedAddressId,
-        missedCall: false,
-        contactNo: "",
-        note: "",
-        change: "",
-        isComing: false,
-        comingTime: new Date().toISOString(),
-        details: cartDetails.map((item) => ({
-          productId: item.productId,
-          unitId: item.product.unitId ?? 5, // Use product's own unit, fallback to 5
-          qty: item.quantity,
-          price: Number(item.product.price.toFixed(3)),
-          discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-          discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-          serviceCharge: 0,
-          levy: 0,
-          vatId: 1, // Default VAT
-          vatAmount: Number(item.vatAmount.toFixed(3)),
-          netAmount: Number(item.lineTotal.toFixed(3)),
-          modifierId: 0,
-          modifierType: 0,
-          mapId: 0,
-          complimentaryStatus: false
-        })),
+        missedCall,
+        contactNo,
+        note,
+        change,
+        isComing,
+        comingTime,
+        details: cartDetails.map((item, index) => {
+          const mapId = index + 1;
+          
+          let mainNetAmount = item.lineTotal;
+          let mainVatAmount = item.vatAmount;
+          let mainSc = item.sc;
+          let mainLevy = item.levy;
+
+          (item.extras || []).forEach(extra => {
+             const extraBase = extra.price * extra.qty;
+             const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
+             const extraVat = item.vatAmount * proportion;
+             const extraSc = item.sc * proportion;
+             const extraLevy = item.levy * proportion;
+             const extraNet = item.lineTotal * proportion;
+
+             mainNetAmount -= extraNet;
+             mainVatAmount -= extraVat;
+             mainSc -= extraSc;
+             mainLevy -= extraLevy;
+          });
+
+          return {
+            productId: item.productId,
+            unitId: item.product.unitId || 1,
+            qty: item.quantity,
+            price: Number(item.product.price.toFixed(3)),
+            discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
+            discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
+            serviceCharge: Number(mainSc.toFixed(3)),
+            levy: Number(mainLevy.toFixed(3)),
+            vatId: (item.product as any).sVatId || 1,
+            vatAmount: Number(mainVatAmount.toFixed(3)),
+            netAmount: Number(mainNetAmount.toFixed(3)),
+            modifierId: 0,
+            modifierType: 0,
+            mapId: mapId,
+            complimentaryStatus: false
+          };
+        }),
+        modifiers: cartDetails.flatMap((item, index) => {
+          const mapId = index + 1;
+          
+          const extrasRows = (item.extras || []).map(extra => ({
+            modifierId: extra.id,
+            modifierType: extra.typeId || 1,
+            map: mapId,
+            qty: extra.qty,
+            price: extra.price,
+            amount: extra.price * extra.qty
+          }));
+
+          const modifierRows = (item.modifiers || []).map(mod => ({
+            modifierId: mod.id,
+            modifierType: mod.typeId || 2,
+            map: mapId,
+            qty: mod.qty,
+            price: 0,
+            amount: 0
+          }));
+
+          return [...extrasRows, ...modifierRows];
+        }),
         vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
-          ? (localStorage.getItem("driveThruVehicleNo") || "")
+          ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
           : "",
         vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
-          ? (localStorage.getItem("driveThruCustomerName") || "")
+          ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
           : "",
       };
 
+      console.log('--- KOT ORDER PUNCH PAYLOAD ---', JSON.stringify(payload, null, 2));
       const response = await orderApi.submitOrder(payload);
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
@@ -176,6 +257,19 @@ export const usePosCartActions = () => {
     selectedTender,
     selectedCustomerId,
     selectedAddressId,
+    selectedSectionId,
+    selectedTableId,
+    guestNo,
+    missedCall,
+    contactNo,
+    note,
+    change,
+    isComing,
+    comingTime,
+    vehicleCustomerName,
+    vehicleNo,
+    billDiscountType,
+    billDiscountValue,
     orderLoading,
     orderError,
     addProduct,

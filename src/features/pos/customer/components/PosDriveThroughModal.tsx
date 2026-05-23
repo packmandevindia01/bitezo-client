@@ -2,8 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Modal, FormInput, Button } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { Save, RotateCcw } from "lucide-react";
-import { useAppDispatch } from "../../../../app/hooks";
-import { setOrderTypeByName } from "../../terminal/store/posSlice";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import {
+  setOrderTypeByName,
+  setVehicleNo,
+  setVehicleCustomerName,
+} from "../../terminal/store/posSlice";
 
 interface PosDriveThroughModalProps {
   isOpen: boolean;
@@ -12,6 +16,7 @@ interface PosDriveThroughModalProps {
 
 export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalProps) => {
   const dispatch = useAppDispatch();
+  const { vehicleNo: savedVehicleNo, vehicleCustomerName: savedVehicleCustomerName } = useAppSelector((state) => state.pos);
   const [form, setForm] = useState({
     vehicleNo: "",
     customerName: ""
@@ -25,11 +30,15 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
 
   useEffect(() => {
     if (isOpen) {
+      setForm({
+        vehicleNo: savedVehicleNo || localStorage.getItem("driveThruVehicleNo") || "",
+        customerName: savedVehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
+      });
       setTimeout(() => firstInputRef.current?.focus(), 100);
       setActiveField("vehicleNo");
       setShowKeyboard(true);
     }
-  }, [isOpen]);
+  }, [isOpen, savedVehicleCustomerName, savedVehicleNo]);
 
   const handleInput = (val: string) => {
     if (!activeField) return;
@@ -66,6 +75,9 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
 
   const handleSave = () => {
     dispatch(setOrderTypeByName("DriveThru"));
+    dispatch(setVehicleNo(form.vehicleNo));
+    dispatch(setVehicleCustomerName(form.customerName));
+
     if (form.vehicleNo) {
       localStorage.setItem("driveThruVehicleNo", form.vehicleNo);
     } else {

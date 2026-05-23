@@ -20,10 +20,10 @@ const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps)
         group relative flex flex-col justify-between
         rounded-xl border border-slate-200 bg-white text-left overflow-hidden
         transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-        h-[128px] lg:h-[132px] xl:h-[135px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+        h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
       "
     >
-      <div className="relative w-full h-[54px] lg:h-[58px] xl:h-[60px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+      <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
         {product.imageUrl ? (
           <img 
             src={product.imageUrl} 
@@ -41,39 +41,27 @@ const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps)
 
         {/* Price Badge Overlay */}
         {showPrice && (
-          <div className="absolute top-1 right-1 bg-white px-1.5 py-0.5 rounded-md text-[9px] font-black text-[#49293e] shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-slate-100/50 select-none">
+          <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
             {formatAmount(finalPrice)}
           </div>
         )}
       </div>
 
-      <div className="w-full flex-1 flex flex-col justify-between min-h-0 p-2 pt-1.5">
+      <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
         <div className="w-full">
           <div className="flex flex-col">
-            <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-tight line-clamp-3 uppercase tracking-tight break-words">
+            <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
               {product.name}
             </h3>
             {product.arabicName && (
-              <p className="text-[13px] font-bold text-slate-500 leading-tight line-clamp-2 mt-0.5 break-words">
+              <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
                 {product.arabicName}
               </p>
             )}
           </div>
         </div>
 
-        <div className="mt-1 flex items-center justify-end w-full">
-          <div
-            className="
-              flex h-5 w-5 items-center justify-center 
-              rounded-full bg-[#49293e] text-white shadow-sm
-              transition-all group-hover:scale-110 active:scale-95 shrink-0
-            "
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M12 5v14" />
-            </svg>
-          </div>
-        </div>
+
       </div>
     </button>
   );

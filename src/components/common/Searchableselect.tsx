@@ -25,6 +25,7 @@ interface Props {
   autoFocus?: boolean;
   tabIndex?: number;
   labelIcon?: React.ReactNode;
+  onKeyDown?: (e: React.KeyboardEvent<any>) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ const SearchableSelect = ({
   autoFocus = false,
   tabIndex,
   labelIcon,
+  onKeyDown,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -247,6 +249,7 @@ const SearchableSelect = ({
         setOpen(true);
       }
     }
+    onKeyDown?.(e);
   };
 
   return (

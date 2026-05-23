@@ -2,8 +2,8 @@ import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { 
   ConfirmDialog, 
-  PageShell, 
-  MasterScreen
+  PageShell,
+  Modal
 } from "../../../../components/common";
 import { useTableManager } from "../hooks/useTableManager";
 import type { TableRecord } from "../types";
@@ -20,12 +20,10 @@ const TableMasterPage = () => {
     loading,
     error,
     open,
-    search,
     mode,
     selectedId,
     selectedSectionId,
     visibleTables,
-    setSearch,
     setField,
     resetForm,
     handleSave,
@@ -55,17 +53,8 @@ const TableMasterPage = () => {
 
   return (
     <PageShell title="Table Master">
-      <MasterScreen
-        title=""
-        search={search}
-        onSearchChange={setSearch}
-        listEmptyLabel="No tables found"
-        columns={[]}
-        data={[]}
-        rowKey="tableId"
-        showListSection={false}
-      >
-        <div className="space-y-4">
+      <div className="rounded-3xl bg-white px-4 py-6 shadow-sm ring-1 ring-gray-100 md:px-6 md:py-6">
+        <div className="space-y-6">
           {/* Error Display */}
           {error && (
             <div className="flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm text-red-600 border-2 border-red-100 animate-in fade-in zoom-in duration-200">
@@ -82,20 +71,18 @@ const TableMasterPage = () => {
             onAdd={canAdd ? handleOpenAdd : undefined}
           />
 
-          {!open && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <TableCardGrid 
-                tables={visibleTables}
-                selectedId={selectedId}
-                loading={loading}
-                onEdit={canEdit ? handleEdit : undefined}
-                onDeleteRequest={canDelete ? setDeleteRecord : undefined}
-                onReorder={canEdit ? handleReorder : undefined}
-              />
-            </div>
-          )}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <TableCardGrid 
+              tables={visibleTables}
+              selectedId={selectedId}
+              loading={loading}
+              onEdit={canEdit ? handleEdit : undefined}
+              onDeleteRequest={canDelete ? setDeleteRecord : undefined}
+              onReorder={canEdit ? handleReorder : undefined}
+            />
+          </div>
 
-          {open && (
+          <Modal isOpen={open} onClose={() => resetForm(String(selectedSectionId))} noPadding size="lg">
             <TableFormSection 
               form={form}
               mode={mode}
@@ -108,9 +95,9 @@ const TableMasterPage = () => {
                 if (record) setDeleteRecord(record);
               } : undefined}
             />
-          )}
+          </Modal>
         </div>
-      </MasterScreen>
+      </div>
 
       <ConfirmDialog
         isOpen={deleteRecord !== null}

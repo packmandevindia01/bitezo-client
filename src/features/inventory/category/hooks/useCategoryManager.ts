@@ -113,7 +113,10 @@ export const useCategoryManager = () => {
     const nameVal = form.name || "";
     const arabicVal = form.arabic || "";
 
-    if (!codeVal.trim() || !nameVal.trim()) return;
+    if (!codeVal.trim() || !nameVal.trim()) {
+      showToast("Please enter both Code and Name", "warning");
+      return;
+    }
 
     setSaving(true);
     setError(null);

@@ -15,14 +15,20 @@ export const useDineIn = () => {
       setLoading(true);
       const response = await dineInApi.getSections();
       if (response.isSuccess) {
-        setSections(response.data);
-        if (response.data.length > 0 && selectedSectionId === null) {
-          setSelectedSectionId(response.data[0].sectionId);
+        if (response.data.length > 0) {
+          setSections(response.data);
+          if (selectedSectionId === null) {
+            setSelectedSectionId(response.data[0].sectionId);
+          }
+        } else {
+          setSections([]);
         }
       } else {
+        setSections([]);
         showToast(response.message || 'Failed to fetch sections', 'warning');
       }
     } catch (error: any) {
+      setSections([]);
       showToast(error.message || 'Error fetching sections', 'warning');
     } finally {
       setLoading(false);
@@ -34,11 +40,17 @@ export const useDineIn = () => {
       setLoading(true);
       const response = await dineInApi.getTables(sectionId);
       if (response.isSuccess) {
-        setTables(response.data);
+        if (response.data.length > 0) {
+          setTables(response.data);
+        } else {
+          setTables([]);
+        }
       } else {
+        setTables([]);
         showToast(response.message || 'Failed to fetch tables', 'warning');
       }
     } catch (error: any) {
+      setTables([]);
       showToast(error.message || 'Error fetching tables', 'warning');
     } finally {
       setLoading(false);

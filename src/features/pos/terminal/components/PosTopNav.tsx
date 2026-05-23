@@ -10,22 +10,25 @@ import {
 } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import { useToast } from "../../../../app/providers/useToast";
-import type { PosOrderType } from "../../types";
+import type { PosOrderType, MenuProvider } from "../../types";
 
 
 interface PosTopNavProps {
   onNewOrder?: () => void;
   onHoldTicket?: () => void;
   onMore?: () => void;
+  onProvider?: () => void;
   onCashierOut?: () => void;
   onCustomerMaster?: () => void;
   onDelivery?: () => void;
   onDriveThrough?: () => void;
   onRecall?: () => void;
+  onVoidOrder?: () => void;
   orderTypes?: PosOrderType[];
   selectedOrderTypeId?: number;
   onSelectOrderType?: (type: PosOrderType) => void;
   status: any;
+  activeProvider?: { provider: MenuProvider; orderNo: string } | null;
 }
 
 
@@ -58,10 +61,13 @@ const PosTopNav = ({
   onDelivery,
   onDriveThrough,
   onRecall,
+  onVoidOrder,
+  onProvider,
   orderTypes = fallbackOrderTypes,
   selectedOrderTypeId,
   onSelectOrderType,
-  status
+  status,
+  activeProvider
 }: PosTopNavProps) => {
 
   const navigate = useNavigate();
@@ -133,12 +139,14 @@ const PosTopNav = ({
             </PosActionButton>
           )})}
           <PosActionButton
-            accent="gray"
+            accent={activeProvider ? "orange" : "gray"}
             className="h-9 lg:h-10 px-2 rounded-xl text-[10px] min-w-0 shadow-sm flex items-center gap-1"
-            onClick={() => showToast("Provider selected", "success")}
+            onClick={onProvider}
           >
             <Users size={13} className="xl:w-3.5 xl:h-3.5" />
-            <span className="hidden xl:inline">Provider</span>
+            <span className="hidden xl:inline uppercase">
+              {activeProvider ? activeProvider.provider.providerName : "Provider"}
+            </span>
           </PosActionButton>
         </div>
 
@@ -158,6 +166,11 @@ const PosTopNav = ({
         <PosActionButton accent="orange" noPadding className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md" title="Recall" onClick={onRecall}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+          </svg>
+        </PosActionButton>
+        <PosActionButton accent="red" noPadding className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md" title="Void Order" onClick={onVoidOrder}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
           </svg>
         </PosActionButton>
 

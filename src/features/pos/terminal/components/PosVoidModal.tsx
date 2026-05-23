@@ -2,13 +2,14 @@ import React, { useState, useEffect } from "react";
 import Modal from "../../../../components/common/Modal";
 import Button from "../../../../components/common/Button";
 import Checkbox from "../../../../components/common/Checkbox";
+import FormInput from "../../../../components/common/FormInput";
 import { Loader } from "../../../../components/common";
-import { Printer, Search, RotateCcw, CheckCircle, X } from "lucide-react";
-import { usePosRecall } from "../hooks/usePosRecall";
-import { useToast } from "../../../../app/providers/useToast";
+import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
+import { Search, RotateCcw, X, Trash2, CheckCircle } from "lucide-react";
+import { usePosVoid } from "../hooks/usePosVoid";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 
-interface PosRecallModalProps {
+interface PosVoidModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
@@ -23,9 +24,8 @@ const ORDER_TYPES = [
   { id: 6, label: "Coming", value: 6 },
 ];
 
-export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose }) => {
-  const { orders, loading, fetchOrders } = usePosRecall();
-  const { showToast } = useToast();
+export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) => {
+  const { orders, loading, fetchOrders, executeVoidOrder } = usePosVoid();
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
   const [includeDeliveryOut, setIncludeDeliveryOut] = useState(true);
@@ -33,6 +33,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("Order No");
+  const [reason, setReason] = useState("");
 
   // Filter handlers
   useEffect(() => {
@@ -45,24 +46,10 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
         DeliveryOutStatus: includeDeliveryOut,
         DeliveryOutOnlyStatus: deliveryOutOnly
       });
+      setSelectedOrderId(null);
+      setReason("");
     }
   }, [isOpen, activeTab, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
-
-  const handlePrint = (transId: number) => {
-    showToast(`Printing Order #${transId}...`, "success");
-    // TODO: Integrate with actual printing service
-  };
-
-  const handleSearch = () => {
-    const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
-    void fetchOrders({
-      OrderTypeId: typeValue,
-      SearchValue: search,
-      SearchStatus: searchStatus,
-      DeliveryOutStatus: includeDeliveryOut,
-      DeliveryOutOnlyStatus: deliveryOutOnly
-    });
-  };
 
   const handleApplySearch = (value: string, status: string) => {
     setSearch(value);
@@ -77,17 +64,43 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
     });
   };
 
+  const handleVoidOrder = async () => {
+    if (!selectedOrderId) return;
+    if (!reason.trim()) {
+      return; // Reason is required, validation handled by disabled state
+    }
+    const success = await executeVoidOrder(selectedOrderId, reason);
+    if (success) {
+      setSelectedOrderId(null);
+      setReason("");
+      // Don't close immediately so they can see success and remaining orders
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       size="2xl"
       noPadding
-      className="bg-[#f8f9fa] border-none shadow-2xl"
+      className="bg-[#f8f9fa] border-none shadow-2xl flex flex-col h-[95vh] !max-h-[95vh]"
     >
-      {/* HEADER SECTION */}
+      {/* HEADER SECTION - Red theme for Void */}
       <div className="flex flex-col shrink-0">
         {/* Navigation Tabs */}
+        <div className="flex items-stretch bg-red-900 text-white">
+          <div className="flex-1 flex overflow-x-auto no-scrollbar items-center px-4 font-black uppercase tracking-widest text-sm">
+            VOID ORDERS
+          </div>
+          <button
+            onClick={onClose}
+            className="px-6 py-4 flex items-center justify-center bg-red-950 hover:bg-black text-white transition-colors shrink-0"
+          >
+            <X size={20} strokeWidth={3} />
+          </button>
+        </div>
+
+        {/* Order Types Tabs */}
         <div className="flex items-stretch bg-[#49293e] text-white">
           <div className="flex-1 flex overflow-x-auto no-scrollbar">
             {ORDER_TYPES.map((type) => (
@@ -96,7 +109,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
                 onClick={() => setActiveTab(type.id)}
                 className={`
                   px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all min-w-[80px] sm:min-w-[100px]
-                  ${activeTab === type.id ? "bg-[#f48120] text-white shadow-inner" : "hover:bg-white/10 text-white/80"}
+                  ${activeTab === type.id ? "bg-red-600 text-white shadow-inner" : "hover:bg-white/10 text-white/80"}
                   border-r border-white/10
                 `}
               >
@@ -104,12 +117,6 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
               </button>
             ))}
           </div>
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 flex items-center justify-center bg-red-700 hover:bg-red-800 text-white transition-colors shrink-0"
-          >
-            <X size={20} strokeWidth={3} />
-          </button>
         </div>
 
         {/* Sub-Header with Filters & Search */}
@@ -138,7 +145,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
           <div className="flex items-center gap-3 flex-1 justify-end">
             <button 
               onClick={() => setIsSearchModalOpen(true)}
-              className="px-6 py-2 rounded-xl bg-[#f48120] flex items-center justify-center text-white shadow-md cursor-pointer hover:bg-[#e06d10] transition-all gap-2"
+              className="px-6 py-2 rounded-xl bg-[#49293e] flex items-center justify-center text-white shadow-md cursor-pointer hover:bg-[#341d2c] transition-all gap-2"
             >
               <Search size={18} strokeWidth={3} />
               <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">
@@ -158,7 +165,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
       </div>
 
       {/* ORDERS LIST SECTION */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative min-h-[400px]">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative min-h-[300px]">
         {loading && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
             <Loader text="Retrieving Orders..." />
@@ -176,95 +183,82 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
 
         {orders.map((order, index) => (
           <div
-            key={order.orderId || `recall-${index}`}
+            key={order.orderId || `void-${index}`}
             onClick={() => setSelectedOrderId(order.orderId)}
             className={`
               flex items-stretch bg-white rounded-xl overflow-hidden shadow-sm border border-transparent cursor-pointer
-              hover:border-[#f48120]/30 hover:shadow-md transition-all group
-              ${selectedOrderId === order.orderId ? "ring-2 ring-[#f48120] shadow-lg translate-x-1" : ""}
+              hover:border-red-500/30 hover:shadow-md transition-all group
+              ${selectedOrderId === order.orderId ? "ring-2 ring-red-500 shadow-lg translate-x-1" : ""}
             `}
           >
             {/* Order Content */}
             <div className={`
               flex-1 p-4 flex flex-col justify-center gap-1.5 transition-colors
-              ${selectedOrderId === order.orderId ? "bg-[#f48120] text-white" : "group-hover:bg-gray-50"}
+              ${selectedOrderId === order.orderId ? "bg-red-50 text-red-900" : "group-hover:bg-gray-50"}
             `}>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <div className="flex items-center gap-1">
-                  <span className={`text-[10px] font-bold uppercase ${selectedOrderId === order.orderId ? "text-white/60" : "text-gray-400"}`}>
+                  <span className={`text-[10px] font-bold uppercase ${selectedOrderId === order.orderId ? "text-red-500" : "text-gray-400"}`}>
                     ID
                   </span>
-                  <span className={`text-base font-black ${selectedOrderId === order.orderId ? "text-white" : "text-[#49293e]"}`}>
+                  <span className={`text-base font-black ${selectedOrderId === order.orderId ? "text-red-700" : "text-[#49293e]"}`}>
                     {order.orderId}
                   </span>
                 </div>
-                {order.isPrinted && (
-                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${selectedOrderId === order.orderId ? "bg-white/20" : "bg-green-100"}`}>
-                    <span className={`text-[10px] font-bold uppercase tracking-tighter ${selectedOrderId === order.orderId ? "text-white" : "text-green-700"}`}>
-                      Printed
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div className="flex items-start gap-2">
-                <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${selectedOrderId === order.orderId ? "bg-white" : "bg-[#f48120]"}`} />
-                <p className={`text-sm font-bold leading-snug italic ${selectedOrderId === order.orderId ? "text-white" : "text-gray-800"}`}>
+                <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${selectedOrderId === order.orderId ? "bg-red-500" : "bg-gray-400"}`} />
+                <p className={`text-sm font-bold leading-snug italic ${selectedOrderId === order.orderId ? "text-red-900" : "text-gray-800"}`}>
                   "{order.details}"
                 </p>
               </div>
-            </div>
-
-            {/* Print Button Wrapper */}
-            <div className="w-[100px] shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePrint(order.orderId);
-                }}
-                className={`
-                  w-full h-full flex flex-col items-center justify-center gap-1 transition-all
-                  ${order.isPrinted 
-                    ? "bg-[#3e4d22] hover:bg-[#34411c] text-white" 
-                    : "bg-[#556b2f] hover:bg-[#4a5d29] text-white"}
-                `}
-              >
-                <Printer size={18} strokeWidth={3} />
-                <div className="font-black text-[10px] uppercase tracking-widest">
-                  Print
-                </div>
-              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* FOOTER */}
-      <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0">
-        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-          Total Records: {orders.length}
-        </div>
-        <div className="flex gap-3">
+      {/* REASON MODAL (Pops up when an order is selected) */}
+      <Modal
+        isOpen={!!selectedOrderId}
+        onClose={() => {
+          setSelectedOrderId(null);
+          setReason("");
+        }}
+        title="Reason for Voiding"
+        size="xl"
+      >
+        <div className="flex flex-col gap-4">
+          <FormInput
+            placeholder="Enter reason..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            autoFocus
+          />
+          <TouchKeyboard
+            embedded
+            size="md"
+            onClose={() => {
+              setSelectedOrderId(null);
+              setReason("");
+            }}
+            onEnter={() => {
+              if (reason.trim()) {
+                handleVoidOrder();
+              }
+            }}
+          />
           <Button 
-            variant="secondary" 
-            onClick={onClose} 
-            tabIndex={-1}
+            variant="danger" 
+            onClick={handleVoidOrder} 
+            disabled={!reason.trim()}
+            className="w-full h-14 mt-2 shadow-lg"
             isAction
-            icon={<RotateCcw size={18} />}
           >
-            Clear
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={onClose} 
-            disabled={!selectedOrderId}
-            isAction
-            icon={<CheckCircle size={18} />}
-          >
-            Select
+            Submit
           </Button>
         </div>
-      </div>
+      </Modal>
 
       {/* Embedded Search Modal */}
       <PosRecallSearchModal
@@ -277,4 +271,3 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose 
     </Modal>
   );
 };
-

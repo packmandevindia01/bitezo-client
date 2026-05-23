@@ -112,7 +112,8 @@ export const PosExtrasModifierModal = ({
           ...e,
           id: e.extraId ?? e.id ?? e.extraID ?? e.ID ?? Math.random(),
           name: getNormalizedName(e),
-          price: e.price || 0
+          price: e.price || 0,
+          typeId: activeTypeId || 0
         }));
         setItems(mapped);
       } else {
@@ -120,7 +121,8 @@ export const PosExtrasModifierModal = ({
         const mapped = (res.modifier || []).map((m: any) => ({
           ...m,
           id: m.modifierId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
-          name: getNormalizedName(m)
+          name: getNormalizedName(m),
+          typeId: activeTypeId || 0
         }));
         setItems(mapped);
       }

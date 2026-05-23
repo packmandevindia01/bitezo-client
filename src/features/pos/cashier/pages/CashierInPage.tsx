@@ -18,8 +18,8 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
   return (
     <div className="w-full max-w-sm mx-auto">
       {/* PIN Display Area */}
-      <div className="mb-6 relative">
-        <div className="flex justify-center gap-4 py-4 px-6 border-2 border-slate-100 bg-white rounded-2xl shadow-sm">
+      <div className="mb-3 xl:mb-6 relative">
+        <div className="flex justify-center gap-3 xl:gap-4 py-3 xl:py-4 px-4 xl:px-6 border-2 border-slate-100 bg-white rounded-2xl shadow-sm">
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
@@ -39,7 +39,7 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
       </div>
 
       {/* Grid - Reduced button height and gaps */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         {buttons.map((btn) => (
           <button
             key={btn}
@@ -49,7 +49,7 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
               else handleNumClick(btn);
             }}
             disabled={loading}
-            className={`h-12 md:h-14 rounded-xl flex items-center justify-center text-lg md:text-xl font-black transition-all active:scale-95 shadow-sm border-2 ${btn === "Clear" || btn === "Del"
+            className={`h-11 sm:h-12 xl:h-14 rounded-xl flex items-center justify-center text-lg md:text-xl font-black transition-all active:scale-95 shadow-sm border-2 ${btn === "Clear" || btn === "Del"
                 ? "bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200"
                 : "bg-white border-slate-300 text-[#49293e] hover:border-[#49293e]/20 hover:shadow-md"
               }`}
@@ -63,7 +63,7 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
         <button
           onClick={onSubmit}
           disabled={loading || value.length === 0}
-          className="h-12 rounded-xl w-full bg-[#49293e] text-white font-extrabold uppercase tracking-wider text-[12px] flex items-center justify-center gap-2 hover:bg-[#5a334d] shadow-lg shadow-[#49293e]/10 transition-all disabled:opacity-50"
+          className="h-11 sm:h-12 xl:h-14 rounded-xl w-full bg-[#49293e] text-white font-extrabold uppercase tracking-wider text-[12px] flex items-center justify-center gap-2 hover:bg-[#5a334d] shadow-lg shadow-[#49293e]/10 transition-all disabled:opacity-50"
         >
           {loading ? "Verifying..." : "Sign In"}
         </button>
@@ -168,56 +168,21 @@ const CashierInPage = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-white overflow-hidden font-sans">
-      {/* Left Column: Brand Area */}
-      <div className="hidden md:flex flex-[1.2] bg-[#49293e] relative flex-col items-center justify-center p-12 overflow-hidden">
-        {/* Background Patterns */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] border-[60px] border-white rounded-full translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] border-[40px] border-white rounded-full -translate-x-1/2 translate-y-1/2 opacity-20" />
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center text-center">
-          {/* Logo Container */}
-          <div className="w-56 h-24 flex items-center justify-center mb-10 overflow-hidden relative">
-            <img
-              src="/LOGO6.png"
-              alt="Bitezo"
-              className="w-full h-full object-contain p-2"
-              style={{ transform: 'scale(3.0)' }}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <h1 className="text-6xl font-black text-white tracking-tighter flex items-center justify-center gap-4">
-              BITEZO <Sparkles className="text-white animate-pulse" size={40} />
-            </h1>
-            <p className="text-white/80 font-black text-sm uppercase tracking-[0.6em]">
-              Cloud-Based Restaurant POS
-            </p>
-            <div className="h-1.5 w-24 bg-white/30 mx-auto rounded-full mt-4" />
-            <p className="text-white/60 text-lg leading-relaxed max-w-xs mx-auto pt-6 font-medium italic">
-              "Exquisite technology for the modern culinary & hospitality industry."
-            </p>
-          </div>
-
-          <div className="mt-16 inline-flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold text-white/80 uppercase tracking-widest backdrop-blur-md">
-            <ShieldCheck size={18} className="text-emerald-400" />
-            SECURE CLOUD AUTHORIZATION
-          </div>
-        </div>
-
-        <div className="absolute bottom-10 text-white/20 text-[10px] font-black uppercase tracking-[0.4em]">
-          Powered by Packman Solutions • v1.0.0
-        </div>
+    <div className="h-dvh flex flex-col md:flex-row bg-white overflow-hidden font-sans">
+      <div className="hidden md:flex flex-[1.2] relative overflow-hidden bg-[#1a1311]">
+        <img
+          src="/demo2.jpeg"
+          alt="Bitezo POS"
+          className="w-full h-full object-cover object-center"
+        />
       </div>
 
       {/* Right Column: Login Area */}
-      <div className="flex-1 bg-slate-50 flex flex-col items-center justify-center p-6 md:p-16 relative">
-        <div className="w-full max-w-sm flex flex-col items-center gap-8">
+      <div className="flex-1 bg-slate-50 flex flex-col items-center justify-center p-3 sm:p-6 lg:p-8 xl:p-16 relative overflow-y-auto md:overflow-hidden">
+        <div className="w-full max-w-sm flex flex-col items-center gap-2 sm:gap-4 xl:gap-8 my-auto z-10">
           {/* Heading - Now centered and lowered */}
-          <div className="text-center w-full mb-4">
-            <div className="md:hidden mb-10 flex justify-center">
+          <div className="text-center w-full mb-2 xl:mb-4">
+            <div className="md:hidden mb-4 flex justify-center">
               <div className="w-36 h-16 flex items-center justify-center overflow-hidden relative">
                 <img src="/LOGO6.png" alt="Bitezo" className="w-full h-full object-contain p-1" style={{ transform: 'scale(2.5)' }} />
               </div>
@@ -239,10 +204,10 @@ const CashierInPage = () => {
           />
 
           {/* Context and Config */}
-          <div className="mt-2 flex flex-col items-center gap-4 w-full">
+          <div className="mt-1 xl:mt-4 flex flex-col items-center gap-2 xl:gap-4 w-full">
             <button
               onClick={() => navigate("/system/register")}
-              className="group flex items-center gap-3 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-[#49293e] hover:border-[#49293e]/30 shadow-sm transition-all duration-300"
+              className="group flex items-center gap-2 xl:gap-3 px-4 py-2 xl:px-5 xl:py-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-[#49293e] hover:border-[#49293e]/30 shadow-sm transition-all duration-300"
             >
               <Settings size={16} className="group-hover:rotate-90 transition-transform duration-500" />
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">Terminal Configuration</span>

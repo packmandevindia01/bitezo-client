@@ -239,7 +239,7 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 0 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 0)}
                         onChange={(e) => handleGridChange(rIdx, "branchId", parseInt(e.target.value))}
-                        className="h-8 w-full appearance-none border-none bg-transparent px-2 py-0 text-[11px] font-bold outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
+                        className="h-8 w-full appearance-none border-none bg-transparent px-2 py-0 text-sm font-bold outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                       >
                         {branchOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                       </select>
@@ -252,7 +252,7 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 1 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 1)}
                         onChange={(e) => handleGridChange(rIdx, "barcode", e.target.value)}
-                        className="h-8 w-full border-none bg-transparent px-2 py-0 font-mono text-[11px] font-bold text-[#49293e] outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 font-mono text-sm font-bold text-[#49293e] outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">
@@ -303,7 +303,7 @@ export const AlternativePricingGrid = ({
                             handleGridChange(rIdx, "price", formatAmount(e.target.value, decimalPart));
                           }
                         }}
-                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 font-mono text-right"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 font-mono text-right"
                         style={{ textAlign: 'right' }}
                       />
                     </td>
@@ -315,7 +315,7 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 5 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 5)}
                         onChange={(e) => handleGridChange(rIdx, "altName", e.target.value)}
-                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
                       />
                     </td>
                     <td className="p-0 border-r border-gray-100">
@@ -327,7 +327,7 @@ export const AlternativePricingGrid = ({
                         onFocus={() => setFocusPos({ r: rIdx, c: 6 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 6)}
                         onChange={(e) => handleGridChange(rIdx, "altArabic", e.target.value)}
-                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 text-right"
+                        className="h-8 w-full border-none bg-transparent px-2 py-0 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 text-right"
                       />
                     </td>
                     <td className="px-1 py-0 text-center">

@@ -4,12 +4,12 @@ import type { DineInSection, DineInTable } from "../types";
 
 export const dineInApi = {
   getSections: async () => {
-    const { data } = await axiosInstance.get<ApiResponse<DineInSection[]>>("/menu/dine-in/section-list");
+    const { data } = await axiosInstance.get<ApiResponse<DineInSection[]>>("/menu/dine-in/sections");
     return data;
   },
 
   getTables: async (sectionId: number) => {
-    const { data } = await axiosInstance.get<ApiResponse<DineInTable[]>>(`/menu/dine-in/table-list/${sectionId}`);
+    const { data } = await axiosInstance.get<ApiResponse<DineInTable[]>>(`/menu/dine-in/sections/${sectionId}/tables`);
     return data;
   }
 };

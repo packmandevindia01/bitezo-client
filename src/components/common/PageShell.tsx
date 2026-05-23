@@ -7,8 +7,7 @@ interface PageShellProps {
 const PageShell = ({ children }: PageShellProps) => {
   return (
     <div className="min-h-full bg-gray-50">
-      <div className="mx-auto w-full max-w-7xl">
-
+      <div className="w-full">
         {children}
       </div>
     </div>

@@ -44,6 +44,17 @@ interface PosState {
 
   selectedCustomerId: number;
   selectedAddressId: number;
+  selectedSectionId: number;
+  selectedTableId: number;
+  guestNo: number;
+  missedCall: boolean;
+  contactNo: string;
+  note: string;
+  change: string;
+  isComing: boolean;
+  comingTime: string;
+  vehicleCustomerName: string;
+  vehicleNo: string;
 }
 
 const loadCart = (): PosCartItem[] => {
@@ -76,6 +87,17 @@ const initialState: PosState = {
 
   selectedCustomerId: 1, // Default to 1 (General Customer)
   selectedAddressId: 0,
+  selectedSectionId: 0,
+  selectedTableId: 0,
+  guestNo: 0,
+  missedCall: false,
+  contactNo: '',
+  note: '',
+  change: '',
+  isComing: false,
+  comingTime: new Date().toISOString(),
+  vehicleCustomerName: '',
+  vehicleNo: ''
 };
 
 const getNormalizedVariant = (name?: string) => {
@@ -147,6 +169,17 @@ const posSlice = createSlice({
       state.billDiscountValue = 0;
       state.selectedCustomerId = 1;
       state.selectedAddressId = 0;
+      state.selectedSectionId = 0;
+      state.selectedTableId = 0;
+      state.guestNo = 0;
+      state.missedCall = false;
+      state.contactNo = '';
+      state.note = '';
+      state.change = '';
+      state.isComing = false;
+      state.comingTime = new Date().toISOString();
+      state.vehicleCustomerName = '';
+      state.vehicleNo = '';
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
       state.activeCategoryId = action.payload;
@@ -210,8 +243,8 @@ const posSlice = createSlice({
     setItemCustomizations: (state, action: PayloadAction<{ 
       productId: number; 
       variantName?: string; 
-      extras?: { id: number; name: string; price: number; qty: number }[];
-      modifiers?: { id: number; name: string; qty: number }[];
+      extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
+      modifiers?: { id: number; name: string; qty: number; typeId: number }[];
     }>) => {
       const { productId, variantName, extras, modifiers } = action.payload;
       const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
@@ -261,6 +294,39 @@ const posSlice = createSlice({
     setAddressId: (state, action: PayloadAction<number>) => {
       state.selectedAddressId = action.payload;
     },
+    setSectionId: (state, action: PayloadAction<number>) => {
+      state.selectedSectionId = action.payload;
+    },
+    setTableId: (state, action: PayloadAction<number>) => {
+      state.selectedTableId = action.payload;
+    },
+    setGuestNo: (state, action: PayloadAction<number>) => {
+      state.guestNo = action.payload;
+    },
+    setMissedCall: (state, action: PayloadAction<boolean>) => {
+      state.missedCall = action.payload;
+    },
+    setContactNo: (state, action: PayloadAction<string>) => {
+      state.contactNo = action.payload;
+    },
+    setNote: (state, action: PayloadAction<string>) => {
+      state.note = action.payload;
+    },
+    setChange: (state, action: PayloadAction<string>) => {
+      state.change = action.payload;
+    },
+    setIsComing: (state, action: PayloadAction<boolean>) => {
+      state.isComing = action.payload;
+    },
+    setComingTime: (state, action: PayloadAction<string>) => {
+      state.comingTime = action.payload;
+    },
+    setVehicleCustomerName: (state, action: PayloadAction<string>) => {
+      state.vehicleCustomerName = action.payload;
+    },
+    setVehicleNo: (state, action: PayloadAction<string>) => {
+      state.vehicleNo = action.payload;
+    },
   },
 });
 
@@ -290,7 +356,18 @@ export const {
   setLoading,
   setError,
   setCustomerId,
-  setAddressId
+  setAddressId,
+  setSectionId,
+  setTableId,
+  setGuestNo,
+  setMissedCall,
+  setContactNo,
+  setNote,
+  setChange,
+  setIsComing,
+  setComingTime,
+  setVehicleCustomerName,
+  setVehicleNo
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
@@ -306,11 +383,11 @@ export const selectCartDetails = createSelector(
       const product = pos.productCache[item.productId];
       if (!product) return null;
       
-      const price = item.price ?? product.price;
+      const price = Number(item.price ?? product.price ?? 0);
       const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
       
-      const extrasTotal = (item.extras || []).reduce((sum, extra) => sum + (extra.price * extra.qty), 0);
-      const itemGross = (price * item.quantity) + extrasTotal;
+      const extrasTotal = (item.extras || []).reduce((sum, extra) => sum + (Number(extra.price) * Number(extra.qty)), 0);
+      const itemGross = (price * Number(item.quantity)) + extrasTotal;
 
       let itemDiscount = 0;
       if (item.discountValue) {
@@ -383,6 +460,16 @@ export const selectTotalExtras = createSelector(
 export const selectCharges = createSelector(
   [selectCartDetails],
   (details) => details.reduce((sum, item) => sum + item.sc + item.levy, 0)
+);
+
+export const selectTotalServiceCharge = createSelector(
+  [selectCartDetails],
+  (details) => details.reduce((sum, item) => sum + item.sc, 0)
+);
+
+export const selectTotalLevy = createSelector(
+  [selectCartDetails],
+  (details) => details.reduce((sum, item) => sum + item.levy, 0)
 );
 
 export const selectTax = createSelector(

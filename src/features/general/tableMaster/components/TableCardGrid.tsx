@@ -15,6 +15,7 @@ import {
 import { Loader2 } from "lucide-react";
 import type { TableRecord } from "../types";
 import SortableTableCard from "./SortableTableCard";
+import SortableEmptySlot from "./SortableEmptySlot";
 
 interface TableCardGridProps {
   tables: TableRecord[];
@@ -47,19 +48,6 @@ const TableCardGrid = ({
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = tables.findIndex((t) => t.tableId === active.id);
-      const newIndex = tables.findIndex((t) => t.tableId === over.id);
-      const reordered = arrayMove(tables, oldIndex, newIndex);
-      if (onReorder) {
-        onReorder(reordered);
-      }
-    }
-  };
-
   if (loading && tables.length === 0) {
     return (
       <div className="py-12 flex justify-center w-full">
@@ -68,21 +56,55 @@ const TableCardGrid = ({
     );
   }
 
-  if (tables.length === 0) {
-    return (
-      <div className="rounded-3xl border border-dashed border-slate-200 bg-white py-16 px-6 text-center w-full flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in duration-300">
-        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-800">No tables found for this section</p>
-          <p className="text-xs text-slate-400 mt-1 max-w-[280px] mx-auto">Get started by clicking the "Add Table" button above to allocate a new table in this section.</p>
-        </div>
-      </div>
-    );
-  }
+  // Calculate grid size (minimum 25 slots)
+  const maxTablePosition = tables.reduce((max, t) => Math.max(max, t.position || 0), 0);
+  const totalSlots = Math.max(25, maxTablePosition);
+
+  const placedTables = new Set<number>();
+  const gridItems: Array<{ type: 'table' | 'empty'; id: string; table?: TableRecord; position?: number }> = Array.from({ length: totalSlots }, (_, index) => {
+    const position = index + 1;
+    const table = tables.find(t => t.position === position && !placedTables.has(t.tableId));
+    
+    if (table) {
+      placedTables.add(table.tableId);
+      return { type: 'table', id: `table-${table.tableId}`, table };
+    }
+    return { type: 'empty', id: `empty-${position}`, position };
+  });
+
+  // Append any unplaced tables to the end (e.g., duplicate positions or missing position)
+  tables.forEach(table => {
+    if (!placedTables.has(table.tableId)) {
+      gridItems.push({ type: 'table', id: `table-${table.tableId}`, table });
+    }
+  });
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = gridItems.findIndex((item) => item.id === active.id);
+      const newIndex = gridItems.findIndex((item) => item.id === over.id);
+      
+      const reorderedItems = arrayMove(gridItems, oldIndex, newIndex);
+      
+      const newTables = reorderedItems
+        .map((item, index) => {
+          if (item.type === 'table' && item.table) {
+            return {
+              ...item.table,
+              position: index + 1
+            };
+          }
+          return null;
+        })
+        .filter((t): t is TableRecord => t !== null);
+
+      if (onReorder) {
+        onReorder(newTables);
+      }
+    }
+  };
 
   return (
     <DndContext 
@@ -91,20 +113,26 @@ const TableCardGrid = ({
       onDragEnd={handleDragEnd}
     >
       <SortableContext 
-        items={tables.map(t => t.tableId)}
+        items={gridItems.map(item => item.id)}
         strategy={rectSortingStrategy}
       >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {tables.map((table) => (
-            <SortableTableCard
-              key={table.tableId}
-              table={table}
-              selectedId={selectedId}
-              loading={loading}
-              onEdit={onEdit}
-              onDeleteRequest={onDeleteRequest}
-            />
-          ))}
+        <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+          {gridItems.map((item) => {
+            if (item.type === 'table' && item.table) {
+              return (
+                <SortableTableCard
+                  key={item.id}
+                  id={item.id}
+                  table={item.table}
+                  selectedId={selectedId}
+                  loading={loading}
+                  onEdit={onEdit}
+                  onDeleteRequest={onDeleteRequest}
+                />
+              );
+            }
+            return <SortableEmptySlot key={item.id} id={item.id} />;
+          })}
         </div>
       </SortableContext>
     </DndContext>

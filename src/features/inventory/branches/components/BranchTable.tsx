@@ -22,7 +22,7 @@ const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit, onDelete
       actionLabel={onAdd ? "+ Add Branch" : undefined}
       onAction={onAdd}
       columns={[
-        { header: "#", accessor: "id" },
+        { header: "#", accessor: "id", render: (_, index) => index + 1 },
         { header: "Branch Name", accessor: "branchName" },
         {
           header: "Actions",

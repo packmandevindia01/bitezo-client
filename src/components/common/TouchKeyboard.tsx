@@ -10,6 +10,8 @@ interface TouchKeyboardProps {
   layout?: "qwerty" | "numeric" | "symbols";
   size?: "sm" | "md" | "lg";
   embedded?: boolean;
+  hideCloseKey?: boolean;
+  onEnter?: () => void;
 }
 
 export const TouchKeyboard = ({
@@ -20,6 +22,8 @@ export const TouchKeyboard = ({
   layout: initialLayout,
   size = "md",
   embedded = false,
+  hideCloseKey = false,
+  onEnter,
 }: TouchKeyboardProps) => {
   const [currentLayout, setCurrentLayout] = useState<"qwerty" | "numeric" | "symbols">(
     initialLayout || "qwerty"
@@ -176,6 +180,11 @@ export const TouchKeyboard = ({
   };
 
   const handleEnterAction = () => {
+    if (onEnter) {
+      onEnter();
+      return;
+    }
+    
     const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
     if (activeEl) {
       // Exclude searchable select inputs, dropdown portals, and search filters from auto-focus navigation
@@ -451,6 +460,8 @@ export const TouchKeyboard = ({
         {activeRows.map((row, rowIndex) => (
           <div key={rowIndex} className="flex justify-center gap-0.5 sm:gap-1 w-full">
             {row.map((key) => {
+              if (key === "Close" && hideCloseKey) return null;
+
               const isSpecial = ["Shift", "Back", "Back Space", "Clear", "Space", "Enter", "Close", "Symbols", "ABC", "123"].includes(key);
               const isActive = !!pressedKeys[key];
               const isShiftOn = key === "Shift" && isCaps;

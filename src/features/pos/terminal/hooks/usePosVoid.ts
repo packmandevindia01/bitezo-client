@@ -4,9 +4,10 @@ import type { RecallOrder, RecallParams } from '../../types';
 import { useToast } from '../../../../app/providers/useToast';
 import { useCashierLog } from '../../cashier';
 
-export const usePosRecall = () => {
+export const usePosVoid = () => {
   const [orders, setOrders] = useState<RecallOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [voidingOrderId, setVoidingOrderId] = useState<number | null>(null);
   const { showToast } = useToast();
   const { status } = useCashierLog();
 
@@ -16,7 +17,6 @@ export const usePosRecall = () => {
     try {
       setLoading(true);
 
-      // Clean up params: remove empty strings and nulls
       const cleanParams: RecallParams = {
         OrderTypeId: params.OrderTypeId ?? 0,
         DeliveryOutStatus: params.DeliveryOutStatus ?? false,
@@ -24,10 +24,8 @@ export const usePosRecall = () => {
         DayId: status.dayId,
       };
 
-      // Only add EmployeeId if it exists and is valid
       if (status.userId) cleanParams.EmployeeId = status.userId;
 
-      // Only add search/status if they have actual content
       if (params.SearchValue?.trim()) {
         cleanParams.SearchValue = params.SearchValue.trim();
         if (params.SearchStatus?.trim()) {
@@ -36,23 +34,58 @@ export const usePosRecall = () => {
       }
       if (params.ProviderName?.trim()) cleanParams.ProviderName = params.ProviderName.trim();
 
-      const response = await orderApi.getRecallOrders(cleanParams);
-      console.log("RECALL PARAMS SENT:", cleanParams);
-      console.log("RECALL RESPONSE:", response);
+      const response = await orderApi.getVoidOrders(cleanParams);
       
       if (response.isSuccess) {
         setOrders(response.data || []);
       } else {
-        showToast(response.message || 'Failed to fetch recall data', 'error');
+        showToast(response.message || 'Failed to fetch void data', 'error');
         setOrders([]);
       }
     } catch (error) {
-      console.error('Recall fetch error:', error);
+      console.error('Void fetch error:', error);
       setOrders([]);
     } finally {
       setLoading(false);
     }
   }, [status, showToast]);
+
+  const executeVoidOrder = useCallback(async (orderId: number, reason: string) => {
+    if (!status?.dayId || !status?.shiftId || !status?.userId) {
+      showToast('Session details missing', 'error');
+      return false;
+    }
+
+    try {
+      setVoidingOrderId(orderId);
+      const payload = {
+        orderId,
+        reason,
+        employeeId: status.userId,
+        voidDateTime: new Date().toISOString(),
+        dayId: status.dayId,
+        shiftId: status.shiftId,
+      };
+
+      const response = await orderApi.voidOrder(orderId, payload);
+      
+      if (response.isSuccess) {
+        showToast(response.message || 'Order voided successfully', 'success');
+        // Refresh the list after voiding
+        await fetchOrders({ OrderTypeId: 0 });
+        return true;
+      } else {
+        showToast(response.message || 'Failed to void order', 'error');
+        return false;
+      }
+    } catch (error) {
+      console.error('Void order error:', error);
+      showToast('An error occurred while voiding', 'error');
+      return false;
+    } finally {
+      setVoidingOrderId(null);
+    }
+  }, [status, showToast, fetchOrders]);
 
   // Initial fetch when session is available
   useEffect(() => {
@@ -64,7 +97,8 @@ export const usePosRecall = () => {
   return {
     orders,
     loading,
+    voidingOrderId,
     fetchOrders,
+    executeVoidOrder,
   };
 };
-

@@ -3,11 +3,14 @@ import { ChevronLeft, LayoutGrid, Users, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../components/common';
 
+import { useAppDispatch } from '../../../../app/hooks';
+import { setSectionId, setTableId } from '../store/posSlice';
 import { useDineIn } from '../hooks/useDineIn';
 import { Loader } from '../../../../components/common';
 
 export const DineInSelectionPage: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { 
     sections, 
     tables, 
@@ -33,9 +36,16 @@ export const DineInSelectionPage: React.FC = () => {
   };
 
   const handleTableSelect = (_tableId: number) => {
-
-    // Here you would typically dispatch an action to set the table in the order state
+    if (selectedSectionId) {
+      dispatch(setSectionId(selectedSectionId));
+    }
+    dispatch(setTableId(_tableId));
     navigate('/pos');
+  };
+
+  const handleSectionSelect = (sectionId: number) => {
+    setSelectedSectionId(sectionId);
+    dispatch(setSectionId(sectionId));
   };
 
   return (
@@ -192,7 +202,7 @@ export const DineInSelectionPage: React.FC = () => {
             {sections.map(section => (
               <button
                 key={section.sectionId}
-                onClick={() => setSelectedSectionId(section.sectionId)}
+                onClick={() => handleSectionSelect(section.sectionId)}
                 className={`
                   w-full flex items-center justify-between p-6 rounded-[2rem] transition-all duration-500 text-left group relative overflow-hidden
                   ${selectedSectionId === section.sectionId 

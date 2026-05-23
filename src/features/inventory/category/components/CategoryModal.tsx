@@ -146,6 +146,7 @@ export const CategoryModal = ({
                     onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
                     onKeyDown={(e) => handleKeyDown(e, "cat-name")}
                     placeholder="Enter code"
+                    required
                     autoFocus
                   />
 
@@ -156,6 +157,7 @@ export const CategoryModal = ({
                     onChange={(e) => onChange({ name: e.target.value })}
                     onKeyDown={(e) => handleKeyDown(e, "cat-arabic")}
                     placeholder="Enter name"
+                    required
                   />
 
                   <FormInput

@@ -13,29 +13,16 @@ export const useTableManager = () => {
   const { tables, setTables, loading, setLoading, error, search, setSearch, filteredTables, fetchTables } = useTableList(selectedSectionId);
   const { form, setForm, open, setOpen, mode, setMode, selectedId, setSelectedId, setField, resetForm } = useTableForm(selectedSectionId);
 
-  const syncFormFromRecord = async (tableId: number) => {
-    setLoading(true);
-    try {
-      const record = await tableService.getById(tableId);
-      setForm({
-        sectionId: String(selectedSectionId),
-        tableName: record.tableName,
-        chairs: String(record.chairs),
-        isActive: record.isActive,
-        position: record.position || 0,
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to fetch table details";
-      showToast(msg, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleEdit = (record: TableRecord) => {
     setMode("edit");
     setSelectedId(record.tableId);
-    syncFormFromRecord(record.tableId);
+    setForm({
+      sectionId: String(selectedSectionId),
+      tableName: record.tableName,
+      chairs: String(record.chairs ?? 0),
+      isActive: record.isActive,
+      position: record.position || 0,
+    });
     setOpen(true);
   };
 
@@ -112,15 +99,12 @@ export const useTableManager = () => {
 
   const handleReorder = async (newTables: TableRecord[]) => {
     // 1. Update local state immediately for visual responsiveness
-    const reorderedWithPositions = newTables.map((table, index) => ({
-      ...table,
-      position: index + 1
-    }));
-    setTables(reorderedWithPositions);
+    setTables(newTables);
 
     // 2. Persist to backend (Parallel updates for speed)
     try {
-      const updatePromises = reorderedWithPositions.map((table) => {
+      // Find only tables whose positions have actually changed
+      const updatePromises = newTables.map((table) => {
         const payload: TablePayload = {
           tableName: table.tableName,
           chairs: table.chairs,

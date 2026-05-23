@@ -29,7 +29,10 @@ export const ProductDetailsSection = ({
   const categoryOptions = masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [];
   const groupOptions = masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [];
   const unitOptions = masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
-  const vatOptions = masterData?.vat?.map(v => ({ label: `${v.name} (${v.value}%)`, value: String(v.id) })) ?? [];
+  const vatOptions = masterData?.vat?.map(v => ({ 
+    label: v.name.includes(String(v.value)) ? v.name : `${v.name} (${v.value}%)`, 
+    value: String(v.id) 
+  })) ?? [];
   const typeOptions = masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions;
   const colorValue = /^#[0-9a-fA-F]{6}$/.test(form.colorCode || "") ? form.colorCode : "#49293e";
 
@@ -61,7 +64,7 @@ export const ProductDetailsSection = ({
           value={form.arabicName}
           disabled={saving}
           onChange={(e) => onChange("arabicName", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "prod-code")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-unit")}
         />
         <SearchableSelect
           id="prod-unit"
@@ -72,6 +75,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("unitId", v)}
           required
           disabled={saving}
+          onKeyDown={(e) => handleKeyDown(e, "prod-code")}
         />
 
         <FormInput
@@ -89,7 +93,7 @@ export const ProductDetailsSection = ({
           value={form.barcode}
           disabled={saving}
           onChange={(e) => onChange("barcode", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "prod-cost")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-branch")}
         />
         <SearchableSelect
           id="prod-branch"
@@ -100,6 +104,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("branchId", v)}
           required
           disabled={saving}
+          onKeyDown={(e) => handleKeyDown(e, "prod-group")}
         />
 
         <SearchableSelect
@@ -111,6 +116,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("groupId", v)}
           required
           disabled={saving}
+          onKeyDown={(e) => handleKeyDown(e, "prod-category")}
         />
         <SearchableSelect
           id="prod-category"
@@ -121,6 +127,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("categoryId", v)}
           required
           disabled={saving}
+          onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
         />
         <SearchableSelect
           id="prod-subcat"
@@ -130,6 +137,7 @@ export const ProductDetailsSection = ({
           placeholder={loadingSubs ? "Loading…" : "Select sub category"}
           onChange={(v) => onChange("subCatId", v)}
           disabled={saving || loadingSubs}
+          onKeyDown={(e) => handleKeyDown(e, "prod-cost")}
         />
 
         <FormInput
@@ -188,6 +196,7 @@ export const ProductDetailsSection = ({
                 onChange("price", formatAmount(e.target.value, decimalPart));
               }
             }}
+            onKeyDown={(e) => handleKeyDown(e, "prod-p-vat")}
             required
           />
         </div>
@@ -200,6 +209,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("pVatId", v)}
           required
           disabled={saving}
+          onKeyDown={(e) => handleKeyDown(e, "prod-type")}
         />
 
         <SearchableSelect
@@ -211,6 +221,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("typeId", v)}
           required
           disabled={saving}
+          onKeyDown={(e) => handleKeyDown(e, "prod-color")}
         />
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product Color</label>
@@ -225,10 +236,12 @@ export const ProductDetailsSection = ({
               />
             </div>
             <input
+              id="prod-color"
               type="text"
               value={colorValue}
               onChange={(e) => onChange("colorCode", e.target.value)}
               disabled={saving}
+              onKeyDown={(e) => handleKeyDown(e, "prod-s-vat")}
               className="w-full rounded-md border-none bg-transparent text-xs font-mono outline-none focus:ring-0 uppercase"
               placeholder="#000000"
               maxLength={7}

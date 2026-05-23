@@ -6,7 +6,15 @@ import { useDelivery } from "../hooks/useDelivery";
 import { PosMoreAddressModal } from "./PosMoreAddressModal";
 import type { DeliveryAddress } from "../types/delivery";
 import { useAppDispatch } from "../../../../app/hooks";
-import { setOrderTypeByName, setAddressId } from "../../terminal/store/posSlice";
+import {
+  setOrderTypeByName,
+  setAddressId,
+  setContactNo,
+  setNote,
+  setMissedCall,
+  setIsComing,
+  setChange
+} from "../../terminal/store/posSlice";
 
 interface PosDeliveryModalProps {
   isOpen: boolean;
@@ -178,6 +186,14 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     setShowKeyboard(true);
   };
 
+  const applyDeliveryFieldsToStore = () => {
+    dispatch(setContactNo(form.mobileNo));
+    dispatch(setNote(form.note));
+    dispatch(setMissedCall(form.isMissedCall));
+    dispatch(setIsComing(form.isComing));
+    dispatch(setChange(form.keepChanges));
+  };
+
   const handleSave = async () => {
     if (!form.mobileNo) return;
     
@@ -194,6 +210,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
     if (isUnchanged && currentAddressId) {
       // Bypasses the POST API to prevent duplicate records!
+      applyDeliveryFieldsToStore();
       dispatch(setAddressId(currentAddressId));
       dispatch(setOrderTypeByName("Delivery"));
       onClose();
@@ -212,6 +229,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     });
 
     if (responseData) {
+      applyDeliveryFieldsToStore();
       if (responseData.id) {
         dispatch(setAddressId(responseData.id));
       } else if (currentAddressId) {
@@ -220,6 +238,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       dispatch(setOrderTypeByName("Delivery"));
       onClose();
     } else if (currentAddressId) {
+      applyDeliveryFieldsToStore();
       dispatch(setAddressId(currentAddressId));
       dispatch(setOrderTypeByName("Delivery"));
       onClose();
@@ -251,7 +270,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       isOpen={isOpen}
       onClose={onClose}
       noPadding
-      className="!max-w-full w-screen !max-h-full h-[100dvh] max-h-[100dvh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
+      className="!max-w-full w-screen !max-h-full h-full !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
       {/* Header - Premium Maroon */}
       <div className="flex items-center justify-between bg-[#49293e] px-3 md:px-6 py-3 text-white shrink-0 border-b border-white/10 relative flex-wrap gap-2 md:gap-4">
@@ -292,7 +311,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       {/* Content Area */}
       <div className="flex-1 flex flex-col justify-between bg-white overflow-hidden min-h-0">
         {/* Form Fields - NO scroll, compact, fits screen */}
-        <div className={`shrink-0 ${isCompactViewport ? "p-2 gap-y-1.5" : "p-3 gap-y-2"} flex flex-col`}>
+        <div className={`shrink-0 min-h-0 ${isCompactViewport ? "p-1.5 gap-y-1" : "p-3 gap-y-2"} flex flex-col`}>
           
           {/* Row 1: Primary Identity & Round Search Icon */}
           <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
@@ -506,8 +525,8 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
         {/* Row 5: Touch Keyboard (Centered, Spacious Native Chassis - Zero Overlapping) */}
         {showKeyboard && (
-          <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-2 pb-1.5" : "px-3 lg:px-4 pb-2"} border-t border-slate-100`}>
-            <div className={`w-full ${isCompactViewport ? "max-w-[900px]" : "max-w-[1000px]"} mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl ${isCompactViewport ? "p-2" : "p-2 lg:p-2.5"}`}>
+          <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-1 pb-1" : "px-3 lg:px-4 pb-2"} border-t border-slate-100`}>
+            <div className={`w-full ${isCompactViewport ? "max-w-[900px]" : "max-w-[1000px]"} mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl ${isCompactViewport ? "p-1" : "p-2 lg:p-2.5"}`}>
               <TouchKeyboard
                 onInput={handleInput}
                 onBackspace={handleBackspace}

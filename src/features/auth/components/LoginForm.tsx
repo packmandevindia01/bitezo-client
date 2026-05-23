@@ -56,28 +56,10 @@ const LoginForm = () => {
       const data = await loginApi(username.trim(), password.trim());
 
       if (data?.accessToken && data?.user?.userId) {
-        localStorage.setItem("userId", String(data.user.userId));
-        localStorage.setItem("accessToken", data.accessToken);
-        localStorage.setItem("refreshToken", data.refreshToken);
-        localStorage.setItem("tenantId", data.tenantId ?? clientDb);
-        localStorage.setItem("userName", data.user.userName);
-        localStorage.setItem("isMaster", String(Boolean(data.user.isMaster)));
-        
-        if (data.userRoles && data.userRoles.length > 0) {
-          localStorage.setItem("userRoles", JSON.stringify(data.userRoles));
-        } else {
-          localStorage.removeItem("userRoles");
-        }
-        
         const decimalPart = data.company?.decimalPart ?? 2;
         const currencySymbol = data.company?.currencySymbol ?? "BHD";
-        
-        localStorage.setItem("decimalPart", String(decimalPart));
-        localStorage.setItem("currencySymbol", currencySymbol);
 
-        if (data.session?.expiresAt) {
-          localStorage.setItem("sessionExpiresAt", data.session.expiresAt);
-        }
+        // Let authSlice handle the correct storage (sessionStorage for Backoffice, localStorage for POS)
 
         dispatch(
           setCredentials({

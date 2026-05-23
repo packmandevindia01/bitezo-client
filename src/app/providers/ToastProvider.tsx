@@ -24,7 +24,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
       const finalType = type === "error" ? "warning" : type;
       const id = ++_id;
       setToasts((current) => [...current, { id, message, type: finalType, title }]);
-      setTimeout(() => removeToast(id), 3500);
+      setTimeout(() => removeToast(id), 2500);
     },
     [removeToast]
   );
@@ -37,7 +37,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
       <div
         style={{
           position: "fixed",
-          top: "24px",
+          bottom: "24px",
           right: "24px",
           zIndex: 9999,
           display: "flex",

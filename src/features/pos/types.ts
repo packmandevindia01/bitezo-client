@@ -27,8 +27,8 @@ export interface PosCartItem {
   price?: number;
   discountValue?: number;
   discountType?: 'percentage' | 'amount';
-  extras?: { id: number; name: string; price: number; qty: number }[];
-  modifiers?: { id: number; name: string; qty: number }[];
+  extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
+  modifiers?: { id: number; name: string; qty: number; typeId: number }[];
 }
 
 export interface PosQuickAction {
@@ -169,6 +169,15 @@ export interface MenuOrderDetail {
   complimentaryStatus: boolean;
 }
 
+export interface MenuOrderModifier {
+  modifierId: number;
+  modifierType: number;
+  map: number;
+  qty: number;
+  price: number;
+  amount: number;
+}
+
 export interface MenuOrderRequest {
   voucherDate: string;
   customerId: number;
@@ -195,8 +204,11 @@ export interface MenuOrderRequest {
   isComing: boolean;
   comingTime: string;
   details: MenuOrderDetail[];
+  modifiers: MenuOrderModifier[];
   vehicleNo?: string;
   vehicleCustomerName?: string;
+  providerId?: number;
+  providerOrderNo?: string;
 }
 
 export interface MenuOrderResponse {
@@ -213,16 +225,17 @@ export interface MenuOrderResponse {
 export interface RecallParams {
   DayId?: number;
   EmployeeId?: number;
-  OrderType?: string;
+  OrderTypeId?: number;
   SearchStatus?: string;
   SearchValue?: string;
   DeliveryOutStatus?: boolean;
   DeliveryOutOnlyStatus?: boolean;
   ProviderName?: string;
+  Decimals?: number;
 }
 
 export interface RecallOrder {
-  transId: number;
+  orderId: number;
   details: string;
   isPrinted: boolean;
 }
@@ -232,4 +245,21 @@ export interface RecallResponse {
   status: number;
   message: string;
   isSuccess: boolean;
+}
+
+// ─── Void API Types ───────────────────────────────────────────────────────────
+
+export interface VoidOrderRequest {
+  orderId: number;
+  reason: string;
+  employeeId: number;
+  voidDateTime: string;
+  dayId: number;
+  shiftId: number;
+}
+
+export interface MenuProvider {
+  providerId: number;
+  providerName: string;
+  imageUrl: string | null;
 }

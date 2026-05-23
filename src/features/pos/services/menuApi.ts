@@ -106,4 +106,8 @@ export const menuApi = {
   /** GET /api/menu/modifier-type */
   getModifierTypes: () =>
     unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/modifier-type${getTenantQuery()}`)),
+
+  /** GET /api/menu/providers */
+  getProviders: () =>
+    unwrap(axiosInstance.get<ApiResponse<import("../types").MenuProvider[]>>(`/menu/providers${getTenantQuery()}`)),
 };

@@ -20,8 +20,12 @@ import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
 import { PosDeliveryModal } from "../../customer/components/PosDeliveryModal";
 import { PosDriveThroughModal } from "../../customer/components/PosDriveThroughModal";
 import { PosRecallModal } from "../components/PosRecallModal";
+import { PosVoidModal } from "../components/PosVoidModal";
 import { EmployeePasswordModal } from "../components/EmployeePasswordModal";
+import { PosProviderModal } from "../components/PosProviderModal";
+import { PosProviderOrderModal } from "../components/PosProviderOrderModal";
 import { useCashierLog } from "../../cashier";
+import type { MenuProvider } from "../../types";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { POS_CONFIGS_STORAGE_KEY, posConfigApi, type RuntimePosConfig } from "../../services/posConfigApi";
@@ -36,6 +40,10 @@ export const PosTerminalPage = () => {
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
+  const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
+  const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
+  const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
   const { status, isLoading } = useCashierLog();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const { showToast } = useToast();
@@ -157,11 +165,20 @@ export const PosTerminalPage = () => {
     setSelectedProduct(null);
   }, [activeGroupId, activeCategoryId, activeSubCategoryId, search]);
 
-  const handleClearCart = () => {
+  const resetTerminalState = () => {
     clearCart();
     setSelectedKey(null);
     setSelectedProduct(null);
     setAlternatives([]);
+    if (groups && groups.length > 0) {
+      setGroup(groups[0].groupId);
+    }
+    setSearch("");
+  };
+
+  const handleClearCart = () => {
+    resetTerminalState();
+    setActiveProvider(null);
   };
 
   // Handle Order Submission
@@ -172,11 +189,14 @@ export const PosTerminalPage = () => {
       shiftId: status.shiftId,
       userId: status.userId,
       employeeId,
+      providerId: activeProvider?.provider.providerId,
+      providerOrderNo: activeProvider?.orderNo,
     });
     if (orderId) {
       setSelectedKey(null);
       setSelectedProduct(null);
       setAlternatives([]);
+      setActiveProvider(null);
     }
   };
 
@@ -362,7 +382,7 @@ export const PosTerminalPage = () => {
   // Loading state
   if (isLoading && !status) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#fcf9fb]">
+      <div className="flex h-dvh items-center justify-center bg-[#fcf9fb]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
           <p className="text-sm font-bold text-[#49293e] uppercase tracking-widest">Checking Cashier Status...</p>
@@ -376,7 +396,7 @@ export const PosTerminalPage = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
+    <div className="flex h-dvh flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
       <PosTopNav 
         onNewOrder={handleClearCart} 
         onMore={() => setIsMoreModalOpen(true)} 
@@ -384,6 +404,8 @@ export const PosTerminalPage = () => {
         onDelivery={() => setIsDeliveryModalOpen(true)}
         onDriveThrough={() => setIsDriveThroughModalOpen(true)}
         onRecall={() => setIsRecallModalOpen(true)}
+        onVoidOrder={() => setIsVoidModalOpen(true)}
+        onProvider={() => setIsProviderModalOpen(true)}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
             setIsLogoutConfirmOpen(true);
@@ -395,6 +417,7 @@ export const PosTerminalPage = () => {
         orderTypes={orderTypes}
         selectedOrderTypeId={selectedOrderTypeId}
         onSelectOrderType={(type) => setSelectedOrderType(type.orderTypeId, type.orderType)}
+        activeProvider={activeProvider}
       />
       
       <div className="flex flex-col lg:flex-row lg:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-3 lg:px-4 xl:px-6">
@@ -562,6 +585,25 @@ export const PosTerminalPage = () => {
         </div>
       </main>
 
+      {/* Mobile Floating Cart Button */}
+      {!isCartOpen && (
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="lg:hidden absolute bottom-6 right-6 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+          {itemCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#fcf9fb]">
+              {itemCount}
+            </span>
+          )}
+        </button>
+      )}
+
       {/* Discount Choice Modal - Clean & Modern */}
       <Modal
         isOpen={discountStep === 'choice'}
@@ -629,43 +671,43 @@ export const PosTerminalPage = () => {
           </button>
         </div>
 
-        <div className="bg-[#f8fafc] p-6 space-y-6">
+        <div className="bg-[#f8fafc] p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[85vh] overflow-y-auto">
           {/* Elegant Mode Toggle */}
           <div className="flex p-1 bg-slate-200/60 rounded-2xl">
             <button 
               onClick={() => { setDiscountMode('percentage'); setDiscountInputValue(""); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 sm:py-3 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
                 discountMode === 'percentage' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              <Percent size={16} strokeWidth={3} />
+              <Percent size={14} strokeWidth={3} />
               Percentage
             </button>
             <button 
               onClick={() => { setDiscountMode('amount'); setDiscountInputValue(""); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 sm:py-3 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
                 discountMode === 'amount' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              <Banknote size={16} strokeWidth={3} />
+              <Banknote size={14} strokeWidth={3} />
               Amount
             </button>
           </div>
 
           {/* Premium Input Display */}
-          <div className="bg-[#1e293b] p-6 rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+          <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Enter reduction</span>
-            <div className="text-5xl font-black text-white font-mono flex items-baseline gap-2">
+            <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Enter reduction</span>
+            <div className="text-4xl sm:text-5xl font-black text-white font-mono flex items-baseline gap-2">
               {discountInputValue || "0"}
-              <span className="text-xl text-[#ff9500]">
+              <span className="text-lg sm:text-xl text-[#ff9500]">
                 {discountMode === 'percentage' ? "%" : formatCurrency(0).split(' ')[0]}
               </span>
             </div>
           </div>
 
           {/* Clean Keypad */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "."].map((btn) => (
               <button
                 key={btn}
@@ -678,7 +720,7 @@ export const PosTerminalPage = () => {
                   }
                 }}
                 className={`
-                  h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                  h-10 sm:h-12 md:h-14 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
                   ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
                 `}
               >
@@ -688,19 +730,19 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
             <button
               onClick={() => setDiscountStep('none')}
-              className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+              className="h-12 sm:h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl sm:rounded-2xl active:scale-95 transition-all"
               tabIndex={-1}
             >
               Cancel
             </button>
             <button
               onClick={() => handleApplyDiscount(discountInputValue)}
-              className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
-              <Check size={18} strokeWidth={3} />
+              <Check size={16} strokeWidth={3} />
               Apply Discount
             </button>
           </div>
@@ -722,12 +764,12 @@ export const PosTerminalPage = () => {
           </button>
         </div>
 
-        <div className="bg-[#f8fafc] p-6 space-y-6">
-          <div className="bg-[#1e293b] p-6 rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+        <div className="bg-[#f8fafc] p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[85vh] overflow-y-auto">
+          <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
             <div className="w-full flex justify-between items-center mb-1">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Price</span>
-              <span className="text-[9px] font-black text-[#ff9500] uppercase">Original: {formatCurrency(currentSelectedItem?.product.price || 0)}</span>
+              <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Price</span>
+              <span className="text-[8px] sm:text-[9px] font-black text-[#ff9500] uppercase">Original: {formatCurrency(currentSelectedItem?.product.price || 0)}</span>
             </div>
             <input
               type="text"
@@ -745,11 +787,11 @@ export const PosTerminalPage = () => {
                 }
               }}
               placeholder="0"
-              className="w-full bg-transparent text-right text-4xl font-black text-white font-mono outline-none border-none p-0 focus:ring-0 focus:outline-none placeholder:text-white/30"
+              className="w-full bg-transparent text-right text-3xl sm:text-4xl font-black text-white font-mono outline-none border-none p-0 focus:ring-0 focus:outline-none placeholder:text-white/30"
             />
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {[
               "1", "2", "3", "Back",
               "4", "5", "6", "7",
@@ -772,7 +814,7 @@ export const PosTerminalPage = () => {
                     }
                   }}
                   className={`
-                    h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                    h-10 sm:h-12 md:h-14 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
                     ${btn === 'Clear'
                       ? "bg-red-50 text-red-600 border-red-400"
                       : btn === 'Back'
@@ -787,19 +829,19 @@ export const PosTerminalPage = () => {
             })}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
             <button
               onClick={() => setIsPriceModalOpen(false)}
-              className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+              className="h-12 sm:h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl sm:rounded-2xl active:scale-95 transition-all"
               tabIndex={-1}
             >
               Cancel
             </button>
             <button
               onClick={() => handleApplyPrice(priceInputValue)}
-              className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
-              <Check size={18} strokeWidth={3} />
+              <Check size={16} strokeWidth={3} />
               Update Price
             </button>
           </div>
@@ -821,12 +863,12 @@ export const PosTerminalPage = () => {
           </button>
         </div>
 
-        <div className="bg-[#f8fafc] p-6 space-y-6">
-          <div className="bg-[#1e293b] p-6 rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+        <div className="bg-[#f8fafc] p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[85vh] overflow-y-auto">
+          <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#002b5c]" />
             <div className="w-full flex justify-between items-center mb-1">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Qty</span>
-              <span className="text-[9px] font-black text-[#002b5c] uppercase">Current: x{currentSelectedItem?.quantity || 1}</span>
+              <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Qty</span>
+              <span className="text-[8px] sm:text-[9px] font-black text-[#002b5c] uppercase">Current: x{currentSelectedItem?.quantity || 1}</span>
             </div>
             <input
               type="text"
@@ -844,11 +886,11 @@ export const PosTerminalPage = () => {
                 }
               }}
               placeholder="0"
-              className="w-full bg-transparent text-right text-4xl font-black text-white font-mono outline-none border-none p-0 focus:ring-0 focus:outline-none placeholder:text-white/30"
+              className="w-full bg-transparent text-right text-3xl sm:text-4xl font-black text-white font-mono outline-none border-none p-0 focus:ring-0 focus:outline-none placeholder:text-white/30"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"].map((btn) => {
               return (
                 <button
@@ -861,7 +903,7 @@ export const PosTerminalPage = () => {
                     }
                   }}
                   className={`
-                    h-14 rounded-2xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                    h-10 sm:h-12 md:h-14 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
                     ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : btn === 'Back' ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-white text-slate-700 hover:bg-slate-50"}
                   `}
                 >
@@ -871,19 +913,19 @@ export const PosTerminalPage = () => {
             })}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
             <button
               onClick={() => setIsQtyModalOpen(false)}
-              className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all"
+              className="h-12 sm:h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl sm:rounded-2xl active:scale-95 transition-all"
               tabIndex={-1}
             >
               Cancel
             </button>
             <button
               onClick={() => handleApplyQty(qtyInputValue)}
-              className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
-              <Check size={18} strokeWidth={3} />
+              <Check size={16} strokeWidth={3} />
               Update Qty
             </button>
           </div>
@@ -944,6 +986,11 @@ export const PosTerminalPage = () => {
         onClose={() => setIsRecallModalOpen(false)}
       />
 
+      <PosVoidModal
+        isOpen={isVoidModalOpen}
+        onClose={() => setIsVoidModalOpen(false)}
+      />
+
       <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />
 
       <ConfirmDialog
@@ -952,6 +999,32 @@ export const PosTerminalPage = () => {
         onConfirm={() => navigate("/cashier/out")}
         title="Confirm Exit"
         message="Are you sure you want to exit the terminal? Your current session is still active."
+      />
+
+      <PosProviderModal 
+        isOpen={isProviderModalOpen} 
+        onClose={() => setIsProviderModalOpen(false)} 
+        onSelect={(provider) => {
+          setIsProviderModalOpen(false);
+          setSelectedProviderForOrder(provider);
+        }} 
+        onClear={() => {
+          setActiveProvider(null);
+        }}
+      />
+
+      <PosProviderOrderModal
+        isOpen={!!selectedProviderForOrder}
+        onClose={() => setSelectedProviderForOrder(null)}
+        provider={selectedProviderForOrder}
+        onSubmit={(orderNo) => {
+          if (selectedProviderForOrder) {
+            resetTerminalState();
+            setActiveProvider({ provider: selectedProviderForOrder, orderNo });
+            showToast(`${selectedProviderForOrder.providerName} order #${orderNo} started`, 'success');
+          }
+          setSelectedProviderForOrder(null);
+        }}
       />
     </div>
   );

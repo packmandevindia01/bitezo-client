@@ -166,7 +166,7 @@ export const PosMoreAddressModal = ({
       isOpen={isOpen}
       onClose={onClose}
       noPadding
-      className="!max-w-full w-screen !max-h-full h-[100dvh] max-h-[100dvh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[200]"
+      className="!max-w-[98vw] lg:!max-w-[1200px] w-full h-[95vh] !max-h-full bg-[#f8f9fa] flex flex-col shadow-2xl overflow-hidden z-[200]"
     >
       {/* Header — identical to PosDeliveryModal */}
       <div className="flex items-center justify-between bg-[#49293e] px-6 py-3 text-white shrink-0 border-b border-white/10 relative">
@@ -187,12 +187,12 @@ export const PosMoreAddressModal = ({
       {/* Content */}
       <div className="flex-1 flex flex-col justify-between bg-white overflow-hidden min-h-0">
         {/* Left/Right Split Layout */}
-        <div className={`${isCompactViewport ? "p-1.5 gap-1.5" : "p-2 lg:p-2.5 gap-2 lg:gap-2.5"} pb-1 grid grid-cols-12 shrink-0 items-start`}>
+        <div className={`${isCompactViewport ? "p-1.5 gap-1.5" : "p-2 lg:p-2.5 gap-2 lg:gap-2.5"} pb-1 grid grid-cols-12 shrink-0 items-stretch`}>
           {/* Left Column: Form Fields (Col span 7) */}
-          <div className={`col-span-7 flex flex-col gap-y-1.5 bg-[#f8f9fa] border border-slate-100 rounded-xl ${isCompactViewport ? "p-1.5" : "p-2 lg:p-2.5"}`}>
-            {/* Form row 1 */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
+          <div className={`col-span-7 flex flex-col gap-y-1.5 bg-[#f8f9fa] border border-slate-100 rounded-xl overflow-y-auto ${isCompactViewport ? "p-1.5" : "p-2 lg:p-2.5"}`}>
+            {/* Form row 1: Mobile, Phone, Customer Name */}
+            <div className="grid grid-cols-4 gap-1.5 lg:gap-2">
+              <div className="col-span-1">
                 <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Mobile</span>
                 <FormInput
                   value={form.mobileNo}
@@ -201,7 +201,7 @@ export const PosMoreAddressModal = ({
                   inputClassName="!h-8 border-slate-200 bg-slate-50 text-slate-500 font-bold"
                 />
               </div>
-              <div>
+              <div className="col-span-1">
                 <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Phone</span>
                 <FormInput
                   ref={phoneRef}
@@ -215,27 +215,25 @@ export const PosMoreAddressModal = ({
                   inputClassName="!h-8 border-slate-200"
                 />
               </div>
+              <div className="col-span-2">
+                <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Customer Name</span>
+                <FormInput
+                  ref={nameRef}
+                  value={form.customerName}
+                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                  onFocus={() => setActiveField("customerName")}
+                  onClick={() => setShowKeyboard(true)}
+                  onKeyDown={(e) => handleEnterKey(e, flatRef)}
+                  inputMode="none"
+                  className="!mb-0"
+                  inputClassName="!h-8 border-slate-200"
+                />
+              </div>
             </div>
 
-            {/* Form row 2 */}
-            <div>
-              <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Customer Name</span>
-              <FormInput
-                ref={nameRef}
-                value={form.customerName}
-                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                onFocus={() => setActiveField("customerName")}
-                onClick={() => setShowKeyboard(true)}
-                onKeyDown={(e) => handleEnterKey(e, flatRef)}
-                inputMode="none"
-                className="!mb-0"
-                inputClassName="!h-8 border-slate-200"
-              />
-            </div>
-
-            {/* Form row 3 */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
+            {/* Form row 2: Flat, Building, Road, Block, Area */}
+            <div className="grid grid-cols-5 gap-1.5 lg:gap-2 shrink-0">
+              <div className="col-span-1">
                 <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Flat No</span>
                 <FormInput
                   ref={flatRef}
@@ -249,8 +247,8 @@ export const PosMoreAddressModal = ({
                   inputClassName="!h-8 border-slate-200"
                 />
               </div>
-              <div>
-                <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Building No</span>
+              <div className="col-span-1">
+                <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Bldg No</span>
                 <FormInput
                   ref={buildingRef}
                   value={form.buildingNo}
@@ -263,10 +261,6 @@ export const PosMoreAddressModal = ({
                   inputClassName="!h-8 border-slate-200"
                 />
               </div>
-            </div>
-
-            {/* Form row 4 */}
-            <div className="grid grid-cols-3 gap-2">
               <div className="col-span-1">
                 <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Road</span>
                 <FormInput
@@ -312,7 +306,7 @@ export const PosMoreAddressModal = ({
             </div>
 
             {/* Form row 5 (Clear & Add buttons) */}
-            <div className="mt-2 flex justify-end gap-3 shrink-0">
+            <div className="mt-auto pt-2 flex justify-end gap-3 shrink-0">
               <Button
                 onClick={handleClearForm}
                 variant="secondary"
@@ -334,7 +328,7 @@ export const PosMoreAddressModal = ({
           </div>
 
           {/* Right Column: Address History Table (Col span 5 - scrollable and compact height) */}
-          <div className={`col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col shrink-0 ${isCompactViewport ? "h-[170px]" : "h-[180px] lg:h-[190px]"}`}>
+          <div className={`col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col shrink-0 h-full`}>
             <div className="bg-slate-50 px-2.5 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0">
               <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Address History</span>
               <span className="bg-[#49293e] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
@@ -344,17 +338,19 @@ export const PosMoreAddressModal = ({
             <div className="flex-grow overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50 sticky top-0 z-10">
-                  <tr className="text-slate-500 font-bold uppercase border-b border-slate-200 text-[11px]">
-                    <th className="px-2.5 py-2 w-10">No</th>
-                    <th className="px-2.5 py-2">Details</th>
-                    <th className="px-2.5 py-2">Area</th>
-                    <th className="px-2.5 py-2 text-right w-14">Select</th>
+                  <tr className="text-slate-500 font-bold uppercase border-b border-slate-200 text-[10px] sm:text-[11px]">
+                    <th className="px-2 py-2 w-8">No</th>
+                    <th className="px-2 py-2">Flat</th>
+                    <th className="px-2 py-2">Bldg</th>
+                    <th className="px-2 py-2">Road/Blk</th>
+                    <th className="px-2 py-2">Area</th>
+                    <th className="px-2 py-2 text-right w-12">Select</th>
                   </tr>
                 </thead>
                 <tbody>
                   {addressList.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-2.5 py-8 text-center text-slate-400 font-bold uppercase tracking-wider text-xs">
+                      <td colSpan={6} className="px-2 py-8 text-center text-slate-400 font-bold uppercase tracking-wider text-xs">
                         No history found
                       </td>
                     </tr>
@@ -369,21 +365,23 @@ export const PosMoreAddressModal = ({
                           }}
                           className="group cursor-pointer border-b border-slate-100 transition-all duration-150 hover:bg-amber-50 hover:text-[#49293e]"
                         >
-                          <td className="px-2.5 py-2 text-xs font-semibold text-slate-400">
+                          <td className="px-2 py-2 text-[10px] sm:text-xs font-semibold text-slate-400">
                             <div className="flex items-center gap-1">
                               <span>{idx + 1}</span>
                               {idx === 0 && (
-                                <span className="px-1 py-0.5 rounded text-[8px] font-black bg-emerald-100 text-emerald-700 uppercase tracking-wider">
+                                <span className="px-1 py-0.5 rounded text-[8px] font-black bg-emerald-100 text-emerald-700 uppercase tracking-wider hidden sm:inline-block">
                                   Def
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="px-2.5 py-2 text-[13px] text-slate-800 leading-normal group-hover:text-[#49293e]">
-                            <span className="font-bold text-slate-900 group-hover:text-[#49293e]">F: {addr.flatNo}</span>, B: {addr.buildingNo}, R: {addr.roadNo}, Blk: {addr.blockNo}
+                          <td className="px-2 py-2 text-[11px] sm:text-[13px] text-slate-900 font-bold group-hover:text-[#49293e]">{addr.flatNo || '-'}</td>
+                          <td className="px-2 py-2 text-[11px] sm:text-[13px] text-slate-800 group-hover:text-[#49293e]">{addr.buildingNo || '-'}</td>
+                          <td className="px-2 py-2 text-[11px] sm:text-[13px] text-slate-800 leading-normal group-hover:text-[#49293e]">
+                            R: {addr.roadNo || '-'}, Blk: {addr.blockNo || '-'}
                           </td>
-                          <td className="px-2.5 py-2 text-[13px] text-slate-800 font-semibold group-hover:text-[#49293e]">{addr.area}</td>
-                          <td className="px-2.5 py-2 text-right">
+                          <td className="px-2 py-2 text-[11px] sm:text-[13px] text-slate-800 font-semibold group-hover:text-[#49293e]">{addr.area || '-'}</td>
+                          <td className="px-2 py-2 text-right">
                             <div className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-300 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-150">
                               <CheckCircle2 size={12} />
                             </div>

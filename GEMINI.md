@@ -442,6 +442,18 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 - Use responsive padding: `p-3 md:p-6` — tighter on mobile, comfortable on desktop
 - Touch targets must be at least 44px tall on all interactive elements
 
+**Vertical Space Constraints on POS Terminals:**
+- The standard project device screen is a POS terminal which often has restricted vertical height (e.g. 1024x768 or similar compact displays).
+- **CRITICAL**: Because a POS terminal screen is wide (1024px triggers `lg:`), Tailwind will try to apply large desktop paddings and margins. However, because it is extremely short (768px), this scaling will push content off the bottom of the screen.
+- **NEVER** use `md:` or `lg:` blindly to increase vertical padding, gap sizes, or button heights in POS pages. Save the huge, spacious styling (e.g. `p-16`, `gap-8`) strictly for `xl:` or `2xl:` screens.
+- Keep standard `md:` and `lg:` spacing relatively compact (`p-4`, `p-6`, `gap-3`) so it perfectly fits a 768px height screen.
+
+**Zero Scrolling Philosophy for POS Views:**
+- Because this is a high-speed POS environment, users rely on muscle memory and fast taps. Scrolling ruins this workflow.
+- You must aim to fit the entire UI "above the fold" on standard POS pages.
+- Avoid using `overflow-y-auto` as a lazy fix for bad layout sizing. Only use `overflow-y-auto` as a failsafe on the outermost container, but the default 1024x768 view should NEVER trigger a scrollbar.
+- Never design modals or panels that expand vertically beyond the viewport and hide their submit/action buttons.
+
 **What NEVER to do:**
 - Never use fixed pixel widths like `width: 1280px` or `min-w-[1280px]` — this breaks mobile
 - Never use `hidden` to permanently hide content on mobile without providing an alternative

@@ -1,6 +1,5 @@
 import { Trash2, Minus, Plus, X, Save, RotateCcw } from "lucide-react";
-import { Button, FormInput } from "../../../../components/common";
-import { statusOptions } from "../constants";
+import { Button, FormInput, Checkbox } from "../../../../components/common";
 import type { TableForm } from "../types";
 
 interface TableFormSectionProps {
@@ -29,7 +28,7 @@ const TableFormSection = ({
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-top-2 duration-300 rounded-3xl border border-gray-200 bg-white p-4 md:p-5 shadow-lg max-w-4xl mx-auto">
+    <div className="flex flex-col bg-white p-4 md:p-5 w-full">
       <div className="mb-3 flex items-center justify-between border-b border-gray-50 pb-2">
         <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-[#49293e]">
           {mode === "edit" ? "Edit Table" : "Register New Table"}
@@ -52,7 +51,7 @@ const TableFormSection = ({
           <FormInput
             value={form.tableName}
             placeholder='e.g. "T1"'
-            onChange={(e) => onSetField("tableName", e.target.value)}
+            onChange={(e) => onSetField("tableName", e.target.value.toUpperCase())}
             className="h-11 text-base font-bold !rounded-xl border-gray-200"
             autoFocus
             disabled={loading}
@@ -78,7 +77,8 @@ const TableFormSection = ({
                 type="number"
                 placeholder="0"
                 onChange={(e) => onSetField("chairs", e.target.value)}
-                className="h-11 text-center text-base font-bold !rounded-xl border-gray-200"
+                className="h-11 !rounded-xl border-gray-200"
+                inputClassName="px-0 text-center text-base font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 disabled={loading}
               />
             </div>
@@ -93,20 +93,13 @@ const TableFormSection = ({
         </div>
 
         {/* Status */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 ml-1">
-            Status
-          </label>
-          <select
-            value={String(form.isActive)}
-            onChange={(e) => onSetField("isActive", e.target.value === "true")}
-            className="h-11 w-full px-3 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-600 outline-none transition focus:border-[#49293e] focus:ring-2 focus:ring-[#49293e]/5 disabled:bg-gray-50 shadow-sm"
+        <div className="flex flex-col gap-1.5 justify-center mt-2">
+          <Checkbox
+            label="Active Status"
+            checked={form.isActive}
+            onChange={(e) => onSetField("isActive", e.target.checked)}
             disabled={loading}
-          >
-            {statusOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          />
         </div>
       </div>
 
@@ -115,6 +108,7 @@ const TableFormSection = ({
           variant="secondary" 
           onClick={onReset} 
           disabled={loading}
+          tabIndex={-1}
           isAction
           icon={<RotateCcw size={18} />}
         >

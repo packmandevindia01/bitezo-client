@@ -45,11 +45,11 @@ const PosProductGrid = ({
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        if (width > 1200) setColumns(8);
-        else if (width > 1000) setColumns(7);
-        else if (width > 820) setColumns(6);
-        else if (width > 520) setColumns(5);
-        else setColumns(4);
+        if (width > 1200) setColumns(9);
+        else if (width > 1000) setColumns(8);
+        else if (width > 820) setColumns(7);
+        else if (width > 520) setColumns(6);
+        else setColumns(5);
       }
     });
 
@@ -146,32 +146,22 @@ const PosProductGrid = ({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => {
-      if (showSubCategories) return 152;
-      return 136;
+      if (showSubCategories) return 130;
+      return 130;
     },
     overscan: 5,
   });
 
   return (
-    <section className="flex-1 bg-transparent overflow-hidden flex flex-col">
+    <section className="relative flex-1 bg-transparent overflow-hidden flex flex-col">
       {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && (
-        <div className="mb-3 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#49293e] hover:bg-slate-50 transition-all shadow-sm"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-            </svg>
-            BACK
-          </button>
-          
+        <div className="absolute top-0 right-2 z-10 flex items-center justify-end bg-white/90 backdrop-blur-sm px-2 py-1 rounded-b-lg shadow-sm border border-t-0 border-slate-100">
           {breadcrumbs.length > 0 && (
-            <div className="flex items-center gap-1.5 text-[13px] font-bold text-slate-500 uppercase tracking-wider select-none">
+            <div className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest select-none">
               {breadcrumbs.map((seg, idx) => (
-                <div key={seg} className="flex items-center gap-1.5">
+                <div key={seg} className="flex items-center gap-1">
                   {idx > 0 && <span className="text-slate-300 font-medium font-sans">&gt;</span>}
-                  <span>{seg}</span>
+                  <span className="text-[#49293e]">{seg}</span>
                 </div>
               ))}
             </div>
@@ -223,10 +213,10 @@ const PosProductGrid = ({
                           group relative flex flex-col items-center justify-center
                           rounded-xl border border-slate-200 bg-white p-4
                           transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-1
-                          h-[140px]
+                          h-[110px] xl:h-[120px]
                         "
                       >
-                        <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center mb-2 shrink-0 bg-slate-50 border border-slate-100 group-hover:border-transparent transition-colors duration-300">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mb-1.5 shrink-0 bg-slate-50 border border-slate-100 group-hover:border-transparent transition-colors duration-300">
                           {sub.imageUrl ? (
                             <img 
                               src={sub.imageUrl} 
@@ -258,47 +248,34 @@ const PosProductGrid = ({
                           group relative flex flex-col justify-between
                           rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
                           transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-                          h-[135px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+                          h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                         "
                       >
-                        <div className="relative w-full h-[60px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                        <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
                           <span className="text-sm font-black text-slate-300 uppercase select-none">
                             {alt.altName.substring(0, 2)}
                           </span>
 
                           {/* Price Badge Overlay */}
                           {alt.price > 0 && (
-                            <div className="absolute top-1 right-1 bg-white px-1.5 py-0.5 rounded-md text-[9px] font-black text-[#49293e] shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-slate-100/50 select-none">
+                            <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
                               {formatAmount(alt.price)}
                             </div>
                           )}
                         </div>
 
-                        <div className="w-full flex-1 flex flex-col justify-between min-h-0 p-2 pt-1.5">
+                        <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
                           <div className="w-full">
-                            <h3 className="text-[10px] font-extrabold text-[#49293e] leading-tight line-clamp-3 uppercase tracking-tight break-words">
+                            <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
                               {alt.altName}
                             </h3>
                             {alt.altArabic && (
-                              <p className="text-[13px] font-bold text-slate-500 leading-tight line-clamp-2 mt-0.5 break-words">
+                              <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
                                 {alt.altArabic}
                               </p>
                             )}
                           </div>
 
-                          <div className="mt-1 flex items-center justify-end w-full">
-                            <div
-                              className="
-                                flex h-5 w-5 items-center justify-center 
-                                rounded-full bg-[#49293e] text-white shadow-sm
-                                transition-all group-hover:scale-110 active:scale-95 shrink-0
-                              "
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M5 12h14M12 5v14" />
-                              </svg>
-                            </div>
-                          </div>
                         </div>
                       </button>
                     );

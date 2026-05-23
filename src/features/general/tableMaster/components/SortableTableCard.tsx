@@ -4,6 +4,7 @@ import { Trash2, GripVertical } from "lucide-react";
 import type { TableRecord } from "../types";
 
 interface SortableTableCardProps {
+  id: string | number;
   table: TableRecord;
   selectedId: number | null;
   loading: boolean;
@@ -12,6 +13,7 @@ interface SortableTableCardProps {
 }
 
 const SortableTableCard = ({
+  id,
   table,
   selectedId,
   loading,
@@ -25,7 +27,7 @@ const SortableTableCard = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: table.tableId });
+  } = useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),

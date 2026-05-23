@@ -295,7 +295,6 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
       const isoString  = now.toISOString();
       const dateOnly   = isoString.split("T")[0] + "T00:00:00Z";
       const denominations: any[] = Object.entries(counts)
-        .filter(([_, count]) => count > 0)
         .map(([id, count]) => ({
           denominationId: Number(id),
           cashCount: count
@@ -320,7 +319,9 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         onSessionReady();
 
       } else if (mode === "CLOSE_SHIFT") {
-        await cashierLogService.closeShift({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations });
+        const payload = { dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations };
+        console.log("--- CLOSE SHIFT PAYLOAD ---", JSON.stringify(payload, null, 2));
+        await cashierLogService.closeShift(payload);
         showToast("Shift Closed Successfully. Logging out...", "success");
         
         localStorage.removeItem("accessToken");

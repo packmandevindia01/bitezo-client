@@ -29,6 +29,26 @@ export const orderApi = {
     return unwrap<RecallResponse>(
       axiosInstance.get("/order/recall", { params })
     );
+  },
+
+  /**
+   * Fetches orders available for voiding.
+   * GET /api/order/void
+   */
+  getVoidOrders: async (params?: RecallParams): Promise<RecallResponse> => {
+    return unwrap<RecallResponse>(
+      axiosInstance.get("/order/void", { params })
+    );
+  },
+
+  /**
+   * Voids an order.
+   * PUT /api/order/void/{orderId}
+   */
+  voidOrder: async (orderId: number, payload: import("../types").VoidOrderRequest): Promise<{ isSuccess: boolean; message: string }> => {
+    return unwrap<{ isSuccess: boolean; message: string }>(
+      axiosInstance.put(`/order/void/${orderId}`, payload)
+    );
   }
 };
 

@@ -21,7 +21,7 @@ const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
         background: s.background,
         border: `1.5px solid ${s.border}`,
         borderRadius: "16px",
-        padding: "20px 22px",
+        padding: "12px 16px",
         width: "100%",
         boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
         animation: toast.removing
@@ -34,8 +34,8 @@ const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
       {/* Icon */}
       <div
         style={{
-          width: "46px",
-          height: "46px",
+          width: "32px",
+          height: "32px",
           borderRadius: "50%",
           background: s.iconBg,
           color: s.icon,
@@ -53,7 +53,7 @@ const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
         <p
           style={{
             margin: 0,
-            fontSize: "17px",
+            fontSize: "14px",
             fontWeight: 700,
             color: s.title,
             letterSpacing: "-0.01em",
@@ -64,7 +64,7 @@ const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
         <p
           style={{
             margin: "5px 0 0",
-            fontSize: "15px",
+            fontSize: "13px",
             color: "#475569",
             lineHeight: 1.6,
           }}
@@ -102,7 +102,7 @@ const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
           height: "3px",
           borderRadius: "0 0 16px 16px",
           background: s.progress,
-          animation: "progress 3s linear forwards",
+          animation: "progress 2s linear forwards",
         }}
       />
     </div>

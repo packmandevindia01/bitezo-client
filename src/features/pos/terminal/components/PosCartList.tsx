@@ -99,7 +99,7 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                 `}
               >
                 <div className="min-w-0">
-                  <p className={`truncate text-[11px] font-black leading-tight uppercase ${isSelected ? "text-[#49293e]" : "text-slate-800"}`}>
+                  <p className={`truncate text-[11px] font-normal leading-tight uppercase ${isSelected ? "text-[#49293e]" : "text-slate-800"}`}>
                     {item.product.name}
                   </p>
                   {item.product.arabicName && (
@@ -132,13 +132,13 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <span className={`text-[11px] font-black ${isSelected ? "text-[#49293e]" : "text-slate-700"}`}>
+                  <span className={`text-[11px] font-normal ${isSelected ? "text-[#49293e]" : "text-slate-700"}`}>
                     {item.quantity}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <span className={`text-[10px] font-bold ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
+                  <span className={`text-[10px] font-normal ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
                     {formatAmount(item.product.price || 0)}
                   </span>
                 </div>
@@ -149,12 +149,12 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                       <p className="text-[9px] text-slate-400 line-through font-bold leading-none mb-0.5">
                         {formatAmount(item.lineTotal + item.itemDiscount)}
                       </p>
-                      <p className={`text-[11px] font-black leading-none ${isSelected ? "text-[#49293e]" : "text-red-600"}`}>
+                      <p className={`text-[11px] font-normal leading-none ${isSelected ? "text-[#49293e]" : "text-red-600"}`}>
                         {formatAmount(item.lineTotal || 0)}
                       </p>
                     </>
                   ) : (
-                    <p className={`text-[11px] font-black leading-none ${isSelected ? "text-[#49293e]" : "text-slate-900"}`}>
+                    <p className={`text-[11px] font-normal leading-none ${isSelected ? "text-[#49293e]" : "text-slate-900"}`}>
                       {formatAmount(item.lineTotal || 0)}
                     </p>
                   )}
