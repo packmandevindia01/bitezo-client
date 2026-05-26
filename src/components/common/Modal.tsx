@@ -69,7 +69,7 @@ useEffect(() => {
       <div
         className={`
           relative flex flex-col w-full ${sizes[size]}
-          max-h-[92vh] overflow-hidden rounded-xl bg-white shadow-lg z-10 sm:max-h-[90vh]
+          max-h-[90vh] rounded-xl bg-white shadow-lg z-10
           animate-[fadeIn_0.2s_ease-in-out]
           ${noPadding ? "p-0" : "p-4 sm:p-6"}
           ${className}
@@ -103,7 +103,7 @@ useEffect(() => {
         )}
 
         {/* CONTENT */}
-        <div className={`flex-1 min-h-0 flex flex-col overflow-hidden text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
+        <div className={`flex-1 min-h-0 flex flex-col overflow-y-auto text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
           {children}
         </div>
 

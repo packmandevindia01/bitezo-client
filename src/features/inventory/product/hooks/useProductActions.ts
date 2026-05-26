@@ -13,6 +13,8 @@ interface ProductActionsDeps {
     setForm: (form: any) => void;
     setField: (key: any, value: any) => void;
     setImagePreview: (url: string | undefined) => void;
+    errors?: Record<string, string>;
+    setErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   };
   altState: {
     alternatives: any[];
@@ -120,7 +122,21 @@ export const useProductActions = ({ formState, altState, productList, branches }
     const { form, editingId } = formState;
     const { alternatives } = altState;
 
-    if (!form.name || !form.code || !form.categoryId || !form.unitId || !form.branchId) {
+    const newErrors: Record<string, string> = {};
+    if (!form.name?.trim()) newErrors.name = "Product name is required";
+    if (!form.code?.trim()) newErrors.code = "Product code is required";
+    if (!form.unitId) newErrors.unitId = "Unit is required";
+    if (!form.branchId) newErrors.branchId = "Branch is required";
+    if (!form.groupId) newErrors.groupId = "Group is required";
+    if (!form.categoryId) newErrors.categoryId = "Category is required";
+    if (!form.pVatId) newErrors.pVatId = "Purchase VAT is required";
+    if (!form.sVatId) newErrors.sVatId = "Sales VAT is required";
+
+    if (formState.setErrors) {
+      formState.setErrors(newErrors);
+    }
+
+    if (Object.keys(newErrors).length > 0) {
       showToast("Please fill in all required fields.", "warning");
       return;
     }

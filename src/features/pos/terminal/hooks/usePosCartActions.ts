@@ -14,11 +14,13 @@ import {
   setTenderOption,
   setBillDiscount,
   setItemDiscount,
+  setAllItemsDiscount,
   updateItemPrice,
   updateItemQty,
   setItemCustomizations,
   setCustomerId,
   setAddressId,
+  setChange,
   selectCartDetails,
   selectSubtotal,
   selectDiscount,
@@ -72,17 +74,59 @@ export const usePosCartActions = () => {
     billDiscountValue
   } = useAppSelector((state) => state.pos);
 
-  const addProduct = (productId: number, variantName?: string, price?: number) => {
-    dispatch(addToCart({ productId, variantName, price }));
+  const addProduct = (productId: number, variantName?: string, price?: number, isIncl?: boolean) => {
+    const targetPrice = price ?? 0;
+    
+    const matchVariant = (a?: string, b?: string) => {
+      const getNormalizedVariant = (name?: string) => {
+        const n = (name || '').toLowerCase().trim();
+        if (!n || n === 'main' || n === 'variation') return 'main';
+        return n;
+      };
+      return getNormalizedVariant(a) === getNormalizedVariant(b);
+    };
+
+    const existing = cartDetails.find(item => 
+      item.productId === productId && 
+      matchVariant(item.variantName, variantName) &&
+      Number(item.product.price) === Number(targetPrice) &&
+      item.isIncl === isIncl &&
+      (!item.extras || item.extras.length === 0) &&
+      (!item.modifiers || item.modifiers.length === 0)
+    );
+
+    if (existing) {
+      dispatch(addToCart({ uniqueId: existing.uniqueId, productId, variantName, price: targetPrice, isIncl }));
+      return existing.uniqueId;
+    } else {
+      const uniqueId = `${productId}-${variantName || 'main'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      dispatch(addToCart({ uniqueId, productId, variantName, price: targetPrice, isIncl }));
+      return uniqueId;
+    }
   };
 
   const addProductBySku = (sku: string) => {
     const product = POS_PRODUCTS.find((p) => p.sku?.toLowerCase() === sku.toLowerCase());
     if (product) {
-      dispatch(addToCart({ productId: product.id }));
-      return true;
+      const targetPrice = product.price || 0;
+      const existing = cartDetails.find(item => 
+        item.productId === product.id && 
+        (!item.variantName || item.variantName.toLowerCase().trim() === 'main') &&
+        Number(item.product.price) === Number(targetPrice) &&
+        (!item.extras || item.extras.length === 0) &&
+        (!item.modifiers || item.modifiers.length === 0)
+      );
+
+      if (existing) {
+        dispatch(addToCart({ uniqueId: existing.uniqueId, productId: product.id, price: targetPrice }));
+        return existing.uniqueId;
+      } else {
+        const uniqueId = `${product.id}-main-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        dispatch(addToCart({ uniqueId, productId: product.id, price: targetPrice }));
+        return uniqueId;
+      }
     }
-    return false;
+    return null;
   };
 
   const submitOrder = async (session: { dayId: number; shiftId: number; userId: number; employeeId?: number; providerId?: number; providerOrderNo?: string }) => {
@@ -275,22 +319,24 @@ export const usePosCartActions = () => {
     addProduct,
     addProductBySku,
     submitOrder,
-    incrementItem: (productId: number, variantName?: string) => dispatch(incrementItem({ productId, variantName })),
-    decrementItem: (productId: number, variantName?: string) => dispatch(decrementItem({ productId, variantName })),
-    removeItem: (productId: number, variantName?: string) => dispatch(removeFromCart({ productId, variantName })),
+    incrementItem: (uniqueId: string) => dispatch(incrementItem({ uniqueId })),
+    decrementItem: (uniqueId: string) => dispatch(decrementItem({ uniqueId })),
+    removeItem: (uniqueId: string) => dispatch(removeFromCart({ uniqueId })),
     clearCart: () => dispatch(clearCart()),
     setSelectedOrderType: (orderTypeId: number, orderType: string) => dispatch(setOrderType({ orderTypeId, orderType })),
     setSelectedTender: (id: string) => dispatch(setTenderOption(id)),
     setCustomerId: (id: number) => dispatch(setCustomerId(id)),
     setAddressId: (id: number) => dispatch(setAddressId(id)),
     setBillDiscount: (value: number, type: 'percentage' | 'amount') => dispatch(setBillDiscount({ value, type })),
-    setItemDiscount: (productId: number, variantName: string | undefined, value: number, type: 'percentage' | 'amount') => 
-      dispatch(setItemDiscount({ productId, variantName, value, type })),
-    updateItemPrice: (productId: number, variantName: string | undefined, price: number) =>
-      dispatch(updateItemPrice({ productId, variantName, price })),
-    updateItemQty: (productId: number, variantName: string | undefined, quantity: number) =>
-      dispatch(updateItemQty({ productId, variantName, quantity })),
-    setItemCustomizations: (productId: number, variantName: string | undefined, extras?: PosCartItem["extras"], modifiers?: PosCartItem["modifiers"]) =>
-      dispatch(setItemCustomizations({ productId, variantName, extras, modifiers })),
+    setAllItemsDiscount: (value: number, type: 'percentage' | 'amount') => dispatch(setAllItemsDiscount({ value, type })),
+    setItemDiscount: (uniqueId: string, value: number, type: 'percentage' | 'amount') => 
+      dispatch(setItemDiscount({ uniqueId, value, type })),
+    updateItemPrice: (uniqueId: string, price: number) =>
+      dispatch(updateItemPrice({ uniqueId, price })),
+    updateItemQty: (uniqueId: string, quantity: number) =>
+      dispatch(updateItemQty({ uniqueId, quantity })),
+    setItemCustomizations: (uniqueId: string, extras?: PosCartItem["extras"], modifiers?: PosCartItem["modifiers"]) =>
+      dispatch(setItemCustomizations({ uniqueId, extras, modifiers })),
+    setChange: (value: string) => dispatch(setChange(value)),
   };
 };

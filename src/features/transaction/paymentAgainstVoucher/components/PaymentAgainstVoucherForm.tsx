@@ -191,13 +191,13 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
           </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 min-h-[150px]">
-          <div className="overflow-x-auto">
+      <div className="overflow-hidden rounded-xl border border-gray-200">
+          <div className="max-h-[250px] overflow-auto">
             <table className="min-w-full text-left text-sm">
                 <thead className="bg-gray-50">
                   <tr>
                     {["Vch Type", "Vch No", "Inv Amnt", "Paid", "Balance", "Amount"].map(col => (
-                      <th key={col} className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">{col}</th>
+                      <th key={col} className="sticky top-0 bg-gray-50 z-10 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">{col}</th>
                     ))}
                   </tr>
                 </thead>

@@ -258,16 +258,17 @@ const SearchableSelect = ({
       {label && (
         <label 
           htmlFor={id}
-          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit"
+          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit mb-0.5"
           onClick={() => {
             if (disabled) return;
             triggerRef.current?.focus();
             setOpen(true);
           }}
         >
-          {labelIcon && <span className="shrink-0">{labelIcon}</span>}
+          {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
           <span>{label}</span>
-          {required && <span className="text-amber-500 ml-1 font-bold">*</span>}
+          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
         </label>
       )}
 
@@ -297,7 +298,7 @@ const SearchableSelect = ({
         className={`
           relative flex w-full h-10.5 cursor-pointer items-center gap-2
           rounded-md border px-3 text-sm outline-none transition md:px-4
-          ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
+          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50" : ""}
           ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"}
         `}
@@ -392,13 +393,7 @@ const SearchableSelect = ({
         document.body
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="mt-1 flex animate-in items-center gap-1.5 text-[11px] font-semibold text-amber-600 fade-in slide-in-from-top-1 md:text-xs">
-          <span className="shrink-0">⚠️</span>
-          <span>{error}</span>
-        </div>
-      )}
+      {/* Error is rendered inline in the label */}
     </div>
   );
 };

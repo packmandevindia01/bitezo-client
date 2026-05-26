@@ -46,7 +46,7 @@ const Table = <T,>({
         <EmptyState />
       ) : (
         <>
-          <div className="overflow-x-auto overscroll-x-contain">
+          <div className="max-h-[400px] overflow-auto overscroll-x-contain">
             <table className="min-w-full border-collapse text-left text-sm">
 
               {/* HEADER */}
@@ -56,6 +56,7 @@ const Table = <T,>({
                     <th
                       key={index}
                       className={`
+                        sticky top-0 bg-gray-50 z-10
                         px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap md:px-4
                         ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
                         ${index === 0 ? "pl-[18px] md:pl-[22px]" : ""} 

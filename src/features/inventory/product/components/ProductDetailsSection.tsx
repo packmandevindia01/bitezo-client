@@ -14,6 +14,7 @@ interface ProductDetailsSectionProps {
   subCatOptions: { label: string; value: string }[];
   loadingSubs: boolean;
   onChange: <K extends keyof ProductFormState>(key: K, value: ProductFormState[K]) => void;
+  errors?: Record<string, string>;
 }
 
 export const ProductDetailsSection = ({
@@ -24,6 +25,7 @@ export const ProductDetailsSection = ({
   subCatOptions,
   loadingSubs,
   onChange,
+  errors = {},
 }: ProductDetailsSectionProps) => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const categoryOptions = masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [];
@@ -57,6 +59,7 @@ export const ProductDetailsSection = ({
           onKeyDown={(e) => handleKeyDown(e, "prod-arabic")}
           required
           autoFocus
+          error={errors.name}
         />
         <FormInput
           id="prod-arabic"
@@ -76,6 +79,7 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
           onKeyDown={(e) => handleKeyDown(e, "prod-code")}
+          error={errors.unitId}
         />
 
         <FormInput
@@ -86,6 +90,7 @@ export const ProductDetailsSection = ({
           onChange={(e) => onChange("code", e.target.value.toUpperCase().replace(/\s/g, '_'))}
           onKeyDown={(e) => handleKeyDown(e, "prod-barcode")}
           required
+          error={errors.code}
         />
         <FormInput
           id="prod-barcode"
@@ -105,6 +110,7 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
           onKeyDown={(e) => handleKeyDown(e, "prod-group")}
+          error={errors.branchId}
         />
 
         <SearchableSelect
@@ -117,6 +123,7 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
           onKeyDown={(e) => handleKeyDown(e, "prod-category")}
+          error={errors.groupId}
         />
         <SearchableSelect
           id="prod-category"
@@ -128,6 +135,7 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
           onKeyDown={(e) => handleKeyDown(e, "prod-subcat")}
+          error={errors.categoryId}
         />
         <SearchableSelect
           id="prod-subcat"
@@ -164,7 +172,7 @@ export const ProductDetailsSection = ({
         <div className="flex flex-col">
           <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest mb-1 px-1">
             <label htmlFor="prod-price" className="text-slate-600">
-              Price <span className="text-amber-500 font-bold">*</span>
+              Price <span className="text-red-500 font-bold">*</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer group text-slate-500 select-none">
               <input
@@ -210,6 +218,7 @@ export const ProductDetailsSection = ({
           required
           disabled={saving}
           onKeyDown={(e) => handleKeyDown(e, "prod-type")}
+          error={errors.pVatId}
         />
 
         <SearchableSelect
@@ -257,6 +266,7 @@ export const ProductDetailsSection = ({
           onChange={(v) => onChange("sVatId", v)}
           required
           disabled={saving}
+          error={errors.sVatId}
         />
       </div>
     </div>

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { ReceiptText } from "lucide-react";
-import { formatAmount } from "../../../../utils/formatters";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface CartRow {
+  uniqueId: string;
   productId: number;
   quantity: number;
   lineTotal: number;
@@ -30,21 +31,13 @@ interface PosCartListProps {
   onSelectRow: (key: string | null) => void;
 }
 
-const getNormalizedVariant = (name?: string) => {
-  const n = (name || '').toLowerCase().trim();
-  if (!n || n === 'main' || n === 'variation') return 'main';
-  return n;
-};
-
 export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartListProps) => {
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const { formatAmount } = useCurrency();
 
   useEffect(() => {
     if (selectedKey) {
-      const [idPart, ...variantParts] = selectedKey.split('-');
-      const selectedVar = getNormalizedVariant(variantParts.join('-'));
-      const normalizedSelected = `${idPart}-${selectedVar}`.toLowerCase().trim();
-      const element = document.getElementById(`cart-row-${normalizedSelected}`);
+      const element = document.getElementById(`cart-row-${selectedKey}`);
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
@@ -73,21 +66,13 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
           </div>
         ) : (
           cartDetails.map((item) => {
-            const normalizedVar = getNormalizedVariant(item.variantName);
-            const key = `${item.productId}-${normalizedVar}`;
-            const normalizedKey = key.toLowerCase().trim();
-            
-            let isSelected = false;
-            if (selectedKey) {
-              const [idPart, ...variantParts] = selectedKey.split('-');
-              const selectedVar = getNormalizedVariant(variantParts.join('-'));
-              isSelected = `${idPart}-${selectedVar}`.toLowerCase().trim() === normalizedKey;
-            }
+            const key = item.uniqueId;
+            const isSelected = selectedKey === key;
 
             return (
               <div
                 key={key}
-                id={`cart-row-${normalizedKey}`}
+                id={`cart-row-${key}`}
                 onClick={() => onSelectRow(isSelected ? null : key)}
                 className={`
                   grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] items-center gap-2 px-3 py-1.5 border-b border-slate-50

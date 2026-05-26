@@ -1,12 +1,12 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../types";
 import PosProductCard from "./PosProductCard";
-import { formatAmount } from "../../../../utils/formatters";
+import { useCurrency } from "../../../../hooks/useCurrency";
 import { menuApi } from "../../services/menuApi";
 
-// Cache to prevent duplicate API fetches for product prices/alternatives
-const productDetailsCache: Record<number, { price?: number; hasAlts?: boolean }> = {};
+import { productDetailsCache } from "../hooks/usePosProducts";
 
 interface PosProductGridProps {
   products: PosProduct[];
@@ -35,8 +35,9 @@ const PosProductGrid = ({
   selectedProduct,
 }: PosProductGridProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
+  const { formatAmount } = useCurrency();
   const [columns, setColumns] = useState(1);
-  const [productDetails, setProductDetails] = useState<Record<number, { price?: number; hasAlts?: boolean }>>(productDetailsCache);
+  const [productDetails, setProductDetails] = useState(productDetailsCache);
 
   useEffect(() => {
     if (!parentRef.current) return;
@@ -44,11 +45,8 @@ const PosProductGrid = ({
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const width = entry.contentRect.width;
-        if (width > 1200) setColumns(9);
-        else if (width > 1000) setColumns(8);
-        else if (width > 820) setColumns(7);
-        else if (width > 520) setColumns(6);
-        else setColumns(5);
+        if (width > 520) setColumns(6);
+        else setColumns(4);
       }
     });
 
@@ -70,14 +68,14 @@ const PosProductGrid = ({
         try {
           const alts = await menuApi.getAlternatives(p.id);
           if (alts && alts.length > 0) {
-            return { id: p.id, hasAlts: true, price: undefined };
+            return { id: p.id, hasAlts: true, price: undefined, isIncl: undefined, alts };
           } else {
             const data = await menuApi.getProductData(p.id);
-            return { id: p.id, hasAlts: false, price: data.price };
+            return { id: p.id, hasAlts: false, price: data.price, isIncl: data.isIncl };
           }
         } catch (e) {
           console.error(`Failed to fetch details for product ${p.id}:`, e);
-          return { id: p.id, hasAlts: false, price: 0 };
+          return { id: p.id, hasAlts: false, price: 0, isIncl: undefined };
         }
       });
 
@@ -89,9 +87,9 @@ const PosProductGrid = ({
         const next = { ...prev };
         results.forEach(res => {
           if (res) {
-            next[res.id] = { price: res.price, hasAlts: res.hasAlts };
+            next[res.id] = { price: res.price, isIncl: res.isIncl, hasAlts: res.hasAlts, alts: res.alts };
             // Save to module level cache
-            productDetailsCache[res.id] = { price: res.price, hasAlts: res.hasAlts };
+            productDetailsCache[res.id] = { price: res.price, isIncl: res.isIncl, hasAlts: res.hasAlts, alts: res.alts };
           }
         });
         return next;
@@ -151,10 +149,30 @@ const PosProductGrid = ({
     overscan: 5,
   });
 
+  const scrollProducts = (direction: "up" | "down") => {
+    if (parentRef.current) {
+      const scrollAmount = 240;
+      parentRef.current.scrollBy({
+        top: direction === "up" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
   return (
     <section className="relative flex-1 bg-transparent overflow-hidden flex flex-col">
+      {/* Scroll Up Button - Desktop only */}
+      <button
+        type="button"
+        onClick={() => scrollProducts("up")}
+        className="hidden lg:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-b border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0"
+        aria-label="Scroll Up Products"
+      >
+        <ChevronUp size={18} strokeWidth={2.5} />
+      </button>
+
       {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && (
-        <div className="absolute top-0 right-2 z-10 flex items-center justify-end bg-white/90 backdrop-blur-sm px-2 py-1 rounded-b-lg shadow-sm border border-t-0 border-slate-100">
+        <div className="absolute top-8 right-2 z-10 flex items-center justify-end bg-white/90 backdrop-blur-sm px-2 py-1 rounded-b-lg shadow-sm border border-t-0 border-slate-100">
           {breadcrumbs.length > 0 && (
             <div className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest select-none">
               {breadcrumbs.map((seg, idx) => (
@@ -170,7 +188,7 @@ const PosProductGrid = ({
 
       <div
         ref={parentRef}
-        className="h-full overflow-y-auto scrollbar-hide px-0.5"
+        className="h-full overflow-y-auto px-0.5 scrollbar-wide flex-1"
       >
         {rows.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
@@ -206,6 +224,7 @@ const PosProductGrid = ({
                     const sub = item as MenuSubCategory;
                     return (
                       <button
+                        type="button"
                         key={sub.subCategoryId}
                         onClick={() => onSelectSubCategory(sub.subCategoryId)}
                         className="
@@ -240,6 +259,7 @@ const PosProductGrid = ({
                     const isFirstAlt = alternatives.indexOf(alt) === 0;
                     return (
                       <button
+                        type="button"
                         key={alt.altName}
                         ref={isFirstAlt ? firstAltRef : undefined}
                         onClick={() => onSelectAlt?.(alt)}
@@ -256,7 +276,7 @@ const PosProductGrid = ({
                           </span>
 
                           {/* Price Badge Overlay */}
-                          {alt.price > 0 && (
+                          {alt.price >= 0 && (
                             <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
                               {formatAmount(alt.price)}
                             </div>
@@ -297,6 +317,16 @@ const PosProductGrid = ({
           </div>
         )}
       </div>
+
+      {/* Scroll Down Button - Desktop only */}
+      <button
+        type="button"
+        onClick={() => scrollProducts("down")}
+        className="hidden lg:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-t border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0"
+        aria-label="Scroll Down Products"
+      >
+        <ChevronDown size={18} strokeWidth={2.5} />
+      </button>
     </section>
   );
 };

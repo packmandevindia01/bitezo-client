@@ -23,6 +23,7 @@ interface ProductMasterFormProps {
   branches: MasterItem[];
   subCategories: MasterItem[];
   loadingSubs?: boolean;
+  errors?: Record<string, string>;
 
   onChange: <K extends keyof ProductFormState>(key: K, value: ProductFormState[K]) => void;
   onAlternativesChange: (alternatives: AltProductDraft[]) => void;
@@ -45,6 +46,7 @@ const ProductMasterForm = ({
   branches,
   subCategories,
   loadingSubs = false,
+  errors = {},
   onChange,
   onAlternativesChange,
   onImageSelect,
@@ -143,6 +145,7 @@ const ProductMasterForm = ({
               subCatOptions={subCatOptions}
               loadingSubs={loadingSubs}
               onChange={onChange}
+              errors={errors}
             />
             <div className="flex flex-col gap-3">
               <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Product Image</label>

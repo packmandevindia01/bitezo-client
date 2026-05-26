@@ -30,17 +30,18 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   const isNumericField = type === 'number' || (label && /\b(price|cost|amount|qty|quantity|vat|disc|discount|rate|total|net|gross|percentage|%|balance)\b/i.test(label));
 
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full">
+    <div className="flex flex-col gap-1 mb-1 w-full relative">
 
       {/* LABEL */}
       {label && !hideLabel && (
         <label
           htmlFor={inputId}
-          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-600"
+          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5"
         >
-          {labelIcon && <span className="shrink-0">{labelIcon}</span>}
+          {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
           <span>{label}</span>
-          {required && <span className="text-amber-500 ml-1 font-bold">*</span>}
+          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
         </label>
       )}
 
@@ -59,6 +60,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
           required={required}
           placeholder={placeholder || (required ? "Enter value" : "")}
           min={isNumericField ? (props.min ?? 0) : props.min}
+          step={props.step ?? (type === 'number' ? 'any' : undefined)}
           onKeyDown={(e) => {
             if (isNumericField && (e.key === '-' || e.key === 'e')) {
               e.preventDefault();
@@ -72,7 +74,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
             ${icon ? "pl-11 pr-4" : "px-4"}
             ${isNumericField ? 'text-right' : 'text-left'}
             
-            ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
+            ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
             ${props.disabled ? "bg-gray-100 cursor-not-allowed" : ""}
             ${props.readOnly ? "bg-gray-100" : ""}
 
@@ -84,11 +86,10 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
         />
       </div>
 
-      {/* ERROR */}
-      {error && (
-        <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-amber-600 font-semibold animate-in fade-in slide-in-from-top-1">
-          <span className="shrink-0">⚠️</span>
-          <span>{error}</span>
+      {/* ERROR (FALLBACK IF LABEL IS HIDDEN) */}
+      {error && hideLabel && (
+        <div className="absolute -bottom-3.5 left-1 text-[10px] text-red-600 font-semibold animate-in fade-in slide-in-from-top-1">
+          {error}
         </div>
       )}
 

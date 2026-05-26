@@ -145,7 +145,7 @@ const PaymentAgainstVoucherPage = () => {
         </div>
 
         <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <div className="overflow-x-auto">
+          <div className="max-h-[250px] overflow-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50">
@@ -153,7 +153,7 @@ const PaymentAgainstVoucherPage = () => {
                     (column) => (
                       <th
                         key={column}
-                        className="whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400"
+                        className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400"
                       >
                         {column}
                       </th>

@@ -1,5 +1,5 @@
 import type { PosProduct } from "../../types";
-import { formatAmount } from "../../../../utils/formatters";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface PosProductCardProps {
   product: PosProduct;
@@ -9,8 +9,9 @@ interface PosProductCardProps {
 }
 
 const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps) => {
+  const { formatAmount } = useCurrency();
   const finalPrice = price !== undefined ? price : product.price;
-  const showPrice = finalPrice > 0 && !hasAlts;
+  const showPrice = finalPrice >= 0 && !hasAlts;
 
   return (
     <button

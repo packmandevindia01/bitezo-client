@@ -19,6 +19,7 @@ const PosGroupTabs = ({
         const isActive = group.groupId === activeGroupId;
         return (
           <button
+            type="button"
             key={group.groupId}
             onClick={() => onSelect(group.groupId)}
             className={`

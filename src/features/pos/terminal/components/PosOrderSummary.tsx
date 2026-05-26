@@ -1,4 +1,4 @@
-import { formatAmount } from "../../../../utils/formatters";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface PosOrderSummaryProps {
   subtotal: number;
@@ -11,9 +11,12 @@ interface PosOrderSummaryProps {
   onSettle?: () => void;
   onOrder?: () => void;
   orderLoading?: boolean;
+  selectedTender: string;
+  onSelectTender: (tender: string) => void;
 }
 
-export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
+  const { formatAmount } = useCurrency();
   return (
     <div className="shrink-0 p-2.5 lg:p-3 bg-slate-50/80 border-t border-slate-200 space-y-2.5 lg:space-y-3">
       {/* Financial Breakdown */}
@@ -64,12 +67,13 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
 
       {/* Payment Methods */}
       <div className="grid grid-cols-5 gap-1.5">
-        {["CASH", "CARD", "CREDIT", "MULTI"].map((mode) => (
+        {["cash", "card", "credit", "multi"].map((mode) => (
           <button
             key={mode}
+            onClick={() => onSelectTender(mode)}
             className={`
-              h-10 lg:h-11 rounded-xl border-2 text-[10px] font-bold transition-all shadow-sm active:scale-95
-              ${mode === "CASH"
+              h-10 lg:h-11 rounded-xl border-2 text-[10px] font-bold transition-all shadow-sm active:scale-95 uppercase
+              ${selectedTender === mode
                 ? "border-pos-green bg-pos-green/10 text-pos-green-dark"
                 : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"}
             `}

@@ -20,6 +20,7 @@ import type { PosCategory, MenuSubCategory, PosProduct } from "../../types";
 const groupCategoriesCache: Record<number, PosCategory[]> = {};
 const subCategoriesCache: Record<number, MenuSubCategory[]> = {};
 const productsCache: Record<string, PosProduct[]> = {}; // key: `${catId}-${subCatId}`
+export const productDetailsCache: Record<number, { price?: number; isIncl?: boolean; hasAlts?: boolean; alts?: import("../../types").PosAlternative[] }> = {};
 
 export const usePosProducts = () => {
   const dispatch = useAppDispatch();
@@ -60,14 +61,6 @@ export const usePosProducts = () => {
       dispatch(setCategories(cachedCats));
       if (cachedCats.length > 0 && !activeCategoryId) {
         dispatch(setCategory(cachedCats[0].id));
-      }
-      // Silent background revalidation
-      try {
-        const freshCats = await menuApi.getGroupCategories(groupId);
-        groupCategoriesCache[groupId] = freshCats;
-        dispatch(setCategories(freshCats));
-      } catch (err) {
-        console.error("Background category revalidation failed:", err);
       }
       return;
     }
@@ -111,20 +104,6 @@ export const usePosProducts = () => {
         dispatch(setProducts([]));
       }
 
-      // Silent background revalidation
-      try {
-        const freshSubs = await menuApi.getSubCategories(categoryId);
-        subCategoriesCache[categoryId] = freshSubs;
-        dispatch(setSubCategories(freshSubs));
-
-        if (freshSubs.length === 0) {
-          const freshProds = await menuApi.getProducts(categoryId, 0);
-          productsCache[`${categoryId}-0`] = freshProds;
-          dispatch(setProducts(freshProds));
-        }
-      } catch (err) {
-        console.error("Background subcategories revalidation failed:", err);
-      }
       return;
     }
 
@@ -155,14 +134,6 @@ export const usePosProducts = () => {
 
     if (cachedProds) {
       dispatch(setProducts(cachedProds));
-      // Silent background revalidation
-      try {
-        const freshProds = await menuApi.getProducts(catId, subCatId);
-        productsCache[cacheKey] = freshProds;
-        dispatch(setProducts(freshProds));
-      } catch (err) {
-        console.error("Background products revalidation failed:", err);
-      }
       return;
     }
 
@@ -178,6 +149,73 @@ export const usePosProducts = () => {
     }
   }, [dispatch]);
 
+  // ─── Preloader ─────────────────────────────────────────────────────────────
+
+  const preloadEverything = useCallback(async () => {
+    try {
+      for (const g of groups) {
+        if (!groupCategoriesCache[g.groupId]) {
+          const cats = await menuApi.getGroupCategories(g.groupId);
+          groupCategoriesCache[g.groupId] = cats;
+        }
+        
+        const cats = groupCategoriesCache[g.groupId] || [];
+        for (const c of cats) {
+          if (!subCategoriesCache[c.id]) {
+            const subs = await menuApi.getSubCategories(c.id);
+            subCategoriesCache[c.id] = subs;
+
+            if (subs.length === 0) {
+              if (!productsCache[`${c.id}-0`]) {
+                const prods = await menuApi.getProducts(c.id, 0);
+                productsCache[`${c.id}-0`] = prods;
+                for (const p of prods) {
+                  if (!productDetailsCache[p.id]) {
+                    try {
+                      const alts = await menuApi.getAlternatives(p.id);
+                      if (alts && alts.length > 0) {
+                        productDetailsCache[p.id] = { hasAlts: true, alts };
+                      } else {
+                        const data = await menuApi.getProductData(p.id);
+                        productDetailsCache[p.id] = { hasAlts: false, price: data.price, isIncl: data.isIncl };
+                      }
+                    } catch (e) {
+                      // ignore background errors
+                    }
+                  }
+                }
+              }
+            } else {
+              for (const sub of subs) {
+                if (!productsCache[`${c.id}-${sub.subCategoryId}`]) {
+                  const prods = await menuApi.getProducts(c.id, sub.subCategoryId);
+                  productsCache[`${c.id}-${sub.subCategoryId}`] = prods;
+                  for (const p of prods) {
+                    if (!productDetailsCache[p.id]) {
+                      try {
+                        const alts = await menuApi.getAlternatives(p.id);
+                        if (alts && alts.length > 0) {
+                          productDetailsCache[p.id] = { hasAlts: true, alts };
+                        } else {
+                          const data = await menuApi.getProductData(p.id);
+                          productDetailsCache[p.id] = { hasAlts: false, price: data.price, isIncl: data.isIncl };
+                        }
+                      } catch (e) {
+                        // ignore background errors
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Background preloading failed:", err);
+    }
+  }, [groups]);
+
   // ─── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -185,6 +223,15 @@ export const usePosProducts = () => {
       fetchMasterData();
     }
   }, [fetchMasterData, groups.length]);
+
+  useEffect(() => {
+    if (groups.length > 0) {
+      const timer = setTimeout(() => {
+        preloadEverything();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [groups, preloadEverything]);
 
   useEffect(() => {
     if (activeGroupId) {

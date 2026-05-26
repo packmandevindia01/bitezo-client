@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
   UserPlus,
   Monitor,
+  Gift,
 } from 'lucide-react';
 import { Modal } from '../../../../components/common';
 
@@ -21,6 +22,8 @@ interface PosMoreModalProps {
   onClose: () => void;
   onCashierOut: () => void;
   onCustomerMaster: () => void;
+  onItemComplimentary: () => void;
+  onBillComplimentary: () => void;
 }
 
 const ORDER_ITEMS = [
@@ -44,15 +47,65 @@ const SYSTEM_ITEMS = [
   { label: 'PRINTER', icon: Printer, action: 'printer' },
 ];
 
-export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onCashierOut, onCustomerMaster }) => {
+const DISCOUNT_ITEMS = [
+  { label: 'ITEM COMPLIMENTARY', icon: Gift, action: 'itemComp', color: 'text-emerald-500' },
+  { label: 'BILL COMPLIMENTARY', icon: Gift, action: 'billComp', color: 'text-emerald-500' },
+];
+
+interface SectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+const Section = ({ title, children }: SectionProps) => (
+  <div>
+    <h3 className="text-[9px] font-extrabold text-slate-400 uppercase tracking-[0.2em] mb-1.5 flex items-center gap-2">
+      <span className="w-5 h-px bg-slate-200 shrink-0" />
+      {title}
+    </h3>
+    {children}
+  </div>
+);
+
+interface ActionBtnProps {
+  icon: React.ElementType;
+  label: string;
+  color?: string;
+  height?: string;
+  onClick: () => void;
+}
+
+const ActionBtn = ({ icon: Icon, label, color, height = 'h-24', onClick }: ActionBtnProps) => (
+  <button
+    onClick={onClick}
+    className={`bg-white border-2 border-slate-100 ${height} rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.96] shadow-sm hover:border-[#49293e] hover:bg-[#49293e]/5 group w-full`}
+  >
+    <Icon
+      className={`w-6 h-6 ${color || 'text-[#49293e]'} opacity-70 group-hover:opacity-100 transition-all`}
+      strokeWidth={1.5}
+    />
+    <span className="text-[9px] font-black tracking-wider text-center uppercase leading-tight px-1 text-slate-600 group-hover:text-[#49293e]">
+      {label}
+    </span>
+  </button>
+);
+
+export const PosMoreModal: React.FC<PosMoreModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onCashierOut, 
+  onCustomerMaster,
+  onItemComplimentary,
+  onBillComplimentary
+}) => {
   const navigate = useNavigate();
 
   if (!isOpen) return null;
 
-  const handleItemClick = (item: any) => {
+  const handleItemClick = (item: { action?: string; label: string }) => {
     if (item.action === 'printer') {
       onClose();
-      navigate('/pos/more'); // Navigates to the separate Printer Settings page
+      navigate('/pos/more');
       return;
     }
     if (item.action === 'lock') {
@@ -85,9 +138,17 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onC
       onCustomerMaster();
       return;
     }
-    // All other items are just buttons, no navigation
+    if (item.action === 'itemComp') {
+      onClose();
+      onItemComplimentary();
+      return;
+    }
+    if (item.action === 'billComp') {
+      onClose();
+      onBillComplimentary();
+      return;
+    }
   };
-
 
   return (
     <Modal
@@ -96,69 +157,82 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({ isOpen, onClose, onC
       title="Configuration & Orders"
       size="2xl"
     >
-      <div className="space-y-10 py-2">
-        {/* Order Section */}
-        <div>
-          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center gap-3">
-            <span className="w-8 h-px bg-slate-200"></span>
-            SALES & CUSTOMERS
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      {/*
+        Layout strategy:
+        - On mobile (< sm): 2-col grids, stacked sections
+        - On sm+: side-by-side panels to save vertical space
+        - On lg (POS 1024px+): all sections must fit in ~560px height (modal max-h)
+        
+        We use a 2-row grid on lg:
+          Top row: Sales (6 items) spanning full width
+          Bottom row: Discounts + Cashier + System side-by-side
+      */}
+      <div className="flex flex-col gap-2.5">
+
+        {/* SALES & CUSTOMERS — full width, 6 cols on lg */}
+        <Section title="Sales & Customers">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
             {ORDER_ITEMS.map((item) => (
-              <button
+              <ActionBtn
                 key={item.label}
+                icon={item.icon}
+                label={item.label}
+                height="h-24"
                 onClick={() => handleItemClick(item)}
-                className="bg-white border-2 border-slate-100 text-[#49293e] p-5 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all active:scale-[0.96] shadow-sm hover:border-[#49293e] hover:bg-[#49293e]/5 group"
-              >
-                <item.icon className="w-8 h-8 text-[#49293e] opacity-70 group-hover:opacity-100 transition-all" strokeWidth={1.5} />
-                <span className="text-[10px] font-black tracking-wider text-center uppercase">{item.label}</span>
-              </button>
+              />
             ))}
           </div>
-        </div>
+        </Section>
 
-        {/* Cashier Section */}
-        <div>
-          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center gap-3">
-            <span className="w-8 h-px bg-slate-200"></span>
-            CASHIER SERVICES
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {CASHIER_ITEMS.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleItemClick(item)}
-                className="bg-white border-2 border-slate-100 text-[#49293e] h-28 flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.96] rounded-2xl hover:border-[#49293e] hover:bg-[#49293e]/5 shadow-sm group"
-              >
-                <item.icon className={`w-8 h-8 ${item.color || 'text-[#49293e]'} opacity-80 group-hover:opacity-100 transition-all`} strokeWidth={2} />
-                <span className="text-[10px] font-black tracking-widest text-center px-2 uppercase">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Bottom 3 sections: on lg they sit side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
 
-        {/* Configuration Section */}
-        <div>
-          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center gap-3">
-            <span className="w-8 h-px bg-slate-200"></span>
-            SYSTEM & CONFIGURATION
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {SYSTEM_ITEMS.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleItemClick(item)}
-                className="bg-white border-2 border-slate-100 text-[#49293e] h-28 flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.96] rounded-2xl hover:border-[#49293e] hover:bg-[#49293e]/5 shadow-sm group"
-              >
-                <item.icon className="w-7 h-7 text-[#49293e] opacity-70 group-hover:opacity-100 transition-all" strokeWidth={1.5} />
-                <span className="text-[10px] font-bold tracking-widest text-center px-2 uppercase">{item.label}</span>
-              </button>
-            ))}
-          </div>
+          {/* DISCOUNTS & COMPLIMENTARY */}
+          <Section title="Discounts & Complimentary">
+            <div className="grid grid-cols-2 gap-2.5">
+              {DISCOUNT_ITEMS.map((item) => (
+                <ActionBtn
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  color={item.color}
+                  onClick={() => handleItemClick(item)}
+                />
+              ))}
+            </div>
+          </Section>
+
+          {/* CASHIER SERVICES */}
+          <Section title="Cashier Services">
+            <div className="grid grid-cols-2 gap-2.5">
+              {CASHIER_ITEMS.map((item) => (
+                <ActionBtn
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  color={item.color}
+                  onClick={() => handleItemClick(item)}
+                />
+              ))}
+            </div>
+          </Section>
+
+          {/* SYSTEM & CONFIGURATION */}
+          <Section title="System & Configuration">
+            <div className="grid grid-cols-2 gap-2.5">
+              {SYSTEM_ITEMS.map((item) => (
+                <ActionBtn
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  onClick={() => handleItemClick(item)}
+                />
+              ))}
+            </div>
+          </Section>
+
         </div>
       </div>
     </Modal>
   );
 };
-
-

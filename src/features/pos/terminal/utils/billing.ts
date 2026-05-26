@@ -38,7 +38,8 @@ export const calculateLineItem = (
   discount: number,
   extras: number,
   config: BillingConfig,
-  itemVatRate?: number
+  itemVatRate?: number,
+  isIncl?: boolean   // per-line override: true=inclusive, false=exclusive, undefined=follow global config
 ) => {
   const amount = (qty * price) + extras;
   const netValue = amount - discount;
@@ -55,7 +56,16 @@ export const calculateLineItem = (
   
   const activeVatRate = itemVatRate !== undefined ? itemVatRate / 100 : config.vatRate;
 
-  if (config.vatType === 'Exclusive') {
+  // Per-line isIncl overrides the global priceView:
+  //   isIncl === true  → price already has VAT baked in → do NOT add VAT
+  //   isIncl === false → price is exclusive → always add VAT on top
+  //   isIncl === undefined → fall back to global config (Exclusive adds VAT, Inclusive does not)
+  const shouldAddVat =
+    isIncl === true  ? false :
+    isIncl === false ? true  :
+    config.vatType === 'Exclusive';
+
+  if (shouldAddVat) {
     vatAmount = vatBase * activeVatRate;
   }
   

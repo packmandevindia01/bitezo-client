@@ -115,7 +115,7 @@ const BomPage = () => {
         </div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="overflow-x-auto">
+          <div className="max-h-[250px] overflow-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
@@ -123,7 +123,7 @@ const BomPage = () => {
                     (column) => (
                       <th
                         key={column}
-                        className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
                       >
                         {column}
                       </th>

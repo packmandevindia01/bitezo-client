@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { menuApi } from "../../services/menuApi";
-import { formatAmount } from "../../../../utils/formatters";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 interface CartItem {
+  uniqueId: string;
   productId: number;
   variantName?: string;
   product: {
@@ -31,6 +32,7 @@ export const PosExtrasModifierModal = ({
   initialSelections,
   onDone 
 }: PosExtrasModifierModalProps) => {
+  const { formatAmount } = useCurrency();
   const [types, setTypes] = useState<any[]>([]);
   const [activeTypeId, setActiveTypeId] = useState<number | null>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -39,23 +41,7 @@ export const PosExtrasModifierModal = ({
   const [selectedSummaryId, setSelectedSummaryId] = useState<number | null>(null);
   const prevRef = useRef<{ key: string | null; type: string | null }>({ key: null, type: null });
 
-  const getNormalizedVariant = (name?: string) => {
-    const n = (name || '').toLowerCase().trim();
-    if (!n || n === 'main' || n === 'variation') return 'main';
-    return n;
-  };
-
-  const currentItem = cartItems.find(item => {
-    const itemVar = getNormalizedVariant(item.variantName);
-    const itemKey = `${item.productId}-${itemVar}`.toLowerCase().trim();
-    
-    if (!selectedKey) return false;
-    const [selId, ...selVarParts] = selectedKey.split('-');
-    const selVar = getNormalizedVariant(selVarParts.join('-'));
-    const selKeyNormalized = `${selId}-${selVar}`.toLowerCase().trim();
-    
-    return itemKey === selKeyNormalized;
-  });
+  const currentItem = cartItems.find(item => item.uniqueId === selectedKey);
 
   useEffect(() => {
     if (isOpen) {
@@ -204,11 +190,11 @@ export const PosExtrasModifierModal = ({
         <div className="w-20 bg-[#1e293b] border-r border-slate-700 flex flex-col items-center py-6 gap-3 overflow-y-auto scrollbar-hide">
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Cart</span>
           {cartItems.map((item, index) => {
-            const key = `${item.productId}-${item.variantName || "main"}`;
-            const isActive = key === selectedKey || (selectedKey?.startsWith(`${key}-`));
+            const key = item.uniqueId;
+            const isActive = key === selectedKey;
             return (
               <button
-                key={`${key}-${index}`}
+                key={key}
                 onClick={() => onSelectRow(key)}
                 className={`w-12 h-12 rounded-lg font-black text-lg flex items-center justify-center active:scale-95 transition-all shadow-md shrink-0 ${
                   isActive 

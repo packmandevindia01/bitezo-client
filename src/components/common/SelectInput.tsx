@@ -47,16 +47,17 @@ const SelectInput = ({
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
   return (
-    <div className={`flex flex-col gap-1 w-full ${noMargin ? "" : "mb-1"}`}>
+    <div className={`flex flex-col gap-1 w-full relative ${noMargin ? "" : "mb-1"}`}>
 
       {/* LABEL */}
       {label && (
         <label
           htmlFor={selectId}
-          className="text-[10px] font-bold uppercase tracking-widest text-slate-600"
+          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5"
         >
-          {label}
-          {required && <span className="text-amber-500 ml-1 font-bold">*</span>}
+          <span>{label}</span>
+          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
         </label>
       )}
 
@@ -76,7 +77,7 @@ const SelectInput = ({
           text-sm
           rounded-md border outline-none transition
           
-          ${error ? "border-amber-500 bg-amber-50/30" : "border-gray-300 bg-white"}
+          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "bg-gray-100 cursor-not-allowed opacity-50" : ""}
 
           focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
@@ -96,13 +97,7 @@ const SelectInput = ({
         ))}
       </select>
 
-      {/* ERROR */}
-      {error && (
-        <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-amber-600 font-semibold animate-in fade-in slide-in-from-top-1">
-          <span className="shrink-0">⚠️</span>
-          <span>{error}</span>
-        </div>
-      )}
+      {/* ERROR is rendered inline in the label */}
 
     </div>
   );

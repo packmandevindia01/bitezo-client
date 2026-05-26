@@ -36,6 +36,7 @@ const ProductFormPage = () => {
     cancelDelete,
     confirmDelete,
     deleting,
+    errors,
   } = useProductManager();
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -150,6 +151,7 @@ const ProductFormPage = () => {
                   requestDelete({ productId: editingId, name: form.name });
                 }
               }}
+              errors={errors}
             />
           </div>
         </div>

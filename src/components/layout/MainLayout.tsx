@@ -3,10 +3,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import DenominationModal from "../../features/general/denomination/components/DenominationModal";
-import { fetchDenominations } from "../../features/general/denomination/services/denominationService";
 import { useAppDispatch } from "../../app/hooks";
-import { setCompanyConfig } from "../../features/auth/store/authSlice";
-import { normalizeDecimalPart } from "../../utils/formatters";
 
 const MainLayout = () => {
   // Sidebar open by default on desktop, closed on mobile
@@ -15,25 +12,7 @@ const MainLayout = () => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    let ignore = false;
-
-    const syncDenominationDecimal = async () => {
-      try {
-        const denominations = await fetchDenominations();
-        const decimalPart = denominations[0]?.value;
-        if (!ignore && decimalPart !== undefined) {
-          dispatch(setCompanyConfig({ decimalPart: normalizeDecimalPart(decimalPart) }));
-        }
-      } catch (error) {
-        console.error("Failed to sync denomination decimal part:", error);
-      }
-    };
-
-    syncDenominationDecimal();
-
-    return () => {
-      ignore = true;
-    };
+    // Other layout effects can go here
   }, [dispatch]);
 
   const toggleSidebar = () => {

@@ -6,12 +6,14 @@ export const useProductFormState = () => {
   const [form, setForm] = useState<ProductFormState>(emptyForm);
   const [imagePreview, setImagePreview] = useState<string | undefined>(undefined);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const setField = <K extends keyof ProductFormState>(
     key: K, 
     value: ProductFormState[K]
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
   const handleImageSelect = (file: File | null) => {
@@ -37,6 +39,7 @@ export const useProductFormState = () => {
     setForm(emptyForm);
     setEditingId(null);
     setImagePreview(undefined);
+    setErrors({});
   };
 
   return {
@@ -49,5 +52,7 @@ export const useProductFormState = () => {
     setField,
     handleImageSelect,
     resetFormState,
+    errors,
+    setErrors,
   };
 };

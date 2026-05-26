@@ -11,10 +11,12 @@ const LoginPage = () => {
     <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-2">
 
       {/* LEFT SIDE (IMAGE) */}
-      <div className="hidden md:flex items-center justify-center bg-gray-200 p-6">
-        <div className="w-full max-w-md h-75 md:h-[80%] border-2 border-orange-400 rounded-3xl flex items-center justify-center">
-          IMAGE
-        </div>
+      <div className="hidden md:block relative w-full h-full bg-slate-100">
+        <img 
+          src="/bitezo-backoffice.png" 
+          alt="Bitezo Backoffice" 
+          className="absolute inset-0 w-full h-full object-contain"
+        />
       </div>
 
       {/* RIGHT SIDE (FORM) */}

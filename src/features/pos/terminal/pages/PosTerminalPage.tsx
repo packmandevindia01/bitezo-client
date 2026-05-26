@@ -15,6 +15,8 @@ import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
 import { menuApi } from "../../services/menuApi";
 import { PosMoreModal } from "../components/PosMoreModal";
+import { PosCashTenderModal } from "../components/PosCashTenderModal";
+import { PosMultiPayModal } from "../components/PosMultiPayModal";
 import { PosCustomerModal } from "../../customer/components/PosCustomerModal";
 import { PosExtrasModifierModal } from "../components/PosExtrasModifierModal";
 import { PosDeliveryModal } from "../../customer/components/PosDeliveryModal";
@@ -30,6 +32,8 @@ import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "l
 import { useToast } from "../../../../app/providers/useToast";
 import { POS_CONFIGS_STORAGE_KEY, posConfigApi, type RuntimePosConfig } from "../../services/posConfigApi";
 import { useEmployeeAuthorization } from "../hooks/useEmployeeAuthorization";
+import { useCurrency } from "../../../../hooks/useCurrency";
+import { productDetailsCache } from "../hooks/usePosProducts";
 
 export const PosTerminalPage = () => {
   const location = useLocation();
@@ -48,6 +52,7 @@ export const PosTerminalPage = () => {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const { showToast } = useToast();
   const { authorizationModalKey, authorizationModalProps, requestAuthorization } = useEmployeeAuthorization();
+  const { decimalPart } = useCurrency();
 
   // Alternative selection state
   const [selectedProduct, setSelectedProduct] = useState<PosProduct | null>(null);
@@ -70,6 +75,10 @@ export const PosTerminalPage = () => {
   // Quantity Flow States
   const [isQtyModalOpen, setIsQtyModalOpen] = useState(false);
   const [qtyInputValue, setQtyInputValue] = useState("");
+
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+  const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
+  const [selectedTender, setSelectedTender] = useState<string>("cash");
 
   // Extras & Modifiers Flow States
   const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
@@ -123,10 +132,12 @@ export const PosTerminalPage = () => {
     setItemCustomizations,
     orderLoading,
     submitOrder,
+    setChange,
   } = usePosTerminal();
 
   const activeCategory = categories.find(c => c.id === activeCategoryId);
   const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
+  const currentItem = selectedKey ? cartDetails.find((item) => item.uniqueId === selectedKey) : null;
 
   const readStoredPosConfig = (): RuntimePosConfig | null => {
     const savedConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
@@ -197,6 +208,99 @@ export const PosTerminalPage = () => {
       setSelectedProduct(null);
       setAlternatives([]);
       setActiveProvider(null);
+      setIsCashModalOpen(false);
+      setIsMultiPayModalOpen(false);
+    }
+  };
+
+  // Handle Settlement Completion (Dummy Flow)
+  const submitSettlementForEmployee = (_employeeId: number) => {
+    showToast("Settlement Completed", "success");
+    handleClearCart();
+    setIsCashModalOpen(false);
+    setIsMultiPayModalOpen(false);
+  };
+
+  // Handle Completing Settlement for Cash or Multi-pay
+  const handleCompleteSettlement = async (changeAmount: number) => {
+    setChange(changeAmount.toFixed(decimalPart));
+
+    if (!status) return;
+
+    let config: RuntimePosConfig | null = null;
+    try {
+      config = await getRuntimePosConfig();
+    } catch {
+      showToast("Unable to load POS configuration", "error");
+      return;
+    }
+
+    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+    const defaultEmployeeId = Number(config?.employeeId ?? 0);
+
+    if (defaultEmployeeEnabled) {
+      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
+        showToast("Default employee is not configured", "error");
+        return;
+      }
+
+      submitSettlementForEmployee(defaultEmployeeId);
+      return;
+    }
+
+    requestAuthorization({
+      actionLabel: "Settlement",
+      onAuthorized: submitSettlementForEmployee,
+    });
+  };
+
+  // Handle Card or Credit Settlement (Dummy Flow)
+  const handleCardCreditSettlement = async () => {
+    setChange("");
+
+    if (!status) return;
+
+    let config: RuntimePosConfig | null = null;
+    try {
+      config = await getRuntimePosConfig();
+    } catch {
+      showToast("Unable to load POS configuration", "error");
+      return;
+    }
+
+    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+    const defaultEmployeeId = Number(config?.employeeId ?? 0);
+
+    if (defaultEmployeeEnabled) {
+      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
+        showToast("Default employee is not configured", "error");
+        return;
+      }
+
+      submitSettlementForEmployee(defaultEmployeeId);
+      return;
+    }
+
+    requestAuthorization({
+      actionLabel: "Settlement",
+      onAuthorized: submitSettlementForEmployee,
+    });
+  };
+
+  // Handle Order Settlement
+  const handleSettle = () => {
+    if (itemCount === 0) {
+      showToast("Cart is empty", "warning");
+      return;
+    }
+    
+    if (selectedTender === "cash") {
+      setIsCashModalOpen(true);
+    } else if (selectedTender === "multi") {
+      setIsMultiPayModalOpen(true);
+    } else {
+      // For Card or Credit, handle card/credit settlement (dummy flow)
+      handleCardCreditSettlement();
     }
   };
 
@@ -241,6 +345,24 @@ export const PosTerminalPage = () => {
     const product = visibleProducts.find(p => p.id === productId);
     if (!product) return;
 
+    // Use preloaded cache for instant loading without a spinner
+    const cached = productDetailsCache[productId];
+    if (cached) {
+      if (cached.hasAlts && cached.alts && cached.alts.length > 0) {
+        setAlternatives(cached.alts);
+        setSelectedProduct(product);
+      } else {
+        const price = cached.price ?? 0;
+        const newKey = addProduct(productId, undefined, price, cached.isIncl);
+        setSelectedKey(newKey);
+        if (price === 0) {
+          setPriceInputValue("");
+          setIsPriceModalOpen(true);
+        }
+      }
+      return;
+    }
+
     setFetchingAlts(true);
     try {
       const alts = await menuApi.getAlternatives(productId);
@@ -250,12 +372,16 @@ export const PosTerminalPage = () => {
         setSelectedProduct(product);
       } else {
         const data = await menuApi.getProductData(productId);
-        addProduct(productId, undefined, data.price);
-        setSelectedKey(`${productId}-main`);
+        const newKey = addProduct(productId, undefined, data.price, data.isIncl);
+        setSelectedKey(newKey);
+        if (data.price === 0) {
+          setPriceInputValue("");
+          setIsPriceModalOpen(true);
+        }
       }
     } catch {
-      addProduct(productId);
-      setSelectedKey(`${productId}-main`);
+      const newKey = addProduct(productId);
+      setSelectedKey(newKey);
     } finally {
       setFetchingAlts(false);
     }
@@ -263,8 +389,12 @@ export const PosTerminalPage = () => {
 
   const handleAltSelect = (variant: PosAlternative) => {
     if (selectedProduct) {
-      addProduct(selectedProduct.id, variant.altName, variant.price);
-      setSelectedKey(`${selectedProduct.id}-${variant.altName}`);
+      const newKey = addProduct(selectedProduct.id, variant.altName, variant.price, variant.isIncl);
+      setSelectedKey(newKey);
+      if (variant.price === 0) {
+        setPriceInputValue("");
+        setIsPriceModalOpen(true);
+      }
     }
   };
 
@@ -279,7 +409,10 @@ export const PosTerminalPage = () => {
 
   // 1. Hardware Barcode Scanner Integration
   useBarcodeScanner((barcode) => {
-    addProductBySku(barcode);
+    const newKey = addProductBySku(barcode);
+    if (newKey) {
+      setSelectedKey(newKey);
+    }
   });
 
   // 2. Keyboard Hotkeys
@@ -293,28 +426,92 @@ export const PosTerminalPage = () => {
     const numValue = parseFloat(value);
     const finalValue = isNaN(numValue) ? 0 : numValue;
 
+    const itemTotalDiscount = cartDetails.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
+    const remainingSubtotal = Math.max(0, subtotal - itemTotalDiscount);
+
+    if (discountType === 'bill') {
+      let proposedBillDiscount = 0;
+      if (discountMode === 'percentage') {
+        if (finalValue > 100) {
+          showToast("Discount percentage cannot exceed 100%", "error");
+          return;
+        }
+        proposedBillDiscount = (subtotal * finalValue) / 100;
+      } else {
+        proposedBillDiscount = finalValue;
+      }
+
+      if (proposedBillDiscount > remainingSubtotal) {
+        const limitMsg = discountMode === 'percentage'
+          ? `Discount percentage would exceed the remaining bill subtotal (${formatCurrency(remainingSubtotal)})`
+          : `Discount amount cannot exceed the remaining bill subtotal (${formatCurrency(remainingSubtotal)})`;
+        showToast(limitMsg, "error");
+        return;
+      }
+    } else if (selectedKey) {
+      const currentItem = cartDetails.find((item) => item.uniqueId === selectedKey);
+      if (currentItem) {
+        if (discountMode === 'percentage') {
+          if (finalValue > 100) {
+            showToast("Discount percentage cannot exceed 100%", "error");
+            return;
+          }
+        } else {
+          if (finalValue > currentItem.amount) {
+            showToast(`Discount amount cannot exceed the item amount (${formatCurrency(currentItem.amount)})`, "error");
+            return;
+          }
+        }
+      }
+    }
+
     if (discountType === 'bill') {
       setBillDiscount(finalValue, discountMode);
     } else if (selectedKey) {
-      const [idPart, ...variantParts] = selectedKey.split('-');
-      const productId = parseInt(idPart, 10);
-      const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
-      setItemDiscount(productId, variantName, finalValue, discountMode);
+      setItemDiscount(selectedKey, finalValue, discountMode);
     }
     setDiscountStep('none');
   };
 
-  const handleApplyPrice = (value: string) => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue) || numValue < 0) return;
-
-    if (selectedKey) {
-      const [idPart, ...variantParts] = selectedKey.split('-');
-      const productId = parseInt(idPart, 10);
-      const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
-      updateItemPrice(productId, variantName, numValue);
+  const handleApplyPrice = (val: string) => {
+    const num = parseFloat(val);
+    if (!isNaN(num) && selectedKey) {
+      if (num === 0) {
+        showToast("Price cannot be zero. Use Item Complimentary.", "error");
+        return;
+      }
+      updateItemPrice(selectedKey, num);
+      setIsPriceModalOpen(false);
     }
+  };
+
+  const handlePriceModalClose = () => {
     setIsPriceModalOpen(false);
+    if (selectedKey) {
+      const currentItem = cartDetails.find((item) => item.uniqueId === selectedKey);
+      if (currentItem && (currentItem.price === 0 || currentItem.price === undefined) && !(currentItem.discountType === 'percentage' && currentItem.discountValue === 100)) {
+        removeItem(selectedKey);
+        setSelectedKey(null);
+      }
+    }
+  };
+
+  const handleItemComplimentary = () => {
+    if (!selectedKey) {
+      showToast("Please select an item first", "error");
+      return;
+    }
+    setItemDiscount(selectedKey, 100, 'percentage');
+    showToast("Item marked as complimentary", "success");
+  };
+
+  const handleBillComplimentary = () => {
+    if (cartDetails.length === 0) {
+      showToast("Cart is empty", "error");
+      return;
+    }
+    setBillDiscount(100, 'percentage');
+    showToast("Bill marked as complimentary", "success");
   };
 
   const handleApplyQty = (value: string) => {
@@ -322,31 +519,14 @@ export const PosTerminalPage = () => {
     if (isNaN(numValue) || numValue < 1) return;
 
     if (selectedKey) {
-      const [idPart, ...variantParts] = selectedKey.split('-');
-      const productId = parseInt(idPart, 10);
-      const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
-      updateItemQty(productId, variantName, numValue);
+      updateItemQty(selectedKey, numValue);
     }
     setIsQtyModalOpen(false);
   };
 
   const currentSelectedItem = useMemo(() => {
     if (!selectedKey) return null;
-    const getNormalizedVariant = (name?: string) => {
-      const n = (name || '').toLowerCase().trim();
-      if (!n || n === 'main' || n === 'variation') return 'main';
-      return n;
-    };
-    const [selIdPart, ...selVariantParts] = selectedKey.split('-');
-    const selVariantName = getNormalizedVariant(selVariantParts.join('-'));
-    const normalizedSelected = `${selIdPart}-${selVariantName}`.toLowerCase().trim();
-
-    return cartDetails.find((item) => {
-      const itemVarName = getNormalizedVariant(item.variantName);
-      const key = `${item.productId}-${itemVarName}`.toLowerCase().trim();
-      // Support both indexed and non-indexed keys for robustness
-      return key === normalizedSelected || normalizedSelected.startsWith(`${key}-`);
-    });
+    return cartDetails.find((item) => item.uniqueId === selectedKey);
   }, [selectedKey, cartDetails]);
 
   const initialSelections = useMemo(() => {
@@ -468,7 +648,7 @@ export const PosTerminalPage = () => {
         </div>
       )}
 
-      <main className="flex flex-col flex-1 overflow-hidden lg:grid lg:grid-cols-[190px_minmax(0,1fr)_370px] xl:grid-cols-[220px_minmax(0,1fr)_460px]">
+      <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)_340px] lg:grid-cols-[180px_minmax(0,1fr)_370px] xl:grid-cols-[200px_minmax(0,1fr)_460px]">
         {/* Left Column: Categories */}
         <PosCategoryRail
           categories={categories}
@@ -578,7 +758,10 @@ export const PosTerminalPage = () => {
               onQty={openQtyModal}
               onClearCart={handleClearCart}
               onOrder={handleOrder}
+              onSettle={handleSettle}
               orderLoading={orderLoading}
+              selectedTender={selectedTender}
+              onSelectTender={setSelectedTender}
               onClose={() => setIsCartOpen(false)}
             />
           </ErrorBoundary>
@@ -664,19 +847,19 @@ export const PosTerminalPage = () => {
         showClose={false}
         className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
       >
-        <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
+        <div className="bg-[#49293e] text-white py-3 px-4 flex justify-between items-center">
           <h2 className="text-sm font-black uppercase tracking-[0.2em]">{discountType === 'bill' ? 'BILL' : 'ITEM'} DISCOUNT</h2>
           <button onClick={() => setDiscountStep('none')} className="opacity-60 hover:opacity-100" tabIndex={-1}>
             <XCircle size={20} />
           </button>
         </div>
 
-        <div className="bg-[#f8fafc] p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[85vh] overflow-y-auto">
+        <div className="bg-[#f8fafc] p-3 space-y-3 overflow-hidden">
           {/* Elegant Mode Toggle */}
           <div className="flex p-1 bg-slate-200/60 rounded-2xl">
             <button 
               onClick={() => { setDiscountMode('percentage'); setDiscountInputValue(""); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 sm:py-3 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
                 discountMode === 'percentage' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -685,7 +868,7 @@ export const PosTerminalPage = () => {
             </button>
             <button 
               onClick={() => { setDiscountMode('amount'); setDiscountInputValue(""); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 sm:py-3 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
                 discountMode === 'amount' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -695,19 +878,28 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Premium Input Display */}
-          <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
+          <div className="bg-[#1e293b] p-3 rounded-2xl shadow-lg flex flex-col items-end relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
-            <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Enter reduction</span>
-            <div className="text-4xl sm:text-5xl font-black text-white font-mono flex items-baseline gap-2">
+            <div className="w-full flex justify-between items-baseline mb-1">
+              <span className="text-[9px] font-black text-[#ff9500] uppercase tracking-wider">
+                {discountType === 'bill' 
+                  ? `Bill: ${formatCurrency(subtotal)}` 
+                  : currentItem 
+                    ? `${currentItem.product.name.split(' - ')[0]}: ${formatCurrency(currentItem.amount)}` 
+                    : 'Item Amount: 0.000'}
+              </span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Enter reduction</span>
+            </div>
+            <div className="text-3xl font-black text-white font-mono flex items-baseline gap-2">
               {discountInputValue || "0"}
-              <span className="text-lg sm:text-xl text-[#ff9500]">
+              <span className="text-base text-[#ff9500]">
                 {discountMode === 'percentage' ? "%" : formatCurrency(0).split(' ')[0]}
               </span>
             </div>
           </div>
 
           {/* Clean Keypad */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "."].map((btn) => (
               <button
                 key={btn}
@@ -720,7 +912,7 @@ export const PosTerminalPage = () => {
                   }
                 }}
                 className={`
-                  h-10 sm:h-12 md:h-14 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                  h-11 rounded-xl text-lg font-black transition-all active:scale-90 shadow-sm border border-slate-400
                   ${btn === 'Clear' ? "bg-red-50 text-red-600 border-red-400" : "bg-white text-slate-700 hover:bg-slate-50"}
                 `}
               >
@@ -730,17 +922,17 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
+          <div className="grid grid-cols-2 gap-2 pt-1">
             <button
               onClick={() => setDiscountStep('none')}
-              className="h-12 sm:h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl sm:rounded-2xl active:scale-95 transition-all"
+              className="h-11 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl active:scale-95 transition-all"
               tabIndex={-1}
             >
               Cancel
             </button>
             <button
               onClick={() => handleApplyDiscount(discountInputValue)}
-              className="h-12 sm:h-14 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="h-11 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
               <Check size={16} strokeWidth={3} />
               Apply Discount
@@ -752,14 +944,14 @@ export const PosTerminalPage = () => {
       {/* Modern POS Price Override Modal */}
       <Modal
         isOpen={isPriceModalOpen}
-        onClose={() => setIsPriceModalOpen(false)}
+        onClose={handlePriceModalClose}
         noPadding
         showClose={false}
         className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
       >
         <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
           <h2 className="text-sm font-black uppercase tracking-[0.2em]">Manual Price</h2>
-          <button onClick={() => setIsPriceModalOpen(false)} className="opacity-60 hover:opacity-100" tabIndex={-1}>
+          <button onClick={handlePriceModalClose} className="opacity-60 hover:opacity-100" tabIndex={-1}>
             <XCircle size={20} />
           </button>
         </div>
@@ -943,14 +1135,11 @@ export const PosTerminalPage = () => {
         initialSelections={initialSelections}
         onDone={(selections) => {
           if (!selectedKey) return;
-          const [idPart, ...variantParts] = selectedKey.split('-');
-          const productId = parseInt(idPart, 10);
-          const variantName = variantParts.join('-') === 'main' ? undefined : variantParts.join('-');
 
           if (extrasModifierType === 'extras') {
-            setItemCustomizations(productId, variantName, selections, currentSelectedItem?.modifiers);
+            setItemCustomizations(selectedKey, selections, currentSelectedItem?.modifiers);
           } else {
-            setItemCustomizations(productId, variantName, currentSelectedItem?.extras, selections);
+            setItemCustomizations(selectedKey, currentSelectedItem?.extras, selections);
           }
           setExtrasModifierType('none');
         }}
@@ -964,6 +1153,8 @@ export const PosTerminalPage = () => {
           setIsLogoutConfirmOpen(true);
         }}
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
+        onItemComplimentary={handleItemComplimentary}
+        onBillComplimentary={handleBillComplimentary}
       />
 
       <PosCustomerModal
@@ -1011,6 +1202,28 @@ export const PosTerminalPage = () => {
         onClear={() => {
           setActiveProvider(null);
         }}
+      />
+
+      <PosCashTenderModal
+        isOpen={isCashModalOpen}
+        onClose={() => setIsCashModalOpen(false)}
+        totalDue={total}
+        onSubmit={(_, changeAmount) => {
+          setIsCashModalOpen(false);
+          handleCompleteSettlement(changeAmount);
+        }}
+        loading={orderLoading}
+      />
+
+      <PosMultiPayModal
+        isOpen={isMultiPayModalOpen}
+        onClose={() => setIsMultiPayModalOpen(false)}
+        totalDue={total}
+        onSubmit={(_, changeAmount) => {
+          setIsMultiPayModalOpen(false);
+          handleCompleteSettlement(changeAmount);
+        }}
+        loading={orderLoading}
       />
 
       <PosProviderOrderModal

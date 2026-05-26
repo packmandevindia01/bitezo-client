@@ -242,8 +242,8 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 
 ### 5. Form Behavior
 - All forms must have validation before submission — never send empty required fields to the API
-- Show inline validation errors below each field, not only as a toast
-- Required fields must be visually marked (asterisk * on the label)
+- Show inline validation errors inline next to the label (e.g., `(required)` inside the flex label row in lowercase red text) to avoid breaking the UI layout and shifting elements.
+- Required fields must be visually marked with a red asterisk (`*` using class `text-red-500`) next to the label. Never use amber/yellow for required asterisks.
 - On successful save: close the modal/form, refresh the list, show a success toast
 - On error: keep the form open, show the error message, do not reset the form
 - Decimal inputs (price, rate, cost, amount) must restrict to `getDecimalPart()` decimal places — never hardcode 2 or 3
@@ -336,6 +336,7 @@ export const formatAmount = (value: number): string => {
 - NEVER hardcode `.toFixed(2)` — decimal places are dynamic (`getDecimalPart()`)
 - NEVER hardcode currency symbol as "BHD", "₹", "$" — always `getCurrencySymbol()`
 - All money display must use `formatCurrency()` or `formatAmount()` — never inline
+- **Avoid Floating-Point Precision Errors in Input Fields**: Never pass raw floats or raw `.toString()` (e.g. `totalDue.toString()`) to input field states for money/numeric inputs, as this causes long decimal errors like `0.8800000000000001`. Always format/round them first using `.toFixed(getDecimalPart())` or `.toFixed(decimalPart)`.
 - `step` attribute on money inputs must be dynamic:
 ```tsx
   const step = Math.pow(10, -getDecimalPart()).toString(); // "0.001" for BHD

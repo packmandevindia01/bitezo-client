@@ -3,6 +3,7 @@ import { PosCartList } from "./PosCartList";
 import { PosOrderSummary } from "./PosOrderSummary";
 
 interface CartRow {
+  uniqueId: string;
   productId: number;
   quantity: number;
   lineTotal: number;
@@ -35,16 +36,19 @@ interface PosOrderPanelProps {
   baseSubtotal: number;
   selectedKey: string | null;
   onSelectRow: (key: string | null) => void;
-  onIncrement: (productId: number, variantName?: string) => void;
-  onDecrement: (productId: number, variantName?: string) => void;
-  onRemove: (productId: number, variantName?: string) => void;
+  onIncrement: (uniqueId: string) => void;
+  onDecrement: (uniqueId: string) => void;
+  onRemove: (uniqueId: string) => void;
   onMod?: () => void;
   onExtras?: () => void;
   onQty?: () => void;
   onClearCart?: () => void;
   onOrder?: () => void;
+  onSettle?: () => void;
   onClose?: () => void;
   orderLoading?: boolean;
+  selectedTender: string;
+  onSelectTender: (tender: string) => void;
 }
 
 export const PosOrderPanel = ({
@@ -65,46 +69,32 @@ export const PosOrderPanel = ({
   onExtras,
   onQty,
   onOrder,
+  onSettle,
   onClose,
-  orderLoading
+  orderLoading,
+  selectedTender,
+  onSelectTender
 }: PosOrderPanelProps) => {
 
-  const getNormalizedVariant = (name?: string) => {
-    const n = (name || '').toLowerCase().trim();
-    if (!n || n === 'main' || n === 'variation') return 'main';
-    return n;
-  };
-
-  // Parse selected key back into productId + variantName
   const selectedItem = selectedKey
-    ? cartDetails.find((item) => {
-        const itemVar = getNormalizedVariant(item.variantName);
-        const itemKey = `${item.productId}-${itemVar}`.toLowerCase().trim();
-        
-        const [selId, ...selVarParts] = selectedKey.split('-');
-        const selVar = getNormalizedVariant(selVarParts.join('-'));
-        const selKeyNormalized = `${selId}-${selVar}`.toLowerCase().trim();
-        
-        return itemKey === selKeyNormalized;
-      })
+    ? cartDetails.find((item) => item.uniqueId === selectedKey)
     : null;
 
   const handleIncrement = () => {
-    if (selectedItem) onIncrement(selectedItem.productId, selectedItem.variantName);
+    if (selectedItem) onIncrement(selectedItem.uniqueId);
   };
 
   const handleDecrement = () => {
     if (!selectedItem) return;
     if (selectedItem.quantity <= 1) {
-      // Set as minimum 1 so cashier cannot reduce below 1 (must use Void to remove)
       return;
     }
-    onDecrement(selectedItem.productId, selectedItem.variantName);
+    onDecrement(selectedItem.uniqueId);
   };
 
   const handleVoid = () => {
     if (selectedItem) {
-      onRemove(selectedItem.productId, selectedItem.variantName);
+      onRemove(selectedItem.uniqueId);
       onSelectRow(null);
     }
   };
@@ -268,7 +258,10 @@ export const PosOrderPanel = ({
         totalExtras={totalExtras}
         baseSubtotal={baseSubtotal}
         onOrder={onOrder}
+        onSettle={onSettle}
         orderLoading={orderLoading}
+        selectedTender={selectedTender}
+        onSelectTender={onSelectTender}
       />
     </aside>
   );

@@ -6,9 +6,6 @@ import {
 } from "../services/denominationService";
 import type { DenominationItem } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
-import { useAppDispatch } from "../../../../app/hooks";
-import { setCompanyConfig } from "../../../auth/store/authSlice";
-import { normalizeDecimalPart } from "../../../../utils/formatters";
 
 export const useDenominationManager = () => {
   const [denominations, setDenominations] = useState<DenominationItem[]>([]);
@@ -16,14 +13,6 @@ export const useDenominationManager = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const { showToast } = useToast();
-  const dispatch = useAppDispatch();
-
-  const syncDecimalPart = useCallback((items: DenominationItem[]) => {
-    const decimalPart = items[0]?.value;
-    if (decimalPart !== undefined) {
-      dispatch(setCompanyConfig({ decimalPart: normalizeDecimalPart(decimalPart) }));
-    }
-  }, [dispatch]);
 
   const loadData = useCallback(async () => {
     try {
@@ -32,14 +21,13 @@ export const useDenominationManager = () => {
       const items = data || [];
       setDenominations(items);
       setHasExistingData(items.length > 0);
-      syncDecimalPart(items);
     } catch (error) {
       console.error("Failed to fetch denominations:", error);
       setHasExistingData(false);
     } finally {
       setInitialLoading(false);
     }
-  }, [syncDecimalPart]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -83,7 +71,6 @@ export const useDenominationManager = () => {
         : await createDenominations(payload);
 
       if (result.isSuccess) {
-        syncDecimalPart(sanitizedDenominations);
         showToast(result.message || "Denominations saved successfully", "success");
         loadData();
         return true;

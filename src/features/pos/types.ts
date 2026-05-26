@@ -21,10 +21,12 @@ export interface PosProduct {
 }
 
 export interface PosCartItem {
+  uniqueId: string;
   productId: number;
   quantity: number;
   variantName?: string;
   price?: number;
+  isIncl?: boolean; // true = price already includes VAT, false = price is exclusive (add VAT on top), undefined = follow global config
   discountValue?: number;
   discountType?: 'percentage' | 'amount';
   extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];

@@ -100,15 +100,6 @@ const initialState: PosState = {
   vehicleNo: ''
 };
 
-const getNormalizedVariant = (name?: string) => {
-  const n = (name || '').toLowerCase().trim();
-  if (!n || n === 'main' || n === 'variation') return 'main';
-  return n;
-};
-
-const matchVariant = (a?: string, b?: string) => 
-  getNormalizedVariant(a) === getNormalizedVariant(b);
-
 const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().replace(/[\s_-]/g, "");
 
 const fallbackOrderTypeByName = (name: string): PosOrderType => {
@@ -122,47 +113,44 @@ const fallbackOrderTypeByName = (name: string): PosOrderType => {
 const posSlice = createSlice({
   name: 'pos',
   initialState,
-  reducers: {
-    addToCart: (state, action: PayloadAction<{ productId: number; variantName?: string; price?: number }>) => {
-      const { productId, variantName, price } = action.payload;
-      const existing = state.cartItems.find(item => 
-        item.productId === productId && matchVariant(item.variantName, variantName)
-      );
+    reducers: {
+    addToCart: (state, action: PayloadAction<{ uniqueId: string; productId: number; variantName?: string; price?: number; isIncl?: boolean }>) => {
+      const { uniqueId, productId, variantName, price, isIncl } = action.payload;
+      const existing = state.cartItems.find(item => item.uniqueId === uniqueId);
       if (existing) {
         existing.quantity += 1;
       } else {
-        state.cartItems.push({ productId, quantity: 1, variantName, price });
+        state.cartItems.push({
+          uniqueId,
+          productId,
+          quantity: 1,
+          variantName,
+          price: price ?? 0,
+          isIncl
+        });
       }
     },
-    incrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
-      const { productId, variantName } = action.payload;
-      const item = state.cartItems.find(i => 
-        i.productId === productId && matchVariant(i.variantName, variantName)
-      );
+    incrementItem: (state, action: PayloadAction<{ uniqueId: string }>) => {
+      const { uniqueId } = action.payload;
+      const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.quantity += 1;
       }
     },
-    decrementItem: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
-      const { productId, variantName } = action.payload;
-      const item = state.cartItems.find(i => 
-        i.productId === productId && matchVariant(i.variantName, variantName)
-      );
+    decrementItem: (state, action: PayloadAction<{ uniqueId: string }>) => {
+      const { uniqueId } = action.payload;
+      const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         if (item.quantity > 1) {
           item.quantity -= 1;
         } else {
-          state.cartItems = state.cartItems.filter(i => 
-            !(i.productId === productId && matchVariant(i.variantName, variantName))
-          );
+          state.cartItems = state.cartItems.filter(i => i.uniqueId !== uniqueId);
         }
       }
     },
-    removeFromCart: (state, action: PayloadAction<{ productId: number; variantName?: string }>) => {
-      const { productId, variantName } = action.payload;
-      state.cartItems = state.cartItems.filter(i => 
-        !(i.productId === productId && matchVariant(i.variantName, variantName))
-      );
+    removeFromCart: (state, action: PayloadAction<{ uniqueId: string }>) => {
+      const { uniqueId } = action.payload;
+      state.cartItems = state.cartItems.filter(i => i.uniqueId !== uniqueId);
     },
     clearCart: (state) => {
       state.cartItems = [];
@@ -218,36 +206,42 @@ const posSlice = createSlice({
       state.billDiscountValue = action.payload.value;
       state.billDiscountType = action.payload.type;
     },
-    setItemDiscount: (state, action: PayloadAction<{ productId: number; variantName?: string; value: number; type: 'percentage' | 'amount' }>) => {
-      const { productId, variantName, value, type } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
+    setItemDiscount: (state, action: PayloadAction<{ uniqueId: string; value: number; type: 'percentage' | 'amount' }>) => {
+      const { uniqueId, value, type } = action.payload;
+      const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.discountValue = value;
         item.discountType = type;
       }
     },
-    updateItemPrice: (state, action: PayloadAction<{ productId: number; variantName?: string; price: number }>) => {
-      const { productId, variantName, price } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
+    setAllItemsDiscount: (state, action: PayloadAction<{ value: number; type: 'percentage' | 'amount' }>) => {
+      const { value, type } = action.payload;
+      state.cartItems.forEach(item => {
+        item.discountValue = value;
+        item.discountType = type;
+      });
+    },
+    updateItemPrice: (state, action: PayloadAction<{ uniqueId: string; price: number }>) => {
+      const { uniqueId, price } = action.payload;
+      const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.price = price;
       }
     },
-    updateItemQty: (state, action: PayloadAction<{ productId: number; variantName?: string; quantity: number }>) => {
-      const { productId, variantName, quantity } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
+    updateItemQty: (state, action: PayloadAction<{ uniqueId: string; quantity: number }>) => {
+      const { uniqueId, quantity } = action.payload;
+      const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.quantity = Math.max(1, quantity);
       }
     },
     setItemCustomizations: (state, action: PayloadAction<{ 
-      productId: number; 
-      variantName?: string; 
+      uniqueId: string; 
       extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
       modifiers?: { id: number; name: string; qty: number; typeId: number }[];
     }>) => {
-      const { productId, variantName, extras, modifiers } = action.payload;
-      const item = state.cartItems.find(i => i.productId === productId && matchVariant(i.variantName, variantName));
+      const { uniqueId, extras, modifiers } = action.payload;
+      const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.extras = extras;
         item.modifiers = modifiers;
@@ -344,6 +338,7 @@ export const {
   setTenderOption,
   setBillDiscount,
   setItemDiscount,
+  setAllItemsDiscount,
   updateItemPrice,
   updateItemQty,
   setItemCustomizations,
@@ -398,7 +393,7 @@ export const selectCartDetails = createSelector(
         }
       }
 
-      const calcs = calculateLineItem(item.quantity, price, itemDiscount, extrasTotal, config, product.vatValue);
+      const calcs = calculateLineItem(item.quantity, price, itemDiscount, extrasTotal, config, product.vatValue, item.isIncl);
 
       return {
         ...item,
@@ -448,8 +443,8 @@ export const selectBillDiscount = createSelector(
 );
 
 export const selectDiscount = createSelector(
-  [selectItemTotalDiscount, selectBillDiscount],
-  (itemDisc, billDisc) => itemDisc + billDisc
+  [selectSubtotal, selectItemTotalDiscount, selectBillDiscount],
+  (subtotal, itemDisc, billDisc) => Math.min(subtotal, itemDisc + billDisc)
 );
 
 export const selectTotalExtras = createSelector(
@@ -483,9 +478,9 @@ export const selectTax = createSelector(
 );
 
 export const selectTotal = createSelector(
-  [selectSubtotal, selectBillDiscount, selectCharges, selectTax],
-  (subtotal, billDisc, charges, tax) => {
-    return (subtotal - billDisc) + charges + tax;
+  [selectSubtotal, selectDiscount, selectCharges, selectTax],
+  (subtotal, discount, charges, tax) => {
+    return (subtotal - discount) + charges + tax;
   }
 );
 

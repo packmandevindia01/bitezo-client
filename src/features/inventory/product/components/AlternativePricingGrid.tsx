@@ -207,19 +207,19 @@ export const AlternativePricingGrid = ({
         </div>
       </div>
       
-      <div className="overflow-visible rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="overflow-x-auto overflow-y-visible">
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="max-h-[250px] overflow-auto">
           <table className="w-full border-collapse text-left table-fixed">
             <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-200">
-                <th className="w-[18%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch</th>
-                <th className="w-[15%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Barcode</th>
-                <th className="w-[15%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Unit</th>
-                <th className="w-[8%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200 text-center">Incl.</th>
-                <th className="w-[12%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200 text-right">Price</th>
-                <th className="w-[18%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Alt Name</th>
-                <th className="w-[20%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Alt Name (Arabic)</th>
-                <th className="w-8 px-1 py-1 border-l border-gray-200"></th>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="sticky top-0 bg-gray-50 z-10 w-[18%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[15%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Barcode</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[15%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Unit</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[8%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200 text-center">Incl.</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[12%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200 text-right">Price</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[18%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Alt Name</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[20%] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Alt Name (Arabic)</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-8 px-1 py-1 border-l border-gray-200"></th>
               </tr>
             </thead>
             <tbody>
