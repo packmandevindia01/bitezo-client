@@ -96,7 +96,7 @@ export const PosExtrasModifierModal = ({
         const res = await menuApi.getExtras(activeTypeId || undefined);
         const mapped = (res.extras || []).map((e: any) => ({
           ...e,
-          id: e.extraId ?? e.id ?? e.extraID ?? e.ID ?? Math.random(),
+          id: e.extrasId ?? e.extraId ?? e.id ?? e.extraID ?? e.ID ?? Math.random(),
           name: getNormalizedName(e),
           price: e.price || 0,
           typeId: activeTypeId || 0
@@ -106,7 +106,7 @@ export const PosExtrasModifierModal = ({
         const res = await menuApi.getModifiers(activeTypeId || undefined);
         const mapped = (res.modifier || []).map((m: any) => ({
           ...m,
-          id: m.modifierId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
+          id: m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
           name: getNormalizedName(m),
           typeId: activeTypeId || 0
         }));

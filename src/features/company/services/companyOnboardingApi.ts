@@ -96,8 +96,12 @@ export const fetchCompanyRegistration = async <T = unknown>(
 export const checkCompanyExists = async (clientDb: string, regId: string) => {
   try {
     const { data: json, status } = await axiosInstance.get<Record<string, unknown>>(
-      `/company/isExist/${encodeURIComponent(clientDb)}/${encodeURIComponent(regId)}`,
+      `/company/${encodeURIComponent(regId)}/exists`,
       {
+        headers: {
+          "clientDb": clientDb,
+          "clientdb": clientDb,
+        },
         validateStatus: (s) => (s >= 200 && s < 300) || s === 404 || s === 409 || s === 400
       }
     );

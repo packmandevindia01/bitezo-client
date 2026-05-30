@@ -55,6 +55,11 @@ interface PosState {
   comingTime: string;
   vehicleCustomerName: string;
   vehicleNo: string;
+  editingOrderId: number | null;
+  voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
+  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number }[];
+  isSettledEdit: boolean;
+  isSettling: boolean;
 }
 
 const loadCart = (): PosCartItem[] => {
@@ -97,7 +102,12 @@ const initialState: PosState = {
   isComing: false,
   comingTime: new Date().toISOString(),
   vehicleCustomerName: '',
-  vehicleNo: ''
+  vehicleNo: '',
+  editingOrderId: null,
+  voidProducts: [],
+  voidModifiers: [],
+  isSettling: false,
+  isSettledEdit: false,
 };
 
 const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().replace(/[\s_-]/g, "");
@@ -154,6 +164,11 @@ const posSlice = createSlice({
     },
     clearCart: (state) => {
       state.cartItems = [];
+      state.editingOrderId = null;
+      state.voidProducts = [];
+      state.voidModifiers = [];
+      state.isSettling = false;
+      state.isSettledEdit = false;
       state.billDiscountValue = 0;
       state.selectedCustomerId = 1;
       state.selectedAddressId = 0;
@@ -321,6 +336,55 @@ const posSlice = createSlice({
     setVehicleNo: (state, action: PayloadAction<string>) => {
       state.vehicleNo = action.payload;
     },
+    loadRecalledOrder: (state, action: PayloadAction<{
+      editingOrderId?: number | null;
+      cartItems: PosCartItem[];
+      orderTypeId: number;
+      orderTypeName: string;
+      customerId: number;
+      addressId: number;
+      billDiscountValue: number;
+      billDiscountType: 'percentage' | 'amount';
+      sectionId?: number;
+      tableId?: number;
+      isSettling?: boolean;
+      isSettledEdit?: boolean;
+    }>) => {
+      const { 
+        editingOrderId, 
+        cartItems, 
+        orderTypeId, 
+        orderTypeName, 
+        customerId, 
+        addressId, 
+        billDiscountValue, 
+        billDiscountType,
+        sectionId,
+        tableId,
+        isSettling,
+        isSettledEdit
+      } = action.payload;
+      state.editingOrderId = editingOrderId ?? null;
+      state.isSettling = isSettling ?? false;
+      state.isSettledEdit = isSettledEdit ?? false;
+      state.voidProducts = [];
+      state.voidModifiers = [];
+      state.cartItems = cartItems;
+      state.selectedOrderTypeId = orderTypeId;
+      state.selectedOrderTypeName = orderTypeName;
+      state.selectedCustomerId = customerId;
+      state.selectedAddressId = addressId;
+      state.billDiscountValue = billDiscountValue;
+      state.billDiscountType = billDiscountType;
+      state.selectedSectionId = sectionId ?? 0;
+      state.selectedTableId = tableId ?? 0;
+    },
+    addVoidProduct: (state, action: PayloadAction<{ productId: number; unitId: number; qty: number; amount: number; mapId: number }>) => {
+      state.voidProducts.push(action.payload);
+    },
+    addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number }>) => {
+      state.voidModifiers.push(action.payload);
+    },
   },
 });
 
@@ -330,6 +394,8 @@ export const {
   decrementItem,
   removeFromCart,
   clearCart,
+  addVoidProduct,
+  addVoidModifier,
   setCategory,
   setSearch,
   setOrderTypes,
@@ -362,7 +428,8 @@ export const {
   setIsComing,
   setComingTime,
   setVehicleCustomerName,
-  setVehicleNo
+  setVehicleNo,
+  loadRecalledOrder
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
@@ -375,7 +442,7 @@ export const selectCartDetails = createSelector(
     const config = getBillingConfig(pos.selectedOrderTypeName);
 
     return pos.cartItems.map((item: PosCartItem) => {
-      const product = pos.productCache[item.productId];
+      const product = pos.productCache[item.productId] || item.product;
       if (!product) return null;
       
       const price = Number(item.price ?? product.price ?? 0);

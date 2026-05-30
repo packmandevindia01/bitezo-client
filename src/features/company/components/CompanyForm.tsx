@@ -97,8 +97,8 @@ const CompanyForm = ({
       try {
         setLoadingMasterData(true);
         const [, currencyData] = await Promise.all([
-          fetchCompanyMasterload(),
-          fetchCurrencyList()
+          fetchCompanyMasterload(clientDb),
+          fetchCurrencyList(clientDb)
         ]);
 
         if (cancelled) return;

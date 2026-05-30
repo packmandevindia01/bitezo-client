@@ -14,6 +14,7 @@ import {
   UserPlus,
   Monitor,
   Gift,
+  CheckCircle,
 } from 'lucide-react';
 import { Modal } from '../../../../components/common';
 
@@ -24,11 +25,13 @@ interface PosMoreModalProps {
   onCustomerMaster: () => void;
   onItemComplimentary: () => void;
   onBillComplimentary: () => void;
+  onSettledOrders: () => void;
 }
 
 const ORDER_ITEMS = [
   { label: 'ORDER HISTORY', icon: History },
   { label: 'ACTIVE ORDERS', icon: FileText },
+  { label: 'SETTLED', icon: CheckCircle, action: 'settledOrders' },
   { label: 'TABLE STATUS', icon: LayoutGrid },
   { label: 'CUSTOMER SEARCH', icon: Search },
   { label: 'CUSTOMER MASTER', icon: UserPlus, action: 'customerMaster' },
@@ -96,7 +99,8 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
   onCashierOut, 
   onCustomerMaster,
   onItemComplimentary,
-  onBillComplimentary
+  onBillComplimentary,
+  onSettledOrders
 }) => {
   const navigate = useNavigate();
 
@@ -146,6 +150,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
     if (item.action === 'billComp') {
       onClose();
       onBillComplimentary();
+      return;
+    }
+    if (item.action === 'settledOrders') {
+      onClose();
+      onSettledOrders();
       return;
     }
   };

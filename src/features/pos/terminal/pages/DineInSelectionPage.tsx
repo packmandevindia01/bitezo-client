@@ -1,26 +1,65 @@
-import React, { useState } from 'react';
-import { ChevronLeft, LayoutGrid, Users, Search } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronLeft, LayoutGrid, Search, Clock, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../components/common';
-
 import { useAppDispatch } from '../../../../app/hooks';
-import { setSectionId, setTableId } from '../store/posSlice';
+import { setSectionId, setTableId, setGuestNo, clearCart } from '../store/posSlice';
 import { useDineIn } from '../hooks/useDineIn';
 import { Loader } from '../../../../components/common';
+import { GuestCountModal } from '../components/GuestCountModal';
+import { DineInTableOrdersModal } from '../components/DineInTableOrdersModal';
+import type { DineInTable } from '../../types';
+
+/* ─────────────────────────── helpers ─────────────────────────────────── */
+
+function buildGrid(tables: DineInTable[]): { sparse: boolean; cells: Array<DineInTable | null> } {
+  const positions = tables.map(t => t.position);
+  const uniquePositions = new Set(positions);
+  const positionsAreUnique = uniquePositions.size === tables.length && !positions.every(p => p === positions[0]);
+
+  if (!positionsAreUnique) {
+    return { sparse: false, cells: tables };
+  }
+
+  const maxPos = positions.reduce((m, p) => Math.max(m, p), 0);
+  const totalSlots = Math.max(25, maxPos);
+  const byPos = new Map<number, DineInTable>();
+  const unplaced: DineInTable[] = [];
+
+  tables.forEach(t => {
+    if (t.position > 0 && !byPos.has(t.position)) byPos.set(t.position, t);
+    else unplaced.push(t);
+  });
+
+  const cells: Array<DineInTable | null> = Array.from({ length: totalSlots }, (_, i) => byPos.get(i + 1) ?? null);
+  unplaced.forEach(t => cells.push(t));
+  return { sparse: true, cells };
+}
+
+function formatOrderTime(dateStr: string): string | null {
+  if (!dateStr || dateStr.startsWith('0001')) return null;
+  try {
+    return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch { return null; }
+}
+
+/* ─────────────────────────── component ─────────────────────────────────── */
 
 export const DineInSelectionPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { 
-    sections, 
-    tables, 
-    selectedSectionId, 
-    setSelectedSectionId, 
-    loading 
-  } = useDineIn();
+  const { sections, tables, selectedSectionId, setSelectedSectionId, loading } = useDineIn();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
+
+  // Modal state
+  const [guestTable, setGuestTable] = useState<DineInTable | null>(null);
+  const [ordersTable, setOrdersTable] = useState<DineInTable | null>(null);
+
+  /* derived */
+  const availableCount = tables.filter(t => t.status === 'available').length;
+  const occupiedCount = tables.filter(t => t.status === 'occupied').length;
 
   const filteredTables = tables.filter(table => {
     const matchesSearch = table.tableName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -28,221 +67,256 @@ export const DineInSelectionPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const availableCount = tables.filter(t => t.status === 'available').length;
-  const occupiedCount = tables.filter(t => t.status === 'occupied').length;
+  const isFiltered = searchQuery.trim() !== '' || statusFilter !== 'all';
+  const { sparse, cells } = buildGrid(tables);
 
-  const handleBack = () => {
-    navigate('/pos', { state: { openMoreModal: true } });
+  /* ── event handlers ── */
+  const handleBack = () => navigate('/pos');
+
+  const handleTableClick = useCallback((table: DineInTable) => {
+    if (table.isUsed) {
+      // Occupied: show table orders
+      setOrdersTable(table);
+    } else {
+      // Available: ask for guest count
+      setGuestTable(table);
+    }
+  }, []);
+
+  const handleSectionSelect = (id: number) => {
+    setSelectedSectionId(id);
+    dispatch(setSectionId(id));
   };
 
-  const handleTableSelect = (_tableId: number) => {
-    if (selectedSectionId) {
-      dispatch(setSectionId(selectedSectionId));
-    }
-    dispatch(setTableId(_tableId));
+  /* Guest count confirmed → go to terminal */
+  const handleGuestConfirm = (guestCount: number) => {
+    if (!guestTable) return;
+    dispatch(clearCart());
+    dispatch(setSectionId(selectedSectionId ?? 0));
+    dispatch(setTableId(guestTable.tableId));
+    dispatch(setGuestNo(guestCount));
+    setGuestTable(null);
     navigate('/pos');
   };
 
-  const handleSectionSelect = (sectionId: number) => {
-    setSelectedSectionId(sectionId);
-    dispatch(setSectionId(sectionId));
+  /* ── Table card ── */
+  const TableCard = ({ table }: { table: DineInTable }) => {
+    const isOccupied = table.isUsed;
+    const orderTime = isOccupied ? formatOrderTime(table.orderDate) : null;
+
+    return (
+      <button
+        onClick={() => handleTableClick(table)}
+        tabIndex={-1}
+        title={isOccupied
+          ? `Occupied by ${table.employeeName ?? 'Staff'}${orderTime ? ` · ${orderTime}` : ''}`
+          : `Select ${table.tableName}`}
+        className={[
+          'relative group flex flex-col items-center justify-center w-full aspect-square rounded-2xl border-2 transition-all duration-300 select-none overflow-hidden',
+          isOccupied
+            ? 'bg-amber-50 border-amber-300/70 hover:border-amber-400 hover:shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-95 cursor-pointer'
+            : 'bg-white border-slate-100 hover:border-[#49293e] hover:shadow-[0_8px_30px_rgba(73,41,62,0.20)] hover:-translate-y-1 active:scale-95 shadow-sm cursor-pointer',
+        ].join(' ')}
+      >
+        {isOccupied && (
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 to-amber-200/20 pointer-events-none" />
+        )}
+
+        {/* icon */}
+        <div className={[
+          'w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-all duration-300',
+          isOccupied
+            ? 'bg-amber-200/60 text-amber-700'
+            : 'bg-slate-50 text-slate-400 group-hover:bg-[#49293e] group-hover:text-white',
+        ].join(' ')}>
+          <LayoutGrid size={20} />
+        </div>
+
+        {/* table name */}
+        <span className={[
+          'text-[14px] font-black tracking-tight leading-tight text-center px-1 break-words max-w-full',
+          isOccupied ? 'text-amber-900' : 'text-[#49293e]',
+        ].join(' ')}>
+          {table.tableName}
+        </span>
+
+        {/* occupied meta */}
+        {isOccupied && (
+          <div className="flex flex-col items-center gap-0.5 mt-1.5 z-10">
+            {table.employeeName && (
+              <div className="flex items-center gap-1 text-[8px] font-bold text-amber-700 uppercase tracking-wider">
+                <User size={8} />
+                <span className="truncate max-w-[70px]">{table.employeeName}</span>
+              </div>
+            )}
+            {orderTime && (
+              <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 uppercase tracking-wider">
+                <Clock size={8} />
+                <span>{orderTime}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* occupied badge */}
+        {isOccupied && (
+          <span className="absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500 text-white text-[7px] font-black uppercase tracking-widest rounded-full shadow-sm">
+            <span className="w-1 h-1 bg-white rounded-full animate-ping" />
+            Busy
+          </span>
+        )}
+
+        {/* available hover ring */}
+        {!isOccupied && (
+          <div className="absolute inset-0 rounded-2xl ring-0 group-hover:ring-2 ring-[#49293e]/20 transition-all duration-300 pointer-events-none" />
+        )}
+      </button>
+    );
   };
+
+  const EmptySlot = () => (
+    <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 bg-slate-50/30" />
+  );
+
+  const gridClass = 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#fcf9fb] to-[#f4eff2] flex flex-col font-sans">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={handleBack}
-            className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-500 hover:text-[#49293e]"
-          >
-            <ChevronLeft size={28} strokeWidth={2.5} />
+
+      {/* ── Header ── */}
+      <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button onClick={handleBack} className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-500 hover:text-[#49293e]">
+            <ChevronLeft size={26} strokeWidth={2.5} />
           </button>
-          <div className="space-y-0.5">
-            <h1 className="text-2xl font-black text-[#49293e] uppercase tracking-tight">
-              Select Table
-            </h1>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              Dine-In Order Assignment
-            </p>
+          <div>
+            <h1 className="text-xl font-black text-[#49293e] uppercase tracking-tight leading-none">Select Table</h1>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Dine-In Order Assignment</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={handleBack} className="px-6" tabIndex={-1}>
-            Cancel
-          </Button>
-        </div>
+        <Button variant="secondary" onClick={handleBack} className="px-5" tabIndex={-1}>Cancel</Button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Area - Table Grid */}
-        <main className="flex-1 overflow-auto p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Filters Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-              <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
-                {(['all', 'available', 'occupied'] as const).map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`
-                      px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all
-                      ${statusFilter === status 
-                        ? 'bg-white text-[#49293e] shadow-sm' 
-                        : 'text-slate-400 hover:text-slate-600'
-                      }
-                    `}
-                    tabIndex={-1}
-                  >
-                    {status}
+
+        {/* ── Main floor-plan ── */}
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          <div className="max-w-7xl mx-auto space-y-4">
+
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+                {(['all', 'available', 'occupied'] as const).map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)} tabIndex={-1}
+                    className={['px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] transition-all', statusFilter === s ? 'bg-white text-[#49293e] shadow-sm' : 'text-slate-400 hover:text-slate-600'].join(' ')}>
+                    {s}
                   </button>
                 ))}
               </div>
-
-              <div className="relative group min-w-[300px]">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#49293e] transition-colors" />
-                <input
-                  type="text"
-                  placeholder="SEARCH TABLE..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold text-[#49293e] placeholder:text-slate-300 focus:outline-none focus:border-[#49293e] transition-all shadow-sm"
-                />
+              <div className="relative group w-full sm:w-64">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#49293e] transition-colors" />
+                <input type="text" placeholder="SEARCH TABLE…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold text-[#49293e] placeholder:text-slate-300 focus:outline-none focus:border-[#49293e] transition-all shadow-sm" />
               </div>
             </div>
 
-            {/* Status Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-3xl border-2 border-slate-50 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500">
-                  <LayoutGrid size={24} />
+            {/* Stats strip */}
+            <div className="grid grid-cols-3 gap-3">
+              {[{ label: 'Total', value: tables.length, dot: 'bg-blue-400' }, { label: 'Available', value: availableCount, dot: 'bg-emerald-400' }, { label: 'Occupied', value: occupiedCount, dot: 'bg-amber-400' }].map(({ label, value, dot }) => (
+                <div key={label} className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm border border-slate-50">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+                    <p className="text-lg font-black text-[#49293e] leading-none">{value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Tables</p>
-                  <p className="text-xl font-black text-[#49293e]">{tables.length}</p>
-                </div>
-              </div>
-              <div className="bg-white p-4 rounded-3xl border-2 border-slate-50 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available</p>
-                  <p className="text-xl font-black text-[#49293e]">{availableCount}</p>
-                </div>
-              </div>
-              <div className="bg-white p-4 rounded-3xl border-2 border-slate-50 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Occupied</p>
-                  <p className="text-xl font-black text-[#49293e]">{occupiedCount}</p>
-                </div>
-              </div>
+              ))}
             </div>
 
+            {/* Legend */}
+            {!isFiltered && !loading && tables.length > 0 && (
+              <div className="flex items-center gap-5 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-white border-2 border-slate-200 shadow-sm inline-block" />Available — tap to order</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-100 border-2 border-amber-300 inline-block" />Occupied — tap to manage</span>
+                {sparse && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-50 border-2 border-dashed border-slate-200 inline-block" />Empty slot</span>}
+              </div>
+            )}
+
+            {/* Grid */}
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader text="Fetching tables..." />
-              </div>
-            ) : filteredTables.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
-                {filteredTables.map(table => (
-                  <button
-                    key={table.tableId}
-                    onClick={() => handleTableSelect(table.tableId)}
-                    className={`
-                      relative group flex flex-col items-center justify-center aspect-square rounded-[2rem] border-2 transition-all duration-500
-                      ${table.status === 'occupied' 
-                        ? 'bg-white/40 border-amber-100/50 cursor-not-allowed opacity-60' 
-                        : 'bg-white border-white/60 hover:border-[#49293e] hover:shadow-[0_20px_50px_rgba(73,41,62,0.15)] hover:-translate-y-2 active:scale-95 shadow-sm backdrop-blur-sm'
-                      }
-                    `}
-                    disabled={table.status === 'occupied'}
-                    tabIndex={-1}
-                  >
-                    <div className={`
-                      p-4 rounded-2xl mb-2 transition-all duration-500 transform group-hover:scale-110 group-hover:rotate-3
-                      ${table.status === 'occupied' ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 group-hover:bg-[#49293e] group-hover:text-white'}
-                    `}>
-                      <LayoutGrid size={28} />
-                    </div>
-                    <span className="text-xl font-black text-[#49293e] tracking-tighter group-hover:scale-110 transition-transform">{table.tableName}</span>
-                    <div className="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] opacity-80 group-hover:opacity-100 transition-opacity">
-                      <Users size={12} className="opacity-50" />
-                      <span>{table.capacity} SEATS</span>
-                    </div>
-                    
-                    {table.status === 'occupied' && (
-                      <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-amber-500/30">
-                        <div className="w-1 h-1 bg-white rounded-full animate-ping" />
-                        Occupied
-                      </div>
-                    )}
-                  </button>
-                ))}
+              <div className="flex items-center justify-center py-20"><Loader text="Loading floor plan…" /></div>
+            ) : isFiltered ? (
+              filteredTables.length > 0 ? (
+                <div className={gridClass}>{filteredTables.map(t => <TableCard key={t.tableId} table={t} />)}</div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+                  <Search size={56} strokeWidth={1} className="mb-4 opacity-20" />
+                  <p className="text-sm font-black uppercase tracking-[0.2em]">No tables match your filter</p>
+                </div>
+              )
+            ) : tables.length > 0 ? (
+              <div className={gridClass}>
+                {cells.map((cell, idx) => cell ? <TableCard key={cell.tableId} table={cell} /> : <EmptySlot key={`e-${idx}`} />)}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-slate-300">
-                <Search size={64} strokeWidth={1} className="mb-4 opacity-20" />
-                <p className="text-sm font-black uppercase tracking-[0.2em]">No tables found matching your filters</p>
+                <LayoutGrid size={56} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="text-sm font-black uppercase tracking-[0.2em]">No tables in this section</p>
               </div>
             )}
           </div>
         </main>
 
-        {/* Right Sidebar - Sections */}
-        <aside className="w-80 bg-white/70 backdrop-blur-xl border-l border-white/40 flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.05)] z-20">
-          <div className="p-8 border-b border-slate-100 bg-slate-50/30">
-            <h2 className="text-[11px] font-black text-[#49293e]/40 uppercase tracking-[0.3em]">Floor Sections</h2>
+        {/* ── Section sidebar ── */}
+        <aside className="w-60 xl:w-64 bg-white/70 backdrop-blur-xl border-l border-white/40 flex flex-col shadow-[-4px_0_30px_rgba(0,0,0,0.04)] z-20">
+          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/30">
+            <h2 className="text-[9px] font-black text-[#49293e]/40 uppercase tracking-[0.3em]">Floor Sections</h2>
           </div>
-          <nav className="flex-1 overflow-auto p-6 space-y-4">
-            {sections.map(section => (
-              <button
-                key={section.sectionId}
-                onClick={() => handleSectionSelect(section.sectionId)}
-                className={`
-                  w-full flex items-center justify-between p-6 rounded-[2rem] transition-all duration-500 text-left group relative overflow-hidden
-                  ${selectedSectionId === section.sectionId 
-                    ? 'bg-[#49293e] text-white shadow-2xl shadow-[#49293e]/30 -translate-y-1' 
-                    : 'bg-white/50 text-slate-600 hover:bg-white hover:shadow-xl border border-white/60'
-                  }
-                `}
-              >
-                {selectedSectionId === section.sectionId && (
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-                )}
-                <div className="flex flex-col relative z-10">
-                  <span className={`text-[13px] font-black uppercase tracking-[0.15em] ${selectedSectionId === section.sectionId ? 'text-white' : 'text-[#49293e]'}`}>
-                    {section.sectionName}
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className={`w-1 h-1 rounded-full ${selectedSectionId === section.sectionId ? 'bg-white/40' : 'bg-slate-300'}`} />
-                    <span className={`text-[9px] font-bold uppercase tracking-widest ${selectedSectionId === section.sectionId ? 'text-white/50' : 'text-slate-400'}`}>
-                      {selectedSectionId === section.sectionId ? `${tables.length} Units` : 'Select to view'}
+          <nav className="flex-1 overflow-auto p-3 space-y-2">
+            {sections.map(section => {
+              const isSelected = selectedSectionId === section.sectionId;
+              return (
+                <button key={section.sectionId} onClick={() => handleSectionSelect(section.sectionId)} tabIndex={-1}
+                  className={['w-full flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 text-left group relative overflow-hidden', isSelected ? 'bg-[#49293e] text-white shadow-xl shadow-[#49293e]/25 -translate-y-0.5' : 'bg-white/50 text-slate-600 hover:bg-white hover:shadow-md border border-white/60'].join(' ')}>
+                  {isSelected && <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />}
+                  <div className="flex flex-col relative z-10 min-w-0">
+                    <span className={`text-[11px] font-black uppercase tracking-[0.12em] truncate ${isSelected ? 'text-white' : 'text-[#49293e]'}`}>{section.sectionName}</span>
+                    <span className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${isSelected ? 'text-white/50' : 'text-slate-400'}`}>
+                      {isSelected ? `${tables.length} tables` : 'tap to view'}
                     </span>
                   </div>
-                </div>
-                <div className={`
-                  w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 relative z-10
-                  ${selectedSectionId === section.sectionId ? 'bg-white/20 rotate-12' : 'bg-slate-100 text-slate-400 group-hover:bg-[#49293e]/10 group-hover:text-[#49293e] group-hover:-rotate-12'}
-                `}>
-                  <LayoutGrid size={20} />
-                </div>
-              </button>
-            ))}
+                  <div className={['w-7 h-7 rounded-xl flex items-center justify-center transition-all duration-300 relative z-10 shrink-0', isSelected ? 'bg-white/20' : 'bg-slate-100 text-slate-400 group-hover:bg-[#49293e]/10 group-hover:text-[#49293e]'].join(' ')}>
+                    <LayoutGrid size={14} />
+                  </div>
+                </button>
+              );
+            })}
           </nav>
-          <div className="p-8 bg-slate-50/50 border-t border-slate-100">
-            <div className="p-4 bg-white/60 rounded-2xl border border-white/80">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] text-center leading-relaxed italic">
-                Real-time sync active
-              </p>
+          <div className="px-3 pb-3">
+            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
+              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-[0.2em] italic">Real-time sync active</p>
             </div>
           </div>
         </aside>
       </div>
+
+      {/* ── Guest Count Modal (available table selected) ── */}
+      <GuestCountModal
+        isOpen={guestTable !== null}
+        tableName={guestTable?.tableName ?? ''}
+        onConfirm={handleGuestConfirm}
+        onClose={() => setGuestTable(null)}
+      />
+
+      {/* ── Table Orders Modal (occupied table selected) ── */}
+      <DineInTableOrdersModal
+        isOpen={ordersTable !== null}
+        table={ordersTable}
+        sectionId={selectedSectionId ?? 0}
+        onClose={() => setOrdersTable(null)}
+        onEditSuccess={() => setOrdersTable(null)}
+        onSettleSuccess={() => setOrdersTable(null)}
+      />
     </div>
   );
 };

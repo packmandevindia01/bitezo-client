@@ -47,6 +47,8 @@ interface PosOrderPanelProps {
   onSettle?: () => void;
   onClose?: () => void;
   orderLoading?: boolean;
+  isSettling?: boolean;
+  isSettledEdit?: boolean;
   selectedTender: string;
   onSelectTender: (tender: string) => void;
 }
@@ -71,7 +73,9 @@ export const PosOrderPanel = ({
   onOrder,
   onSettle,
   onClose,
-  orderLoading,
+  orderLoading = false,
+  isSettling = false,
+  isSettledEdit = false,
   selectedTender,
   onSelectTender
 }: PosOrderPanelProps) => {
@@ -260,6 +264,8 @@ export const PosOrderPanel = ({
         onOrder={onOrder}
         onSettle={onSettle}
         orderLoading={orderLoading}
+        isSettling={isSettling}
+        isSettledEdit={isSettledEdit}
         selectedTender={selectedTender}
         onSelectTender={onSelectTender}
       />

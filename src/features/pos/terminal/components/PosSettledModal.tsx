@@ -3,17 +3,17 @@ import Modal from "../../../../components/common/Modal";
 import Button from "../../../../components/common/Button";
 import Checkbox from "../../../../components/common/Checkbox";
 import { Loader } from "../../../../components/common";
-import { Printer, Search, RotateCcw, CheckCircle, X } from "lucide-react";
-import { usePosRecall } from "../hooks/usePosRecall";
+import { Printer, Search, RotateCcw, X } from "lucide-react";
+import { usePosSettled } from "../hooks/usePosSettled";
 import { useToast } from "../../../../app/providers/useToast";
-import { PosRecallSearchModal } from "./PosRecallSearchModal";
-import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
+import { PosSettledSearchModal } from "./PosSettledSearchModal";
+import { PosSettledDetailsModal } from "./PosSettledDetailsModal";
 
 
-interface PosRecallModalProps {
+interface PosSettledModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSettleSuccess?: (amount: number) => void;
+  onEditSuccess?: () => void;
 }
 
 const ORDER_TYPES = [
@@ -26,8 +26,8 @@ const ORDER_TYPES = [
   { id: 6, label: "Coming", value: 6 },
 ];
 
-export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose, onSettleSuccess }) => {
-  const { orders, loading, fetchOrders } = usePosRecall();
+export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClose, onEditSuccess }) => {
+  const { orders, loading, fetchOrders } = usePosSettled();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
@@ -249,20 +249,11 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
           >
             Clear
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={onClose} 
-            disabled={!selectedOrderId}
-            isAction
-            icon={<CheckCircle size={18} />}
-          >
-            Select
-          </Button>
         </div>
       </div>
 
       {/* Embedded Search Modal */}
-      <PosRecallSearchModal
+      <PosSettledSearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
         onSearch={handleApplySearch}
@@ -270,14 +261,12 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         initialSearchValue={search}
       />
 
-      <PosRecallDetailsModal
+      <PosSettledDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         orderId={selectedOrderId}
-        orderDetailsStr={orders.find(o => o.orderId === selectedOrderId)?.details}
-        onEditSuccess={onClose}
-        onSettleSuccess={(amount) => {
-          onSettleSuccess?.(amount);
+        onEditSuccess={() => {
+          onEditSuccess?.();
           onClose();
         }}
       />

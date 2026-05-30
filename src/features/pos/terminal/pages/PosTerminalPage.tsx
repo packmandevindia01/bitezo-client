@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useAppSelector } from "../../../../app/hooks";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
 import PosGroupTabs from "../components/PosGroupTabs";
@@ -9,12 +10,15 @@ import { POS_CART_ACTIONS, POS_MORE_ACTIONS } from "../../constants";
 import { usePosTerminal } from "../hooks/usePosTerminal";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
+import { salesInvoiceApi } from "../../services/salesInvoiceApi";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
+import { selectTotalLevy, selectTotalServiceCharge } from "../store/posSlice";
 import { formatCurrency } from "../../../../utils/formatters";
 import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
 import { menuApi } from "../../services/menuApi";
 import { PosMoreModal } from "../components/PosMoreModal";
+import { PosSettledModal } from "../components/PosSettledModal";
 import { PosCashTenderModal } from "../components/PosCashTenderModal";
 import { PosMultiPayModal } from "../components/PosMultiPayModal";
 import { PosCustomerModal } from "../../customer/components/PosCustomerModal";
@@ -79,15 +83,36 @@ export const PosTerminalPage = () => {
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
   const [selectedTender, setSelectedTender] = useState<string>("cash");
+  const [isPrintConfirmOpen, setIsPrintConfirmOpen] = useState(false);
+  const [isSettledModalOpen, setIsSettledModalOpen] = useState(false);
+  const [isSettledAuthOpen, setIsSettledAuthOpen] = useState(false);
 
   // Extras & Modifiers Flow States
   const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
 
+  // Void Confirmation Modal State
+  const [voidConfirmState, setVoidConfirmState] = useState<{
+    isOpen: boolean;
+    uniqueId: string;
+    productName: string;
+    onConfirmed: () => void;
+  }>({
+    isOpen: false,
+    uniqueId: "",
+    productName: "",
+    onConfirmed: () => {},
+  });
+
   useEffect(() => {
-    const state = location.state as { openMoreModal?: boolean };
+    const state = location.state as { openMoreModal?: boolean; openCashModal?: boolean };
+    
     if (state?.openMoreModal) {
       setIsMoreModalOpen(true);
-      // Clear state to avoid reopening on refresh
+      window.history.replaceState({}, document.title);
+    }
+    
+    if (state?.openCashModal) {
+      setIsCashModalOpen(true);
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -133,7 +158,22 @@ export const PosTerminalPage = () => {
     orderLoading,
     submitOrder,
     setChange,
+    editingOrderId,
+    addVoidProduct,
+    addVoidModifier,
   } = usePosTerminal();
+
+  const {
+    selectedCustomerId,
+    billDiscountType,
+    billDiscountValue,
+  } = useAppSelector((state) => state.pos);
+
+  const totalServiceCharge = useAppSelector(selectTotalServiceCharge);
+  const totalLevy = useAppSelector(selectTotalLevy);
+
+  const isSettling = useAppSelector((state) => state.pos.isSettling);
+  const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
 
   const activeCategory = categories.find(c => c.id === activeCategoryId);
   const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
@@ -192,6 +232,95 @@ export const PosTerminalPage = () => {
     setActiveProvider(null);
   };
 
+  const handleRemoveItem = (uniqueId: string) => {
+    const item = cartDetails.find((i) => i.uniqueId === uniqueId);
+    if (!item) return;
+
+    if (editingOrderId && item.isExisting) {
+      requestAuthorization({
+        actionLabel: "Void Item",
+        onAuthorized: () => {
+          setVoidConfirmState({
+            isOpen: true,
+            uniqueId,
+            productName: item.product?.name || `Product #${item.productId}`,
+            onConfirmed: () => {
+              const unitId = item.product?.unitId || 1;
+              const mapId = item.mapId || 0;
+              addVoidProduct({
+                productId: item.productId,
+                unitId,
+                qty: item.quantity,
+                amount: Number(((item.price || 0) * item.quantity).toFixed(decimalPart)),
+                mapId,
+              });
+
+              // Add modifiers/extras to voidModifiers
+              const allModifiers = [
+                ...(item.extras || []),
+                ...(item.modifiers || [])
+              ];
+
+              allModifiers.forEach((mod) => {
+                const modPrice = (mod as any).price || 0;
+                addVoidModifier({
+                  mapId,
+                  modifierId: mod.id,
+                  qty: mod.qty,
+                  amount: Number((modPrice * mod.qty).toFixed(decimalPart)),
+                });
+              });
+
+              removeItem(uniqueId);
+              if (selectedKey === uniqueId) {
+                setSelectedKey(null);
+              }
+              showToast(`Voided ${item.product?.name || `Product #${item.productId}`}`, "success");
+            }
+          });
+        },
+      });
+    } else {
+      removeItem(uniqueId);
+      if (selectedKey === uniqueId) {
+        setSelectedKey(null);
+      }
+    }
+  };
+
+  const handleDecrementItem = (uniqueId: string) => {
+    const item = cartDetails.find((i) => i.uniqueId === uniqueId);
+    if (!item) return;
+
+    if (editingOrderId && item.isExisting) {
+      if (item.quantity === 1) {
+        handleRemoveItem(uniqueId);
+        return;
+      }
+
+      requestAuthorization({
+        actionLabel: "Void Item",
+        onAuthorized: () => {
+          const unitId = item.product?.unitId || 1;
+          const mapId = item.mapId || 0;
+          
+          addVoidProduct({
+            productId: item.productId,
+            unitId,
+            qty: 1,
+            amount: Number((item.price || 0).toFixed(decimalPart)),
+            mapId,
+          });
+
+          decrementItem(uniqueId);
+          showToast(`Decremented quantity for ${item.product?.name || `Product #${item.productId}`}`, "success");
+        },
+      });
+    } else {
+      decrementItem(uniqueId);
+    }
+  };
+
   // Handle Order Submission
   const submitOrderForEmployee = async (employeeId: number) => {
     if (!status) return;
@@ -213,16 +342,109 @@ export const PosTerminalPage = () => {
     }
   };
 
-  // Handle Settlement Completion (Dummy Flow)
-  const submitSettlementForEmployee = (_employeeId: number) => {
-    showToast("Settlement Completed", "success");
+  // Handle Settlement Completion (Actual Flow)
+  const submitSettlementForEmployee = async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
+    if (!status) return;
+    
+    // First, submit order
+    const currentOrderId = await submitOrder({
+      dayId: status.dayId,
+      shiftId: status.shiftId,
+      userId: status.userId,
+      employeeId,
+      providerId: activeProvider?.provider.providerId,
+      providerOrderNo: activeProvider?.orderNo,
+    });
+
+    if (!currentOrderId) {
+      showToast("Failed to create order for settlement", "error");
+      return;
+    }
+
+    try {
+      const salesPayload = {
+        seriesId: 1,
+        prefix: "",
+        customerId: selectedCustomerId || 1,
+        paymodeId: payments.length > 0 ? payments[0].paymodeId : 1,
+        employeeId,
+        dayId: status.dayId,
+        shiftId: status.shiftId,
+        orderTypeId: selectedOrderTypeId || 1,
+        androidStatus: false,
+        orderId: currentOrderId,
+        voucherDate: new Date().toISOString(),
+        discAmount: Number(discount.toFixed(decimalPart)),
+        discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
+        serviceCharge: Number(totalServiceCharge.toFixed(decimalPart)),
+        levy: Number(totalLevy.toFixed(decimalPart)),
+        vatExclAmount: Number(subtotal.toFixed(decimalPart)),
+        vatAmount: Number(tax.toFixed(decimalPart)),
+        netAmount: Number(total.toFixed(decimalPart)),
+        createdAt: new Date().toISOString(),
+        details: cartDetails.map((item) => {
+          let mainNetAmount = item.lineTotal;
+          let mainVatAmount = item.vatAmount;
+          let mainSc = item.sc;
+          let mainLevy = item.levy;
+
+          (item.extras || []).forEach(extra => {
+             const extraBase = extra.price * extra.qty;
+             const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
+             const extraVat = item.vatAmount * proportion;
+             const extraSc = item.sc * proportion;
+             const extraLevy = item.levy * proportion;
+             const extraNet = item.lineTotal * proportion;
+
+             mainNetAmount -= extraNet;
+             mainVatAmount -= extraVat;
+             mainSc -= extraSc;
+             mainLevy -= extraLevy;
+          });
+
+          return {
+            productId: item.productId,
+            unitId: item.product?.unitId || 1,
+            vatId: (item.product as any).sVatId || 1,
+            qty: item.quantity,
+            price: Number(item.product.price.toFixed(decimalPart)),
+            discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(decimalPart)) : 0,
+            discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(decimalPart)) : 0,
+            serviceCharge: Number(mainSc.toFixed(decimalPart)),
+            levy: Number(mainLevy.toFixed(decimalPart)),
+            vatAmount: Number(mainVatAmount.toFixed(decimalPart)),
+            netAmount: Number(mainNetAmount.toFixed(decimalPart)),
+            baseQty: item.quantity
+          };
+        }),
+        paymodes: payments
+      };
+
+      const saleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
+      if (saleId) {
+        setIsCashModalOpen(false);
+        setIsMultiPayModalOpen(false);
+        setIsPrintConfirmOpen(true);
+      } else {
+        throw new Error("Invalid sales response");
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to create sales invoice", "error");
+    }
+  };
+
+  const finalizeSettlement = (shouldPrint: boolean) => {
+    setIsPrintConfirmOpen(false);
+    if (shouldPrint) {
+      showToast("Printing receipt...", "info");
+      // Add logic here to call actual print function when available
+    }
+    showToast("Sales saved successfully", "success");
     handleClearCart();
-    setIsCashModalOpen(false);
-    setIsMultiPayModalOpen(false);
   };
 
   // Handle Completing Settlement for Cash or Multi-pay
-  const handleCompleteSettlement = async (changeAmount: number) => {
+  const handleCompleteSettlement = async (payments: { paymodeId: number, amount: number }[], changeAmount: number) => {
     setChange(changeAmount.toFixed(decimalPart));
 
     if (!status) return;
@@ -244,17 +466,17 @@ export const PosTerminalPage = () => {
         return;
       }
 
-      submitSettlementForEmployee(defaultEmployeeId);
+      submitSettlementForEmployee(defaultEmployeeId, payments);
       return;
     }
 
     requestAuthorization({
       actionLabel: "Settlement",
-      onAuthorized: submitSettlementForEmployee,
+      onAuthorized: (employeeId) => submitSettlementForEmployee(employeeId, payments),
     });
   };
 
-  // Handle Card or Credit Settlement (Dummy Flow)
+  // Handle Card or Credit Settlement
   const handleCardCreditSettlement = async () => {
     setChange("");
 
@@ -270,6 +492,7 @@ export const PosTerminalPage = () => {
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
+    const payments = [{ paymodeId: selectedTender === "card" ? 2 : 3, amount: total }];
 
     if (defaultEmployeeEnabled) {
       if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
@@ -277,13 +500,13 @@ export const PosTerminalPage = () => {
         return;
       }
 
-      submitSettlementForEmployee(defaultEmployeeId);
+      submitSettlementForEmployee(defaultEmployeeId, payments);
       return;
     }
 
     requestAuthorization({
       actionLabel: "Settlement",
-      onAuthorized: submitSettlementForEmployee,
+      onAuthorized: (employeeId) => submitSettlementForEmployee(employeeId, payments),
     });
   };
 
@@ -519,6 +742,32 @@ export const PosTerminalPage = () => {
     if (isNaN(numValue) || numValue < 1) return;
 
     if (selectedKey) {
+      const item = cartDetails.find((i) => i.uniqueId === selectedKey);
+      if (item && editingOrderId && item.isExisting) {
+        if (numValue < item.quantity) {
+          requestAuthorization({
+            actionLabel: "Void Item Qty",
+            onAuthorized: () => {
+              const diff = item.quantity - numValue;
+              const unitId = item.product?.unitId || 1;
+              const mapId = item.mapId || 0;
+              
+              addVoidProduct({
+                productId: item.productId,
+                unitId,
+                qty: diff,
+                amount: Number(((item.price || 0) * diff).toFixed(decimalPart)),
+                mapId,
+              });
+
+              updateItemQty(selectedKey, numValue);
+              showToast(`Reduced quantity for ${item.product?.name || `Product #${item.productId}`} by ${diff}`, "success");
+            },
+          });
+          setIsQtyModalOpen(false);
+          return;
+        }
+      }
       updateItemQty(selectedKey, numValue);
     }
     setIsQtyModalOpen(false);
@@ -583,7 +832,12 @@ export const PosTerminalPage = () => {
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onDelivery={() => setIsDeliveryModalOpen(true)}
         onDriveThrough={() => setIsDriveThroughModalOpen(true)}
-        onRecall={() => setIsRecallModalOpen(true)}
+        onRecall={() => {
+          requestAuthorization({
+            actionLabel: "Recall",
+            onAuthorized: () => setIsRecallModalOpen(true),
+          });
+        }}
         onVoidOrder={() => setIsVoidModalOpen(true)}
         onProvider={() => setIsProviderModalOpen(true)}
         onCashierOut={() => {
@@ -742,11 +996,12 @@ export const PosTerminalPage = () => {
               total={total}
               totalExtras={totalExtras}
               baseSubtotal={baseSubtotal}
+              isSettling={isSettling}
               selectedKey={selectedKey}
               onSelectRow={setSelectedKey}
               onIncrement={incrementItem}
-              onDecrement={decrementItem}
-              onRemove={removeItem}
+              onDecrement={handleDecrementItem}
+              onRemove={handleRemoveItem}
               onMod={() => setExtrasModifierType('modifiers')}
               onExtras={() => {
                 if (!selectedKey) {
@@ -760,6 +1015,7 @@ export const PosTerminalPage = () => {
               onOrder={handleOrder}
               onSettle={handleSettle}
               orderLoading={orderLoading}
+              isSettledEdit={isSettledEdit}
               selectedTender={selectedTender}
               onSelectTender={setSelectedTender}
               onClose={() => setIsCartOpen(false)}
@@ -1155,6 +1411,7 @@ export const PosTerminalPage = () => {
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onItemComplimentary={handleItemComplimentary}
         onBillComplimentary={handleBillComplimentary}
+        onSettledOrders={() => setIsSettledAuthOpen(true)}
       />
 
       <PosCustomerModal
@@ -1175,9 +1432,19 @@ export const PosTerminalPage = () => {
       <PosRecallModal
         isOpen={isRecallModalOpen}
         onClose={() => setIsRecallModalOpen(false)}
+        onSettleSuccess={() => {
+          setIsRecallModalOpen(false);
+          setIsMultiPayModalOpen(true);
+        }}
       />
 
-      <PosVoidModal
+      <PosSettledModal
+        isOpen={isSettledModalOpen}
+        onClose={() => setIsSettledModalOpen(false)}
+        onEditSuccess={() => setIsSettledModalOpen(false)}
+      />
+
+      <PosVoidModal 
         isOpen={isVoidModalOpen}
         onClose={() => setIsVoidModalOpen(false)}
       />
@@ -1190,6 +1457,29 @@ export const PosTerminalPage = () => {
         onConfirm={() => navigate("/cashier/out")}
         title="Confirm Exit"
         message="Are you sure you want to exit the terminal? Your current session is still active."
+      />
+
+      <ConfirmDialog
+        isOpen={voidConfirmState.isOpen}
+        onCancel={() => setVoidConfirmState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          voidConfirmState.onConfirmed();
+          setVoidConfirmState(prev => ({ ...prev, isOpen: false }));
+        }}
+        title="Confirm Void"
+        message={`Are you sure you want to void "${voidConfirmState.productName}"?`}
+        confirmLabel="Void"
+        confirmVariant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={isPrintConfirmOpen}
+        onCancel={() => finalizeSettlement(false)}
+        title="Print Receipt"
+        message="Do you want to print the receipt?"
+        confirmLabel="Yes, Print"
+        cancelLabel="No"
+        onConfirm={() => finalizeSettlement(true)}
       />
 
       <PosProviderModal 
@@ -1210,7 +1500,7 @@ export const PosTerminalPage = () => {
         totalDue={total}
         onSubmit={(_, changeAmount) => {
           setIsCashModalOpen(false);
-          handleCompleteSettlement(changeAmount);
+          handleCompleteSettlement([{ paymodeId: 1, amount: total }], changeAmount);
         }}
         loading={orderLoading}
       />
@@ -1219,9 +1509,13 @@ export const PosTerminalPage = () => {
         isOpen={isMultiPayModalOpen}
         onClose={() => setIsMultiPayModalOpen(false)}
         totalDue={total}
-        onSubmit={(_, changeAmount) => {
+        onSubmit={(payments, changeAmount) => {
           setIsMultiPayModalOpen(false);
-          handleCompleteSettlement(changeAmount);
+          const mappedPayments = payments.map(p => ({
+            paymodeId: p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3,
+            amount: p.amount
+          }));
+          handleCompleteSettlement(mappedPayments, changeAmount);
         }}
         loading={orderLoading}
       />
@@ -1237,6 +1531,19 @@ export const PosTerminalPage = () => {
             showToast(`${selectedProviderForOrder.providerName} order #${orderNo} started`, 'success');
           }
           setSelectedProviderForOrder(null);
+        }}
+      />
+
+      <EmployeePasswordModal
+        isOpen={isSettledAuthOpen}
+        onClose={() => setIsSettledAuthOpen(false)}
+        loading={false}
+        error={null}
+        onSubmit={(_password) => {
+          // Here we should actually validate the password if needed,
+          // but for now we just open the modal.
+          setIsSettledAuthOpen(false);
+          setIsSettledModalOpen(true);
         }}
       />
     </div>

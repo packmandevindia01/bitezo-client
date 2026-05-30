@@ -1,8 +1,9 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { CompanyFormData, CompanyMasterloadResponse, CurrencyOption } from "../types";
 
-export const fetchCompanyMasterload = async () => {
-  const { data } = await axiosInstance.get<CompanyMasterloadResponse>("/company/masterload");
+export const fetchCompanyMasterload = async (clientDb?: string) => {
+  const headers = clientDb ? { clientDb } : undefined;
+  const { data } = await axiosInstance.get<CompanyMasterloadResponse>("/company/masterload", { headers });
   return data;
 };
 
@@ -43,10 +44,14 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
   };
 
   const { data: responseData } = await axiosInstance.post<unknown>(
-    `/company/${encodeURIComponent(clientDb)}`,
+    "/company",
     payload,
     {
-      headers: { "Temp-Token": tempToken },
+      headers: {
+        "clientDb": clientDb,
+        "clientdb": clientDb,
+        "Temp-Token": tempToken,
+      },
     }
   );
 
@@ -85,8 +90,9 @@ export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
 };
 
 /** Fetch currencies for company dropdown */
-export const fetchCurrencyList = async () => {
-  const { data } = await axiosInstance.get<{ data: CurrencyOption[] }>("/currency/company-list-name");
+export const fetchCurrencyList = async (clientDb?: string) => {
+  const headers = clientDb ? { clientDb } : undefined;
+  const { data } = await axiosInstance.get<{ data: CurrencyOption[] }>("/currency/company-list-name", { headers });
   return data.data;
 };
 

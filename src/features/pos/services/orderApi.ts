@@ -49,6 +49,33 @@ export const orderApi = {
     return unwrap<{ isSuccess: boolean; message: string }>(
       axiosInstance.put(`/order/void/${orderId}`, payload)
     );
+  },
+
+  /**
+   * Fetches full order details by order ID for recall/edit.
+   * GET /api/order/recall/order_data/{orderId}
+   */
+  getOrderDetails: async (orderId: number): Promise<any> => {
+    const priceView = (() => {
+      try {
+        const saved = localStorage.getItem('posConfigs');
+        const full = saved ? JSON.parse(saved) : {};
+        return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
+      } catch { return 'Exclusive'; }
+    })();
+    return unwrap<any>(
+      axiosInstance.get(`/order/recall/order_data/${orderId}`, { params: { priceView } })
+    );
+  },
+
+  /**
+   * Updates an existing order.
+   * PUT /api/menu/order/{orderId}
+   */
+  updateOrder: async (orderId: number, order: import("../types").MenuOrderUpdateRequest): Promise<MenuOrderResponse> => {
+    return unwrap<MenuOrderResponse>(
+      axiosInstance.put(`/menu/order/${orderId}`, order)
+    );
   }
 };
 

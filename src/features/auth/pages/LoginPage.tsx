@@ -7,15 +7,19 @@ const LoginPage = () => {
     | { username?: string; password?: string; message?: string }
     | undefined;
 
+  const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
+  const isPos = systemType === "pos";
+  const loginImage = isPos ? "/POS_LOGIN.jpeg" : "/BACKOFFICE_LOGIN.jpeg";
+
   return (
     <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-2">
 
       {/* LEFT SIDE (IMAGE) */}
       <div className="hidden md:block relative w-full h-full bg-slate-100">
         <img 
-          src="/bitezo-backoffice.png" 
-          alt="Bitezo Backoffice" 
-          className="absolute inset-0 w-full h-full object-contain"
+          src={loginImage}
+          alt={isPos ? "Bitezo POS" : "Bitezo Backoffice"} 
+          className="absolute inset-0 w-full h-full object-cover"
         />
       </div>
 

@@ -3,6 +3,7 @@ import { orderApi } from '../../services/orderApi';
 import type { RecallOrder, RecallParams } from '../../types';
 import { useToast } from '../../../../app/providers/useToast';
 import { useCashierLog } from '../../cashier';
+import { getDecimalPart } from '../../../../utils/currency';
 
 export const usePosVoid = () => {
   const [orders, setOrders] = useState<RecallOrder[]>([]);
@@ -22,6 +23,7 @@ export const usePosVoid = () => {
         DeliveryOutStatus: params.DeliveryOutStatus ?? false,
         DeliveryOutOnlyStatus: params.DeliveryOutOnlyStatus ?? false,
         DayId: status.dayId,
+        Decimals: getDecimalPart(),
       };
 
       if (status.userId) cleanParams.EmployeeId = status.userId;

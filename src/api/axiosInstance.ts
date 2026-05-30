@@ -16,7 +16,8 @@ axiosInstance.interceptors.request.use((config) => {
   const token = isBackofficeMode 
     ? sessionStorage.getItem("backoffice_accessToken") 
     : localStorage.getItem("accessToken");
-  const tenantId = localStorage.getItem("tenantId") ?? "app_db";
+  const explicitTenantId = config.headers ? (config.headers["clientDb"] || config.headers["clientdb"]) : undefined;
+  const tenantId = typeof explicitTenantId === "string" ? explicitTenantId : (localStorage.getItem("tenantId") ?? "app_db");
 
   // Identify onboarding/auth endpoints that should be "clean"
   const url = config.url || "";
@@ -64,8 +65,10 @@ axiosInstance.interceptors.request.use((config) => {
     // Strictly ensure NO tenant info is sent for these endpoints
     if (config.headers.delete) {
       config.headers.delete("clientDb");
+      config.headers.delete("clientdb");
     } else {
       delete config.headers["clientDb"];
+      delete config.headers["clientdb"];
     }
   }
 

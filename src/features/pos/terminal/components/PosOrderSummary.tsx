@@ -11,11 +11,13 @@ interface PosOrderSummaryProps {
   onSettle?: () => void;
   onOrder?: () => void;
   orderLoading?: boolean;
+  isSettling?: boolean;
+  isSettledEdit?: boolean;
   selectedTender: string;
   onSelectTender: (tender: string) => void;
 }
 
-export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
     <div className="shrink-0 p-2.5 lg:p-3 bg-slate-50/80 border-t border-slate-200 space-y-2.5 lg:space-y-3">
@@ -89,13 +91,15 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
         <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={onSettle}
-            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all"
+            disabled={orderLoading || isSettling || total <= 0}
+            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle
           </button>
           <button
             onClick={onSettle}
-            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all"
+            disabled={orderLoading || isSettling || total <= 0}
+            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle & <br />Print
           </button>
@@ -103,15 +107,15 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
         <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={onOrder}
-            disabled={orderLoading}
-            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
+            disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
+            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={onOrder}
-            disabled={orderLoading}
-            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50"
+            disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
+            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order & Print"}
           </button>

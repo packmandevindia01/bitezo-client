@@ -31,6 +31,18 @@ export interface PosCartItem {
   discountType?: 'percentage' | 'amount';
   extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
   modifiers?: { id: number; name: string; qty: number; typeId: number }[];
+  isExisting?: boolean;
+  mapId?: number;
+  originalQty?: number;
+  product?: {
+    id: number;
+    name: string;
+    price: number;
+    categoryId: number;
+    unitId?: number;
+    vatValue?: number;
+    sVatId?: number;
+  };
 }
 
 export interface PosQuickAction {
@@ -56,8 +68,49 @@ export interface DineInSection {
 export interface DineInTable {
   tableId: number;
   tableName: string;
-  capacity: number;
+  postionNo: number;          // API typo preserved
+  orderDate: string;
+  employeeName: string | null;
+  isUsed: boolean;
+  // derived helpers added by dineInApi mapper:
   status: 'available' | 'occupied';
+  position: number;
+  capacity: number;
+}
+
+// --- Table Orders (GET /menu/dine-in/tables/{tableId}/orders) ---
+export interface TableOrderMaster {
+  orderId: number;
+  orderNo: number;
+  ticketNo: number;
+  sectionName: string;
+  tableNo: string;
+  netAmount: number;
+}
+
+export interface TableOrderDetail {
+  orderId: number;
+  qty: number;
+  productName: string;
+  arabicName: string;
+  altName: string;
+  altArabicName: string;
+  amount: number;
+  mapId: number;
+}
+
+export interface TableOrderModifier {
+  orderId: number;
+  qty: number;
+  modifierName: string;
+  arabicName: string;
+  mapId: number;
+}
+
+export interface TableOrdersResponse {
+  masterData: TableOrderMaster[];
+  detailsData: TableOrderDetail[];
+  modifiersData: TableOrderModifier[];
 }
 
 export interface GeneralPrinterSettings {
@@ -165,16 +218,15 @@ export interface MenuOrderDetail {
   vatId: number;
   vatAmount: number;
   netAmount: number;
-  modifierId: number;
-  modifierType: number;
+  modifierId?: number;
+  modifierType?: number;
   mapId: number;
   complimentaryStatus: boolean;
 }
 
 export interface MenuOrderModifier {
+  mapId: number;
   modifierId: number;
-  modifierType: number;
-  map: number;
   qty: number;
   price: number;
   amount: number;
@@ -211,6 +263,40 @@ export interface MenuOrderRequest {
   vehicleCustomerName?: string;
   providerId?: number;
   providerOrderNo?: string;
+  providerNo?: string;
+}
+
+export interface MenuOrderUpdateRequest {
+  orderId: number;
+  customerId: number;
+  employeeId: number;
+  discAmount: number;
+  discPer: number;
+  serviceCharge: number;
+  levy: number;
+  vatExclAmount: number;
+  vatAmount: number;
+  netAmount: number;
+  updatedAt: string;
+  orderTypeId: number;
+  sectionId: number;
+  tableId: number;
+  guestNo: number;
+  vehicleCustomerName: string;
+  vehicleNo: string;
+  addressId: number;
+  missedCall: boolean;
+  contactNo: string;
+  note: string;
+  change: string;
+  isComing: boolean;
+  comingTime: string;
+  providerNo: string;
+  details: MenuOrderDetail[];
+  modifiers: MenuOrderModifier[];
+  voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
+  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number }[];
+  combinedOrderIds: number[];
 }
 
 export interface MenuOrderResponse {
