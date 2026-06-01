@@ -171,7 +171,7 @@ const CashierInPage = () => {
     <div className="h-dvh flex flex-col md:flex-row bg-white overflow-hidden font-sans">
       <div className="hidden md:flex flex-[1.2] relative overflow-hidden bg-[#1a1311]">
         <img
-          src="/POS_LOGIN.jpeg"
+          src="/backoffice_logo.png"
           alt="Bitezo POS"
           className="w-full h-full object-cover object-center"
         />

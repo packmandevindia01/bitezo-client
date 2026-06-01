@@ -29,14 +29,10 @@ const ExtrasMasterPage = () => {
     branches,
     extrasTypes,
     categories,
-    branchAllocOpen,
-    categoryAllocOpen,
     setSearch,
     setField,
     toggleBranch,
     toggleCategory,
-    setBranchAllocOpen,
-    setCategoryAllocOpen,
     resetForm,
     closeModal,
     openCreateModal,
@@ -188,13 +184,9 @@ const ExtrasMasterPage = () => {
           branches={branches}
           categories={categories}
           extrasTypes={extrasTypes}
-          branchAllocOpen={branchAllocOpen}
-          categoryAllocOpen={categoryAllocOpen}
           onChange={setField}
           onToggleBranch={toggleBranch}
           onToggleCategory={toggleCategory}
-          onToggleBranchAlloc={() => setBranchAllocOpen(!branchAllocOpen)}
-          onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
         />
       </Modal>
 

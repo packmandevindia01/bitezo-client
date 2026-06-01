@@ -65,7 +65,7 @@ const ModifierBasicFields = ({ form, modifierTypes, onChange, onKeyDown }: Modif
         inputMode="decimal"
         inputClassName="text-right"
         placeholder={formatAmount(0, decimalPart)}
-        value={form.price === "0" ? formatAmount(0, decimalPart) : form.price}
+        value={form.price}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           const next = sanitizeAmountInput(e.target.value, decimalPart);
           if (next !== null) onChange("price", next);

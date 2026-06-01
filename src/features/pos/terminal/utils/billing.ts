@@ -18,7 +18,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       serviceChargeRate: (configs.serviceCharges ?? 0) / 100,
       levyRate: (configs.levy ?? 0) / 100,
       vatRate: (configs.vat ?? 0) / 100, // No fallback, use 0 if not found
-      vatType: configs.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive',
+      vatType: (configs.priceView || '').toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
       orderType
     };
   } catch {

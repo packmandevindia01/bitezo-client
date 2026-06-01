@@ -9,7 +9,7 @@ const LoginPage = () => {
 
   const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
   const isPos = systemType === "pos";
-  const loginImage = isPos ? "/POS_LOGIN.jpeg" : "/BACKOFFICE_LOGIN.jpeg";
+  const loginImage = isPos ? "/backoffice_logo.png" : "/pos_logo1.png";
 
   return (
     <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-2">

@@ -37,7 +37,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { POS_CONFIGS_STORAGE_KEY, posConfigApi, type RuntimePosConfig } from "../../services/posConfigApi";
 import { useEmployeeAuthorization } from "../hooks/useEmployeeAuthorization";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { productDetailsCache } from "../hooks/usePosProducts";
+import { productDetailsCache, clearAllPosCache } from "../hooks/usePosProducts";
 
 export const PosTerminalPage = () => {
   const location = useLocation();
@@ -228,6 +228,7 @@ export const PosTerminalPage = () => {
   };
 
   const handleClearCart = () => {
+    clearAllPosCache(); // wipe all product/alt caches so next load gets fresh data from API
     resetTerminalState();
     setActiveProvider(null);
   };

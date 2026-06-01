@@ -17,51 +17,50 @@ interface PosOrderSummaryProps {
   onSelectTender: (tender: string) => void;
 }
 
-export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, totalExtras, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
-    <div className="shrink-0 p-2.5 lg:p-3 bg-slate-50/80 border-t border-slate-200 space-y-2.5 lg:space-y-3">
+    <div className="shrink-0 p-2 lg:p-2.5 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2">
       {/* Financial Breakdown */}
-      <div className="space-y-1 border-b border-slate-200/60 pb-3">
-        <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
-          <span>ITEMS TOTAL</span>
-          <span>{formatAmount(baseSubtotal)}</span>
+      <div className="flex gap-4 border-b border-slate-200/60 pb-1.5">
+        <div className="flex-1 space-y-0.5">
+          <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+            <span>Sub Total</span>
+            <span>{formatAmount(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+              <span>Discount</span>
+              <span>{formatAmount(discount)}</span>
+            </div>
+          )}
+          {charges > 0 && (
+            <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+              <span>Charges</span>
+              <span>{formatAmount(charges)}</span>
+            </div>
+          )}
         </div>
-        {discount > 0 && (
-          <div className="flex justify-between items-center text-[11px] font-bold text-red-500">
-            <span>DISCOUNT</span>
-            <span>- {formatAmount(discount)}</span>
+        <div className="flex-1 space-y-0.5 border-l border-slate-200/50 pl-4">
+          <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+            <span>Net Value</span>
+            <span>{formatAmount(subtotal - discount + charges)}</span>
           </div>
-        )}
-        {totalExtras > 0 && (
-          <div className="flex justify-between items-center text-[11px] font-bold text-blue-500">
-            <span>EXTRAS</span>
-            <span>{formatAmount(totalExtras)}</span>
-          </div>
-        )}
-        {charges > 0 && (
-          <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
-            <span>CHARGES (SC+LEVY)</span>
-            <span>{formatAmount(charges)}</span>
-          </div>
-        )}
-        {tax > 0 && (
-          <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+          {/* Delivery > 0 would go here when implemented, currently hidden */}
+          <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
             <span>VAT</span>
             <span>{formatAmount(tax)}</span>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex gap-1.5">
-          <button className="h-8 px-3 lg:px-4 rounded-lg bg-[#ff9500] text-white text-[10px] font-black uppercase shadow-sm hover:bg-[#e68600] transition-colors active:scale-95">
-            Discount
-          </button>
+          {/* Discount button removed per user request */}
         </div>
-        <div className="flex flex-col items-end leading-none">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Due</span>
-          <span className="text-[28px] lg:text-3xl font-bold text-slate-900 tracking-tighter">
+        <div className="flex flex-col items-end leading-none mt-1">
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Grand Total</span>
+          <span className="text-[24px] lg:text-[28px] font-black text-slate-900 tracking-tighter">
             {formatAmount(total || 0)}
           </span>
         </div>
@@ -74,7 +73,7 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
             key={mode}
             onClick={() => onSelectTender(mode)}
             className={`
-              h-10 lg:h-11 rounded-xl border-2 text-[10px] font-bold transition-all shadow-sm active:scale-95 uppercase
+              h-9 lg:h-10 rounded-xl border-2 text-[9px] font-bold transition-all shadow-sm active:scale-95 uppercase
               ${selectedTender === mode
                 ? "border-pos-green bg-pos-green/10 text-pos-green-dark"
                 : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"}
@@ -83,7 +82,7 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
             {mode}
           </button>
         ))}
-        <div className="h-10 lg:h-11 rounded-xl border-2 border-dashed border-slate-200" />
+        <div className="h-9 lg:h-10 rounded-xl border-2 border-dashed border-slate-200" />
       </div>
 
       {/* Bottom Actions */}
@@ -92,14 +91,14 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
           <button
             onClick={onSettle}
             disabled={orderLoading || isSettling || total <= 0}
-            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-pos-green text-white font-bold text-[10px] uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle
           </button>
           <button
             onClick={onSettle}
             disabled={orderLoading || isSettling || total <= 0}
-            className="h-12 lg:h-14 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle & <br />Print
           </button>
@@ -108,14 +107,14 @@ export const PosOrderSummary = ({ baseSubtotal, discount, tax, charges, total, t
           <button
             onClick={onOrder}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
-            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-xs uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-pos-orange text-white font-bold text-[10px] uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={onOrder}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
-            className="h-12 lg:h-14 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order & Print"}
           </button>

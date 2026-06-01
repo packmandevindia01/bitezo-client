@@ -43,11 +43,13 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
   onSubmit
 }) => {
   const [value, setValue] = useState<string>('');
+  const [shouldOverwrite, setShouldOverwrite] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setValue(remainingAmount > 0 ? remainingAmount.toFixed(decimalPart) : '');
+      setShouldOverwrite(true);
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -60,12 +62,21 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
 
   const handleKeyPress = (key: string) => {
     if (key === 'Back') {
-      setValue(prev => prev.slice(0, -1));
+      if (shouldOverwrite) {
+        setValue('');
+        setShouldOverwrite(false);
+      } else {
+        setValue(prev => prev.slice(0, -1));
+      }
       inputRef.current?.focus();
       return;
     }
+
+    setShouldOverwrite(false);
+
     if (key === '.') {
       setValue(prev => {
+        if (shouldOverwrite) return '0.';
         if (prev.includes('.')) return prev;
         return prev + '.';
       });
@@ -73,7 +84,10 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
       return;
     }
     // Append digit
-    setValue(prev => prev + key);
+    setValue(prev => {
+      if (shouldOverwrite) return key;
+      return prev + key;
+    });
     inputRef.current?.focus();
   };
 
@@ -127,10 +141,11 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
               min={0}
               value={value}
               onChange={e => {
+                setShouldOverwrite(false);
                 const val = e.target.value;
                 if (val === '' || parseFloat(val) >= 0) setValue(val);
               }}
-              className="w-full text-right text-3xl font-black text-white bg-transparent outline-none font-mono"
+              className="w-full text-right text-3xl font-black text-white bg-transparent outline-none font-mono [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               placeholder="0.000"
             />
             {value && (
@@ -254,7 +269,7 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
         disabled={!isComplete || loading}
         loading={loading}
       >
-        Complete Order
+        Pay
       </Button>
     </div>
   );

@@ -22,6 +22,14 @@ const subCategoriesCache: Record<number, MenuSubCategory[]> = {};
 const productsCache: Record<string, PosProduct[]> = {}; // key: `${catId}-${subCatId}`
 export const productDetailsCache: Record<number, { price?: number; isIncl?: boolean; hasAlts?: boolean; alts?: import("../../types").PosAlternative[] }> = {};
 
+/** Call this on New Order to force-refresh all product/alt data from the API */
+export const clearAllPosCache = () => {
+  Object.keys(groupCategoriesCache).forEach(k => delete groupCategoriesCache[Number(k)]);
+  Object.keys(subCategoriesCache).forEach(k => delete subCategoriesCache[Number(k)]);
+  Object.keys(productsCache).forEach(k => delete productsCache[k]);
+  Object.keys(productDetailsCache).forEach(k => delete productDetailsCache[Number(k)]);
+};
+
 export const usePosProducts = () => {
   const dispatch = useAppDispatch();
   const { 

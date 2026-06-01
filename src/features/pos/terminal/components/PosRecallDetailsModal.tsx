@@ -81,7 +81,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         customerName,
         orderTypeName: orderType,
         netAmount,
-        voucherDate: `${new Date().toLocaleDateString()} ${timeStr}`,
+        voucherDate: timeStr,
         details: mockItems,
         deliveryDetails: details.toLowerCase().includes("delivery") ? {
           mobile: "33000033",
@@ -113,6 +113,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     try {
       const response = await orderApi.getOrderDetails(orderId);
       if (response && response.isSuccess && response.data) {
+        console.log("ORDER DETAILS RAW RESPONSE:", JSON.stringify(response.data, null, 2));
         setOrder(response.data);
       } else {
         // Fall back to parsed details from order string
@@ -358,7 +359,53 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   };
   const orderTypeName = orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
   
-  const voucherDate = master.voucherDate ?? order?.voucherDate ?? new Date().toLocaleString();
+  // Extract time from orderDetailsStr as a reliable fallback (e.g. "7:46:02 PM")
+  const timeFromDetails = (() => {
+    if (!orderDetailsStr) return "";
+    const m = orderDetailsStr.match(/(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/i);
+    return m ? m[1] : "";
+  })();
+
+  // Try every common backend date field name — never fall back to current time
+  const voucherDate: string =
+    master.voucherDate ??
+    master.VoucherDate ??
+    master.orderDate ??
+    master.OrderDate ??
+    master.entryDate ??
+    master.EntryDate ??
+    master.transDate ??
+    master.TransDate ??
+    master.punchTime ??
+    master.PunchTime ??
+    master.orderTime ??
+    master.OrderTime ??
+    master.createdAt ??
+    master.CreatedAt ??
+    master.orderDateTime ??
+    master.OrderDateTime ??
+    order?.voucherDate ??
+    order?.VoucherDate ??
+    order?.orderDate ??
+    order?.OrderDate ??
+    order?.entryDate ??
+    order?.createdAt ??
+    timeFromDetails; // last resort: extract from the recall list text
+
+  // Format date as dd/MM/yyyy preserving time portion
+  const formatVoucherDate = (raw: string): string => {
+    try {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw; // fallback to original if unparseable (e.g. "7:46:02 PM")
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+    } catch { return raw; }
+  };
   const netAmount = master.netAmount ?? order?.netAmount ?? 0;
 
   const hasDelivery = !!master.mobileNo;
@@ -397,7 +444,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       ) : order ? (
         <div className="flex flex-col md:flex-row min-h-[420px] bg-stone-950/80">
           {/* LEFT SIDE: TICKET VIEW (Thermal Printer Style) */}
-          <div className="flex-1 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs flex flex-col justify-between overflow-y-auto select-text shadow-inner">
+          <div className="flex-1 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs flex flex-col justify-between select-text shadow-inner">
             <div>
               {/* Ticket Header */}
               <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
@@ -453,7 +500,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                 )}
 
                 <div className="col-span-2 text-stone-500 text-[10px] mt-1">
-                  Date: {voucherDate}
+                  Date: {formatVoucherDate(voucherDate)}
                 </div>
               </div>
 
@@ -465,7 +512,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                   <div className="text-right">Amount</div>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2.5 overflow-y-auto max-h-[200px] pr-1">
                   {details.map((detail: any, i: number) => {
                     const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
                     return (

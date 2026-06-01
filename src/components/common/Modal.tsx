@@ -11,6 +11,7 @@ interface ModalProps {
   footer?: React.ReactNode;
   className?: string;
   noPadding?: boolean;
+  noScroll?: boolean;
 }
 
 const Modal = ({
@@ -23,6 +24,7 @@ const Modal = ({
   footer,
   className = "",
   noPadding = false,
+  noScroll = false,
 }: ModalProps) => {
 
   // 🔥 ESC + Scroll lock
@@ -103,7 +105,7 @@ useEffect(() => {
         )}
 
         {/* CONTENT */}
-        <div className={`flex-1 min-h-0 flex flex-col overflow-y-auto text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
+        <div className={`flex-1 min-h-0 flex flex-col ${noScroll ? "overflow-hidden" : "overflow-y-auto"} text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
           {children}
         </div>
 

@@ -66,7 +66,7 @@ export const EmployeePasswordModal = ({
           <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Enter employee password</span>
           <div className="w-full min-h-[48px] text-right text-4xl font-black text-white font-mono tracking-normal leading-none flex items-center justify-end">
-            {password ? "*".repeat(password.length) : "0"}
+            {password ? "*".repeat(password.length) : ""}
           </div>
         </div>
 

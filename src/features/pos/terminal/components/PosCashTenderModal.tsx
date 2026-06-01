@@ -21,11 +21,13 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
 }) => {
   const { formatAmount, currencySymbol, decimalPart } = useCurrency();
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
+  const [shouldOverwrite, setShouldOverwrite] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTenderedAmount(totalDue > 0 ? totalDue.toFixed(decimalPart) : "");
+      setShouldOverwrite(true);
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -39,12 +41,21 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
 
   const handleKeyPress = (key: string) => {
     if (key === 'Back') {
-      setTenderedAmount(prev => prev.slice(0, -1));
+      if (shouldOverwrite) {
+        setTenderedAmount('');
+        setShouldOverwrite(false);
+      } else {
+        setTenderedAmount(prev => prev.slice(0, -1));
+      }
       inputRef.current?.focus();
       return;
     }
+
+    setShouldOverwrite(false);
+
     if (key === '.') {
       setTenderedAmount(prev => {
+        if (shouldOverwrite) return '0.';
         if (prev.includes('.')) return prev;
         return prev + '.';
       });
@@ -52,7 +63,10 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
       return;
     }
     // Append digit
-    setTenderedAmount(prev => prev + key);
+    setTenderedAmount(prev => {
+      if (shouldOverwrite) return key;
+      return prev + key;
+    });
     inputRef.current?.focus();
   };
 
@@ -122,10 +136,11 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
               min={0}
               value={tenderedAmount}
               onChange={e => {
+                setShouldOverwrite(false);
                 const val = e.target.value;
                 if (val === '' || parseFloat(val) >= 0) setTenderedAmount(val);
               }}
-              className="w-full text-right text-3xl font-black text-white bg-transparent outline-none font-mono"
+              className="w-full text-right text-3xl font-black text-white bg-transparent outline-none font-mono [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               placeholder="0.000"
             />
             {tenderedAmount && (
@@ -186,7 +201,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
             loading={loading}
           >
             <Banknote className="w-5 h-5 mr-2" />
-            Complete Order
+            Pay
           </Button>
         </div>
       </form>

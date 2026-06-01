@@ -242,8 +242,8 @@ export const PosExtrasModifierModal = ({
             </div>
           ) : (
             <div className={`
-              grid gap-6 relative z-10
-              ${items.length <= 4 ? "grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"}
+              grid gap-3 lg:gap-4 relative z-10
+              grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6
             `}>
               {items.map((item, index) => {
                 const isSelected = selectedItems.find(si => si.id === item.id);

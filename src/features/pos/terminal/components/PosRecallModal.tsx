@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../components/common/Modal";
-import Button from "../../../../components/common/Button";
 import Checkbox from "../../../../components/common/Checkbox";
 import { Loader } from "../../../../components/common";
-import { Printer, Search, RotateCcw, CheckCircle, X } from "lucide-react";
+import { Printer, Search, X } from "lucide-react";
 import { usePosRecall } from "../hooks/usePosRecall";
 import { useToast } from "../../../../app/providers/useToast";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
@@ -75,6 +74,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       onClose={onClose}
       size="2xl"
       noPadding
+      noScroll
       className="bg-[#f8f9fa] border-none shadow-2xl"
     >
       {/* HEADER SECTION */}
@@ -186,9 +186,6 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
             `}>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <div className="flex items-center gap-1">
-                  <span className={`text-[10px] font-bold uppercase ${selectedOrderId === order.orderId ? "text-white/60" : "text-gray-400"}`}>
-                    ID
-                  </span>
                   <span className={`text-base font-black ${selectedOrderId === order.orderId ? "text-white" : "text-[#49293e]"}`}>
                     {order.orderId}
                   </span>
@@ -238,26 +235,6 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
           Total Records: {orders.length}
-        </div>
-        <div className="flex gap-3">
-          <Button 
-            variant="secondary" 
-            onClick={onClose} 
-            tabIndex={-1}
-            isAction
-            icon={<RotateCcw size={18} />}
-          >
-            Clear
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={onClose} 
-            disabled={!selectedOrderId}
-            isAction
-            icon={<CheckCircle size={18} />}
-          >
-            Select
-          </Button>
         </div>
       </div>
 

@@ -29,14 +29,10 @@ const ModifierPage = () => {
     branches,
     modifierTypes,
     categories,
-    branchAllocOpen,
-    categoryAllocOpen,
     setSearch,
     setField,
     toggleBranch,
     toggleCategory,
-    setBranchAllocOpen,
-    setCategoryAllocOpen,
     resetForm,
     closeModal,
     openCreateModal,
@@ -187,13 +183,9 @@ const ModifierPage = () => {
           branches={branches}
           categories={categories}
           modifierTypes={modifierTypes}
-          branchAllocOpen={branchAllocOpen}
-          categoryAllocOpen={categoryAllocOpen}
           onChange={setField}
           onToggleBranch={toggleBranch}
           onToggleCategory={toggleCategory}
-          onToggleBranchAlloc={() => setBranchAllocOpen(!branchAllocOpen)}
-          onToggleCategoryAlloc={() => setCategoryAllocOpen(!categoryAllocOpen)}
         />
       </Modal>
 

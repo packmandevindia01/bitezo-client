@@ -281,7 +281,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           bg-[#1a1a1a] explicitly set here (can't rely on Modal className inheritance).
           Height increased to minimum 500px or 70vh for a larger window.
         */}
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row bg-[#1a1a1a]" style={{ minHeight: 'min(600px, 75vh)' }}>
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row bg-[#1a1a1a] h-[55vh] min-h-[400px]">
 
           {/* §4 Loading state */}
           {loading ? (
@@ -304,7 +304,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
               */}
               <div className="flex-1 min-h-0 overflow-auto p-4 bg-[#1a1a1a]">
                 {/* Mobile: vertical stack / Desktop: horizontal row */}
-                <div className="flex flex-col sm:flex-row sm:flex-nowrap gap-4 sm:pb-1">
+                <div className="flex flex-col sm:flex-row sm:flex-nowrap gap-4 sm:pb-1 h-full min-h-0">
                   {data.masterData.map(order => {
                     const orderDetails = data.detailsData.filter(d => d.orderId === order.orderId);
                     const orderMods = allModifiers.filter(m => m.orderId === order.orderId);
@@ -403,8 +403,7 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ order, details, modifiers, isSe
     // §2 Tab: order panels are selectable via keyboard
     tabIndex={0}
     className={[
-      // §15: full width on mobile, fixed width on sm+
-      'w-full sm:w-64 sm:shrink-0 flex flex-col rounded-2xl border-2 transition-all duration-200 overflow-hidden text-left',
+      'w-full sm:w-64 sm:shrink-0 flex flex-col rounded-2xl border-2 transition-all duration-200 overflow-hidden text-left h-full max-h-[40vh] sm:max-h-none',
       'focus:outline-none focus:ring-2 focus:ring-[#f48120]/50',
       isSelected
         ? 'border-[#f48120] bg-[#f48120]/10 shadow-lg shadow-[#f48120]/20'
@@ -426,7 +425,7 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ order, details, modifiers, isSe
     </div>
 
     {/* Items */}
-    <div className="px-5 py-4 flex-1 space-y-3">
+    <div className="px-5 py-4 flex-1 space-y-3 overflow-y-auto min-h-0 custom-scrollbar">
       {details.map((d, i) => {
         const itemMods = modifiers.filter(m => m.mapId === d.mapId);
         return (

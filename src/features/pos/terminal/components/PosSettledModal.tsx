@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../components/common/Modal";
-import Button from "../../../../components/common/Button";
-import Checkbox from "../../../../components/common/Checkbox";
 import { Loader } from "../../../../components/common";
-import { Printer, Search, RotateCcw, X } from "lucide-react";
+import { Search, X, XCircle } from "lucide-react";
 import { usePosSettled } from "../hooks/usePosSettled";
 import { useToast } from "../../../../app/providers/useToast";
 import { PosSettledSearchModal } from "./PosSettledSearchModal";
@@ -31,8 +29,8 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
-  const [includeDeliveryOut, setIncludeDeliveryOut] = useState(true);
-  const [deliveryOutOnly, setDeliveryOutOnly] = useState(false);
+  const [includeDeliveryOut] = useState(true);
+  const [deliveryOutOnly] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -52,8 +50,8 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
     }
   }, [isOpen, activeTab, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
 
-  const handlePrint = (transId: number) => {
-    showToast(`Printing Order #${transId}...`, "success");
+  const handleCancelOrder = (transId: number) => {
+    showToast(`Cancelling Order #${transId}...`, "success");
   };
 
   const handleApplySearch = (value: string, status: string) => {
@@ -107,24 +105,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
         {/* Sub-Header with Filters & Search */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex flex-col justify-center px-2">
-            <label className="flex items-center gap-2 cursor-pointer group -my-1">
-              <Checkbox 
-                checked={includeDeliveryOut} 
-                onChange={(e) => setIncludeDeliveryOut(e.target.checked)} 
-              />
-              <span className="text-[10px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase tracking-tight">
-                Including Delivery Out
-              </span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer group -my-1">
-              <Checkbox 
-                checked={deliveryOutOnly} 
-                onChange={(e) => setDeliveryOutOnly(e.target.checked)} 
-              />
-              <span className="text-[10px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase tracking-tight">
-                Delivery Out Only
-              </span>
-            </label>
+            {/* Delivery Out checkboxes removed per user request */}
           </div>
 
           <div className="flex items-center gap-3 flex-1 justify-end">
@@ -186,9 +167,6 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
             `}>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <div className="flex items-center gap-1">
-                  <span className={`text-[10px] font-bold uppercase ${selectedOrderId === order.orderId ? "text-white/60" : "text-gray-400"}`}>
-                    ID
-                  </span>
                   <span className={`text-base font-black ${selectedOrderId === order.orderId ? "text-white" : "text-[#49293e]"}`}>
                     {order.orderId}
                   </span>
@@ -210,23 +188,21 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {/* Print Button Wrapper */}
+            {/* Cancel Button Wrapper */}
             <div className="w-[100px] shrink-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handlePrint(order.orderId);
+                  handleCancelOrder(order.orderId);
                 }}
                 className={`
                   w-full h-full flex flex-col items-center justify-center gap-1 transition-all
-                  ${order.isPrinted 
-                    ? "bg-[#3e4d22] hover:bg-[#34411c] text-white" 
-                    : "bg-[#556b2f] hover:bg-[#4a5d29] text-white"}
+                  bg-[#9c142c] hover:bg-[#850f24] text-white
                 `}
               >
-                <Printer size={18} strokeWidth={3} />
+                <XCircle size={18} strokeWidth={3} />
                 <div className="font-black text-[10px] uppercase tracking-widest">
-                  Print
+                  Cancel
                 </div>
               </button>
             </div>
@@ -238,17 +214,6 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
       <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
           Total Records: {orders.length}
-        </div>
-        <div className="flex gap-3">
-          <Button 
-            variant="secondary" 
-            onClick={onClose} 
-            tabIndex={-1}
-            isAction
-            icon={<RotateCcw size={18} />}
-          >
-            Clear
-          </Button>
         </div>
       </div>
 
