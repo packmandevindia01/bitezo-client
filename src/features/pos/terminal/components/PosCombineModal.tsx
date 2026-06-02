@@ -121,21 +121,28 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         const modifiersData = response.data.modifiersData || [];
 
         const mappedCartItems = detailsData.map((detail: any, idx: number) => {
-          const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
+          // Match modifiers by mapId AND orderId (if the backend provides orderId on modifiers)
+          const itemModifiers = modifiersData.filter((m: any) => {
+            if (m.orderId && detail.orderId) {
+              return m.mapId === detail.mapId && m.orderId === detail.orderId;
+            }
+            return m.mapId === detail.mapId; // Fallback if backend doesn't provide orderId
+          });
           
-          const extras = itemModifiers.filter((m: any) => m.price > 0).map((m: any) => ({
+          const extras = itemModifiers.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
             id: m.modifierId,
             name: m.modifierName,
-            price: m.price,
-            qty: m.qty,
-            typeId: 1
+            price: m.price || 0,
+            qty: m.qty || 1,
+            typeId: 1 // MUST be hardcoded to 1 to prevent backend Foreign Key error on ModifierType table
           }));
 
-          const modifiers = itemModifiers.filter((m: any) => m.price === 0).map((m: any) => ({
+          const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
             id: m.modifierId,
             name: m.modifierName,
-            qty: m.qty,
-            typeId: 2
+            qty: m.qty || 1,
+            typeId: m.typeId,
+            typeName: m.typeName
           }));
 
           let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;

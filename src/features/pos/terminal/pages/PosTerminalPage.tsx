@@ -965,6 +965,13 @@ export const PosTerminalPage = () => {
             >
               Combine
             </button>
+            <button
+              onClick={() => console.log('Split clicked')}
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!editingOrderId}
+            >
+              Split
+            </button>
             <button 
               onClick={openDiscountChoice}
               className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"

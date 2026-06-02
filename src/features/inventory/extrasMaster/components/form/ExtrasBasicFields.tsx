@@ -1,12 +1,10 @@
-import { FormInput, SelectInput } from "../../../../../components/common";
+import { FormInput } from "../../../../../components/common";
 import type { ExtrasMasterForm as ExtrasMasterFormType } from "../../types";
-import { formatAmount, sanitizeAmountInput } from "../../../../../utils/formatters";
-import { useAppSelector } from "../../../../../app/hooks";
-import { selectDecimalPart } from "../../../../auth/store/authSlice";
+
 
 interface ExtrasBasicFieldsProps {
   form: ExtrasMasterFormType;
-  typeOptions: { label: string; value: string }[];
+
   onChange: <K extends keyof ExtrasMasterFormType>(
     key: K,
     value: ExtrasMasterFormType[K]
@@ -14,8 +12,7 @@ interface ExtrasBasicFieldsProps {
   onKeyDown?: (e: React.KeyboardEvent, nextId?: string) => void;
 }
 
-const ExtrasBasicFields = ({ form, typeOptions, onChange, onKeyDown }: ExtrasBasicFieldsProps) => {
-  const decimalPart = useAppSelector(selectDecimalPart);
+const ExtrasBasicFields = ({ form, onChange, onKeyDown }: ExtrasBasicFieldsProps) => {
 
   const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
     if (onKeyDown) {

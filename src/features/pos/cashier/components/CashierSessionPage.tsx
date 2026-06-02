@@ -4,7 +4,7 @@ import { LogIn, LogOut, Sun, Moon, Clock, Calculator, ChevronRight, Receipt, Arr
 import { cashierLogService, type CashierInStatus } from "../services/cashierLogService";
 import { payInOutService } from "../../payInOut/services/payInOutService";
 import { paymodeService } from "../../../general/paymode/services/paymodeService";
-import { fetchDenominations, DEFAULT_DENOMS } from "../../../general/denomination/services/denominationService";
+import { fetchDenominations } from "../../../general/denomination/services/denominationService";
 import { ConfirmDialog } from "../../../../components/common";
 import type { DenominationItem } from "../../../general/denomination/types";
 import { useToast } from "../../../../app/providers/useToast";

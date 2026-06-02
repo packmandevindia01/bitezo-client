@@ -230,6 +230,7 @@ export interface MenuOrderModifier {
   qty: number;
   price: number;
   amount: number;
+  typeId?: number;
 }
 
 export interface MenuOrderRequest {

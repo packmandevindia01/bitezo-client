@@ -107,9 +107,9 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                   {/* Modifiers Display */}
                   {(item.modifiers && item.modifiers.length > 0) && (
                     <div className="mt-0.5 space-y-0.5">
-                      {item.modifiers.map((mod, i) => (
+                      {item.modifiers.map((mod: any, i) => (
                         <p key={i} className="text-[9px] font-bold text-orange-600 uppercase leading-none italic">
-                          * {mod.name}
+                          {mod.typeName ? `${mod.typeName}` : "*"} {mod.name}
                         </p>
                       ))}
                     </div>

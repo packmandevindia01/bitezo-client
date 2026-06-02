@@ -68,21 +68,7 @@ export const PosExtrasModifierModal = ({
 
   const fetchTypes = async () => {
     try {
-      if (type === 'modifiers') {
-        const MODIFIER_PREFIXES = [
-          { typeId: 1, typeName: "ADD" },
-          { typeId: 2, typeName: "NO" },
-          { typeId: 3, typeName: "EXTRA" },
-          { typeId: 4, typeName: "LESS" },
-          { typeId: 5, typeName: "ONLY" },
-          { typeId: 6, typeName: "SIDE" },
-        ];
-        setTypes(MODIFIER_PREFIXES);
-        setActiveTypeId(1);
-        return;
-      }
-
-      const data = await menuApi.getExtraTypes();
+      const data = type === 'extras' ? await menuApi.getExtraTypes() : await menuApi.getModifierTypes();
       const normalized = data.map((t: any) => ({
         ...t,
         typeId: t.typeId || t.id || Math.random()
@@ -118,12 +104,15 @@ export const PosExtrasModifierModal = ({
         setItems(mapped);
       } else {
         const res = await menuApi.getModifiers(undefined); // Fetch ALL modifiers
-        const mapped = (res.modifier || []).map((m: any) => ({
-          ...m,
-          id: m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
-          name: getNormalizedName(m),
-          typeId: activeTypeId || 0 // Associate with current prefix
-        }));
+        const mapped = (res.modifier || []).map((m: any) => {
+          console.log("FETCHED MODIFIER ITEM:", m);
+          return {
+            ...m,
+            id: m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
+            name: getNormalizedName(m),
+            typeId: activeTypeId || 0 // Associate with current prefix
+          };
+        });
         setItems(mapped);
       }
     } catch (err) {
@@ -141,9 +130,13 @@ export const PosExtrasModifierModal = ({
         (si.id === item.id && si.typeId === activeTypeId) ? { ...si, qty: si.qty + 1 } : si
       ));
     } else {
-      // If new, add with qty 1 and prefix with category name
+      // If new, add with qty 1. Only prepend prefix for modifiers, not extras!
       const activeType = types.find(t => t.typeId === activeTypeId);
-      const prefix = activeType?.typeName?.trim() ? `${activeType.typeName.trim()} ` : "";
+      
+      // If this is a modifier, we want to prepend "WITH" or "NO". If it's an extra, we don't prepend the category name.
+      const prefix = (type === 'modifiers' && activeType?.typeName?.trim()) 
+        ? `${activeType.typeName.trim()} ` 
+        : "";
       
       setSelectedItems([...selectedItems, { 
         ...item, 

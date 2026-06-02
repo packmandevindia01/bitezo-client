@@ -183,7 +183,6 @@ const ExtrasMasterPage = () => {
           loading={loading && Boolean(editingId)}
           branches={branches}
           categories={categories}
-          extrasTypes={extrasTypes}
           onChange={setField}
           onToggleBranch={toggleBranch}
           onToggleCategory={toggleCategory}

@@ -232,7 +232,8 @@ export const usePosCartActions = () => {
               modifierId: extra.id,
               qty: extra.qty,
               price: Number(extra.price.toFixed(getDecimalPart())),
-              amount: Number((extra.price * extra.qty).toFixed(getDecimalPart()))
+              amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
+              typeId: extra.typeId
             }));
 
             const modifierRows = (item.modifiers || []).map(mod => ({
@@ -240,7 +241,8 @@ export const usePosCartActions = () => {
               modifierId: mod.id,
               qty: mod.qty,
               price: 0,
-              amount: 0
+              amount: 0,
+              typeId: mod.typeId || 1 // Fallback to 1 if backend didn't provide typeId
             }));
 
             return [...extrasRows, ...modifierRows];
@@ -346,7 +348,8 @@ export const usePosCartActions = () => {
             modifierId: extra.id,
             qty: extra.qty,
             price: Number(extra.price.toFixed(getDecimalPart())),
-            amount: Number((extra.price * extra.qty).toFixed(getDecimalPart()))
+            amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
+            typeId: extra.typeId || 1 // Fallback to 1
           }));
 
           const modifierRows = (item.modifiers || []).map(mod => ({
@@ -354,7 +357,8 @@ export const usePosCartActions = () => {
             modifierId: mod.id,
             qty: mod.qty,
             price: 0,
-            amount: 0
+            amount: 0,
+            typeId: mod.typeId || 1 // Fallback to 1 if backend didn't provide typeId
           }));
 
           return [...extrasRows, ...modifierRows];

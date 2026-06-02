@@ -53,7 +53,7 @@ export const orderApi = {
 
   /**
    * Fetches full order details by order ID for recall/edit.
-   * GET /api/order/recall/order_data/{orderId}
+   * GET /api/menu/order/order_data/{orderId}
    */
   getOrderDetails: async (orderId: number): Promise<any> => {
     const priceView = (() => {
@@ -64,7 +64,7 @@ export const orderApi = {
       } catch { return 'Exclusive'; }
     })();
     return unwrap<any>(
-      axiosInstance.get(`/order/recall/order_data/${orderId}`, { params: { priceView } })
+      axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: { priceView } })
     );
   },
 

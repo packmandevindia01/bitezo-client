@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { Building2, LayoutGrid, ListTree } from "lucide-react";
 import { SearchBar } from "../../../../components/common";
 import type { ExtrasMasterForm as ExtrasMasterFormType } from "../types";
-import type { ExtrasTypeRecord } from "../../extrasType/types";
 import type { CategoryListItem } from "../../category/types";
 import ExtrasBasicFields from "./form/ExtrasBasicFields";
 
@@ -12,7 +11,7 @@ interface ExtrasMasterFormProps {
   loading: boolean;
   branches: { id: number; name: string }[];
   categories: CategoryListItem[];
-  extrasTypes: ExtrasTypeRecord[];
+
   onChange: <K extends keyof ExtrasMasterFormType>(
     key: K,
     value: ExtrasMasterFormType[K]
@@ -27,7 +26,7 @@ const ExtrasMasterForm = ({
   loading,
   branches,
   categories,
-  extrasTypes,
+
   onChange,
   onToggleBranch,
   onToggleCategory,
@@ -48,10 +47,6 @@ const ExtrasMasterForm = ({
     return branches.filter(b => b.name.toLowerCase().includes(lower));
   }, [branches, branchSearch]);
 
-  const typeOptions = extrasTypes.map((t) => ({
-    label: t.name,
-    value: String(t.typeId || (t as any).id),
-  }));
 
   if (loading) {
     return (
@@ -110,7 +105,6 @@ const ExtrasMasterForm = ({
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
             <ExtrasBasicFields 
               form={form}
-              typeOptions={typeOptions}
               onChange={onChange}
             />
           </div>

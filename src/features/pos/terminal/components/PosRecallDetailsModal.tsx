@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Modal from "../../../../components/common/Modal";
 import { Loader } from "../../../../components/common";
 import { orderApi } from "../../services/orderApi";
+import { menuApi } from "../../services/menuApi";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { loadRecalledOrder } from "../store/posSlice";
@@ -99,13 +100,25 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     }
   }, [orderDetailsStr, orderId]);
 
+  const [modifierTypes, setModifierTypes] = useState<any[]>([]);
+
   useEffect(() => {
     if (isOpen && orderId) {
       void loadOrderDetails();
+      void fetchModifierTypes();
     } else {
       setOrder(null);
     }
   }, [isOpen, orderId]);
+
+  const fetchModifierTypes = async () => {
+    try {
+      const data = await menuApi.getModifierTypes();
+      setModifierTypes(data || []);
+    } catch (e) {
+      console.error("Failed to load modifier types:", e);
+    }
+  };
 
   const loadOrderDetails = async () => {
     if (!orderId) return;
@@ -154,19 +167,20 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const mappedCartItems = details.map((detail: any, idx: number) => {
         const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
         
-        const extras = itemModifiers.filter((m: any) => m.price > 0).map((m: any) => ({
+        const extras = itemModifiers.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
           id: m.modifierId,
           name: m.modifierName,
-          price: m.price,
-          qty: m.qty,
-          typeId: 1
+          price: m.price || 0,
+          qty: m.qty || 1,
+          typeId: 1 // MUST be hardcoded to 1 to prevent backend Foreign Key error on ModifierType table
         }));
 
-        const modifiers = itemModifiers.filter((m: any) => m.price === 0).map((m: any) => ({
+        const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
           id: m.modifierId,
           name: m.modifierName,
-          qty: m.qty,
-          typeId: 2
+          qty: m.qty || 1,
+          typeId: m.typeId,
+          typeName: m.typeName
         }));
 
         let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
@@ -261,19 +275,20 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const mappedCartItems = details.map((detail: any, idx: number) => {
         const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
         
-        const extras = itemModifiers.filter((m: any) => m.price > 0).map((m: any) => ({
+        const extras = itemModifiers.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
           id: m.modifierId,
           name: m.modifierName,
-          price: m.price,
-          qty: m.qty,
-          typeId: 1
+          price: m.price || 0,
+          qty: m.qty || 1,
+          typeId: 1 // MUST be hardcoded to 1 to prevent backend Foreign Key error on ModifierType table
         }));
 
-        const modifiers = itemModifiers.filter((m: any) => m.price === 0).map((m: any) => ({
+        const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
           id: m.modifierId,
           name: m.modifierName,
-          qty: m.qty,
-          typeId: 2
+          qty: m.qty || 1,
+          typeId: m.typeId,
+          typeName: m.typeName
         }));
 
         let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
@@ -521,11 +536,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                         <div className="pl-2 flex flex-col font-bold text-stone-800">
                           <span>{detail.productName || `Product #${detail.productId}`}</span>
                           {/* Modifiers display under item */}
-                          {itemModifiers.map((mod: any, idx: number) => (
-                            <span key={idx} className="text-[9px] text-[#f48120] font-medium pl-1">
-                              + {mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName} {mod.price > 0 ? `(${formatAmount(mod.price)})` : ""}
-                            </span>
-                          ))}
+                          {itemModifiers.map((mod: any, idx: number) => {
+                            let prefix = "+";
+                            
+                            // 1. If backend explicitly provides typeName, use it
+                            if (mod.typeName && mod.typeName.trim() !== "") {
+                              prefix = mod.typeName.toUpperCase();
+                            } 
+                            // 2. Otherwise try to match typeId to our loaded types
+                            else if (mod.typeId) {
+                              const match = modifierTypes.find((t: any) => t.typeId === mod.typeId || t.id === mod.typeId);
+                              if (match && match.name) {
+                                prefix = match.name.toUpperCase();
+                              }
+                            }
+
+                            return (
+                              <span key={idx} className="text-[9px] text-[#f48120] font-medium pl-1">
+                                {prefix} {mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName} {mod.price > 0 ? `(${formatAmount(mod.price)})` : ""}
+                              </span>
+                            );
+                          })}
                           {detail.price > 0 && (
                             <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
                           )}
