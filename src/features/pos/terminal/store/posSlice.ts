@@ -60,6 +60,7 @@ interface PosState {
   voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number }[];
   isSettledEdit: boolean;
   isSettling: boolean;
+  combinedOrderIds: number[];
 }
 
 const loadCart = (): PosCartItem[] => {
@@ -108,6 +109,7 @@ const initialState: PosState = {
   voidModifiers: [],
   isSettling: false,
   isSettledEdit: false,
+  combinedOrderIds: [],
 };
 
 const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().replace(/[\s_-]/g, "");
@@ -167,8 +169,9 @@ const posSlice = createSlice({
       state.editingOrderId = null;
       state.voidProducts = [];
       state.voidModifiers = [];
-      state.isSettling = false;
       state.isSettledEdit = false;
+      state.isSettling = false;
+      state.combinedOrderIds = [];
       state.billDiscountValue = 0;
       state.selectedCustomerId = 1;
       state.selectedAddressId = 0;
@@ -211,6 +214,20 @@ const posSlice = createSlice({
       const type = match ?? fallbackOrderTypeByName(action.payload);
       state.selectedOrderTypeId = type.orderTypeId;
       state.selectedOrderTypeName = type.orderType;
+    },
+    setEditingOrder: (state, action: PayloadAction<{ orderId: number; orderType: string; isSettledEdit?: boolean; customerId?: number; employeeId?: number }>) => {
+      state.editingOrderId = action.payload.orderId;
+      state.isSettledEdit = action.payload.isSettledEdit || false;
+      const ot = fallbackOrderTypeByName(action.payload.orderType);
+      state.selectedOrderTypeId = ot.orderTypeId;
+      state.selectedOrderTypeName = ot.orderType;
+      if (action.payload.customerId) {
+        state.selectedCustomerId = action.payload.customerId;
+      }
+      state.combinedOrderIds = [];
+    },
+    setCombinedOrderIds: (state, action: PayloadAction<number[]>) => {
+      state.combinedOrderIds = action.payload;
     },
     setTenderOption: (state, action: PayloadAction<string>) => {
       state.selectedTender = action.payload;
@@ -385,6 +402,9 @@ const posSlice = createSlice({
     addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number }>) => {
       state.voidModifiers.push(action.payload);
     },
+    setIsSettling: (state, action: PayloadAction<boolean>) => {
+      state.isSettling = action.payload;
+    },
   },
 });
 
@@ -401,6 +421,7 @@ export const {
   setOrderTypes,
   setOrderType,
   setOrderTypeByName,
+  setEditingOrder,
   setTenderOption,
   setBillDiscount,
   setItemDiscount,
@@ -429,7 +450,9 @@ export const {
   setComingTime,
   setVehicleCustomerName,
   setVehicleNo,
-  loadRecalledOrder
+  loadRecalledOrder,
+  setIsSettling,
+  setCombinedOrderIds
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────

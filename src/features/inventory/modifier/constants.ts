@@ -4,8 +4,7 @@ export const emptyModifierForm: ModifierForm = {
   name: "",
   arabic: "",
   color: "#cccccc",
-  typeId: "",
-  price: "0",
+
   branchIds: [],
   categoryIds: [],
   category: "",

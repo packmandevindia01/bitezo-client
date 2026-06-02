@@ -30,6 +30,7 @@ import { PosVoidModal } from "../components/PosVoidModal";
 import { EmployeePasswordModal } from "../components/EmployeePasswordModal";
 import { PosProviderModal } from "../components/PosProviderModal";
 import { PosProviderOrderModal } from "../components/PosProviderOrderModal";
+import { PosCombineModal } from "../components/PosCombineModal";
 import { useCashierLog } from "../../cashier";
 import type { MenuProvider } from "../../types";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
@@ -50,6 +51,7 @@ export const PosTerminalPage = () => {
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
+  const [isCombineOpen, setIsCombineOpen] = useState(false);
   const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
   const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
   const { status, isLoading } = useCashierLog();
@@ -942,7 +944,7 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Action Button Bar */}
-          <div className="grid grid-cols-4 md:grid-cols-7 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
             <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm" tabIndex={-1}>
               Close
             </button>
@@ -955,6 +957,13 @@ export const PosTerminalPage = () => {
             </button>
             <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
               Waiter
+            </button>
+            <button
+              onClick={() => setIsCombineOpen(true)}
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!editingOrderId}
+            >
+              Combine
             </button>
             <button 
               onClick={openDiscountChoice}
@@ -1448,6 +1457,11 @@ export const PosTerminalPage = () => {
       <PosVoidModal 
         isOpen={isVoidModalOpen}
         onClose={() => setIsVoidModalOpen(false)}
+      />
+
+      <PosCombineModal
+        isOpen={isCombineOpen}
+        onClose={() => setIsCombineOpen(false)}
       />
 
       <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />

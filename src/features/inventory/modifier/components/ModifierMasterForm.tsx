@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Building2, LayoutGrid, ListTree } from "lucide-react";
 import { SearchBar } from "../../../../components/common";
 import type { ModifierForm } from "../types";
-import type { ModifierTypeRecord } from "../../modifierType/types";
+
 import type { CategoryListItem } from "../../category/types";
 import ModifierBasicFields from "./form/ModifierBasicFields";
 
@@ -11,7 +11,6 @@ interface ModifierMasterFormProps {
   loading?: boolean;
   branches: { id: number; name: string }[];
   categories: CategoryListItem[];
-  modifierTypes: ModifierTypeRecord[];
   onChange: <K extends keyof ModifierForm>(key: K, value: ModifierForm[K]) => void;
   onToggleBranch: (id: number) => void;
   onToggleCategory: (id: number) => void;
@@ -22,7 +21,6 @@ const ModifierMasterForm = ({
   loading = false,
   branches,
   categories,
-  modifierTypes,
   onChange,
   onToggleBranch,
   onToggleCategory,
@@ -100,7 +98,6 @@ const ModifierMasterForm = ({
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
             <ModifierBasicFields 
               form={form}
-              modifierTypes={modifierTypes}
               onChange={onChange}
             />
           </div>

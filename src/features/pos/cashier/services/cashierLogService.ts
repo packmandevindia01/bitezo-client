@@ -64,6 +64,7 @@ export const cashierLogService = {
     if (counterId) params.append('counterId', counterId.toString());
 
     const { data } = await axiosInstance.get<ApiResponse<CashierStatusResponse>>(`/Cashier-log/iscashier-in?${params.toString()}`);
+    
     if (data.isSuccess && data.data) {
       return data.data;
     }

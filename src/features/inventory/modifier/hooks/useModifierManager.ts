@@ -11,7 +11,6 @@ export const useModifierManager = () => {
   // Compose specialized hooks
   const {
     records,
-    modifierTypes,
     categories,
     loading,
     setLoading,
@@ -19,7 +18,7 @@ export const useModifierManager = () => {
     setSearch,
     filteredModifiers,
     fetchModifiers,
-    fetchTypesAndCats,
+    fetchCats,
     branches,
   } = useModifierList();
 
@@ -47,14 +46,14 @@ export const useModifierManager = () => {
 
   useEffect(() => {
     if (open) {
-      fetchTypesAndCats();
+      fetchCats();
     }
-  }, [open, fetchTypesAndCats]);
+  }, [open, fetchCats]);
 
   const handleSave = async () => {
     const name = (form.name || "").trim();
-    if (!name || !form.typeId) {
-      showToast("Name and Type are required", "warning");
+    if (!name) {
+      showToast("Name is required", "warning");
       return;
     }
 
@@ -78,8 +77,6 @@ export const useModifierManager = () => {
         name: name,
         arabic: (form.arabic || "").trim(),
         color: form.color || "",
-        typeId: parseInt(form.typeId),
-        price: parseFloat(form.price) || 0,
         branchIds: form.branchIds,
         categoryIds: form.categoryIds, // Send the array as is (even if empty) instead of null
       };
@@ -124,8 +121,6 @@ export const useModifierManager = () => {
           name: mod.name || "",
           arabic: mod.arabic || "",
           color: mod.color && mod.color.trim() ? mod.color : "#cccccc",
-          typeId: String(mod.typeId || ""),
-          price: String(mod.price || "0"),
           branchIds: branchIds,
           categoryIds: categoryIds,
           category: "",
@@ -158,7 +153,6 @@ export const useModifierManager = () => {
     editingId,
     filteredModifiers,
     branches,
-    modifierTypes,
     categories,
     branchAllocOpen,
     categoryAllocOpen,

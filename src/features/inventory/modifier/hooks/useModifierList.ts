@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { modifierService } from "../services/modifierService";
-import { modifierTypeService } from "../../modifierType/services/modifierTypeService";
+
 import { getCategories } from "../../category/services/categoryService";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import type { ModifierRecord } from "../types";
-import type { ModifierTypeRecord } from "../../modifierType/types";
+
 import type { CategoryListItem } from "../../category/types";
 
 export const useModifierList = () => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
   const [records, setRecords] = useState<ModifierRecord[]>([]);
-  const [modifierTypes, setModifierTypes] = useState<ModifierTypeRecord[]>([]);
+
   const [categories, setCategories] = useState<CategoryListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -33,16 +33,12 @@ export const useModifierList = () => {
     }
   }, [showToast]);
 
-  const fetchTypesAndCats = useCallback(async () => {
+  const fetchCats = useCallback(async () => {
     try {
-      const [types, cats] = await Promise.all([
-        modifierTypeService.list(),
-        getCategories()
-      ]);
-      setModifierTypes(types);
+      const cats = await getCategories();
       setCategories(cats);
     } catch (err) {
-      console.error("Failed to load types or categories", err);
+      console.error("Failed to load categories", err);
     }
   }, []);
 
@@ -67,7 +63,6 @@ export const useModifierList = () => {
   return {
     records,
     setRecords,
-    modifierTypes,
     categories,
     loading,
     setLoading,
@@ -75,7 +70,7 @@ export const useModifierList = () => {
     setSearch,
     filteredModifiers,
     fetchModifiers,
-    fetchTypesAndCats,
+    fetchCats,
     branches,
   };
 };

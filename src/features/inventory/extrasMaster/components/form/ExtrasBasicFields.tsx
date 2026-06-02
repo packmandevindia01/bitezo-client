@@ -45,36 +45,7 @@ const ExtrasBasicFields = ({ form, typeOptions, onChange, onKeyDown }: ExtrasBas
         onKeyDown={(e) => handleEnter(e, "ext-type")}
       />
 
-      <SelectInput
-        id="ext-type"
-        label="Type"
-        required
-        options={typeOptions}
-        value={form.typeId}
-        placeholder="Select type"
-        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("typeId", e.target.value)}
-        onKeyDown={(e) => handleEnter(e, "ext-price")}
-      />
 
-      <FormInput
-        id="ext-price"
-        label="Price"
-        type="text"
-        inputMode="decimal"
-        inputClassName="text-right"
-        placeholder={formatAmount(0, decimalPart)}
-        value={form.price}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-          const next = sanitizeAmountInput(e.target.value, decimalPart);
-          if (next !== null) onChange("price", next);
-        }}
-        onFocus={(e: React.FocusEvent<HTMLInputElement>) => e.target.select()}
-        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-          if (e.target.value !== "" && e.target.value !== ".") {
-            onChange("price", formatAmount(e.target.value, decimalPart));
-          }
-        }}
-      />
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Display Color</label>

@@ -38,7 +38,7 @@ export const PosExtrasModifierModal = ({
   const [items, setItems] = useState<any[]>([]);
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedSummaryId, setSelectedSummaryId] = useState<number | null>(null);
+  const [selectedSummaryId, setSelectedSummaryId] = useState<string | null>(null);
   const prevRef = useRef<{ key: string | null; type: string | null }>({ key: null, type: null });
 
   const currentItem = cartItems.find(item => item.uniqueId === selectedKey);
@@ -68,7 +68,21 @@ export const PosExtrasModifierModal = ({
 
   const fetchTypes = async () => {
     try {
-      const data = type === 'extras' ? await menuApi.getExtraTypes() : await menuApi.getModifierTypes();
+      if (type === 'modifiers') {
+        const MODIFIER_PREFIXES = [
+          { typeId: 1, typeName: "ADD" },
+          { typeId: 2, typeName: "NO" },
+          { typeId: 3, typeName: "EXTRA" },
+          { typeId: 4, typeName: "LESS" },
+          { typeId: 5, typeName: "ONLY" },
+          { typeId: 6, typeName: "SIDE" },
+        ];
+        setTypes(MODIFIER_PREFIXES);
+        setActiveTypeId(1);
+        return;
+      }
+
+      const data = await menuApi.getExtraTypes();
       const normalized = data.map((t: any) => ({
         ...t,
         typeId: t.typeId || t.id || Math.random()
@@ -103,12 +117,12 @@ export const PosExtrasModifierModal = ({
         }));
         setItems(mapped);
       } else {
-        const res = await menuApi.getModifiers(activeTypeId || undefined);
+        const res = await menuApi.getModifiers(undefined); // Fetch ALL modifiers
         const mapped = (res.modifier || []).map((m: any) => ({
           ...m,
           id: m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
           name: getNormalizedName(m),
-          typeId: activeTypeId || 0
+          typeId: activeTypeId || 0 // Associate with current prefix
         }));
         setItems(mapped);
       }
@@ -120,36 +134,43 @@ export const PosExtrasModifierModal = ({
   };
 
   const handleItemToggle = (item: any) => {
-    const exists = selectedItems.find(si => si.id === item.id);
+    const exists = selectedItems.find(si => si.id === item.id && si.typeId === activeTypeId);
     if (exists) {
-      // If it exists, increment quantity instead of removing
+      // If it exists in the current category, increment quantity
       setSelectedItems(selectedItems.map(si => 
-        si.id === item.id ? { ...si, qty: si.qty + 1 } : si
+        (si.id === item.id && si.typeId === activeTypeId) ? { ...si, qty: si.qty + 1 } : si
       ));
     } else {
-      // If new, add with qty 1
-      setSelectedItems([...selectedItems, { ...item, qty: 1 }]);
+      // If new, add with qty 1 and prefix with category name
+      const activeType = types.find(t => t.typeId === activeTypeId);
+      const prefix = activeType?.typeName?.trim() ? `${activeType.typeName.trim()} ` : "";
+      
+      setSelectedItems([...selectedItems, { 
+        ...item, 
+        name: `${prefix}${item.name}`,
+        qty: 1 
+      }]);
     }
   };
 
-  const handleIncrement = (id: number) => {
+  const handleIncrement = (uniqueKey: string) => {
     setSelectedItems(prev => prev.map(item => 
-      item.id === id ? { ...item, qty: item.qty + 1 } : item
+      `${item.id}-${item.typeId}` === uniqueKey ? { ...item, qty: item.qty + 1 } : item
     ));
   };
 
-  const handleDecrement = (id: number) => {
+  const handleDecrement = (uniqueKey: string) => {
     setSelectedItems(prev => prev.map(item => {
-      if (item.id === id) {
+      if (`${item.id}-${item.typeId}` === uniqueKey) {
         return { ...item, qty: Math.max(1, item.qty - 1) };
       }
       return item;
     }));
   };
 
-  const handleRemove = (id: number) => {
-    setSelectedItems(prev => prev.filter(item => item.id !== id));
-    if (selectedSummaryId === id) setSelectedSummaryId(null);
+  const handleRemove = (uniqueKey: string) => {
+    setSelectedItems(prev => prev.filter(item => `${item.id}-${item.typeId}` !== uniqueKey));
+    if (selectedSummaryId === uniqueKey as any) setSelectedSummaryId(null);
   };
 
   if (!isOpen) return null;
@@ -246,7 +267,7 @@ export const PosExtrasModifierModal = ({
               grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6
             `}>
               {items.map((item, index) => {
-                const isSelected = selectedItems.find(si => si.id === item.id);
+                const isSelected = selectedItems.find(si => si.id === item.id && si.typeId === activeTypeId);
                 return (
                   <button
                     key={item.id || index}
@@ -328,11 +349,12 @@ export const PosExtrasModifierModal = ({
               </div>
             ) : (
               selectedItems.map((item) => {
-                const isSelectedRow = selectedSummaryId === item.id;
+                const uniqueKey = `${item.id}-${item.typeId}`;
+                const isSelectedRow = selectedSummaryId === uniqueKey;
                 return (
                   <div 
-                    key={item.id} 
-                    onClick={() => setSelectedSummaryId(isSelectedRow ? null : item.id)}
+                    key={uniqueKey} 
+                    onClick={() => setSelectedSummaryId(isSelectedRow ? null : uniqueKey)}
                     className={`grid grid-cols-[50px_1fr_70px] items-center border-b border-slate-50 cursor-pointer transition-all ${
                       isSelectedRow ? "bg-[#49293e]/10 ring-1 ring-inset ring-[#49293e]/20" : "hover:bg-slate-50"
                     }`}

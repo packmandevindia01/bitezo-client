@@ -10,13 +10,10 @@ import {
 import ModifierMasterForm from "../components/ModifierMasterForm";
 import { useModifierManager } from "../hooks/useModifierManager";
 import type { ModifierRecord } from "../types";
-import { formatCurrency } from "../../../../utils/formatters";
-import { useAppSelector } from "../../../../app/hooks";
-import { selectDecimalPart } from "../../../auth/store/authSlice";
+
 import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ModifierPage = () => {
-  const decimalPart = useAppSelector(selectDecimalPart);
   const { hasPermission } = usePermissions();
   const {
     form,
@@ -27,7 +24,6 @@ const ModifierPage = () => {
     editingId,
     filteredModifiers,
     branches,
-    modifierTypes,
     categories,
     setSearch,
     setField,
@@ -62,20 +58,7 @@ const ModifierPage = () => {
         columns={[
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabic" },
-          { 
-            header: "Price", 
-            accessor: "price",
-            render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
-          },
-          { 
-            header: "Type", 
-            accessor: "typeId",
-            render: (row) => {
-              const typeId = String(row.typeId || (row as any).type_id || "");
-              const type = modifierTypes.find(t => String(t.typeId || (t as any).id) === typeId);
-              return <span>{type?.name || typeId || "N/A"}</span>;
-            }
-          },
+
           {
             header: "Color",
             accessor: "color",
@@ -182,7 +165,6 @@ const ModifierPage = () => {
           loading={loading && Boolean(editingId)}
           branches={branches}
           categories={categories}
-          modifierTypes={modifierTypes}
           onChange={setField}
           onToggleBranch={toggleBranch}
           onToggleCategory={toggleCategory}

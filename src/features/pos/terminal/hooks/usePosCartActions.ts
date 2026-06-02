@@ -78,6 +78,7 @@ export const usePosCartActions = () => {
     editingOrderId,
     voidProducts,
     voidModifiers,
+    combinedOrderIds,
   } = useAppSelector((state) => state.pos);
 
   const addProduct = (productId: number, variantName?: string, price?: number, isIncl?: boolean) => {
@@ -246,7 +247,7 @@ export const usePosCartActions = () => {
           }),
           voidProducts: voidProducts,
           voidModifiers: voidModifiers,
-          combinedOrderIds: []
+          combinedOrderIds: combinedOrderIds
         };
 
         console.log('--- CART DETAILS BEFORE MAP ---', JSON.stringify(cartDetails, null, 2));

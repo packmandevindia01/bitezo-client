@@ -108,16 +108,18 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
       // Load Denominations
       try {
         const denomData = await fetchDenominations();
-        const finalDenoms = denomData.length > 0 ? denomData : DEFAULT_DENOMS;
+        const finalDenoms = denomData;
         setDenoms(finalDenoms);
+        if (finalDenoms.length === 0) {
+          setEntryMode("MANUAL");
+        }
         const init: Record<number, number> = {};
         finalDenoms.forEach((d: any) => { if (d.id) init[d.id] = 0; });
         setCounts(init);
       } catch (dErr) {
-        setDenoms(DEFAULT_DENOMS);
-        const init: Record<number, number> = {};
-        DEFAULT_DENOMS.forEach((d: any) => { if (d.id) init[d.id] = 0; });
-        setCounts(init);
+        setDenoms([]);
+        setEntryMode("MANUAL");
+        setCounts({});
       }
 
     } catch (err: any) {
@@ -157,8 +159,11 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
       setStatusLoading(true);
       fetchDenominations()
         .then(data => {
-          const finalDenoms = data.length > 0 ? data : DEFAULT_DENOMS;
+          const finalDenoms = data;
           setDenoms(finalDenoms);
+          if (finalDenoms.length === 0) {
+            setEntryMode("MANUAL");
+          }
           const init: Record<number, number> = {};
           finalDenoms.forEach(d => { if (d.id) init[d.id] = 0; });
           setCounts(init);
@@ -294,11 +299,12 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
       const now        = new Date();
       const isoString  = now.toISOString();
       const dateOnly   = isoString.split("T")[0] + "T00:00:00Z";
-      const denominations: any[] = Object.entries(counts)
-        .map(([id, count]) => ({
-          denominationId: Number(id),
-          cashCount: count
-        }));
+      const denominations: any[] = entryMode === "DENOM" 
+        ? Object.entries(counts).map(([id, count]) => ({
+            denominationId: Number(id),
+            cashCount: count
+          }))
+        : [];
 
       if (mode === "OPEN_DAY") {
         const res = await cashierLogService.openDay({ startDate: isoString, transDate: dateOnly, openingBal: totalAmount, denominations });

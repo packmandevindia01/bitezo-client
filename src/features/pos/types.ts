@@ -68,7 +68,7 @@ export interface DineInSection {
 export interface DineInTable {
   tableId: number;
   tableName: string;
-  postionNo: number;          // API typo preserved
+  positionNo: number;
   orderDate: string;
   employeeName: string | null;
   isUsed: boolean;

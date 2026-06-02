@@ -6,7 +6,7 @@ import type { DineInSection, DineInTable, TableOrdersResponse } from "../types";
 interface RawDineInTable {
   tableId: number;
   tableName: string;
-  postionNo: number;       // API typo — "postion"
+  positionNo: number;       // API typo fixed
   orderDate: string;
   employeeName: string | null;
   isUsed: boolean;
@@ -28,13 +28,13 @@ export const dineInApi = {
       const mapped: DineInTable[] = data.data.map((t, idx) => ({
         tableId: t.tableId,
         tableName: t.tableName,
-        postionNo: t.postionNo,
+        positionNo: t.positionNo,
         orderDate: t.orderDate,
         employeeName: t.employeeName,
         isUsed: t.isUsed,
         // derived
         status: t.isUsed ? 'occupied' : 'available',
-        position: t.postionNo > 0 ? t.postionNo : idx + 1,
+        position: t.positionNo > 0 ? t.positionNo : idx + 1,
         capacity: 0,   // endpoint doesn't return seat count
       }));
       return { ...data, data: mapped } as ApiResponse<DineInTable[]>;

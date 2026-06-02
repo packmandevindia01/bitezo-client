@@ -69,6 +69,29 @@ export const orderApi = {
   },
 
   /**
+   * Fetches combinable orders.
+   * GET /api/order/combine
+   */
+  getCombineOrders: async (params: { DayId: number; OrderTypeId: number; OrderId: number; Decimals: number }): Promise<any> => {
+    return unwrap<any>(
+      axiosInstance.get("/order/combine", { params })
+    );
+  },
+
+  /**
+   * Fetches combined cart details for multiple orders.
+   * GET /api/order/combine/combined-orders
+   */
+  getCombinedOrderDetails: async (orderIds: number[]): Promise<any> => {
+    // Axios array serialization for query params (OrderIds=1&OrderIds=2)
+    const params = new URLSearchParams();
+    orderIds.forEach(id => params.append('OrderIds', id.toString()));
+    return unwrap<any>(
+      axiosInstance.get("/order/combine/combined-orders", { params })
+    );
+  },
+
+  /**
    * Updates an existing order.
    * PUT /api/menu/order/{orderId}
    */

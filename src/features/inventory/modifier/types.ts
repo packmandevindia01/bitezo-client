@@ -2,8 +2,7 @@ export interface ModifierForm {
   name: string;
   arabic: string;
   color: string;
-  typeId: string;
-  price: string;
+
   branchIds: number[];
   categoryIds: number[];
   category?: string; // Kept as placeholder
@@ -15,8 +14,7 @@ export interface ModifierRecord {
   name: string;
   arabic?: string;
   color?: string;
-  typeId?: number;
-  price?: number;
+
   branchIds?: number[];
   categoryIds?: number[];
   createdAt?: string;
@@ -29,8 +27,7 @@ export interface ModifierDetailResponse {
     name: string;
     arabic: string;
     color: string;
-    typeId: number;
-    price: number;
+
     createdAt?: string;
     updatedAt?: string;
   }[];
