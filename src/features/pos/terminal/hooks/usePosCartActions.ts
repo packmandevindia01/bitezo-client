@@ -231,7 +231,7 @@ export const usePosCartActions = () => {
               mapId: mapId,
               modifierId: extra.id,
               qty: extra.qty,
-              price: Number(extra.price.toFixed(getDecimalPart())),
+              price: Number(extra.price.toFixed(3)),
               amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
               typeId: extra.typeId
             }));
@@ -242,7 +242,7 @@ export const usePosCartActions = () => {
               qty: mod.qty,
               price: 0,
               amount: 0,
-              typeId: mod.typeId || 1 // Fallback to 1 if backend didn't provide typeId
+              typeId: mod.typeId
             }));
 
             return [...extrasRows, ...modifierRows];
@@ -252,14 +252,9 @@ export const usePosCartActions = () => {
           combinedOrderIds: combinedOrderIds
         };
 
-        console.log('--- CART DETAILS BEFORE MAP ---', JSON.stringify(cartDetails, null, 2));
-        console.log('--- KOT ORDER UPDATE PAYLOAD ---', JSON.stringify(updatePayload, null, 2));
-
-        // Strict Validation
         const invalidDetail = updatePayload.details.find(d => !d.productId || d.productId === 0);
         if (invalidDetail) {
-          console.error('[CRITICAL] Missing productId in KOT update payload!', invalidDetail);
-          throw new Error(`CRITICAL: A cart item is missing a valid productId! Check the console logs.`);
+          throw new Error(`CRITICAL: A cart item is missing a valid productId!`);
         }
 
         const response = await orderApi.updateOrder(editingOrderId, updatePayload);
@@ -280,9 +275,6 @@ export const usePosCartActions = () => {
         employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
-        // TODO: Backend does not support provider details yet
-        // providerId: session.providerId,
-        // providerOrderNo: session.providerOrderNo,
         discAmount: Number(discount.toFixed(3)),
         discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
         serviceCharge: Number(totalServiceCharge.toFixed(3)),
@@ -347,18 +339,18 @@ export const usePosCartActions = () => {
             mapId: mapId,
             modifierId: extra.id,
             qty: extra.qty,
-            price: Number(extra.price.toFixed(getDecimalPart())),
+            price: Number(extra.price.toFixed(3)),
             amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
-            typeId: extra.typeId || 1 // Fallback to 1
+            typeId: extra.typeId
           }));
 
           const modifierRows = (item.modifiers || []).map(mod => ({
             mapId: mapId,
             modifierId: mod.id,
-            qty: mod.qty,
+            qty: mod.qty || 1,
             price: 0,
             amount: 0,
-            typeId: mod.typeId || 1 // Fallback to 1 if backend didn't provide typeId
+            typeId: mod.typeId
           }));
 
           return [...extrasRows, ...modifierRows];

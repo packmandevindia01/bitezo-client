@@ -140,14 +140,14 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         name: m.modifierName,
         price: m.price,
         qty: m.qty,
-        typeId: 1
+        typeId: m.typeId
       }));
 
       const modifiers = itemModifiers.filter((m: any) => m.price === 0).map((m: any) => ({
         id: m.modifierId,
         name: m.modifierName,
         qty: m.qty,
-        typeId: 2
+        typeId: m.typeId
       }));
 
       return {

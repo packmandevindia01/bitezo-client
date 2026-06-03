@@ -471,8 +471,13 @@ export const selectCartDetails = createSelector(
       const price = Number(item.price ?? product.price ?? 0);
       const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
       
-      const extrasTotal = (item.extras || []).reduce((sum, extra) => sum + (Number(extra.price) * Number(extra.qty)), 0);
-      const itemGross = (price * Number(item.quantity)) + extrasTotal;
+      const totalExtrasForLine = (item.extras || []).reduce((sum, extra) => {
+        const p = parseFloat(String(extra.price)) || 0;
+        const q = parseFloat(String(extra.qty)) || 1;
+        return sum + (p * q);
+      }, 0);
+      
+      const itemGross = (price * Number(item.quantity)) + totalExtrasForLine;
 
       let itemDiscount = 0;
       if (item.discountValue) {
@@ -483,7 +488,7 @@ export const selectCartDetails = createSelector(
         }
       }
 
-      const calcs = calculateLineItem(item.quantity, price, itemDiscount, extrasTotal, config, product.vatValue, item.isIncl);
+      const calcs = calculateLineItem(item.quantity, price, itemDiscount, totalExtrasForLine, config, product.vatValue, item.isIncl);
 
       return {
         ...item,
@@ -492,7 +497,7 @@ export const selectCartDetails = createSelector(
           name: displayName,
           price: price
         },
-        extrasTotal,
+        extrasTotal: totalExtrasForLine,
         itemDiscount,
         baseAmount: calcs.baseAmount,
         amount: calcs.amount,

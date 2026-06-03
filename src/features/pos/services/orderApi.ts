@@ -82,10 +82,11 @@ export const orderApi = {
    * Fetches combined cart details for multiple orders.
    * GET /api/order/combine/combined-orders
    */
-  getCombinedOrderDetails: async (orderIds: number[]): Promise<any> => {
+  getCombinedOrderDetails: async (orderIds: number[], maxBaseOrderMapId: number = 999): Promise<any> => {
     // Axios array serialization for query params (OrderIds=1&OrderIds=2)
     const params = new URLSearchParams();
     orderIds.forEach(id => params.append('OrderIds', id.toString()));
+    params.append('MaxBaseOrderMapId', maxBaseOrderMapId.toString());
     return unwrap<any>(
       axiosInstance.get("/order/combine/combined-orders", { params })
     );
@@ -98,6 +99,16 @@ export const orderApi = {
   updateOrder: async (orderId: number, order: import("../types").MenuOrderUpdateRequest): Promise<MenuOrderResponse> => {
     return unwrap<MenuOrderResponse>(
       axiosInstance.put(`/menu/order/${orderId}`, order)
+    );
+  },
+
+  /**
+   * Splits an existing order into multiple new orders.
+   * POST /api/order/split
+   */
+  splitOrder: async (payload: import("../types").SplitOrderRequest): Promise<MenuOrderResponse> => {
+    return unwrap<MenuOrderResponse>(
+      axiosInstance.post("/order-split", payload)
     );
   }
 };

@@ -7,6 +7,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { loadRecalledOrder } from "../store/posSlice";
 import { formatAmount } from "../../../../utils/currency";
+import { productDetailsCache } from "../hooks/usePosProducts";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -172,7 +173,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           name: m.modifierName,
           price: m.price || 0,
           qty: m.qty || 1,
-          typeId: 1 // MUST be hardcoded to 1 to prevent backend Foreign Key error on ModifierType table
+          typeId: m.typeId
         }));
 
         const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
@@ -194,21 +195,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
         }
 
-        const priceView = (() => {
-          try {
-            const saved = localStorage.getItem('posConfigs');
-            const full = saved ? JSON.parse(saved) : {};
-            return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-          } catch { return 'Exclusive'; }
-        })();
-        const isIncl = priceView === 'Inclusive';
-
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
           productId: pId,
           quantity: detail.qty || 1,
           price: detail.price || 0,
-          isIncl: isIncl,
+          isIncl: true, // Force inclusive so the Cart NEVER adds VAT on top of recalled prices
           discountValue: detail.discAmount || 0,
           discountType: detail.discPer ? 'percentage' : 'amount',
           extras,
@@ -280,7 +272,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           name: m.modifierName,
           price: m.price || 0,
           qty: m.qty || 1,
-          typeId: 1 // MUST be hardcoded to 1 to prevent backend Foreign Key error on ModifierType table
+          typeId: m.typeId
         }));
 
         const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
@@ -531,39 +523,48 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                   {details.map((detail: any, i: number) => {
                     const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
                     return (
-                      <div key={i} className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
-                        <div className="font-bold text-stone-500">{detail.qty}</div>
-                        <div className="pl-2 flex flex-col font-bold text-stone-800">
-                          <span>{detail.productName || `Product #${detail.productId}`}</span>
-                          {/* Modifiers display under item */}
-                          {itemModifiers.map((mod: any, idx: number) => {
-                            let prefix = "+";
-                            
-                            // 1. If backend explicitly provides typeName, use it
-                            if (mod.typeName && mod.typeName.trim() !== "") {
-                              prefix = mod.typeName.toUpperCase();
-                            } 
-                            // 2. Otherwise try to match typeId to our loaded types
-                            else if (mod.typeId) {
-                              const match = modifierTypes.find((t: any) => t.typeId === mod.typeId || t.id === mod.typeId);
-                              if (match && match.name) {
-                                prefix = match.name.toUpperCase();
-                              }
+                      <div key={i} className="flex flex-col">
+                        <div className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
+                          <div className="font-bold text-stone-500">{detail.qty}</div>
+                          <div className="pl-2 flex flex-col font-bold text-stone-800">
+                            <span>{detail.productName || `Product #${detail.productId}`}</span>
+                            {detail.price > 0 && (
+                              <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
+                            )}
+                          </div>
+                          <div className="text-right font-bold text-stone-900">
+                            {formatAmount(detail.netAmount ?? (detail.price * detail.qty))}
+                          </div>
+                        </div>
+                        
+                        {/* Modifiers display as separate rows */}
+                        {itemModifiers.map((mod: any, idx: number) => {
+                          let prefix = "+";
+                          
+                          // 1. If backend explicitly provides typeName, use it
+                          if (mod.typeName && mod.typeName.trim() !== "") {
+                            prefix = mod.typeName.toUpperCase();
+                          } 
+                          // 2. Otherwise try to match typeId to our loaded types
+                          else if (mod.typeId) {
+                            const match = modifierTypes.find((t: any) => t.typeId === mod.typeId || t.id === mod.typeId);
+                            if (match && match.name) {
+                              prefix = match.name.toUpperCase();
                             }
+                          }
 
-                            return (
-                              <span key={idx} className="text-[9px] text-[#f48120] font-medium pl-1">
-                                {prefix} {mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName} {mod.price > 0 ? `(${formatAmount(mod.price)})` : ""}
-                              </span>
-                            );
-                          })}
-                          {detail.price > 0 && (
-                            <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
-                          )}
-                        </div>
-                        <div className="text-right font-bold text-stone-900">
-                          {formatAmount(detail.netAmount ?? (detail.price * detail.qty))}
-                        </div>
+                          return (
+                            <div key={idx} className="grid grid-cols-[24px_1fr_60px] items-start text-[9px] leading-tight mt-0.5">
+                              <div></div>
+                              <div className="pl-3 text-[#f48120] font-medium">
+                                {prefix} {mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName}
+                              </div>
+                              <div className="text-right font-medium text-[#f48120]">
+                                {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}

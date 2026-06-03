@@ -96,11 +96,14 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
                   {/* Extras Display */}
                   {(item.extras && item.extras.length > 0) && (
                     <div className="mt-1 space-y-0.5">
-                      {item.extras.map((ex, i) => (
-                        <p key={i} className="text-[9px] font-bold text-blue-600 uppercase leading-none italic">
-                          + {ex.name} {ex.qty > 1 ? `(x${ex.qty})` : ""} ({formatAmount(ex.price * ex.qty)})
-                        </p>
-                      ))}
+                      {item.extras.map((ex, i) => {
+                        const totalQty = ex.qty || 1;
+                        return (
+                          <p key={i} className="text-[9px] font-bold text-blue-600 uppercase leading-none italic">
+                            + {ex.name} {totalQty > 1 ? `(x${totalQty})` : ""} ({formatAmount(ex.price * totalQty)})
+                          </p>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -124,7 +127,7 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
 
                 <div className="flex items-center justify-center">
                   <span className={`text-[10px] font-normal ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
-                    {formatAmount(item.quantity > 0 ? (item.lineTotal / item.quantity) : 0)}
+                    {formatAmount(item.price || item.product?.price || 0)}
                   </span>
                 </div>
 

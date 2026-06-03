@@ -116,9 +116,11 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       const orderIdsToCombine = [editingOrderId as number, ...selectedIds];
       const response = await orderApi.getCombinedOrderDetails(orderIdsToCombine);
 
-      if (response && response.data) {
-        const detailsData = response.data.detailsData || [];
-        const modifiersData = response.data.modifiersData || [];
+      const combinedData = response?.data || response;
+
+      if (combinedData && (combinedData.detailsData || combinedData.details)) {
+        const detailsData = combinedData.detailsData || combinedData.details || [];
+        const modifiersData = combinedData.modifiersData || combinedData.modifiers || [];
 
         const mappedCartItems = detailsData.map((detail: any, idx: number) => {
           // Match modifiers by mapId AND orderId (if the backend provides orderId on modifiers)
@@ -133,8 +135,8 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             id: m.modifierId,
             name: m.modifierName,
             price: m.price || 0,
-            qty: m.qty || 1,
-            typeId: 1 // MUST be hardcoded to 1 to prevent backend Foreign Key error on ModifierType table
+            qty: (m.qty || 1) / (detail.qty || 1),
+            typeId: m.typeId
           }));
 
           const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
@@ -176,7 +178,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             extras,
             modifiers,
             isExisting: true,
-            mapId: detail.mapId,
+            mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
             originalQty: detail.qty || 1,
             product: {
               id: pId,
@@ -208,7 +210,8 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         showToast("Orders combined successfully!", "success");
         onClose();
       } else {
-        throw new Error("Invalid response format from combined-orders endpoint");
+        console.error("COMBINED DATA RAW RESPONSE:", response);
+        throw new Error("Invalid response format from combined-orders endpoint. See console.");
       }
     } catch (err: any) {
       showToast(err.message || "Failed to combine orders", "error");

@@ -31,6 +31,7 @@ import { EmployeePasswordModal } from "../components/EmployeePasswordModal";
 import { PosProviderModal } from "../components/PosProviderModal";
 import { PosProviderOrderModal } from "../components/PosProviderOrderModal";
 import { PosCombineModal } from "../components/PosCombineModal";
+import { PosSplitModal } from "../components/PosSplitModal";
 import { useCashierLog } from "../../cashier";
 import type { MenuProvider } from "../../types";
 import { Tag, Receipt, XCircle, Percent, Banknote, ChevronRight, Check } from "lucide-react";
@@ -52,6 +53,7 @@ export const PosTerminalPage = () => {
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [isCombineOpen, setIsCombineOpen] = useState(false);
+  const [isSplitOpen, setIsSplitOpen] = useState(false);
   const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
   const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
   const { status, isLoading } = useCashierLog();
@@ -966,7 +968,7 @@ export const PosTerminalPage = () => {
               Combine
             </button>
             <button
-              onClick={() => console.log('Split clicked')}
+              onClick={() => setIsSplitOpen(true)}
               className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!editingOrderId}
             >
@@ -1034,7 +1036,16 @@ export const PosTerminalPage = () => {
               orderLoading={orderLoading}
               isSettledEdit={isSettledEdit}
               selectedTender={selectedTender}
-              onSelectTender={setSelectedTender}
+              onSelectTender={(tender) => {
+                setSelectedTender(tender);
+                if (total > 0) {
+                  if (tender === 'multi') {
+                    setIsMultiPayModalOpen(true);
+                  } else if (tender === 'cash') {
+                    setIsCashModalOpen(true);
+                  }
+                }
+              }}
               onClose={() => setIsCartOpen(false)}
             />
           </ErrorBoundary>
@@ -1469,6 +1480,16 @@ export const PosTerminalPage = () => {
       <PosCombineModal
         isOpen={isCombineOpen}
         onClose={() => setIsCombineOpen(false)}
+      />
+
+      <PosSplitModal
+        isOpen={isSplitOpen}
+        onClose={() => setIsSplitOpen(false)}
+        orderId={editingOrderId || 0}
+        onSuccess={() => {
+          setIsSplitOpen(false);
+          handleClearCart();
+        }}
       />
 
       <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />

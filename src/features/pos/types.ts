@@ -300,6 +300,44 @@ export interface MenuOrderUpdateRequest {
   combinedOrderIds: number[];
 }
 
+export interface SplitOrderData {
+  order: {
+    sectionId: number;
+    tableId: number;
+    guestNo: number;
+    serviceCharge: number;
+    levy: number;
+    vatExclAmount: number;
+    vatAmount: number;
+    netAmount: number;
+  };
+  details: any[];
+  modifiers: any[];
+}
+
+export interface SplitOrderRequest {
+  orderId: number;
+  voucherDate: string;
+  customerId: number;
+  employeeId: number;
+  dayId: number;
+  shiftId: number;
+  createdAt: string;
+  orderTypeId: number;
+  vehicleCustomerName: string;
+  vehicleNo: string;
+  addressId: number;
+  missedCall: boolean;
+  contactNo: string;
+  note: string;
+  change: string;
+  isComing: boolean;
+  comingTime: string;
+  providerNo: string;
+  baseOrder: SplitOrderData;
+  newOrders: SplitOrderData[];
+}
+
 export interface MenuOrderResponse {
   data: {
     id: number;
