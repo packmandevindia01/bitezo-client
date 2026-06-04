@@ -100,7 +100,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
         
         const qty = detail.qty ?? detail.Qty ?? 1;
-        const amount = detail.netAmount ?? detail.amount ?? detail.NetAmount ?? detail.Amount ?? 0;
+        const amount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
         const price = detail.price ?? detail.Price ?? (qty > 0 ? amount / qty : 0);
 
         let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
@@ -255,7 +255,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               <div className="space-y-2.5">
                   {details.map((detail: any, i: number) => {
                     const qty = detail.qty ?? detail.Qty ?? 1;
-                    const amount = detail.netAmount ?? detail.amount ?? detail.NetAmount ?? detail.Amount ?? 0;
+                    const amount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
                     const price = detail.price ?? detail.Price ?? (qty > 0 ? amount / qty : 0);
                     
                     return (

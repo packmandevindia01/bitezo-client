@@ -55,6 +55,7 @@ const SearchableSelect = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, placement: "bottom" as "top" | "bottom" });
   const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
+  const lastMousePos = useRef({ x: 0, y: 0 });
 
   const inputCallbackRef = useCallback((node: HTMLInputElement | null) => {
     inputRef.current = node;
@@ -84,12 +85,23 @@ const SearchableSelect = ({
     setHighlightedIndex(filtered.length > 0 ? 0 : -1);
   }, [filtered.length]);
 
-  // Scroll highlighted item into view
+  // Scroll highlighted item into view manually without triggering page scroll
   useEffect(() => {
     if (highlightedIndex >= 0 && listRef.current) {
-      const highlightedEl = listRef.current.children[highlightedIndex] as HTMLElement;
+      const listEl = listRef.current;
+      const highlightedEl = listEl.children[highlightedIndex] as HTMLElement;
+      
       if (highlightedEl) {
-        highlightedEl.scrollIntoView({ block: "nearest" });
+        const itemTop = highlightedEl.offsetTop;
+        const itemBottom = itemTop + highlightedEl.offsetHeight;
+        const listTop = listEl.scrollTop;
+        const listBottom = listTop + listEl.clientHeight;
+
+        if (itemTop < listTop) {
+          listEl.scrollTop = itemTop;
+        } else if (itemBottom > listBottom) {
+          listEl.scrollTop = itemBottom - listEl.clientHeight;
+        }
       }
     }
   }, [highlightedIndex]);
@@ -142,12 +154,18 @@ const SearchableSelect = ({
         const spaceBelow = viewportHeight - rect.bottom;
         const spaceAbove = rect.top;
         const placement = spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom";
+        const newTop = placement === "bottom" ? rect.bottom : rect.top;
 
-        setCoords({
-          top: placement === "bottom" ? rect.bottom : rect.top,
-          left: rect.left,
-          width: rect.width,
-          placement
+        setCoords(prev => {
+          if (prev.top === newTop && prev.left === rect.left && prev.width === rect.width && prev.placement === placement) {
+            return prev;
+          }
+          return {
+            top: newTop,
+            left: rect.left,
+            width: rect.width,
+            placement
+          };
         });
       }
     };
@@ -159,70 +177,61 @@ const SearchableSelect = ({
     };
   }, [open]);
 
-  // Focus input when dropdown opens
+  // Focus input when dropdown opens and input mounts
   useEffect(() => {
-    if (open) {
+    if (open && inputElement) {
       const timer = setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
+        inputElement.focus();
+      }, 10); // small delay ensures browser paints portal
       return () => clearTimeout(timer);
     }
-  }, [open]);
+  }, [open, inputElement]);
 
-  // Listen for keydown events natively on the search input to ensure
-  // programmatically dispatched KeyboardEvents from virtual/touch keyboards are captured reliably.
-  useEffect(() => {
-    if (!open || !inputElement) return;
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
 
-    const handleNativeKeyDown = (e: KeyboardEvent) => {
-      if (disabled) return;
-
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          setHighlightedIndex((prev) => (prev + 1) % filtered.length);
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
-            handleSelect(filtered[highlightedIndex].value);
-          }
-          break;
-        case "Escape":
-          e.preventDefault();
-          setOpen(false);
-          setQuery("");
-          triggerRef.current?.focus();
-          break;
-        case "Tab":
-          // Do not e.preventDefault() here, we want the browser to move focus
-          setOpen(false);
-          setQuery("");
-          triggerRef.current?.focus();
-          break;
-      }
-    };
-
-    inputElement.addEventListener("keydown", handleNativeKeyDown);
-    return () => {
-      inputElement.removeEventListener("keydown", handleNativeKeyDown);
-    };
-  }, [inputElement, open, highlightedIndex, filtered, disabled]);
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev + 1) % filtered.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        break;
+      case "Enter":
+        e.preventDefault();
+        e.stopPropagation();
+        if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+          handleSelect(filtered[highlightedIndex].value);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setOpen(false);
+        setQuery("");
+        triggerRef.current?.focus();
+        break;
+      case "Tab":
+        // Do not e.preventDefault() here, we want the browser to move focus
+        setOpen(false);
+        setQuery("");
+        triggerRef.current?.focus();
+        break;
+    }
+  };
 
   const handleSelect = (optValue: string) => {
     onChange(optValue);
     setOpen(false);
     setQuery("");
-    // Focus the next logical input field after this SearchableSelect component
+    // Focus the next logical input field after a tiny delay 
+    // to prevent 'keyup' events from accidentally clicking newly focused buttons
     setTimeout(() => {
       if (triggerRef.current) {
         handleFocusNextInput(triggerRef.current);
       }
-    }, 0);
+    }, 50);
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -243,12 +252,34 @@ const SearchableSelect = ({
   const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
 
+    // Always prevent page scroll for up/down arrows when interacting with the select
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+    }
+
     if (!open) {
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         setOpen(true);
       }
+    } else {
+      // If open but focus is mysteriously still on the trigger, handle navigation directly
+      if (e.key === "ArrowDown") {
+        setHighlightedIndex((prev) => (prev + 1) % filtered.length);
+      } else if (e.key === "ArrowUp") {
+        setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+          handleSelect(filtered[highlightedIndex].value);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+      }
     }
+    
     onKeyDown?.(e);
   };
 
@@ -353,6 +384,7 @@ const SearchableSelect = ({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Type to search…"
                 className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"
               />
@@ -376,7 +408,11 @@ const SearchableSelect = ({
                       e.preventDefault();
                       handleSelect(opt.value);
                     }}
-                    onMouseEnter={() => setHighlightedIndex(index)}
+                    onMouseMove={(e) => {
+                      if (lastMousePos.current.x === e.clientX && lastMousePos.current.y === e.clientY) return;
+                      lastMousePos.current = { x: e.clientX, y: e.clientY };
+                      if (highlightedIndex !== index) setHighlightedIndex(index);
+                    }}
                     className={`
                       cursor-pointer px-4 py-2.5 text-sm transition
                       ${index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e]" : "text-gray-700"}

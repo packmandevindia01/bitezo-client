@@ -36,6 +36,7 @@ import {
   selectTotalExtras,
   selectBaseSubtotal,
 } from "../store/posSlice";
+import { getBillingConfig } from "../utils/billing";
 
 export const usePosCartActions = () => {
   const dispatch = useAppDispatch();
@@ -143,6 +144,7 @@ export const usePosCartActions = () => {
     }
 
     const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
+    const config = getBillingConfig(selectedOrderTypeName || "DineIn");
     
     // Skip table/section validation when editing an existing recalled order —
     // the table is already assigned on the backend and will be preserved in the PUT payload.
@@ -195,7 +197,9 @@ export const usePosCartActions = () => {
             let mainLevy = item.levy;
 
             (item.extras || []).forEach(extra => {
-               const extraBase = extra.price * extra.qty;
+               const activeVatRate = (item.product as any).vatValue !== undefined ? (item.product as any).vatValue / 100 : (config.vatRate || 0);
+               const actualExtraPrice = item.isIncl ? extra.price / (1 + activeVatRate) : extra.price;
+               const extraBase = actualExtraPrice * extra.qty;
                const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
                const extraVat = item.vatAmount * proportion;
                const extraSc = item.sc * proportion;
@@ -303,7 +307,9 @@ export const usePosCartActions = () => {
           let mainLevy = item.levy;
 
           (item.extras || []).forEach(extra => {
-             const extraBase = extra.price * extra.qty;
+             const activeVatRate = (item.product as any).vatValue !== undefined ? (item.product as any).vatValue / 100 : (config.vatRate || 0);
+             const actualExtraPrice = item.isIncl ? extra.price / (1 + activeVatRate) : extra.price;
+             const extraBase = actualExtraPrice * extra.qty;
              const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
              const extraVat = item.vatAmount * proportion;
              const extraSc = item.sc * proportion;

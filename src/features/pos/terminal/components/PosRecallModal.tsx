@@ -106,8 +106,8 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
 
         {/* Sub-Header with Filters & Search */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-white border-b border-gray-200 shadow-sm">
-          <div className="flex flex-col justify-center px-2">
-            <label className="flex items-center gap-2 cursor-pointer group -my-1">
+          <div className="flex flex-row items-center gap-6 px-2">
+            <label className="flex items-center gap-2 cursor-pointer group">
               <Checkbox 
                 checked={includeDeliveryOut} 
                 onChange={(e) => setIncludeDeliveryOut(e.target.checked)} 
@@ -116,7 +116,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
                 Including Delivery Out
               </span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer group -my-1">
+            <label className="flex items-center gap-2 cursor-pointer group">
               <Checkbox 
                 checked={deliveryOutOnly} 
                 onChange={(e) => setDeliveryOutOnly(e.target.checked)} 
@@ -184,20 +184,15 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
               flex-1 p-4 flex flex-col justify-center gap-1.5 transition-colors
               ${selectedOrderId === order.orderId ? "bg-[#f48120] text-white" : "group-hover:bg-gray-50"}
             `}>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <div className="flex items-center gap-1">
-                  <span className={`text-base font-black ${selectedOrderId === order.orderId ? "text-white" : "text-[#49293e]"}`}>
-                    {order.orderId}
-                  </span>
-                </div>
-                {order.isPrinted && (
+              {order.isPrinted && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                   <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${selectedOrderId === order.orderId ? "bg-white/20" : "bg-green-100"}`}>
                     <span className={`text-[10px] font-bold uppercase tracking-tighter ${selectedOrderId === order.orderId ? "text-white" : "text-green-700"}`}>
                       Printed
                     </span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-2">
                 <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${selectedOrderId === order.orderId ? "bg-white" : "bg-[#f48120]"}`} />

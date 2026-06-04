@@ -211,6 +211,27 @@ export const useProductActions = ({ formState, altState, productList, branches }
       }
     }
 
+    // Validate Alternative Required Fields
+    for (let i = 0; i < alternatives.length; i++) {
+      const alt = alternatives[i];
+      if (!alt.barcode?.trim()) {
+        showToast(`Validation Error: Barcode is required in alternative row ${i + 1}.`, "warning");
+        return;
+      }
+      if (!alt.unitId) {
+        showToast(`Validation Error: Unit is required in alternative row ${i + 1}.`, "warning");
+        return;
+      }
+      if (parseFloat(String(alt.price)) <= 0) {
+        showToast(`Validation Error: Price must be greater than 0 in alternative row ${i + 1}.`, "warning");
+        return;
+      }
+      if (!alt.altName?.trim()) {
+        showToast(`Validation Error: Alt Name is required in alternative row ${i + 1}.`, "warning");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
 

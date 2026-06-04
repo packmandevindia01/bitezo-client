@@ -5,6 +5,7 @@ export interface BillingConfig {
   levyRate: number;
   vatRate: number;
   vatType: 'Exclusive' | 'Inclusive';
+  discountType: 'Exclusive' | 'Inclusive';
   orderType: string;
 }
 
@@ -19,6 +20,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       levyRate: (configs.levy ?? 0) / 100,
       vatRate: (configs.vat ?? 0) / 100, // No fallback, use 0 if not found
       vatType: (configs.priceView || '').toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
+      discountType: (configs.discountCalc || '').toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
       orderType
     };
   } catch {
@@ -27,6 +29,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       levyRate: 0.05,
       vatRate: 0.10,
       vatType: 'Exclusive',
+      discountType: 'Exclusive',
       orderType
     };
   }
@@ -41,8 +44,33 @@ export const calculateLineItem = (
   itemVatRate?: number,
   isIncl?: boolean   // per-line override: true=inclusive, false=exclusive, undefined=follow global config
 ) => {
-  const amount = (qty * price) + extras;
-  const netValue = amount - discount;
+  const activeVatRate = itemVatRate !== undefined ? itemVatRate / 100 : config.vatRate;
+
+  // Determine if this specific line item is VAT inclusive
+  const isInclusive =
+    isIncl === true  ? true :
+    isIncl === false ? false :
+    config.vatType === 'Inclusive';
+
+  let basePrice = price;
+  let baseExtras = extras;
+  let baseDiscount = discount;
+
+  // Reverse Calculation for Inclusive VAT
+  if (isInclusive) {
+    basePrice = price / (1 + activeVatRate);
+    baseExtras = extras / (1 + activeVatRate);
+  }
+
+  // Reverse Calculation for Discount based on Discount config
+  if (config.discountType === 'Inclusive') {
+    baseDiscount = discount / (1 + activeVatRate);
+  } else {
+    baseDiscount = discount;
+  }
+
+  const amount = (qty * basePrice) + baseExtras;
+  const netValue = amount - baseDiscount;
   
   // SC applies only to Dine-In
   const isDineIn = config.orderType.toLowerCase().includes('dine');
@@ -54,25 +82,14 @@ export const calculateLineItem = (
   const vatBase = netValue + sc + levy;
   let vatAmount = 0;
   
-  const activeVatRate = itemVatRate !== undefined ? itemVatRate / 100 : config.vatRate;
-
-  // Per-line isIncl overrides the global priceView:
-  //   isIncl === true  → price already has VAT baked in → do NOT add VAT
-  //   isIncl === false → price is exclusive → always add VAT on top
-  //   isIncl === undefined → fall back to global config (Exclusive adds VAT, Inclusive does not)
-  const shouldAddVat =
-    isIncl === true  ? false :
-    isIncl === false ? true  :
-    config.vatType === 'Exclusive';
-
-  if (shouldAddVat) {
-    vatAmount = vatBase * activeVatRate;
-  }
+  // If it was inclusive, we still calculate the exact vatAmount extracted
+  // If it was exclusive, we calculate the vatAmount to add on top
+  vatAmount = vatBase * activeVatRate;
   
   const lineNetAmount = vatBase + vatAmount;
 
   return {
-    baseAmount: qty * price,
+    baseAmount: qty * basePrice,
     amount,
     netValue,
     sc,

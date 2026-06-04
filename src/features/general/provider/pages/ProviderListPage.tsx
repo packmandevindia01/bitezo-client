@@ -94,7 +94,6 @@ const ProviderListPage = () => {
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-gray-900">{row.providerName}</span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ID: {row.providerId}</span>
                   </div>
                 </div>
               )

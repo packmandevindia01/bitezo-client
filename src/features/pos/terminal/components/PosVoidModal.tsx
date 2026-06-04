@@ -121,8 +121,8 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
 
         {/* Sub-Header with Filters & Search */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-white border-b border-gray-200 shadow-sm">
-          <div className="flex flex-col justify-center px-2">
-            <label className="flex items-center gap-2 cursor-pointer group -my-1">
+          <div className="flex flex-row items-center gap-6 px-2">
+            <label className="flex items-center gap-2 cursor-pointer group">
               <Checkbox 
                 checked={includeDeliveryOut} 
                 onChange={(e) => setIncludeDeliveryOut(e.target.checked)} 
@@ -131,7 +131,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
                 Including Delivery Out
               </span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer group -my-1">
+            <label className="flex items-center gap-2 cursor-pointer group">
               <Checkbox 
                 checked={deliveryOutOnly} 
                 onChange={(e) => setDeliveryOutOnly(e.target.checked)} 
@@ -196,23 +196,25 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
               flex-1 p-4 flex flex-col justify-center gap-1.5 transition-colors
               ${selectedOrderId === order.orderId ? "bg-red-50 text-red-900" : "group-hover:bg-gray-50"}
             `}>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <div className="flex items-center gap-1">
-                  <span className={`text-[10px] font-bold uppercase ${selectedOrderId === order.orderId ? "text-red-500" : "text-gray-400"}`}>
-                    ID
-                  </span>
-                  <span className={`text-base font-black ${selectedOrderId === order.orderId ? "text-red-700" : "text-[#49293e]"}`}>
-                    {order.orderId}
-                  </span>
-                </div>
-              </div>
-
               <div className="flex items-start gap-2">
                 <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${selectedOrderId === order.orderId ? "bg-red-500" : "bg-gray-400"}`} />
                 <p className={`text-sm font-bold leading-snug italic ${selectedOrderId === order.orderId ? "text-red-900" : "text-gray-800"}`}>
                   "{order.details}"
                 </p>
               </div>
+            </div>
+
+            {/* Void Button */}
+            <div className="w-[100px] shrink-0 border-l border-gray-100">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedOrderId(order.orderId);
+                }}
+                className="w-full h-full flex items-center justify-center bg-red-600 hover:bg-red-700 text-white transition-colors"
+              >
+                <span className="text-xs font-bold uppercase tracking-widest">Void</span>
+              </button>
             </div>
           </div>
         ))}

@@ -405,6 +405,13 @@ const posSlice = createSlice({
     setIsSettling: (state, action: PayloadAction<boolean>) => {
       state.isSettling = action.payload;
     },
+    clearAllItemDiscounts: (state) => {
+      state.cartItems = state.cartItems.map(item => ({
+        ...item,
+        discountValue: 0,
+        discountType: 'amount'
+      }));
+    },
   },
 });
 
@@ -426,6 +433,7 @@ export const {
   setBillDiscount,
   setItemDiscount,
   setAllItemsDiscount,
+  clearAllItemDiscounts,
   updateItemPrice,
   updateItemQty,
   setItemCustomizations,
@@ -464,13 +472,13 @@ export const selectCartDetails = createSelector(
   (pos) => {
     const config = getBillingConfig(pos.selectedOrderTypeName);
 
-    return pos.cartItems.map((item: PosCartItem) => {
+    // FIRST PASS: Calculate total gross amount to determine bill discount proportions
+    let totalGross = 0;
+    const itemsPreCalc = pos.cartItems.map((item: PosCartItem) => {
       const product = pos.productCache[item.productId] || item.product;
       if (!product) return null;
       
       const price = Number(item.price ?? product.price ?? 0);
-      const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
-      
       const totalExtrasForLine = (item.extras || []).reduce((sum, extra) => {
         const p = parseFloat(String(extra.price)) || 0;
         const q = parseFloat(String(extra.qty)) || 1;
@@ -478,9 +486,37 @@ export const selectCartDetails = createSelector(
       }, 0);
       
       const itemGross = (price * Number(item.quantity)) + totalExtrasForLine;
+      totalGross += itemGross;
 
+      return {
+        item,
+        product,
+        price,
+        totalExtrasForLine,
+        itemGross
+      };
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // Calculate global Bill Discount
+    let globalBillDiscount = 0;
+    if (pos.billDiscountValue) {
+      if (pos.billDiscountType === 'percentage') {
+        globalBillDiscount = (totalGross * pos.billDiscountValue) / 100;
+      } else {
+        globalBillDiscount = pos.billDiscountValue;
+      }
+    }
+
+    // SECOND PASS: Distribute discount and calculate line items
+    return itemsPreCalc.map(({ item, product, price, totalExtrasForLine, itemGross }) => {
+      const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
+      
       let itemDiscount = 0;
-      if (item.discountValue) {
+      if (globalBillDiscount > 0 && totalGross > 0) {
+        // Proportional distribution of bill discount
+        itemDiscount = (itemGross / totalGross) * globalBillDiscount;
+      } else if (item.discountValue) {
+        // Use individual item discount if no bill discount exists
         if (item.discountType === 'percentage') {
           itemDiscount = (itemGross * item.discountValue) / 100;
         } else {
@@ -508,7 +544,7 @@ export const selectCartDetails = createSelector(
         vatRate: (product.vatValue || config.vatRate * 100),
         lineTotal: calcs.lineNetAmount
       };
-    }).filter((item): item is NonNullable<typeof item> => item !== null);
+    });
   }
 );
 
@@ -523,18 +559,13 @@ export const selectSubtotal = createSelector(
 );
 
 export const selectItemTotalDiscount = createSelector(
-  [selectCartDetails],
-  (details) => details.reduce((sum, item) => sum + item.itemDiscount, 0)
+  [selectCartDetails, selectPosState],
+  (details, pos) => pos.billDiscountValue > 0 ? 0 : details.reduce((sum, item) => sum + item.itemDiscount, 0)
 );
 
 export const selectBillDiscount = createSelector(
-  [selectSubtotal, selectPosState],
-  (subtotal, pos) => {
-    if (pos.billDiscountType === 'percentage') {
-      return (subtotal * pos.billDiscountValue) / 100;
-    }
-    return pos.billDiscountValue;
-  }
+  [selectCartDetails, selectPosState],
+  (details, pos) => pos.billDiscountValue > 0 ? details.reduce((sum, item) => sum + item.itemDiscount, 0) : 0
 );
 
 export const selectDiscount = createSelector(

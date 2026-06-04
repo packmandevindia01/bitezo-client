@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
-import { useAppSelector } from "../../../../app/hooks";
+import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import PosTopNav from "../components/PosTopNav";
 import PosCategoryRail from "../components/PosCategoryRail";
 import PosGroupTabs from "../components/PosGroupTabs";
@@ -12,7 +12,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { salesInvoiceApi } from "../../services/salesInvoiceApi";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
-import { selectTotalLevy, selectTotalServiceCharge } from "../store/posSlice";
+import { selectTotalLevy, selectTotalServiceCharge, clearAllItemDiscounts } from "../store/posSlice";
 import { formatCurrency } from "../../../../utils/formatters";
 import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
@@ -44,6 +44,7 @@ import { productDetailsCache, clearAllPosCache } from "../hooks/usePosProducts";
 export const PosTerminalPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -75,6 +76,11 @@ export const PosTerminalPage = () => {
   const [discountType, setDiscountType] = useState<'bill' | 'item'>('bill');
   const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
   const [discountInputValue, setDiscountInputValue] = useState("");
+  const [billDiscountConfirmState, setBillDiscountConfirmState] = useState<{
+    isOpen: boolean;
+    value: number;
+    mode: 'percentage' | 'amount';
+  }>({ isOpen: false, value: 0, mode: 'percentage' });
 
   // Price Flow States
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
@@ -676,6 +682,13 @@ export const PosTerminalPage = () => {
         showToast(limitMsg, "error");
         return;
       }
+      
+      if (itemTotalDiscount > 0) {
+        setBillDiscountConfirmState({ isOpen: true, value: finalValue, mode: discountMode });
+        setDiscountStep('none');
+        return;
+      }
+      setBillDiscount(finalValue, discountMode);
     } else if (selectedKey) {
       const currentItem = cartDetails.find((item) => item.uniqueId === selectedKey);
       if (currentItem) {
@@ -691,11 +704,6 @@ export const PosTerminalPage = () => {
           }
         }
       }
-    }
-
-    if (discountType === 'bill') {
-      setBillDiscount(finalValue, discountMode);
-    } else if (selectedKey) {
       setItemDiscount(selectedKey, finalValue, discountMode);
     }
     setDiscountStep('none');
@@ -808,6 +816,10 @@ export const PosTerminalPage = () => {
   };
 
   const openDiscountInput = (type: 'bill' | 'item') => {
+    if (type === 'item' && billDiscountValue > 0) {
+        showToast("Cannot apply item discounts while a bill discount is active", "warning");
+        return;
+    }
     setDiscountType(type);
     setDiscountInputValue("");
     setDiscountStep('value');
@@ -1103,6 +1115,10 @@ export const PosTerminalPage = () => {
 
           <button
             onClick={() => {
+              if (billDiscountValue > 0) {
+                showToast("Cannot apply item discounts while a bill discount is active", "warning");
+                return;
+              }
               if (!selectedKey) {
                 alert("Please select an item in the cart first");
                 return;
@@ -1512,6 +1528,20 @@ export const PosTerminalPage = () => {
         title="Confirm Void"
         message={`Are you sure you want to void "${voidConfirmState.productName}"?`}
         confirmLabel="Void"
+        confirmVariant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={billDiscountConfirmState.isOpen}
+        title="Override Item Discounts?"
+        message="Applying a bill-level discount will remove all existing item-level discounts. Do you want to proceed?"
+        onConfirm={() => {
+          dispatch(clearAllItemDiscounts());
+          setBillDiscount(billDiscountConfirmState.value, billDiscountConfirmState.mode);
+          setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' });
+        }}
+        onCancel={() => setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' })}
+        confirmLabel="Override"
         confirmVariant="danger"
       />
 

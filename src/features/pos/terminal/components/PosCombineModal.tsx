@@ -158,21 +158,12 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
           }
 
-          const priceView = (() => {
-            try {
-              const saved = localStorage.getItem('posConfigs');
-              const full = saved ? JSON.parse(saved) : {};
-              return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-            } catch { return 'Exclusive'; }
-          })();
-          const isIncl = priceView === 'Inclusive';
-
           return {
             uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
             productId: pId,
             quantity: detail.qty || 1,
             price: detail.price || 0,
-            isIncl: isIncl,
+            isIncl: true, // Force inclusive so the Cart NEVER adds VAT on top of recalled prices
             discountValue: detail.discAmount || 0,
             discountType: detail.discPer ? 'percentage' : 'amount',
             extras,

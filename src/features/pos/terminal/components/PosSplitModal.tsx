@@ -7,6 +7,7 @@ import { useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
 import { getBillingConfig, calculateLineItem } from "../utils/billing";
+import { useCashierLog } from "../../cashier";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 }) => {
   const userId = useAppSelector((state) => state.auth.userId);
   const { showToast } = useToast();
+  const { status } = useCashierLog();
   const [saving, setSaving] = useState(false);
   
   const [originalOrder, setOriginalOrder] = useState<any>(null);
@@ -128,13 +130,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const calculateBucketTotal = (bucket: SplitBucket) => {
     let total = 0;
     const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-    const isIncl = (() => {
-      try {
-        const saved = localStorage.getItem('posConfigs');
-        const full = saved ? JSON.parse(saved) : {};
-        return full?.configs?.priceView === 'Inclusive' ? true : false;
-      } catch { return false; }
-    })();
+    const isIncl = true; // Force inclusive so we don't double tax the recalled prices
 
     bucket.items.forEach(item => {
       let extrasTotal = 0;
@@ -344,6 +340,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   };
 
   const generateBucketData = (bucket: SplitBucket, tableId?: number, sectionId?: number) => {
+    const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
     // Recalculate totals for this bucket
     let vatExclAmount = 0;
     let vatAmount = 0;
@@ -351,15 +348,50 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     
     const details = bucket.items.map((item, index) => {
       const newMapId = index + 1;
-      const originalItemQty = item.detail.qty || 1;
-      const proportion = item.currentQty / originalItemQty;
       
-      const itemNet = (item.detail.netAmount || 0) * proportion;
-      const itemVat = (item.detail.vatAmount || 0) * proportion;
+      let extrasTotal = 0;
+      if (ownsModifiers(bucket, item.mapId)) {
+        item.modifiers.forEach(m => {
+          if (m.price > 0) {
+            extrasTotal += (m.price * (m.qty || 1));
+          }
+        });
+      }
+
+      const calcs = calculateLineItem(
+        item.currentQty,
+        item.price,
+        0,
+        extrasTotal,
+        config,
+        undefined,
+        true // Force inclusive to prevent double taxing
+      );
+
+      let mainNetAmount = calcs.lineNetAmount;
+      let mainVatAmount = calcs.vatAmount;
       
-      netAmount += itemNet;
-      vatAmount += itemVat;
-      vatExclAmount += (itemNet - itemVat);
+      // Subtract extras from main detail like usePosCartActions does, so backend sums it perfectly
+      if (ownsModifiers(bucket, item.mapId)) {
+        item.modifiers.forEach(m => {
+          if (m.price > 0) {
+            const activeVatRate = config.vatRate;
+            const actualExtraPrice = m.price / (1 + activeVatRate);
+            const extraBase = actualExtraPrice * (m.qty || 1);
+            const proportion = calcs.amount > 0 ? (extraBase / calcs.amount) : 0;
+            const extraNet = calcs.lineNetAmount * proportion;
+            const extraVat = calcs.vatAmount * proportion;
+            
+            mainNetAmount -= extraNet;
+            mainVatAmount -= extraVat;
+          }
+        });
+      }
+
+      // Add to bucket totals
+      netAmount += calcs.lineNetAmount;
+      vatAmount += calcs.vatAmount;
+      vatExclAmount += (calcs.lineNetAmount - calcs.vatAmount);
 
       const pId = item.detail.productId ?? item.detail.ProductId ?? item.detail.itemId ?? item.detail.ItemId;
       return {
@@ -367,8 +399,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         mapId: newMapId,
         productId: pId,
         qty: item.currentQty,
-        netAmount: Number(itemNet.toFixed(3)),
-        vatAmount: Number(itemVat.toFixed(3))
+        netAmount: Number(mainNetAmount.toFixed(3)),
+        vatAmount: Number(mainVatAmount.toFixed(3))
       };
     });
 
@@ -386,7 +418,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
             qty: m.qty || 1,
             amount: m.amount || 0
           });
-          netAmount += (m.amount || 0);
         });
       }
     });
@@ -426,8 +457,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         voucherDate: new Date().toISOString(),
         customerId: originalOrder?.customerId || 0,
         employeeId: userId ? Number(userId) : 0,
-        dayId: originalOrder?.dayId || 0,
-        shiftId: originalOrder?.shiftId || 0,
+        dayId: status?.dayId || originalOrder?.dayId || 0,
+        shiftId: status?.shiftId || originalOrder?.shiftId || 0,
         createdAt: new Date().toISOString(),
         orderTypeId: originalOrder?.orderTypeId || 0,
         vehicleCustomerName: originalOrder?.vehicleCustomerName || "",
@@ -515,13 +546,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                 <div className="flex-1 overflow-y-auto">
                   {bucket.items.map(item => {
                     const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-                    const isIncl = (() => {
-                      try {
-                        const saved = localStorage.getItem('posConfigs');
-                        const full = saved ? JSON.parse(saved) : {};
-                        return full?.configs?.priceView === 'Inclusive' ? true : false;
-                      } catch { return false; }
-                    })();
+                    const isIncl = true;
                     
                     const calcs = calculateLineItem(
                       item.currentQty,

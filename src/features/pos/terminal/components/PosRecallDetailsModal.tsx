@@ -402,8 +402,19 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   // Format date as dd/MM/yyyy preserving time portion
   const formatVoucherDate = (raw: string): string => {
     try {
+      if (!raw) return "";
       const d = new Date(raw);
-      if (isNaN(d.getTime())) return raw; // fallback to original if unparseable (e.g. "7:46:02 PM")
+      if (isNaN(d.getTime())) {
+        // If it's just a time string like "7:46:02 PM" extracted from details, prepend today's date
+        if (/am|pm/i.test(raw)) {
+          const today = new Date();
+          const dd = String(today.getDate()).padStart(2, '0');
+          const mm = String(today.getMonth() + 1).padStart(2, '0');
+          const yyyy = today.getFullYear();
+          return `${dd}/${mm}/${yyyy} ${raw}`;
+        }
+        return raw;
+      }
       const dd = String(d.getDate()).padStart(2, '0');
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const yyyy = d.getFullYear();
@@ -533,7 +544,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                             )}
                           </div>
                           <div className="text-right font-bold text-stone-900">
-                            {formatAmount(detail.netAmount ?? (detail.price * detail.qty))}
+                            {formatAmount(detail.amount ?? detail.netAmount ?? (detail.price * detail.qty))}
                           </div>
                         </div>
                         
