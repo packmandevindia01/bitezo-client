@@ -170,6 +170,13 @@ const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
             label="Show Delivery (Recall)" 
             checked={form.showDeliveryRecall} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("showDeliveryRecall", e.target.checked)} 
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-provider-menu-status")}
+          />
+          <Checkbox 
+            id="conf-pos-provider-menu-status"
+            label="Provider Own Menu Status" 
+            checked={form.providerOwnMenuStatus} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("providerOwnMenuStatus", e.target.checked)} 
           />
         </div>
       </div>

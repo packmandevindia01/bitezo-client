@@ -9,7 +9,8 @@ const SubCategoryPage = () => {
   const { hasPermission } = usePermissions();
   const {
     form,
-    setForm,
+    handleFormChange,
+    errors,
     categoryOptions,
     editingId,
     search,
@@ -67,11 +68,12 @@ const SubCategoryPage = () => {
         isOpen={open}
         editingId={editingId}
         form={form}
+        errors={errors}
         categoryOptions={categoryOptions}
         saving={saving}
         onClose={closeModal}
         onImageSelect={handleImageSelect}
-        onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+        onChange={handleFormChange}
         onClear={resetForm}
         onSave={handleSave}
         onDelete={canDelete ? () => {

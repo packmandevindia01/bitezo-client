@@ -42,7 +42,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     // Uniform sizing for form action buttons
     const actionClasses = isAction 
-      ? "min-w-[120px] h-[44px] shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200" 
+      ? "min-w-[120px] h-10.5 shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200" 
       : "";
 
     return (

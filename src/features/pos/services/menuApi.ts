@@ -26,10 +26,29 @@ const getTenantQuery = () => {
   return `?clientDb=${tenantId}`;
 };
 
+const getProviderOwnStatus = () => {
+  try {
+    const saved = localStorage.getItem('posConfigs');
+    const full = saved ? JSON.parse(saved) : {};
+    return full?.configs?.providerOwnMenuStatus === true;
+  } catch {
+    return false;
+  }
+};
+
 export const menuApi = {
   /** GET /api/menu/master-data */
   getMasterData: async () => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data${getTenantQuery()}`));
+    // Format as HH:mm:ss for .NET TimeSpan binding
+    const now = new Date();
+    const timeSpanString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data`, {
+      params: {
+        clientDb: localStorage.getItem("tenantId") || "app_db",
+        currentTime: timeSpanString
+      }
+    }));
     const groups = raw.groups ?? raw.group ?? [];
     const categories = raw.categories ?? raw.category ?? [];
     const orderTypes = raw.orderTypes ?? [];
@@ -49,11 +68,18 @@ export const menuApi = {
 
   /** GET /api/menu/order-types */
   getOrderTypes: () =>
-    unwrap(axiosInstance.get<ApiResponse<PosOrderType[]>>(`/menu/order-types${getTenantQuery()}`)),
+    unwrap(axiosInstance.get<ApiResponse<PosOrderType[]>>(`/menu/order-types`, {
+      params: { clientDb: localStorage.getItem("tenantId") || "app_db" }
+    })),
 
   /** GET /api/menu/{groupId}/categories */
-  getGroupCategories: async (groupId: number) => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories${getTenantQuery()}`));
+  getGroupCategories: async (groupId: number, orderTypeId?: number) => {
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories`, {
+      params: {
+        clientDb: localStorage.getItem("tenantId") || "app_db",
+        orderTypeId
+      }
+    }));
     return raw.map((c: any) => ({
       id: c.categoryId,
       name: c.categoryName,
@@ -65,11 +91,19 @@ export const menuApi = {
 
   /** GET /api/menu/categories/{categoryId}/sub-categories */
   getSubCategories: (categoryId: number) => 
-    unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories${getTenantQuery()}`)),
+    unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories`, {
+      params: { clientDb: localStorage.getItem("tenantId") || "app_db" }
+    })),
 
   /** GET /api/menu/categories/{categoryId}/sub-categories/{subCategoryId}/products */
-  getProducts: async (categoryId: number, subCategoryId: number) => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products${getTenantQuery()}`));
+  getProducts: async (categoryId: number, subCategoryId: number, orderTypeId?: number) => {
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products`, {
+      params: {
+        clientDb: localStorage.getItem("tenantId") || "app_db",
+        orderTypeId,
+        providerOwnStatus: getProviderOwnStatus()
+      }
+    }));
     return raw.map((p: any) => ({
       id: p.productId,
       name: p.productName,
@@ -80,16 +114,43 @@ export const menuApi = {
       colorCode: p.colorCode,
       vatValue: p.vatValue,
       unitId: p.unitId ?? p.defaultUnitId ?? undefined,
+      hasAlternatives: p.hasAlternatives ?? false,
+      isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
+              p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+              p.isincl !== undefined ? Boolean(p.isincl) :
+              p.priceView !== undefined ? (p.priceView === 'Inclusive') :
+              undefined,
     })) as PosProduct[];
   },
 
   /** GET /api/menu/products/{productId}/alternatives */
-  getAlternatives: (productId: number) => 
-    unwrap(axiosInstance.get<ApiResponse<PosAlternative[]>>(`/menu/products/${productId}/alternatives${getTenantQuery()}`)),
+  getAlternatives: async (productId: number, orderTypeId?: number) => {
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/products/${productId}/alternatives`, {
+      params: {
+        clientDb: localStorage.getItem("tenantId") || "app_db",
+        orderTypeId,
+        providerOwnStatus: getProviderOwnStatus()
+      }
+    }));
+    return raw.map((a: any) => ({
+      altName: a.altName ?? a.altname ?? a.name,
+      price: a.price,
+      isIncl: a.isIncl !== undefined ? Boolean(a.isIncl) :
+              a.priceIsIncl !== undefined ? Boolean(a.priceIsIncl) :
+              a.isincl !== undefined ? Boolean(a.isincl) :
+              a.priceView !== undefined ? (a.priceView === 'Inclusive') :
+              undefined,
+    })) as PosAlternative[];
+  },
 
   /** GET /api/menu/products/{productId}/data */
-  getProductData: (productId: number) => 
-    unwrap(axiosInstance.get<ApiResponse<{ isIncl: boolean, price: number, unitId: number, unitValue: number }>>(`/menu/products/${productId}/data${getTenantQuery()}`)),
+  getProductData: (productId: number, orderTypeId?: number) => 
+    unwrap(axiosInstance.get<ApiResponse<{ isIncl: boolean, price: number, unitId: number, unitValue: number }>>(`/menu/products/${productId}/data`, {
+      params: {
+        clientDb: localStorage.getItem("tenantId") || "app_db",
+        orderTypeId
+      }
+    })),
 
   /** GET /api/menu/extras */
   getExtras: (typeId?: number, categoryId?: number) =>

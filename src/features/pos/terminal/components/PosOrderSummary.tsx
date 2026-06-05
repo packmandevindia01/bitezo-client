@@ -9,7 +9,7 @@ interface PosOrderSummaryProps {
   totalExtras: number;
   baseSubtotal: number;
   onSettle?: () => void;
-  onOrder?: () => void;
+  onOrder?: (print: boolean) => void;
   orderLoading?: boolean;
   isSettling?: boolean;
   isSettledEdit?: boolean;
@@ -105,14 +105,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSet
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           <button
-            onClick={onOrder}
+            onClick={() => onOrder && onOrder(false)}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
             className="h-10 lg:h-12 rounded-xl bg-pos-orange text-white font-bold text-[10px] uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
-            onClick={onOrder}
+            onClick={() => onOrder && onOrder(true)}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
             className="h-10 lg:h-12 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >

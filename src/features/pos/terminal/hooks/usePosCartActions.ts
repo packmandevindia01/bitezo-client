@@ -126,18 +126,21 @@ export const usePosCartActions = () => {
       );
 
       if (existing) {
-        dispatch(addToCart({ uniqueId: existing.uniqueId, productId: product.id, price: targetPrice }));
+        dispatch(addToCart({ uniqueId: existing.uniqueId, productId: product.id, price: targetPrice, isIncl: product.isIncl }));
         return existing.uniqueId;
       } else {
         const uniqueId = `${product.id}-main-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        dispatch(addToCart({ uniqueId, productId: product.id, price: targetPrice }));
+        dispatch(addToCart({ uniqueId, productId: product.id, price: targetPrice, isIncl: product.isIncl }));
         return uniqueId;
       }
     }
     return null;
   };
 
-  const submitOrder = async (session: { dayId: number; shiftId: number; userId: number; employeeId?: number; providerId?: number; providerOrderNo?: string }) => {
+  const submitOrder = async (
+    session: { dayId: number; shiftId: number; userId: number; employeeId?: number; providerId?: number; providerOrderNo?: string },
+    shouldPrint: boolean = true
+  ) => {
     if (cartDetails.length === 0) {
       showToast("Cart is empty", "warning");
       return;
@@ -374,6 +377,44 @@ export const usePosCartActions = () => {
       const response = await orderApi.submitOrder(payload);
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
+
+        if (shouldPrint) {
+          try {
+            const { printerSettingsApi } = await import("../../services/printerSettingsApi");
+            const { printHtmlReceipt } = await import("../../services/qzService");
+            const { generateKotHtml } = await import("../../utils/kotTemplate");
+            
+            let targetPrinter: string | undefined;
+            try {
+              const printerSettingsResponse = await printerSettingsApi.getGeneral();
+              targetPrinter = printerSettingsResponse?.data?.kotPrinter;
+            } catch {
+              // Ignore API failures for settings
+            }
+
+            // In offline/pos contexts, session user is often stored locally or accessed via auth.
+            const employeeName = localStorage.getItem("employeeName") || "Cashier";
+            const orderTypeStr = selectedOrderTypeName || "DINE IN";
+            
+            const kotHtml = generateKotHtml(cartDetails, {
+               orderNo: String(response.data.id),
+               ticketNo: String(response.data.id),
+               waiter: employeeName,
+               counter: "Main",
+               section: selectedSectionId ? String(selectedSectionId) : "Main",
+               table: selectedTableId ? String(selectedTableId) : "T1",
+               orderType: orderTypeStr
+            });
+            
+            await printHtmlReceipt(kotHtml, targetPrinter);
+          } catch (printErr: any) {
+            console.error("[KOT Print Error]", printErr);
+            const errMsg = printErr?.message || printErr?.toString() || "Unknown error";
+            // Don't block the UI if printing fails
+            showToast(`Order placed, but printing failed: ${errMsg}`, "warning");
+          }
+        }
+
         dispatch(clearCart());
         localStorage.removeItem("driveThruVehicleNo");
         localStorage.removeItem("driveThruCustomerName");

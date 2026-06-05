@@ -6,7 +6,7 @@ import {
   updateSubCategory,
 } from "../services/subCategoryService";
 import { useToast } from "../../../../app/providers/useToast";
-import type { SubCategoryListItem } from "../types";
+import type { SubCategoryListItem, SubCategoryFormState } from "../types";
 import { useSubCategoryList } from "./useSubCategoryList";
 import { useSubCategoryFormState } from "./useSubCategoryFormState";
 
@@ -28,6 +28,8 @@ export const useSubCategoryManager = () => {
   const {
     form,
     setForm,
+    errors,
+    setErrors,
     editingId,
     setEditingId,
     open,
@@ -43,12 +45,32 @@ export const useSubCategoryManager = () => {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<SubCategoryListItem | null>(null);
 
+  const handleFormChange = (patch: Partial<SubCategoryFormState>) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+    // Clear errors for fields that are being modified
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      Object.keys(patch).forEach((key) => {
+        delete newErrors[key as keyof SubCategoryFormState];
+      });
+      return newErrors;
+    });
+  };
+
   const handleSave = async () => {
     const codeVal = form.code || "";
     const nameVal = form.name || "";
     const arabicVal = form.arabicName || "";
 
-    if (!codeVal.trim() || !nameVal.trim() || form.categoryId === "") return;
+    const validationErrors: Partial<Record<keyof SubCategoryFormState, string>> = {};
+    if (!codeVal.trim()) validationErrors.code = "Code is required";
+    if (!nameVal.trim()) validationErrors.name = "Name is required";
+    if (form.categoryId === "") validationErrors.categoryId = "Category is required";
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -165,7 +187,8 @@ export const useSubCategoryManager = () => {
 
   return {
     form,
-    setForm,
+    handleFormChange,
+    errors,
     categoryOptions,
     editingId,
     search,

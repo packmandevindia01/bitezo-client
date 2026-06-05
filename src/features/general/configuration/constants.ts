@@ -32,6 +32,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   customerTakeout: false,
   deliverySettle: false,
   showDeliveryRecall: false,
+  providerOwnMenuStatus: false,
 
   serviceCharge: 0,
   levy: 0,

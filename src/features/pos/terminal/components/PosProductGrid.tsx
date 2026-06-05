@@ -1,12 +1,9 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../types";
 import PosProductCard from "./PosProductCard";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { menuApi } from "../../services/menuApi";
-
-import { productDetailsCache } from "../hooks/usePosProducts";
 
 interface PosProductGridProps {
   products: PosProduct[];
@@ -35,12 +32,13 @@ const PosProductGrid = ({
   selectedProduct,
 }: PosProductGridProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const firstAltRef = useRef<HTMLButtonElement>(null);
   const { formatAmount } = useCurrency();
   const [columns, setColumns] = useState(1);
-  const [productDetails, setProductDetails] = useState(productDetailsCache);
 
   useEffect(() => {
-    if (!parentRef.current) return;
+    if (!scrollRef.current) return;
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -50,60 +48,11 @@ const PosProductGrid = ({
       }
     });
 
-    observer.observe(parentRef.current);
+    observer.observe(scrollRef.current);
     return () => observer.disconnect();
   }, []);
 
-  // Background fetch of product prices and alternatives info
-  useEffect(() => {
-    if (!products || products.length === 0) return;
 
-    let isMounted = true;
-
-    const fetchDetails = async () => {
-      const missing = products.filter(p => !productDetails[p.id]);
-      if (missing.length === 0) return;
-
-      const promises = missing.map(async (p) => {
-        try {
-          const alts = await menuApi.getAlternatives(p.id);
-          if (alts && alts.length > 0) {
-            return { id: p.id, hasAlts: true, price: undefined, isIncl: undefined, alts };
-          } else {
-            const data = await menuApi.getProductData(p.id);
-            return { id: p.id, hasAlts: false, price: data.price, isIncl: data.isIncl };
-          }
-        } catch (e) {
-          console.error(`Failed to fetch details for product ${p.id}:`, e);
-          return { id: p.id, hasAlts: false, price: 0, isIncl: undefined };
-        }
-      });
-
-      const results = await Promise.all(promises);
-      
-      if (!isMounted) return;
-
-      setProductDetails(prev => {
-        const next = { ...prev };
-        results.forEach(res => {
-          if (res) {
-            next[res.id] = { price: res.price, isIncl: res.isIncl, hasAlts: res.hasAlts, alts: res.alts };
-            // Save to module level cache
-            productDetailsCache[res.id] = { price: res.price, isIncl: res.isIncl, hasAlts: res.hasAlts, alts: res.alts };
-          }
-        });
-        return next;
-      });
-    };
-
-    fetchDetails();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [products]);
-
-  const firstAltRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (alternatives && alternatives.length > 0) {
@@ -124,37 +73,40 @@ const PosProductGrid = ({
     if (showAlternatives && selectedProduct) segments.push(selectedProduct.name);
     return segments;
   }, [categoryName, subCategoryName, showAlternatives, selectedProduct]);
+  const allItems = useMemo(() => {
+    if (showAlternatives) return alternatives;
+    if (showSubCategories) return subCategories;
+    return products;
+  }, [showAlternatives, showSubCategories, alternatives, subCategories, products]);
 
   const rows = useMemo(() => {
-    let data = [];
-    if (showSubCategories) data = subCategories;
-    else if (showAlternatives) data = alternatives;
-    else data = products;
-
-    const result = [];
-    for (let i = 0; i < data.length; i += columns) {
-      result.push(data.slice(i, i + columns));
+    const r = [];
+    for (let i = 0; i < allItems.length; i += columns) {
+      r.push(allItems.slice(i, i + columns));
     }
-    return result;
-  }, [products, subCategories, alternatives, showSubCategories, showAlternatives, columns]);
+    return r;
+  }, [allItems, columns]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const rowVirtualizer = useVirtualizer({
+  const virtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => {
-      if (showSubCategories) return 130;
-      return 130;
-    },
-    overscan: 5,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 130, // Approx height of card + gap
+    overscan: 2,
   });
 
-  const scrollProducts = (direction: "up" | "down") => {
-    if (parentRef.current) {
-      const scrollAmount = 240;
-      parentRef.current.scrollBy({
-        top: direction === "up" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
+  // Focus the first alternative when modal pops open
+  useEffect(() => {
+    if (showAlternatives && firstAltRef.current) {
+      firstAltRef.current.focus();
+    }
+  }, [showAlternatives]);
+
+  const scrollProducts = (direction: 'up' | 'down') => {
+    if (scrollRef.current) {
+      const scrollAmount = scrollRef.current.clientHeight * 0.8;
+      scrollRef.current.scrollBy({
+        top: direction === 'up' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
       });
     }
   };
@@ -174,11 +126,13 @@ const PosProductGrid = ({
       {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && (
         <div className="absolute top-8 right-2 z-10 flex items-center justify-end bg-white/90 backdrop-blur-sm px-2 py-1 rounded-b-lg shadow-sm border border-t-0 border-slate-100">
           {breadcrumbs.length > 0 && (
-            <div className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest select-none">
-              {breadcrumbs.map((seg, idx) => (
-                <div key={seg} className="flex items-center gap-1">
-                  {idx > 0 && <span className="text-slate-300 font-medium font-sans">&gt;</span>}
-                  <span className="text-[#49293e]">{seg}</span>
+            <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+              {breadcrumbs.map((crumb, idx) => (
+                <div key={crumb} className="flex items-center gap-1.5">
+                  <span className={idx === breadcrumbs.length - 1 ? "text-[#49293e] font-black" : ""}>
+                    {crumb}
+                  </span>
+                  {idx < breadcrumbs.length - 1 && <ChevronRight size={10} className="text-slate-400" />}
                 </div>
               ))}
             </div>
@@ -186,132 +140,113 @@ const PosProductGrid = ({
         </div>
       )}
 
-      <div
-        ref={parentRef}
-        className="h-full overflow-y-auto px-0.5 scrollbar-wide flex-1"
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden p-1 lg:p-2 scroll-smooth hide-scrollbar"
       >
-        {rows.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
-            <p className="text-lg font-bold text-slate-300">
-              {showSubCategories ? "No sub categories found." : showAlternatives ? "No variations found." : "No products found."}
-            </p>
+        {allItems.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-slate-400 text-sm font-bold uppercase tracking-widest">
+            {showAlternatives ? "No Alternatives" : showSubCategories ? "No Categories" : "No Products"}
           </div>
         ) : (
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
+          <div 
+            ref={parentRef}
+            className="w-full relative"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
           >
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+            {virtualizer.getVirtualItems().map((virtualRow) => (
               <div
                 key={virtualRow.index}
-                className="grid gap-2.5 lg:gap-3 xl:gap-4"
+                className="absolute top-0 left-0 w-full"
                 style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
-                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                  paddingBottom: "12px"
                 }}
               >
-                {rows[virtualRow.index].map((item: PosProduct | MenuSubCategory | PosAlternative) => {
-                  if (showSubCategories) {
-                    const sub = item as MenuSubCategory;
-                    return (
-                      <button
-                        type="button"
-                        key={sub.subCategoryId}
-                        onClick={() => onSelectSubCategory(sub.subCategoryId)}
-                        className="
-                          group relative flex flex-col items-center justify-center
-                          rounded-xl border border-slate-200 bg-white p-4
-                          transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-1
-                          h-[110px] xl:h-[120px]
-                        "
-                      >
-                        <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mb-1.5 shrink-0 bg-slate-50 border border-slate-100 group-hover:border-transparent transition-colors duration-300">
-                          {sub.imageUrl ? (
-                            <img 
-                              src={sub.imageUrl} 
-                              alt={sub.subCategoryName} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <svg className="w-5 h-5 text-[#49293e] group-hover:text-white transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
-                            </svg>
-                          )}
-                        </div>
-                        <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1">{sub.subCategoryName}</h3>
-                        <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest text-center line-clamp-2 break-words px-1">{sub.arabicName || "ITEMS"}</p>
-                      </button>
-                    );
-                  } else if (showAlternatives) {
-                    const alt = item as PosAlternative;
-                    const isFirstAlt = alternatives.indexOf(alt) === 0;
-                    return (
-                      <button
-                        type="button"
-                        key={alt.altName}
-                        ref={isFirstAlt ? firstAltRef : undefined}
-                        onClick={() => onSelectAlt?.(alt)}
-                        className="
-                          group relative flex flex-col justify-between
-                          rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
-                          transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-                          h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
-                        "
-                      >
-                        <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
-                          <span className="text-sm font-black text-slate-300 uppercase select-none">
-                            {alt.altName.substring(0, 2)}
-                          </span>
+                <div 
+                  className="grid gap-1 lg:gap-2 px-0.5"
+                  style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                >
+                  {rows[virtualRow.index].map((item: any) => {
+                    if (showSubCategories) {
+                      const sub = item as MenuSubCategory;
+                      return (
+                        <button
+                          key={sub.subCategoryId}
+                          onClick={() => onSelectSubCategory(sub.subCategoryId)}
+                          className="flex flex-col items-center justify-center gap-1 lg:gap-2 h-[110px] xl:h-[120px] rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20"
+                        >
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
+                            {sub.imageUrl ? (
+                              <img src={sub.imageUrl} alt={sub.subCategoryName} className="w-full h-full object-cover" />
+                            ) : (
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                              </svg>
+                            )}
+                          </div>
+                          <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1">{sub.subCategoryName}</h3>
+                          <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest text-center line-clamp-2 break-words px-1">{sub.arabicName || "ITEMS"}</p>
+                        </button>
+                      );
+                    } else if (showAlternatives) {
+                      const alt = item as PosAlternative;
+                      const isFirstAlt = alternatives.indexOf(alt) === 0;
+                      return (
+                        <button
+                          type="button"
+                          key={alt.altName}
+                          ref={isFirstAlt ? firstAltRef : undefined}
+                          onClick={() => onSelectAlt?.(alt)}
+                          className="
+                            group relative flex flex-col justify-between
+                            rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
+                            transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
+                            h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+                          "
+                        >
+                          <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-black text-slate-300 uppercase select-none">
+                              {alt.altName.substring(0, 2)}
+                            </span>
 
-                          {/* Price Badge Overlay */}
-                          {alt.price >= 0 && (
-                            <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
-                              {formatAmount(alt.price)}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
-                          <div className="w-full">
-                            <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
-                              {alt.altName}
-                            </h3>
-                            {alt.altArabic && (
-                              <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
-                                {alt.altArabic}
-                              </p>
+                            {/* Price Badge Overlay */}
+                            {alt.price >= 0 && (
+                              <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
+                                {formatAmount(alt.price)}
+                              </div>
                             )}
                           </div>
 
-                        </div>
-                      </button>
-                    );
-                  } else {
-                    const product = item as PosProduct;
-                    const details = productDetails[product.id];
-                    return (
-                      <PosProductCard 
-                        key={product.id} 
-                        product={product} 
-                        onAdd={onAdd} 
-                        price={details?.hasAlts ? undefined : details?.price}
-                        hasAlts={details?.hasAlts}
-                      />
-                    );
-                  }
-                })}
+                          <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
+                            <div className="w-full">
+                              <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
+                                {alt.altName}
+                              </h3>
+                              {alt.altArabic && (
+                                <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
+                                  {alt.altArabic}
+                                </p>
+                              )}
+                            </div>
+
+                          </div>
+                        </button>
+                      );
+                    } else {
+                      const product = item as PosProduct;
+                      return (
+                        <PosProductCard 
+                          key={product.id} 
+                          product={product} 
+                          onAdd={onAdd} 
+                          price={product.hasAlternatives ? undefined : product.price}
+                          hasAlts={product.hasAlternatives}
+                        />
+                      );
+                    }
+                  })}
+                </div>
               </div>
             ))}
           </div>

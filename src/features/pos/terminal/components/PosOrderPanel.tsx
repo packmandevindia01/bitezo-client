@@ -43,7 +43,7 @@ interface PosOrderPanelProps {
   onExtras?: () => void;
   onQty?: () => void;
   onClearCart?: () => void;
-  onOrder?: () => void;
+  onOrder?: (print: boolean) => void;
   onSettle?: () => void;
   onClose?: () => void;
   orderLoading?: boolean;

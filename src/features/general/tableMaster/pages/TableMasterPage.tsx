@@ -79,6 +79,7 @@ const TableMasterPage = () => {
               onEdit={canEdit ? handleEdit : undefined}
               onDeleteRequest={canDelete ? setDeleteRecord : undefined}
               onReorder={canEdit ? handleReorder : undefined}
+              onEmptySlotClick={canAdd ? (pos) => setCreateMode(pos) : undefined}
             />
           </div>
 

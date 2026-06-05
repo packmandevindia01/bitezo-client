@@ -18,6 +18,8 @@ export interface PosProduct {
   colorCode?: string;
   vatValue?: number;
   unitId?: number;
+  hasAlternatives?: boolean;
+  isIncl?: boolean;
 }
 
 export interface PosCartItem {

@@ -17,17 +17,19 @@ import { menuApi } from "../../services/menuApi";
 import type { PosCategory, MenuSubCategory, PosProduct } from "../../types";
 
 // Module-level caches for premium instantaneous SWR (Stale-While-Revalidate) performance
-const groupCategoriesCache: Record<number, PosCategory[]> = {};
-const subCategoriesCache: Record<number, MenuSubCategory[]> = {};
-const productsCache: Record<string, PosProduct[]> = {}; // key: `${catId}-${subCatId}`
-export const productDetailsCache: Record<number, { price?: number; isIncl?: boolean; hasAlts?: boolean; alts?: import("../../types").PosAlternative[] }> = {};
+export const groupCategoriesCache: Record<number, PosCategory[]> = {};
+export const subCategoriesCache: Record<number, MenuSubCategory[]> = {};
+export const productsCache: Record<string, PosProduct[]> = {}; // key: `${catId}-${subCatId}`
+export const alternativesCache: Record<string, any[]> = {}; // key: `${productId}-${orderTypeId}`
+export const productDataCache: Record<string, any> = {}; // key: `${productId}-${orderTypeId}`
 
 /** Call this on New Order to force-refresh all product/alt data from the API */
 export const clearAllPosCache = () => {
   Object.keys(groupCategoriesCache).forEach(k => delete groupCategoriesCache[Number(k)]);
   Object.keys(subCategoriesCache).forEach(k => delete subCategoriesCache[Number(k)]);
   Object.keys(productsCache).forEach(k => delete productsCache[k]);
-  Object.keys(productDetailsCache).forEach(k => delete productDetailsCache[Number(k)]);
+  Object.keys(alternativesCache).forEach(k => delete alternativesCache[k]);
+  Object.keys(productDataCache).forEach(k => delete productDataCache[k]);
 };
 
 export const usePosProducts = () => {
@@ -42,7 +44,8 @@ export const usePosProducts = () => {
     activeSubCategoryId,
     search,
     loading,
-    error
+    error,
+    selectedOrderTypeId
   } = useAppSelector((state) => state.pos);
 
   // ─── Fetching Logic ─────────────────────────────────────────────────────────
@@ -63,20 +66,15 @@ export const usePosProducts = () => {
     }
   }, [dispatch, activeGroupId]);
 
-  const fetchGroupCategories = useCallback(async (groupId: number) => {
-    const cachedCats = groupCategoriesCache[groupId];
-    if (cachedCats) {
-      dispatch(setCategories(cachedCats));
-      if (cachedCats.length > 0 && !activeCategoryId) {
-        dispatch(setCategory(cachedCats[0].id));
-      }
-      return;
-    }
-
+  const fetchGroupCategories = useCallback(async (groupId: number, orderTypeId?: number) => {
+    const safeOrderTypeId = orderTypeId || 1;
+    // To be safe against cache invalidation from orderTypeId changes:
+    // We will bypass cache for now if orderTypeId changes, or simply pass it down.
+    
     dispatch(setLoading(true));
     try {
-      const data = await menuApi.getGroupCategories(groupId);
-      groupCategoriesCache[groupId] = data;
+      const data = await menuApi.getGroupCategories(groupId, safeOrderTypeId);
+      groupCategoriesCache[groupId] = data; // Note: overwriting cache
       dispatch(setCategories(data));
       if (data.length > 0 && !activeCategoryId) {
         dispatch(setCategory(data[0].id));
@@ -90,22 +88,26 @@ export const usePosProducts = () => {
 
   // Internal: fetches products WITHOUT touching the loading flag.
   // Used inside fetchSubCategories so only one loading cycle occurs.
-  const _fetchProductsRaw = useCallback(async (catId: number, subCatId: number) => {
-    const data = await menuApi.getProducts(catId, subCatId);
-    productsCache[`${catId}-${subCatId}`] = data;
+  const _fetchProductsRaw = useCallback(async (catId: number, subCatId: number, orderTypeId?: number) => {
+    const safeOrderTypeId = orderTypeId || 1;
+    const data = await menuApi.getProducts(catId, subCatId, safeOrderTypeId);
+    productsCache[`${catId}-${subCatId}-${safeOrderTypeId}`] = data;
     dispatch(setProducts(data));
   }, [dispatch]);
 
-  const fetchSubCategories = useCallback(async (categoryId: number) => {
+  const fetchSubCategories = useCallback(async (categoryId: number, orderTypeId?: number) => {
+    const safeOrderTypeId = orderTypeId || 1;
     const cachedSubs = subCategoriesCache[categoryId];
     if (cachedSubs) {
       dispatch(setSubCategories(cachedSubs));
 
       if (cachedSubs.length === 0) {
-        const cacheKey = `${categoryId}-0`;
+        const cacheKey = `${categoryId}-0-${safeOrderTypeId}`;
         const cachedProds = productsCache[cacheKey];
         if (cachedProds) {
           dispatch(setProducts(cachedProds));
+        } else {
+          await _fetchProductsRaw(categoryId, 0, safeOrderTypeId);
         }
       } else {
         dispatch(setSubCategory(null));
@@ -123,7 +125,7 @@ export const usePosProducts = () => {
 
       if (data.length === 0) {
         // No subcategories — fetch products directly (no second loading cycle)
-        await _fetchProductsRaw(categoryId, 0);
+        await _fetchProductsRaw(categoryId, 0, safeOrderTypeId);
       } else {
         dispatch(setSubCategory(null));
         dispatch(setProducts([]));
@@ -136,8 +138,9 @@ export const usePosProducts = () => {
   }, [dispatch, _fetchProductsRaw]);
 
   // Public: fetches products when user explicitly selects a subcategory.
-  const fetchProducts = useCallback(async (catId: number, subCatId: number) => {
-    const cacheKey = `${catId}-${subCatId}`;
+  const fetchProducts = useCallback(async (catId: number, subCatId: number, orderTypeId?: number) => {
+    const safeOrderTypeId = orderTypeId || 1;
+    const cacheKey = `${catId}-${subCatId}-${safeOrderTypeId}`;
     const cachedProds = productsCache[cacheKey];
 
     if (cachedProds) {
@@ -147,7 +150,7 @@ export const usePosProducts = () => {
 
     dispatch(setLoading(true));
     try {
-      const data = await menuApi.getProducts(catId, subCatId);
+      const data = await menuApi.getProducts(catId, subCatId, safeOrderTypeId);
       productsCache[cacheKey] = data;
       dispatch(setProducts(data));
     } catch (err: any) {
@@ -159,11 +162,12 @@ export const usePosProducts = () => {
 
   // ─── Preloader ─────────────────────────────────────────────────────────────
 
-  const preloadEverything = useCallback(async () => {
+  const preloadEverything = useCallback(async (orderTypeId?: number) => {
+    const safeOrderTypeId = orderTypeId || 1;
     try {
       for (const g of groups) {
         if (!groupCategoriesCache[g.groupId]) {
-          const cats = await menuApi.getGroupCategories(g.groupId);
+          const cats = await menuApi.getGroupCategories(g.groupId, safeOrderTypeId);
           groupCategoriesCache[g.groupId] = cats;
         }
         
@@ -174,45 +178,17 @@ export const usePosProducts = () => {
             subCategoriesCache[c.id] = subs;
 
             if (subs.length === 0) {
-              if (!productsCache[`${c.id}-0`]) {
-                const prods = await menuApi.getProducts(c.id, 0);
-                productsCache[`${c.id}-0`] = prods;
-                for (const p of prods) {
-                  if (!productDetailsCache[p.id]) {
-                    try {
-                      const alts = await menuApi.getAlternatives(p.id);
-                      if (alts && alts.length > 0) {
-                        productDetailsCache[p.id] = { hasAlts: true, alts };
-                      } else {
-                        const data = await menuApi.getProductData(p.id);
-                        productDetailsCache[p.id] = { hasAlts: false, price: data.price, isIncl: data.isIncl };
-                      }
-                    } catch (e) {
-                      // ignore background errors
-                    }
-                  }
-                }
+              const cacheKey = `${c.id}-0-${safeOrderTypeId}`;
+              if (!productsCache[cacheKey]) {
+                const prods = await menuApi.getProducts(c.id, 0, safeOrderTypeId);
+                productsCache[cacheKey] = prods;
               }
             } else {
               for (const sub of subs) {
-                if (!productsCache[`${c.id}-${sub.subCategoryId}`]) {
-                  const prods = await menuApi.getProducts(c.id, sub.subCategoryId);
-                  productsCache[`${c.id}-${sub.subCategoryId}`] = prods;
-                  for (const p of prods) {
-                    if (!productDetailsCache[p.id]) {
-                      try {
-                        const alts = await menuApi.getAlternatives(p.id);
-                        if (alts && alts.length > 0) {
-                          productDetailsCache[p.id] = { hasAlts: true, alts };
-                        } else {
-                          const data = await menuApi.getProductData(p.id);
-                          productDetailsCache[p.id] = { hasAlts: false, price: data.price, isIncl: data.isIncl };
-                        }
-                      } catch (e) {
-                        // ignore background errors
-                      }
-                    }
-                  }
+                const cacheKey = `${c.id}-${sub.subCategoryId}-${safeOrderTypeId}`;
+                if (!productsCache[cacheKey]) {
+                  const prods = await menuApi.getProducts(c.id, sub.subCategoryId, safeOrderTypeId);
+                  productsCache[cacheKey] = prods;
                 }
               }
             }
@@ -235,30 +211,30 @@ export const usePosProducts = () => {
   useEffect(() => {
     if (groups.length > 0) {
       const timer = setTimeout(() => {
-        preloadEverything();
+        preloadEverything(selectedOrderTypeId);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [groups, preloadEverything]);
+  }, [groups, preloadEverything, selectedOrderTypeId]);
 
   useEffect(() => {
     if (activeGroupId) {
-      fetchGroupCategories(activeGroupId);
+      fetchGroupCategories(activeGroupId, selectedOrderTypeId);
     }
-  }, [activeGroupId, fetchGroupCategories]);
+  }, [activeGroupId, selectedOrderTypeId, fetchGroupCategories]);
 
   useEffect(() => {
     if (activeCategoryId) {
-      fetchSubCategories(activeCategoryId);
+      fetchSubCategories(activeCategoryId, selectedOrderTypeId);
     }
-  }, [activeCategoryId, fetchSubCategories]);
+  }, [activeCategoryId, selectedOrderTypeId, fetchSubCategories]);
 
   // Only fires when user explicitly picks a subcategory (activeSubCategoryId changes)
   useEffect(() => {
     if (activeCategoryId && activeSubCategoryId) {
-      fetchProducts(activeCategoryId, activeSubCategoryId);
+      fetchProducts(activeCategoryId, activeSubCategoryId, selectedOrderTypeId);
     }
-  }, [activeCategoryId, activeSubCategoryId, fetchProducts]);
+  }, [activeCategoryId, activeSubCategoryId, selectedOrderTypeId, fetchProducts]);
 
   // ─── Search & Filtering ────────────────────────────────────────────────────
 

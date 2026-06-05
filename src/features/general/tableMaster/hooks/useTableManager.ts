@@ -52,9 +52,12 @@ export const useTableManager = () => {
     setSelectedId(null);
   };
 
-  const setCreateMode = () => {
+  const setCreateMode = (position?: number) => {
     setMode("create");
     resetForm(String(selectedSectionId));
+    if (position !== undefined) {
+      setField("position", position);
+    }
     setOpen(true);
   };
 
@@ -74,7 +77,7 @@ export const useTableManager = () => {
         chairs: Number(form.chairs || 0),
         isActive: form.isActive,
         sectionId: Number(form.sectionId),
-        position: mode === "edit" ? (form.position ?? 0) : (maxPos + 1),
+        position: mode === "edit" ? (form.position ?? 0) : (form.position ? form.position : (maxPos + 1)),
       };
 
       if (mode === "edit" && selectedId !== null) {
@@ -101,10 +104,16 @@ export const useTableManager = () => {
     // 1. Update local state immediately for visual responsiveness
     setTables(newTables);
 
-    // 2. Persist to backend (Parallel updates for speed)
+    // 2. Persist to backend
     try {
       // Find only tables whose positions have actually changed
-      const updatePromises = newTables.map((table) => {
+      const changedTables = newTables.filter((table) => {
+        const oldTable = tables.find((t) => t.tableId === table.tableId);
+        return oldTable && oldTable.position !== table.position;
+      });
+
+      // Update sequentially to avoid 500 database lock errors from parallel requests
+      for (const table of changedTables) {
         const payload: TablePayload = {
           tableName: table.tableName,
           chairs: table.chairs,
@@ -112,10 +121,9 @@ export const useTableManager = () => {
           sectionId: Number(selectedSectionId),
           position: table.position,
         };
-        return tableService.update(table.tableId, payload);
-      });
+        await tableService.update(table.tableId, payload);
+      }
 
-      await Promise.all(updatePromises);
       showToast("Order saved successfully", "success");
     } catch (err: unknown) {
       console.error("[Reorder] Persistence failed:", err);

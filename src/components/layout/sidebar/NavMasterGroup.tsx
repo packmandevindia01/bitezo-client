@@ -154,6 +154,15 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
             </div>
           </div>
         )}
+
+        {hasPermission("Supplier Master", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/suppliers")} className={itemClassName}>
+            <div className="flex items-center gap-2">
+              <Building2 size={14} />
+              <span>Supplier Master</span>
+            </div>
+          </div>
+        )}
       </SidebarDropdown>
 
       <SidebarDropdown label="Order" icon={<UtensilsCrossed size={14} />} nested defaultOpen>

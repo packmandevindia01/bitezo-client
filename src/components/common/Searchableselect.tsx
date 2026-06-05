@@ -284,7 +284,7 @@ const SearchableSelect = ({
   };
 
   return (
-    <div className="flex w-full flex-col gap-1" ref={containerRef}>
+    <div className="flex flex-col gap-1 mb-1 w-full relative" ref={containerRef}>
       {/* Label */}
       {label && (
         <label 

@@ -21,6 +21,7 @@ interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: SubCategoryFormState;
+  errors: Partial<Record<keyof SubCategoryFormState, string>>;
   categoryOptions: { label: string; value: number }[];
   saving: boolean;
   onClose: () => void;
@@ -35,6 +36,7 @@ const SubCategoryModal = ({
   isOpen,
   editingId,
   form,
+  errors,
   categoryOptions,
   saving,
   onClose,
@@ -70,20 +72,24 @@ const SubCategoryModal = ({
             <FormInput
               id="subcat-code"
               label="Code"
+              required
               value={form.code}
               onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
               onKeyDown={(e) => handleKeyDown(e, "subcat-name")}
               placeholder="Enter code"
+              error={errors.code}
               autoFocus
             />
 
             <FormInput
               id="subcat-name"
               label="Name"
+              required
               value={form.name}
               onChange={(e) => onChange({ name: e.target.value })}
               onKeyDown={(e) => handleKeyDown(e, "subcat-arabic")}
               placeholder="Enter name"
+              error={errors.name}
             />
 
             <FormInput
@@ -93,15 +99,18 @@ const SubCategoryModal = ({
               onChange={(e) => onChange({ arabicName: e.target.value })}
               onKeyDown={(e) => handleKeyDown(e, "subcat-category")}
               placeholder="أدخل اسم الفئة الفرعية"
+              error={errors.arabicName}
             />
 
             <SelectInput
               id="subcat-category"
               label="Category"
+              required
               options={categoryOptions.map(opt => ({ label: opt.label, value: String(opt.value) }))}
               value={String(form.categoryId)}
               onChange={(e) => onChange({ categoryId: Number(e.target.value) })}
               placeholder="Choose category"
+              error={errors.categoryId}
             />
 
             <div className="md:col-span-2 flex items-center pt-1">

@@ -52,6 +52,7 @@ const ConfigurationPage = lazy(() => import("../../features/general/configuratio
 const ProviderListPage = lazy(() => import("../../features/general/provider/pages/ProviderListPage"));
 const ProviderFormPage = lazy(() => import("../../features/general/provider/pages/ProviderFormPage"));
 const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsList"));
+const SupplierList = lazy(() => import("../../features/general/supplier/pages/SupplierList"));
 const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherPage"));
 const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherPage"));
 const PaymentVoucherPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherPage"));
@@ -141,6 +142,7 @@ const AppRoutes = () => {
                   <Route path="providers" element={<RoleGuard moduleName="Provider Master"><ProviderListPage /></RoleGuard>} />
                   <Route path="providers/new" element={<RoleGuard moduleName="Provider Master" action="Add"><ProviderFormPage /></RoleGuard>} />
                   <Route path="providers/edit/:id" element={<RoleGuard moduleName="Provider Master" action="Edit"><ProviderFormPage /></RoleGuard>} />
+                  <Route path="suppliers" element={<RoleGuard moduleName="Supplier Master"><SupplierList /></RoleGuard>} />
                   <Route path="categories" element={<RoleGuard moduleName="Category Master"><CategoryPage /></RoleGuard>} />
                   <Route path="sub-categories" element={<RoleGuard moduleName="Sub Category Master"><SubCategoryPage /></RoleGuard>} />
                   <Route path="groups" element={<RoleGuard moduleName="Group Master"><GroupPage /></RoleGuard>} />

@@ -13,6 +13,7 @@ interface CartRow {
   sc: number;
   levy: number;
   vatRate: number;
+  price?: number;
   vatAmount: number;
   variantName?: string;
   extras?: { id: number; name: string; price: number; qty: number }[];

@@ -23,12 +23,12 @@ export const BranchColorsSection = ({
 
   // Filter out the "All" branch, then filter by search query
   const validBranches = branches.filter(b => {
-    const isAll = b.name?.toLowerCase() === "all" || b.branchName?.toLowerCase() === "all";
+    const isAll = b.name?.toLowerCase() === "all" || (b as any).branchName?.toLowerCase() === "all";
     if (isAll) return false;
     
     if (!searchQuery.trim()) return true;
     
-    const name = (b.name || b.branchName || "").toLowerCase();
+    const name = (b.name || (b as any).branchName || "").toLowerCase();
     return name.includes(searchQuery.toLowerCase().trim());
   });
 
@@ -83,7 +83,7 @@ export const BranchColorsSection = ({
                     Branch
                   </label>
                   <p className="w-full bg-transparent text-xs font-black text-gray-900 truncate">
-                    {branch.name || branch.branchName || "Unknown"}
+                    {branch.name || (branch as any).branchName || "Unknown"}
                   </p>
                 </div>
 

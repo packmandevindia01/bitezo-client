@@ -39,7 +39,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { POS_CONFIGS_STORAGE_KEY, posConfigApi, type RuntimePosConfig } from "../../services/posConfigApi";
 import { useEmployeeAuthorization } from "../hooks/useEmployeeAuthorization";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { productDetailsCache, clearAllPosCache } from "../hooks/usePosProducts";
+import { clearAllPosCache, alternativesCache, productDataCache } from "../hooks/usePosProducts";
 
 export const PosTerminalPage = () => {
   const location = useLocation();
@@ -333,7 +333,7 @@ export const PosTerminalPage = () => {
   };
 
   // Handle Order Submission
-  const submitOrderForEmployee = async (employeeId: number) => {
+  const submitOrderForEmployee = async (employeeId: number, shouldPrint: boolean = true) => {
     if (!status) return;
     const orderId = await submitOrder({
       dayId: status.dayId,
@@ -342,7 +342,7 @@ export const PosTerminalPage = () => {
       employeeId,
       providerId: activeProvider?.provider.providerId,
       providerOrderNo: activeProvider?.orderNo,
-    });
+    }, shouldPrint);
     if (orderId) {
       setSelectedKey(null);
       setSelectedProduct(null);
@@ -539,7 +539,7 @@ export const PosTerminalPage = () => {
   };
 
   // Handle Order Submission
-  const handleOrder = async () => {
+  const handleOrder = async (shouldPrint: boolean) => {
     if (itemCount === 0) {
       showToast("Cart is empty", "warning");
       return;
@@ -564,13 +564,13 @@ export const PosTerminalPage = () => {
         return;
       }
 
-      await submitOrderForEmployee(defaultEmployeeId);
+      await submitOrderForEmployee(defaultEmployeeId, shouldPrint);
       return;
     }
 
     requestAuthorization({
       actionLabel: "Order",
-      onAuthorized: submitOrderForEmployee,
+      onAuthorized: (empId) => submitOrderForEmployee(empId, shouldPrint),
     });
   };
 
@@ -579,45 +579,98 @@ export const PosTerminalPage = () => {
     const product = visibleProducts.find(p => p.id === productId);
     if (!product) return;
 
-    // Use preloaded cache for instant loading without a spinner
-    const cached = productDetailsCache[productId];
-    if (cached) {
-      if (cached.hasAlts && cached.alts && cached.alts.length > 0) {
-        setAlternatives(cached.alts);
-        setSelectedProduct(product);
-      } else {
-        const price = cached.price ?? 0;
-        const newKey = addProduct(productId, undefined, price, cached.isIncl);
-        setSelectedKey(newKey);
-        if (price === 0) {
-          setPriceInputValue("");
-          setIsPriceModalOpen(true);
+    if (!product.hasAlternatives) {
+      let isIncl = product.isIncl;
+      let targetPrice = product.price ?? 0;
+
+      // If the list API didn't provide isIncl, fetch it from the /data endpoint
+      if (isIncl === undefined) {
+        const safeOrderTypeId = selectedOrderTypeId || 1;
+        const cacheKey = `${productId}-${safeOrderTypeId}`;
+        const cachedData = productDataCache[cacheKey];
+        if (cachedData) {
+          isIncl = cachedData.isIncl;
+          targetPrice = cachedData.price;
+        } else {
+          // Intentionally omitting setFetchingAlts(true) here so it feels instant
+          try {
+            const data = await menuApi.getProductData(productId, safeOrderTypeId);
+            productDataCache[cacheKey] = data;
+            isIncl = data.isIncl;
+            targetPrice = data.price;
+          } catch (err) {
+            console.error("Failed to fetch product data", err);
+          }
         }
+      }
+
+      const newKey = addProduct(productId, undefined, targetPrice, isIncl);
+      setSelectedKey(newKey);
+      if (targetPrice === 0) {
+        setPriceInputValue("");
+        setIsPriceModalOpen(true);
       }
       return;
     }
 
-    setFetchingAlts(true);
-    try {
-      const alts = await menuApi.getAlternatives(productId);
-      
-      if (alts && alts.length > 0) {
-        setAlternatives(alts);
-        setSelectedProduct(product);
-      } else {
-        const data = await menuApi.getProductData(productId);
-        const newKey = addProduct(productId, undefined, data.price, data.isIncl);
-        setSelectedKey(newKey);
-        if (data.price === 0) {
-          setPriceInputValue("");
-          setIsPriceModalOpen(true);
+    // It has alternatives, fetch them
+    const safeOrderTypeId = selectedOrderTypeId || 1;
+    const altsCacheKey = `${productId}-${safeOrderTypeId}`;
+    const cachedAlts = alternativesCache[altsCacheKey];
+
+    if (cachedAlts && cachedAlts.length > 0) {
+      setAlternatives(cachedAlts);
+      setSelectedProduct(product);
+    } else {
+      setFetchingAlts(true);
+      try {
+        const alts = await menuApi.getAlternatives(productId, safeOrderTypeId);
+        if (alts && alts.length > 0) {
+          alternativesCache[altsCacheKey] = alts;
+          setAlternatives(alts);
+          setSelectedProduct(product);
+        } else {
+          // Fallback if backend lied about hasAlternatives
+          let isIncl = product.isIncl;
+          let targetPrice = product.price ?? 0;
+          if (isIncl === undefined) {
+            const cacheKey = `${productId}-${safeOrderTypeId}`;
+            const cachedData = productDataCache[cacheKey];
+            if (cachedData) {
+              isIncl = cachedData.isIncl;
+              targetPrice = cachedData.price;
+            } else {
+              try {
+                const data = await menuApi.getProductData(productId, safeOrderTypeId);
+                productDataCache[cacheKey] = data;
+                isIncl = data.isIncl;
+                targetPrice = data.price;
+              } catch(e) {}
+            }
+          }
+          const newKey = addProduct(productId, undefined, targetPrice, isIncl);
+          setSelectedKey(newKey);
+          if (targetPrice === 0) {
+            setPriceInputValue("");
+            setIsPriceModalOpen(true);
+          }
         }
+      } catch {
+        let isIncl = product.isIncl;
+        let targetPrice = product.price ?? 0;
+        if (isIncl === undefined) {
+           try {
+             const data = await menuApi.getProductData(productId, safeOrderTypeId);
+             productDataCache[`${productId}-${safeOrderTypeId}`] = data;
+             isIncl = data.isIncl;
+             targetPrice = data.price;
+           } catch(e) {}
+        }
+        const newKey = addProduct(productId, undefined, targetPrice, isIncl);
+        setSelectedKey(newKey);
+      } finally {
+        setFetchingAlts(false);
       }
-    } catch {
-      const newKey = addProduct(productId);
-      setSelectedKey(newKey);
-    } finally {
-      setFetchingAlts(false);
     }
   };
 

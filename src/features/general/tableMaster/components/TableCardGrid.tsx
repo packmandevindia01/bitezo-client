@@ -24,6 +24,7 @@ interface TableCardGridProps {
   onEdit?: (record: TableRecord) => void;
   onDeleteRequest?: (record: TableRecord) => void;
   onReorder?: (newTables: TableRecord[]) => void;
+  onEmptySlotClick?: (position: number) => void;
 }
 
 const TableCardGrid = ({
@@ -32,7 +33,8 @@ const TableCardGrid = ({
   loading,
   onEdit,
   onDeleteRequest,
-  onReorder
+  onReorder,
+  onEmptySlotClick
 }: TableCardGridProps) => {
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -131,7 +133,7 @@ const TableCardGrid = ({
                 />
               );
             }
-            return <SortableEmptySlot key={item.id} id={item.id} />;
+            return <SortableEmptySlot key={item.id} id={item.id} onClick={() => onEmptySlotClick && item.position && onEmptySlotClick(item.position)} />;
           })}
         </div>
       </SortableContext>

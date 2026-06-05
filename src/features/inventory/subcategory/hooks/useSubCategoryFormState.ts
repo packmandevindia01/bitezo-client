@@ -4,11 +4,13 @@ import type { SubCategoryFormState } from "../types";
 
 export const useSubCategoryFormState = () => {
   const [form, setForm] = useState<SubCategoryFormState>(emptyForm);
+  const [errors, setErrors] = useState<Partial<Record<keyof SubCategoryFormState, string>>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
 
   const resetForm = () => {
     setForm(emptyForm);
+    setErrors({});
     setEditingId(null);
   };
 
@@ -32,6 +34,8 @@ export const useSubCategoryFormState = () => {
   return {
     form,
     setForm,
+    errors,
+    setErrors,
     editingId,
     setEditingId,
     open,

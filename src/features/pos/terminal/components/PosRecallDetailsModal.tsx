@@ -7,7 +7,6 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { loadRecalledOrder } from "../store/posSlice";
 import { formatAmount } from "../../../../utils/currency";
-import { productDetailsCache } from "../hooks/usePosProducts";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -165,6 +164,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const master = order.masterData || order;
       const details = order.detailsData || order.details || [];
 
+      const priceView = (() => {
+        try {
+          const saved = localStorage.getItem('posConfigs');
+          const full = saved ? JSON.parse(saved) : {};
+          return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
+        } catch { return 'Exclusive'; }
+      })();
+      const isIncl = priceView === 'Inclusive';
+
       const mappedCartItems = details.map((detail: any, idx: number) => {
         const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
         
@@ -186,21 +194,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
         let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
         
-        if (!pId && detail.productName) {
-          const matched = products.find(p => p.name === detail.productName || p.name === detail.ProductName);
-          if (matched) pId = matched.id;
+        let matchedProduct: any = null;
+        if (pId) {
+          matchedProduct = products.find(p => p.id === pId);
         }
+        if (!matchedProduct && detail.productName) {
+          matchedProduct = products.find(p => p.name === detail.productName || p.name === detail.ProductName);
+          if (matchedProduct) pId = matchedProduct.id;
+        }
+        const realProduct = matchedProduct || {};
 
         if (!pId) {
           console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
         }
+
+        const itemIsIncl = realProduct.isIncl !== undefined && realProduct.isIncl !== null 
+          ? Boolean(realProduct.isIncl) 
+          : isIncl;
 
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
           productId: pId,
           quantity: detail.qty || 1,
           price: detail.price || 0,
-          isIncl: true, // Force inclusive so the Cart NEVER adds VAT on top of recalled prices
+          isIncl: itemIsIncl,
           discountValue: detail.discAmount || 0,
           discountType: detail.discPer ? 'percentage' : 'amount',
           extras,
@@ -210,10 +227,13 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           originalQty: detail.qty || 1,
           product: {
             id: pId,
-            name: detail.productName || detail.ProductName || `Product #${pId}`,
-            price: detail.price || 0,
-            categoryId: 1,
-            unitId: detail.unitId || 1,
+            name: detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`,
+            price: detail.price || realProduct.price || 0,
+            categoryId: realProduct.categoryId || 1,
+            unitId: detail.unitId || realProduct.unitId || 1,
+            vatValue: realProduct.vatValue ?? undefined,
+            sVatId: realProduct.sVatId ?? undefined,
+            arabicName: realProduct.arabicName
           }
         };
       });
@@ -285,21 +305,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
         let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
         
-        if (!pId && detail.productName) {
-          const matched = products.find(p => p.name === detail.productName || p.name === detail.ProductName);
-          if (matched) pId = matched.id;
+        let matchedProduct: any = null;
+        if (pId) {
+          matchedProduct = products.find(p => p.id === pId);
         }
+        if (!matchedProduct && detail.productName) {
+          matchedProduct = products.find(p => p.name === detail.productName || p.name === detail.ProductName);
+          if (matchedProduct) pId = matchedProduct.id;
+        }
+        const realProduct = matchedProduct || {};
 
         if (!pId) {
           console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
         }
+
+        const itemIsIncl = realProduct.isIncl !== undefined && realProduct.isIncl !== null 
+          ? Boolean(realProduct.isIncl) 
+          : isIncl;
 
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
           productId: pId,
           quantity: detail.qty || 1,
           price: detail.price || 0,
-          isIncl: isIncl,
+          isIncl: itemIsIncl,
           discountValue: detail.discAmount || 0,
           discountType: detail.discPer ? 'percentage' : 'amount',
           extras,
@@ -309,10 +338,13 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           originalQty: detail.qty || 1,
           product: {
             id: pId,
-            name: detail.productName || detail.ProductName || `Product #${pId}`,
-            price: detail.price || 0,
-            categoryId: 1,
-            unitId: detail.unitId || 1,
+            name: detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`,
+            price: detail.price || realProduct.price || 0,
+            categoryId: realProduct.categoryId || 1,
+            unitId: detail.unitId || realProduct.unitId || 1,
+            vatValue: realProduct.vatValue ?? undefined,
+            sVatId: realProduct.sVatId ?? undefined,
+            arabicName: realProduct.arabicName
           }
         };
       });

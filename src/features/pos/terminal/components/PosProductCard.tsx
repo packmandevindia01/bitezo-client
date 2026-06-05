@@ -42,8 +42,15 @@ const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps)
 
         {/* Price Badge Overlay */}
         {showPrice && (
-          <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
-            {formatAmount(finalPrice)}
+          <div className="absolute top-1 right-1 flex gap-1 items-center z-10">
+            {product.isIncl && (
+              <div className="bg-green-500 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white shadow-md border border-green-600 select-none">
+                INCL
+              </div>
+            )}
+            <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
+              {formatAmount(finalPrice)}
+            </div>
           </div>
         )}
       </div>

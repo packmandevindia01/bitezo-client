@@ -109,7 +109,7 @@ const ProviderSettingsFilters = ({
           options={subCategories.map(s => ({ value: String(s.id), label: s.name }))}
         />
 
-        <div className="flex flex-col gap-1 w-full pb-0.5">
+        <div className="flex flex-col w-full mb-1">
           <Button 
             id="ps-load-btn"
             onClick={onLoad} 

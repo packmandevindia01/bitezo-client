@@ -26,7 +26,7 @@ const PosCategoryRail = ({
   };
 
   return (
-    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-r md:border-b-0 bg-[#fcf9fb] overflow-hidden shrink-0">
+    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-b-0 bg-[#fcf9fb] overflow-hidden shrink-0">
       {/* Scroll Up Button - Desktop only */}
       <button
         type="button"

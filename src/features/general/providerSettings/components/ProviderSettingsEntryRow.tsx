@@ -45,10 +45,10 @@ const ProviderSettingsEntryRow = ({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-12 items-end">
         
         {/* Product Search */}
-        <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product</label>
+        <div className="md:col-span-2 lg:col-span-4">
           <SearchableSelect
             id="ps-entry-product"
+            label="Product"
             options={allProducts.map((p) => ({
               label: `${p.productName} (${p.altName})`,
               value: `${p.productId}-${p.unitId}`,
@@ -89,8 +89,8 @@ const ProviderSettingsEntryRow = ({
         </div>
 
         {/* Price with Tax Toggle */}
-        <div className="lg:col-span-2 flex flex-col gap-1.5">
-          <div className="flex justify-between items-center px-1">
+        <div className="lg:col-span-2 flex flex-col">
+          <div className="flex justify-between items-center px-1 mb-0.5">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Price</label>
             <div className="scale-75 origin-right">
               <Checkbox
@@ -118,7 +118,7 @@ const ProviderSettingsEntryRow = ({
         </div>
 
         {/* Add Button */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 mb-1">
           <Button 
             id="ps-entry-add-btn"
             onClick={() => { onAdd(); setTimeout(() => document.getElementById("ps-entry-product")?.focus(), 0); }} 

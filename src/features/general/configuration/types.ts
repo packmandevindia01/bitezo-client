@@ -39,6 +39,7 @@ export interface ConfigurationState {
   customerTakeout: boolean;
   deliverySettle: boolean;
   showDeliveryRecall: boolean;
+  providerOwnMenuStatus: boolean;
 
   // Charges
   serviceCharge: number;
