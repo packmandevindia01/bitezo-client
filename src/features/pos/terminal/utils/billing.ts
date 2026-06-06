@@ -53,13 +53,14 @@ export const calculateLineItem = (
     config.vatType === 'Inclusive';
 
   let basePrice = price;
-  let baseExtras = extras;
   let baseDiscount = discount;
 
-  // Reverse Calculation for Inclusive VAT
+  // Extras are always inclusive of VAT, regardless of product's vatType
+  let baseExtras = extras / (1 + activeVatRate);
+
+  // Reverse Calculation for Inclusive VAT (Main Product)
   if (isInclusive) {
     basePrice = price / (1 + activeVatRate);
-    baseExtras = extras / (1 + activeVatRate);
   }
 
   // Reverse Calculation for Discount based on Discount config

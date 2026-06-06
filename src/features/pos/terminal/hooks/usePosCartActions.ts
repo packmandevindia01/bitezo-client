@@ -80,6 +80,7 @@ export const usePosCartActions = () => {
     voidProducts,
     voidModifiers,
     combinedOrderIds,
+    isSettling,
   } = useAppSelector((state) => state.pos);
 
   const addProduct = (productId: number, variantName?: string, price?: number, isIncl?: boolean) => {
@@ -136,6 +137,115 @@ export const usePosCartActions = () => {
     }
     return null;
   };
+  const getDirectSettleOrderPayload = (session: { employeeId?: number; userId?: number; providerOrderNo?: string }) => {
+    const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
+    const config = getBillingConfig(selectedOrderTypeName || "DineIn");
+
+    return {
+      orderId: editingOrderId || 0,
+      customerId: selectedCustomerId,
+      employeeId: session.employeeId ?? session.userId ?? 1,
+      discAmount: Number(discount.toFixed(3)),
+      discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
+      serviceCharge: Number(totalServiceCharge.toFixed(3)),
+      levy: Number(totalLevy.toFixed(3)),
+      vatExclAmount: Number(subtotal.toFixed(3)),
+      vatAmount: Number(tax.toFixed(3)),
+      netAmount: Number(total.toFixed(3)),
+      updatedAt: new Date().toISOString(),
+      orderTypeId: selectedOrderTypeId,
+      sectionId: isDineIn ? (selectedSectionId || 1) : 0,
+      tableId: isDineIn ? (selectedTableId || 1) : 0,
+      guestNo: guestNo || 0,
+      vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
+        ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
+        : "",
+      vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
+        ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
+        : "",
+      addressId: selectedAddressId,
+      missedCall,
+      contactNo,
+      note,
+      change,
+      isComing,
+      comingTime,
+      providerNo: session.providerOrderNo || "",
+      details: cartDetails.map((item, index) => {
+        const mapId = item.mapId || (Math.max(0, ...cartDetails.map(i => i.mapId || 0), ...voidProducts.map(v => v.mapId || 0)) + index + 1);
+        
+        let mainNetAmount = item.lineTotal;
+        let mainVatAmount = item.vatAmount;
+        let mainSc = item.sc;
+        let mainLevy = item.levy;
+
+        (item.extras || []).forEach(extra => {
+           const activeVatRate = (item.product as any).vatValue !== undefined ? (item.product as any).vatValue / 100 : (config.vatRate || 0);
+           const actualExtraPrice = extra.price / (1 + activeVatRate);
+           const extraBase = actualExtraPrice * extra.qty;
+           const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
+           const extraVat = item.vatAmount * proportion;
+           const extraSc = item.sc * proportion;
+           const extraLevy = item.levy * proportion;
+           const extraNet = item.lineTotal * proportion;
+
+           mainNetAmount -= extraNet;
+           mainVatAmount -= extraVat;
+           mainSc -= extraSc;
+           mainLevy -= extraLevy;
+        });
+
+        return {
+          productId: item.productId || item.product?.id,
+          unitId: item.product?.unitId || 1,
+          qty: item.quantity,
+          price: Number(item.product.price.toFixed(3)),
+          discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
+          discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
+          serviceCharge: Number(mainSc.toFixed(3)),
+          levy: Number(mainLevy.toFixed(3)),
+          vatId: (item.product as any).sVatId || 1,
+          vatAmount: Number(mainVatAmount.toFixed(3)),
+          netAmount: Number(mainNetAmount.toFixed(3)),
+          mapId: mapId,
+          complimentaryStatus: false,
+          baseQty: item.quantity
+        };
+      }),
+      modifiers: cartDetails.flatMap((item, index) => {
+        const mapId = item.mapId || (Math.max(0, ...cartDetails.map(i => i.mapId || 0), ...voidProducts.map(v => v.mapId || 0)) + index + 1);
+        
+        const extrasRows = (item.extras || []).map(extra => ({
+          mapId: mapId,
+          modifierId: extra.id,
+          qty: extra.qty,
+          price: Number(extra.price.toFixed(3)),
+          amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
+          typeId: extra.typeId
+        }));
+
+        const modifierRows = (item.modifiers || []).map(mod => ({
+          mapId: mapId,
+          modifierId: mod.id,
+          qty: mod.qty,
+          price: 0,
+          amount: 0,
+          typeId: mod.typeId
+        }));
+
+        return [...extrasRows, ...modifierRows];
+      }),
+      voidProducts: voidProducts.map(vp => ({
+        productId: vp.productId,
+        unitId: vp.unitId,
+        qty: vp.qty,
+        amount: vp.amount,
+        mapId: vp.mapId
+      })),
+      voidModifiers: voidModifiers.filter(vm => !voidProducts.some(vp => vp.mapId === vm.mapId)),
+      combinedOrderIds: combinedOrderIds
+    };
+  };
 
   const submitOrder = async (
     session: { dayId: number; shiftId: number; userId: number; employeeId?: number; providerId?: number; providerOrderNo?: string },
@@ -147,7 +257,6 @@ export const usePosCartActions = () => {
     }
 
     const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
-    const config = getBillingConfig(selectedOrderTypeName || "DineIn");
     
     // Skip table/section validation when editing an existing recalled order —
     // the table is already assigned on the backend and will be preserved in the PUT payload.
@@ -160,113 +269,100 @@ export const usePosCartActions = () => {
     setOrderError(null);
 
     try {
+      const basePayload = getDirectSettleOrderPayload(session);
+      
       if (editingOrderId) {
-        const updatePayload: MenuOrderUpdateRequest = {
-          orderId: editingOrderId,
-          customerId: selectedCustomerId,
-          employeeId: session.employeeId ?? session.userId,
-          discAmount: Number(discount.toFixed(3)),
-          discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
-          serviceCharge: Number(totalServiceCharge.toFixed(3)),
-          levy: Number(totalLevy.toFixed(3)),
-          vatExclAmount: Number(subtotal.toFixed(3)),
-          vatAmount: Number(tax.toFixed(3)),
-          netAmount: Number(total.toFixed(3)),
-          updatedAt: new Date().toISOString(),
-          orderTypeId: selectedOrderTypeId,
-          sectionId: isDineIn ? (selectedSectionId || 1) : 0,
-          tableId: isDineIn ? (selectedTableId || 1) : 0,
-          guestNo: guestNo || 0,
-          vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
-            ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
-            : "",
-          vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
-            ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
-            : "",
-          addressId: selectedAddressId,
-          missedCall,
-          contactNo,
-          note,
-          change,
-          isComing,
-          comingTime,
-          providerNo: session.providerOrderNo || "",
-          details: cartDetails.map((item, index) => {
-            const mapId = index + 1;
-            
-            let mainNetAmount = item.lineTotal;
-            let mainVatAmount = item.vatAmount;
-            let mainSc = item.sc;
-            let mainLevy = item.levy;
-
-            (item.extras || []).forEach(extra => {
-               const activeVatRate = (item.product as any).vatValue !== undefined ? (item.product as any).vatValue / 100 : (config.vatRate || 0);
-               const actualExtraPrice = item.isIncl ? extra.price / (1 + activeVatRate) : extra.price;
-               const extraBase = actualExtraPrice * extra.qty;
-               const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
-               const extraVat = item.vatAmount * proportion;
-               const extraSc = item.sc * proportion;
-               const extraLevy = item.levy * proportion;
-               const extraNet = item.lineTotal * proportion;
-
-               mainNetAmount -= extraNet;
-               mainVatAmount -= extraVat;
-               mainSc -= extraSc;
-               mainLevy -= extraLevy;
-            });
-
-            return {
-              productId: item.productId || item.product?.id,
-              unitId: item.product?.unitId || 1,
-              qty: item.quantity,
-              price: Number(item.product.price.toFixed(3)),
-              discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-              discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-              serviceCharge: Number(mainSc.toFixed(3)),
-              levy: Number(mainLevy.toFixed(3)),
-              vatId: (item.product as any).sVatId || 1,
-              vatAmount: Number(mainVatAmount.toFixed(3)),
-              netAmount: Number(mainNetAmount.toFixed(3)),
-              mapId: mapId,
-              complimentaryStatus: false
-            };
-          }),
-          modifiers: cartDetails.flatMap((item, index) => {
-            const mapId = index + 1;
-            
-            const extrasRows = (item.extras || []).map(extra => ({
-              mapId: mapId,
-              modifierId: extra.id,
-              qty: extra.qty,
-              price: Number(extra.price.toFixed(3)),
-              amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
-              typeId: extra.typeId
-            }));
-
-            const modifierRows = (item.modifiers || []).map(mod => ({
-              mapId: mapId,
-              modifierId: mod.id,
-              qty: mod.qty,
-              price: 0,
-              amount: 0,
-              typeId: mod.typeId
-            }));
-
-            return [...extrasRows, ...modifierRows];
-          }),
-          voidProducts: voidProducts,
-          voidModifiers: voidModifiers,
-          combinedOrderIds: combinedOrderIds
-        };
-
+        const updatePayload = basePayload;
         const invalidDetail = updatePayload.details.find(d => !d.productId || d.productId === 0);
         if (invalidDetail) {
           throw new Error(`CRITICAL: A cart item is missing a valid productId!`);
         }
 
-        const response = await orderApi.updateOrder(editingOrderId, updatePayload);
+        const response = await orderApi.updateOrder(editingOrderId, updatePayload as MenuOrderUpdateRequest);
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
+
+          if (shouldPrint) {
+            try {
+              const { printerSettingsApi } = await import("../../services/printerSettingsApi");
+              const { printHtmlReceipt } = await import("../../services/qzService");
+              const { generateKotHtml } = await import("../../utils/kotTemplate");
+
+              let targetPrinter: string | undefined;
+              try {
+                const printerSettingsResponse = await printerSettingsApi.getGeneral();
+                targetPrinter = printerSettingsResponse?.data?.kotPrinter;
+              } catch {}
+
+              const employeeName = localStorage.getItem("employeeName") || "Cashier";
+              const orderTypeStr = selectedOrderTypeName || "DINE IN";
+              
+              const commonPrintData = {
+                orderNo: String(editingOrderId),
+                ticketNo: String(editingOrderId),
+                waiter: employeeName,
+                counter: "Main",
+                section: selectedSectionId ? String(selectedSectionId) : "Main",
+                table: selectedTableId ? String(selectedTableId) : "T1",
+                orderType: orderTypeStr
+              };
+
+              const reorderItems = cartDetails
+                .filter(item => !item.isExisting || item.quantity > (item.originalQty || 0))
+                .map(item => {
+                  const diffQty = item.isExisting ? item.quantity - (item.originalQty || 0) : item.quantity;
+                  const ratio = item.quantity > 0 ? diffQty / item.quantity : 0;
+                  
+                  return {
+                    ...item,
+                    quantity: diffQty,
+                    lineTotal: item.lineTotal * ratio,
+                    extras: (item.extras || []).map(ex => ({
+                      ...ex,
+                      qty: (ex.qty || 1) * ratio
+                    })),
+                    modifiers: (item.modifiers || []).map(mod => ({
+                      ...mod,
+                      qty: (mod.qty || 1) * ratio
+                    }))
+                  };
+                });
+
+              if (reorderItems.length > 0) {
+                const reorderHtml = generateKotHtml(reorderItems, { ...commonPrintData, headerTitle: "RE-ORDER" });
+                await printHtmlReceipt(reorderHtml, targetPrinter);
+              }
+
+              if (voidProducts.length > 0) {
+                const voidCartItems = voidProducts.map((vp: any) => ({
+                  productId: vp.productId,
+                  quantity: vp.qty,
+                  price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0,
+                  lineTotal: vp.amount,
+                  product: { 
+                    name: vp.productName || `Product #${vp.productId}`, 
+                    price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0 
+                  },
+                  extras: voidModifiers
+                            .filter(vm => vm.mapId === vp.mapId && vm.amount > 0)
+                            .map(vm => ({ 
+                              id: vm.modifierId, 
+                              qty: vm.qty, 
+                              price: vm.amount > 0 ? Number((vm.amount / vm.qty).toFixed(getDecimalPart())) : 0, 
+                              name: "Extra" 
+                            })),
+                  modifiers: []
+                })) as any;
+
+                const voidHtml = generateKotHtml(voidCartItems, { ...commonPrintData, headerTitle: "VOID ITEMS" });
+                await printHtmlReceipt(voidHtml, targetPrinter);
+              }
+            } catch (printErr: any) {
+              console.error("[KOT Print Error]", printErr);
+              showToast(`Order updated, but printing failed: ${printErr?.message || printErr?.toString()}`, "warning");
+            }
+          }
+
           dispatch(clearCart());
           localStorage.removeItem("driveThruVehicleNo");
           localStorage.removeItem("driveThruCustomerName");
@@ -277,100 +373,18 @@ export const usePosCartActions = () => {
       }
 
       const payload: MenuOrderRequest = {
+        ...basePayload,
         voucherDate: new Date().toISOString(),
-        customerId: selectedCustomerId,
-        employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
-        discAmount: Number(discount.toFixed(3)),
-        discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
-        serviceCharge: Number(totalServiceCharge.toFixed(3)),
-        levy: Number(totalLevy.toFixed(3)),
-        vatExclAmount: Number(subtotal.toFixed(3)),
-        vatAmount: Number(tax.toFixed(3)),
-        netAmount: Number(total.toFixed(3)),
         createdAt: new Date().toISOString(),
         orderTypeId: selectedOrderTypeId,
         sectionId: isDineIn ? selectedSectionId : 0,
         tableId: isDineIn ? selectedTableId : 0,
         guestNo,
-        addressId: selectedAddressId,
-        missedCall,
-        contactNo,
-        note,
-        change,
-        isComing,
-        comingTime,
-        details: cartDetails.map((item, index) => {
-          const mapId = index + 1;
-          
-          let mainNetAmount = item.lineTotal;
-          let mainVatAmount = item.vatAmount;
-          let mainSc = item.sc;
-          let mainLevy = item.levy;
-
-          (item.extras || []).forEach(extra => {
-             const activeVatRate = (item.product as any).vatValue !== undefined ? (item.product as any).vatValue / 100 : (config.vatRate || 0);
-             const actualExtraPrice = item.isIncl ? extra.price / (1 + activeVatRate) : extra.price;
-             const extraBase = actualExtraPrice * extra.qty;
-             const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
-             const extraVat = item.vatAmount * proportion;
-             const extraSc = item.sc * proportion;
-             const extraLevy = item.levy * proportion;
-             const extraNet = item.lineTotal * proportion;
-
-             mainNetAmount -= extraNet;
-             mainVatAmount -= extraVat;
-             mainSc -= extraSc;
-             mainLevy -= extraLevy;
-          });
-
-          return {
-            productId: item.productId,
-            unitId: item.product.unitId || 1,
-            qty: item.quantity,
-            price: Number(item.product.price.toFixed(3)),
-            discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-            discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-            serviceCharge: Number(mainSc.toFixed(3)),
-            levy: Number(mainLevy.toFixed(3)),
-            vatId: (item.product as any).sVatId || 1,
-            vatAmount: Number(mainVatAmount.toFixed(3)),
-            netAmount: Number(mainNetAmount.toFixed(3)),
-            mapId: mapId,
-            complimentaryStatus: false
-          };
-        }),
-        modifiers: cartDetails.flatMap((item, index) => {
-          const mapId = index + 1;
-          
-          const extrasRows = (item.extras || []).map(extra => ({
-            mapId: mapId,
-            modifierId: extra.id,
-            qty: extra.qty,
-            price: Number(extra.price.toFixed(3)),
-            amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
-            typeId: extra.typeId
-          }));
-
-          const modifierRows = (item.modifiers || []).map(mod => ({
-            mapId: mapId,
-            modifierId: mod.id,
-            qty: mod.qty || 1,
-            price: 0,
-            amount: 0,
-            typeId: mod.typeId
-          }));
-
-          return [...extrasRows, ...modifierRows];
-        }),
-        vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
-          ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
-          : "",
         vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
           ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
-          : "",
-        providerNo: session.providerOrderNo || "",
+          : ""
       };
 
       console.log('--- KOT ORDER PUNCH PAYLOAD ---', JSON.stringify(payload, null, 2));
@@ -403,7 +417,8 @@ export const usePosCartActions = () => {
                counter: "Main",
                section: selectedSectionId ? String(selectedSectionId) : "Main",
                table: selectedTableId ? String(selectedTableId) : "T1",
-               orderType: orderTypeStr
+               orderType: orderTypeStr,
+               headerTitle: "NEW ORDER"
             });
             
             await printHtmlReceipt(kotHtml, targetPrinter);
@@ -487,13 +502,15 @@ export const usePosCartActions = () => {
     voidModifiers,
     addProduct,
     addProductBySku,
+    isSettling,
+    getDirectSettleOrderPayload,
     submitOrder,
     incrementItem: (uniqueId: string) => dispatch(incrementItem({ uniqueId })),
     decrementItem: (uniqueId: string) => dispatch(decrementItem({ uniqueId })),
     removeItem: (uniqueId: string) => dispatch(removeFromCart({ uniqueId })),
-    addVoidProduct: (payload: { productId: number; unitId: number; qty: number; amount: number; mapId: number }) => 
+    addVoidProduct: (payload: { productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }) => 
       dispatch(addVoidProduct(payload)),
-    addVoidModifier: (payload: { mapId: number; modifierId: number; qty: number; amount: number }) => 
+    addVoidModifier: (payload: { mapId: number; modifierId: number; qty: number; amount: number; typeId?: number }) => 
       dispatch(addVoidModifier(payload)),
     clearCart: () => dispatch(clearCart()),
     setSelectedOrderType: (orderTypeId: number, orderType: string) => dispatch(setOrderType({ orderTypeId, orderType })),

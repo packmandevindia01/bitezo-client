@@ -34,6 +34,24 @@ export interface SalesInvoicePayload {
   vatExclAmount: number;
   vatAmount: number;
   netAmount: number;
+  isOrderEdited?: boolean;
+  sectionId?: number;
+  tableId?: number;
+  guestNo?: number;
+  vehicleCustomerName?: string;
+  vehicleNo?: string;
+  addressId?: number;
+  missedCall?: boolean;
+  contactNo?: string;
+  note?: string;
+  change?: string;
+  isComing?: boolean;
+  comingTime?: string;
+  providerNo?: string;
+  combinedOrderIds?: number[];
+  modifiers?: any[];
+  voidProducts?: any[];
+  voidModifiers?: any[];
   createdAt: string;
   details: {
     productId: number;

@@ -298,7 +298,7 @@ export interface MenuOrderUpdateRequest {
   details: MenuOrderDetail[];
   modifiers: MenuOrderModifier[];
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
-  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number }[];
+  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   combinedOrderIds: number[];
 }
 

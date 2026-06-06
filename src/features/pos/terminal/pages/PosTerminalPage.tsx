@@ -12,7 +12,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { salesInvoiceApi } from "../../services/salesInvoiceApi";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
-import { selectTotalLevy, selectTotalServiceCharge, clearAllItemDiscounts } from "../store/posSlice";
+import { clearAllItemDiscounts } from "../store/posSlice";
 import { formatCurrency } from "../../../../utils/formatters";
 import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
@@ -171,16 +171,10 @@ export const PosTerminalPage = () => {
     editingOrderId,
     addVoidProduct,
     addVoidModifier,
+    getDirectSettleOrderPayload,
   } = usePosTerminal();
 
-  const {
-    selectedCustomerId,
-    billDiscountType,
-    billDiscountValue,
-  } = useAppSelector((state) => state.pos);
-
-  const totalServiceCharge = useAppSelector(selectTotalServiceCharge);
-  const totalLevy = useAppSelector(selectTotalLevy);
+  const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
 
   const isSettling = useAppSelector((state) => state.pos.isSettling);
   const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
@@ -260,6 +254,7 @@ export const PosTerminalPage = () => {
               const mapId = item.mapId || 0;
               addVoidProduct({
                 productId: item.productId,
+                productName: item.product?.name || `Product #${item.productId}`,
                 unitId,
                 qty: item.quantity,
                 amount: Number(((item.price || 0) * item.quantity).toFixed(decimalPart)),
@@ -279,6 +274,7 @@ export const PosTerminalPage = () => {
                   modifierId: mod.id,
                   qty: mod.qty,
                   amount: Number((modPrice * mod.qty).toFixed(decimalPart)),
+                  typeId: (mod as any).typeId || 1
                 });
               });
 
@@ -317,6 +313,7 @@ export const PosTerminalPage = () => {
           
           addVoidProduct({
             productId: item.productId,
+            productName: item.product?.name || `Product #${item.productId}`,
             unitId,
             qty: 1,
             amount: Number((item.price || 0).toFixed(decimalPart)),
@@ -353,81 +350,69 @@ export const PosTerminalPage = () => {
     }
   };
 
-  // Handle Settlement Completion (Actual Flow)
+  // Handle Settlement Completion (Actual Flow - DIRECT SETTLE)
   const submitSettlementForEmployee = async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
     if (!status) return;
     
-    // First, submit order
-    const currentOrderId = await submitOrder({
-      dayId: status.dayId,
-      shiftId: status.shiftId,
-      userId: status.userId,
+    // For Direct Settle: Skip submitOrder! We get the full order payload from the hook.
+    const orderPayload = getDirectSettleOrderPayload({
       employeeId,
-      providerId: activeProvider?.provider.providerId,
       providerOrderNo: activeProvider?.orderNo,
     });
-
-    if (!currentOrderId) {
-      showToast("Failed to create order for settlement", "error");
-      return;
-    }
 
     try {
       const salesPayload = {
         seriesId: 1,
         prefix: "",
-        customerId: selectedCustomerId || 1,
+        customerId: orderPayload.customerId,
         paymodeId: payments.length > 0 ? payments[0].paymodeId : 1,
-        employeeId,
+        employeeId: orderPayload.employeeId,
         dayId: status.dayId,
         shiftId: status.shiftId,
-        orderTypeId: selectedOrderTypeId || 1,
+        orderTypeId: orderPayload.orderTypeId,
         androidStatus: false,
-        orderId: currentOrderId,
+        orderId: orderPayload.orderId,
+        isOrderEdited: editingOrderId ? true : false,
+        sectionId: orderPayload.sectionId,
+        tableId: orderPayload.tableId,
+        guestNo: orderPayload.guestNo,
+        vehicleCustomerName: orderPayload.vehicleCustomerName,
+        vehicleNo: orderPayload.vehicleNo,
+        addressId: orderPayload.addressId,
+        missedCall: orderPayload.missedCall,
+        contactNo: orderPayload.contactNo,
+        note: orderPayload.note,
+        change: orderPayload.change,
+        isComing: orderPayload.isComing,
+        comingTime: orderPayload.comingTime,
+        providerNo: orderPayload.providerNo,
+        combinedOrderIds: orderPayload.combinedOrderIds,
+        modifiers: orderPayload.modifiers,
+        voidProducts: orderPayload.voidProducts,
+        voidModifiers: orderPayload.voidModifiers,
         voucherDate: new Date().toISOString(),
-        discAmount: Number(discount.toFixed(decimalPart)),
-        discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
-        serviceCharge: Number(totalServiceCharge.toFixed(decimalPart)),
-        levy: Number(totalLevy.toFixed(decimalPart)),
-        vatExclAmount: Number(subtotal.toFixed(decimalPart)),
-        vatAmount: Number(tax.toFixed(decimalPart)),
-        netAmount: Number(total.toFixed(decimalPart)),
+        discAmount: orderPayload.discAmount,
+        discPer: orderPayload.discPer,
+        serviceCharge: orderPayload.serviceCharge,
+        levy: orderPayload.levy,
+        vatExclAmount: orderPayload.vatExclAmount,
+        vatAmount: orderPayload.vatAmount,
+        netAmount: orderPayload.netAmount,
         createdAt: new Date().toISOString(),
-        details: cartDetails.map((item) => {
-          let mainNetAmount = item.lineTotal;
-          let mainVatAmount = item.vatAmount;
-          let mainSc = item.sc;
-          let mainLevy = item.levy;
-
-          (item.extras || []).forEach(extra => {
-             const extraBase = extra.price * extra.qty;
-             const proportion = item.amount > 0 ? (extraBase / item.amount) : 0;
-             const extraVat = item.vatAmount * proportion;
-             const extraSc = item.sc * proportion;
-             const extraLevy = item.levy * proportion;
-             const extraNet = item.lineTotal * proportion;
-
-             mainNetAmount -= extraNet;
-             mainVatAmount -= extraVat;
-             mainSc -= extraSc;
-             mainLevy -= extraLevy;
-          });
-
-          return {
-            productId: item.productId,
-            unitId: item.product?.unitId || 1,
-            vatId: (item.product as any).sVatId || 1,
-            qty: item.quantity,
-            price: Number(item.product.price.toFixed(decimalPart)),
-            discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(decimalPart)) : 0,
-            discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(decimalPart)) : 0,
-            serviceCharge: Number(mainSc.toFixed(decimalPart)),
-            levy: Number(mainLevy.toFixed(decimalPart)),
-            vatAmount: Number(mainVatAmount.toFixed(decimalPart)),
-            netAmount: Number(mainNetAmount.toFixed(decimalPart)),
-            baseQty: item.quantity
-          };
-        }),
+        details: orderPayload.details.map((d: any) => ({
+          productId: d.productId,
+          unitId: d.unitId,
+          vatId: d.vatId,
+          qty: d.qty,
+          price: d.price,
+          discPer: d.discPer,
+          discAmount: d.discAmount,
+          serviceCharge: d.serviceCharge,
+          levy: d.levy,
+          vatAmount: d.vatAmount,
+          netAmount: d.netAmount,
+          baseQty: d.baseQty
+        })),
         paymodes: payments
       };
 
@@ -820,6 +805,7 @@ export const PosTerminalPage = () => {
               
               addVoidProduct({
                 productId: item.productId,
+                productName: item.product?.name || `Product #${item.productId}`,
                 unitId,
                 qty: diff,
                 amount: Number(((item.price || 0) * diff).toFixed(decimalPart)),

@@ -614,7 +614,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                         <div className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
                           <div className="font-bold text-stone-500">{detail.qty}</div>
                           <div className="pl-2 flex flex-col font-bold text-stone-800">
-                            <span>{detail.productName || `Product #${detail.productId}`}</span>
+                            <span>{detail.productName || `Product #${detail.productId}`}{detail.unitName ? ` - ${detail.unitName}` : ""}</span>
                             {detail.price > 0 && (
                               <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
                             )}

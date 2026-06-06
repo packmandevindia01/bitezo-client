@@ -57,7 +57,7 @@ interface PosState {
   vehicleNo: string;
   editingOrderId: number | null;
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
-  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number }[];
+  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   isSettledEdit: boolean;
   isSettling: boolean;
   combinedOrderIds: number[];
@@ -396,11 +396,11 @@ const posSlice = createSlice({
       state.selectedSectionId = sectionId ?? 0;
       state.selectedTableId = tableId ?? 0;
     },
-    addVoidProduct: (state, action: PayloadAction<{ productId: number; unitId: number; qty: number; amount: number; mapId: number }>) => {
+    addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
       state.voidProducts.push(action.payload);
     },
-    addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number }>) => {
-      state.voidModifiers.push(action.payload);
+    addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number; typeId?: number }>) => {
+      state.voidModifiers.push({ ...action.payload, typeId: action.payload.typeId || 1 });
     },
     setIsSettling: (state, action: PayloadAction<boolean>) => {
       state.isSettling = action.payload;

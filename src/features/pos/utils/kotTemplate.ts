@@ -10,6 +10,7 @@ export interface KotPrintData {
   orderType: string;
   date?: string;
   time?: string;
+  headerTitle?: string;
 }
 
 export const generateKotHtml = (
@@ -26,11 +27,26 @@ export const generateKotHtml = (
   let itemsHtml = "";
   cartDetails.forEach((item) => {
     // Determine the product name (using English name for POS receipt as per image)
-    const name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
+    let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
+    if (item.variantName && item.variantName.toLowerCase().trim() !== 'main') {
+      name += ` - ${item.variantName.toUpperCase()}`;
+    }
     const qty = item.quantity;
     
+    let extrasSum = 0;
+    if (item.extras && item.extras.length > 0) {
+      item.extras.forEach(ex => extrasSum += (ex.price * (ex.qty || 1)));
+    }
+    
     // In POS system, line amount might be lineTotal. Format to 3 decimals as per BHD standard in Bitezo.
-    const amt = ((item as any).lineTotal || (item.price || item.product?.price || 0) * item.quantity).toFixed(3);
+    // Subtract extrasSum because the extras are printed separately below
+    let baseAmt = (item as any).lineTotal;
+    if (baseAmt !== undefined) {
+      baseAmt -= extrasSum;
+    } else {
+      baseAmt = (item.price || item.product?.price || 0) * item.quantity;
+    }
+    const amt = baseAmt.toFixed(3);
 
     itemsHtml += `
       <tr>
@@ -50,6 +66,19 @@ export const generateKotHtml = (
             <td style="text-align: left; vertical-align: top;"></td>
             <td style="text-align: left; vertical-align: top; padding-left: 10px;">+ ${exName}</td>
             <td style="text-align: right; vertical-align: top; font-weight: bold;">${exAmt}</td>
+          </tr>
+        `;
+      });
+    }
+
+    if (item.modifiers && item.modifiers.length > 0) {
+      item.modifiers.forEach((mod) => {
+        const modName = (mod.name || "MODIFIER").toUpperCase();
+        itemsHtml += `
+          <tr>
+            <td style="text-align: left; vertical-align: top;"></td>
+            <td style="text-align: left; vertical-align: top; padding-left: 10px; font-style: italic;">* ${modName}</td>
+            <td style="text-align: right; vertical-align: top;"></td>
           </tr>
         `;
       });
@@ -115,7 +144,7 @@ export const generateKotHtml = (
       </head>
       <body>
         <div class="text-center header-title">${orderTypeStr}</div>
-        <div class="text-center sub-title">***KOT***</div>
+        <div class="text-center sub-title">***${data.headerTitle || "NEW ORDER"}***</div>
         
         <table class="meta-table">
           <tr>
