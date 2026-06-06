@@ -154,6 +154,34 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             if (matched) pId = matched.id;
           }
 
+          let realProduct: any = products.find((p: any) => p.id === pId) || {};
+
+          let itemIsIncl = true;
+          if (detail.netAmount !== undefined && detail.price !== undefined) {
+            const lineBase = (detail.price || 0) * (detail.qty || 1);
+            const discAmt = detail.discAmount || 0;
+            const vatAmt = detail.vatAmount || 0;
+            const netAmt = detail.netAmount;
+            
+            if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
+              itemIsIncl = true;
+            } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
+              itemIsIncl = false;
+            } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+              itemIsIncl = Boolean(realProduct.isIncl);
+            }
+          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+            itemIsIncl = Boolean(realProduct.isIncl);
+          }
+
+          let calculatedVatValue: number | undefined = undefined;
+          if (detail.vatAmount !== undefined && detail.netAmount !== undefined && detail.netAmount > 0) {
+            const vatBase = detail.netAmount - detail.vatAmount;
+            if (vatBase > 0) {
+              calculatedVatValue = Math.round((detail.vatAmount / vatBase) * 100);
+            }
+          }
+
           if (!pId) {
             console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
           }
@@ -163,7 +191,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             productId: pId,
             quantity: detail.qty || 1,
             price: detail.price || 0,
-            isIncl: true, // Force inclusive so the Cart NEVER adds VAT on top of recalled prices
+            isIncl: itemIsIncl,
             discountValue: detail.discAmount || 0,
             discountType: detail.discPer ? 'percentage' : 'amount',
             extras,
@@ -177,6 +205,9 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
               price: detail.price || 0,
               categoryId: 1,
               unitId: detail.unitId || 1,
+              vatValue: detail.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
+              sVatId: detail.vatId ?? realProduct.sVatId ?? undefined,
+              isIncl: itemIsIncl
             }
           };
         });

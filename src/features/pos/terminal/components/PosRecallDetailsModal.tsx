@@ -208,9 +208,31 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
         }
 
-        const itemIsIncl = realProduct.isIncl !== undefined && realProduct.isIncl !== null 
-          ? Boolean(realProduct.isIncl) 
-          : isIncl;
+        let itemIsIncl = isIncl;
+        if (detail.netAmount !== undefined && detail.price !== undefined) {
+          const lineBase = (detail.price || 0) * (detail.qty || 1);
+          const discAmt = detail.discAmount || 0;
+          const vatAmt = detail.vatAmount || 0;
+          const netAmt = detail.netAmount;
+          
+          if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
+            itemIsIncl = true;
+          } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
+            itemIsIncl = false;
+          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+            itemIsIncl = Boolean(realProduct.isIncl);
+          }
+        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+          itemIsIncl = Boolean(realProduct.isIncl);
+        }
+
+        let calculatedVatValue: number | undefined = undefined;
+        if (detail.vatAmount !== undefined && detail.netAmount !== undefined && detail.netAmount > 0) {
+          const vatBase = detail.netAmount - detail.vatAmount;
+          if (vatBase > 0) {
+            calculatedVatValue = Math.round((detail.vatAmount / vatBase) * 100);
+          }
+        }
 
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
@@ -231,8 +253,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             price: detail.price || realProduct.price || 0,
             categoryId: realProduct.categoryId || 1,
             unitId: detail.unitId || realProduct.unitId || 1,
-            vatValue: realProduct.vatValue ?? undefined,
-            sVatId: realProduct.sVatId ?? undefined,
+            vatValue: detail.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
+            sVatId: detail.vatId ?? realProduct.sVatId ?? undefined,
             arabicName: realProduct.arabicName
           }
         };
@@ -319,9 +341,31 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
         }
 
-        const itemIsIncl = realProduct.isIncl !== undefined && realProduct.isIncl !== null 
-          ? Boolean(realProduct.isIncl) 
-          : isIncl;
+        let itemIsIncl = isIncl;
+        if (detail.netAmount !== undefined && detail.price !== undefined) {
+          const lineBase = (detail.price || 0) * (detail.qty || 1);
+          const discAmt = detail.discAmount || 0;
+          const vatAmt = detail.vatAmount || 0;
+          const netAmt = detail.netAmount;
+          
+          if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
+            itemIsIncl = true;
+          } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
+            itemIsIncl = false;
+          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+            itemIsIncl = Boolean(realProduct.isIncl);
+          }
+        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+          itemIsIncl = Boolean(realProduct.isIncl);
+        }
+
+        let calculatedVatValue: number | undefined = undefined;
+        if (detail.vatAmount !== undefined && detail.netAmount !== undefined && detail.netAmount > 0) {
+          const vatBase = detail.netAmount - detail.vatAmount;
+          if (vatBase > 0) {
+            calculatedVatValue = Math.round((detail.vatAmount / vatBase) * 100);
+          }
+        }
 
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
@@ -342,8 +386,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             price: detail.price || realProduct.price || 0,
             categoryId: realProduct.categoryId || 1,
             unitId: detail.unitId || realProduct.unitId || 1,
-            vatValue: realProduct.vatValue ?? undefined,
-            sVatId: realProduct.sVatId ?? undefined,
+            vatValue: detail.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
+            sVatId: detail.vatId ?? realProduct.sVatId ?? undefined,
             arabicName: realProduct.arabicName
           }
         };

@@ -23,6 +23,7 @@ interface SplitCartItem {
   currentQty: number;
   detail: any;
   modifiers: any[];
+  isIncl: boolean;
 }
 
 interface SplitBucket {
@@ -38,6 +39,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   onSuccess
 }) => {
   const userId = useAppSelector((state) => state.auth.userId);
+  const products = useAppSelector((state) => state.pos.products);
   const { showToast } = useToast();
   const { status } = useCashierLog();
   const [saving, setSaving] = useState(false);
@@ -85,13 +87,65 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
       const initialItems: SplitCartItem[] = detailsData.map((d: any) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
+        
+        let pId = d.productId ?? d.ProductId ?? d.itemId ?? d.ItemId ?? d.product?.id ?? d.Product?.id;
+        let matchedProduct: any = null;
+        if (pId) {
+          matchedProduct = products.find(p => p.id === pId);
+        }
+        if (!matchedProduct && (d.productName || d.ProductName)) {
+          matchedProduct = products.find(p => p.name === (d.productName || d.ProductName));
+          if (matchedProduct) pId = matchedProduct.id;
+        }
+        const realProduct = matchedProduct || {};
+
+        let itemIsIncl = true;
+        // Try getting it from global config first (like recall modal does)
+        try {
+          const saved = localStorage.getItem('posConfigs');
+          const full = saved ? JSON.parse(saved) : {};
+          if (full?.configs?.priceView === 'Exclusive') {
+            itemIsIncl = false;
+          }
+        } catch {}
+
+        if (d.netAmount !== undefined && d.price !== undefined) {
+          const lineBase = (d.price || 0) * (d.qty || 1);
+          const discAmt = d.discAmount || 0;
+          const vatAmt = d.vatAmount || 0;
+          const netAmt = d.netAmount;
+          
+          if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
+            itemIsIncl = true;
+          } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
+            itemIsIncl = false;
+          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+            itemIsIncl = Boolean(realProduct.isIncl);
+          }
+        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+          itemIsIncl = Boolean(realProduct.isIncl);
+        }
+
+        let calculatedVatValue: number | undefined = undefined;
+        if (d.vatAmount !== undefined && d.netAmount !== undefined && d.netAmount > 0) {
+          const vatBase = d.netAmount - d.vatAmount;
+          if (vatBase > 0) {
+            calculatedVatValue = Math.round((d.vatAmount / vatBase) * 100);
+          }
+        }
+
         return {
           mapId: d.mapId,
           name: d.productName || d.ProductName,
           price: d.price || 0,
           currentQty: d.qty || 1,
-          detail: d,
-          modifiers: itemMods
+          detail: {
+            ...d,
+            vatValue: d.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
+            vatId: d.vatId ?? realProduct.sVatId ?? undefined
+          },
+          modifiers: itemMods,
+          isIncl: itemIsIncl
         };
       });
 
@@ -130,7 +184,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const calculateBucketTotal = (bucket: SplitBucket) => {
     let total = 0;
     const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-    const isIncl = true; // Force inclusive so we don't double tax the recalled prices
 
     bucket.items.forEach(item => {
       let extrasTotal = 0;
@@ -143,14 +196,16 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         });
       }
       
+
+      
       const calcs = calculateLineItem(
         item.currentQty,
         item.price,
         0,
         extrasTotal,
         config,
-        undefined,
-        isIncl
+        item.detail.vatValue,
+        item.isIncl
       );
       
       total += calcs.lineNetAmount;
@@ -358,14 +413,16 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         });
       }
 
+      const activeVatRate = item.detail.vatValue !== undefined ? (item.detail.vatValue / 100) : config.vatRate;
+
       const calcs = calculateLineItem(
         item.currentQty,
         item.price,
         0,
         extrasTotal,
         config,
-        undefined,
-        true // Force inclusive to prevent double taxing
+        item.detail.vatValue,
+        item.isIncl
       );
 
       let mainNetAmount = calcs.lineNetAmount;
@@ -375,7 +432,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       if (ownsModifiers(bucket, item.mapId)) {
         item.modifiers.forEach(m => {
           if (m.price > 0) {
-            const activeVatRate = config.vatRate;
             const actualExtraPrice = m.price / (1 + activeVatRate);
             const extraBase = actualExtraPrice * (m.qty || 1);
             const proportion = calcs.amount > 0 ? (extraBase / calcs.amount) : 0;
@@ -546,7 +602,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                 <div className="flex-1 overflow-y-auto">
                   {bucket.items.map(item => {
                     const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-                    const isIncl = true;
                     
                     const calcs = calculateLineItem(
                       item.currentQty,
@@ -554,8 +609,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                       0,
                       0, // No extras in base calc for display purposes, we'll display extras separately
                       config,
-                      undefined,
-                      isIncl
+                      item.detail.vatValue,
+                      item.isIncl
                     );
                     
                     return (
@@ -584,8 +639,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                           0,
                           0,
                           config,
-                          undefined,
-                          isIncl
+                          item.detail.vatValue,
+                          item.isIncl
                         );
 
                         return (
