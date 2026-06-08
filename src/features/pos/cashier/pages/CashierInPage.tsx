@@ -143,14 +143,15 @@ const CashierInPage = () => {
           const st = statusResponse.cashierInStatus;
           if (st && !st.isDayClosed && !st.isShiftClosed) {
             localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: st.dayId, shiftId: st.shiftId }));
+            navigate("/pos", { replace: true });
           } else {
             localStorage.removeItem("activeShift");
+            navigate("/cashier/out", { replace: true });
           }
         } catch (err) {
           console.error("Post-login status check failed:", err);
+          navigate("/pos", { replace: true });
         }
-
-        navigate("/pos", { replace: true });
       } else {
         showToast("Invalid PIN. Please try again.", "warning");
         setPin("");
@@ -169,11 +170,11 @@ const CashierInPage = () => {
 
   return (
     <div className="h-dvh flex flex-col md:flex-row bg-white overflow-hidden font-sans">
-      <div className="hidden md:flex flex-[1.2] relative overflow-hidden bg-[#1a1311]">
+      <div className="flex flex-none md:flex-[1.2] h-40 md:h-auto relative overflow-hidden bg-[#1a0f18]">
         <img
           src="/backoffice_logo.png"
           alt="Bitezo POS"
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-cover object-left"
         />
       </div>
 

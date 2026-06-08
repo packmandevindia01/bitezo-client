@@ -25,6 +25,7 @@ export interface SalesInvoicePayload {
   shiftId: number;
   orderTypeId: number;
   androidStatus: boolean;
+  saleId?: number;
   orderId: number;
   voucherDate: string;
   discAmount: number;
@@ -34,25 +35,28 @@ export interface SalesInvoicePayload {
   vatExclAmount: number;
   vatAmount: number;
   netAmount: number;
-  isOrderEdited?: boolean;
-  sectionId?: number;
-  tableId?: number;
-  guestNo?: number;
-  vehicleCustomerName?: string;
-  vehicleNo?: string;
-  addressId?: number;
-  missedCall?: boolean;
-  contactNo?: string;
-  note?: string;
-  change?: string;
-  isComing?: boolean;
-  comingTime?: string;
-  providerNo?: string;
+  orderMaster: {
+    isOrderEdited?: boolean;
+    sectionId?: number;
+    tableId?: number;
+    guestNo?: number;
+    vehicleCustomerName?: string;
+    vehicleNo?: string;
+    addressId?: number;
+    missedCall?: boolean;
+    contactNo?: string;
+    note?: string;
+    change?: string;
+    isComing?: boolean;
+    comingTime?: string;
+    providerNo?: string;
+  };
   combinedOrderIds?: number[];
   modifiers?: any[];
   voidProducts?: any[];
   voidModifiers?: any[];
-  createdAt: string;
+  createdAt?: string;
+  updateAt?: string;
   details: {
     productId: number;
     unitId: number;
@@ -66,6 +70,8 @@ export interface SalesInvoicePayload {
     vatAmount: number;
     netAmount: number;
     baseQty: number;
+    mapId: number;
+    complimentaryStatus: boolean;
   }[];
   paymodes: {
     paymodeId: number;
@@ -80,6 +86,26 @@ export const salesInvoiceApi = {
       return data?.id ?? null;
     } catch (e: any) {
       console.error("Sales invoice creation failed:", e);
+      throw e;
+    }
+  },
+  
+  updateSalesInvoice: async (saleId: number, payload: SalesInvoicePayload): Promise<boolean> => {
+    try {
+      const data = await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${saleId}`, payload));
+      return true;
+    } catch (e: any) {
+      console.error("Sales invoice update failed:", e);
+      throw e;
+    }
+  },
+
+  getSalesInvoiceData: async (saleId: number, orderId: number): Promise<any> => {
+    try {
+      const data = await unwrap<any>(axiosInstance.get<ApiResponse<any>>(`/sales-invoices/sales-data/${saleId}/order/${orderId}`));
+      return data;
+    } catch (e: any) {
+      console.error("Failed to fetch sales invoice data:", e);
       throw e;
     }
   }

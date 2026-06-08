@@ -36,8 +36,11 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
   }, [isOpen, totalDue, decimalPart]);
 
   const numTendered = parseFloat(tenderedAmount) || 0;
-  const change = Math.max(0, numTendered - totalDue);
-  const isSufficient = numTendered >= totalDue || totalDue <= 0;
+  const roundedTendered = Number(numTendered.toFixed(decimalPart));
+  const roundedDue = Number(totalDue.toFixed(decimalPart));
+
+  const change = Math.max(0, roundedTendered - roundedDue);
+  const isSufficient = roundedTendered >= roundedDue || roundedDue <= 0;
 
   const handleKeyPress = (key: string) => {
     if (key === 'Back') {

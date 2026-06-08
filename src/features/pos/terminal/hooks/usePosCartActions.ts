@@ -145,13 +145,13 @@ export const usePosCartActions = () => {
       orderId: editingOrderId || 0,
       customerId: selectedCustomerId,
       employeeId: session.employeeId ?? session.userId ?? 1,
-      discAmount: Number(discount.toFixed(3)),
+      discAmount: Number(discount.toFixed(getDecimalPart())),
       discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
-      serviceCharge: Number(totalServiceCharge.toFixed(3)),
-      levy: Number(totalLevy.toFixed(3)),
-      vatExclAmount: Number(subtotal.toFixed(3)),
-      vatAmount: Number(tax.toFixed(3)),
-      netAmount: Number(total.toFixed(3)),
+      serviceCharge: Number(totalServiceCharge.toFixed(getDecimalPart())),
+      levy: Number(totalLevy.toFixed(getDecimalPart())),
+      vatExclAmount: Number(subtotal.toFixed(getDecimalPart())),
+      vatAmount: Number(tax.toFixed(getDecimalPart())),
+      netAmount: Number(total.toFixed(getDecimalPart())),
       updatedAt: new Date().toISOString(),
       orderTypeId: selectedOrderTypeId,
       sectionId: isDineIn ? (selectedSectionId || 1) : 0,
@@ -199,14 +199,14 @@ export const usePosCartActions = () => {
           productId: item.productId || item.product?.id,
           unitId: item.product?.unitId || 1,
           qty: item.quantity,
-          price: Number(item.product.price.toFixed(3)),
-          discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-          discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(3)) : 0,
-          serviceCharge: Number(mainSc.toFixed(3)),
-          levy: Number(mainLevy.toFixed(3)),
+          price: Number(item.product.price.toFixed(getDecimalPart())),
+          discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(getDecimalPart())) : 0,
+          discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(getDecimalPart())) : 0,
+          serviceCharge: Number(mainSc.toFixed(getDecimalPart())),
+          levy: Number(mainLevy.toFixed(getDecimalPart())),
           vatId: (item.product as any).sVatId || 1,
-          vatAmount: Number(mainVatAmount.toFixed(3)),
-          netAmount: Number(mainNetAmount.toFixed(3)),
+          vatAmount: Number(mainVatAmount.toFixed(getDecimalPart())),
+          netAmount: Number(mainNetAmount.toFixed(getDecimalPart())),
           mapId: mapId,
           complimentaryStatus: false,
           baseQty: item.quantity
@@ -219,7 +219,7 @@ export const usePosCartActions = () => {
           mapId: mapId,
           modifierId: extra.id,
           qty: extra.qty,
-          price: Number(extra.price.toFixed(3)),
+          price: Number(extra.price.toFixed(getDecimalPart())),
           amount: Number((extra.price * extra.qty).toFixed(getDecimalPart())),
           typeId: extra.typeId
         }));
@@ -256,7 +256,9 @@ export const usePosCartActions = () => {
       return;
     }
 
-    const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
+    const normalizedTypeName = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "");
+    const isTakeOut = selectedOrderTypeId === 2 || normalizedTypeName.includes("takeout") || normalizedTypeName.includes("takeaway") || normalizedTypeName.includes("drive") || normalizedTypeName.includes("delivery");
+    const isDineIn = !isTakeOut && (selectedOrderTypeId === 1 || normalizedTypeName.includes("dinein"));
     
     // Skip table/section validation when editing an existing recalled order —
     // the table is already assigned on the backend and will be preserved in the PUT payload.

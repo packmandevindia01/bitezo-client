@@ -6,6 +6,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import SystemRegistrationGuard from "./SystemRegistrationGuard";
 import { Navigate } from "react-router-dom";
 import RoleGuard from "./RoleGuard";
+import ShiftGuard from "./ShiftGuard";
 
 const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
 const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
@@ -119,10 +120,12 @@ const AppRoutes = () => {
                 <Route path="/cashier/out" element={<CashierOutPage />} />
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}
-                <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
-                <Route path="pos/lock-item" element={<RoleGuard moduleName="Sales Invoice"><LockItemPage /></RoleGuard>} />
-                <Route path="pos/more" element={<RoleGuard moduleName="Sales Invoice"><PosMorePage /></RoleGuard>} />
-                <Route path="pos/dine-in" element={<RoleGuard moduleName="Sales Invoice"><DineInSelectionPage /></RoleGuard>} />
+                <Route element={<ShiftGuard />}>
+                  <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
+                  <Route path="pos/lock-item" element={<RoleGuard moduleName="Sales Invoice"><LockItemPage /></RoleGuard>} />
+                  <Route path="pos/more" element={<RoleGuard moduleName="Sales Invoice"><PosMorePage /></RoleGuard>} />
+                  <Route path="pos/dine-in" element={<RoleGuard moduleName="Sales Invoice"><DineInSelectionPage /></RoleGuard>} />
+                </Route>
 
                 {/* Dashboard — fully guarded */}
                 <Route path="/dashboard" element={<MainLayout />}>

@@ -9,7 +9,6 @@ import {
   UserPlus,
 } from "lucide-react";
 import PosActionButton from "./PosActionButton";
-import { useToast } from "../../../../app/providers/useToast";
 import type { PosOrderType, MenuProvider } from "../../types";
 
 
@@ -71,7 +70,6 @@ const PosTopNav = ({
 }: PosTopNavProps) => {
 
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const visibleOrderTypes = orderTypes.length > 0 ? orderTypes : fallbackOrderTypes;
 
   const handleLogoutClick = () => {
@@ -129,8 +127,6 @@ const PosTopNav = ({
                   onDelivery();
                 } else if (normalized.includes("drive") && onDriveThrough) {
                   onDriveThrough();
-                } else {
-                  showToast(`${label} selected`, "success");
                 }
               }}
             >

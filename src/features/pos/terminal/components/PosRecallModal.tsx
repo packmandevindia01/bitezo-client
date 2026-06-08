@@ -250,10 +250,9 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         onEditSuccess={onClose}
         onSettleSuccess={(amount) => {
           onSettleSuccess?.(amount);
-          onClose();
+          // DO NOT close the details modal here so it stays in the background during payment
         }}
       />
     </Modal>
   );
 };
-

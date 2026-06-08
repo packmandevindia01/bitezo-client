@@ -286,11 +286,28 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       onClose={onClose}
       title="Combine Order"
       size="2xl"
+      noScroll
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} className="w-32">
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleDone} 
+            loading={isCombining}
+            disabled={selectedOrders.length === 0 || isCombining}
+            className="w-40 shadow-md hover:shadow-lg"
+          >
+            {isCombining ? "Combining..." : "DONE"}
+          </Button>
+        </>
+      }
     >
-      <div className="flex flex-col md:flex-row h-[60vh] md:h-[70vh] bg-slate-50 gap-2 p-2">
+      <div className="flex flex-col md:flex-row h-[60vh] min-h-[400px] min-h-0 bg-slate-50 gap-2 p-2 rounded-xl">
         
         {/* Left List: Available Orders */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-100 p-3 border-b border-slate-200 font-bold text-slate-700 flex justify-between items-center">
             <span>Available Orders</span>
             <span className="bg-slate-200 text-xs px-2 py-1 rounded-full text-slate-600">{availableOrders.length}</span>
@@ -299,7 +316,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Center: Controls */}
-        <div className="flex md:flex-col justify-center items-center gap-4 py-4 md:px-2">
+        <div className="flex md:flex-col shrink-0 justify-center items-center gap-4 py-4 md:px-2">
           <button 
             onClick={handleMoveToSelected}
             disabled={!selectedAvailableId}
@@ -328,7 +345,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Right List: Selected Orders */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-orange-50 p-3 border-b border-orange-100 font-bold text-[#ff9500] flex justify-between items-center">
             <span>Selected to Combine</span>
             <span className="bg-orange-200 text-xs px-2 py-1 rounded-full text-orange-700">{selectedOrders.length}</span>
@@ -336,21 +353,6 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           {renderOrderList(selectedOrders, selectedSelectedId, setSelectedSelectedId)}
         </div>
 
-      </div>
-
-      <div className="flex justify-end gap-3 mt-6 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
-        <Button variant="secondary" onClick={onClose} className="w-32">
-          Cancel
-        </Button>
-        <Button 
-          variant="primary" 
-          onClick={handleDone} 
-          loading={isCombining}
-          disabled={selectedOrders.length === 0 || isCombining}
-          className="w-40 shadow-md hover:shadow-lg"
-        >
-          {isCombining ? "Combining..." : "DONE"}
-        </Button>
       </div>
     </Modal>
   );

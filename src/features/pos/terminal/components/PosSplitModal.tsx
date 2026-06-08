@@ -51,8 +51,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
   
-  const [isSingleMode, setIsSingleMode] = useState(false);
-  
   const [showTableModal, setShowTableModal] = useState(false);
 
   const lastClickRef = useRef<{ id: string, time: number }>({ id: "", time: 0 });
@@ -311,28 +309,35 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const handleDoubleClick = (bucketId: string, mapId: number) => {
     // If double clicking in base, move to active split
     if (bucketId === "base") {
+      if (!activeBucketId) {
+        showToast("Please add a split first.", "warning");
+        return;
+      }
       const sourceItem = buckets.find(b => b.id === bucketId)?.items.find(i => i.mapId === mapId);
       if (sourceItem) {
-        moveItem("base", activeBucketId, mapId, sourceItem.currentQty); // Move all
+        const moveQty = 1;
+        const baseBucket = buckets.find(b => b.isBase);
+        const totalRemainingQty = baseBucket?.items.reduce((sum, item) => sum + item.currentQty, 0) || 0;
+        
+        if (totalRemainingQty - moveQty <= 0) {
+          showToast("Original order must have at least one item.", "warning");
+          return;
+        }
+        
+        moveItem("base", activeBucketId, mapId, moveQty);
       }
     } else {
       // If double clicking in a split, move back to base
       const sourceItem = buckets.find(b => b.id === bucketId)?.items.find(i => i.mapId === mapId);
       if (sourceItem) {
-        moveItem(bucketId, "base", mapId, sourceItem.currentQty); // Move all
+        const moveQty = 1;
+        moveItem(bucketId, "base", mapId, moveQty);
       }
     }
   };
 
   const handleSingleClickItem = (bucketId: string, mapId: number) => {
     handleSelectItem(bucketId, mapId);
-    if (isSingleMode) {
-      if (bucketId === "base") {
-        moveItem("base", activeBucketId, mapId, 1);
-      } else {
-        moveItem(bucketId, "base", mapId, 1);
-      }
-    }
   };
 
   const handleItemInteraction = (bucketId: string, mapId: number) => {
@@ -352,31 +357,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     }
   };
 
-  const handlePlus = () => {
-    if (!selectedBucketId || !selectedMapId) return;
-    
-    // If selected is in base, move 1 to active split
-    if (selectedBucketId === "base") {
-      moveItem("base", activeBucketId, selectedMapId, 1);
-    } else {
-      // If selected is in a split, can we add more? 
-      // It means moving 1 from base to this split.
-      moveItem("base", selectedBucketId, selectedMapId, 1);
-    }
-  };
 
-  const handleMinus = () => {
-    if (!selectedBucketId || !selectedMapId) return;
-    
-    if (selectedBucketId === "base") {
-      // Can't really minus from base unless moving to active split?
-      // Minus usually means "remove from here". Let's move 1 to active split.
-      moveItem("base", activeBucketId, selectedMapId, 1);
-    } else {
-      // Move 1 from split back to base
-      moveItem(selectedBucketId, "base", selectedMapId, 1);
-    }
-  };
 
   const handleDone = () => {
     // Validate that splits actually have items
@@ -677,35 +658,10 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
           {/* Right Action Bar */}
           <div className="w-[100px] bg-[#2a2f3e] p-2 flex flex-col gap-2 shadow-xl z-10">
-            <div className="flex gap-1 h-12">
-              <button 
-                onClick={handlePlus}
-                className="flex-1 bg-[#d35400] hover:bg-[#e67e22] text-white rounded font-black text-xl flex items-center justify-center active:scale-95 transition-all"
-              >
-                +
-              </button>
-              <button 
-                onClick={handleMinus}
-                className="flex-1 bg-[#d35400] hover:bg-[#e67e22] text-white rounded font-black text-xl flex items-center justify-center active:scale-95 transition-all"
-              >
-                -
-              </button>
-            </div>
-            
-            <button 
-              onClick={() => setIsSingleMode(!isSingleMode)}
-              className={`h-12 rounded font-bold uppercase text-[10px] tracking-widest transition-all active:scale-95 border-2 ${
-                isSingleMode 
-                  ? 'bg-white text-[#d35400] border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]' 
-                  : 'bg-[#d35400] text-white border-transparent hover:bg-[#e67e22]'
-              }`}
-            >
-              Single
-            </button>
             
             <button 
               onClick={handleAddSplit}
-              className="h-14 mt-4 bg-[#ff9500] hover:bg-[#e68600] text-white rounded font-black uppercase tracking-widest text-xs transition-all active:scale-95"
+              className="h-14 bg-[#ff9500] hover:bg-[#e68600] text-white rounded font-black uppercase tracking-widest text-xs transition-all active:scale-95"
             >
               SPLIT
             </button>

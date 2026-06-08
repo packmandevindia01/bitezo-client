@@ -149,8 +149,13 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
       const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
 
+      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\\D/g, '') : '';
+      const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
+      const saleId = !isNaN(parsedVoucher) ? parsedVoucher : orderId;
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
+        editingSaleId: saleId,
         cartItems: mappedCartItems,
         orderTypeId: orderTypeId,
         orderTypeName: orderTypeName,
@@ -177,25 +182,12 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     setConfirmAction({
       isOpen: true,
       title: "Edit Settled Order",
-      message: `This will cancel the existing sales invoice for Order #${orderId} and load it into the POS for editing. Do you wish to continue?`,
+      message: `This will load Sales Invoice #${orderId} into the POS for editing. Do you wish to continue?`,
       confirmLabel: "Yes, Edit Order",
       cancelLabel: "No",
-      onConfirm: async () => {
+      onConfirm: () => {
         setConfirmAction(prev => ({ ...prev, isOpen: false }));
-        try {
-          setLoading(true);
-          const response = await settledOrdersApi.cancelSalesInvoice(orderId);
-          if (response && response.isSuccess) {
-            handleEditOrder();
-          } else {
-            showToast(response.message || "Failed to cancel invoice", "error");
-          }
-        } catch (err) {
-          showToast("Failed to cancel sales invoice", "error");
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
+        handleEditOrder();
       }
     });
   };

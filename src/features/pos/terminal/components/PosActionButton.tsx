@@ -12,15 +12,15 @@ interface PosActionButtonProps {
 }
 
 const accentStyles = {
-  brand: "bg-slate-900 text-white shadow-premium hover:bg-slate-800",
-  neutral: "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm",
-  warning: "bg-amber-500 text-white hover:bg-amber-600 shadow-premium",
-  orange: "bg-[#f37021] text-white border-transparent hover:bg-[#e0661a] shadow-md",
-  green: "bg-[#8cc63f] text-white border-transparent hover:bg-[#7db238] shadow-md",
-  gray: "bg-[#b3b3b3] text-white border-transparent hover:bg-[#a0a0a0] shadow-sm",
-  red: "bg-[#e30613] text-white border-transparent hover:bg-[#cc0511] shadow-md",
-  blue: "bg-[#a6c7e9] text-gray-800 border-transparent hover:bg-[#8eb6e0] shadow-sm",
-  outline: "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 shadow-sm",
+  brand: "bg-slate-900 text-white shadow-premium hover:bg-slate-800 border-slate-700",
+  neutral: "bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-sm",
+  warning: "bg-amber-500 text-white hover:bg-amber-600 shadow-premium border-amber-600",
+  orange: "bg-[#f37021] text-white hover:bg-[#e0661a] shadow-md border-[#d9731d]",
+  green: "bg-[#8cc63f] text-white hover:bg-[#7db238] shadow-md border-[#6d9255]",
+  gray: "bg-[#b3b3b3] text-white hover:bg-[#a0a0a0] shadow-sm border-[#999999]",
+  red: "bg-[#e30613] text-white hover:bg-[#cc0511] shadow-md border-[#b3050f]",
+  blue: "bg-[#a6c7e9] text-gray-800 hover:bg-[#8eb6e0] shadow-sm border-[#80a9d4]",
+  outline: "bg-white text-slate-600 border-slate-400 hover:bg-slate-50 shadow-sm",
 };
 
 const activeStyles = {
@@ -63,7 +63,7 @@ const PosActionButton = ({
       onClick={onClick}
       title={title}
       className={`
-        inline-flex items-center justify-center rounded-lg border border-transparent 
+        inline-flex items-center justify-center rounded-lg border-2 
         font-bold tracking-tight uppercase transition-all duration-200 
         active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
         flex items-center justify-center

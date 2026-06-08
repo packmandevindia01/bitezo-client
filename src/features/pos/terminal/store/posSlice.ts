@@ -56,10 +56,12 @@ interface PosState {
   vehicleCustomerName: string;
   vehicleNo: string;
   editingOrderId: number | null;
+  editingSaleId: number | null;
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
   voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   isSettledEdit: boolean;
   isSettling: boolean;
+  isCartModified: boolean;
   combinedOrderIds: number[];
 }
 
@@ -105,10 +107,12 @@ const initialState: PosState = {
   vehicleCustomerName: '',
   vehicleNo: '',
   editingOrderId: null,
+  editingSaleId: null,
   voidProducts: [],
   voidModifiers: [],
   isSettling: false,
   isSettledEdit: false,
+  isCartModified: false,
   combinedOrderIds: [],
 };
 
@@ -127,6 +131,7 @@ const posSlice = createSlice({
   initialState,
     reducers: {
     addToCart: (state, action: PayloadAction<{ uniqueId: string; productId: number; variantName?: string; price?: number; isIncl?: boolean }>) => {
+      state.isCartModified = true;
       const { uniqueId, productId, variantName, price, isIncl } = action.payload;
       const existing = state.cartItems.find(item => item.uniqueId === uniqueId);
       if (existing) {
@@ -143,6 +148,7 @@ const posSlice = createSlice({
       }
     },
     incrementItem: (state, action: PayloadAction<{ uniqueId: string }>) => {
+      state.isCartModified = true;
       const { uniqueId } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
@@ -150,6 +156,7 @@ const posSlice = createSlice({
       }
     },
     decrementItem: (state, action: PayloadAction<{ uniqueId: string }>) => {
+      state.isCartModified = true;
       const { uniqueId } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
@@ -161,15 +168,18 @@ const posSlice = createSlice({
       }
     },
     removeFromCart: (state, action: PayloadAction<{ uniqueId: string }>) => {
+      state.isCartModified = true;
       const { uniqueId } = action.payload;
       state.cartItems = state.cartItems.filter(i => i.uniqueId !== uniqueId);
     },
     clearCart: (state) => {
       state.cartItems = [];
       state.editingOrderId = null;
+      state.editingSaleId = null;
       state.voidProducts = [];
       state.voidModifiers = [];
       state.isSettledEdit = false;
+      state.isCartModified = false;
       state.isSettling = false;
       state.combinedOrderIds = [];
       state.billDiscountValue = 0;
@@ -200,8 +210,19 @@ const posSlice = createSlice({
       state.orderTypes = action.payload;
       const selectedTypeExists = action.payload.some((type) => type.orderTypeId === state.selectedOrderTypeId);
       if ((!state.selectedOrderTypeId || !selectedTypeExists) && action.payload.length > 0) {
-        state.selectedOrderTypeId = action.payload[0].orderTypeId;
-        state.selectedOrderTypeName = action.payload[0].orderType;
+        // Try to recover the selection by name before giving up and defaulting to index 0
+        const currentNameNorm = normalizeOrderTypeName(state.selectedOrderTypeName || "");
+        const matchByName = action.payload.find(
+          (type) => normalizeOrderTypeName(type.orderType) === currentNameNorm
+        );
+
+        if (matchByName) {
+          state.selectedOrderTypeId = matchByName.orderTypeId;
+          state.selectedOrderTypeName = matchByName.orderType;
+        } else {
+          state.selectedOrderTypeId = action.payload[0].orderTypeId;
+          state.selectedOrderTypeName = action.payload[0].orderType;
+        }
       }
     },
     setOrderType: (state, action: PayloadAction<PosOrderType>) => {
@@ -235,10 +256,12 @@ const posSlice = createSlice({
 
     // Discount Reducers
     setBillDiscount: (state, action: PayloadAction<{ value: number; type: 'percentage' | 'amount' }>) => {
+      state.isCartModified = true;
       state.billDiscountValue = action.payload.value;
       state.billDiscountType = action.payload.type;
     },
     setItemDiscount: (state, action: PayloadAction<{ uniqueId: string; value: number; type: 'percentage' | 'amount' }>) => {
+      state.isCartModified = true;
       const { uniqueId, value, type } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
@@ -247,6 +270,7 @@ const posSlice = createSlice({
       }
     },
     setAllItemsDiscount: (state, action: PayloadAction<{ value: number; type: 'percentage' | 'amount' }>) => {
+      state.isCartModified = true;
       const { value, type } = action.payload;
       state.cartItems.forEach(item => {
         item.discountValue = value;
@@ -254,6 +278,7 @@ const posSlice = createSlice({
       });
     },
     updateItemPrice: (state, action: PayloadAction<{ uniqueId: string; price: number }>) => {
+      state.isCartModified = true;
       const { uniqueId, price } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
@@ -261,6 +286,7 @@ const posSlice = createSlice({
       }
     },
     updateItemQty: (state, action: PayloadAction<{ uniqueId: string; quantity: number }>) => {
+      state.isCartModified = true;
       const { uniqueId, quantity } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
@@ -272,6 +298,7 @@ const posSlice = createSlice({
       extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
       modifiers?: { id: number; name: string; qty: number; typeId: number }[];
     }>) => {
+      state.isCartModified = true;
       const { uniqueId, extras, modifiers } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
@@ -355,6 +382,7 @@ const posSlice = createSlice({
     },
     loadRecalledOrder: (state, action: PayloadAction<{
       editingOrderId?: number | null;
+      editingSaleId?: number | null;
       cartItems: PosCartItem[];
       orderTypeId: number;
       orderTypeName: string;
@@ -369,6 +397,7 @@ const posSlice = createSlice({
     }>) => {
       const { 
         editingOrderId, 
+        editingSaleId,
         cartItems, 
         orderTypeId, 
         orderTypeName, 
@@ -382,8 +411,10 @@ const posSlice = createSlice({
         isSettledEdit
       } = action.payload;
       state.editingOrderId = editingOrderId ?? null;
+      state.editingSaleId = editingSaleId ?? null;
       state.isSettling = isSettling ?? false;
       state.isSettledEdit = isSettledEdit ?? false;
+      state.isCartModified = false;
       state.voidProducts = [];
       state.voidModifiers = [];
       state.cartItems = cartItems;
@@ -397,15 +428,18 @@ const posSlice = createSlice({
       state.selectedTableId = tableId ?? 0;
     },
     addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
+      state.isCartModified = true;
       state.voidProducts.push(action.payload);
     },
     addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number; typeId?: number }>) => {
+      state.isCartModified = true;
       state.voidModifiers.push({ ...action.payload, typeId: action.payload.typeId || 1 });
     },
     setIsSettling: (state, action: PayloadAction<boolean>) => {
       state.isSettling = action.payload;
     },
     clearAllItemDiscounts: (state) => {
+      state.isCartModified = true;
       state.cartItems = state.cartItems.map(item => ({
         ...item,
         discountValue: 0,

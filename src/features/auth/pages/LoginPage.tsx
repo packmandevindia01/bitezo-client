@@ -12,14 +12,14 @@ const LoginPage = () => {
   const loginImage = isPos ? "/backoffice_logo.png" : "/pos_logo1.png";
 
   return (
-    <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-2">
+    <div className="min-h-screen w-full flex flex-col md:grid md:grid-cols-2">
 
       {/* LEFT SIDE (IMAGE) */}
-      <div className="hidden md:block relative w-full h-full bg-slate-100">
+      <div className="relative w-full h-48 md:h-full bg-[#1a0f18] flex-none md:flex-1">
         <img 
           src={loginImage}
           alt={isPos ? "Bitezo POS" : "Bitezo Backoffice"} 
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-left"
         />
       </div>
 

@@ -268,8 +268,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
       const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
 
+      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
+      const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
+      const saleId = !isNaN(parsedVoucher) ? parsedVoucher : null;
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
+        editingSaleId: saleId,
+        isSettledEdit: saleId !== null,
         cartItems: mappedCartItems,
         orderTypeId: orderTypeId,
         orderTypeName: orderTypeName,
@@ -281,7 +287,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         tableId: master.tableId || 0
       }));
 
-      showToast("Order loaded into active session for editing", "success");
       onEditSuccess?.();
       onClose();
     } catch (e) {
@@ -401,8 +406,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
       const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
 
+      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
+      const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
+      const saleId = !isNaN(parsedVoucher) ? parsedVoucher : null;
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
+        editingSaleId: saleId,
+        isSettledEdit: saleId !== null,
         cartItems: mappedCartItems,
         orderTypeId: orderTypeId,
         orderTypeName: orderTypeName,

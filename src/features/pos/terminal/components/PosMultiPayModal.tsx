@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '../../../../hooks/useCurrency';
 import { Modal, Button } from '../../../../components/common';
-import { Banknote, CreditCard, Wallet, Trash2, XCircle, Check, Delete } from 'lucide-react';
+import { Banknote, CreditCard, Wallet, XCircle, Delete } from 'lucide-react';
 
 interface PaymentLine {
   mode: 'cash' | 'card' | 'credit';
@@ -112,28 +112,25 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
       showClose={false}
       className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
     >
-      <div className={`py-3 px-4 flex justify-between items-center text-white shrink-0 ${
-        mode === 'cash' ? 'bg-emerald-700' : mode === 'card' ? 'bg-blue-700' : 'bg-purple-700'
+      <div className={`py-4 px-5 flex justify-between items-center text-white shrink-0 ${
+        mode === 'cash' ? 'bg-gradient-to-r from-emerald-600 to-emerald-800' : mode === 'card' ? 'bg-gradient-to-r from-blue-600 to-blue-800' : 'bg-gradient-to-r from-purple-600 to-purple-800'
       }`}>
-        <h2 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
-          <Icon className="w-4 h-4" />
-          Add {cfg.label} Payment
+        <h2 className="text-sm font-black uppercase tracking-[0.15em] flex items-center gap-2">
+          <Icon className="w-5 h-5 opacity-80" />
+          {cfg.label} Payment
         </h2>
-        <button type="button" onClick={onClose} className="opacity-60 hover:opacity-100" tabIndex={-1}>
+        <button type="button" onClick={onClose} className="opacity-60 hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20 p-1.5 rounded-full" tabIndex={-1}>
           <XCircle size={20} />
         </button>
       </div>
 
-      <form onSubmit={handleFormSubmit} className="bg-[#f8fafc] p-3 space-y-2.5">
-        {/* Large Input Display */}
-        <div className="bg-[#1e293b] p-2.5 rounded-xl shadow-md flex flex-col items-end relative overflow-hidden shrink-0">
-          <div className={`absolute top-0 left-0 w-1 h-full ${
-            mode === 'cash' ? 'bg-emerald-500' : mode === 'card' ? 'bg-blue-500' : 'bg-purple-500'
-          }`} />
-          <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">
+      <form onSubmit={handleFormSubmit} className="bg-white p-5 space-y-4">
+        {/* Modern Input Display */}
+        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col items-end relative overflow-hidden shrink-0 shadow-inner">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
             Amount ({currencySymbol})
           </span>
-          <div className="w-full flex items-center relative pr-8">
+          <div className="w-full flex items-center relative">
             <input
               ref={inputRef}
               type="number"
@@ -145,47 +142,47 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
                 const val = e.target.value;
                 if (val === '' || parseFloat(val) >= 0) setValue(val);
               }}
-              className="w-full text-right text-3xl font-black text-white bg-transparent outline-none font-mono [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="w-full text-right text-4xl font-black text-slate-800 bg-transparent outline-none font-sans tracking-tight [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none placeholder:text-slate-300"
               placeholder="0.000"
             />
             {value && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="absolute right-0 text-slate-400 hover:text-white transition-colors"
+                className="absolute left-0 text-slate-300 hover:text-red-500 transition-colors p-2"
                 tabIndex={-1}
               >
-                <XCircle size={18} />
+                <Delete size={24} />
               </button>
             )}
           </div>
         </div>
 
-        {/* Numpad Keys */}
-        <div className="grid grid-cols-3 gap-1.5 shrink-0">
+        {/* Minimalist Numpad Keys */}
+        <div className="grid grid-cols-3 gap-2 shrink-0">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back'].map((key) => (
             <button
               key={key}
               type="button"
               onClick={() => handleKeyPress(key)}
               className={`
-                h-10 rounded-xl text-base font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                h-14 rounded-2xl text-xl font-bold transition-all active:scale-95 shadow-sm border-2 flex items-center justify-center
                 ${key === 'Back'
-                  ? 'bg-slate-100 text-slate-700 border-slate-300'
-                  : 'bg-white text-slate-700 hover:bg-slate-50'}
+                  ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100 hover:border-red-300'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-400 hover:shadow'}
               `}
             >
-              {key === 'Back' ? <Delete className="mx-auto" size={18} /> : key}
+              {key === 'Back' ? '⌫' : key}
             </button>
           ))}
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-100 shrink-0">
+        <div className="grid grid-cols-2 gap-3 pt-2 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl active:scale-95 transition-all"
+            className="h-12 bg-white text-slate-500 border-2 border-slate-300 font-bold uppercase text-xs tracking-widest rounded-2xl active:scale-95 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all"
             tabIndex={-1}
           >
             Cancel
@@ -193,16 +190,15 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
           <button
             type="submit"
             disabled={!value || parseFloat(value) <= 0}
-            className={`h-10 text-white font-black uppercase text-[10px] tracking-widest rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+            className={`h-12 text-white font-bold uppercase text-xs tracking-widest rounded-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale ${
               mode === 'cash'
-                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-[0_4px_15px_rgba(16,185,129,0.3)]'
+                ? 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_4px_15px_rgba(16,185,129,0.3)]'
                 : mode === 'card'
-                  ? 'bg-blue-600 hover:bg-blue-700 shadow-[0_4px_15px_rgba(59,130,246,0.3)]'
-                  : 'bg-purple-600 hover:bg-purple-700 shadow-[0_4px_15px_rgba(168,85,247,0.3)]'
+                  ? 'bg-blue-500 hover:bg-blue-600 shadow-[0_4px_15px_rgba(59,130,246,0.3)]'
+                  : 'bg-purple-500 hover:bg-purple-600 shadow-[0_4px_15px_rgba(168,85,247,0.3)]'
             }`}
           >
-            <Check size={18} strokeWidth={3} />
-            Add Payment
+            Confirm
           </button>
         </div>
       </form>
@@ -223,9 +219,13 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
   const [amountModalMode, setAmountModalMode] = useState<'cash' | 'card' | 'credit' | null>(null);
 
   const totalPaid  = payments.reduce((sum, p) => sum + p.amount, 0);
-  const remaining  = Math.max(0, totalDue - totalPaid);
-  const change     = Math.max(0, totalPaid - totalDue);
-  const isComplete = totalPaid >= totalDue && totalDue > 0;
+
+  const roundedPaid = Number(totalPaid.toFixed(decimalPart));
+  const roundedDue = Number(totalDue.toFixed(decimalPart));
+
+  const remaining  = Math.max(0, roundedDue - roundedPaid);
+  const change     = Math.max(0, roundedPaid - roundedDue);
+  const isComplete = roundedPaid >= roundedDue && roundedDue > 0;
 
   useEffect(() => {
     if (isOpen) {
@@ -315,68 +315,59 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
               {(Object.keys(MODE_CONFIG) as Array<keyof typeof MODE_CONFIG>).map(mode => {
                 const cfg = MODE_CONFIG[mode];
                 const Icon = cfg.icon;
-                const alreadyUsed = payments.some(p => p.mode === mode);
+                const paymentIdx = payments.findIndex(p => p.mode === mode);
+                const payment = payments[paymentIdx];
+                const hasPayment = !!payment;
+
                 return (
-                  <button
-                    key={mode}
-                    onClick={() => {
-                      if (remaining > 0) {
-                        setAmountModalMode(mode);
-                      }
-                    }}
-                    disabled={remaining <= 0}
-                    className={`h-16 flex flex-col items-center justify-center gap-1 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all relative ${
-                      remaining <= 0
-                        ? 'border-slate-100 bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : `border-slate-200 bg-white hover:border-slate-300 active:scale-95 text-slate-600`
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {cfg.label}
-                    {alreadyUsed && (
-                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </span>
+                  <div key={mode} className="relative h-20">
+                    <button
+                      onClick={() => {
+                        if (remaining > 0) {
+                          setAmountModalMode(mode);
+                        }
+                      }}
+                      disabled={remaining <= 0 && !hasPayment}
+                      className={`w-full h-full flex flex-col items-center justify-center gap-1 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                        hasPayment
+                          ? `${cfg.border} ${cfg.bg} text-slate-800`
+                          : remaining <= 0
+                            ? 'border-slate-100 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : `border-slate-300 bg-white hover:border-slate-400 active:scale-95 text-slate-600`
+                      }`}
+                    >
+                      {hasPayment ? (
+                        <>
+                          <span className={`text-sm font-black ${cfg.color}`}>{formatAmount(payment.amount)}</span>
+                          <span className="text-[9px] text-slate-500 uppercase flex items-center gap-1">
+                            <Icon className="w-3 h-3" />
+                            {cfg.label}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Icon className="w-6 h-6 mb-0.5" />
+                          {cfg.label}
+                        </>
+                      )}
+                    </button>
+
+                    {hasPayment && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePayment(paymentIdx);
+                        }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white flex items-center justify-center shadow-sm transition-transform hover:scale-110"
+                        title="Remove Payment"
+                      >
+                        <XCircle className="w-3 h-3" />
+                      </button>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
-          </div>
-
-          {/* ── Payment List ── */}
-          <div className="space-y-1.5 max-h-[156px] overflow-y-auto pr-0.5 scrollbar-wide">
-            {payments.length === 0 ? (
-              <div className="h-12 flex items-center justify-center text-slate-300 text-xs font-bold italic border-2 border-dashed border-slate-100 rounded-xl">
-                No payments added yet
-              </div>
-            ) : (
-              payments.map((p, idx) => {
-                const cfg = MODE_CONFIG[p.mode];
-                const Icon = cfg.icon;
-                return (
-                  <div key={idx} className="flex items-center justify-between px-3 py-2 bg-white border border-slate-100 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center`}>
-                        <Icon className={`w-4 h-4 ${cfg.color}`} />
-                      </div>
-                      <span className="text-xs font-black uppercase tracking-widest text-slate-600">{cfg.label}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-base font-black text-slate-800">{formatAmount(p.amount)}</span>
-                      <button
-                        onClick={() => removePayment(idx)}
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
           </div>
 
         </div>

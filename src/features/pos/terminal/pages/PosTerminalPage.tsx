@@ -51,6 +51,7 @@ export const PosTerminalPage = () => {
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
+  const [returnToRecallOnCancel, setReturnToRecallOnCancel] = useState(false);
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [isCombineOpen, setIsCombineOpen] = useState(false);
@@ -178,6 +179,8 @@ export const PosTerminalPage = () => {
 
   const isSettling = useAppSelector((state) => state.pos.isSettling);
   const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
+  const isCartModified = useAppSelector((state) => state.pos.isCartModified);
+  const editingSaleId = useAppSelector((state) => state.pos.editingSaleId);
 
   const activeCategory = categories.find(c => c.id === activeCategoryId);
   const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
@@ -354,14 +357,15 @@ export const PosTerminalPage = () => {
   const submitSettlementForEmployee = async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
     if (!status) return;
     
-    // For Direct Settle: Skip submitOrder! We get the full order payload from the hook.
     const orderPayload = getDirectSettleOrderPayload({
       employeeId,
       providerOrderNo: activeProvider?.orderNo,
     });
 
+    const isOrderEdited = !editingOrderId || isCartModified;
+
     try {
-      const salesPayload = {
+      const salesPayload: any = {
         seriesId: 1,
         prefix: "",
         customerId: orderPayload.customerId,
@@ -371,21 +375,24 @@ export const PosTerminalPage = () => {
         shiftId: status.shiftId,
         orderTypeId: orderPayload.orderTypeId,
         androidStatus: false,
+        saleId: editingSaleId || 0,
         orderId: orderPayload.orderId,
-        isOrderEdited: editingOrderId ? true : false,
-        sectionId: orderPayload.sectionId,
-        tableId: orderPayload.tableId,
-        guestNo: orderPayload.guestNo,
-        vehicleCustomerName: orderPayload.vehicleCustomerName,
-        vehicleNo: orderPayload.vehicleNo,
-        addressId: orderPayload.addressId,
-        missedCall: orderPayload.missedCall,
-        contactNo: orderPayload.contactNo,
-        note: orderPayload.note,
-        change: orderPayload.change,
-        isComing: orderPayload.isComing,
-        comingTime: orderPayload.comingTime,
-        providerNo: orderPayload.providerNo,
+        orderMaster: {
+          isOrderEdited,
+          sectionId: orderPayload.sectionId,
+          tableId: orderPayload.tableId,
+          guestNo: orderPayload.guestNo,
+          vehicleCustomerName: orderPayload.vehicleCustomerName,
+          vehicleNo: orderPayload.vehicleNo,
+          addressId: orderPayload.addressId,
+          missedCall: orderPayload.missedCall,
+          contactNo: orderPayload.contactNo,
+          note: orderPayload.note,
+          change: orderPayload.change,
+          isComing: orderPayload.isComing,
+          comingTime: orderPayload.comingTime,
+          providerNo: orderPayload.providerNo,
+        },
         combinedOrderIds: orderPayload.combinedOrderIds,
         modifiers: orderPayload.modifiers,
         voidProducts: orderPayload.voidProducts,
@@ -411,13 +418,22 @@ export const PosTerminalPage = () => {
           levy: d.levy,
           vatAmount: d.vatAmount,
           netAmount: d.netAmount,
-          baseQty: d.baseQty
+          baseQty: d.baseQty,
+          mapId: d.mapId,
+          complimentaryStatus: d.complimentaryStatus || false
         })),
         paymodes: payments
       };
 
-      const saleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
-      if (saleId) {
+      let success = false;
+      if (editingSaleId) {
+        success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
+      } else {
+        const newSaleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
+        success = !!newSaleId;
+      }
+
+      if (success) {
         setIsCashModalOpen(false);
         setIsMultiPayModalOpen(false);
         setIsPrintConfirmOpen(true);
@@ -425,7 +441,7 @@ export const PosTerminalPage = () => {
         throw new Error("Invalid sales response");
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to create sales invoice", "error");
+      showToast(err.message || "Failed to save sales invoice", "error");
     }
   };
 
@@ -1516,7 +1532,8 @@ export const PosTerminalPage = () => {
         isOpen={isRecallModalOpen}
         onClose={() => setIsRecallModalOpen(false)}
         onSettleSuccess={() => {
-          setIsRecallModalOpen(false);
+          // Do not close the recall modal here so it stays in the background
+          setReturnToRecallOnCancel(true);
           setIsMultiPayModalOpen(true);
         }}
       />
@@ -1555,6 +1572,7 @@ export const PosTerminalPage = () => {
         onConfirm={() => navigate("/cashier/out")}
         title="Confirm Exit"
         message="Are you sure you want to exit the terminal? Your current session is still active."
+        confirmLabel="Logout"
       />
 
       <ConfirmDialog
@@ -1619,10 +1637,22 @@ export const PosTerminalPage = () => {
 
       <PosMultiPayModal
         isOpen={isMultiPayModalOpen}
-        onClose={() => setIsMultiPayModalOpen(false)}
+        onClose={() => {
+          setIsMultiPayModalOpen(false);
+          if (returnToRecallOnCancel) {
+            handleClearCart();
+            // Recall modal is already open in background, so we just return to it
+            setReturnToRecallOnCancel(false);
+          }
+        }}
         totalDue={total}
         onSubmit={(payments, changeAmount) => {
           setIsMultiPayModalOpen(false);
+          if (returnToRecallOnCancel) {
+            // Settlement successful, so we close the background recall modal
+            setIsRecallModalOpen(false);
+            setReturnToRecallOnCancel(false);
+          }
           const mappedPayments = payments.map(p => ({
             paymodeId: p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3,
             amount: p.amount
