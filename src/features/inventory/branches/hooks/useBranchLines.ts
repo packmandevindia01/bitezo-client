@@ -6,10 +6,15 @@ import { arrayMove } from "@dnd-kit/sortable";
 const buildInitialLines = (initialLines?: LineItem[]) =>
   initialLines && initialLines.length > 0
     ? initialLines.map((line) => ({ ...line }))
-    : [...makeLines("header"), ...makeLines("footer")];
+    : [
+        ...makeLines("header"),
+        ...makeLines("footer"),
+        ...makeLines("dayEndHeader"),
+      ];
 
 export const useBranchLines = (initialLines?: LineItem[]) => {
   const [allLines, setAllLines] = useState<LineItem[]>(() => buildInitialLines(initialLines));
+
 
   // ✅ Memoized (prevents unnecessary recalculation)
   const headerLines = useMemo(
@@ -22,6 +27,11 @@ export const useBranchLines = (initialLines?: LineItem[]) => {
     [allLines]
   );
 
+  const dayEndLines = useMemo(
+    () => allLines.filter((l) => l.section === "dayEndHeader"),
+    [allLines]
+  );
+
   // ✅ Safe update (no unnecessary state updates)
   const updateLine = (id: string, patch: Partial<LineItem>) =>
     setAllLines((prev) =>
@@ -31,7 +41,7 @@ export const useBranchLines = (initialLines?: LineItem[]) => {
     );
 
   // ✅ CRITICAL FIX (prevent re-render loop)
-  const moveLine = (fromId: string, toSection: "header" | "footer") =>
+  const moveLine = (fromId: string, toSection: "header" | "footer" | "dayEndHeader") =>
     setAllLines((prev) =>
       prev.map((l) =>
         l.id === fromId && l.section !== toSection
@@ -61,6 +71,7 @@ export const useBranchLines = (initialLines?: LineItem[]) => {
     allLines,
     headerLines,
     footerLines,
+    dayEndLines,
     updateLine,
     moveLine,
     reorderLines,

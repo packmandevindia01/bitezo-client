@@ -8,6 +8,9 @@ import { useToast } from '../../../../app/providers/useToast';
 import { formatAmount } from '../../../../utils/currency';
 import { Loader, Modal } from '../../../../components/common';
 import { GuestCountModal } from './GuestCountModal';
+import { generateGuestPrintHtml } from '../../utils/guestPrintTemplate';
+import { printHtmlReceipt } from '../../services/qzService';
+import { printerSettingsApi } from '../../services/printerSettingsApi';
 import type {
   DineInTable,
   TableOrdersResponse,
@@ -232,9 +235,65 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   };
 
   /* ── PRINT ── */
-  const handlePrint = () => {
-    if (!selectedMaster) return;
-    showToast(`Printing Order #${selectedMaster.orderNo}...`, 'success');
+  const handlePrint = async () => {
+    if (!selectedMaster || !data || loading) return;
+    
+    try {
+      showToast(`Preparing receipt for Order #${selectedMaster.orderNo}...`, 'success');
+      
+      const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      
+      const posConfigsStr = localStorage.getItem('posConfigs');
+      const posConfigs = posConfigsStr ? JSON.parse(posConfigsStr) : {};
+      const enableVat = posConfigs?.configs?.enableVat === true;
+
+      // Prepare print data
+      const printData = {
+        orderNo: master.orderNo ?? String(master.orderId),
+        ticketNo: master.ticketNo ?? "1",
+        waiter: master.employeeName ?? "Waiter",
+        counter: "Main", // Could be dynamic if available
+        section: master.sectionName || "DINE IN",
+        table: table?.tableName || "",
+        orderType: "DINE IN",
+        date: master.voucherDate ? new Date(master.voucherDate).toLocaleDateString('en-GB') : undefined,
+        time: master.voucherDate ? new Date(master.voucherDate).toLocaleTimeString('en-US') : undefined,
+        subTotal: master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0), // Base calc
+        serviceCharge: master.serviceCharge || 0,
+        levy: master.levyAmt || 0, // Fallback if levy exists
+        vatAmount: master.vatAmount || 0,
+        netAmount: master.netAmount || 0,
+        enableVat: enableVat
+      };
+
+      // Since the backend might not provide subTotal explicitly, recalculate from items
+      let calculatedSubTotal = 0;
+      mappedItems.forEach((item: any) => {
+        let lineBase = item.price * item.quantity;
+        if (item.extras && item.extras.length > 0) {
+          item.extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+        }
+        calculatedSubTotal += lineBase;
+      });
+      printData.subTotal = calculatedSubTotal;
+
+      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      
+      try {
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+        
+        await printHtmlReceipt(htmlContent, billPrinter);
+        showToast("Guest receipt sent to printer!", "success");
+      } catch (err) {
+        console.error("Printer error:", err);
+        showToast("Failed to connect to printer", "error");
+      }
+      
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to print receipt", "error");
+    }
   };
 
   return (

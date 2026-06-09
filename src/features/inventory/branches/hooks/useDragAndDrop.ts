@@ -4,7 +4,7 @@ import type { LineItem } from "../types";
 
 interface Props {
   allLines: LineItem[];
-  moveLine: (fromId: string, toSection: "header" | "footer") => void;
+  moveLine: (fromId: string, toSection: "header" | "footer" | "dayEndHeader") => void;
   reorderLines: (activeId: string, overId: string) => void;
 }
 

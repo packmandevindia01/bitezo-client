@@ -6,6 +6,8 @@ export interface DeliveryCharge {
 
 export interface ConfigurationState {
   // General POS Settings
+  companyCode: string;
+  enableVat?: boolean;
   companyNameKOT: boolean;
   locationWisePrice: boolean;
   alternativeOrder: "Id" | "Name" | "Price";

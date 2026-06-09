@@ -46,7 +46,9 @@ const BranchForm = ({
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [submitting, setSubmitting] = useState(false);
 
-  const { allLines, headerLines, footerLines, updateLine, moveLine, reorderLines, resetLines } =
+  const [activeTab, setActiveTab] = useState<"kot" | "end">("kot");
+
+  const { allLines, headerLines, footerLines, dayEndLines, updateLine, moveLine, reorderLines, resetLines } =
     useBranchLines(initialData?.lines);
 
   const sensors = useSensors(
@@ -165,33 +167,76 @@ const BranchForm = ({
                 }}
               />
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <PrintSection
-                  section="header"
-                  lines={headerLines}
-                  onUpdate={updateLine}
-                  onOpenFont={openFontModal}
-                  disabled={submitting}
-                />
-
-                <PrintSection
-                  section="footer"
-                  lines={footerLines}
-                  onUpdate={updateLine}
-                  onOpenFont={openFontModal}
-                  disabled={submitting}
-                  lastRowKeyDown={(e) => {
-                    if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
-                      e.preventDefault();
-                      saveBtnRef.current?.focus();
-                    }
-                  }}
-                />
+              <div className="flex gap-4 border-b border-slate-200 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("kot")}
+                  className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === "kot" 
+                      ? "border-[#49293e] text-[#49293e]" 
+                      : "border-transparent text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  KOT / Receipt Headers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("end")}
+                  className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === "end" 
+                      ? "border-[#49293e] text-[#49293e]" 
+                      : "border-transparent text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  End Report Headings
+                </button>
               </div>
+
+              {activeTab === "kot" ? (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <PrintSection
+                    section="header"
+                    lines={headerLines}
+                    onUpdate={updateLine}
+                    onOpenFont={openFontModal}
+                    disabled={submitting}
+                  />
+
+                  <PrintSection
+                    section="footer"
+                    lines={footerLines}
+                    onUpdate={updateLine}
+                    onOpenFont={openFontModal}
+                    disabled={submitting}
+                    lastRowKeyDown={(e) => {
+                      if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+                        e.preventDefault();
+                        saveBtnRef.current?.focus();
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <PrintSection
+                    section="dayEndHeader"
+                    lines={dayEndLines}
+                    onUpdate={updateLine}
+                    onOpenFont={openFontModal}
+                    disabled={submitting}
+                    lastRowKeyDown={(e) => {
+                      if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+                        e.preventDefault();
+                        saveBtnRef.current?.focus();
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* ── Sticky Action Footer ── */}
-            <div className="mt-8 pt-4 border-t border-slate-100 bg-white flex flex-wrap items-center justify-end gap-3">
+            <div className="sticky bottom-0 z-10 mt-8 py-4 border-t border-slate-200 bg-white flex flex-wrap items-center justify-end gap-3 -mx-4 px-4 xl:-mx-6 xl:px-6 -mb-4 xl:-mb-6">
               <Checkbox
                 label="Active"
                 checked={isActive}
@@ -249,7 +294,7 @@ const BranchForm = ({
             <div className="flex items-center gap-2 rounded-lg border border-[#49293e]/20 bg-white px-3 py-2 shadow-xl">
               <DragHandle size={14} />
               <span className="text-[10px] text-slate-600 font-bold w-5 shrink-0 uppercase tracking-widest">
-                {activeItem.section === "header" ? "H" : "F"}
+                {activeItem.section === "header" ? "H" : activeItem.section === "footer" ? "F" : "EH"}
               </span>
               <span className="text-sm" style={getLineStyle(activeItem)}>
                 {activeItem.value || `${activeItem.section} line`}

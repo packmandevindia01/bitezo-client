@@ -9,6 +9,7 @@ import { ConfirmDialog } from "../../../../components/common";
 import type { DenominationItem } from "../../../general/denomination/types";
 import { useToast } from "../../../../app/providers/useToast";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { generateEndReportHtml } from "../../utils/endReportTemplate";
 
 interface Props {
   onSessionReady: () => void;
@@ -40,6 +41,8 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
   const firstDenoRef = useRef<HTMLInputElement>(null);
   const payDescRef = useRef<HTMLInputElement>(null);
   const manualInputRef = useRef<HTMLInputElement>(null);
+
+  const [printState, setPrintState] = useState<{ type: "SHIFT" | "DAY"; step: number; dayId: number; shiftId: number } | null>(null);
 
   const step = 1 / Math.pow(10, decimalPart);
 
@@ -328,30 +331,16 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         const payload = { dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations };
         console.log("--- CLOSE SHIFT PAYLOAD ---", JSON.stringify(payload, null, 2));
         await cashierLogService.closeShift(payload);
-        showToast("Shift Closed Successfully. Logging out...", "success");
         
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("activeShift");
-        
-        setTimeout(() => {
-          window.location.href = "/cashier/in";
-        }, 1500);
+        setPrintState({ type: "SHIFT", step: 1, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
 
       } else if (mode === "CLOSE_DAY") {
         if (!cashierStatus.isShiftClosed) {
           throw new Error("Cannot close Business Day while a Shift is still active. Please close your Shift first.");
         }
         await cashierLogService.closeDay({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations });
-        showToast("Business Day Closed Successfully. Logging out...", "success");
         
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("activeShift");
-        
-        setTimeout(() => {
-          window.location.href = "/cashier/in";
-        }, 1500);
+        setPrintState({ type: "DAY", step: 2, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -368,6 +357,56 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
   const handleSkip = () => {
     showToast("Warning: No active session. Some POS features may be restricted.", "warning");
     onSkip?.();
+  };
+
+  const finishLogout = (msg: string) => {
+    setPrintState(null);
+    showToast(msg, "success");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("activeShift");
+    setTimeout(() => {
+      window.location.href = "/cashier/in";
+    }, 1500);
+  };
+
+  const handlePrintStep = async (shouldPrint: boolean) => {
+    if (!printState) return;
+
+    if (printState.step === 1) {
+      if (shouldPrint) {
+        try {
+          const data = await cashierLogService.getShiftEndReport(printState.dayId, printState.shiftId);
+          const html = generateEndReportHtml(data, 'SHIFTEND');
+          const { printHtmlReceipt } = await import("../../services/qzService");
+          const defaultPrinter = localStorage.getItem("posPrinter") || undefined;
+          await printHtmlReceipt(html, defaultPrinter);
+          showToast("Printing Shift End...", "success");
+        } catch (e: any) {
+          showToast(e.message || "Failed to print Shift End", "error");
+        }
+      }
+      
+      if (printState.type === "DAY") {
+        setPrintState(prev => prev ? { ...prev, step: 2 } : null);
+      } else {
+        finishLogout("Shift Closed Successfully. Logging out...");
+      }
+    } else if (printState.step === 2) {
+      if (shouldPrint) {
+        try {
+          const data = await cashierLogService.getDayEndReport(printState.dayId);
+          const html = generateEndReportHtml(data, 'DAYEND');
+          const { printHtmlReceipt } = await import("../../services/qzService");
+          const defaultPrinter = localStorage.getItem("posPrinter") || undefined;
+          await printHtmlReceipt(html, defaultPrinter);
+          showToast("Printing Day End...", "success");
+        } catch (e: any) {
+          showToast(e.message || "Failed to print Day End", "error");
+        }
+      }
+      finishLogout("Business Day Closed Successfully. Logging out...");
+    }
   };
 
   if (statusLoading) {
@@ -828,11 +867,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         </div>
       )}
 
-
-
-
-
-      <ConfirmDialog 
+      <ConfirmDialog
         isOpen={isCancelConfirmOpen}
         title="Cancel Transaction"
         message="Are you sure you want to cancel this transaction? This action cannot be undone."
@@ -841,6 +876,26 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         onConfirm={handleCancel}
         onCancel={() => setIsCancelConfirmOpen(false)}
         confirmVariant="danger"
+      />
+
+      {/* Print Confirmations */}
+      <ConfirmDialog
+        isOpen={printState?.step === 1}
+        title="Print Shift End"
+        message="Do you want to print Shift End?"
+        confirmLabel="Print"
+        cancelLabel="Skip"
+        onConfirm={() => handlePrintStep(true)}
+        onCancel={() => handlePrintStep(false)}
+      />
+      <ConfirmDialog
+        isOpen={printState?.step === 2 && printState?.type === 'DAY'}
+        title="Print Day End"
+        message="Do you want to print Day End?"
+        confirmLabel="Print"
+        cancelLabel="Skip"
+        onConfirm={() => handlePrintStep(true)}
+        onCancel={() => handlePrintStep(false)}
       />
     </div>
   );

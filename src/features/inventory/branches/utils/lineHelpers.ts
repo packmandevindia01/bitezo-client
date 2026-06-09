@@ -2,8 +2,9 @@ import type { LineItem } from "../types";
 
 let counter = 0;
 
-export const makeLines = (section: "header" | "footer"): LineItem[] =>
-  Array.from({ length: 7 }, (_, i) => ({
+export const makeLines = (section: "header" | "footer" | "dayEndHeader", length?: number): LineItem[] => {
+  const actualLength = length ?? (section === "dayEndHeader" ? 5 : 7);
+  return Array.from({ length: actualLength }, (_, i) => ({
     id: `${section}-${i}-${++counter}`,
     value: "",
     fontFamily: "Inter",
@@ -12,6 +13,7 @@ export const makeLines = (section: "header" | "footer"): LineItem[] =>
     offsetX: 0, // 0 = left, 50 = center, 100 = right
     section,
   }));
+};
 
 export const getLineStyle = (item: LineItem): React.CSSProperties => ({
   fontFamily: item.fontFamily,

@@ -57,6 +57,40 @@ export interface CashierStatusResponse {
   };
 }
 
+export interface EndReportHeader {
+  dayEndHeader1?: string;
+  dayEndHeaderLeftAlign1?: number;
+  dayEndHeaderFont1?: string;
+  dayEndHeader2?: string;
+  dayEndHeaderLeftAlign2?: number;
+  dayEndHeaderFont2?: string;
+  dayEndHeader3?: string;
+  dayEndHeaderLeftAlign3?: number;
+  dayEndHeaderFont3?: string;
+  dayEndHeader4?: string;
+  dayEndHeaderLeftAlign4?: number;
+  dayEndHeaderFont4?: string;
+  dayEndHeader5?: string;
+  dayEndHeaderLeftAlign5?: number;
+  dayEndHeaderFont5?: string;
+  dayEndHeader6?: string;
+  dayEndHeaderLeftAlign6?: number;
+  dayEndHeaderFont6?: string;
+}
+
+export interface EndReportData {
+  header: EndReportHeader;
+  orderTypes: { orderType: string; count: number; total: number }[];
+  waiters: { waiter: string; count: number; total: number }[];
+  categories: { categoryName: string; qty: number; total: number }[];
+  voidProducts: any[] | null;
+  paymodes: { paymodeName: string; amount: number }[];
+  taxSummary: { vatName: string; exclAmount: number; vatAmount: number }[];
+  salesSummary: { sales: number; vatAmount: number; deliveryCharge: number };
+  generalSummary: { startDate: string; endDate: string; voidSales: number; voidOrders: number; pendingOrder: number };
+  cashFlow: { openingBal: number; cashSales: number; payIn: number; payOut: number; closingBal: number };
+}
+
 export const cashierLogService = {
   checkStatus: async (branchId?: number, counterId?: number): Promise<CashierStatusResponse> => {
     const params = new URLSearchParams();
@@ -89,5 +123,21 @@ export const cashierLogService = {
   closeShift: async (payload: CloseShiftRequest): Promise<any> => {
     const { data } = await axiosInstance.put<ApiResponse<any>>(`/Cashier-log/close-shift`, payload);
     return data;
+  },
+
+  getDayEndReport: async (dayId: number): Promise<EndReportData> => {
+    const { data } = await axiosInstance.get<ApiResponse<EndReportData>>(`/Cashier-log/dayend-report/${dayId}`);
+    if (data.isSuccess && data.data) {
+      return data.data;
+    }
+    throw new Error(data.message || "Failed to fetch Day End report");
+  },
+
+  getShiftEndReport: async (dayId: number, shiftId: number): Promise<EndReportData> => {
+    const { data } = await axiosInstance.get<ApiResponse<EndReportData>>(`/Cashier-log/shiftend-report/${dayId}/${shiftId}`);
+    if (data.isSuccess && data.data) {
+      return data.data;
+    }
+    throw new Error(data.message || "Failed to fetch Shift End report");
   }
 };

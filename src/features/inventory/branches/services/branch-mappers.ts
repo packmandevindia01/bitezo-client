@@ -20,6 +20,12 @@ export interface BranchRequestBody {
   footer5: string; footerLeftAlign5: number; footerFont5: string;
   footer6: string; footerLeftAlign6: number; footerFont6: string;
   footer7: string; footerLeftAlign7: number; footerFont7: string;
+
+  dayEndHeader1?: string; dayEndHeaderLeftAlign1?: number; dayEndHeaderFont1?: string;
+  dayEndHeader2?: string; dayEndHeaderLeftAlign2?: number; dayEndHeaderFont2?: string;
+  dayEndHeader3?: string; dayEndHeaderLeftAlign3?: number; dayEndHeaderFont3?: string;
+  dayEndHeader4?: string; dayEndHeaderLeftAlign4?: number; dayEndHeaderFont4?: string;
+  dayEndHeader5?: string; dayEndHeaderLeftAlign5?: number; dayEndHeaderFont5?: string;
 }
 
 export const serializeFont = (line?: LineItem): string =>
@@ -62,6 +68,12 @@ export const buildRequestBody = (payload: BranchPayload, branchId?: number): Bra
     footer5: f[4]?.value ?? "", footerLeftAlign5: Math.round(f[4]?.offsetX ?? 0), footerFont5: serializeFont(f[4]),
     footer6: f[5]?.value ?? "", footerLeftAlign6: Math.round(f[5]?.offsetX ?? 0), footerFont6: serializeFont(f[5]),
     footer7: f[6]?.value ?? "", footerLeftAlign7: Math.round(f[6]?.offsetX ?? 0), footerFont7: serializeFont(f[6]),
+
+    dayEndHeader1: payload.lines.filter(l => l.section === "dayEndHeader")[0]?.value ?? "", dayEndHeaderLeftAlign1: Math.round(payload.lines.filter(l => l.section === "dayEndHeader")[0]?.offsetX ?? 0), dayEndHeaderFont1: serializeFont(payload.lines.filter(l => l.section === "dayEndHeader")[0]),
+    dayEndHeader2: payload.lines.filter(l => l.section === "dayEndHeader")[1]?.value ?? "", dayEndHeaderLeftAlign2: Math.round(payload.lines.filter(l => l.section === "dayEndHeader")[1]?.offsetX ?? 0), dayEndHeaderFont2: serializeFont(payload.lines.filter(l => l.section === "dayEndHeader")[1]),
+    dayEndHeader3: payload.lines.filter(l => l.section === "dayEndHeader")[2]?.value ?? "", dayEndHeaderLeftAlign3: Math.round(payload.lines.filter(l => l.section === "dayEndHeader")[2]?.offsetX ?? 0), dayEndHeaderFont3: serializeFont(payload.lines.filter(l => l.section === "dayEndHeader")[2]),
+    dayEndHeader4: payload.lines.filter(l => l.section === "dayEndHeader")[3]?.value ?? "", dayEndHeaderLeftAlign4: Math.round(payload.lines.filter(l => l.section === "dayEndHeader")[3]?.offsetX ?? 0), dayEndHeaderFont4: serializeFont(payload.lines.filter(l => l.section === "dayEndHeader")[3]),
+    dayEndHeader5: payload.lines.filter(l => l.section === "dayEndHeader")[4]?.value ?? "", dayEndHeaderLeftAlign5: Math.round(payload.lines.filter(l => l.section === "dayEndHeader")[4]?.offsetX ?? 0), dayEndHeaderFont5: serializeFont(payload.lines.filter(l => l.section === "dayEndHeader")[4]),
   };
 };
 
@@ -94,6 +106,21 @@ export const mapResponseToBranch = (branchId: number, b: BranchRequestBody): Bra
         value: val as string,
         offsetX: (raw[`footerLeftAlign${i}`] ?? 0) as number,
         ...parseFont(raw[`footerFont${i}`] as string | undefined),
+      });
+    }
+  }
+
+  // Map day end header fields back to LineItem array
+  for (let i = 1; i <= 5; i++) {
+    const raw = b as unknown as Record<string, unknown>;
+    const val = raw[`dayEndHeader${i}`];
+    if (val !== undefined) {
+      lines.push({
+        id: `deh${i}`,
+        section: "dayEndHeader",
+        value: val as string,
+        offsetX: (raw[`dayEndHeaderLeftAlign${i}`] ?? 0) as number,
+        ...parseFont(raw[`dayEndHeaderFont${i}`] as string | undefined),
       });
     }
   }

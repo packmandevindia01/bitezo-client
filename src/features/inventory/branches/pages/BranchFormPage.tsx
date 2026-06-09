@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Loader } from "../../../../components/common";
+import { Loader } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import BranchForm from "../components/BranchForm";
 import { fetchBranchById, createBranch, updateBranch, deleteBranch } from "../services/branchApi";
@@ -63,20 +63,18 @@ const BranchFormPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-2 py-4 xl:px-8">
-      <div className="mx-auto w-full max-w-7xl rounded-[24px] bg-white shadow-premium border border-slate-100 flex flex-col" style={{ maxHeight: "calc(100vh - 32px)", overflow: "hidden" }}>
-        <div className="p-4 xl:p-6 border-b border-slate-100 shrink-0">
-          <Button 
-            variant="secondary" 
-            onClick={() => navigate("/dashboard/branches")}
-            className="flex items-center gap-1 px-2.5 !py-1 w-fit shadow-sm border-slate-200 text-[10px] font-bold uppercase tracking-wider"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            Back
-          </Button>
-        </div>
+    <div className="h-[calc(100vh-64px)] bg-gray-50 p-2 xl:p-4 flex flex-col">
+      <div className="mx-auto w-full max-w-7xl rounded-[24px] bg-white shadow-premium border border-slate-100 flex flex-col flex-1 overflow-hidden relative">
+        <button 
+          type="button"
+          onClick={() => navigate("/dashboard/branches")}
+          className="absolute top-4 right-4 xl:top-6 xl:right-6 z-20 p-2 text-slate-400 hover:text-[#49293e] hover:bg-slate-100 rounded-full transition-colors"
+          title="Close"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
 
-        <div className="flex-1 overflow-y-auto p-4 xl:p-6">
+        <div className="flex-1 overflow-y-auto p-4 xl:p-6 relative pt-12 xl:pt-14">
           <BranchForm 
             initialData={initialData}
             onSubmit={handleSubmit}

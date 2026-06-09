@@ -92,7 +92,7 @@ export const salesInvoiceApi = {
   
   updateSalesInvoice: async (saleId: number, payload: SalesInvoicePayload): Promise<boolean> => {
     try {
-      const data = await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${saleId}`, payload));
+      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${saleId}`, payload));
       return true;
     } catch (e: any) {
       console.error("Sales invoice update failed:", e);

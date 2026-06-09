@@ -1,6 +1,7 @@
 import type { ConfigurationState } from "./types";
 
 export const INITIAL_CONFIG: ConfigurationState = {
+  companyCode: "",
   companyNameKOT: false,
   locationWisePrice: false,
   alternativeOrder: "Name",
@@ -8,6 +9,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   employeeId: "",
   groupInMenu: false,
   packagerHeader: false,
+  enableVat: false,
   
   discCalc: "Exclusive",
   kotHeader: "QTY,DESCRIPTION",

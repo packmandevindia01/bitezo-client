@@ -32,7 +32,7 @@ export interface LineItem {
   fontStyle: string;
   fontSize: string;
   offsetX: number;
-  section: "header" | "footer";
+  section: "header" | "footer" | "dayEndHeader";
 }
 
 export interface FontSettings {

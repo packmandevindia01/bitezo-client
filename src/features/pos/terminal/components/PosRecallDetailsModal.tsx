@@ -7,6 +7,9 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { loadRecalledOrder } from "../store/posSlice";
 import { formatAmount } from "../../../../utils/currency";
+import { generateGuestPrintHtml } from "../../utils/guestPrintTemplate";
+import { printHtmlReceipt } from "../../services/qzService";
+import { printerSettingsApi } from "../../services/printerSettingsApi";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -155,6 +158,112 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   const handlePrintKOT = () => {
     if (!orderId) return;
     showToast(`Printing KOT for Order #${orderId}...`, "success");
+  };
+
+  const handlePrintGuest = async () => {
+    if (!orderId || !order) return;
+    
+    try {
+      showToast(`Preparing Guest Receipt for Order #${orderId}...`, "success");
+      
+      const master = order.masterData || order;
+      const details = order.detailsData || order.details || [];
+      
+      const posConfigsStr = localStorage.getItem('posConfigs');
+      const posConfigs = posConfigsStr ? JSON.parse(posConfigsStr) : {};
+      const enableVat = posConfigs?.configs?.enableVat === true;
+
+      const orderTypeMap: Record<number, string> = {
+        1: "DineIn", 2: "TakeOut", 3: "DriveThru",
+        4: "Delivery", 5: "Providers", 6: "Coming"
+      };
+      const orderTypeName = orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+
+      const timeFromDetails = (() => {
+        if (!orderDetailsStr) return "";
+        const m = orderDetailsStr.match(/(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/i);
+        return m ? m[1] : "";
+      })();
+      
+      const voucherDateStr = master.voucherDate ?? master.orderDate ?? master.createdAt ?? timeFromDetails;
+      let date: string | undefined;
+      let time: string | undefined;
+      
+      if (voucherDateStr) {
+        try {
+          const d = new Date(voucherDateStr);
+          if (!isNaN(d.getTime())) {
+            date = d.toLocaleDateString('en-GB');
+            time = d.toLocaleTimeString('en-US');
+          } else if (/am|pm/i.test(voucherDateStr)) {
+            const today = new Date();
+            date = today.toLocaleDateString('en-GB');
+            time = voucherDateStr;
+          }
+        } catch { /* ignore */ }
+      }
+
+      let calculatedSubTotal = 0;
+      const mappedItems = details.map((d: any) => {
+        const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
+        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+        }));
+        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+        }));
+        
+        let lineBase = (d.price || 0) * (d.qty || 1);
+        extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+        calculatedSubTotal += lineBase;
+        
+        return {
+          productId: d.productId || d.itemId || 0,
+          quantity: d.qty || 1,
+          price: d.price || 0,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          extras,
+          modifiers,
+          lineTotal: lineBase
+        };
+      });
+
+      const printData = {
+        orderNo: master.orderNo ?? String(orderId),
+        ticketNo: master.ticketNo ?? "1",
+        waiter: master.employeeName ?? "Waiter",
+        counter: "Main",
+        section: master.sectionName || "DINE IN",
+        table: master.tableNo || "",
+        orderType: orderTypeName,
+        date, time,
+        customerName: master.vehicleCustomerName || master.customerName,
+        vehicleNo: master.vehicleNo,
+        subTotal: calculatedSubTotal,
+        serviceCharge: master.serviceCharge || 0,
+        levy: master.levyAmt || master.levy || 0,
+        vatAmount: master.vatAmount || 0,
+        netAmount: master.netAmount || 0,
+        enableVat
+      };
+
+      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      
+      try {
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+        
+        await printHtmlReceipt(htmlContent, billPrinter);
+        showToast("Guest receipt sent to printer!", "success");
+      } catch (err) {
+        console.error("Printer error:", err);
+        showToast("Failed to connect to printer", "error");
+      }
+      
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to print receipt", "error");
+    }
   };
 
   const handleEditOrder = () => {
@@ -703,6 +812,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.821V21h10.56v-7.179M9 3.75h6M19.5 8.25h-15A2.25 2.25 0 0 0 2.25 10.5v6.75a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V10.5a2.25 2.25 0 0 0-2.25-2.25Z" />
               </svg>
               KOT
+            </button>
+            
+            <button
+              onClick={handlePrintGuest}
+              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-stone-700 hover:bg-stone-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-7.5 0h.008v.008H10.5V10.5Zm-3 0h.008v.008H7.5V10.5Z" />
+              </svg>
+              GUEST
             </button>
 
             <button

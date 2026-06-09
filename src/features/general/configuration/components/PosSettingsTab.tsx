@@ -31,6 +31,13 @@ const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
             label="Company Name (KOT)" 
             checked={form.companyNameKOT} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("companyNameKOT", e.target.checked)} 
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-vat")}
+          />
+          <Checkbox 
+            id="conf-pos-vat"
+            label="Enable VAT (Guest Print)" 
+            checked={!!form.enableVat} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("enableVat", e.target.checked)} 
             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-location")}
           />
           <Checkbox 

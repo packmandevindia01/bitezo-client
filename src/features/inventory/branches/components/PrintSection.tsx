@@ -4,7 +4,7 @@ import SortableRow from "./SortableRow";
 import type { LineItem } from "../types";
 
 interface Props {
-  section: "header" | "footer";
+  section: "header" | "footer" | "dayEndHeader";
   lines: LineItem[];
   onUpdate: (id: string, patch: Partial<LineItem>) => void;
   onOpenFont: (id: string) => void;
@@ -18,7 +18,7 @@ const PrintSection = ({
   return (
     <div>
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-        {section === "header" ? "Header" : "Footer"} Lines
+        {section === "header" ? "Header" : section === "footer" ? "Footer" : "End Report Header"} Lines
         <span className="ml-2 text-[10px] text-gray-300 normal-case font-normal">
           ({lines.length})
         </span>
