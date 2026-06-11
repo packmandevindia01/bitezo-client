@@ -7,6 +7,7 @@ import {
 } from '../../../../components/common';
 import { Trash2 } from 'lucide-react';
 import type { SectionPrinterSetting } from '../../types';
+import { dineInApi } from '../../services/dineInApi';
 
 interface SectionWisePrinterTabProps {
   initialData: SectionPrinterSetting[];
@@ -27,20 +28,24 @@ export const SectionWisePrinterTab: React.FC<SectionWisePrinterTabProps> = ({
   });
   const [showDeleteAll, setShowDeleteAll] = useState(false);
 
+  const [sectionOptions, setSectionOptions] = useState<{ label: string; value: string }[]>([]);
+
   useEffect(() => {
     setItems(initialData);
   }, [initialData]);
+
+  useEffect(() => {
+    dineInApi.getSections().then(response => {
+      if (response.isSuccess && response.data) {
+        setSectionOptions(response.data.map((s: any) => ({ label: s.sectionName, value: String(s.sectionId) })));
+      }
+    }).catch(console.error);
+  }, []);
 
   const printerOptions = [
     { label: 'pos-80c', value: 'pos-80c' },
     { label: 'delivery', value: 'delivery' },
     { label: 'No Printer', value: 'No Printer' },
-  ];
-
-  const sectionOptions = [
-    { label: 'DINE IN', value: '1' },
-    { label: 'TAKE AWAY', value: '2' },
-    { label: 'DELIVERY', value: '3' },
   ];
 
   const handleAdd = () => {
@@ -128,7 +133,11 @@ export const SectionWisePrinterTab: React.FC<SectionWisePrinterTabProps> = ({
           rowKey="sectionId"
           columns={[
             { header: "SNo", accessor: "sectionId", render: (_: any, index: number) => index + 1 },
-            { header: "Section", accessor: "section" },
+            { 
+              header: "Section", 
+              accessor: "section",
+              render: (row) => row.section || sectionOptions.find(s => s.value === String(row.sectionId))?.label || `Section #${row.sectionId}`
+            },
             { header: "First Printer", accessor: "firstPrinter" },
             { header: "Second Printer", accessor: "secondPrinter" },
             { 

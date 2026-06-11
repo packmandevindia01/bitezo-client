@@ -11,6 +11,7 @@ import {
   fetchOnboardBranches,
   fetchOnboardCounters,
   fetchOnboardSeries,
+  fetchOnboardTerminals,
   sendCompanyOtp,
   verifyCompanyOtp,
 } from "../services/companyOnboardingApi";
@@ -51,13 +52,16 @@ const CompanyOnboardingPage = () => {
   const [posBranchId, setPosBranchId] = useState("");
   const [posCounterId, setPosCounterId] = useState("");
   const [posSeriesId, setPosSeriesId] = useState("");
+  const [posTerminalId, setPosTerminalId] = useState("");
   const [posBranches, setPosBranches] = useState<{ id: number; name: string }[]>([]);
   const [posCounters, setPosCounters] = useState<PosCounterOption[]>([]);
   const [posSeriesList, setPosSeriesList] = useState<{ id: number; name: string }[]>([]);
-  const [posSetupErrors, setPosSetupErrors] = useState({ branchId: "", counterId: "", seriesId: "" });
+  const [posTerminals, setPosTerminals] = useState<{ id: number; name: string }[]>([]);
+  const [posSetupErrors, setPosSetupErrors] = useState({ branchId: "", counterId: "", seriesId: "", terminalId: "" });
   const [loadingPosSetup, setLoadingPosSetup] = useState(false);
   const [loadingPosCounters, setLoadingPosCounters] = useState(false);
   const [loadingPosSeries, setLoadingPosSeries] = useState(false);
+  const [loadingPosTerminals, setLoadingPosTerminals] = useState(false);
 
   // Resume onboarding state on mount
   useEffect(() => {
@@ -136,13 +140,15 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  const setupPosSession = (db: string, branchId: string, counterId: string, seriesId: string) => {
+  const setupPosSession = (db: string, branchId: string, counterId: string, seriesId: string, terminalId: string) => {
     const selectedBranch = posBranches.find((branch) => String(branch.id) === branchId);
     const selectedCounter = posCounters.find((counter) => String(counter.id) === counterId);
     const selectedSeries = posSeriesList.find((series) => String(series.id) === seriesId);
+    const selectedTerminal = posTerminals.find((terminal) => String(terminal.id) === terminalId);
     const branchName = selectedBranch?.name ?? "";
     const counterName = selectedCounter?.name ?? "";
     const seriesName = selectedSeries?.name ?? "";
+    const terminalName = selectedTerminal?.name ?? "";
 
     localStorage.setItem("companyRegistered", "true");
     dispatch(
@@ -168,7 +174,8 @@ const CompanyOnboardingPage = () => {
     localStorage.setItem("isMaster", "false");
     localStorage.setItem("companyRegistered", "true");
     localStorage.setItem("systemType", "pos");
-    localStorage.setItem("systemName", counterName ? `POS Terminal - ${counterName}` : "POS Terminal");
+    localStorage.setItem("systemName", terminalName ? terminalName : (counterName ? `POS Terminal - ${counterName}` : "POS Terminal"));
+    localStorage.setItem("terminalId", terminalId);
     localStorage.setItem("systemBranchId", branchId);
     localStorage.setItem("systemBranchName", branchName);
     localStorage.setItem("systemCounterId", counterId);
@@ -208,7 +215,7 @@ const CompanyOnboardingPage = () => {
       setPosCounterId("");
       setPosSeriesList([]);
       setPosSeriesId("");
-      setPosSetupErrors({ branchId: "", counterId: "", seriesId: "" });
+      setPosSetupErrors({ branchId: "", counterId: "", seriesId: "", terminalId: "" });
       setStageWithPersistence("pos-setup");
 
       if (branchOptions.length === 1) {
@@ -235,10 +242,12 @@ const CompanyOnboardingPage = () => {
     try {
       setLoadingPosCounters(true);
       setLoadingPosSeries(true);
+      setLoadingPosTerminals(true);
       
-      const [counters, series] = await Promise.all([
+      const [counters, series, terminals] = await Promise.all([
         fetchOnboardCounters(branchId),
-        fetchOnboardSeries(branchId)
+        fetchOnboardSeries(branchId),
+        fetchOnboardTerminals(branchId)
       ]);
 
       setPosCounters(
@@ -254,14 +263,23 @@ const CompanyOnboardingPage = () => {
           name: s.seriesName,
         }))
       );
+
+      setPosTerminals(
+        terminals.map((t) => ({
+          id: t.terminalId,
+          name: t.terminalName,
+        }))
+      );
     } catch (error) {
       setPosCounters([]);
       setPosSeriesList([]);
-      const message = error instanceof Error ? error.message : "Failed to load counters/series";
+      setPosTerminals([]);
+      const message = error instanceof Error ? error.message : "Failed to load counters/series/terminals";
       showToast(message, "error");
     } finally {
       setLoadingPosCounters(false);
       setLoadingPosSeries(false);
+      setLoadingPosTerminals(false);
     }
   };
 
@@ -376,16 +394,17 @@ const CompanyOnboardingPage = () => {
   };
 
   const handleCompletePosSetup = () => {
-    const nextErrors = { branchId: "", counterId: "", seriesId: "" };
+    const nextErrors = { branchId: "", counterId: "", seriesId: "", terminalId: "" };
 
     if (!posBranchId) nextErrors.branchId = "Please select a branch";
     if (!posCounterId) nextErrors.counterId = "Please select a counter";
     if (!posSeriesId) nextErrors.seriesId = "Please select a series";
+    if (!posTerminalId) nextErrors.terminalId = "Please select a terminal";
 
     setPosSetupErrors(nextErrors);
-    if (nextErrors.branchId || nextErrors.counterId || nextErrors.seriesId) return;
+    if (nextErrors.branchId || nextErrors.counterId || nextErrors.seriesId || nextErrors.terminalId) return;
 
-    setupPosSession(clientDatabase, posBranchId, posCounterId, posSeriesId);
+    setupPosSession(clientDatabase, posBranchId, posCounterId, posSeriesId, posTerminalId);
   };
 
   const handleResendOtp = async () => {
@@ -650,7 +669,7 @@ const CompanyOnboardingPage = () => {
                 Select where this POS terminal will operate. These details are saved on this device.
               </p>
 
-              <div className="mt-8 grid gap-4 md:grid-cols-3">
+              <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <SelectInput
                   label="Branch"
                   required
@@ -669,7 +688,9 @@ const CompanyOnboardingPage = () => {
                     setPosCounters([]);
                     setPosSeriesId("");
                     setPosSeriesList([]);
-                    setPosSetupErrors((current) => ({ ...current, branchId: "", counterId: "", seriesId: "" }));
+                    setPosTerminalId("");
+                    setPosTerminals([]);
+                    setPosSetupErrors((current) => ({ ...current, branchId: "", counterId: "", seriesId: "", terminalId: "" }));
                     void loadPosCounters(branchId);
                   }}
                 />
@@ -719,6 +740,29 @@ const CompanyOnboardingPage = () => {
                     setPosSetupErrors((current) => ({ ...current, seriesId: "" }));
                   }}
                 />
+
+                <SelectInput
+                  label="Terminal"
+                  required
+                  value={posTerminalId}
+                  placeholder={
+                    !posBranchId
+                      ? "Select branch first"
+                      : loadingPosTerminals
+                        ? "Loading terminals..."
+                        : "Select terminal"
+                  }
+                  disabled={loadingPosSetup || loadingPosTerminals || !posBranchId}
+                  error={posSetupErrors.terminalId}
+                  options={posTerminals.map((terminal) => ({
+                    label: terminal.name,
+                    value: String(terminal.id),
+                  }))}
+                  onChange={(e) => {
+                    setPosTerminalId(e.target.value);
+                    setPosSetupErrors((current) => ({ ...current, terminalId: "" }));
+                  }}
+                />
               </div>
 
               {posBranchId && !loadingPosCounters && posCounters.length === 0 && (
@@ -726,12 +770,17 @@ const CompanyOnboardingPage = () => {
                   No counters were found for the selected branch. Please add a counter in Back Office first.
                 </p>
               )}
+              {posBranchId && !loadingPosTerminals && posTerminals.length === 0 && (
+                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 mt-2">
+                  No available terminals were found. Please assign terminal IDs in the backend.
+                </p>
+              )}
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button
                   onClick={handleCompletePosSetup}
-                  disabled={loadingPosSetup || loadingPosCounters || posCounters.length === 0}
-                  loading={loadingPosSetup || loadingPosCounters}
+                  disabled={loadingPosSetup || loadingPosCounters || posCounters.length === 0 || loadingPosTerminals || posTerminals.length === 0}
+                  loading={loadingPosSetup || loadingPosCounters || loadingPosTerminals}
                   size="lg"
                 >
                   Save POS Setup

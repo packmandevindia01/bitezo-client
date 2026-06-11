@@ -46,6 +46,7 @@ interface PosState {
   selectedAddressId: number;
   selectedSectionId: number;
   selectedTableId: number;
+  selectedTableNo: string;
   guestNo: number;
   missedCall: boolean;
   contactNo: string;
@@ -97,6 +98,7 @@ const initialState: PosState = {
   selectedAddressId: 0,
   selectedSectionId: 0,
   selectedTableId: 0,
+  selectedTableNo: '',
   guestNo: 0,
   missedCall: false,
   contactNo: '',
@@ -187,6 +189,7 @@ const posSlice = createSlice({
       state.selectedAddressId = 0;
       state.selectedSectionId = 0;
       state.selectedTableId = 0;
+      state.selectedTableNo = '';
       state.guestNo = 0;
       state.missedCall = false;
       state.contactNo = '';
@@ -353,6 +356,9 @@ const posSlice = createSlice({
     setTableId: (state, action: PayloadAction<number>) => {
       state.selectedTableId = action.payload;
     },
+    setTableNo: (state, action: PayloadAction<string>) => {
+      state.selectedTableNo = action.payload;
+    },
     setGuestNo: (state, action: PayloadAction<number>) => {
       state.guestNo = action.payload;
     },
@@ -483,6 +489,7 @@ export const {
   setAddressId,
   setSectionId,
   setTableId,
+  setTableNo,
   setGuestNo,
   setMissedCall,
   setContactNo,

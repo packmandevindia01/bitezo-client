@@ -8,15 +8,16 @@ import ReceiptDummyBody from "./preview/ReceiptDummyBody";
 interface Props {
   branchName: string;
   allLines: LineItem[];
+  activeTab: "kot" | "end";
   onOffsetChange: (id: string, offset: number) => void;
 }
 
-const ReceiptPreview = ({ branchName, allLines, onOffsetChange }: Props) => {
+const ReceiptPreview = ({ branchName, allLines, activeTab, onOffsetChange }: Props) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null!);
 
-  const headers = allLines.filter((l) => l.section === "header" && l.value);
-  const footers = allLines.filter((l) => l.section === "footer" && l.value);
+  const headers = allLines.filter((l) => (activeTab === "kot" ? l.section === "header" : l.section === "dayEndHeader") && l.value);
+  const footers = activeTab === "kot" ? allLines.filter((l) => l.section === "footer" && l.value) : [];
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm sticky top-4">
@@ -64,7 +65,11 @@ const ReceiptPreview = ({ branchName, allLines, onOffsetChange }: Props) => {
         </SectionDropZone>
 
         {/* POS Simulation Body */}
-        <ReceiptDummyBody />
+        {activeTab === "kot" ? <ReceiptDummyBody /> : (
+          <div className="py-4 my-2 border-y border-dashed border-gray-200 text-center text-gray-400">
+            [End Report Data]
+          </div>
+        )}
 
         {/* Dynamic Footer Zone */}
         <SectionDropZone

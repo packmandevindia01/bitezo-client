@@ -91,6 +91,24 @@ export interface EndReportData {
   cashFlow: { openingBal: number; cashSales: number; payIn: number; payOut: number; closingBal: number };
 }
 
+export interface DayClosedLog {
+  dayId: number;
+  startDate: string;
+  endDate: string;
+  branch: string;
+  status: string;
+}
+
+export interface ShiftClosedLog {
+  dayId: number;
+  shiftId: number;
+  startDate: string;
+  endDate: string;
+  branch: string;
+  counter: string;
+  status: string;
+}
+
 export const cashierLogService = {
   checkStatus: async (branchId?: number, counterId?: number): Promise<CashierStatusResponse> => {
     const params = new URLSearchParams();
@@ -139,5 +157,21 @@ export const cashierLogService = {
       return data.data;
     }
     throw new Error(data.message || "Failed to fetch Shift End report");
+  },
+
+  getDayClosedLogs: async (asOnDate: string): Promise<DayClosedLog[]> => {
+    const { data } = await axiosInstance.get<ApiResponse<DayClosedLog[]>>(`/session-closings/day-closed-logs?asOnDate=${asOnDate}`);
+    if (data.isSuccess && data.data) {
+      return data.data;
+    }
+    throw new Error(data.message || "Failed to fetch Day Closed Logs");
+  },
+
+  getShiftClosedLogs: async (asOnDate: string): Promise<ShiftClosedLog[]> => {
+    const { data } = await axiosInstance.get<ApiResponse<ShiftClosedLog[]>>(`/session-closings/shift-closed-logs?asOnDate=${asOnDate}`);
+    if (data.isSuccess && data.data) {
+      return data.data;
+    }
+    throw new Error(data.message || "Failed to fetch Shift Closed Logs");
   }
 };

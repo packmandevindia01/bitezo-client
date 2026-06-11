@@ -11,6 +11,7 @@ export interface KotPrintData {
   date?: string;
   time?: string;
   headerTitle?: string;
+  isMaster?: boolean;
 }
 
 export const generateKotHtml = (
@@ -85,8 +86,7 @@ export const generateKotHtml = (
     }
   });
 
-  return `
-    <html>
+  const headStyle = `
       <head>
         <style>
           body {
@@ -99,23 +99,15 @@ export const generateKotHtml = (
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .header-title { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
-          .sub-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; letter-spacing: 1px; }
           
           table.meta-table {
             width: 100%;
             margin-bottom: 15px;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
           }
           table.meta-table td {
             padding-bottom: 3px;
-          }
-          
-          table.order-table {
-            width: 100%;
-            margin-bottom: 10px;
-            font-size: 14px;
           }
           
           hr {
@@ -142,29 +134,88 @@ export const generateKotHtml = (
           }
         </style>
       </head>
+  `;
+
+  if (data.isMaster) {
+    return `
+      <html>
+        ${headStyle}
+        <body>
+          <table style="width: 100%; font-size: 22px; font-weight: bold; margin-bottom: 15px;">
+            <tr>
+              <td style="text-align: left;">Order &nbsp; #${data.orderNo}</td>
+              <td style="text-align: right;">${orderTypeStr}</td>
+            </tr>
+          </table>
+          
+          <table class="meta-table">
+            <tr>
+              <td style="width: 50%;">Date : <span style="font-weight: normal">${dateStr}</span></td>
+              <td style="width: 50%;">Time : <span style="font-weight: normal">${timeStr}</span></td>
+            </tr>
+            <tr>
+              <td>Waiter : <span style="font-weight: normal">${data.waiter}</span></td>
+              <td>Terminal : <span style="font-weight: normal">${data.counter}</span></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td>Section : <span style="font-weight: normal">${data.section}</span></td>
+            </tr>
+          </table>
+          
+          <div class="text-center" style="font-size: 24px; font-weight: bold; margin: 15px 0;">Table : ${data.table}</div>
+          
+          <hr />
+          <div class="text-center" style="font-size: 24px; font-weight: bold; margin: 10px 0;">***${data.headerTitle || "KOT"}***</div>
+          <hr />
+          
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 15%;">QTY</th>
+                <th style="width: 60%;">DESCRIPTION</th>
+                <th style="width: 25%; text-align: right;">AMT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="3"><hr style="border-top: 1px solid #000; margin: 2px 0 8px 0;" /></td></tr>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          <div class="text-center" style="font-size: 24px; font-weight: bold; margin-top: 30px;">Ticket No #${data.ticketNo}</div>
+          <div class="text-center" style="font-size: 12px; margin-top: 5px;">Print On : ${dateStr} ${timeStr}</div>
+        </body>
+      </html>
+    `;
+  }
+
+  return `
+    <html>
+      ${headStyle}
       <body>
-        <div class="text-center header-title">${orderTypeStr}</div>
-        <div class="text-center sub-title">***${data.headerTitle || "NEW ORDER"}***</div>
+        <div class="text-center" style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">${orderTypeStr}</div>
+        <div class="text-center" style="font-size: 24px; font-weight: bold; margin-bottom: 15px; letter-spacing: 1px;">***${data.headerTitle || "KOT"}***</div>
         
         <table class="meta-table">
           <tr>
-            <td>Date: <span style="font-weight: normal">${dateStr}</span></td>
-            <td>Time: <span style="font-weight: normal">${timeStr}</span></td>
+            <td style="width: 50%;">Date &nbsp;&nbsp;&nbsp; <span style="font-weight: normal">${dateStr}</span></td>
+            <td style="width: 50%;">Time &nbsp;&nbsp;&nbsp; <span style="font-weight: normal">${timeStr}</span></td>
           </tr>
           <tr>
-            <td>Waiter: <span style="font-weight: normal">${data.waiter}</span></td>
-            <td>Counter: <span style="font-weight: normal">${data.counter}</span></td>
+            <td>Waiter : <span style="font-weight: normal">${data.waiter}</span></td>
+            <td>Counter : <span style="font-weight: normal">${data.counter}</span></td>
           </tr>
           <tr>
-            <td>Section: <span style="font-weight: normal">${data.section}</span></td>
-            <td>Table: <span style="font-weight: normal">${data.table}</span></td>
+            <td>Section : <span style="font-weight: normal">${data.section}</span></td>
+            <td>Table : <span style="font-weight: normal">${data.table}</span></td>
           </tr>
         </table>
         
-        <table class="order-table">
+        <table style="width: 100%; margin-top: 15px; font-size: 16px;">
           <tr>
-            <td style="width: 50%;">Order No &nbsp; <span style="font-size: 20px; font-weight: bold;">#${data.orderNo}</span></td>
-            <td style="width: 50%;">Ticket No &nbsp; <span style="font-size: 20px; font-weight: bold;">#${data.ticketNo}</span></td>
+            <td style="width: 50%; text-align: left;">Order No &nbsp; <span style="font-size: 22px; font-weight: bold;">#${data.orderNo}</span></td>
+            <td style="width: 50%; text-align: right;">Ticket No &nbsp; <span style="font-size: 22px; font-weight: bold;">#${data.ticketNo}</span></td>
           </tr>
         </table>
         
@@ -183,7 +234,6 @@ export const generateKotHtml = (
             ${itemsHtml}
           </tbody>
         </table>
-        
       </body>
     </html>
   `;

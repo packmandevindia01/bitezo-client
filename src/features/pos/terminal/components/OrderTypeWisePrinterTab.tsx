@@ -7,6 +7,7 @@ import {
 } from '../../../../components/common';
 import { Trash2 } from 'lucide-react';
 import type { OrderTypePrinterSetting } from '../../types';
+import { menuApi } from '../../services/menuApi';
 
 interface OrderTypeWisePrinterTabProps {
   initialData: OrderTypePrinterSetting[];
@@ -26,9 +27,17 @@ export const OrderTypeWisePrinterTab: React.FC<OrderTypeWisePrinterTabProps> = (
   });
   const [showDeleteAll, setShowDeleteAll] = useState(false);
 
+  const [orderTypeOptions, setOrderTypeOptions] = useState<{ label: string; value: string; id: number }[]>([]);
+
   useEffect(() => {
     setItems(initialData);
   }, [initialData]);
+
+  useEffect(() => {
+    menuApi.getOrderTypes().then(data => {
+      setOrderTypeOptions(data.map(ot => ({ label: ot.orderType, value: ot.orderType, id: ot.orderTypeId })));
+    }).catch(console.error);
+  }, []);
 
   const printerOptions = [
     { label: 'pos-80c', value: 'pos-80c' },
@@ -36,16 +45,11 @@ export const OrderTypeWisePrinterTab: React.FC<OrderTypeWisePrinterTabProps> = (
     { label: 'No Printer', value: 'No Printer' },
   ];
 
-  const orderTypeOptions = [
-    { label: 'DINE IN', value: 'Dine In' },
-    { label: 'TAKE AWAY', value: 'Take Away' },
-    { label: 'DELIVERY', value: 'Delivery' },
-    { label: 'DRIVE THRU', value: 'Drive Thru' },
-  ];
-
   const handleAdd = () => {
     if (!form.orderType) return;
+    const match = orderTypeOptions.find(o => o.value === form.orderType);
     const newItem: OrderTypePrinterSetting = {
+      orderTypeId: match?.id,
       orderType: form.orderType,
       printer: form.printer,
     };
@@ -113,7 +117,19 @@ export const OrderTypeWisePrinterTab: React.FC<OrderTypeWisePrinterTabProps> = (
           rowKey="orderType"
           columns={[
             { header: "SNo", accessor: "orderType", render: (_: any, index: number) => index + 1 },
-            { header: "Order Type", accessor: "orderType" },
+            { 
+              header: "Order Type", 
+              accessor: "orderType",
+              render: (row) => {
+                const id = (row as any).orderTypeId;
+                if (row.orderType) return row.orderType;
+                if (id) {
+                  const match = orderTypeOptions.find(o => o.id === id || String(o.id) === String(id));
+                  if (match) return match.label;
+                }
+                return id ? `Order Type #${id}` : 'Unknown';
+              }
+            },
             { header: "Master KOT Printer", accessor: "printer" },
             { 
               header: "Actions", 

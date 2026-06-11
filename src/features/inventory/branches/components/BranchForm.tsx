@@ -284,6 +284,7 @@ const BranchForm = ({
             <ReceiptPreview
               branchName={branchName}
               allLines={allLines}
+              activeTab={activeTab}
               onOffsetChange={(id, offset) => updateLine(id, { offsetX: offset })}
             />
           </div>

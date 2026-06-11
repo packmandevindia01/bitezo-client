@@ -34,19 +34,18 @@ export const usePrinterSettings = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [genRes, catRes, prodRes, secRes, otRes] = await Promise.all([
-        printerSettingsApi.getGeneral(),
-        printerSettingsApi.getCategories(),
-        printerSettingsApi.getProducts(),
-        printerSettingsApi.getSections(),
-        printerSettingsApi.getOrderTypes()
-      ]);
-
-      if (genRes.isSuccess) setGeneral(genRes.data);
-      if (catRes.isSuccess) setCategories(catRes.data);
-      if (prodRes.isSuccess) setProducts(prodRes.data);
-      if (secRes.isSuccess) setSections(secRes.data);
-      if (otRes.isSuccess) setOrderTypes(otRes.data);
+      const res = await printerSettingsApi.getPrinterData();
+      if (res.isSuccess && res.data) {
+        setGeneral(res.data.generalPrinter || {
+          billPrinter: 'No Printer', kotPrinter: 'No Printer', packagerPrinter: 'No Printer', 
+          masterKOT: 'No Printer', masterKOTCount: 1, masterKOTBillCount: 1, 
+          androidBillPrinter: 'No Printer', androidKOTPrinter: 'No Printer', androidPackagerPrinter: 'No Printer'
+        });
+        setCategories(res.data.categoryPrinter || []);
+        setProducts(res.data.productPrinter || []);
+        setSections(res.data.sectionPrinter || []);
+        setOrderTypes(res.data.ordertypePrinter || []);
+      }
     } catch (error: any) {
       showToast(error.message || "Failed to load printer settings", "warning");
     } finally {

@@ -6,13 +6,15 @@ const SystemRegistrationPage = () => {
   const {
     systemType,
     setSystemType,
-    systemName,
+    terminalId,
     branchId,
     counterId,
     branches,
     counters,
+    terminals,
     loadingBranches,
     loadingCounters,
+    loadingTerminals,
     saving,
     errors,
     handleFieldChange,
@@ -29,13 +31,15 @@ const SystemRegistrationPage = () => {
         <RegistrationForm
           systemType={systemType}
           setSystemType={setSystemType}
-          systemName={systemName}
+          terminalId={terminalId}
           branchId={branchId}
           counterId={counterId}
           branches={branches}
           counters={counters}
+          terminals={terminals}
           loadingBranches={loadingBranches}
           loadingCounters={loadingCounters}
+          loadingTerminals={loadingTerminals}
           saving={saving}
           errors={errors}
           onFieldChange={handleFieldChange}

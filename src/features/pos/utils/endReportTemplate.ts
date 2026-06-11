@@ -1,6 +1,6 @@
 import type { EndReportData } from '../cashier/services/cashierLogService';
 
-export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND'): string => {
+export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND', isPdf: boolean = false): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
   const fmt = (val: number | undefined | null) => Number(val || 0).toFixed(decimalPart);
   
@@ -77,20 +77,6 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
         <td class="font-bold text-center">Count : ${o.count || 0}</td>
         <td colspan="2" class="text-right font-bold">Total : ${fmt(o.total)}</td>
       </tr>
-      <tr>
-        <td>Amount</td>
-        <td>Tax</td>
-        <td>Charge</td>
-        <td>Discount</td>
-        <td class="text-right">Total</td>
-      </tr>
-      <tr>
-        <td>${fmt(o.total)}</td>
-        <td>0.000</td>
-        <td>0.000</td>
-        <td>0.000</td>
-        <td class="text-right font-bold">${fmt(o.total)}</td>
-      </tr>
     `;
   });
   orderSummaryHtml += `
@@ -123,8 +109,6 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
         <tr>
           <th>Category</th>
           <th>Qty</th>
-          <th>Amnt</th>
-          <th>Disc</th>
           <th class="text-right">Net</th>
         </tr>
       </thead>
@@ -135,8 +119,6 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
         <tr>
           <td>${c.categoryName}</td>
           <td>${c.qty}</td>
-          <td>${fmt(c.total)}</td>
-          <td>${fmt(0)}</td>
           <td class="text-right">${fmt(c.total)}</td>
         </tr>
     `;
@@ -230,18 +212,15 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
     </table><hr />
   `;
 
-  // General Summary
   const generalSummaryHtml = `
     <table class="data-table mb-10">
       <tbody>
         <tr><td>Sale</td><td class="text-right">${fmt(data.salesSummary?.sales)}</td></tr>
         <tr><td>Delivery Charge</td><td class="text-right">${fmt(data.salesSummary?.deliveryCharge)}</td></tr>
         <tr><td>VAT Amount</td><td class="text-right">${fmt(data.salesSummary?.vatAmount)}</td></tr>
-        <tr><td class="font-bold">Grand Total</td><td class="text-right font-bold">${fmt(data.salesSummary?.sales + vatTotal + (data.salesSummary?.deliveryCharge || 0))}</td></tr>
-        <tr><td>Refund</td><td class="text-right">${fmt(0)}</td></tr>
+        <tr><td class="font-bold">Grand Total</td><td class="text-right font-bold">${fmt((data.salesSummary?.sales || 0) + vatTotal + (data.salesSummary?.deliveryCharge || 0))}</td></tr>
         <tr><td>Cancelled Sales</td><td class="text-right">${fmt(gs.voidSales)}</td></tr>
         <tr><td>Cancelled Order</td><td class="text-right">${fmt(gs.voidOrders)}</td></tr>
-        <tr><td class="font-bold">Total Discount</td><td class="text-right font-bold">${fmt(0)}</td></tr>
       </tbody>
     </table><hr />
   `;
@@ -258,11 +237,10 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
         <tr><td class="font-bold">Cash Flow</td><td class="text-right font-bold">X</td></tr>
         <tr><td>CASH</td><td class="text-right">${fmt(cf.cashSales)}</td></tr>
         <tr><td>Pay In</td><td class="text-right">${fmt(cf.payIn)}</td></tr>
-        <tr><td class="font-bold">Total Cash In</td><td class="text-right font-bold">${fmt(cf.cashSales + cf.payIn)}</td></tr>
+        <tr><td class="font-bold">Total Cash In</td><td class="text-right font-bold">${fmt((cf.cashSales || 0) + (cf.payIn || 0))}</td></tr>
         <tr><td>Pay Out</td><td class="text-right">${fmt(cf.payOut)}</td></tr>
-        <tr><td>Purchase</td><td class="text-right">${fmt(0)}</td></tr>
         <tr><td class="font-bold">Total Cash Out</td><td class="text-right font-bold">${fmt(cf.payOut)}</td></tr>
-        <tr><td>Net Cash</td><td class="text-right">${fmt((cf.cashSales + cf.payIn) - cf.payOut)}</td></tr>
+        <tr><td>Net Cash</td><td class="text-right">${fmt(((cf.cashSales || 0) + (cf.payIn || 0)) - (cf.payOut || 0))}</td></tr>
         <tr><td class="font-bold">Closing Balance</td><td class="text-right font-bold">${fmt(cf.closingBal)}</td></tr>
         <tr><td class="font-bold">Difference</td><td class="text-right font-bold">${fmt(cf.closingBal - ((cf.cashSales + cf.payIn) - cf.payOut))}</td></tr>
       </tbody>
@@ -273,13 +251,25 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
     <html>
       <head>
         <style>
+          ${isPdf ? `
+          @page { size: A4 portrait; margin: 15mm; }
+          body { width: 210mm; max-width: 100%; margin: 0 auto; }
+          ` : `
+          body { width: 100%; margin: 0; }
+          `}
+          * {
+            border-color: #000000 !important;
+            outline-color: transparent !important;
+            background-color: transparent !important;
+          }
+          html, body {
+            background-color: #ffffff !important;
+          }
           body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 13px;
             color: #000;
-            margin: 0;
             padding: 0;
-            width: 100%;
           }
           .text-center { text-align: center; }
           .text-right { text-align: right; }

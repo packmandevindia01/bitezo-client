@@ -3,7 +3,7 @@ import { ChevronLeft, LayoutGrid, Search, Clock, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../components/common';
 import { useAppDispatch } from '../../../../app/hooks';
-import { setSectionId, setTableId, setGuestNo, clearCart } from '../store/posSlice';
+import { setSectionId, setTableId, setTableNo, setGuestNo, clearCart, setOrderTypeByName } from '../store/posSlice';
 import { useDineIn } from '../hooks/useDineIn';
 import { Loader } from '../../../../components/common';
 import { GuestCountModal } from '../components/GuestCountModal';
@@ -94,7 +94,9 @@ export const DineInSelectionPage: React.FC = () => {
     dispatch(clearCart());
     dispatch(setSectionId(selectedSectionId ?? 0));
     dispatch(setTableId(guestTable.tableId));
+    dispatch(setTableNo(guestTable.tableName || guestTable.tableId.toString()));
     dispatch(setGuestNo(guestCount));
+    dispatch(setOrderTypeByName('DineIn'));
     setGuestTable(null);
     navigate('/pos');
   };

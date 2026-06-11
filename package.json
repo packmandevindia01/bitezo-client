@@ -17,6 +17,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-virtual": "^3.13.24",
     "axios": "^1.15.0",
+    "html2pdf.js": "^0.14.0",
     "libphonenumber-js": "^1.12.40",
     "lucide-react": "^0.577.0",
     "qz-tray": "^2.2.6",

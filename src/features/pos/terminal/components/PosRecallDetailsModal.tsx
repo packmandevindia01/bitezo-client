@@ -237,8 +237,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         table: master.tableNo || "",
         orderType: orderTypeName,
         date, time,
-        customerName: master.vehicleCustomerName || master.customerName,
+        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
         vehicleNo: master.vehicleNo,
+        contactNo: master.mobileNo || master.contactNo,
+        flatNo: master.flatNo,
+        buildingNo: master.buildingNo,
+        blockNo: master.blockNo,
+        roadNo: master.roadNo,
+        area: master.area,
+        providerNo: master.providerNo,
         subTotal: calculatedSubTotal,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
@@ -688,7 +695,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
                 <div>
                   <span className="text-stone-500">Customer: </span>
-                  <span className="font-bold">{master.customerName || "CASH CUSTOMER"}</span>
+                  <span className="font-bold">{master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "CASH CUSTOMER"}</span>
                 </div>
                 {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
                   <div className="text-right">
@@ -782,11 +789,13 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               {deliveryDetails && (
                 <div className="border-t border-dashed border-stone-400 pt-3 mt-3 text-[10px] space-y-0.5 text-stone-600">
                   <div className="font-bold uppercase tracking-wider text-stone-400 mb-1">Delivery Details</div>
-                  <div><span className="font-bold text-stone-500">Mobile: </span>{deliveryDetails.mobile}</div>
-                  <div><span className="font-bold text-stone-500">Customer: </span>{deliveryDetails.customerName}</div>
-                  <div><span className="font-bold text-stone-500">Address: </span>
-                    {`Bldg ${deliveryDetails.building || ""}, Road ${deliveryDetails.road || ""}, Block ${deliveryDetails.block || ""}, Flat ${deliveryDetails.flat || ""}, ${deliveryDetails.area || ""}`}
-                  </div>
+                  {deliveryDetails.mobile && <div><span className="font-bold text-stone-500">Mobile: </span>{deliveryDetails.mobile}</div>}
+                  {deliveryDetails.customerName && <div><span className="font-bold text-stone-500">Customer: </span>{deliveryDetails.customerName}</div>}
+                  {deliveryDetails.flat && <div><span className="font-bold text-stone-500">Flat No: </span>{deliveryDetails.flat}</div>}
+                  {deliveryDetails.building && <div><span className="font-bold text-stone-500">Building: </span>{deliveryDetails.building}</div>}
+                  {deliveryDetails.block && <div><span className="font-bold text-stone-500">Block: </span>{deliveryDetails.block}</div>}
+                  {deliveryDetails.road && <div><span className="font-bold text-stone-500">Road: </span>{deliveryDetails.road}</div>}
+                  {deliveryDetails.area && <div><span className="font-bold text-stone-500">Area: </span>{deliveryDetails.area}</div>}
                 </div>
               )}
             </div>

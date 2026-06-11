@@ -1,34 +1,38 @@
-import { Button, FormInput } from "../../../components/common";
+import { Button } from "../../../components/common";
 import { CheckCircle, ChevronLeft } from "lucide-react";
 import SystemTypeCard from "./SystemTypeCard";
-import type { BranchOption, CounterOption, SystemType } from "../types";
+import type { BranchOption, CounterOption, SystemType, TerminalOption } from "../types";
 
 interface RegistrationFormProps {
   systemType: SystemType;
   setSystemType: (type: SystemType) => void;
-  systemName: string;
+  terminalId: string;
   branchId: string;
   counterId: string;
   branches: BranchOption[];
   counters: CounterOption[];
+  terminals: TerminalOption[];
   loadingBranches: boolean;
   loadingCounters: boolean;
+  loadingTerminals: boolean;
   saving: boolean;
-  errors: { systemName: string; branchId: string; counterId: string };
-  onFieldChange: (field: "systemName" | "branchId" | "counterId", value: string) => void;
+  errors: { terminalId: string; branchId: string; counterId: string };
+  onFieldChange: (field: "terminalId" | "branchId" | "counterId", value: string) => void;
   onSubmit: () => void;
 }
 
 const RegistrationForm = ({
   systemType,
   setSystemType,
-  systemName,
+  terminalId,
   branchId,
   counterId,
   branches,
   counters,
+  terminals,
   loadingBranches,
   loadingCounters,
+  loadingTerminals,
   saving,
   errors,
   onFieldChange,
@@ -55,18 +59,40 @@ const RegistrationForm = ({
         />
       </div>
 
-      {/* System Name */}
+      {/* Terminal Selector */}
       <div className="mt-6">
-        <FormInput
-          id="systemName"
-          label="System / Terminal Name"
-          required
-          placeholder='e.g. "Counter 1", "Cashier 2", "Manager Desk"'
-          value={systemName}
-          onChange={(e) => onFieldChange("systemName", e.target.value)}
-          error={errors.systemName}
-          disabled={saving}
-        />
+        <div className="flex flex-col gap-1 w-full">
+          <label htmlFor="terminal-select" className="text-xs md:text-sm font-medium text-gray-700">
+            Terminal <span className="text-red-500 ml-1 font-bold">*</span>
+          </label>
+          <select
+            id="terminal-select"
+            value={terminalId}
+            onChange={(e) => onFieldChange("terminalId", e.target.value)}
+            disabled={saving || loadingTerminals || !branchId}
+            className={`
+              w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border outline-none transition
+              ${errors.terminalId ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
+              ${saving || loadingTerminals || !branchId ? "bg-gray-100 cursor-not-allowed" : ""}
+              focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
+            `}
+          >
+            <option value="">
+              {!branchId ? "Select branch first" : loadingTerminals ? "Loading terminals..." : "Select a terminal"}
+            </option>
+            {terminals.map((t) => (
+              <option key={t.id} value={String(t.id)}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          {errors.terminalId && (
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-red-600 font-semibold">
+              <span className="shrink-0">⚠️</span>
+              <span>{errors.terminalId}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">

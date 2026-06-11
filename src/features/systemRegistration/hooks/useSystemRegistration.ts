@@ -1,32 +1,34 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchBranches } from "../services/branchService";
+import { fetchBranches, fetchTerminals } from "../services/branchService";
 import { counterService } from "../../general/counter/services/counterService";
 import { useToast } from "../../../app/providers/useToast";
-import type { BranchOption, CounterOption, SystemType } from "../types";
+import type { BranchOption, CounterOption, TerminalOption, SystemType } from "../types";
 
 export const useSystemRegistration = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [systemType, setSystemType] = useState<SystemType>("pos");
-  const [systemName, setSystemName] = useState("");
+  const [terminalId, setTerminalId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [counterId, setCounterId] = useState("");
   
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [counters, setCounters] = useState<CounterOption[]>([]);
+  const [terminals, setTerminals] = useState<TerminalOption[]>([]);
   
   const [loadingBranches, setLoadingBranches] = useState(true);
   const [loadingCounters, setLoadingCounters] = useState(false);
+  const [loadingTerminals, setLoadingTerminals] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  const [errors, setErrors] = useState({ systemName: "", branchId: "", counterId: "" });
+  const [errors, setErrors] = useState({ terminalId: "", branchId: "", counterId: "" });
 
   // Load existing settings on mount
   useEffect(() => {
-    const existingName = localStorage.getItem("systemName");
-    if (existingName) setSystemName(existingName);
+    const existingTerminalId = localStorage.getItem("terminalId") || localStorage.getItem("systemId");
+    if (existingTerminalId) setTerminalId(existingTerminalId);
     
     const existingBranch = localStorage.getItem("systemBranchId");
     if (existingBranch) setBranchId(existingBranch);
@@ -72,15 +74,30 @@ export const useSystemRegistration = () => {
       .finally(() => setLoadingCounters(false));
   }, [branchId, systemType, showToast]);
 
+  // Fetch terminals when branch changes
+  useEffect(() => {
+    if (!branchId) {
+      setTerminals([]);
+      setTerminalId("");
+      return;
+    }
+
+    setLoadingTerminals(true);
+    fetchTerminals(branchId)
+      .then(setTerminals)
+      .catch(() => showToast("Could not load terminals", "error"))
+      .finally(() => setLoadingTerminals(false));
+  }, [branchId, showToast]);
+
   const validate = useCallback(() => {
-    const next = { systemName: "", branchId: "", counterId: "" };
-    if (!systemName.trim()) next.systemName = "System name is required";
+    const next = { terminalId: "", branchId: "", counterId: "" };
+    if (!terminalId) next.terminalId = "Please select a terminal";
     if (!branchId) next.branchId = "Please select a branch";
     if (systemType === "pos" && !counterId) next.counterId = "Please select a counter";
     
     setErrors(next);
-    return !next.systemName && !next.branchId && (systemType !== "pos" || !next.counterId);
-  }, [systemName, branchId, counterId, systemType]);
+    return !next.terminalId && !next.branchId && (systemType !== "pos" || !next.counterId);
+  }, [terminalId, branchId, counterId, systemType]);
 
   const handleSubmit = async () => {
     if (!validate()) return;
@@ -89,9 +106,11 @@ export const useSystemRegistration = () => {
     try {
       const selectedBranch = branches.find((b) => String(b.id) === branchId);
       const selectedCounter = counters.find((c) => String(c.id) === counterId);
+      const selectedTerminal = terminals.find((t) => String(t.id) === terminalId);
 
       localStorage.setItem("systemType", systemType);
-      localStorage.setItem("systemName", systemName.trim());
+      localStorage.setItem("systemName", selectedTerminal?.name ?? "");
+      localStorage.setItem("terminalId", terminalId);
       localStorage.setItem("systemBranchId", branchId);
       localStorage.setItem("systemBranchName", selectedBranch?.name ?? "");
       
@@ -117,14 +136,15 @@ export const useSystemRegistration = () => {
     }
   };
 
-  const handleFieldChange = (field: "systemName" | "branchId" | "counterId", value: string) => {
-    if (field === "systemName") {
-      setSystemName(value);
-      setErrors((p) => ({ ...p, systemName: "" }));
+  const handleFieldChange = (field: "terminalId" | "branchId" | "counterId", value: string) => {
+    if (field === "terminalId") {
+      setTerminalId(value);
+      setErrors((p) => ({ ...p, terminalId: "" }));
     } else if (field === "branchId") {
       setBranchId(value);
-      setErrors((p) => ({ ...p, branchId: "", counterId: "" }));
+      setErrors((p) => ({ ...p, branchId: "", counterId: "", terminalId: "" }));
       setCounterId(""); // Reset counter on branch change
+      setTerminalId(""); // Reset terminal on branch change
     } else {
       setCounterId(value);
       setErrors((p) => ({ ...p, counterId: "" }));
@@ -134,13 +154,15 @@ export const useSystemRegistration = () => {
   return {
     systemType,
     setSystemType: handleSystemTypeChange,
-    systemName,
+    terminalId,
     branchId,
     counterId,
     branches,
     counters,
+    terminals,
     loadingBranches,
     loadingCounters,
+    loadingTerminals,
     saving,
     errors,
     handleFieldChange,

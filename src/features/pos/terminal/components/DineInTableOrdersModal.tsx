@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../../../app/hooks';
-import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart } from '../store/posSlice';
+import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo } from '../store/posSlice';
 import { dineInApi } from '../../services/dineInApi';
 import { orderApi } from '../../services/orderApi';
 import { useToast } from '../../../../app/providers/useToast';
@@ -101,7 +101,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     dispatch(clearCart());
     dispatch(setSectionId(sectionId));
     dispatch(setTableId(table.tableId));
+    dispatch(setTableNo(table.tableName || table.tableId.toString()));
     dispatch(setGuestNo(guestCount));
+    dispatch(setOrderTypeByName('DineIn'));
     setShowGuestCount(false);
     onClose();
     navigate('/pos');

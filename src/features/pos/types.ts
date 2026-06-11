@@ -149,8 +149,17 @@ export interface SectionPrinterSetting {
 }
 
 export interface OrderTypePrinterSetting {
+  orderTypeId?: number;
   orderType: string;
   printer: string;
+}
+
+export interface PrinterDataResponse {
+  generalPrinter: GeneralPrinterSettings;
+  productPrinter: ProductPrinterSetting[];
+  categoryPrinter: CategoryPrinterSetting[];
+  sectionPrinter: SectionPrinterSetting[];
+  ordertypePrinter: OrderTypePrinterSetting[];
 }
 // ─── Menu API Types ──────────────────────────────────────────────────────────
 

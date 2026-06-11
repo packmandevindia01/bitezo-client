@@ -340,7 +340,8 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         }
         await cashierLogService.closeDay({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations });
         
-        setPrintState({ type: "DAY", step: 2, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
+        // Start from step 1 to prompt for Shift End first, then Day End
+        setPrintState({ type: "DAY", step: 1, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
       }
     } catch (err: any) {
       if (err.response?.status === 401) {

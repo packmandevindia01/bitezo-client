@@ -26,6 +26,7 @@ interface PosMoreModalProps {
   onItemComplimentary: () => void;
   onBillComplimentary: () => void;
   onSettledOrders: () => void;
+  onReport: () => void;
 }
 
 const ORDER_ITEMS = [
@@ -46,7 +47,7 @@ const CASHIER_ITEMS = [
 const SYSTEM_ITEMS = [
   { label: 'BACK OFFICE', icon: Monitor, action: 'backoffice' },
   { label: 'CONFIGURATION', icon: Settings },
-  { label: 'REPORT', icon: BarChart },
+  { label: 'REPORT', icon: BarChart, action: 'report' },
   { label: 'PRINTER', icon: Printer, action: 'printer' },
 ];
 
@@ -100,7 +101,8 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
   onCustomerMaster,
   onItemComplimentary,
   onBillComplimentary,
-  onSettledOrders
+  onSettledOrders,
+  onReport
 }) => {
   const navigate = useNavigate();
 
@@ -155,6 +157,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
     if (item.action === 'settledOrders') {
       onClose();
       onSettledOrders();
+      return;
+    }
+    if (item.action === 'report') {
+      onClose();
+      onReport();
       return;
     }
   };

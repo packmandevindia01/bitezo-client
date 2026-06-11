@@ -8,7 +8,7 @@ import {
 } from '../../../../components/common';
 import { Trash2 } from 'lucide-react';
 import type { CategoryPrinterSetting } from '../../types';
-import { categoryService } from '../../../inventory/category/services/categoryService';
+import { menuApi } from '../../services/menuApi';
 
 interface CategoryWisePrinterTabProps {
   initialData: CategoryPrinterSetting[];
@@ -35,8 +35,10 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
   }, [initialData]);
 
   useEffect(() => {
-    categoryService.listName().then(data => {
-      setCategoryOptions(data.map(c => ({ label: c.catName, value: String(c.catId) })));
+    menuApi.getMasterData().then(data => {
+      setCategoryOptions(data.category.map((c: any) => ({ label: c.name, value: String(c.id) })));
+    }).catch(err => {
+      console.error("Failed to load categories:", err);
     });
   }, []);
 
@@ -129,7 +131,11 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
           rowKey="categoryId"
           columns={[
             { header: "SNo", accessor: "categoryId", render: (_: any, index: number) => index + 1 },
-            { header: "Category", accessor: "category" },
+            { 
+              header: "Category", 
+              accessor: "category",
+              render: (row) => row.category || categoryOptions.find(c => c.value === String(row.categoryId))?.label || `Category #${row.categoryId}`
+            },
             { header: "First Printer", accessor: "firstPrinter" },
             { header: "Second Printer", accessor: "secondPrinter" },
             { 

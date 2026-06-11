@@ -5,6 +5,7 @@ import { cashierLogService } from "../services/cashierLogService";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../app/hooks";
 import { setCredentials } from "../../../../features/auth/store/authSlice";
+import { fetchPosMasterDataApi } from "../../../../features/auth/services/authApi";
 import { Settings, Delete } from "lucide-react";
 
 // --- Custom Premium Numpad Component ---
@@ -113,14 +114,32 @@ const CashierInPage = () => {
           localStorage.setItem("userRoles", JSON.stringify(data.userRoles));
         }
 
-        const decimalPart = data.company?.decimalPart ?? 2;
-        const currencySymbol = data.company?.currencySymbol ?? "BHD";
+        // Load POS Master Data in the background
+        const terminalId = localStorage.getItem("terminalId") || "";
+        let decimalPart = 2;
+        let currencySymbol = "BHD";
+        
+        try {
+          const masterData = await fetchPosMasterDataApi(terminalId, seriesId);
+          decimalPart = masterData.company?.decimalPart ?? 2;
+          currencySymbol = masterData.company?.currencySymbol ?? "BHD";
+
+          if (masterData.configs) {
+            localStorage.setItem("posConfigs", JSON.stringify(masterData.configs));
+          }
+          if (masterData.printerData) {
+            localStorage.setItem("posPrinterData", JSON.stringify(masterData.printerData));
+          }
+          if (masterData.voucherSeries) {
+            localStorage.setItem("posVoucherSeries", JSON.stringify(masterData.voucherSeries));
+          }
+        } catch (masterErr) {
+          console.error("Failed to fetch POS master data:", masterErr);
+          showToast("Login succeeded, but failed to load POS configs.", "warning");
+        }
+
         localStorage.setItem("decimalPart", String(decimalPart));
         localStorage.setItem("currencySymbol", currencySymbol);
-
-        if (data.configs) {
-          localStorage.setItem("posConfigs", JSON.stringify(data.configs));
-        }
 
         dispatch(
           setCredentials({

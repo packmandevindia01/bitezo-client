@@ -8,7 +8,7 @@ interface PosOrderSummaryProps {
   total: number;
   totalExtras: number;
   baseSubtotal: number;
-  onSettle?: () => void;
+  onSettle?: (shouldPrint: boolean) => void;
   onOrder?: (print: boolean) => void;
   orderLoading?: boolean;
   isSettling?: boolean;
@@ -89,14 +89,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSet
       <div className="grid grid-cols-2 gap-2 pt-1">
         <div className="grid grid-cols-2 gap-1.5">
           <button
-            onClick={onSettle}
+            onClick={() => onSettle && onSettle(false)}
             disabled={orderLoading || isSettling || total <= 0}
             className="h-10 lg:h-12 rounded-xl bg-pos-green text-white font-bold text-[10px] uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle
           </button>
           <button
-            onClick={onSettle}
+            onClick={() => onSettle && onSettle(true)}
             disabled={orderLoading || isSettling || total <= 0}
             className="h-10 lg:h-12 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >

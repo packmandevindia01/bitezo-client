@@ -44,7 +44,7 @@ interface PosOrderPanelProps {
   onQty?: () => void;
   onClearCart?: () => void;
   onOrder?: (print: boolean) => void;
-  onSettle?: () => void;
+  onSettle?: (shouldPrint: boolean) => void;
   onClose?: () => void;
   orderLoading?: boolean;
   isSettling?: boolean;

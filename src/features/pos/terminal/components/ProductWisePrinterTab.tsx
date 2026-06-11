@@ -131,7 +131,11 @@ export const ProductWisePrinterTab: React.FC<ProductWisePrinterTabProps> = ({
           rowKey="productId"
           columns={[
             { header: "SNo", accessor: "productId", render: (_: any, index: number) => index + 1 },
-            { header: "Product", accessor: "product" },
+            { 
+              header: "Product", 
+              accessor: "product",
+              render: (row) => row.product || productOptions.find(p => p.value === String(row.productId))?.label || `Product #${row.productId}`
+            },
             { header: "First Printer", accessor: "firstPrinter" },
             { header: "Second Printer", accessor: "secondPrinter" },
             { 

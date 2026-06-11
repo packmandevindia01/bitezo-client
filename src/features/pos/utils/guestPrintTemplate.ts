@@ -12,12 +12,22 @@ export interface GuestPrintData {
   time?: string;
   customerName?: string;
   vehicleNo?: string;
+  contactNo?: string;
+  flatNo?: string;
+  buildingNo?: string;
+  blockNo?: string;
+  roadNo?: string;
+  area?: string;
+  providerNo?: string;
   subTotal: number;
   serviceCharge: number;
   levy: number;
   vatAmount: number;
   netAmount: number;
   enableVat?: boolean;
+  payments?: { name: string; amount: number }[];
+  changeAmount?: number;
+  isSettlement?: boolean;
 }
 
 export const generateGuestPrintHtml = (
@@ -31,13 +41,17 @@ export const generateGuestPrintHtml = (
   const isTakeOut = data.orderType?.toLowerCase().includes("take");
   const isDriveThru = data.orderType?.toLowerCase().includes("drive");
   const isDineIn = data.orderType?.toLowerCase().includes("dine");
+  const isDelivery = data.orderType?.toLowerCase().includes("delivery");
 
-  let orderTypeLabel = "GUEST";
-  if (isTakeOut) orderTypeLabel = "GUEST (TAKE OUT)";
-  else if (isDriveThru) orderTypeLabel = "GUEST (DRIVE THRU)";
-  else if (isDineIn) orderTypeLabel = "GUEST (DINE IN)";
+  let orderTypeLabel = data.isSettlement ? "" : "GUEST";
+  if (isTakeOut) orderTypeLabel = data.isSettlement ? "(TAKE OUT)" : "GUEST (TAKE OUT)";
+  else if (isDriveThru) orderTypeLabel = data.isSettlement ? "(DRIVE THRU)" : "GUEST (DRIVE THRU)";
+  else if (isDineIn) orderTypeLabel = data.isSettlement ? "(DINE IN)" : "GUEST (DINE IN)";
+  else if (isDelivery) orderTypeLabel = data.isSettlement ? "(DELIVERY)" : "GUEST (DELIVERY)";
 
-  const headerTitle = data.enableVat ? `SIMPLIFIED TAX INVOICE<br/>${orderTypeLabel}` : `SIMPLIFIED INVOICE<br/>${orderTypeLabel}`;
+  const headerTitle = data.enableVat 
+    ? `SIMPLIFIED TAX INVOICE<br/>${orderTypeLabel}` 
+    : `SIMPLIFIED INVOICE<br/>${orderTypeLabel}`;
 
   let itemsHtml = "";
   cartDetails.forEach((item) => {
@@ -226,6 +240,21 @@ export const generateGuestPrintHtml = (
             <td class="totals-label grand-total">Grand Total</td>
             <td class="totals-value grand-total">${data.netAmount.toFixed(3)}</td>
           </tr>
+          ${data.payments && data.payments.length > 0 ? `
+          <tr><td colspan="2"><div class="dashed-hr" style="margin: 5px 0;"></div></td></tr>
+          ${data.payments.map(p => `
+          <tr>
+            <td class="totals-label">${p.name}</td>
+            <td class="totals-value">${p.amount.toFixed(3)}</td>
+          </tr>
+          `).join('')}
+          ` : ''}
+          ${data.changeAmount !== undefined && data.changeAmount > 0 ? `
+          <tr>
+            <td class="totals-label font-bold">Change</td>
+            <td class="totals-value font-bold">${data.changeAmount.toFixed(3)}</td>
+          </tr>
+          ` : ''}
         </table>
 
         ${data.enableVat ? `
@@ -252,11 +281,21 @@ export const generateGuestPrintHtml = (
         </table>
         ` : '<div class="dashed-hr"></div>'}
         
-        ${isDriveThru && (data.vehicleNo || data.customerName) ? `
-        <div style="margin-top: 10px; font-weight: bold; font-size: 12px;">
-          <div style="text-transform: uppercase; margin-bottom: 5px;">CUSTOMER DETAILS</div>
-          ${data.vehicleNo ? `<div><span style="display:inline-block; width: 80px; font-weight: normal;">Vehicle No</span> <span>${data.vehicleNo}</span></div>` : ''}
-          ${data.customerName ? `<div><span style="display:inline-block; width: 80px; font-weight: normal;">Customer</span> <span>${data.customerName}</span></div>` : ''}
+        ${(isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.providerNo) ? `
+        <div style="margin-top: 10px; font-size: 12px;">
+          <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">${isDelivery ? 'DELIVERY DETAILS' : 'CUSTOMER DETAILS'}</div>
+          <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
+          <table style="width: 100%; font-size: 12px; margin-top: 5px;">
+            ${data.contactNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Mob No</td><td style="font-weight: bold;">${data.contactNo}</td></tr>` : ''}
+            ${data.customerName ? `<tr><td style="width: 35%; padding-bottom: 2px;">Customer</td><td style="font-weight: bold;">${data.customerName}</td></tr>` : ''}
+            ${data.flatNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Flat No</td><td style="font-weight: bold;">${data.flatNo}</td></tr>` : ''}
+            ${data.buildingNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Building</td><td style="font-weight: bold;">${data.buildingNo}</td></tr>` : ''}
+            ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
+            ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
+            ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
+            ${data.vehicleNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Vehicle No</td><td style="font-weight: bold;">${data.vehicleNo}</td></tr>` : ''}
+            ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
+          </table>
         </div>
         ` : ''}
 

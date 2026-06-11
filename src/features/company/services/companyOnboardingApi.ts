@@ -22,6 +22,11 @@ export interface OnboardSeriesOption {
   seriesName: string;
 }
 
+export interface OnboardTerminalOption {
+  terminalId: number;
+  terminalName: string;
+}
+
 export const sendCompanyOtp = async (regId: string, email: string): Promise<SendOtpResponse> => {
   const { data } = await axiosInstance.post<SendOtpResponse>("/auth/send-otp", { email }, {
     params: { regId, email },
@@ -186,6 +191,20 @@ export const fetchOnboardSeries = async (
 
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load voucher series");
+  }
+
+  return data.data ?? [];
+};
+
+export const fetchOnboardTerminals = async (
+  branchId: string | number
+): Promise<OnboardTerminalOption[]> => {
+  const { data } = await axiosInstance.get<ApiResponse<OnboardTerminalOption[]>>(
+    `/Branch/${branchId}/onboard-list-terminal-id`
+  );
+
+  if (!data.isSuccess) {
+    throw new Error(data.message || "Failed to load terminals");
   }
 
   return data.data ?? [];

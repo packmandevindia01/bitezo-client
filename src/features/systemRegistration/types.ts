@@ -38,3 +38,8 @@ export interface CounterOption {
   id: number;
   name: string;
 }
+
+export interface TerminalOption {
+  id: number;
+  name: string;
+}

@@ -68,13 +68,21 @@ export const usePosProducts = () => {
 
   const fetchGroupCategories = useCallback(async (groupId: number, orderTypeId?: number) => {
     const safeOrderTypeId = orderTypeId || 1;
-    // To be safe against cache invalidation from orderTypeId changes:
-    // We will bypass cache for now if orderTypeId changes, or simply pass it down.
+    
+    // Check cache first to avoid long loading spinner
+    const cached = groupCategoriesCache[groupId];
+    if (cached && cached.length > 0) {
+      dispatch(setCategories(cached));
+      if (!activeCategoryId) {
+        dispatch(setCategory(cached[0].id));
+      }
+      return;
+    }
     
     dispatch(setLoading(true));
     try {
       const data = await menuApi.getGroupCategories(groupId, safeOrderTypeId);
-      groupCategoriesCache[groupId] = data; // Note: overwriting cache
+      groupCategoriesCache[groupId] = data; 
       dispatch(setCategories(data));
       if (data.length > 0 && !activeCategoryId) {
         dispatch(setCategory(data[0].id));

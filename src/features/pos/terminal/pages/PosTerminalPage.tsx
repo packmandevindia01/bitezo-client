@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import PosTopNav from "../components/PosTopNav";
@@ -18,6 +18,7 @@ import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
 import { menuApi } from "../../services/menuApi";
 import { PosMoreModal } from "../components/PosMoreModal";
+import { PosReportModal } from "../components/PosReportModal";
 import { PosSettledModal } from "../components/PosSettledModal";
 import { PosCashTenderModal } from "../components/PosCashTenderModal";
 import { PosMultiPayModal } from "../components/PosMultiPayModal";
@@ -47,6 +48,7 @@ export const PosTerminalPage = () => {
   const dispatch = useAppDispatch();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
@@ -94,7 +96,7 @@ export const PosTerminalPage = () => {
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
   const [selectedTender, setSelectedTender] = useState<string>("cash");
-  const [isPrintConfirmOpen, setIsPrintConfirmOpen] = useState(false);
+  const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
   const [isSettledModalOpen, setIsSettledModalOpen] = useState(false);
   const [isSettledAuthOpen, setIsSettledAuthOpen] = useState(false);
 
@@ -185,6 +187,8 @@ export const PosTerminalPage = () => {
   const activeCategory = categories.find(c => c.id === activeCategoryId);
   const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
   const currentItem = selectedKey ? cartDetails.find((item) => item.uniqueId === selectedKey) : null;
+
+  const settleShouldPrintRef = useRef(false);
 
   const readStoredPosConfig = (): RuntimePosConfig | null => {
     const savedConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
@@ -426,17 +430,57 @@ export const PosTerminalPage = () => {
       };
 
       let success = false;
+      let newSaleId: number | null = null;
       if (editingSaleId) {
         success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
       } else {
-        const newSaleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
+        newSaleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
         success = !!newSaleId;
       }
 
       if (success) {
         setIsCashModalOpen(false);
         setIsMultiPayModalOpen(false);
-        setIsPrintConfirmOpen(true);
+        
+        // Prepare print payload from frontend state
+        const finalSaleId = newSaleId || editingSaleId || 0;
+        const now = new Date();
+        const paymentNames: Record<number, string> = { 1: "Cash", 2: "Card", 3: "Credit" };
+        const orderTypesMap: Record<number, string> = {
+          1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU", 4: "DELIVERY", 5: "PROVIDERS", 6: "COMING"
+        };
+        const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || "DINE IN";
+        
+        const printPayloadObj = {
+          mappedItems: cartDetails,
+          printData: {
+            orderNo: finalSaleId.toString(),
+            ticketNo: finalSaleId.toString(),
+            waiter: String(employeeId),
+            counter: "Main",
+            section: orderPayload.sectionId ? String(orderPayload.sectionId) : mappedOrderType,
+            table: orderPayload.tableId ? String(orderPayload.tableId) : "",
+            orderType: mappedOrderType,
+            date: now.toLocaleDateString('en-GB'),
+            time: now.toLocaleTimeString('en-US'),
+            customerName: orderPayload.vehicleCustomerName || "",
+            vehicleNo: orderPayload.vehicleNo || "",
+            contactNo: orderPayload.contactNo || "",
+            flatNo: orderPayload.addressId ? "" : "", // we might not have detailed address flatNo in local state if it's just addressId, but we can try
+            subTotal: orderPayload.netAmount - (orderPayload.vatAmount || 0) - (orderPayload.serviceCharge || 0) - (orderPayload.levy || 0),
+            serviceCharge: orderPayload.serviceCharge || 0,
+            levy: orderPayload.levy || 0,
+            vatAmount: orderPayload.vatAmount || 0,
+            netAmount: orderPayload.netAmount || 0,
+            enableVat: (readStoredPosConfig() as any)?.enableVat === true,
+            payments: payments.map(p => ({ name: paymentNames[p.paymodeId] || "Payment", amount: p.amount })),
+            changeAmount: Number(orderPayload.change) || 0,
+            isSettlement: true
+          }
+        };
+
+        setSettledPrintPayload(printPayloadObj);
+        finalizeSettlement(settleShouldPrintRef.current, printPayloadObj);
       } else {
         throw new Error("Invalid sales response");
       }
@@ -445,14 +489,31 @@ export const PosTerminalPage = () => {
     }
   };
 
-  const finalizeSettlement = (shouldPrint: boolean) => {
-    setIsPrintConfirmOpen(false);
-    if (shouldPrint) {
+  const finalizeSettlement = async (shouldPrint: boolean, payloadToPrint?: any) => {
+    const payload = payloadToPrint || settledPrintPayload;
+    if (shouldPrint && payload) {
       showToast("Printing receipt...", "info");
-      // Add logic here to call actual print function when available
+      try {
+        const { printerSettingsApi } = await import("../../services/printerSettingsApi");
+        const { printHtmlReceipt } = await import("../../services/qzService");
+        const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
+        
+        let targetPrinter: string | undefined;
+        try {
+          const printerSettingsResponse = await printerSettingsApi.getGeneral();
+          targetPrinter = printerSettingsResponse?.data?.billPrinter;
+        } catch {}
+
+        const html = generateGuestPrintHtml(payload.mappedItems, payload.printData);
+        await printHtmlReceipt(html, targetPrinter);
+      } catch (printErr: any) {
+        console.error("Settled print failed:", printErr);
+        showToast("Order settled, but printing failed", "warning");
+      }
     }
     showToast("Sales saved successfully", "success");
     handleClearCart();
+    setSettledPrintPayload(null);
   };
 
   // Handle Completing Settlement for Cash or Multi-pay
@@ -523,11 +584,13 @@ export const PosTerminalPage = () => {
   };
 
   // Handle Order Settlement
-  const handleSettle = () => {
+  const handleSettle = (shouldPrint: boolean) => {
     if (itemCount === 0) {
       showToast("Cart is empty", "warning");
       return;
     }
+    
+    settleShouldPrintRef.current = shouldPrint;
     
     if (selectedTender === "cash") {
       setIsCashModalOpen(true);
@@ -1511,6 +1574,12 @@ export const PosTerminalPage = () => {
         onItemComplimentary={handleItemComplimentary}
         onBillComplimentary={handleBillComplimentary}
         onSettledOrders={() => setIsSettledAuthOpen(true)}
+        onReport={() => setIsReportModalOpen(true)}
+      />
+
+      <PosReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
       />
 
       <PosCustomerModal
@@ -1600,16 +1669,6 @@ export const PosTerminalPage = () => {
         onCancel={() => setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' })}
         confirmLabel="Override"
         confirmVariant="danger"
-      />
-
-      <ConfirmDialog
-        isOpen={isPrintConfirmOpen}
-        onCancel={() => finalizeSettlement(false)}
-        title="Print Receipt"
-        message="Do you want to print the receipt?"
-        confirmLabel="Yes, Print"
-        cancelLabel="No"
-        onConfirm={() => finalizeSettlement(true)}
       />
 
       <PosProviderModal 
