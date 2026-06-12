@@ -154,7 +154,7 @@ const BranchForm = ({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_270px]">
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_270px] xl:grid-cols-[1fr_300px]">
           <div className="flex flex-col">
             <div className="flex-1 pr-1">
               <BranchBasicInfo
@@ -280,7 +280,7 @@ const BranchForm = ({
             </div>
           </div>
 
-          <div className="hidden xl:block overflow-y-auto pr-1 scrollbar-hide">
+          <div className="hidden lg:block overflow-y-auto pl-2 pr-1 scrollbar-hide">
             <ReceiptPreview
               branchName={branchName}
               allLines={allLines}

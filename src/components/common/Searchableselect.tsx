@@ -26,6 +26,8 @@ interface Props {
   tabIndex?: number;
   labelIcon?: React.ReactNode;
   onKeyDown?: (e: React.KeyboardEvent<any>) => void;
+  onSearch?: (query: string) => void;
+  loading?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -45,6 +47,8 @@ const SearchableSelect = ({
   tabIndex,
   labelIcon,
   onKeyDown,
+  onSearch,
+  loading,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -74,11 +78,20 @@ const SearchableSelect = ({
   const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? "";
 
   // Filtered options based on search query
-  const filtered = query.trim()
-    ? options.filter((o) =>
-        o.label.toLowerCase().includes(query.trim().toLowerCase())
-      )
+  const filtered = onSearch
+    ? options
+    : query.trim()
+    ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
     : options;
+
+  useEffect(() => {
+    if (onSearch) {
+      const timer = setTimeout(() => {
+        onSearch(query.trim());
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [query, onSearch]);
 
   // Reset highlighted index when filtered list changes
   useEffect(() => {
@@ -396,7 +409,9 @@ const SearchableSelect = ({
               role="listbox"
               className="max-h-48 overflow-y-auto py-1"
             >
-              {filtered.length === 0 ? (
+              {loading ? (
+                <li className="px-4 py-2 text-sm text-gray-400">Loading...</li>
+              ) : filtered.length === 0 ? (
                 <li className="px-4 py-2 text-sm text-gray-400">No options found</li>
               ) : (
                 filtered.map((opt, index) => (

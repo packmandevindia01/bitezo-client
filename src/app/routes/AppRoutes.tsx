@@ -1,3 +1,4 @@
+// trigger rebuild
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Loader } from "../../components/common";
@@ -43,8 +44,10 @@ const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"))
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
 const CashierInPage = lazy(() => import("../../features/pos/cashier/pages/CashierInPage"));
 const CashierOutPage = lazy(() => import("../../features/pos/cashier/pages/CashierOutPage"));
-const PurchaseInvoicePage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoicePage"));
-const PurchaseReturnPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnPage"));
+const PurchaseInvoiceListPage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoiceListPage"));
+const PurchaseInvoiceFormPage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoiceFormPage"));
+const PurchaseReturnListPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnListPage"));
+const PurchaseReturnFormPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnFormPage"));
 const RecipePage = lazy(() => import("../../features/general/recipe/pages/RecipePage"));
 const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
@@ -159,8 +162,12 @@ const AppRoutes = () => {
                   <Route path="extras-type" element={<RoleGuard moduleName="Extras Type"><ExtrasTypePage /></RoleGuard>} />
                   <Route path="modifier-type" element={<RoleGuard moduleName="Modifier Type"><ModifierTypePage /></RoleGuard>} />
                   <Route path="taxes" element={<RoleGuard moduleName="Tax Master"><TaxPage /></RoleGuard>} />
-                  <Route path="purchase-invoice" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoicePage /></RoleGuard>} />
-                  <Route path="purchase-return" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnPage /></RoleGuard>} />
+                  <Route path="purchase-invoice" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoiceListPage /></RoleGuard>} />
+                  <Route path="purchase-invoice/new" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoiceFormPage /></RoleGuard>} />
+                  <Route path="purchase-invoice/edit/:id" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoiceFormPage /></RoleGuard>} />
+                  <Route path="purchase-return" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnListPage /></RoleGuard>} />
+                  <Route path="purchase-return/new" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
+                  <Route path="purchase-return/edit/:id" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
 
                   <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />

@@ -6,8 +6,14 @@ export interface PurchaseInvoiceLineItem {
   qty: number;
   foc: number;
   price: number;
+  vatId: number;
   vatPercent: number;
   discPercent: number;
+}
+
+export interface PurchasePaymentLine {
+  mode: 'cash' | 'card' | 'credit';
+  amount: number;
 }
 
 export interface PurchaseInvoiceForm {
@@ -15,6 +21,7 @@ export interface PurchaseInvoiceForm {
   purchaseNo: string;
   purchaseDate: string;
   invoiceNo: string;
+  refNo: string;
   invoiceDate: string;
   supplier: string;
   branch: string;
@@ -26,11 +33,12 @@ export interface PurchaseInvoiceForm {
   qty: string;
   foc: string;
   price: string;
+  vatId: string;
   vatPercent: string;
   discPercent: string;
   
+  globalDiscPercent: string;
   discAmount: string;
-  paymode: string;
   narration: string;
   otherCharge: string;
   roundOff: string;

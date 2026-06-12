@@ -1,0 +1,181 @@
+import axiosInstance from "../../../../api/axiosInstance";
+
+export interface PurchaseReturnMasterData {
+  series: {
+    seriesId: number;
+    seriesName: string;
+    prefix: string;
+    startNo: number;
+    branchId: number;
+  }[];
+  branches: {
+    branchId: number;
+    branchName: string;
+  }[];
+  salesman: {
+    employeeId: number;
+    employeeName: string;
+  }[];
+  vats: {
+    vatId: number;
+    vatName: string;
+    vatValue: number;
+  }[];
+  paymodes: {
+    paymodeId: number;
+    paymodeName: string;
+  }[];
+}
+
+export const purchaseReturnApi = {
+  loadMasterData: async () => {
+    const response = await axiosInstance.get<{
+      data: PurchaseReturnMasterData;
+      isSuccess: boolean;
+      message: string;
+      status: number;
+    }>("/purchase-return-invoice/load-master");
+
+    if (!response.data.isSuccess) {
+      throw new Error(response.data.message || "Failed to load master data");
+    }
+
+    return response.data.data;
+  },
+
+  searchProductsByName: async (productName: string) => {
+    const response = await axiosInstance.get<{
+      data: {
+        productId: number;
+        productName: string;
+        code: string;
+        barcode: string;
+      }[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-return-invoice/product-list-name", {
+      params: { productName }
+    });
+
+    if (!response.data.isSuccess) {
+      throw new Error(response.data.message || "Failed to search products");
+    }
+
+    return response.data.data;
+  },
+
+  searchProductsByBarcode: async (barcode: string) => {
+    const response = await axiosInstance.get<{
+      data: {
+        productId: number;
+        barcode: string;
+      }[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-return-invoice/product-list-barcode", {
+      params: { Barcode: barcode }
+    });
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
+  getProductCostData: async (barcode: string) => {
+    const response = await axiosInstance.get<{
+      data: {
+        productId: number;
+        productCode: string;
+        productName: string;
+        baseUnitId: number;
+        cost: number;
+        altUnitId: number;
+        vatId: number;
+        vatName: string;
+        vatValue: number;
+      };
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/purchase-cost-data/${barcode}`);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
+  getUnitCost: async (productId: number, unitId: number) => {
+    const response = await axiosInstance.get<{
+      data: { cost: number };
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/${productId}/unit-cost/${unitId}`);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
+  searchSuppliers: async (query: string) => {
+    try {
+      const response = await axiosInstance.get<{
+        data: {
+          supplierId: number;
+          code: string;
+          supplierName: string;
+        }[];
+        isSuccess: boolean;
+        message: string;
+      }>("/purchase-return-invoice/supplier-list-name", {
+        params: { supplierName: query }
+      });
+      if (!response.data.isSuccess) throw new Error(response.data.message);
+      return response.data.data;
+    } catch (err: any) {
+      throw new Error(err.message || "Failed to search suppliers");
+    }
+  },
+
+  savePurchaseReturn: async (payload: any) => {
+    const response = await axiosInstance.post<{
+      data: { id: number };
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-return-invoice", payload);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data;
+  },
+
+  getPurchaseReturnList: async (params: any) => {
+    const response = await axiosInstance.get<{
+      data: any[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-return-invoice/details", { params });
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
+  getPurchaseReturnById: async (purchaseReturnId: string | number) => {
+    const response = await axiosInstance.get<{
+      data: any;
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/data/${purchaseReturnId}`);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
+  updatePurchaseReturn: async (purchaseReturnId: string | number, payload: any) => {
+    const response = await axiosInstance.put<{
+      data: any;
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/${purchaseReturnId}`, payload);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data;
+  },
+
+  cancelPurchaseReturn: async (purchaseReturnId: string | number) => {
+    const response = await axiosInstance.put<{
+      data: any;
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/cancel/${purchaseReturnId}`);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data;
+  },
+};
