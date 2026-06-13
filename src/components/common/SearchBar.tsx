@@ -37,7 +37,7 @@ const SearchBar = ({
         autoComplete="off"
         autoFocus={autoFocus}
         className={`
-          w-full pl-9 pr-9 py-1.5
+          w-full pl-9 pr-9 h-10.5
           text-sm
           border rounded-md outline-none transition
           

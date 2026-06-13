@@ -27,7 +27,7 @@ export const calculateLine = (item: PurchaseInvoiceLineItem) => {
 
 export const usePurchaseInvoice = (invoiceId?: string) => {
   const { showToast } = useToast();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, decimalPart } = useCurrency();
   const [masterData, setMasterData] = useState<PurchaseInvoiceMasterData | null>(null);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
@@ -340,8 +340,22 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    if (items.length === 0) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (items.length === 0) {
+      showToast("Please add at least one item", "warning");
+      return false;
+    }
+    if (!form.series || !form.branch || !form.supplier || !form.invoiceNo || !form.invoiceDate) {
+      showToast("Please fill in all required fields", "warning");
+      return false;
+    }
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const roundedPaid = Number(totalPaid.toFixed(decimalPart));
+    const roundedDue = Number(totals.grandTotal.toFixed(decimalPart));
+    if (payments.length === 0 || roundedPaid < roundedDue) {
+      showToast("Please settle the payment fully before saving", "warning");
+      return false;
+    }
     setSaving(true);
     try {
       const payload: any = {
@@ -394,12 +408,13 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         payload.createdAt = new Date().toISOString();
         await purchaseInvoiceApi.savePurchaseInvoice(payload);
         showToast("Purchase Invoice saved successfully", "success");
-        handleReset();
       }
+      return true;
     } catch (error: any) {
       console.error("Failed to save invoice", error);
       const errMsg = error.response?.data?.message || error.message || "Failed to save invoice";
       showToast(errMsg, "error");
+      return false;
     } finally {
       setSaving(false);
     }

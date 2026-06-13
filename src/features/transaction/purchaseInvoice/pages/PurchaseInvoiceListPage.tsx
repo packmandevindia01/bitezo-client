@@ -75,14 +75,21 @@ const PurchaseInvoiceListPage = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter((inv) => {
-    const term = searchTerm.toLowerCase();
-    return (
-      inv.purchaseNo?.toLowerCase().includes(term) ||
-      inv.invoiceNo?.toLowerCase().includes(term) ||
-      inv.supplierName?.toLowerCase().includes(term)
-    );
-  });
+  const filteredInvoices = invoices
+    .filter((inv) => {
+      const term = searchTerm.toLowerCase();
+      return (
+        inv.purchaseNo?.toLowerCase().includes(term) ||
+        inv.invoiceNo?.toLowerCase().includes(term) ||
+        inv.supplierName?.toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.purchaseDate).getTime();
+      const dateB = new Date(b.purchaseDate).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+      return (b.purchaseId || b.id || 0) - (a.purchaseId || a.id || 0);
+    });
 
   const columns = [
     { 
@@ -160,7 +167,10 @@ const PurchaseInvoiceListPage = () => {
               onChange={(e) => setToDate(e.target.value)}
             />
           </div>
-          <div className="flex-1 max-w-sm">
+          <div className="flex-1 max-w-sm flex flex-col gap-1 mb-1 relative">
+            <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-transparent mb-0.5 select-none pointer-events-none">
+              -
+            </label>
             <SearchBar
               value={searchTerm}
               onChange={setSearchTerm}

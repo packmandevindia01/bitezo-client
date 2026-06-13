@@ -28,10 +28,11 @@ export const calculateLine = (item: PurchaseReturnLineItem) => {
 
 export const usePurchaseReturn = (invoiceId?: string) => {
   const { showToast } = useToast();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, decimalPart } = useCurrency();
   const [masterData, setMasterData] = useState<PurchaseReturnMasterData | null>(null);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
+  const [purchaseId, setPurchaseId] = useState<number>(0);
 
   useEffect(() => {
     const fetchMasterData = async () => {
@@ -45,7 +46,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
             setForm((prev) => ({
               ...prev,
               series: data.series[0].seriesId.toString(),
-              purchaseNo: `${data.series[0].prefix}${data.series[0].startNo}`
+              purchaseNo: `${data.series[0].prefix}${data.series[0].startNo}`,
             }));
           }
           if (data.branches.length > 0) {
@@ -67,6 +68,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setLoadingMaster(true);
       const res = await purchaseReturnApi.getPurchaseReturnById(id);
       const master = res.masterData;
+      setPurchaseId(master.purchaseId || 0);
       const rootPaymodeId = res.masterData.paymodeId || 1;
       const rootAmount = (res.masterData.netAmount || 0) - (res.paymodesData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       
@@ -341,8 +343,23 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    if (items.length === 0) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (items.length === 0) {
+      showToast("Please add at least one item", "warning");
+      return false;
+    }
+    if (!form.series || !form.branch || !form.supplier || !form.invoiceNo) {
+      showToast("Please fill in all required fields", "warning");
+      return false;
+    }
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const roundedPaid = Number(totalPaid.toFixed(decimalPart));
+    const roundedDue = Number(totals.grandTotal.toFixed(decimalPart));
+    if (payments.length === 0 || roundedPaid < roundedDue) {
+      showToast("Please settle the payment fully before saving", "warning");
+      return false;
+    }
+
     setSaving(true);
     try {
       const payload: any = {
@@ -355,6 +372,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         dayId: 0,
         shiftId: 0,
         purchaseReturnDate: new Date(form.purchaseDate).toISOString(),
+        purchaseId: purchaseId || 0,
         purchaseInvoiceNo: form.invoiceNo,
         refNo: form.refNo,
         narration: form.narration,
@@ -385,24 +403,25 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         })),
       };
 
-      if (invoiceId) {
-        payload.purchaseReturnId = Number(invoiceId);
-        payload.updateAt = new Date().toISOString();
-        await purchaseReturnApi.updatePurchaseReturn(invoiceId, payload);
-        showToast("Purchase Return updated successfully", "success");
-      } else {
-        payload.createdAt = new Date().toISOString();
-        await purchaseReturnApi.savePurchaseReturn(payload);
-        showToast("Purchase Return saved successfully", "success");
-        handleReset();
+        if (invoiceId) {
+          payload.purchaseReturnId = Number(invoiceId);
+          payload.updateAt = new Date().toISOString();
+          await purchaseReturnApi.updatePurchaseReturn(invoiceId, payload);
+          showToast("Purchase Return updated successfully", "success");
+        } else {
+          payload.createdAt = new Date().toISOString();
+          await purchaseReturnApi.savePurchaseReturn(payload);
+          showToast("Purchase Return saved successfully", "success");
+        }
+        return true;
+      } catch (error: any) {
+        console.error("Failed to save invoice", error);
+        const errMsg = error.response?.data?.message || error.message || "Failed to save invoice";
+        showToast(errMsg, "error");
+        return false;
+      } finally {
+        setSaving(false);
       }
-    } catch (error: any) {
-      console.error("Failed to save invoice", error);
-      const errMsg = error.response?.data?.message || error.message || "Failed to save invoice";
-      showToast(errMsg, "error");
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleSettlementSubmit = (newPayments: { mode: string; amount: number }[]) => {
