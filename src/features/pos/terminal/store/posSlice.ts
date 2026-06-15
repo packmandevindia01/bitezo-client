@@ -132,12 +132,24 @@ const posSlice = createSlice({
   name: 'pos',
   initialState,
     reducers: {
-    addToCart: (state, action: PayloadAction<{ uniqueId: string; productId: number; variantName?: string; price?: number; isIncl?: boolean }>) => {
+    addToCart: (state, action: PayloadAction<{ 
+      uniqueId: string; 
+      productId: number; 
+      variantName?: string; 
+      price?: number; 
+      isIncl?: boolean;
+      discountValue?: number;
+      discountType?: 'percentage' | 'amount';
+    }>) => {
       state.isCartModified = true;
-      const { uniqueId, productId, variantName, price, isIncl } = action.payload;
+      const { uniqueId, productId, variantName, price, isIncl, discountValue, discountType } = action.payload;
       const existing = state.cartItems.find(item => item.uniqueId === uniqueId);
       if (existing) {
         existing.quantity += 1;
+        if (discountValue !== undefined) {
+          existing.discountValue = discountValue;
+          existing.discountType = discountType;
+        }
       } else {
         state.cartItems.push({
           uniqueId,
@@ -145,7 +157,9 @@ const posSlice = createSlice({
           quantity: 1,
           variantName,
           price: price ?? 0,
-          isIncl
+          isIncl,
+          discountValue,
+          discountType
         });
       }
     },

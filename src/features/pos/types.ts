@@ -188,6 +188,8 @@ export interface PosAlternative {
   isIncl: boolean;
   price: number;
   unitId: number;
+  promoPrice?: number;
+  promoIsIncl?: boolean;
 }
 
 export interface PosExtra {

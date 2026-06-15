@@ -172,6 +172,8 @@ const PosTopNav = ({
 
         <div className="w-px h-6 lg:h-8 bg-slate-200 mx-1" />
 
+
+
         <PosActionButton
           accent="gray"
           noPadding

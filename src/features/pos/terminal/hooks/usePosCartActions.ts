@@ -5,6 +5,8 @@ import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
 import { POS_PRODUCTS } from "../../constants";
 import type { MenuOrderRequest, MenuOrderUpdateRequest, PosCartItem } from "../../types";
+import { menuApi } from "../../services/menuApi";
+import { productDataCache } from "../hooks/usePosProducts";
 import {
   addToCart,
   incrementItem,
@@ -82,9 +84,17 @@ export const usePosCartActions = () => {
     voidModifiers,
     combinedOrderIds,
     isSettling,
+    productCache,
   } = useAppSelector((state) => state.pos);
 
-  const addProduct = (productId: number, variantName?: string, price?: number, isIncl?: boolean) => {
+  const addProduct = (
+    productId: number, 
+    variantName?: string, 
+    price?: number, 
+    isIncl?: boolean,
+    discountValue?: number,
+    discountType?: 'percentage' | 'amount'
+  ) => {
     const targetPrice = price ?? 0;
     
     const matchVariant = (a?: string, b?: string) => {
@@ -106,33 +116,77 @@ export const usePosCartActions = () => {
     );
 
     if (existing) {
-      dispatch(addToCart({ uniqueId: existing.uniqueId, productId, variantName, price: targetPrice, isIncl }));
+      dispatch(addToCart({ uniqueId: existing.uniqueId, productId, variantName, price: targetPrice, isIncl, discountValue, discountType }));
       return existing.uniqueId;
     } else {
       const uniqueId = `${productId}-${variantName || 'main'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      dispatch(addToCart({ uniqueId, productId, variantName, price: targetPrice, isIncl }));
+      dispatch(addToCart({ uniqueId, productId, variantName, price: targetPrice, isIncl, discountValue, discountType }));
       return uniqueId;
     }
   };
 
-  const addProductBySku = (sku: string) => {
-    const product = POS_PRODUCTS.find((p) => p.sku?.toLowerCase() === sku.toLowerCase());
+  const addProductBySku = async (sku: string, orderTypeId?: number) => {
+    const cachedProducts = Object.values(productCache || {});
+    const product = cachedProducts.find((p) => p.sku?.toLowerCase() === sku.toLowerCase())
+      || POS_PRODUCTS.find((p) => p.sku?.toLowerCase() === sku.toLowerCase());
+
     if (product) {
-      const targetPrice = product.price || 0;
+      const safeOrderTypeId = orderTypeId || 1;
+      const cacheKey = `${product.id}-${safeOrderTypeId}`;
+      let cachedData = productDataCache[cacheKey];
+
+      if (!product.hasAlternatives) {
+        if (!cachedData) {
+          try {
+            cachedData = await menuApi.getProductData(product.id, safeOrderTypeId);
+            productDataCache[cacheKey] = cachedData;
+          } catch (err) {
+            console.error("Failed to fetch product data for barcode scan", err);
+          }
+        }
+      }
+
+      let isIncl = product.isIncl;
+      let targetPrice = product.price || 0;
+      let promoPrice: number | undefined = undefined;
+      let promoIsIncl: boolean | undefined = undefined;
+
+      if (cachedData) {
+        isIncl = cachedData.isIncl;
+        targetPrice = cachedData.price;
+        promoPrice = cachedData.promoPrice;
+        promoIsIncl = cachedData.promoIsIncl;
+      }
+
+      let discountValue: number | undefined = undefined;
+      let discountType: 'percentage' | 'amount' | undefined = undefined;
+
+      if (promoPrice !== undefined && promoPrice > 0 && targetPrice > 0) {
+        const diff = targetPrice - promoPrice;
+        if (diff > 0) {
+          discountValue = Number(((diff / targetPrice) * 100).toFixed(4));
+          discountType = 'percentage';
+        }
+        if (promoIsIncl !== undefined) {
+          isIncl = promoIsIncl;
+        }
+      }
+
       const existing = cartDetails.find(item => 
         item.productId === product.id && 
         (!item.variantName || item.variantName.toLowerCase().trim() === 'main') &&
         Number(item.product.price) === Number(targetPrice) &&
+        item.isIncl === isIncl &&
         (!item.extras || item.extras.length === 0) &&
         (!item.modifiers || item.modifiers.length === 0)
       );
 
       if (existing) {
-        dispatch(addToCart({ uniqueId: existing.uniqueId, productId: product.id, price: targetPrice, isIncl: product.isIncl }));
+        dispatch(addToCart({ uniqueId: existing.uniqueId, productId: product.id, price: targetPrice, isIncl, discountValue, discountType }));
         return existing.uniqueId;
       } else {
         const uniqueId = `${product.id}-main-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        dispatch(addToCart({ uniqueId, productId: product.id, price: targetPrice, isIncl: product.isIncl }));
+        dispatch(addToCart({ uniqueId, productId: product.id, price: targetPrice, isIncl, discountValue, discountType }));
         return uniqueId;
       }
     }

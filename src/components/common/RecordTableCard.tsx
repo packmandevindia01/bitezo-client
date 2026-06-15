@@ -6,6 +6,7 @@ interface Column<T> {
   header: string;
   accessor: keyof T;
   render?: (row: T, index: number) => React.ReactNode;
+  align?: string;
 }
 
 interface RecordTableCardProps<T> {

@@ -67,6 +67,8 @@ const ProviderSettingsFormPage = lazy(() => import("../../features/general/provi
 const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockItemPage"));
 const PosMorePage = lazy(() => import("../../features/pos/terminal/pages/PosMorePage"));
 const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages/DineInSelectionPage"));
+const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
+
 
 
 const LoginRedirect = () => {
@@ -121,6 +123,7 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute />}>
                 {/* Cashier shift pages — protected but outside dashboard layout */}
                 <Route path="/cashier/out" element={<CashierOutPage />} />
+                <Route path="/pos/pay-in-out" element={<PayInOutPage />} />
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}
                 <Route element={<ShiftGuard />}>

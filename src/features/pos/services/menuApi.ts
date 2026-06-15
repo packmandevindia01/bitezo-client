@@ -125,11 +125,16 @@ export const menuApi = {
 
   /** GET /api/menu/products/{productId}/alternatives */
   getAlternatives: async (productId: number, orderTypeId?: number) => {
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    const now = new Date();
+    const currentDateTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
     const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/products/${productId}/alternatives`, {
       params: {
         clientDb: localStorage.getItem("tenantId") || "app_db",
         orderTypeId,
-        providerOwnStatus: getProviderOwnStatus()
+        providerOwnStatus: getProviderOwnStatus(),
+        currentDateTime
       }
     }));
     return raw.map((a: any) => ({
@@ -140,17 +145,38 @@ export const menuApi = {
               a.isincl !== undefined ? Boolean(a.isincl) :
               a.priceView !== undefined ? (a.priceView === 'Inclusive') :
               undefined,
+      promoPrice: a.promoPrice !== undefined ? Number(a.promoPrice) : undefined,
+      promoIsIncl: a.promoIsIncl !== undefined ? Boolean(a.promoIsIncl) : undefined,
     })) as PosAlternative[];
   },
 
   /** GET /api/menu/products/{productId}/data */
-  getProductData: (productId: number, orderTypeId?: number) => 
-    unwrap(axiosInstance.get<ApiResponse<{ isIncl: boolean, price: number, unitId: number, unitValue: number }>>(`/menu/products/${productId}/data`, {
+  getProductData: async (productId: number, orderTypeId?: number) => {
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    const now = new Date();
+    const currentDateTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/products/${productId}/data`, {
       params: {
         clientDb: localStorage.getItem("tenantId") || "app_db",
-        orderTypeId
+        orderTypeId,
+        currentDateTime
       }
-    })),
+    }));
+
+    return {
+      price: raw.price,
+      unitId: raw.unitId,
+      unitValue: raw.unitValue,
+      isIncl: raw.isIncl !== undefined ? Boolean(raw.isIncl) :
+              raw.priceIsIncl !== undefined ? Boolean(raw.priceIsIncl) :
+              raw.isincl !== undefined ? Boolean(raw.isincl) :
+              raw.priceView !== undefined ? (raw.priceView === 'Inclusive') :
+              false,
+      promoPrice: raw.promoPrice !== undefined ? Number(raw.promoPrice) : undefined,
+      promoIsIncl: raw.promoIsIncl !== undefined ? Boolean(raw.promoIsIncl) : undefined,
+    };
+  },
 
   /** GET /api/menu/extras */
   getExtras: (typeId?: number, categoryId?: number) =>

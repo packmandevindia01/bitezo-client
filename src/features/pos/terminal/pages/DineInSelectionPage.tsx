@@ -50,7 +50,6 @@ export const DineInSelectionPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const { sections, tables, selectedSectionId, setSelectedSectionId, loading } = useDineIn();
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
 
   // Modal state
@@ -58,16 +57,11 @@ export const DineInSelectionPage: React.FC = () => {
   const [ordersTable, setOrdersTable] = useState<DineInTable | null>(null);
 
   /* derived */
-  const availableCount = tables.filter(t => t.status === 'available').length;
-  const occupiedCount = tables.filter(t => t.status === 'occupied').length;
-
   const filteredTables = tables.filter(table => {
-    const matchesSearch = table.tableName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || table.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return statusFilter === 'all' || table.status === statusFilter;
   });
 
-  const isFiltered = searchQuery.trim() !== '' || statusFilter !== 'all';
+  const isFiltered = statusFilter !== 'all';
   const { sparse, cells } = buildGrid(tables);
 
   /* ── event handlers ── */
@@ -206,7 +200,7 @@ export const DineInSelectionPage: React.FC = () => {
           <div className="max-w-7xl mx-auto space-y-4">
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex justify-start">
               <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
                 {(['all', 'available', 'occupied'] as const).map(s => (
                   <button key={s} onClick={() => setStatusFilter(s)} tabIndex={-1}
@@ -215,24 +209,6 @@ export const DineInSelectionPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <div className="relative group w-full sm:w-64">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#49293e] transition-colors" />
-                <input type="text" placeholder="SEARCH TABLE…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold text-[#49293e] placeholder:text-slate-300 focus:outline-none focus:border-[#49293e] transition-all shadow-sm" />
-              </div>
-            </div>
-
-            {/* Stats strip */}
-            <div className="grid grid-cols-3 gap-3">
-              {[{ label: 'Total', value: tables.length, dot: 'bg-blue-400' }, { label: 'Available', value: availableCount, dot: 'bg-emerald-400' }, { label: 'Occupied', value: occupiedCount, dot: 'bg-amber-400' }].map(({ label, value, dot }) => (
-                <div key={label} className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm border border-slate-50">
-                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-                    <p className="text-lg font-black text-[#49293e] leading-none">{value}</p>
-                  </div>
-                </div>
-              ))}
             </div>
 
             {/* Legend */}

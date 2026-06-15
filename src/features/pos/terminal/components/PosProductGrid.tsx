@@ -212,8 +212,21 @@ const PosProductGrid = ({
 
                             {/* Price Badge Overlay */}
                             {alt.price >= 0 && (
-                              <div className="absolute top-1 right-1 bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50 select-none">
-                                {formatAmount(alt.price)}
+                              <div className="absolute top-1 right-1 flex flex-col items-end gap-0.5 select-none">
+                                {alt.promoPrice !== undefined && alt.promoPrice > 0 ? (
+                                  <>
+                                    <div className="bg-red-600 px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-red-500/50">
+                                      {formatAmount(alt.promoPrice)}
+                                    </div>
+                                    <div className="bg-slate-500/80 px-1 py-0.2 rounded text-[7px] font-bold text-white line-through scale-90 origin-right">
+                                      {formatAmount(alt.price)}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50">
+                                    {formatAmount(alt.price)}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

@@ -8,7 +8,7 @@ import {
   FileText,
   History,
   Search,
-  ArrowLeftRight,
+  Banknote,
   LogOut,
   UtensilsCrossed,
   UserPlus,
@@ -40,7 +40,7 @@ const ORDER_ITEMS = [
 ];
 
 const CASHIER_ITEMS = [
-  { label: 'PAY IN / OUT', icon: ArrowLeftRight, action: 'payInOut' },
+  { label: 'PAY IN / OUT', icon: Banknote, action: 'payInOut' },
   { label: 'CASHIER OUT', icon: LogOut, action: 'cashierOut', color: 'text-amber-500' },
 ];
 
@@ -126,7 +126,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
     }
     if (item.action === 'payInOut') {
       onClose();
-      navigate('/cashier/out', { state: { activeTab: 'TRANSACTIONS' } });
+      navigate('/pos/pay-in-out');
       return;
     }
     if (item.action === 'backoffice') {

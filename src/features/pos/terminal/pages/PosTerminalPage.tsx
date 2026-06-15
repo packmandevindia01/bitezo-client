@@ -178,6 +178,7 @@ export const PosTerminalPage = () => {
   } = usePosTerminal();
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
+  const { productCache } = useAppSelector((state) => state.pos);
 
   const isSettling = useAppSelector((state) => state.pos.isSettling);
   const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
@@ -644,31 +645,44 @@ export const PosTerminalPage = () => {
     if (!product) return;
 
     if (!product.hasAlternatives) {
-      let isIncl = product.isIncl;
-      let targetPrice = product.price ?? 0;
+      const safeOrderTypeId = selectedOrderTypeId || 1;
+      const cacheKey = `${productId}-${safeOrderTypeId}`;
+      let cachedData = productDataCache[cacheKey];
 
-      // If the list API didn't provide isIncl, fetch it from the /data endpoint
-      if (isIncl === undefined) {
-        const safeOrderTypeId = selectedOrderTypeId || 1;
-        const cacheKey = `${productId}-${safeOrderTypeId}`;
-        const cachedData = productDataCache[cacheKey];
-        if (cachedData) {
-          isIncl = cachedData.isIncl;
-          targetPrice = cachedData.price;
-        } else {
-          // Intentionally omitting setFetchingAlts(true) here so it feels instant
-          try {
-            const data = await menuApi.getProductData(productId, safeOrderTypeId);
-            productDataCache[cacheKey] = data;
-            isIncl = data.isIncl;
-            targetPrice = data.price;
-          } catch (err) {
-            console.error("Failed to fetch product data", err);
-          }
+      if (!cachedData) {
+        try {
+          cachedData = await menuApi.getProductData(productId, safeOrderTypeId);
+          productDataCache[cacheKey] = cachedData;
+        } catch (err) {
+          console.error("Failed to fetch product data", err);
         }
       }
 
-      const newKey = addProduct(productId, undefined, targetPrice, isIncl);
+      let isIncl = product.isIncl;
+      let targetPrice = product.price ?? 0;
+      let promoPrice: number | undefined = undefined;
+
+      if (cachedData) {
+        isIncl = cachedData.isIncl;
+        targetPrice = cachedData.price;
+        promoPrice = cachedData.promoPrice;
+      }
+
+      let discountValue: number | undefined = undefined;
+      let discountType: 'percentage' | 'amount' | undefined = undefined;
+
+      if (promoPrice !== undefined && promoPrice > 0 && targetPrice > 0) {
+        const diff = targetPrice - promoPrice;
+        if (diff > 0) {
+          discountValue = Number(((diff / targetPrice) * 100).toFixed(4));
+          discountType = 'percentage';
+        }
+        if (cachedData && cachedData.promoIsIncl !== undefined) {
+          isIncl = cachedData.promoIsIncl;
+        }
+      }
+
+      const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
       setSelectedKey(newKey);
       if (targetPrice === 0) {
         setPriceInputValue("");
@@ -697,22 +711,38 @@ export const PosTerminalPage = () => {
           // Fallback if backend lied about hasAlternatives
           let isIncl = product.isIncl;
           let targetPrice = product.price ?? 0;
-          if (isIncl === undefined) {
-            const cacheKey = `${productId}-${safeOrderTypeId}`;
-            const cachedData = productDataCache[cacheKey];
-            if (cachedData) {
-              isIncl = cachedData.isIncl;
-              targetPrice = cachedData.price;
-            } else {
-              try {
-                const data = await menuApi.getProductData(productId, safeOrderTypeId);
-                productDataCache[cacheKey] = data;
-                isIncl = data.isIncl;
-                targetPrice = data.price;
-              } catch(e) {}
+          let promoPrice: number | undefined = undefined;
+
+          const cacheKey = `${productId}-${safeOrderTypeId}`;
+          let cachedData = productDataCache[cacheKey];
+          if (!cachedData) {
+            try {
+              cachedData = await menuApi.getProductData(productId, safeOrderTypeId);
+              productDataCache[cacheKey] = cachedData;
+            } catch(e) {}
+          }
+
+          if (cachedData) {
+            isIncl = cachedData.isIncl;
+            targetPrice = cachedData.price;
+            promoPrice = cachedData.promoPrice;
+          }
+
+          let discountValue: number | undefined = undefined;
+          let discountType: 'percentage' | 'amount' | undefined = undefined;
+
+          if (promoPrice !== undefined && promoPrice > 0 && targetPrice > 0) {
+            const diff = targetPrice - promoPrice;
+            if (diff > 0) {
+              discountValue = Number(((diff / targetPrice) * 100).toFixed(4));
+              discountType = 'percentage';
+            }
+            if (cachedData && cachedData.promoIsIncl !== undefined) {
+              isIncl = cachedData.promoIsIncl;
             }
           }
-          const newKey = addProduct(productId, undefined, targetPrice, isIncl);
+
+          const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
           setSelectedKey(newKey);
           if (targetPrice === 0) {
             setPriceInputValue("");
@@ -722,15 +752,38 @@ export const PosTerminalPage = () => {
       } catch {
         let isIncl = product.isIncl;
         let targetPrice = product.price ?? 0;
-        if (isIncl === undefined) {
-           try {
-             const data = await menuApi.getProductData(productId, safeOrderTypeId);
-             productDataCache[`${productId}-${safeOrderTypeId}`] = data;
-             isIncl = data.isIncl;
-             targetPrice = data.price;
-           } catch(e) {}
+        let promoPrice: number | undefined = undefined;
+
+        const cacheKey = `${productId}-${safeOrderTypeId}`;
+        let cachedData = productDataCache[cacheKey];
+        if (!cachedData) {
+          try {
+            cachedData = await menuApi.getProductData(productId, safeOrderTypeId);
+            productDataCache[cacheKey] = cachedData;
+          } catch(e) {}
         }
-        const newKey = addProduct(productId, undefined, targetPrice, isIncl);
+
+        if (cachedData) {
+          isIncl = cachedData.isIncl;
+          targetPrice = cachedData.price;
+          promoPrice = cachedData.promoPrice;
+        }
+
+        let discountValue: number | undefined = undefined;
+        let discountType: 'percentage' | 'amount' | undefined = undefined;
+
+        if (promoPrice !== undefined && promoPrice > 0 && targetPrice > 0) {
+          const diff = targetPrice - promoPrice;
+          if (diff > 0) {
+            discountValue = Number(((diff / targetPrice) * 100).toFixed(4));
+            discountType = 'percentage';
+          }
+          if (cachedData && cachedData.promoIsIncl !== undefined) {
+            isIncl = cachedData.promoIsIncl;
+          }
+        }
+
+        const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
         setSelectedKey(newKey);
       } finally {
         setFetchingAlts(false);
@@ -740,7 +793,29 @@ export const PosTerminalPage = () => {
 
   const handleAltSelect = (variant: PosAlternative) => {
     if (selectedProduct) {
-      const newKey = addProduct(selectedProduct.id, variant.altName, variant.price, variant.isIncl);
+      let discountValue: number | undefined = undefined;
+      let discountType: 'percentage' | 'amount' | undefined = undefined;
+      let isIncl = variant.isIncl;
+
+      if (variant.promoPrice !== undefined && variant.promoPrice > 0 && variant.price > 0) {
+        const diff = variant.price - variant.promoPrice;
+        if (diff > 0) {
+          discountValue = Number(((diff / variant.price) * 100).toFixed(4));
+          discountType = 'percentage';
+        }
+        if (variant.promoIsIncl !== undefined) {
+          isIncl = variant.promoIsIncl;
+        }
+      }
+
+      const newKey = addProduct(
+        selectedProduct.id,
+        variant.altName,
+        variant.price,
+        isIncl,
+        discountValue,
+        discountType
+      );
       setSelectedKey(newKey);
       if (variant.price === 0) {
         setPriceInputValue("");
@@ -759,10 +834,40 @@ export const PosTerminalPage = () => {
   };
 
   // 1. Hardware Barcode Scanner Integration
-  useBarcodeScanner((barcode) => {
-    const newKey = addProductBySku(barcode);
-    if (newKey) {
-      setSelectedKey(newKey);
+  useBarcodeScanner(async (barcode) => {
+    const cachedProducts = Object.values(productCache || {});
+    const product = cachedProducts.find((p) => p.sku?.toLowerCase() === barcode.toLowerCase());
+    
+    if (!product) return;
+
+    if (product.hasAlternatives) {
+      const safeOrderTypeId = selectedOrderTypeId || 1;
+      const altsCacheKey = `${product.id}-${safeOrderTypeId}`;
+      const cachedAlts = alternativesCache[altsCacheKey];
+
+      if (cachedAlts && cachedAlts.length > 0) {
+        setAlternatives(cachedAlts);
+        setSelectedProduct(product);
+      } else {
+        setFetchingAlts(true);
+        try {
+          const alts = await menuApi.getAlternatives(product.id, safeOrderTypeId);
+          if (alts && alts.length > 0) {
+            alternativesCache[altsCacheKey] = alts;
+            setAlternatives(alts);
+            setSelectedProduct(product);
+          }
+        } catch (err) {
+          console.error("Failed to fetch alternatives for scanned product", err);
+        } finally {
+          setFetchingAlts(false);
+        }
+      }
+    } else {
+      const newKey = await addProductBySku(barcode, selectedOrderTypeId || 1);
+      if (newKey) {
+        setSelectedKey(newKey);
+      }
     }
   });
 
@@ -1568,7 +1673,7 @@ export const PosTerminalPage = () => {
         onClose={() => setIsMoreModalOpen(false)} 
         onCashierOut={() => {
           setIsMoreModalOpen(false);
-          setIsLogoutConfirmOpen(true);
+          navigate("/cashier/out");
         }}
         onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onItemComplimentary={handleItemComplimentary}

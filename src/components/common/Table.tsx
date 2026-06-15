@@ -7,7 +7,7 @@ export interface Column<T> {
   header: React.ReactNode;
   accessor: keyof T;
   render?: (row: T, index: number) => React.ReactNode;
-  align?: "left" | "center" | "right";
+  align?: string;
 }
 
 interface TableProps<T> {
