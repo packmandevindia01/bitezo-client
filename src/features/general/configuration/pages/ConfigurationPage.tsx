@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, Printer, DollarSign, CalendarDays, Save } from "lucide-react";
+import { LayoutGrid, Printer, DollarSign, CalendarDays, Save, Settings2 } from "lucide-react";
 import { PageShell, Button } from "../../../../components/common";
 import { useConfigurationManager } from "../hooks/useConfigurationManager";
 import PosSettingsTab from "../components/PosSettingsTab";
@@ -12,10 +12,10 @@ const ConfigurationPage = () => {
   const [activeTab, setActiveTab] = useState<"pos" | "printing" | "charges" | "dayend">("pos");
 
   const tabs = [
-    { id: "pos", label: "POS Settings", icon: <LayoutGrid size={18} /> },
-    { id: "printing", label: "KOT & Printing", icon: <Printer size={18} /> },
-    { id: "charges", label: "Charges & Delivery", icon: <DollarSign size={18} /> },
-    { id: "dayend", label: "Day End", icon: <CalendarDays size={18} /> },
+    { id: "pos",        label: "POS Settings",        icon: <LayoutGrid size={18} /> },
+    { id: "printing",  label: "KOT & Printing",       icon: <Printer size={18} /> },
+    { id: "charges",   label: "Charges & Delivery",   icon: <DollarSign size={18} /> },
+    { id: "dayend",    label: "Day End",               icon: <CalendarDays size={18} /> },
   ] as const;
 
   return (

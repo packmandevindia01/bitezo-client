@@ -12,7 +12,8 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { salesInvoiceApi } from "../../services/salesInvoiceApi";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
-import { clearAllItemDiscounts } from "../store/posSlice";
+import { clearAllItemDiscounts, selectDeliveryCharge, setCustomDeliveryCharge } from "../store/posSlice";
+import { PosDeliveryChargeModal } from "../components/PosDeliveryChargeModal";
 import { formatCurrency } from "../../../../utils/formatters";
 import type { PosProduct, PosAlternative } from "../../types";
 import { ConfirmDialog, Modal } from "../../../../components/common";
@@ -58,6 +59,7 @@ export const PosTerminalPage = () => {
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [isCombineOpen, setIsCombineOpen] = useState(false);
   const [isSplitOpen, setIsSplitOpen] = useState(false);
+  const [isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen] = useState(false);
   const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
   const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
   const { status, isLoading } = useCashierLog();
@@ -181,6 +183,9 @@ export const PosTerminalPage = () => {
   const { productCache } = useAppSelector((state) => state.pos);
 
   const isSettling = useAppSelector((state) => state.pos.isSettling);
+  const deliveryCharge = useAppSelector(selectDeliveryCharge);
+  const selectedOrderTypeName = useAppSelector((state) => state.pos.selectedOrderTypeName);
+  const isDelivery = selectedOrderTypeId === 4 || (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
   const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
   const isCartModified = useAppSelector((state) => state.pos.isCartModified);
   const editingSaleId = useAppSelector((state) => state.pos.editingSaleId);
@@ -410,6 +415,7 @@ export const PosTerminalPage = () => {
         vatExclAmount: orderPayload.vatExclAmount,
         vatAmount: orderPayload.vatAmount,
         netAmount: orderPayload.netAmount,
+        deliveryCharge: orderPayload.deliveryCharge,
         createdAt: new Date().toISOString(),
         details: orderPayload.details.map((d: any) => ({
           productId: d.productId,
@@ -468,7 +474,8 @@ export const PosTerminalPage = () => {
             vehicleNo: orderPayload.vehicleNo || "",
             contactNo: orderPayload.contactNo || "",
             flatNo: orderPayload.addressId ? "" : "", // we might not have detailed address flatNo in local state if it's just addressId, but we can try
-            subTotal: orderPayload.netAmount - (orderPayload.vatAmount || 0) - (orderPayload.serviceCharge || 0) - (orderPayload.levy || 0),
+            subTotal: orderPayload.vatExclAmount,
+            deliveryCharge: orderPayload.deliveryCharge || 0,
             serviceCharge: orderPayload.serviceCharge || 0,
             levy: orderPayload.levy || 0,
             vatAmount: orderPayload.vatAmount || 0,
@@ -504,6 +511,19 @@ export const PosTerminalPage = () => {
           const printerSettingsResponse = await printerSettingsApi.getGeneral();
           targetPrinter = printerSettingsResponse?.data?.billPrinter;
         } catch {}
+
+        // Determine enableVat dynamically based on configs
+        const getVatStatus = (): boolean => {
+          try {
+            const saved = localStorage.getItem('posConfigs');
+            const full = saved ? JSON.parse(saved) : {};
+            return full?.configs?.VatStatus === true;
+          } catch {
+            return false;
+          }
+        };
+        const enableVat = getVatStatus();
+        payload.printData.enableVat = enableVat;
 
         const html = generateGuestPrintHtml(payload.mappedItems, payload.printData);
         await printHtmlReceipt(html, targetPrinter);
@@ -1250,6 +1270,8 @@ export const PosTerminalPage = () => {
               total={total}
               totalExtras={totalExtras}
               baseSubtotal={baseSubtotal}
+              deliveryCharge={deliveryCharge}
+              isDelivery={isDelivery}
               isSettling={isSettling}
               selectedKey={selectedKey}
               onSelectRow={setSelectedKey}
@@ -1282,6 +1304,7 @@ export const PosTerminalPage = () => {
                 }
               }}
               onClose={() => setIsCartOpen(false)}
+              onDeliveryChargeDoubleClick={isDelivery ? () => setIsDeliveryChargeModalOpen(true) : undefined}
             />
           </ErrorBoundary>
         </div>
@@ -1697,6 +1720,13 @@ export const PosTerminalPage = () => {
         onClose={() => setIsDeliveryModalOpen(false)}
       />
 
+      <PosDeliveryChargeModal
+        isOpen={isDeliveryChargeModalOpen}
+        onClose={() => setIsDeliveryChargeModalOpen(false)}
+        currentCharge={deliveryCharge}
+        onSelect={(charge) => dispatch(setCustomDeliveryCharge(charge))}
+      />
+
       <PosDriveThroughModal
         isOpen={isDriveThroughModalOpen}
         onClose={() => setIsDriveThroughModalOpen(false)}
@@ -1852,6 +1882,7 @@ export const PosTerminalPage = () => {
           setIsSettledModalOpen(true);
         }}
       />
+
     </div>
   );
 };

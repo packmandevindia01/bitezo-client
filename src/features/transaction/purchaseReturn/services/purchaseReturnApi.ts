@@ -178,4 +178,26 @@ export const purchaseReturnApi = {
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data;
   },
+
+  searchPurchaseInvoices: async (branchId: number, supplierId: number, invoiceNo: string = "") => {
+    const response = await axiosInstance.get<{
+      data: any[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-invoice/list-invoice-no", {
+      params: { BranchId: branchId, SupplierId: supplierId, InvoiceNo: invoiceNo }
+    });
+    if (!response.data.isSuccess) throw new Error(response.data.message || "Failed to fetch invoices");
+    return response.data.data || [];
+  },
+
+  getPurchaseInvoiceData: async (purchaseId: string | number) => {
+    const response = await axiosInstance.get<{
+      data: any;
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-invoice/data/${purchaseId}`);
+    if (!response.data.isSuccess) throw new Error(response.data.message || "Failed to fetch invoice data");
+    return response.data.data;
+  },
 };

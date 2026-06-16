@@ -5,6 +5,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { PurchasePrintTemplate } from "./PurchasePrintTemplate";
 import type { PurchasePrintData } from "./PurchasePrintTemplate";
 import { fetchCompany } from "../../../company/services/companyApi";
+import axiosInstance from "../../../../api/axiosInstance";
 
 interface PurchasePrintPreviewModalProps {
   isOpen: boolean;
@@ -123,6 +124,21 @@ export const PurchasePrintPreviewModal = ({
           companyAddress: `${comp.block || ""} ${comp.road || ""} ${comp.building || ""} Manama Bahrain`,
           companyTrn: comp.taxRegNo || "N/A",
         } as PurchasePrintData);
+
+        // Fetch backoffice configurations for vatStatus
+        try {
+          const configRes = await axiosInstance.get<any>("/Branch/load-backoffice-master-data");
+          const resBody = configRes.data;
+          const configs = resBody?.configs || resBody?.data?.configs || [];
+          const config = configs[0] || {};
+          if (config.vatStatus === true) {
+            setTemplateVariant("With Tax");
+          } else if (config.vatStatus === false) {
+            setTemplateVariant("Without Tax");
+          }
+        } catch (configErr) {
+          console.error("Failed to fetch backoffice master data for vatStatus:", configErr);
+        }
       } catch (err) {
         console.error("Failed to fetch company for print:", err);
         setMergedData({
@@ -172,19 +188,6 @@ export const PurchasePrintPreviewModal = ({
           <h2 className="text-xl font-bold text-[#49293e]">Print Preview</h2>
 
           <div className="flex items-center gap-4">
-            {/* Template selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-600">Template:</span>
-              <select
-                value={templateVariant}
-                onChange={(e) => setTemplateVariant(e.target.value as "With Tax" | "Without Tax")}
-                className="border p-2 rounded-md text-sm outline-none focus:border-[#49293e]"
-              >
-                <option value="With Tax">With Tax</option>
-                <option value="Without Tax">Without Tax</option>
-              </select>
-            </div>
-
             {/* Export PDF */}
             <Button
               onClick={handleExportPDF}

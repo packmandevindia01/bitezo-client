@@ -192,9 +192,33 @@ export const usePosCartActions = () => {
     }
     return null;
   };
+  const getDeliveryChargeValue = (): number => {
+    const isDelivery = selectedOrderTypeId === 4 || (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
+    if (!isDelivery) return 0;
+    try {
+      const saved = localStorage.getItem('posConfigs');
+      if (!saved) return 0;
+      const full = JSON.parse(saved);
+      const configs = full?.configs || {};
+      const val = configs.deliveryCharge !== undefined ? configs.deliveryCharge :
+                  configs.defaultDeliveryCharge !== undefined ? configs.defaultDeliveryCharge :
+                  configs.deliverycharge !== undefined ? configs.deliverycharge :
+                  configs.defaultdeliverycharge !== undefined ? configs.defaultdeliverycharge :
+                  configs.defaultDeliverycharge !== undefined ? configs.defaultDeliverycharge :
+                  full.deliveryCharge !== undefined ? full.deliveryCharge :
+                  full.defaultDeliveryCharge !== undefined ? full.defaultDeliveryCharge : 0;
+      console.log("[usePosCartActions] getDeliveryChargeValue: configs JSON = ", JSON.stringify(configs), "extracted =", val);
+      return Number(val) || 0;
+    } catch (e) {
+      console.error("[usePosCartActions] Error parsing delivery charge:", e);
+      return 0;
+    }
+  };
+
   const getDirectSettleOrderPayload = (session: { employeeId?: number; userId?: number; providerOrderNo?: string }) => {
     const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
     const config = getBillingConfig(selectedOrderTypeName || "DineIn");
+    const deliveryChargeVal = getDeliveryChargeValue();
 
     return {
       orderId: editingOrderId || 0,
@@ -207,6 +231,7 @@ export const usePosCartActions = () => {
       vatExclAmount: Number(subtotal.toFixed(getDecimalPart())),
       vatAmount: Number(tax.toFixed(getDecimalPart())),
       netAmount: Number(total.toFixed(getDecimalPart())),
+      deliveryCharge: Number(deliveryChargeVal.toFixed(getDecimalPart())),
       updatedAt: new Date().toISOString(),
       orderTypeId: selectedOrderTypeId,
       sectionId: isDineIn ? selectedSectionId : 0,
@@ -439,6 +464,7 @@ export const usePosCartActions = () => {
         }
       }
 
+      const deliveryChargeVal = getDeliveryChargeValue();
       const payload: MenuOrderRequest = {
         voucherDate: new Date().toISOString(),
         customerId: selectedCustomerId,
@@ -452,6 +478,7 @@ export const usePosCartActions = () => {
         vatExclAmount: Number(subtotal.toFixed(getDecimalPart())),
         vatAmount: Number(tax.toFixed(getDecimalPart())),
         netAmount: Number(total.toFixed(getDecimalPart())),
+        deliveryCharge: Number(deliveryChargeVal.toFixed(getDecimalPart())),
         createdAt: new Date().toISOString(),
         orderTypeId: selectedOrderTypeId,
         sectionId: isDineIn ? selectedSectionId : 0,

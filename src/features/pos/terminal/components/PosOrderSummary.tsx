@@ -8,6 +8,9 @@ interface PosOrderSummaryProps {
   total: number;
   totalExtras: number;
   baseSubtotal: number;
+  deliveryCharge?: number;
+  isDelivery?: boolean;
+  onDeliveryChargeDoubleClick?: () => void;
   onSettle?: (shouldPrint: boolean) => void;
   onOrder?: (print: boolean) => void;
   orderLoading?: boolean;
@@ -17,7 +20,7 @@ interface PosOrderSummaryProps {
   onSelectTender: (tender: string) => void;
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
     <div className="shrink-0 p-2 lg:p-2.5 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2">
@@ -46,7 +49,29 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, onSet
             <span>Net Value</span>
             <span>{formatAmount(subtotal - discount + charges)}</span>
           </div>
-          {/* Delivery > 0 would go here when implemented, currently hidden */}
+          {(isDelivery || deliveryCharge > 0) && (
+            <div
+              onDoubleClick={onDeliveryChargeDoubleClick}
+              className={`flex justify-between items-center text-[9px] font-bold leading-tight group
+                ${onDeliveryChargeDoubleClick
+                  ? 'text-[#49293e] cursor-pointer select-none rounded px-1 -mx-1 hover:bg-[#49293e]/8 active:bg-[#49293e]/15 transition-colors'
+                  : 'text-slate-500'
+                }
+              `}
+              title="Double-click to change delivery zone"
+            >
+              <span className="flex items-center gap-1">
+                Delivery Charge
+                {onDeliveryChargeDoubleClick && (
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 group-hover:opacity-80 transition-opacity">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                )}
+              </span>
+              <span>{formatAmount(deliveryCharge)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
             <span>VAT</span>
             <span>{formatAmount(tax)}</span>

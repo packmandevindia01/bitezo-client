@@ -169,15 +169,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const master = order.masterData || order;
       const details = order.detailsData || order.details || [];
       
-      const posConfigsStr = localStorage.getItem('posConfigs');
-      const posConfigs = posConfigsStr ? JSON.parse(posConfigsStr) : {};
-      const enableVat = posConfigs?.configs?.enableVat === true;
-
       const orderTypeMap: Record<number, string> = {
         1: "DineIn", 2: "TakeOut", 3: "DriveThru",
         4: "Delivery", 5: "Providers", 6: "Coming"
       };
-      const orderTypeName = orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+      const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
 
       const timeFromDetails = (() => {
         if (!orderDetailsStr) return "";
@@ -228,6 +224,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         };
       });
 
+      // Determine enableVat dynamically based on configs
+      const getVatStatus = (): boolean => {
+        try {
+          const saved = localStorage.getItem('posConfigs');
+          const full = saved ? JSON.parse(saved) : {};
+          return full?.configs?.VatStatus === true;
+        } catch {
+          return false;
+        }
+      };
+      const enableVat = getVatStatus();
+
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
@@ -251,6 +259,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         levy: master.levyAmt || master.levy || 0,
         vatAmount: master.vatAmount || 0,
         netAmount: master.netAmount || 0,
+        deliveryCharge: master.deliveryCharge || 0,
         enableVat
       };
 
@@ -567,7 +576,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     5: "Providers",
     6: "Coming"
   };
-  const orderTypeName = orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+  const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
   
   // Extract time from orderDetailsStr as a reliable fallback (e.g. "7:46:02 PM")
   const timeFromDetails = (() => {

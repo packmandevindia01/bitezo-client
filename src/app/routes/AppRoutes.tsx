@@ -53,6 +53,7 @@ const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
+const BackofficeConfigurationPage = lazy(() => import("../../features/general/configuration/pages/BackofficeConfigurationPage"));
 const ProviderListPage = lazy(() => import("../../features/general/provider/pages/ProviderListPage"));
 const ProviderFormPage = lazy(() => import("../../features/general/provider/pages/ProviderFormPage"));
 const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsList"));
@@ -183,6 +184,7 @@ const AppRoutes = () => {
 
 
                   <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />
+                  <Route path="backoffice-configuration" element={<RoleGuard moduleName="Configuration"><BackofficeConfigurationPage /></RoleGuard>} />
                   <Route path="provider-settings" element={<RoleGuard moduleName="Configuration"><ProviderSettingsPage /></RoleGuard>} />
                   <Route path="provider-settings/new" element={<RoleGuard moduleName="Configuration"><ProviderSettingsFormPage /></RoleGuard>} />
                   <Route path="provider-settings/edit/:id" element={<RoleGuard moduleName="Configuration"><ProviderSettingsFormPage /></RoleGuard>} />

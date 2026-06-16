@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { INITIAL_CONFIG } from "../constants";
-import type { ConfigurationState, DeliveryCharge } from "../types";
+import { INITIAL_CONFIG, INITIAL_BACKOFFICE_CONFIG } from "../constants";
+import type { ConfigurationState, DeliveryCharge, BackofficeConfigState } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
 import { employeeService } from "../../employee/services/employeeService";
 
@@ -12,6 +12,7 @@ export interface ConfigurationEmployeeOption {
 export const useConfigurationManager = () => {
   const { showToast } = useToast();
   const [form, setForm] = useState<ConfigurationState>(INITIAL_CONFIG);
+  const [backofficeForm, setBackofficeFormState] = useState<BackofficeConfigState>(INITIAL_BACKOFFICE_CONFIG);
   const [employeeOptions, setEmployeeOptions] = useState<ConfigurationEmployeeOption[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -90,11 +91,20 @@ export const useConfigurationManager = () => {
     }
   };
 
+  const setBackofficeField = <K extends keyof BackofficeConfigState>(
+    key: K,
+    value: BackofficeConfigState[K]
+  ) => {
+    setBackofficeFormState((prev) => ({ ...prev, [key]: value }));
+  };
+
   return {
     form,
+    backofficeForm,
     employeeOptions,
     saving,
     setField,
+    setBackofficeField,
     setDayEndField,
     addDeliveryCharge,
     removeDeliveryCharge,

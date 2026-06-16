@@ -1,4 +1,4 @@
-import type { ConfigurationState } from "./types";
+import type { ConfigurationState, BackofficeConfigState } from "./types";
 
 export const INITIAL_CONFIG: ConfigurationState = {
   companyCode: "",
@@ -52,4 +52,23 @@ export const INITIAL_CONFIG: ConfigurationState = {
     group: false,
     driver: false,
   },
+};
+
+
+export const INITIAL_BACKOFFICE_CONFIG: BackofficeConfigState = {
+  // SelectInput fields
+  defaultProductType: "",
+  defaultVat: "",
+  stockValueMethod: "AverageCost",
+  updateLndCostType: "All",
+  discountCalculation: "Exclusive",
+
+  // Toggle fields
+  vatStatus: false,
+  advancedProductSearch: false,
+  displayAllUnits: false,
+  updateLndCost: false,
+  supplierProductsInPurchase: false,
+  autoUpdateSupplier: false,
+  barcodeView: false,
 };

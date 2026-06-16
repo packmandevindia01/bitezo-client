@@ -35,6 +35,7 @@ export interface SalesInvoicePayload {
   vatExclAmount: number;
   vatAmount: number;
   netAmount: number;
+  deliveryCharge?: number;
   orderMaster: {
     isOrderEdited?: boolean;
     sectionId?: number;

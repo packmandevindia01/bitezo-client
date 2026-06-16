@@ -245,27 +245,36 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       
       const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
       
-      const posConfigsStr = localStorage.getItem('posConfigs');
-      const posConfigs = posConfigsStr ? JSON.parse(posConfigsStr) : {};
-      const enableVat = posConfigs?.configs?.enableVat === true;
+      // Determine enableVat dynamically based on configs
+      const getVatStatus = (): boolean => {
+        try {
+          const saved = localStorage.getItem('posConfigs');
+          const full = saved ? JSON.parse(saved) : {};
+          return full?.configs?.VatStatus === true;
+        } catch {
+          return false;
+        }
+      };
+      const enableVat = getVatStatus();
 
       // Prepare print data
       const printData = {
         orderNo: master.orderNo ?? String(master.orderId),
         ticketNo: master.ticketNo ?? "1",
         waiter: master.employeeName ?? "Waiter",
-        counter: "Main", // Could be dynamic if available
+        counter: "Main",
         section: master.sectionName || "DINE IN",
         table: table?.tableName || "",
         orderType: "DINE IN",
         date: master.voucherDate ? new Date(master.voucherDate).toLocaleDateString('en-GB') : undefined,
         time: master.voucherDate ? new Date(master.voucherDate).toLocaleTimeString('en-US') : undefined,
-        subTotal: master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0), // Base calc
+        subTotal: master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0),
         serviceCharge: master.serviceCharge || 0,
-        levy: master.levyAmt || 0, // Fallback if levy exists
+        levy: master.levyAmt || 0,
         vatAmount: master.vatAmount || 0,
         netAmount: master.netAmount || 0,
-        enableVat: enableVat
+        deliveryCharge: master.deliveryCharge || 0,
+        enableVat
       };
 
       // Since the backend might not provide subTotal explicitly, recalculate from items
@@ -280,18 +289,11 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       printData.subTotal = calculatedSubTotal;
 
       const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      const settingsRes = await printerSettingsApi.getGeneral();
+      const billPrinter = settingsRes.data?.billPrinter || "No Printer";
       
-      try {
-        const settingsRes = await printerSettingsApi.getGeneral();
-        const billPrinter = settingsRes.data?.billPrinter || "No Printer";
-        
-        await printHtmlReceipt(htmlContent, billPrinter);
-        showToast("Guest receipt sent to printer!", "success");
-      } catch (err) {
-        console.error("Printer error:", err);
-        showToast("Failed to connect to printer", "error");
-      }
-      
+      await printHtmlReceipt(htmlContent, billPrinter);
+      showToast("Guest receipt sent to printer!", "success");
     } catch (e) {
       console.error(e);
       showToast("Failed to print receipt", "error");

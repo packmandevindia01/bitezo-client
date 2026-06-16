@@ -7,6 +7,9 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { loadRecalledOrder } from "../store/posSlice";
 import { formatAmount } from "../../../../utils/currency";
+import { generateGuestPrintHtml } from "../../utils/guestPrintTemplate";
+import { printHtmlReceipt } from "../../services/qzService";
+import { printerSettingsApi } from "../../services/printerSettingsApi";
 
 const getPriceView = (): string => {
   try {
@@ -149,7 +152,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
       const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
 
-      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\\D/g, '') : '';
+      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
       const saleId = !isNaN(parsedVoucher) ? parsedVoucher : orderId;
 
@@ -170,10 +173,120 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       }));
 
       showToast(`Order #${orderId} loaded for editing`, "success");
+      onClose();
       onEditSuccess?.();
-    } catch (err) {
-      showToast("Failed to load full order for editing", "error");
-      console.error(err);
+    } catch (err: any) {
+      console.error("Failed to edit:", err);
+      showToast(err.message || "Failed to load order for editing", "error");
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!orderId || !order) return;
+    
+    try {
+      showToast(`Preparing Receipt for Order #${orderId}...`, "success");
+      
+      const master = order.masterData || order;
+      const details = order.detailsData || order.details || [];
+      
+      const orderTypeMap: Record<number, string> = {
+        1: "DineIn", 2: "TakeOut", 3: "DriveThru",
+        4: "Delivery", 5: "Providers", 6: "Coming"
+      };
+      const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+
+      const voucherDateStr = master.voucherDate ?? master.orderDate ?? master.createdAt ?? master.entryDate;
+      let date: string | undefined;
+      let time: string | undefined;
+      
+      if (voucherDateStr) {
+        try {
+          const d = new Date(voucherDateStr);
+          if (!isNaN(d.getTime())) {
+            date = d.toLocaleDateString('en-GB');
+            time = d.toLocaleTimeString('en-US');
+          }
+        } catch { /* ignore */ }
+      }
+
+      let calculatedSubTotal = 0;
+      const mappedItems = details.map((d: any) => {
+        const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
+        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+        }));
+        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+        }));
+        
+        const qty = d.qty ?? d.Qty ?? 1;
+        const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
+        const price = d.price ?? d.Price ?? (qty > 0 ? amount / qty : 0);
+
+        let lineBase = price * qty;
+        extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+        calculatedSubTotal += lineBase;
+        
+        return {
+          productId: d.productId || d.itemId || 0,
+          quantity: qty,
+          price: price,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: price },
+          extras,
+          modifiers,
+          lineTotal: lineBase
+        };
+      });
+
+      // Determine enableVat dynamically based on configs
+      const getVatStatus = (): boolean => {
+        try {
+          const saved = localStorage.getItem('posConfigs');
+          const full = saved ? JSON.parse(saved) : {};
+          return full?.configs?.VatStatus === true;
+        } catch {
+          return false;
+        }
+      };
+      const enableVat = getVatStatus();
+
+      const printData = {
+        orderNo: master.orderNo ?? String(orderId),
+        ticketNo: master.ticketNo ?? "1",
+        waiter: master.employeeName ?? "Waiter",
+        counter: "Main",
+        section: master.sectionName || "DINE IN",
+        table: master.tableNo || "",
+        orderType: orderTypeName,
+        date, time,
+        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
+        vehicleNo: master.vehicleNo,
+        contactNo: master.mobileNo || master.contactNo,
+        flatNo: master.flatNo,
+        buildingNo: master.buildingNo,
+        blockNo: master.blockNo,
+        roadNo: master.roadNo,
+        area: master.area,
+        providerNo: master.providerNo,
+        subTotal: calculatedSubTotal,
+        serviceCharge: master.serviceCharge || 0,
+        levy: master.levyAmt || master.levy || 0,
+        vatAmount: master.vatAmount || 0,
+        netAmount: master.netAmount || 0,
+        deliveryCharge: master.deliveryCharge || 0,
+        enableVat
+      };
+
+      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      const settingsRes = await printerSettingsApi.getGeneral();
+      const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+      
+      await printHtmlReceipt(htmlContent, billPrinter);
+      showToast("Settled receipt sent to printer!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to print receipt", "error");
     }
   };
 
@@ -206,7 +319,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     5: "Providers",
     6: "Coming"
   };
-  const orderTypeName = orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+  const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
   const netAmount = master.netAmount ?? order?.netAmount ?? 0;
 
   return (
@@ -271,7 +384,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch">
             <Button
               variant="primary"
-              onClick={() => showToast("Printing receipt...", "info")}
+              onClick={handlePrint}
               disabled={loading || !order}
               className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
             >

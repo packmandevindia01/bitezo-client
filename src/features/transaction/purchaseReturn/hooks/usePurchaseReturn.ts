@@ -161,6 +161,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
   const [searchingSuppliers, setSearchingSuppliers] = useState(false);
 
+  const [invoiceOptions, setInvoiceOptions] = useState<{label: string, value: string}[]>([]);
+  const [searchingInvoices, setSearchingInvoices] = useState(false);
+
   const handleProductSearch = useCallback(async (query: string) => {
     setSearchingProducts(true);
     try {
@@ -196,6 +199,63 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setSearchingSuppliers(false);
     }
   }, []);
+
+  const handleInvoiceSearch = useCallback(async (query: string) => {
+    if (!form.branch || !form.supplier) {
+      return;
+    }
+    setSearchingInvoices(true);
+    try {
+      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(form.branch), Number(form.supplier), query || "");
+      setInvoiceOptions(
+        results.map((r: any) => ({
+          label: r.invoiceNo || r.purchaseNo || "Unknown",
+          value: (r.purchaseId || r.id || 0).toString(),
+        }))
+      );
+    } catch (error) {
+      console.error("Failed to search invoices", error);
+    } finally {
+      setSearchingInvoices(false);
+    }
+  }, [form.branch, form.supplier]);
+
+  const handleInvoiceSelect = async (purchaseId: string, invoiceNoText: string) => {
+    if (!purchaseId || purchaseId === "0") {
+      setForm((prev) => ({ ...prev, invoiceNo: invoiceNoText }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, invoiceNo: invoiceNoText }));
+    try {
+      const res = await purchaseReturnApi.getPurchaseInvoiceData(purchaseId);
+      if (res && res.masterData) {
+        setPurchaseId(res.masterData.purchaseId || 0);
+        setForm((prev) => ({
+          ...prev,
+          invoiceDate: res.masterData.invoiceDate ? res.masterData.invoiceDate.split("T")[0] : prev.invoiceDate,
+          refNo: res.masterData.refNo || prev.refNo,
+        }));
+      }
+      if (res && res.detailsData) {
+        const mappedItems = res.detailsData.map((d: any) => ({
+          id: Math.random(),
+          product: d.productId?.toString() || "",
+          code: d.productId?.toString() || "",
+          unit: d.unitId?.toString() || "",
+          qty: d.qty?.toString() || "1",
+          foc: d.foc?.toString() || "0",
+          price: d.price?.toString() || "0",
+          discPercent: d.discPer?.toString() || "0",
+          vatId: d.vatId || 0,
+          vatPercent: d.vatValue || 0,
+        }));
+        setItems(mappedItems);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch invoice details", error);
+      showToast(error.message || "Failed to load invoice details", "error");
+    }
+  };
 
   const handleProductSelect = async (_productId: string, barcode: string) => {
     if (!barcode) return;
@@ -455,6 +515,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
+    invoiceOptions,
+    searchingInvoices,
+    handleInvoiceSearch,
+    handleInvoiceSelect,
     handleProductSelect,
     saving,
   };

@@ -28,6 +28,9 @@ interface PosState {
   billDiscountValue: number;
   billDiscountType: 'percentage' | 'amount';
 
+  // Custom Delivery Charge Override (selected from multiDeliveryCharges)
+  customDeliveryCharge: number | null;
+
   // Dynamic Menu Data
   groups: MenuGroup[];
   categories: PosCategory[];
@@ -80,6 +83,8 @@ const initialState: PosState = {
   
   billDiscountValue: 0,
   billDiscountType: 'percentage',
+
+  customDeliveryCharge: null,
 
   groups: [],
   categories: [],
@@ -213,6 +218,7 @@ const posSlice = createSlice({
       state.comingTime = new Date().toISOString();
       state.vehicleCustomerName = '';
       state.vehicleNo = '';
+      state.customDeliveryCharge = null;
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
       state.activeCategoryId = action.payload;
@@ -466,6 +472,9 @@ const posSlice = createSlice({
         discountType: 'amount'
       }));
     },
+    setCustomDeliveryCharge: (state, action: PayloadAction<number | null>) => {
+      state.customDeliveryCharge = action.payload;
+    },
   },
 });
 
@@ -515,7 +524,8 @@ export const {
   setVehicleNo,
   loadRecalledOrder,
   setIsSettling,
-  setCombinedOrderIds
+  setCombinedOrderIds,
+  setCustomDeliveryCharge
 } = posSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
@@ -658,10 +668,46 @@ export const selectTax = createSelector(
   }
 );
 
+export const selectDeliveryCharge = createSelector(
+  [selectPosState],
+  (pos) => {
+    const isDelivery =
+      pos.selectedOrderTypeId === 4 ||
+      (pos.selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
+    if (!isDelivery) return 0;
+
+    // If user manually picked a zone, use that override
+    if (pos.customDeliveryCharge !== null && pos.customDeliveryCharge !== undefined) {
+      return pos.customDeliveryCharge;
+    }
+
+    // Read the default delivery charge from posConfigs.configs
+    try {
+      const raw = localStorage.getItem('posConfigs');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { configs?: Record<string, unknown> };
+        const configs = parsed.configs ?? {};
+        const val =
+          configs["defaultDeliveryCharge"] ??
+          configs["defaultdeliverycharge"] ??
+          configs["defaultDeliverycharge"] ??
+          configs["deliveryCharge"] ??
+          configs["deliverycharge"] ??
+          0;
+        return Number(val) || 0;
+      }
+    } catch (e) {
+      console.error("[posSlice] selectDeliveryCharge error:", e);
+    }
+    return 0;
+  }
+);
+
+
 export const selectTotal = createSelector(
-  [selectSubtotal, selectDiscount, selectCharges, selectTax],
-  (subtotal, discount, charges, tax) => {
-    return (subtotal - discount) + charges + tax;
+  [selectSubtotal, selectDiscount, selectCharges, selectTax, selectDeliveryCharge],
+  (subtotal, discount, charges, tax, deliveryCharge) => {
+    return (subtotal - discount) + charges + tax + deliveryCharge;
   }
 );
 

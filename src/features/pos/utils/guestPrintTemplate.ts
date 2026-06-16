@@ -24,6 +24,7 @@ export interface GuestPrintData {
   levy: number;
   vatAmount: number;
   netAmount: number;
+  deliveryCharge?: number;
   enableVat?: boolean;
   payments?: { name: string; amount: number }[];
   changeAmount?: number;
@@ -228,6 +229,12 @@ export const generateGuestPrintHtml = (
           <tr>
             <td class="totals-label">Levy(5%)</td>
             <td class="totals-value">${data.levy.toFixed(3)}</td>
+          </tr>
+          ` : ''}
+          ${(isDelivery || (data.deliveryCharge && data.deliveryCharge > 0)) ? `
+          <tr>
+            <td class="totals-label">Delivery Charge</td>
+            <td class="totals-value">${(data.deliveryCharge || 0).toFixed(3)}</td>
           </tr>
           ` : ''}
           ${data.enableVat ? `

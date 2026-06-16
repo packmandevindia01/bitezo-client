@@ -26,8 +26,7 @@ export const usePosRecall = () => {
         Decimals: getDecimalPart(),
       };
 
-      // Only add EmployeeId if it exists and is valid
-      if (status.userId) cleanParams.EmployeeId = status.userId;
+      // Only add EmployeeId if it exists and is valid (removed to show all cashier/waiter orders)
 
       // Only add search/status if they have actual content
       if (params.SearchValue?.trim()) {

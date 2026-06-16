@@ -62,3 +62,21 @@ export interface ConfigurationState {
     driver: boolean;
   };
 }
+
+export interface BackofficeConfigState {
+  // SelectInput — multi-option fields
+  defaultProductType: string;        // From API (placeholder options for now)
+  defaultVat: string;                // From API (placeholder options for now)
+  stockValueMethod: "AverageCost" | "LastPurchase" | "FIFO";
+  updateLndCostType: "All" | "Barcode" | "Unit";
+  discountCalculation: "Inclusive" | "Exclusive";
+
+  // Checkbox (Toggle) — Enable/Disable fields
+  vatStatus: boolean;
+  advancedProductSearch: boolean;
+  displayAllUnits: boolean;
+  updateLndCost: boolean;
+  supplierProductsInPurchase: boolean;
+  autoUpdateSupplier: boolean;
+  barcodeView: boolean;
+}

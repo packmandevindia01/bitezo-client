@@ -34,6 +34,8 @@ interface PosOrderPanelProps {
   total: number;
   totalExtras: number;
   baseSubtotal: number;
+  deliveryCharge?: number;
+  isDelivery?: boolean;
   selectedKey: string | null;
   onSelectRow: (key: string | null) => void;
   onIncrement: (uniqueId: string) => void;
@@ -51,6 +53,7 @@ interface PosOrderPanelProps {
   isSettledEdit?: boolean;
   selectedTender: string;
   onSelectTender: (tender: string) => void;
+  onDeliveryChargeDoubleClick?: () => void;
 }
 
 export const PosOrderPanel = ({
@@ -62,6 +65,8 @@ export const PosOrderPanel = ({
   total,
   totalExtras,
   baseSubtotal,
+  deliveryCharge = 0,
+  isDelivery = false,
   selectedKey,
   onSelectRow,
   onIncrement,
@@ -77,7 +82,8 @@ export const PosOrderPanel = ({
   isSettling = false,
   isSettledEdit = false,
   selectedTender,
-  onSelectTender
+  onSelectTender,
+  onDeliveryChargeDoubleClick,
 }: PosOrderPanelProps) => {
 
   const selectedItem = selectedKey
@@ -261,6 +267,9 @@ export const PosOrderPanel = ({
         total={total}
         totalExtras={totalExtras}
         baseSubtotal={baseSubtotal}
+        deliveryCharge={deliveryCharge}
+        isDelivery={isDelivery}
+        onDeliveryChargeDoubleClick={onDeliveryChargeDoubleClick}
         onOrder={onOrder}
         onSettle={onSettle}
         orderLoading={orderLoading}

@@ -23,7 +23,7 @@ export const usePosSettled = () => {
         Decimals: getDecimalPart(),
       };
 
-      if (status.userId) cleanParams.EmployeeId = status.userId;
+      // Omit EmployeeId to retrieve all settled orders of the day
 
       if (params.SearchValue?.trim()) {
         cleanParams.SearchValue = params.SearchValue.trim();

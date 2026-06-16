@@ -278,6 +278,7 @@ export interface MenuOrderRequest {
   providerId?: number;
   providerOrderNo?: string;
   providerNo?: string;
+  deliveryCharge?: number;
 }
 
 export interface MenuOrderUpdateRequest {
@@ -311,6 +312,7 @@ export interface MenuOrderUpdateRequest {
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
   voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   combinedOrderIds: number[];
+  deliveryCharge?: number;
 }
 
 export interface SplitOrderData {
