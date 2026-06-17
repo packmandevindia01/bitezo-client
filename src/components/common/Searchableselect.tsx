@@ -35,7 +35,7 @@ interface Props {
 const SearchableSelect = ({
   id,
   label,
-  options,
+  options = [],
   value = "",
   onChange,
   placeholder = "Search or select…",
@@ -74,8 +74,8 @@ const SearchableSelect = ({
     }
   }, [autoFocus]);
 
-  // Derive selected label from value - robust comparison
-  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? "";
+  // Derive selected label from value - robust comparison. Fallback to value if not found (supports custom values)
+  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? value;
 
   // Filtered options based on search query
   const filtered = onSearch

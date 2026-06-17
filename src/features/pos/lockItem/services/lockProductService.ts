@@ -14,6 +14,15 @@ export const lockProductService = {
     return data.data || [];
   },
 
+  /** GET /api/lock-product/product-list-name */
+  async getProducts(productName?: string): Promise<any[]> {
+    const { data } = await axiosInstance.get<ApiResponse<any[]>>(
+      `${BASE}/product-list-name`,
+      { params: { productName } }
+    );
+    return data.data || [];
+  },
+
   /** POST /api/lock-product */
   async create(payload: LockProductPayload): Promise<number> {
     const { data } = await axiosInstance.post<ApiResponse<{ id: number }>>(

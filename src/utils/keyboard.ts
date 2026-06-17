@@ -29,26 +29,8 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
 
   const index = focusableElements.indexOf(currentEl);
 
-  // Debugging logs to help identify layout-container and element matches in the browser console
-  console.log("[Keyboard Navigation Debug]", {
-    currentElement: currentEl,
-    tagName: currentEl.tagName,
-    placeholder: (currentEl as any).placeholder,
-    container: container,
-    focusableCount: focusableElements.length,
-    focusableElements: focusableElements.map(el => ({
-      tagName: el.tagName,
-      role: el.getAttribute("role"),
-      placeholder: (el as any).placeholder,
-      id: el.id,
-      className: el.className
-    })),
-    currentIndex: index
-  });
-
   if (index > -1 && index < focusableElements.length - 1) {
     const nextEl = focusableElements[index + 1];
-    console.log("[Keyboard Navigation Debug] Focusing next element:", nextEl);
     nextEl.focus();
 
     // Auto-select text inside input/textarea fields for fast overwrite and touch efficiency
@@ -80,8 +62,6 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
           text.includes("create"))
       );
     });
-
-    console.log("[Keyboard Navigation Debug] Form end reached. Action buttons found:", actionButtons);
 
     if (actionButtons.length > 0) {
       actionButtons[0].focus();

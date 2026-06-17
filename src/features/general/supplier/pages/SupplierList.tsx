@@ -91,25 +91,21 @@ const SupplierList = () => {
     }
   };
 
-  const handleSave = async (data: SupplierPayload) => {
+  const handleSave = async (payload: SupplierPayload) => {
     try {
       setSaving(true);
-
       if (editSupplier) {
-        if (!canEdit) throw new Error("Permission denied");
-        await updateSupplier(editSupplier.id, data);
-        await loadSuppliers();
+        await updateSupplier(editSupplier.id, payload);
         showToast("Supplier updated successfully", "success");
       } else {
-        if (!canAdd) throw new Error("Permission denied");
-        await createSupplier(data);
-        await loadSuppliers();
+        await createSupplier(payload);
         showToast("Supplier created successfully", "success");
       }
-
       closeModal();
-    } catch (error) {
-      showToast(getErrorMessage(error), "error");
+      void loadSuppliers();
+    } catch (err: any) {
+      const msg = err.message || getErrorMessage(err);
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
@@ -121,16 +117,17 @@ const SupplierList = () => {
     try {
       setDeleting(true);
       await deleteSupplier(deleteCandidate.id);
-      await loadSuppliers();
+      showToast("Supplier deleted successfully", "success");
       setDeleteCandidate(null);
 
       if (editSupplier?.id === deleteCandidate.id) {
         closeModal();
       }
 
-      showToast("Supplier deleted successfully", "success");
-    } catch (error) {
-      showToast(getErrorMessage(error), "error");
+      void loadSuppliers();
+    } catch (err: any) {
+      const msg = err.message || getErrorMessage(err);
+      showToast(msg, "error");
     } finally {
       setDeleting(false);
     }

@@ -1,22 +1,52 @@
+import { useRef, useState } from "react";
 import type { PosProduct } from "../../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { Lock } from "lucide-react";
 
 interface PosProductCardProps {
   product: PosProduct;
   onAdd: (productId: number) => void;
   price?: number;
   hasAlts?: boolean;
+  onLongPress?: (productId: number) => void;
 }
 
-const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps) => {
+const PosProductCard = ({ product, onAdd, price, hasAlts, onLongPress }: PosProductCardProps) => {
   const { formatAmount } = useCurrency();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
+
   const finalPrice = price !== undefined ? price : product.price;
   const showPrice = finalPrice >= 0 && !hasAlts;
+
+  const startPress = () => {
+    setIsLongPressTriggered(false);
+    timerRef.current = setTimeout(() => {
+      setIsLongPressTriggered(true);
+      if (onLongPress) onLongPress(product.id);
+    }, 600);
+  };
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   return (
     <button
       type="button"
-      onClick={() => onAdd(product.id)}
+      onPointerDown={startPress}
+      onPointerUp={clearTimer}
+      onPointerLeave={clearTimer}
+      onPointerCancel={clearTimer}
+      // Added prevent default behavior context menu on touch devices
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={() => {
+        if (isLongPressTriggered) return;
+        if (!product.isLocked) onAdd(product.id);
+      }}
       className="
         group relative flex flex-col justify-between
         rounded-xl border border-slate-200 bg-white text-left overflow-hidden
@@ -40,9 +70,17 @@ const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps)
           </span>
         )}
 
-        {/* Price Badge Overlay */}
-        {showPrice && (
-          <div className="absolute top-1 right-1 flex gap-1 items-center z-10">
+      </div>
+
+      {/* Price Badge Overlay - Moved outside overflow-hidden container */}
+      {showPrice && (
+        <div className="absolute top-1 right-1 flex flex-col items-end gap-1 z-10">
+          {price !== undefined && price < product.price && (
+            <div className="bg-red-500/90 px-1 py-0.5 rounded text-[8px] font-bold text-white shadow-sm border border-red-600 line-through select-none">
+              {formatAmount(product.price)}
+            </div>
+          )}
+          <div className="flex gap-1 items-center">
             {product.isIncl && (
               <div className="bg-green-500 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white shadow-md border border-green-600 select-none">
                 INCL
@@ -52,8 +90,8 @@ const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps)
               {formatAmount(finalPrice)}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
         <div className="w-full">
@@ -71,6 +109,15 @@ const PosProductCard = ({ product, onAdd, price, hasAlts }: PosProductCardProps)
 
 
       </div>
+
+      {/* Lock Overlay - Moved to cover whole card */}
+      {product.isLocked && (
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-20">
+          <div className="bg-slate-800/80 p-2 rounded-full text-white shadow-lg backdrop-blur-sm">
+            <Lock size={16} className="opacity-90" />
+          </div>
+        </div>
+      )}
     </button>
   );
 };

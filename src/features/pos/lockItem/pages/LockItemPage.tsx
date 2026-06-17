@@ -4,8 +4,6 @@ import { Lock, Trash2, Plus, RefreshCcw, Pencil, ArrowLeft } from 'lucide-react'
 import { Button, ConfirmDialog, Loader, SearchableSelect } from '../../../../components/common';
 import { useToast } from '../../../../app/providers/useToast';
 import { lockProductService } from '../services/lockProductService';
-import { productService } from '../../../inventory/product/services/productService';
-import type { ProductListItem } from '../../../inventory/product/types';
 import type { LockedProduct } from '../types';
 
 const LockItemPage: React.FC = () => {
@@ -14,7 +12,7 @@ const LockItemPage: React.FC = () => {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [lockUntil, setLockUntil] = useState('');
   const [items, setItems] = useState<LockedProduct[]>([]);
-  const [products, setProducts] = useState<ProductListItem[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<LockedProduct | null>(null);
@@ -28,10 +26,11 @@ const LockItemPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const data = await productService.list();
+      const data = await lockProductService.getProducts();
       setProducts(data);
     } catch (error: any) {
-      console.error("Failed to load products:", error);
+      console.error("Failed to load products via lock-product API:", error);
+      showToast("Failed to load products for locking", "error");
     }
   };
 
@@ -123,8 +122,8 @@ const LockItemPage: React.FC = () => {
   };
 
   const productOptions = products.map(p => ({
-    label: `${p.name} (${p.code})`,
-    value: String(p.productId)
+    label: p.productName || p.name || "",
+    value: String(p.productId || p.id || "")
   }));
 
   return (

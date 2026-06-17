@@ -30,6 +30,7 @@ import { PosDriveThroughModal } from "../../customer/components/PosDriveThroughM
 import { PosRecallModal } from "../components/PosRecallModal";
 import { PosVoidModal } from "../components/PosVoidModal";
 import { EmployeePasswordModal } from "../components/EmployeePasswordModal";
+import LockItemModal from "../../lockItem/components/LockItemModal";
 import { PosProviderModal } from "../components/PosProviderModal";
 import { PosProviderOrderModal } from "../components/PosProviderOrderModal";
 import { PosCombineModal } from "../components/PosCombineModal";
@@ -58,6 +59,8 @@ export const PosTerminalPage = () => {
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [isCombineOpen, setIsCombineOpen] = useState(false);
+  const [isLockItemModalOpen, setIsLockItemModalOpen] = useState(false);
+  const [selectedProductToLock, setSelectedProductToLock] = useState<string | undefined>(undefined);
   const [isSplitOpen, setIsSplitOpen] = useState(false);
   const [isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen] = useState(false);
   const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
@@ -177,6 +180,7 @@ export const PosTerminalPage = () => {
     addVoidProduct,
     addVoidModifier,
     getDirectSettleOrderPayload,
+    refreshLockedProducts,
   } = usePosTerminal();
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
@@ -1193,6 +1197,10 @@ export const PosTerminalPage = () => {
                 onBack={handleGridBack}
                 onAdd={handleProductSelect}
                 onSelectAlt={handleAltSelect}
+                onLongPress={(id) => {
+                  setSelectedProductToLock(String(id));
+                  setIsLockItemModalOpen(true);
+                }}
                 categoryName={activeCategory?.name}
                 subCategoryName={activeSubCategory?.subCategoryName}
                 selectedProduct={selectedProduct}
@@ -1881,6 +1889,17 @@ export const PosTerminalPage = () => {
           setIsSettledAuthOpen(false);
           setIsSettledModalOpen(true);
         }}
+      />
+
+      <LockItemModal 
+        isOpen={isLockItemModalOpen} 
+        onClose={() => {
+          setIsLockItemModalOpen(false);
+          setSelectedProductToLock(undefined);
+          refreshLockedProducts();
+        }}
+        initialProductId={selectedProductToLock}
+        onSuccess={() => refreshLockedProducts()}
       />
 
     </div>

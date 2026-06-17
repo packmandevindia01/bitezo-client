@@ -56,8 +56,12 @@ export const productService = {
     groupId?: number;
   }): Promise<ProductListItem[]> {
     const url = `${BASE}/product-list`;
+    const finalParams = {
+      ...(params || {}),
+      clientDb: localStorage.getItem("tenantId") || "app_db",
+    };
     return unwrap(
-      axiosInstance.get<ApiResponse<ProductListItem[]>>(url, { params })
+      axiosInstance.get<ApiResponse<ProductListItem[]>>(url, { params: finalParams })
     );
   },
 

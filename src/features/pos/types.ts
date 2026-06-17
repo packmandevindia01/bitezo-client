@@ -20,6 +20,7 @@ export interface PosProduct {
   unitId?: number;
   hasAlternatives?: boolean;
   isIncl?: boolean;
+  isLocked?: boolean;
 }
 
 export interface PosCartItem {

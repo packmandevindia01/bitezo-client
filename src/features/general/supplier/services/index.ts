@@ -7,6 +7,7 @@ interface SupplierApiRecord {
   supplierId?: number;
   code?: string;
   name?: string;
+  supplierName?: string;
   arabicName?: string;
   mobileNo?: string;
   telNo?: string;
@@ -36,7 +37,7 @@ const mapApiSupplier = (data: SupplierApiRecord): Supplier => {
   return {
     id: data.id ?? data.supplierId ?? 0,
     code: data.code ?? "",
-    name: data.name ?? "",
+    name: data.supplierName ?? data.name ?? "",
     arabicName: data.arabicName ?? "",
     mobileNo: data.mobileNo ?? "",
     telNo: data.telNo ?? "",
@@ -60,8 +61,10 @@ const normalizeSuppliers = (payload: unknown): Supplier[] => {
   return payload.map((item) => mapApiSupplier(item as SupplierApiRecord));
 };
 
-export const fetchSuppliers = async () => {
-  const { data } = await axiosInstance.get<ApiResponse<SupplierApiRecord[]>>("/supplier/supplierlist");
+export const fetchSuppliers = async (supplierCode?: string, supplierName?: string) => {
+  const { data } = await axiosInstance.get<ApiResponse<SupplierApiRecord[]>>("/supplier/list", {
+    params: { supplierCode, supplierName }
+  });
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load suppliers");
   }
@@ -69,16 +72,20 @@ export const fetchSuppliers = async () => {
 };
 
 export const fetchSupplierById = async (id: number) => {
-  const { data } = await axiosInstance.get<ApiResponse<SupplierApiRecord>>(`/supplier/${id}`);
+  const { data } = await axiosInstance.get<ApiResponse<SupplierApiRecord>>(`/supplier/${id}/supplier-data`);
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load supplier details");
   }
-  return mapApiSupplier(data.data || {});
+  const result = mapApiSupplier(data.data || {});
+  result.id = id; // The backend omits the ID in this endpoint, so we inject it back
+  return result;
 };
 
 export const createSupplier = async (payload: SupplierPayload) => {
+  const { name, ...rest } = payload;
   const { data } = await axiosInstance.post<ApiResponse<{ id?: number }>>("/supplier", {
-    ...payload,
+    ...rest,
+    supplierName: name,
     createdAt: new Date().toISOString(),
   });
   if (!data.isSuccess) {
@@ -88,8 +95,11 @@ export const createSupplier = async (payload: SupplierPayload) => {
 };
 
 export const updateSupplier = async (id: number, payload: SupplierPayload) => {
+  const { name, ...rest } = payload;
   const { data } = await axiosInstance.put<ApiResponse<{ id?: number }>>(`/supplier/${id}`, {
-    ...payload,
+    ...rest,
+    supplierId: id,
+    supplierName: name,
     updatedAt: new Date().toISOString(),
   });
   if (!data.isSuccess) {
@@ -99,7 +109,10 @@ export const updateSupplier = async (id: number, payload: SupplierPayload) => {
 };
 
 export const deleteSupplier = async (id: number) => {
-  const { data } = await axiosInstance.delete<ApiResponse<{ id?: number }>>(`/supplier/${id}`);
+  console.log("Attempting to delete supplier with ID:", id);
+  const url = `/supplier/${id}`;
+  console.log("Delete URL:", url);
+  const { data } = await axiosInstance.delete<ApiResponse<{ id?: number }>>(url);
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to delete supplier");
   }

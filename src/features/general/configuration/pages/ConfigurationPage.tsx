@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, Printer, DollarSign, CalendarDays, Save, Settings2 } from "lucide-react";
+import { LayoutGrid, Printer, DollarSign, CalendarDays, Save } from "lucide-react";
 import { PageShell, Button } from "../../../../components/common";
 import { useConfigurationManager } from "../hooks/useConfigurationManager";
 import PosSettingsTab from "../components/PosSettingsTab";

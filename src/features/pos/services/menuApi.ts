@@ -101,6 +101,7 @@ export const menuApi = {
       params: {
         clientDb: localStorage.getItem("tenantId") || "app_db",
         orderTypeId,
+        currentDateTime: new Date().toISOString(),
         providerOwnStatus: getProviderOwnStatus()
       }
     }));

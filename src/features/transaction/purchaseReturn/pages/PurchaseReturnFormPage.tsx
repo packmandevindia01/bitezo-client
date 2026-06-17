@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2 } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect } from "../../../../components/common";
+import { PageShell, Button, FormInput, SearchableSelect, AutocompleteInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -151,27 +151,7 @@ const PurchaseReturnFormPage = () => {
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-x-2 gap-y-1.5">
             <SearchableSelect id="pr-series" label="Series" value={form.series} options={seriesOptions} onChange={(val) => setField("series", val)} onKeyDown={(e) => hk(e, "pr-purchaseNo")} required disabled={!canSave || loadingMaster} />
             <FormInput id="pr-purchaseNo" label="P No" value={form.purchaseNo} onChange={(e) => setField("purchaseNo", e.target.value)} onKeyDown={(e) => hk(e, "pr-purchaseDate")} required readOnly={!canSave} />
-            <FormInput id="pr-purchaseDate" label="P Date" type="date" value={form.purchaseDate} onChange={(e) => setField("purchaseDate", e.target.value)} onKeyDown={(e) => hk(e, "pr-invoiceNo")} required readOnly={!canSave} />
-            <SearchableSelect
-              id="pr-invoiceNo"
-              label="Inv No"
-              value={form.invoiceNo}
-              options={invoiceOptions}
-              onSearch={handleInvoiceSearch}
-              loading={searchingInvoices}
-              onChange={(val) => {
-                const opt = invoiceOptions.find(o => o.value === val);
-                if (opt) {
-                  handleInvoiceSelect(val, opt.label);
-                } else {
-                  setField("invoiceNo", val);
-                }
-              }}
-              onKeyDown={(e) => hk(e, "pr-refNo")}
-              required
-              disabled={!canSave || !form.branch || !form.supplier}
-            />
-            <FormInput id="pr-refNo" label="Ref No" value={form.refNo} onChange={(e) => setField("refNo", e.target.value)} onKeyDown={(e) => hk(e, "pr-invoiceDate")} readOnly={!canSave} />
+            <FormInput id="pr-purchaseDate" label="P Date" type="date" value={form.purchaseDate} onChange={(e) => setField("purchaseDate", e.target.value)} onKeyDown={(e) => hk(e, "pr-invoiceDate")} required readOnly={!canSave} />
             <FormInput id="pr-invoiceDate" label="Inv Date" type="date" value={form.invoiceDate} onChange={(e) => setField("invoiceDate", e.target.value)} onKeyDown={(e) => hk(e, "pr-supplier")} required readOnly={!canSave} />
             <SearchableSelect
               id="pr-supplier"
@@ -185,7 +165,23 @@ const PurchaseReturnFormPage = () => {
               required
               disabled={!canSave}
             />
-            <SearchableSelect id="pr-branch" label="Branch" value={form.branch} options={branchOptions} onChange={(val) => setField("branch", val)} onKeyDown={(e) => hk(e, "pr-salesman")} required disabled={!canSave || loadingMaster} />
+            <SearchableSelect id="pr-branch" label="Branch" value={form.branch} options={branchOptions} onChange={(val) => setField("branch", val)} onKeyDown={(e) => hk(e, "pr-invoiceNo")} required disabled={!canSave || loadingMaster} />
+            <AutocompleteInput
+              id="pr-invoiceNo"
+              label="Inv No"
+              value={form.invoiceNo}
+              options={invoiceOptions}
+              onSearch={handleInvoiceSearch}
+              loading={searchingInvoices}
+              onChange={(val) => setField("invoiceNo", val)}
+              onSelectOption={(val, label) => {
+                handleInvoiceSelect(val, label);
+              }}
+              onKeyDown={(e) => hk(e, "pr-refNo")}
+              required
+              disabled={!canSave || !form.branch || !form.supplier}
+            />
+            <FormInput id="pr-refNo" label="Ref No" value={form.refNo} onChange={(e) => setField("refNo", e.target.value)} onKeyDown={(e) => hk(e, "pr-salesman")} readOnly={!canSave} />
             <SearchableSelect id="pr-salesman" label="Salesman" value={form.salesman} options={salesmanOptions} onChange={(val) => setField("salesman", val)} onKeyDown={(e) => hk(e, "pr-product")} disabled={!canSave || loadingMaster} />
           </div>
 

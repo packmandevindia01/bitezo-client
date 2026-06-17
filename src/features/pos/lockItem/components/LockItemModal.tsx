@@ -8,16 +8,21 @@ import { Modal, Button, ConfirmDialog, Loader, SearchableSelect } from '../../..
 
 import { useToast } from '../../../../app/providers/useToast';
 import { lockProductService } from '../services/lockProductService';
-import { productService } from '../../../inventory/product/services/productService';
-import type { ProductListItem } from '../../../inventory/product/types';
-import type { LockedProduct, LockItemModalProps } from '../types';
+import type { LockedProduct } from '../types';
 
-const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
+export interface LockItemModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialProductId?: string;
+  onSuccess?: () => void;
+}
+
+const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose, initialProductId, onSuccess }) => {
   const { showToast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [lockUntil, setLockUntil] = useState('');
   const [items, setItems] = useState<LockedProduct[]>([]);
-  const [products, setProducts] = useState<ProductListItem[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<LockedProduct | null>(null);
@@ -26,17 +31,23 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
   // Fetch data on open
   useEffect(() => {
     if (isOpen) {
+      if (initialProductId) {
+        setSelectedProductId(initialProductId);
+      } else {
+        setSelectedProductId('');
+      }
+      setLockUntil('');
       void fetchLockedProducts();
       void fetchProducts();
     }
-  }, [isOpen]);
+  }, [isOpen, initialProductId]);
 
   const fetchProducts = async () => {
     try {
-      const data = await productService.list();
+      const data = await lockProductService.getProducts();
       setProducts(data);
     } catch (error: any) {
-      console.error("Failed to load products:", error);
+      console.error("Failed to load products via lock-product API:", error);
     }
   };
 
@@ -78,6 +89,8 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
       setSelectedProductId('');
       setLockUntil('');
       void fetchLockedProducts();
+      if (onSuccess) onSuccess();
+      if (initialProductId) onClose();
     } catch (error: any) {
       showToast(error.message || "Failed to process lock", "error");
     } finally {
@@ -94,6 +107,8 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
       showToast("Lock removed", "success");
       setDeleteCandidate(null);
       void fetchLockedProducts();
+      if (onSuccess) onSuccess();
+      if (initialProductId) onClose();
     } catch (error: any) {
       showToast(error.message || "Failed to remove lock", "error");
     } finally {
@@ -129,8 +144,8 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
   };
 
   const productOptions = products.map(p => ({
-    label: `${p.name} (${p.code})`,
-    value: String(p.productId)
+    label: p.productName || p.name || "",
+    value: String(p.productId || p.id || "")
   }));
 
 
@@ -140,40 +155,52 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
         isOpen={isOpen}
         onClose={onClose}
         title="POS Product Locking"
-        size="xl"
+        size="2xl"
+        className="w-[95vw] max-w-none"
       >
         <div className="space-y-6">
           {/* Form Section */}
-          <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 shadow-inner">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-6 items-end">
-              <div className="flex-1">
-                <SearchableSelect
-                  label="Select Product"
-                  options={productOptions}
-                  value={selectedProductId}
-                  onChange={(val) => setSelectedProductId(val)}
-                  placeholder="Type to search product..."
-                  disabled={isSaving}
-                />
+          <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
+            {/* Subtle background decoration */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#49293e]/[0.03] to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.5fr_auto] gap-6 sm:gap-8 items-start relative z-10">
+              
+              {/* Product Column */}
+              <div className="flex flex-col gap-2.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1 flex items-center gap-2.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#49293e] shadow-[0_0_8px_rgba(73,41,62,0.4)]" />
+                  Select Product
+                </label>
+                <div className="relative group/select drop-shadow-sm">
+                  <SearchableSelect
+                    options={productOptions}
+                    value={selectedProductId}
+                    onChange={(val) => setSelectedProductId(val)}
+                    placeholder="Type to search product..."
+                    disabled={isSaving}
+                    autoFocus
+                  />
+                </div>
               </div>
 
-              
-              <div className="space-y-1.5 flex-1 pb-4">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">
+              {/* Lock Until Column */}
+              <div className="flex flex-col gap-2.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1 flex items-center gap-2.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.4)] animate-pulse" />
                   Lock Until
                 </label>
-                <div className="flex flex-col gap-2">
-
+                <div className="flex flex-col gap-3.5">
                   <div className="relative group">
                     <input
                       type="datetime-local"
                       value={lockUntil}
                       onChange={(e) => setLockUntil(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm text-sm font-medium focus:ring-2 focus:ring-[#49293e]/10 focus:border-[#49293e] transition-all outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                      className="w-full h-[46px] bg-slate-50 border border-slate-200 rounded-xl px-4 shadow-sm text-sm font-bold text-slate-700 focus:ring-2 focus:ring-[#49293e]/10 focus:border-[#49293e] focus:bg-white transition-all outline-none hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400"
                       disabled={isSaving}
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-focus-within:text-[#49293e] transition-colors">
-                      <Calendar size={16} />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-[#49293e] transition-colors">
+                      <Calendar size={18} />
                     </div>
                   </div>
                   
@@ -194,7 +221,7 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
                           const formatted = date.toISOString().slice(0, 16);
                           setLockUntil(formatted);
                         }}
-                        className="px-3 py-1 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-500 hover:border-[#49293e] hover:text-[#49293e] hover:bg-[#49293e]/5 transition-all active:scale-95"
+                        className="px-4 py-1.5 rounded-full border border-slate-200 bg-white text-[11px] font-black text-slate-500 hover:border-[#49293e] hover:text-[#49293e] hover:bg-[#49293e]/5 hover:shadow-sm transition-all active:scale-95"
                       >
                         +{preset.label}
                       </button>
@@ -206,7 +233,7 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
                         date.setHours(23, 59, 0, 0);
                         setLockUntil(date.toISOString().slice(0, 16));
                       }}
-                      className="px-3 py-1 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-500 hover:border-[#49293e] hover:text-[#49293e] hover:bg-[#49293e]/5 transition-all active:scale-95"
+                      className="px-4 py-1.5 rounded-full border border-slate-200 bg-white text-[11px] font-black text-slate-500 hover:border-[#49293e] hover:text-[#49293e] hover:bg-[#49293e]/5 hover:shadow-sm transition-all active:scale-95"
                     >
                       End of Day
                     </button>
@@ -214,18 +241,22 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className="pb-4">
+              {/* Action Column */}
+              <div className="flex flex-col gap-2.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-transparent ml-1 select-none hidden md:block">
+                  Action
+                </label>
                 <Button 
                   onClick={handleAdd}
                   disabled={isSaving}
-                  className="h-[42px] px-10 bg-[#49293e] hover:bg-[#3d2234] shadow-lg shadow-[#49293e]/20"
+                  className="h-[46px] w-full md:w-auto px-8 bg-[#49293e] hover:bg-[#3d2234] shadow-lg shadow-[#49293e]/25 text-sm font-bold tracking-widest rounded-xl transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center"
                 >
                   {isSaving ? (
                     <Loader size="sm" />
                   ) : (
                     <>
-                      <Plus size={18} className="mr-2" />
-                      {items.some(i => String(i.productId) === selectedProductId) ? 'Update Lock' : 'Apply Lock'}
+                      <Plus size={18} className="mr-2" strokeWidth={2.5} />
+                      {items.some(i => String(i.productId) === selectedProductId) ? 'UPDATE LOCK' : 'APPLY LOCK'}
                     </>
                   )}
                 </Button>
@@ -233,78 +264,85 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* List Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                Active Locked Products ({items.length})
-              </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2 mt-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#49293e]/10 to-[#49293e]/5 flex items-center justify-center">
+                   <Lock size={14} className="text-[#49293e]" />
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#49293e]">
+                  Active Locks ({items.length})
+                </h3>
+              </div>
               <button 
                 onClick={() => void fetchLockedProducts()}
-                className="p-1.5 text-slate-400 hover:text-[#49293e] transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:border-[#49293e] hover:text-[#49293e] hover:bg-[#49293e]/5 transition-all active:scale-95 shadow-sm"
                 title="Refresh list"
               >
-                <RefreshCcw size={14} className={isLoading ? "animate-spin" : ""} />
+                <RefreshCcw size={12} className={isLoading ? "animate-spin" : ""} />
+                Refresh
               </button>
             </div>
             
-            <div className="min-h-[300px] max-h-[450px] overflow-y-auto border border-slate-200 rounded-2xl bg-white shadow-sm overflow-hidden">
+            <div className="min-h-[400px] max-h-[65vh] overflow-y-auto bg-slate-50/50 border border-slate-100 rounded-3xl p-4 shadow-inner custom-scrollbar">
               {isLoading ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[250px] flex items-center justify-center">
                   <Loader text="Loading locks..." />
                 </div>
               ) : items.length === 0 ? (
-                <div className="h-[300px] flex flex-col items-center justify-center text-slate-300">
+                <div className="h-[250px] flex flex-col items-center justify-center text-slate-300 bg-white rounded-2xl border border-dashed border-slate-200 shadow-sm mx-2">
                   <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                    <Lock size={32} strokeWidth={1.5} className="opacity-20" />
+                    <Lock size={28} strokeWidth={1.5} className="text-slate-300" />
                   </div>
                   <p className="text-sm font-bold uppercase tracking-widest text-slate-400">No active locks found</p>
+                  <p className="text-[10px] font-semibold text-slate-400 mt-2 tracking-wider">Use the form above to lock a product</p>
                 </div>
               ) : (
-                <table className="w-full border-collapse text-left">
-                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
-                    <tr>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">S.No</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Product</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Locked Until</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {items.map((item, index) => (
-                      <tr key={item.productId} className="group hover:bg-[#49293e]/5 transition-all">
-                        <td className="px-6 py-4 text-xs font-bold text-slate-400">{index + 1}</td>
-                        <td className="px-6 py-4 font-bold text-slate-700">
-                          <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {items.map((item) => (
+                    <div 
+                      key={item.productId} 
+                      className="group bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md hover:border-[#49293e]/30 transition-all duration-300 flex flex-col justify-between"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 border border-red-100">
+                            <Lock size={16} className="text-red-400" />
+                          </div>
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full border-2 border-white animate-pulse" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-black text-slate-700 leading-tight truncate" title={item.productName}>
                             {item.productName}
+                          </h4>
+                          <div className="mt-1 flex flex-col gap-0.5">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                              Locked Until
+                            </span>
+                            <span className="text-[10px] font-bold text-red-500 truncate">
+                              {formatDateTime(item.lockUntil)}
+                            </span>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-xs font-semibold text-slate-500">
-                          {formatDateTime(item.lockUntil)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                            <button 
-                              onClick={() => handleEdit(item)}
-                              className="p-2 rounded-xl text-slate-400 hover:bg-[#49293e]/10 hover:text-[#49293e] transition-all"
-                              title="Edit Lock"
-                            >
-                              <Pencil size={18} />
-                            </button>
-                            <button 
-                              onClick={() => setDeleteCandidate(item)}
-                              className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
-                              title="Remove Lock"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-100/80">
+                        <button 
+                          onClick={() => handleEdit(item)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider hover:bg-[#49293e] hover:text-white hover:border-[#49293e] transition-colors shadow-sm"
+                        >
+                          <Pencil size={12} /> Edit
+                        </button>
+                        <button 
+                          onClick={() => setDeleteCandidate(item)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-50 border border-red-100 text-red-500 text-[10px] font-bold uppercase tracking-wider hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors shadow-sm"
+                        >
+                          <Trash2 size={12} /> Unlock
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

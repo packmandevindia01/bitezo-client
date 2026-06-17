@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
+import { Button, Checkbox, FormInput, SearchableSelect } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { isRequired } from "../../../../lib/validators";
 import type { Supplier, SupplierPayload } from "../types";
@@ -55,7 +55,7 @@ const SupplierForm = ({
     const fetchBranches = async () => {
       try {
         setBranchesLoading(true);
-        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/false/list-name");
+        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/true/list-name");
         setBranches(data.data ?? []);
       } catch {
         setBranches([]);
@@ -125,7 +125,6 @@ const SupplierForm = ({
           value={form.code}
           onChange={(e) => handleChange("code", e.target.value)}
           error={errors.code}
-          readOnly={!!initialData}
         />
         
         <FormInput
@@ -201,12 +200,12 @@ const SupplierForm = ({
           onChange={(e) => handleChange("trnNo", e.target.value)}
         />
 
-        <SelectInput
+        <SearchableSelect
           tabIndex={11}
           label="Branch"
           required
           value={form.branchId ? String(form.branchId) : ""}
-          onChange={(e) => handleChange("branchId", Number(e.target.value))}
+          onChange={(val) => handleChange("branchId", Number(val))}
           disabled={branchesLoading}
           error={errors.branchId}
           options={branches.map((b) => ({

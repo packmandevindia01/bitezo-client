@@ -15,6 +15,7 @@ import {
   Monitor,
   Gift,
   CheckCircle,
+  Lock,
 } from 'lucide-react';
 import { Modal } from '../../../../components/common';
 
@@ -49,6 +50,7 @@ const SYSTEM_ITEMS = [
   { label: 'CONFIGURATION', icon: Settings },
   { label: 'REPORT', icon: BarChart, action: 'report' },
   { label: 'PRINTER', icon: Printer, action: 'printer' },
+  { label: 'LOCK PRODUCTS', icon: Lock, action: 'lock' },
 ];
 
 const DISCOUNT_ITEMS = [
@@ -79,7 +81,7 @@ interface ActionBtnProps {
   onClick: () => void;
 }
 
-const ActionBtn = ({ icon: Icon, label, color, height = 'h-24', onClick }: ActionBtnProps) => (
+const ActionBtn = ({ icon: Icon, label, color, height = 'h-20', onClick }: ActionBtnProps) => (
   <button
     onClick={onClick}
     className={`bg-white border-2 border-slate-100 ${height} rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.96] shadow-sm hover:border-[#49293e] hover:bg-[#49293e]/5 group w-full`}
@@ -193,7 +195,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
                 key={item.label}
                 icon={item.icon}
                 label={item.label}
-                height="h-24"
+                height="h-20"
                 onClick={() => handleItemClick(item)}
               />
             ))}

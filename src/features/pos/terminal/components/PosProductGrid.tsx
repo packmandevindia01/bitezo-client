@@ -13,6 +13,7 @@ interface PosProductGridProps {
   onSelectSubCategory: (id: number) => void;
   onBack: () => void;
   onAdd: (productId: number) => void;
+  onLongPress?: (productId: number) => void;
   onSelectAlt?: (variant: PosAlternative) => void;
   categoryName?: string;
   subCategoryName?: string;
@@ -26,6 +27,7 @@ const PosProductGrid = ({
   activeSubCategoryId,
   onSelectSubCategory,
   onAdd,
+  onLongPress,
   onSelectAlt,
   categoryName,
   subCategoryName,
@@ -209,27 +211,27 @@ const PosProductGrid = ({
                             <span className="text-sm font-black text-slate-300 uppercase select-none">
                               {alt.altName.substring(0, 2)}
                             </span>
+                          </div>
 
-                            {/* Price Badge Overlay */}
-                            {alt.price >= 0 && (
-                              <div className="absolute top-1 right-1 flex flex-col items-end gap-0.5 select-none">
-                                {alt.promoPrice !== undefined && alt.promoPrice > 0 ? (
-                                  <>
-                                    <div className="bg-red-600 px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-red-500/50">
-                                      {formatAmount(alt.promoPrice)}
-                                    </div>
-                                    <div className="bg-slate-500/80 px-1 py-0.2 rounded text-[7px] font-bold text-white line-through scale-90 origin-right">
-                                      {formatAmount(alt.price)}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50">
+                          {/* Price Badge Overlay - Moved outside overflow-hidden container */}
+                          {alt.price >= 0 && (
+                            <div className="absolute top-1 right-1 flex flex-col items-end gap-1 select-none z-10">
+                              {alt.promoPrice !== undefined && alt.promoPrice > 0 ? (
+                                <>
+                                  <div className="bg-red-500/90 px-1 py-0.5 rounded text-[8px] font-bold text-white shadow-sm border border-red-600 line-through">
                                     {formatAmount(alt.price)}
                                   </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                                  <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50">
+                                    {formatAmount(alt.promoPrice)}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50">
+                                  {formatAmount(alt.price)}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
                             <div className="w-full">
@@ -253,6 +255,7 @@ const PosProductGrid = ({
                           key={product.id} 
                           product={product} 
                           onAdd={onAdd} 
+                          onLongPress={onLongPress}
                           price={product.hasAlternatives ? undefined : product.price}
                           hasAlts={product.hasAlternatives}
                         />

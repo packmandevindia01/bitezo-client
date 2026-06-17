@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import {
   setCategory,
@@ -14,6 +14,7 @@ import {
   setError
 } from "../store/posSlice";
 import { menuApi } from "../../services/menuApi";
+import { lockProductService } from "../../lockItem/services/lockProductService";
 import type { PosCategory, MenuSubCategory, PosProduct } from "../../types";
 
 // Module-level caches for premium instantaneous SWR (Stale-While-Revalidate) performance
@@ -248,13 +249,31 @@ export const usePosProducts = () => {
 
   const deferredSearch = useDeferredValue(search);
   
+  const [lockedIds, setLockedIds] = useState<Set<number>>(new Set());
+
+  const fetchLockedProducts = useCallback(async () => {
+    try {
+      const locked = await lockProductService.list();
+      setLockedIds(new Set(locked.map(l => l.productId)));
+    } catch (err) {
+      // ignore silently
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLockedProducts();
+  }, [fetchLockedProducts]);
+
   const visibleProducts = useMemo(() => {
     const normalizedSearch = deferredSearch.trim().toLowerCase();
     return products.filter((product) => {
       return normalizedSearch.length === 0 || 
              product.name.toLowerCase().includes(normalizedSearch);
-    });
-  }, [products, deferredSearch]);
+    }).map(p => ({
+      ...p,
+      isLocked: lockedIds.has(p.id)
+    }));
+  }, [products, deferredSearch, lockedIds]);
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId);
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
@@ -278,5 +297,6 @@ export const usePosProducts = () => {
     setSubCategory: (id: number | null) => dispatch(setSubCategory(id)),
     setSearch: (val: string) => dispatch(setSearch(val)),
     refresh: fetchMasterData,
+    refreshLockedProducts: fetchLockedProducts,
   };
 };

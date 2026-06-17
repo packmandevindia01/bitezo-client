@@ -207,12 +207,15 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     setSearchingInvoices(true);
     try {
       const results = await purchaseReturnApi.searchPurchaseInvoices(Number(form.branch), Number(form.supplier), query || "");
-      setInvoiceOptions(
-        results.map((r: any) => ({
-          label: r.invoiceNo || r.purchaseNo || "Unknown",
+      const mapped = results.map((r: any) => {
+        const invText = r.invoiceNo || r.purchaseNo || "Unknown";
+        return {
+          label: invText,
           value: (r.purchaseId || r.id || 0).toString(),
-        }))
-      );
+        };
+      });
+
+      setInvoiceOptions(mapped);
     } catch (error) {
       console.error("Failed to search invoices", error);
     } finally {
