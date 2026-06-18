@@ -284,6 +284,15 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
             </div>
           </div>
         )}
+
+        {hasPermission("Stock Adjustment Type", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/stock-adjustment-type")} className={itemClassName}>
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal size={14} />
+              <span>Stock Adj. Type</span>
+            </div>
+          </div>
+        )}
       </SidebarDropdown>
     </SidebarDropdown>
   );

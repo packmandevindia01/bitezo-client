@@ -46,7 +46,7 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
       )}
 
       {hasPermission("Stock Adjustment", "View") && (
-        <div onClick={() => handleItemClick("/dashboard/stock-adjustment")} className={itemClassName}>
+        <div onClick={() => handleItemClick("/dashboard/stock-adjustments")} className={itemClassName}>
           <div className="flex items-center gap-2">
             <FileText size={14} />
             <span>Stock Adjustment</span>

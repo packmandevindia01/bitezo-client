@@ -3,15 +3,8 @@ import { Modal, Button } from "../../common";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../app/providers/useToast";
 
-const AUTH_KEYS = [
-  "accessToken",
-  "refreshToken",
-  "userId",
-  "userName",
-  "tenantId",
-  "isMaster",
-  "sessionExpiresAt",
-];
+import { useAppDispatch } from "../../../app/hooks";
+import { logout } from "../../../features/auth/store/authSlice";
 
 interface TopbarLogoutModalProps {
   isOpen: boolean;
@@ -23,8 +16,10 @@ const TopbarLogoutModal = ({ isOpen, onClose, username }: TopbarLogoutModalProps
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const dispatch = useAppDispatch();
+
   const handleLogout = () => {
-    AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    dispatch(logout());
     showToast("Logged out successfully", "success");
     navigate("/", { replace: true });
   };

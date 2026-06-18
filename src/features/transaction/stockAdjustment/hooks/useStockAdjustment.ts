@@ -1,0 +1,227 @@
+import { useState, useEffect, useMemo, useRef } from "react";
+import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
+import { stockAdjustmentTypeApi } from "../../../inventory/stockAdjustmentType/services/stockAdjustmentTypeApi";
+import { createEmptyStockAdjustmentForm } from "../constants";
+import type { StockAdjustmentForm, StockAdjustmentLineItem, StockAdjustmentPayload } from "../types";
+import { useCurrency } from "../../../../hooks/useCurrency";
+import { useToast } from "../../../../app/providers/useToast";
+import type { SearchableOption } from "../../../../components/common/Searchableselect";
+
+export const useStockAdjustment = () => {
+  const { formatAmount } = useCurrency();
+  const initialForm = useMemo(() => {
+    const empty = createEmptyStockAdjustmentForm();
+    empty.cost = formatAmount(0);
+    empty.amount = formatAmount(0);
+    return empty;
+  }, [formatAmount]);
+
+  const [form, setForm] = useState<StockAdjustmentForm>(initialForm);
+  const [items, setItems] = useState<StockAdjustmentLineItem[]>([]);
+  const nextItemId = useRef(1);
+  const { showToast } = useToast();
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Dropdown data
+  const [branches, setBranches] = useState<SearchableOption[]>([]);
+  const [employees, setEmployees] = useState<SearchableOption[]>([]);
+  const [products, setProducts] = useState<any[]>([]); // full product objects
+  const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
+  const [barcodeOptions, setBarcodeOptions] = useState<SearchableOption[]>([]);
+  const [types, setTypes] = useState<SearchableOption[]>([]);
+  const [rawTypes, setRawTypes] = useState<any[]>([]);
+
+  // 1. Initial Load (Branches, Products, Types)
+  useEffect(() => {
+    const loadMasterData = async () => {
+      setLoading(true);
+      try {
+        const [branchRes, prodRes, typeRes] = await Promise.all([
+          stockAdjustmentApi.getBranchList(),
+          stockAdjustmentApi.getProductListByName(""),
+          stockAdjustmentTypeApi.getAll(),
+        ]);
+        
+        setBranches(branchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })));
+        
+        setProducts(prodRes);
+        setProductOptions(prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
+        setBarcodeOptions(prodRes.filter((p: any) => p.barcode).map((p: any) => ({ label: p.barcode, value: p.barcode })));
+        
+        setRawTypes(typeRes);
+        setTypes(typeRes.map((t: any) => ({ label: t.typeName, value: String(t.typeId) })));
+      } catch (err: any) {
+        setError(err.message || "Failed to load master data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadMasterData();
+  }, []);
+
+  // 2. Load Employees & Ref Number when Branch changes
+  useEffect(() => {
+    if (!form.branch) {
+      setEmployees([]);
+      setForm(prev => ({ ...prev, salesman: "", refNo: "" }));
+      return;
+    }
+
+    const loadBranchData = async () => {
+      try {
+        const branchId = parseInt(form.branch, 10);
+        const [empRes, refRes] = await Promise.all([
+          stockAdjustmentApi.getEmployeeList(branchId),
+          stockAdjustmentApi.getRefNumber(branchId)
+        ]);
+        setEmployees(empRes.map((e: any) => ({ label: e.empName, value: String(e.empId) })));
+        setForm(prev => ({ ...prev, refNo: String(refRes.refNo), salesman: "" }));
+      } catch (err: any) {
+        console.error("Failed to load branch details:", err);
+      }
+    };
+    loadBranchData();
+  }, [form.branch]);
+
+  // 3. Load Cost when Product or Code(Barcode) changes
+  const handleProductSelect = async (productIdStr: string) => {
+    const prod = products.find(p => String(p.productId) === productIdStr);
+    if (!prod) return;
+
+    setForm(prev => ({ 
+      ...prev, 
+      product: productIdStr, 
+      code: prod.barcode || "",
+      cost: "" // Set to empty string instead of "Loading..." to avoid invalid number error
+    }));
+
+    try {
+      const costData = await stockAdjustmentApi.getPurchaseCostData(prod.barcode || prod.code);
+      setForm(prev => ({ 
+        ...prev, 
+        unit: String(costData.baseUnitId),
+        cost: formatAmount(costData.cost),
+        amount: formatAmount(costData.cost * Number(form.qty || 0))
+      }));
+    } catch (err: any) {
+      console.error("Failed to fetch product cost", err);
+      setForm(prev => ({ ...prev, cost: formatAmount(0), amount: formatAmount(0) }));
+    }
+  };
+
+  const handleBarcodeSelect = async (barcode: string) => {
+    const prod = products.find(p => p.barcode === barcode);
+    if (prod) {
+      handleProductSelect(String(prod.productId));
+    } else {
+      setForm(prev => ({ ...prev, code: barcode }));
+    }
+  };
+
+  const handleTypeSelect = (typeIdStr: string) => {
+    const t = rawTypes.find(t => String(t.typeId) === typeIdStr);
+    if (t) {
+      setForm(prev => ({ ...prev, type: typeIdStr, effect: t.effect }));
+    }
+  };
+
+  // Helper for setting form fields and auto-calculating amounts
+  const setField = (key: keyof StockAdjustmentForm, value: string) => {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "qty" || key === "cost") {
+        const q = Number(next.qty) || 0;
+        const c = Number(next.cost) || 0;
+        next.amount = formatAmount(q * c);
+      }
+      return next;
+    });
+  };
+
+  // Save functionality
+  const handleSave = async () => {
+    if (!form.branch || !form.salesman || items.length === 0) {
+      setError("Please fill all required fields and add at least one item.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const netAmount = items.reduce((acc, item) => {
+        const effect = item.effect === "-" ? -1 : 1;
+        return acc + (item.amount * effect);
+      }, 0);
+
+      const payload: StockAdjustmentPayload = {
+        transDate: form.date,
+        branchId: parseInt(form.branch, 10),
+        employeeId: parseInt(form.salesman, 10) || 0,
+        netAmount,
+        narration: form.series || "", 
+        createdAt: new Date().toISOString(),
+        details: items.map(item => ({
+          productId: item.productId || parseInt(item.product, 10) || 0,
+          unitId: item.unitId || parseInt(item.unit, 10) || 0,
+          qty: item.qty,
+          price: item.cost,
+          amount: item.amount,
+          baseQty: item.qty,
+          typeId: item.typeId || parseInt(item.type, 10) || 0,
+          effect: item.effect,
+        }))
+      };
+
+      // Show the exact payload for debugging before sending
+      console.error("EXACT PAYLOAD BEING SENT:", JSON.stringify(payload, null, 2));
+
+      await stockAdjustmentApi.createStockAdjustment(payload);
+      
+      showToast("Stock adjustment saved successfully", "success");
+
+      // Reset form on success
+      setForm(initialForm);
+      setItems([]);
+    } catch (err: any) {
+      console.error("Save error:", err.response?.data);
+      let backendError = "Failed to save stock adjustment";
+      if (err.response?.data?.errors) {
+        backendError = JSON.stringify(err.response.data.errors);
+      } else if (err.response?.data?.message) {
+        backendError = err.response.data.message;
+      } else if (typeof err.response?.data === 'string') {
+        backendError = err.response.data;
+      }
+      setError(backendError);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return {
+    form,
+    setForm,
+    items,
+    setItems,
+    nextItemId,
+    loading,
+    saving,
+    error,
+    setError,
+    branches,
+    employees,
+    productOptions,
+    barcodeOptions,
+    types,
+    setField,
+    handleProductSelect,
+    handleBarcodeSelect,
+    handleTypeSelect,
+    handleSave,
+    initialForm
+  };
+};

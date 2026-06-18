@@ -52,6 +52,8 @@ const RecipePage = lazy(() => import("../../features/general/recipe/pages/Recipe
 const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
+const StockAdjustmentListPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentListPage"));
+const StockAdjustmentTypePage = lazy(() => import("../../features/inventory/stockAdjustmentType/pages/StockAdjustmentTypePage"));
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
 const BackofficeConfigurationPage = lazy(() => import("../../features/general/configuration/pages/BackofficeConfigurationPage"));
 const ProviderListPage = lazy(() => import("../../features/general/provider/pages/ProviderListPage"));
@@ -176,7 +178,9 @@ const AppRoutes = () => {
                   <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
+                  <Route path="stock-adjustments" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentListPage /></RoleGuard>} />
                   <Route path="stock-adjustment" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentPage /></RoleGuard>} />
+                  <Route path="stock-adjustment-type" element={<RoleGuard moduleName="Stock Adjustment Type"><StockAdjustmentTypePage /></RoleGuard>} />
                   <Route path="payment-against-voucher" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherPage /></RoleGuard>} />
                   <Route path="receipt-against-voucher" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherPage /></RoleGuard>} />
                   <Route path="payment-voucher" element={<RoleGuard moduleName="Payment Voucher"><PaymentVoucherPage /></RoleGuard>} />
