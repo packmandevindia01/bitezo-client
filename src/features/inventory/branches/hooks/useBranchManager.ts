@@ -99,8 +99,13 @@ export const useBranchManager = () => {
 
   const filteredBranches = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return branches;
-    return branches.filter((item) => item.branchName.toLowerCase().includes(query));
+    const filtered = query 
+      ? branches.filter((item) => item.branchName.toLowerCase().includes(query))
+      : [...branches];
+    
+    return filtered.sort((a, b) => {
+      return (b.id || 0) - (a.id || 0);
+    });
   }, [branches, search]);
 
   return {

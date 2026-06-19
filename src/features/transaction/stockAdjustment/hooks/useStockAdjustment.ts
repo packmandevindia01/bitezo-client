@@ -7,7 +7,7 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
 
-export const useStockAdjustment = () => {
+export const useStockAdjustment = (id?: string | null) => {
   const { formatAmount } = useCurrency();
   const initialForm = useMemo(() => {
     const empty = createEmptyStockAdjustmentForm();
@@ -62,6 +62,59 @@ export const useStockAdjustment = () => {
     loadMasterData();
   }, []);
 
+  // 1b. Load existing record if ID is provided
+  useEffect(() => {
+    if (!id) return;
+
+    const loadRecord = async () => {
+      setLoading(true);
+      try {
+        const transId = parseInt(id, 10);
+        const responseData = await stockAdjustmentApi.getStockAdjustmentById(transId);
+        
+        const master = responseData.masterData || responseData;
+        const details = responseData.detailsData || responseData.details || [];
+        
+        setForm(prev => ({
+          ...prev,
+          series: master.narration || master.series || master.seriesName || "",
+          refNo: String(master.refNo || transId || ""),
+          date: master.transDate ? master.transDate.split("T")[0] : prev.date,
+          branch: String(master.branchId || ""),
+          salesman: String(master.employeeId || ""),
+          type: String(master.typeId || ""),
+        }));
+
+        if (details.length > 0) {
+          const mappedItems: StockAdjustmentLineItem[] = details.map((d: any, index: number) => ({
+            id: index + 1,
+            productId: d.productId,
+            product: d.productName || "",
+            code: d.barcode || d.productCode || "",
+            unitId: d.unitId,
+            unit: d.unitName || "",
+            qty: Number(d.qty) || 0,
+            cost: Number(d.cost || d.price || 0),
+            typeId: d.typeId || 0,
+            type: d.typeName || "",
+            effect: d.effect || "",
+            amount: Number(d.amount || (d.qty * (d.cost || d.price || 0)))
+          }));
+          setItems(mappedItems);
+          nextItemId.current = mappedItems.length + 1;
+        }
+
+      } catch (err: any) {
+        setError(err.message || "Failed to load adjustment details.");
+        showToast("Failed to load existing record", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRecord();
+  }, [id, formatAmount]);
+
   // 2. Load Employees & Ref Number when Branch changes
   useEffect(() => {
     if (!form.branch) {
@@ -78,7 +131,10 @@ export const useStockAdjustment = () => {
           stockAdjustmentApi.getRefNumber(branchId)
         ]);
         setEmployees(empRes.map((e: any) => ({ label: e.empName, value: String(e.empId) })));
-        setForm(prev => ({ ...prev, refNo: String(refRes.refNo), salesman: "" }));
+        
+        if (!id) {
+          setForm(prev => ({ ...prev, refNo: String(refRes.refNo), salesman: "" }));
+        }
       } catch (err: any) {
         console.error("Failed to load branch details:", err);
       }

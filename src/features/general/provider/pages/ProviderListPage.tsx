@@ -31,7 +31,8 @@ const ProviderListPage = () => {
     try {
       setLoading(true);
       const records = await fetchProviders();
-      setProviders(records);
+      const sortedRecords = records.sort((a, b) => b.providerId - a.providerId);
+      setProviders(sortedRecords);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to load providers", "error");
     } finally {

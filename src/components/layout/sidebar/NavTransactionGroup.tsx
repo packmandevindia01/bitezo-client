@@ -54,6 +54,15 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
         </div>
       )}
 
+      {hasPermission("Internal Stock Transfer", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/internal-stock-transfers")} className={itemClassName}>
+          <div className="flex items-center gap-2">
+            <Repeat2 size={14} />
+            <span>Internal Stock Transfer</span>
+          </div>
+        </div>
+      )}
+
       {hasPermission("Payment Against Voucher", "View") && (
         <div onClick={() => handleItemClick("/dashboard/payment-against-voucher")} className={itemClassName}>
           <div className="flex items-center gap-2">

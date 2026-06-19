@@ -5,8 +5,11 @@ import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import type { StockAdjustmentLineItem } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useStockAdjustment } from "../hooks/useStockAdjustment";
+import { useSearchParams } from "react-router-dom";
 
 const StockAdjustmentPage = () => {
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get("id");
   const { formatAmount } = useCurrency();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -31,7 +34,7 @@ const StockAdjustmentPage = () => {
     handleTypeSelect,
     handleSave,
     initialForm
-  } = useStockAdjustment();
+  } = useStockAdjustment(id);
 
   const hk = (e: React.KeyboardEvent, nextId?: string) => {
     if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
@@ -47,11 +50,14 @@ const StockAdjustmentPage = () => {
   const currentLine = useMemo<StockAdjustmentLineItem>(
     () => ({
       id: 0,
+      productId: parseInt(form.product, 10) || 0,
       product: form.product.trim(),
       code: form.code.trim(),
+      unitId: parseInt(form.unit, 10) || 0,
       unit: form.unit.trim(),
       qty: toNumber(form.qty),
       cost: toNumber(form.cost),
+      typeId: parseInt(form.type, 10) || 0,
       type: form.type,
       effect: form.effect,
       amount: toNumber(form.qty) * toNumber(form.cost),

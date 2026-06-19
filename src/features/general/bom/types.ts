@@ -1,20 +1,53 @@
 export interface BomLineItem {
   id: number;
-  product: string;
+  productId: number;
+  productName: string;
   code: string;
-  unit: string;
+  unitId: number;
+  unitName: string;
   qty: number;
 }
 
 export interface BomForm {
-  finishedProduct: string;
-  finishedProductCode: string;
-  finishedProductUnit: string;
+  bomName: string; // Not sent to API yet
+  branchId: string;
+  transDate: string;
+  refNo: string;
+  
+  finishedProduct: string; // productId
+  finishedProductCode: string; // barcode/code
+  finishedProductUnit: string; // unitId
+  finishedProductUnitName: string; // display text
   finishedProductQty: string;
   
   // Current adding line item state
-  product: string;
+  product: string; // productId
   code: string;
-  unit: string;
+  unit: string; // unitId
+  unitName: string; // display text
   qty: string;
+}
+
+export interface BomPayload {
+  bomName: string;
+  transDate: string;
+  productId: number;
+  unitId: number;
+  qty: number;
+  branchId: number;
+  createdAt?: string;
+  updatedAt?: string;
+  details: {
+    productId: number;
+    unitId: number;
+    qty: number;
+    baseQty: number;
+  }[];
+}
+
+export interface BomDetailParams {
+  BranchId?: number;
+  ProductId?: number;
+  UnitId?: number;
+  Decimals?: number;
 }

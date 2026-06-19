@@ -59,7 +59,40 @@ const getPageTitle = (pathname: string): string => {
     "/cashier/out": "Cashier Out — Close Shift",
     "/system/register": "System Registration",
   };
-  return map[pathname] ?? "Dashboard";
+  
+  if (map[pathname]) {
+    return map[pathname];
+  }
+
+  // Auto-generate from path if not in map
+  let path = pathname;
+  if (path.startsWith("/dashboard/")) {
+    path = path.replace("/dashboard/", "");
+  } else if (path.startsWith("/")) {
+    path = path.substring(1);
+  }
+
+  const parts = path.split("/");
+  if (!parts[0]) return "Dashboard";
+
+  // Format main module name (e.g., "stock-adjustment" -> "Stock Adjustment")
+  const moduleName = parts[0]
+    .split("-")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  // Handle Create/Edit sub-routes
+  if (parts.length >= 2) {
+    const action = parts[1].toLowerCase();
+    if (action === "new" || action === "add") {
+      return `${moduleName} > Create`;
+    }
+    if (action === "edit") {
+      return `${moduleName} > Edit`;
+    }
+  }
+
+  return moduleName;
 };
 
 const TopbarBreadcrumbs = () => {

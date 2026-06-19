@@ -49,10 +49,13 @@ const PurchaseInvoiceFormPage = lazy(() => import("../../features/transaction/pu
 const PurchaseReturnListPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnListPage"));
 const PurchaseReturnFormPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnFormPage"));
 const RecipePage = lazy(() => import("../../features/general/recipe/pages/RecipePage"));
+const BomListPage = lazy(() => import("../../features/general/bom/pages/BomListPage"));
 const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
 const StockAdjustmentListPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentListPage"));
+const InternalStockTransferPage = lazy(() => import("../../features/transaction/internalStockTransfer/pages/InternalStockTransferPage"));
+const InternalStockTransferListPage = lazy(() => import("../../features/transaction/internalStockTransfer/pages/InternalStockTransferListPage"));
 const StockAdjustmentTypePage = lazy(() => import("../../features/inventory/stockAdjustmentType/pages/StockAdjustmentTypePage"));
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
 const BackofficeConfigurationPage = lazy(() => import("../../features/general/configuration/pages/BackofficeConfigurationPage"));
@@ -176,10 +179,14 @@ const AppRoutes = () => {
                   <Route path="purchase-return/edit/:id" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
 
                   <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
+                  <Route path="boms" element={<RoleGuard moduleName="BOM Master"><BomListPage /></RoleGuard>} />
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
                   <Route path="stock-adjustments" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentListPage /></RoleGuard>} />
                   <Route path="stock-adjustment" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentPage /></RoleGuard>} />
+                  <Route path="internal-stock-transfers" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferListPage /></RoleGuard>} />
+                  <Route path="internal-stock-transfer" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferPage /></RoleGuard>} />
+                  <Route path="internal-stock-transfer/edit/:id" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferPage /></RoleGuard>} />
                   <Route path="stock-adjustment-type" element={<RoleGuard moduleName="Stock Adjustment Type"><StockAdjustmentTypePage /></RoleGuard>} />
                   <Route path="payment-against-voucher" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherPage /></RoleGuard>} />
                   <Route path="receipt-against-voucher" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherPage /></RoleGuard>} />

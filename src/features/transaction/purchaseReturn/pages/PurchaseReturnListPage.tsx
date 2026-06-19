@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput } from "../../../../components/common";
-import { Plus, Edit, XCircle } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -130,19 +130,22 @@ const PurchaseReturnListPage = () => {
       render: (row: PurchaseReturnRow) => (
         <div className="flex gap-2">
           {!row.isCancelled && hasPermission("Purchase Return", "Edit") && (
-            <Button
-              icon={<Edit size={16} />}
+            <button
               onClick={() => navigate(`/dashboard/purchase-return/edit/${row.purchaseReturnId || row.id}`)}
+              className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
               title="Edit"
-            />
+            >
+              <Pencil size={16} />
+            </button>
           )}
           {!row.isCancelled && hasPermission("Purchase Return", "Delete") && (
-            <Button
-              icon={<XCircle size={16} />}
-              className="text-red-500 hover:bg-red-50"
+            <button
               onClick={() => setCancelModal({ open: true, id: row.purchaseReturnId || row.id || 0 })}
+              className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
               title="Cancel"
-            />
+            >
+              <Trash2 size={16} />
+            </button>
           )}
         </div>
       ),

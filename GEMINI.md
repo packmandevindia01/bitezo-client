@@ -249,6 +249,7 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 - Decimal inputs (price, rate, cost, amount) must restrict to `getDecimalPart()` decimal places — never hardcode 2 or 3
 - Quantity inputs must restrict to whole numbers unless the item explicitly supports decimal qty
 - Never allow negative values in price, cost, quantity, or amount fields
+- Read-only or disabled input fields must use the `cursor-not-allowed` Tailwind CSS class so that a red circle with a line through it appears when hovered, visually indicating that the field is locked.
 
 ### 6. Master Data Pages (Backoffice) — List + Form Pattern
 - Every master data page (Category, Product, Customer, Supplier, etc.) follows this pattern:
@@ -553,6 +554,11 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
   </div>
 </div>
 ```
+
+### 23. Last-In-First-Out (LIFO) List Sorting — REQUIRED
+- All backoffice list pages (master data, transactions, reports, etc.) must consistently display the most recently created or updated items at the top of the list.
+- Do not rely on the default order returned by the backend API. Always enforce client-side descending sort before setting state.
+- Sort primarily by Date (e.g. `createdAt`, `transDate`) descending, and secondarily by ID (e.g. `id`, `transId`) descending to ensure the newest records appear first.
 
 ---
 

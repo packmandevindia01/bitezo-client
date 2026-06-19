@@ -76,7 +76,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
             
             ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
             ${props.disabled ? "bg-gray-100 cursor-not-allowed" : ""}
-            ${props.readOnly ? "bg-gray-100" : ""}
+            ${props.readOnly ? "bg-gray-100 cursor-not-allowed" : ""}
 
             focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
             ${className}

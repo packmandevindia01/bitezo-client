@@ -1,6 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
-import type { StockAdjustmentPayload, StockAdjustmentDetailParams } from "../types";
+import type { BomPayload, BomDetailParams } from "../types";
 
 function unwrap<T>(data: ApiResponse<T>): T {
   if (!data.isSuccess) {
@@ -9,16 +9,11 @@ function unwrap<T>(data: ApiResponse<T>): T {
   return data.data;
 }
 
-const BASE_URL = "/stock-adjustment";
+const BASE_URL = "/bom";
 
-export const stockAdjustmentApi = {
+export const bomApi = {
   getBranchList: async () => {
     const response = await axiosInstance.get<ApiResponse<{ branchId: number; branchName: string }[]>>(`${BASE_URL}/list-branch-name`);
-    return unwrap(response.data);
-  },
-
-  getEmployeeList: async (branchId: number) => {
-    const response = await axiosInstance.get<ApiResponse<{ empId: number; empName: string }[]>>(`${BASE_URL}/list-employee-name`, { params: { branchId } });
     return unwrap(response.data);
   },
 
@@ -32,42 +27,37 @@ export const stockAdjustmentApi = {
     return unwrap(response.data);
   },
 
-  getPurchaseCostData: async (barcode: string) => {
-    const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number }>>(`${BASE_URL}/product-cost-data/${barcode}`);
+  getProductUnitData: async (branchId: number, barcode: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ unitId: number; unitCategory: string }>>(`${BASE_URL}/branches/${branchId}/barcode/${barcode}/product-unit-data`);
     return unwrap(response.data);
   },
 
-  getUnitCost: async (productId: number, unitId: number) => {
-    const response = await axiosInstance.get<ApiResponse<{ cost: number }>>(`${BASE_URL}/${productId}/unit-cost/${unitId}`);
+  getUnitListByName: async (unitId: number, category: string) => {
+    const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/unit-list-name`, { params: { unitId, category } });
     return unwrap(response.data);
   },
 
-  getRefNumber: async (branchId: number) => {
-    const response = await axiosInstance.get<ApiResponse<{ refNo: number }>>(`${BASE_URL}/ref-number/${branchId}`);
-    return unwrap(response.data);
-  },
-
-  createStockAdjustment: async (payload: StockAdjustmentPayload) => {
+  createBom: async (payload: BomPayload) => {
     const response = await axiosInstance.post<ApiResponse<void>>(BASE_URL, payload);
     return unwrap(response.data);
   },
 
-  getStockAdjustmentDetails: async (params: StockAdjustmentDetailParams) => {
+  getBomDetails: async (params: BomDetailParams) => {
     const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/details`, { params });
     return unwrap(response.data);
   },
 
-  getStockAdjustmentById: async (transId: number) => {
+  getBomById: async (transId: number) => {
     const response = await axiosInstance.get<ApiResponse<any>>(`${BASE_URL}/data/${transId}`);
     return unwrap(response.data);
   },
 
-  updateStockAdjustment: async (transId: number, payload: StockAdjustmentPayload) => {
+  updateBom: async (transId: number, payload: BomPayload) => {
     const response = await axiosInstance.put<ApiResponse<void>>(`${BASE_URL}/${transId}`, payload);
     return unwrap(response.data);
   },
 
-  cancelStockAdjustment: async (transId: number) => {
+  cancelBom: async (transId: number) => {
     const response = await axiosInstance.put<ApiResponse<void>>(`${BASE_URL}/cancel/${transId}`);
     return unwrap(response.data);
   }

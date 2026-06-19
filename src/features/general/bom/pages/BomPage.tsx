@@ -1,31 +1,39 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Save, Trash2, Plus } from "lucide-react";
-import { Button, FormInput, PageShell } from "../../../../components/common";
+import { useState } from "react";
+import { Save, Trash2, Plus, AlertCircle, X } from "lucide-react";
+import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
-import { createEmptyBomForm } from "../constants";
-import type { BomLineItem, BomForm } from "../types";
+import { useBom } from "../hooks/useBom";
 import { usePermissions } from "../../../../hooks/usePermissions";
-
-const toNumber = (value: string) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+import { useSearchParams } from "react-router-dom";
 
 const BomPage = () => {
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get("id");
   const { hasPermission } = usePermissions();
-  const initialForm = useMemo(() => createEmptyBomForm(), []);
+  const {
+    form,
+    setForm,
+    items,
+    setItems,
+    loading,
+    saving,
+    error,
+    setError,
+    branches,
+    productOptions,
+    addItem,
+    removeItem,
+    handleSave,
+  } = useBom(id);
 
-  const [form, setForm] = useState<BomForm>(initialForm);
-  const [items, setItems] = useState<BomLineItem[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const nextItemId = useRef(1);
 
   const canAdd = hasPermission("BOM Master", "Add");
   const canEdit = hasPermission("BOM Master", "Edit");
   const canDelete = hasPermission("BOM Master", "Delete");
   const canSave = canAdd || canEdit;
 
-  const setField = (key: keyof BomForm, value: string) => {
+  const setField = (key: keyof typeof form, value: string) => {
     if (!canSave) return;
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -34,66 +42,78 @@ const BomPage = () => {
     if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
   };
 
-  useEffect(() => { setTimeout(() => { document.getElementById("bom-finProduct")?.focus(); }, 200); }, []);
-
-  const currentLine = useMemo<BomLineItem>(
-    () => ({
-      id: 0,
-      product: form.product.trim(),
-      code: form.code.trim(),
-      unit: form.unit.trim(),
-      qty: toNumber(form.qty),
-    }),
-    [form]
-  );
-
-  const addItem = () => {
-    if (!canAdd || !currentLine.product) return;
-
-    const itemId = nextItemId.current;
-    nextItemId.current += 1;
-    setItems((prev) => [...prev, { ...currentLine, id: itemId }]);
-    setForm((prev) => ({
-      ...prev,
-      product: "",
-      code: "",
-      unit: "",
-      qty: "0",
-    }));
-    setTimeout(() => document.getElementById("bom-product")?.focus(), 0);
-  };
-
-  const resetForm = () => {
-    setForm(initialForm);
-    setItems([]);
-    setShowClearConfirm(false);
-  };
-
   const handleClearClick = () => {
-    const isDirty = items.length > 0 || JSON.stringify(form) !== JSON.stringify(initialForm);
+    const isDirty = items.length > 0;
     if (isDirty) {
       setShowClearConfirm(true);
     } else {
-      resetForm();
+      setItems([]);
     }
   };
 
   return (
     <PageShell title="BOM">
       <div className="mx-auto max-w-5xl rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-        <div className="grid gap-x-4 gap-y-1 md:grid-cols-4">
-          <FormInput id="bom-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "bom-finCode")} required readOnly={!canSave} />
-          <FormInput id="bom-finCode" label="Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "bom-finUnit")} required readOnly={!canSave} />
-          <FormInput id="bom-finUnit" label="Unit" value={form.finishedProductUnit} onChange={(e) => setField("finishedProductUnit", e.target.value)} onKeyDown={(e) => hk(e, "bom-finQty")} required readOnly={!canSave} />
-          <FormInput id="bom-finQty" label="Qty" value={form.finishedProductQty} onChange={(e) => setField("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "bom-product")} required readOnly={!canSave} />
+        
+        {error && (
+          <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button type="button" onClick={() => setError(null)} className="shrink-0 rounded p-0.5 hover:bg-red-100">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        <div className="grid gap-x-4 gap-y-4 mb-4 md:grid-cols-3">
+          <FormInput 
+            label="BOM Name *" 
+            value={form.bomName}
+            onChange={(e) => setField("bomName", e.target.value)}
+            disabled={!canSave}
+            autoFocus
+          />
+          <SelectInput 
+            label="Branch *" 
+            options={branches}
+            value={form.branchId}
+            onChange={(e) => setField("branchId", e.target.value)}
+            disabled={!canSave}
+          />
+          <FormInput 
+            label="Date *" 
+            type="date"
+            value={form.transDate}
+            onChange={(e) => setField("transDate", e.target.value)}
+            disabled={!canSave}
+          />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-4">
+          <SearchableSelect 
+            label="Finished Product *" 
+            options={productOptions}
+            value={form.finishedProduct}
+            onChange={(val) => setField("finishedProduct", val)}
+            disabled={!canSave}
+          />
+          <FormInput id="bom-finCode" label="Code *" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "bom-finUnit")} required readOnly={!canSave} />
+          <FormInput id="bom-finUnit" label="Unit *" value={form.finishedProductUnitName} onChange={(e) => setField("finishedProductUnitName", e.target.value)} readOnly />
+          <FormInput id="bom-finQty" label="Qty *" value={form.finishedProductQty} onChange={(e) => setField("finishedProductQty", e.target.value)} inputClassName="text-right" onKeyDown={(e) => hk(e, "bom-product")} required readOnly={!canSave} />
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-            <FormInput id="bom-product" label="Raw Materials" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "bom-code")} readOnly={!canAdd} />
-            <FormInput id="bom-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "bom-unit")} readOnly={!canAdd} />
-            <FormInput id="bom-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "bom-qty")} readOnly={!canAdd} />
-            <FormInput id="bom-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "bom-add-btn")} readOnly={!canAdd} />
+            <SearchableSelect 
+              label="Raw Materials" 
+              options={productOptions}
+              value={form.product}
+              onChange={(val) => setField("product", val)}
+              disabled={!canAdd}
+            />
+            <FormInput id="bom-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "bom-unit")} readOnly />
+            <FormInput id="bom-unit" label="Unit" value={form.unitName} onChange={(e) => setField("unitName", e.target.value)} readOnly />
+            <FormInput id="bom-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} inputClassName="text-right" onKeyDown={(e) => hk(e, "bom-add-btn")} readOnly={!canAdd} />
             <div className="flex items-end pb-1">
               <Button
                 id="bom-add-btn"
@@ -101,12 +121,6 @@ const BomPage = () => {
                 className="h-10.5 w-full px-8"
                 disabled={!canAdd}
                 icon={<Plus size={18} />}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addItem();
-                  }
-                }}
               >
                 Add
               </Button>
@@ -114,74 +128,57 @@ const BomPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="max-h-[250px] overflow-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  {["Product", "Code", "Unit", "Qty"].map(
-                    (column) => (
-                      <th
-                        key={column}
-                        className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
-                      >
-                        {column}
-                      </th>
-                    ),
-                  )}
+        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-100/80 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Code</th>
+                <th className="px-4 py-3">Unit</th>
+                <th className="px-4 py-3 text-right">Qty</th>
+                <th className="w-16 px-4 py-3 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-gray-500">
+                    No materials added yet
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="h-28 px-4 text-center text-sm text-gray-400">
-                      No materials added
+              ) : (
+                items.map((item) => (
+                  <tr key={item.id} className="transition-colors hover:bg-gray-50/50">
+                    <td className="px-4 py-2.5 font-medium text-gray-900">{item.productName}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{item.code}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{item.unitName}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-gray-900">{item.qty}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        disabled={!canAdd}
+                        className="inline-flex rounded-lg p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  items.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#49293e]/5">
-                      <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900">
-                        {item.product}
-                      </td>
-                      <td className="px-4 py-3">{item.code || "-"}</td>
-                      <td className="px-4 py-3">{item.unit || "-"}</td>
-                      <td className="px-4 py-3">{item.qty}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
-          {canAdd && (
-            <Button 
-              variant="secondary" 
-              onClick={handleClearClick} 
-              tabIndex={-1}
-              isAction
-              icon={<Plus size={18} />}
-            >
-              New
-            </Button>
-          )}
+        <div className="mt-8 flex flex-col-reverse justify-end gap-3 md:flex-row">
+          <Button variant="danger" className="w-full md:w-auto" onClick={() => {}} disabled={!canDelete || items.length === 0} icon={<Trash2 size={18} />}>
+            Delete
+          </Button>
+          <Button variant="secondary" className="w-full md:w-auto" onClick={handleClearClick}>
+            Clear
+          </Button>
           {canSave && (
-            <Button
-              isAction
-              icon={<Save size={18} />}
-            >
+            <Button isAction icon={<Save size={18} />} onClick={handleSave} disabled={loading || saving} loading={saving}>
               Save
-            </Button>
-          )}
-          {canDelete && (
-            <Button 
-              variant="danger" 
-              isAction
-              icon={<Trash2 size={18} />}
-            >
-              Delete
             </Button>
           )}
         </div>
@@ -191,8 +188,13 @@ const BomPage = () => {
         isOpen={showClearConfirm}
         title="Clear Form"
         message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear"
-        onConfirm={resetForm}
+        confirmLabel="Clear Data"
+        confirmVariant="danger"
+        onConfirm={() => {
+          setItems([]);
+          setForm(prev => ({ ...prev, product: "", code: "", unit: "", qty: "" }));
+          setShowClearConfirm(false);
+        }}
         onCancel={() => setShowClearConfirm(false)}
       />
     </PageShell>

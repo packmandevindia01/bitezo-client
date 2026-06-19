@@ -34,7 +34,13 @@ export const useStockAdjustmentList = () => {
         RefNo: filters.refNo || undefined,
         Decimals: 3
       });
-      setRecords(data || []);
+      const sortedData = (data || []).sort((a: any, b: any) => {
+        const dateA = new Date(a.transDate).getTime();
+        const dateB = new Date(b.transDate).getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        return (b.transId || 0) - (a.transId || 0);
+      });
+      setRecords(sortedData);
     } catch (err: any) {
       setError(err.message || "Failed to fetch stock adjustments");
     } finally {

@@ -138,9 +138,9 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
         )}
 
         {hasPermission("BOM Master", "View") && (
-          <div onClick={() => handleItemClick("/dashboard/bom")} className={itemClassName}>
+          <div onClick={() => handleItemClick("/dashboard/boms")} className={itemClassName}>
             <div className="flex items-center gap-2">
-              <PackageSearch size={14} />
+              <Boxes size={14} />
               <span>BOM</span>
             </div>
           </div>
