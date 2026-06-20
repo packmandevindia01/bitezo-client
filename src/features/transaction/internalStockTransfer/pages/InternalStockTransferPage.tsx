@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Trash2, Plus, AlertCircle, X } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect } from "../../../../components/common";
+import { Trash2, Plus, AlertCircle, X, Printer } from "lucide-react";
+import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
+import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
 import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
 import { formatAmount } from "../../../../utils/formatters";
 import { useParams } from "react-router-dom";
@@ -21,6 +22,7 @@ const InternalStockTransferPage = () => {
     toBranches,
     salesmen,
     productOptions,
+    unitOptions,
     addItem,
     removeItem,
     handleSave,
@@ -28,6 +30,7 @@ const InternalStockTransferPage = () => {
   } = useInternalStockTransfer(id);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // TODO: Add actual permission checks based on user roles
   const canAdd = true; // hasPermission("Internal Stock Transfer", "Add");
@@ -125,7 +128,19 @@ const InternalStockTransferPage = () => {
               disabled={!canAdd}
             />
             <FormInput id="ist-code" label="CODE" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "ist-unit")} readOnly />
-            <FormInput id="ist-unit" label="UNIT" value={form.unitName} onChange={(e) => setField("unitName", e.target.value)} readOnly />
+            <SelectInput 
+              id="ist-unit" 
+              label="UNIT" 
+              options={unitOptions} 
+              value={form.unit} 
+              onChange={(e) => {
+                const val = e.target.value;
+                setField("unit", val);
+                const selected = unitOptions.find(o => o.value === val);
+                if (selected) setField("unitName", selected.label);
+              }} 
+              disabled={!canAdd || unitOptions.length <= 1} 
+            />
             <FormInput id="ist-qty" label="QTY" type="number" value={form.qty} onChange={(e) => setField("qty", e.target.value)} inputClassName="text-right" onKeyDown={(e) => hk(e, "ist-add-btn")} readOnly={!canAdd} />
             <FormInput id="ist-cost" label="COST" value={formatAmount(form.cost)} onChange={() => {}} inputClassName="text-right" readOnly />
             <FormInput id="ist-amt" label="AMT" value={formatAmount(form.amount)} onChange={() => {}} inputClassName="text-right" readOnly />
@@ -215,6 +230,14 @@ const InternalStockTransferPage = () => {
           <Button variant="secondary" className="w-full md:w-32" onClick={handleClearClick} tabIndex={-1}>
             NEW
           </Button>
+          <Button 
+            variant="secondary" 
+            className="w-full md:w-auto" 
+            onClick={() => setIsPrintModalOpen(true)} 
+            icon={<Printer size={18} />}
+          >
+            EXPORT / PRINT
+          </Button>
         </div>
       </div>
 
@@ -229,6 +252,15 @@ const InternalStockTransferPage = () => {
           setShowClearConfirm(false);
         }}
         onCancel={() => setShowClearConfirm(false)}
+      />
+
+      <InternalStockTransferPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        form={form}
+        items={items}
+        branches={branches}
+        toBranches={toBranches}
       />
     </PageShell>
   );

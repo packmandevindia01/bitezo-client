@@ -23,7 +23,7 @@ export const useBomList = () => {
   useEffect(() => {
     Promise.all([
       bomApi.getBranchList(),
-      bomApi.getProductListByName("")
+      bomApi.getFinishedProductListByName("")
     ])
       .then(([branchRes, prodRes]) => {
         setBranches(branchRes.map(b => ({ label: b.branchName, value: String(b.branchId) })));
@@ -36,7 +36,7 @@ export const useBomList = () => {
     if (filters.branchId && filters.productId) {
       const pId = parseInt(filters.productId, 10);
       const bId = parseInt(filters.branchId, 10);
-      bomApi.getProductListByName("").then(prods => {
+      bomApi.getFinishedProductListByName("").then(prods => {
         const prod = prods.find(p => p.productId === pId);
         if (prod && (prod.barcode || prod.code)) {
           bomApi.getProductUnitData(bId, prod.barcode || prod.code).then(u => {

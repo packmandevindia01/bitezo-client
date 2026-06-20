@@ -21,14 +21,14 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 
 export const paymodeService = {
   list(): Promise<PaymodeRecord[]> {
-    const tenantId = localStorage.getItem("tenantId") || "app_db";
+    const tenantId = localStorage.getItem("tenantId") || "";
     return unwrap(
       axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/paymode-list?clientDb=${tenantId}`)
     );
   },
 
   async listByCounter(counterId: number): Promise<PaymodeRecord[]> {
-    const tenantId = localStorage.getItem("tenantId") || "app_db";
+    const tenantId = localStorage.getItem("tenantId") || "";
     try {
       return await unwrap(
         axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/list-name/${counterId}?clientDb=${tenantId}`)

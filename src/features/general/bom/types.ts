@@ -9,10 +9,8 @@ export interface BomLineItem {
 }
 
 export interface BomForm {
-  bomName: string; // Not sent to API yet
+  bomName: string;
   branchId: string;
-  transDate: string;
-  refNo: string;
   
   finishedProduct: string; // productId
   finishedProductCode: string; // barcode/code
@@ -29,8 +27,8 @@ export interface BomForm {
 }
 
 export interface BomPayload {
+  transId?: number;
   bomName: string;
-  transDate: string;
   productId: number;
   unitId: number;
   qty: number;

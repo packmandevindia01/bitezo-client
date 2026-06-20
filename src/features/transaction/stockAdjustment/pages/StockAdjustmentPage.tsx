@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, X, Save, RotateCcw, Ban, Trash2, Plus } from "lucide-react";
+import { AlertCircle, X, Save, RotateCcw, Ban, Trash2, Plus, Printer } from "lucide-react";
 import { Button, FormInput, PageShell, SelectInput, SearchableSelect } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
+import StockAdjustmentPrintModal from "../components/StockAdjustmentPrintModal";
 import type { StockAdjustmentLineItem } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useStockAdjustment } from "../hooks/useStockAdjustment";
@@ -12,6 +13,7 @@ const StockAdjustmentPage = () => {
   const id = searchParams.get("id");
   const { formatAmount } = useCurrency();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   const {
     form,
@@ -303,6 +305,14 @@ const StockAdjustmentPage = () => {
             New
           </Button>
           <Button
+            variant="secondary"
+            onClick={() => setIsPrintModalOpen(true)}
+            isAction
+            icon={<Printer size={18} />}
+          >
+            Export / Print
+          </Button>
+          <Button
             onClick={handleSave}
             loading={saving}
             disabled={saving}
@@ -337,6 +347,14 @@ const StockAdjustmentPage = () => {
         confirmLabel="Clear"
         onConfirm={resetForm}
         onCancel={() => setShowClearConfirm(false)}
+      />
+
+      <StockAdjustmentPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        form={form}
+        items={items}
+        branches={branches}
       />
     </PageShell>
   );

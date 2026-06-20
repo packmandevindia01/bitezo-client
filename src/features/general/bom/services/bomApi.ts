@@ -17,13 +17,23 @@ export const bomApi = {
     return unwrap(response.data);
   },
 
-  getProductListByName: async (productName: string) => {
-    const response = await axiosInstance.get<ApiResponse<{ productId: number; productName: string; code: string; barcode: string }[]>>(`${BASE_URL}/product-list-name`, { params: { productName } });
+  getFinishedProductListByName: async (productName: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productName: string; code: string; barcode: string }[]>>(`${BASE_URL}/finished-product-list-name`, { params: { productName } });
     return unwrap(response.data);
   },
 
-  getProductListByBarcode: async (barcode: string) => {
-    const response = await axiosInstance.get<ApiResponse<{ productId: number; barcode: string }[]>>(`${BASE_URL}/product-list-barcode`, { params: { Barcode: barcode } });
+  getFinishedProductListByBarcode: async (barcode: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; barcode: string }[]>>(`${BASE_URL}/finished-product-list-barcode`, { params: { Barcode: barcode } });
+    return unwrap(response.data);
+  },
+
+  getRawMaterialProductListByName: async (productName: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productName: string; code: string; barcode: string }[]>>(`${BASE_URL}/raw-material-product-list-name`, { params: { productName } });
+    return unwrap(response.data);
+  },
+
+  getRawMaterialProductListByBarcode: async (barcode: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; barcode: string }[]>>(`${BASE_URL}/raw-material-product-list-barcode`, { params: { Barcode: barcode } });
     return unwrap(response.data);
   },
 
@@ -32,8 +42,8 @@ export const bomApi = {
     return unwrap(response.data);
   },
 
-  getUnitListByName: async (unitId: number, category: string) => {
-    const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/unit-list-name`, { params: { unitId, category } });
+  getUnitListByName: async (unitCategory: string) => {
+    const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/unit-list-name`, { params: { unitCategory } });
     return unwrap(response.data);
   },
 

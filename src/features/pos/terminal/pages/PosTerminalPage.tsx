@@ -1166,7 +1166,7 @@ export const PosTerminalPage = () => {
         </div>
       )}
 
-      <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)_340px] lg:grid-cols-[180px_minmax(0,1fr)_370px] xl:grid-cols-[200px_minmax(0,1fr)_460px]">
+      <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)_370px] xl:grid-cols-[200px_minmax(0,1fr)_460px]">
         {/* Left Column: Categories */}
         <PosCategoryRail
           categories={categories}
@@ -1185,8 +1185,8 @@ export const PosTerminalPage = () => {
         />
 
         {/* Middle Column: Grid */}
-        <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb]">
-          <div className="flex-1 flex flex-col p-2 lg:p-2.5 xl:p-4 overflow-hidden pb-2.5 xl:pb-4">
+        <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb] relative">
+          <div className="flex-1 flex flex-col p-2 lg:p-2.5 xl:p-4 overflow-hidden pb-2.5 xl:pb-4 relative">
             <ErrorBoundary name="Product Grid">
               <PosProductGrid
                 products={visibleProducts}
@@ -1206,33 +1206,52 @@ export const PosTerminalPage = () => {
                 selectedProduct={selectedProduct}
               />
             </ErrorBoundary>
+
+            {/* Mobile Floating Cart Button */}
+            {!isCartOpen && (
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="lg:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                  <path d="M3 6h18" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#fcf9fb]">
+                    {itemCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Action Button Bar */}
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-1 p-1 bg-white border-t border-slate-100 shrink-0">
-            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm" tabIndex={-1}>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-9 gap-1.5 p-1.5 sm:p-2 bg-white border-t border-slate-100 shrink-0">
+            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm" tabIndex={-1}>
               Close
             </button>
             <button
               onClick={handleClearCart}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm"
               tabIndex={-1}
             >
               Clear
             </button>
-            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
+            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm">
               Waiter
             </button>
             <button
               onClick={() => setIsCombineOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!editingOrderId}
             >
               Combine
             </button>
             <button
               onClick={() => setIsSplitOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!editingOrderId}
             >
               Split
@@ -1259,6 +1278,14 @@ export const PosTerminalPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Mobile/Tablet Backdrop Overlay */}
+        {isCartOpen && (
+          <div 
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden transition-opacity" 
+            onClick={() => setIsCartOpen(false)}
+          />
+        )}
 
         {/* Right Column: Order Panel */}
         <div className={`
@@ -1317,25 +1344,6 @@ export const PosTerminalPage = () => {
           </ErrorBoundary>
         </div>
       </main>
-
-      {/* Mobile Floating Cart Button */}
-      {!isCartOpen && (
-        <button
-          onClick={() => setIsCartOpen(true)}
-          className="lg:hidden absolute bottom-6 right-6 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-            <path d="M3 6h18" />
-            <path d="M16 10a4 4 0 0 1-8 0" />
-          </svg>
-          {itemCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#fcf9fb]">
-              {itemCount}
-            </span>
-          )}
-        </button>
-      )}
 
       {/* Discount Choice Modal - Clean & Modern */}
       <Modal

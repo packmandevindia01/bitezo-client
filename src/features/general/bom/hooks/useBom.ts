@@ -7,8 +7,6 @@ import type { SearchableOption } from "../../../../components/common/Searchables
 export const initialBomForm: BomForm = {
   bomName: "",
   branchId: "",
-  transDate: new Date().toISOString().split("T")[0],
-  refNo: "",
   finishedProduct: "",
   finishedProductCode: "",
   finishedProductUnit: "",
@@ -32,8 +30,10 @@ export const useBom = (id?: string | null) => {
 
   // Master Data
   const [branches, setBranches] = useState<SearchableOption[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
+  const [finProducts, setFinProducts] = useState<any[]>([]);
+  const [finProductOptions, setFinProductOptions] = useState<SearchableOption[]>([]);
+  const [rawProducts, setRawProducts] = useState<any[]>([]);
+  const [rawProductOptions, setRawProductOptions] = useState<SearchableOption[]>([]);
   
   // Specific Data Lookups
   const [finUnitOptions, setFinUnitOptions] = useState<SearchableOption[]>([]);
@@ -46,13 +46,16 @@ export const useBom = (id?: string | null) => {
     const loadMasterData = async () => {
       setLoading(true);
       try {
-        const [branchRes, prodRes] = await Promise.all([
+        const [branchRes, finProdRes, rawProdRes] = await Promise.all([
           bomApi.getBranchList(),
-          bomApi.getProductListByName(""),
+          bomApi.getFinishedProductListByName(""),
+          bomApi.getRawMaterialProductListByName(""),
         ]);
         setBranches(branchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })));
-        setProducts(prodRes);
-        setProductOptions(prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
+        setFinProducts(finProdRes);
+        setFinProductOptions(finProdRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
+        setRawProducts(rawProdRes);
+        setRawProductOptions(rawProdRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
       } catch (err: any) {
         setError(err.message || "Failed to load master data.");
       } finally {
@@ -79,8 +82,6 @@ export const useBom = (id?: string | null) => {
           ...prev,
           bomName: master.bomName || "",
           branchId: String(master.branchId || ""),
-          transDate: master.transDate ? master.transDate.split("T")[0] : prev.transDate,
-          refNo: String(master.refNo || transId || ""),
           finishedProduct: String(master.productId || ""),
           finishedProductCode: master.productCode || master.barcode || "",
           finishedProductUnit: String(master.unitId || ""),
@@ -121,7 +122,7 @@ export const useBom = (id?: string | null) => {
       return;
     }
     
-    const product = products.find(p => String(p.productId) === form.finishedProduct);
+    const product = finProducts.find(p => String(p.productId) === form.finishedProduct);
     if (product) {
       setForm(prev => ({ ...prev, finishedProductCode: product.barcode || product.code || "" }));
       
@@ -138,7 +139,7 @@ export const useBom = (id?: string | null) => {
         showToast("Please select a Branch first to load unit.", "warning");
       }
     }
-  }, [form.finishedProduct, form.branchId, products]);
+  }, [form.finishedProduct, form.branchId, finProducts]);
 
   // Set Raw Material fields when selected
   useEffect(() => {
@@ -148,7 +149,7 @@ export const useBom = (id?: string | null) => {
       return;
     }
     
-    const product = products.find(p => String(p.productId) === form.product);
+    const product = rawProducts.find(p => String(p.productId) === form.product);
     if (product) {
       setForm(prev => ({ ...prev, code: product.barcode || product.code || "" }));
       
@@ -165,7 +166,7 @@ export const useBom = (id?: string | null) => {
         showToast("Please select a Branch first to load unit.", "warning");
       }
     }
-  }, [form.product, form.branchId, products]);
+  }, [form.product, form.branchId, rawProducts]);
 
   const toNumber = (val: string) => {
     const num = Number(val);
@@ -175,7 +176,7 @@ export const useBom = (id?: string | null) => {
   const addItem = () => {
     if (!form.product || toNumber(form.qty) <= 0) return;
 
-    const prodObj = products.find(p => String(p.productId) === form.product);
+    const prodObj = rawProducts.find(p => String(p.productId) === form.product);
     const newLine: BomLineItem = {
       id: nextItemId.current++,
       productId: parseInt(form.product, 10),
@@ -207,12 +208,10 @@ export const useBom = (id?: string | null) => {
     try {
       const payload: BomPayload = {
         bomName: form.bomName || "BOM",
-        transDate: form.transDate || new Date().toISOString().split("T")[0],
         productId: parseInt(form.finishedProduct, 10) || 0,
         unitId: parseInt(form.finishedProductUnit, 10) || 0,
         qty: toNumber(form.finishedProductQty),
         branchId: parseInt(form.branchId, 10) || 0,
-        createdAt: new Date().toISOString(),
         details: items.map(item => ({
           productId: item.productId,
           unitId: item.unitId,
@@ -220,14 +219,23 @@ export const useBom = (id?: string | null) => {
           baseQty: item.qty
         }))
       };
-
-      await bomApi.createBom(payload);
-      showToast("BOM created successfully", "success");
+      if (id) {
+        payload.transId = parseInt(id, 10);
+        payload.updatedAt = new Date().toISOString();
+        await bomApi.updateBom(parseInt(id, 10), payload);
+        showToast("BOM updated successfully", "success");
+      } else {
+        payload.createdAt = new Date().toISOString();
+        await bomApi.createBom(payload);
+        showToast("BOM created successfully", "success");
+      }
       
-      // Reset form
-      setForm(initialBomForm);
-      setItems([]);
-      nextItemId.current = 1;
+      // If it was a create, reset. If update, keep the form data (or redirect)
+      if (!id) {
+        setForm(initialBomForm);
+        setItems([]);
+        nextItemId.current = 1;
+      }
     } catch (err: any) {
       const backendMsg = err.response?.data?.message || err.message || "Failed to save BOM";
       setError(backendMsg);
@@ -247,8 +255,10 @@ export const useBom = (id?: string | null) => {
     error,
     setError,
     branches,
-    products,
-    productOptions,
+    finProducts,
+    finProductOptions,
+    rawProducts,
+    rawProductOptions,
     finUnitOptions,
     rawUnitOptions,
     addItem,

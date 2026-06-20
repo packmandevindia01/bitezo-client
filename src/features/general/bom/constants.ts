@@ -3,8 +3,6 @@ import type { BomForm } from "./types";
 export const createEmptyBomForm = (): BomForm => ({
   bomName: "",
   branchId: "",
-  transDate: new Date().toISOString().split("T")[0],
-  refNo: "",
 
   finishedProduct: "",
   finishedProductCode: "",

@@ -85,7 +85,7 @@ const CashierInPage = () => {
   const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
   const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
   const seriesId = Number(localStorage.getItem("systemSeriesId")) || 0;
-  const clientDb = localStorage.getItem("tenantId") || "app_db";
+  const clientDb = localStorage.getItem("tenantId") || "";
 
   const handleLogin = async () => {
     if (!pin) {

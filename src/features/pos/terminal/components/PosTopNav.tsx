@@ -107,7 +107,7 @@ const PosTopNav = ({
           <span className="hidden sm:inline text-xs">New Order</span>
         </PosActionButton>
 
-        <div className="hidden md:flex gap-1 ml-1 lg:ml-2 min-w-0">
+        <div className="hidden sm:flex gap-1 ml-1 lg:ml-2 min-w-0 overflow-x-auto no-scrollbar pb-1 -mb-1">
           {visibleOrderTypes.map((type) => {
             const Icon = getOrderTypeIcon(type.orderType);
             const label = formatOrderTypeLabel(type.orderType);
@@ -118,7 +118,7 @@ const PosTopNav = ({
             <PosActionButton
               key={type.orderTypeId}
               accent={isActive ? "orange" : "gray"}
-              className="h-9 lg:h-10 px-2 rounded-xl text-[10px] min-w-0 shadow-sm flex items-center gap-1"
+              className="h-9 lg:h-10 px-2 rounded-xl text-[10px] shrink-0 shadow-sm flex items-center gap-1"
               onClick={() => {
                 onSelectOrderType?.(type);
                 if (normalized.includes("dine")) {
@@ -131,16 +131,16 @@ const PosTopNav = ({
               }}
             >
               <Icon size={13} className="xl:w-3.5 xl:h-3.5" />
-              <span className="hidden xl:inline">{label}</span>
+              <span className="hidden sm:inline whitespace-nowrap">{label}</span>
             </PosActionButton>
           )})}
           <PosActionButton
             accent={activeProvider ? "orange" : "gray"}
-            className="h-9 lg:h-10 px-2 rounded-xl text-[10px] min-w-0 shadow-sm flex items-center gap-1"
+            className="h-9 lg:h-10 px-2 rounded-xl text-[10px] shrink-0 shadow-sm flex items-center gap-1"
             onClick={onProvider}
           >
             <Users size={13} className="xl:w-3.5 xl:h-3.5" />
-            <span className="hidden xl:inline uppercase">
+            <span className="hidden sm:inline uppercase whitespace-nowrap">
               {activeProvider ? activeProvider.provider.providerName : "Provider"}
             </span>
           </PosActionButton>

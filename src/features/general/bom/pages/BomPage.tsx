@@ -20,7 +20,8 @@ const BomPage = () => {
     error,
     setError,
     branches,
-    productOptions,
+    finProductOptions,
+    rawProductOptions,
     addItem,
     removeItem,
     handleSave,
@@ -65,7 +66,7 @@ const BomPage = () => {
           </div>
         )}
 
-        <div className="grid gap-x-4 gap-y-4 mb-4 md:grid-cols-3">
+        <div className="grid gap-x-4 gap-y-4 mb-4 md:grid-cols-2">
           <FormInput 
             label="BOM Name *" 
             value={form.bomName}
@@ -80,19 +81,12 @@ const BomPage = () => {
             onChange={(e) => setField("branchId", e.target.value)}
             disabled={!canSave}
           />
-          <FormInput 
-            label="Date *" 
-            type="date"
-            value={form.transDate}
-            onChange={(e) => setField("transDate", e.target.value)}
-            disabled={!canSave}
-          />
         </div>
 
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-4">
           <SearchableSelect 
             label="Finished Product *" 
-            options={productOptions}
+            options={finProductOptions}
             value={form.finishedProduct}
             onChange={(val) => setField("finishedProduct", val)}
             disabled={!canSave}
@@ -106,7 +100,7 @@ const BomPage = () => {
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
             <SearchableSelect 
               label="Raw Materials" 
-              options={productOptions}
+              options={rawProductOptions}
               value={form.product}
               onChange={(val) => setField("product", val)}
               disabled={!canAdd}

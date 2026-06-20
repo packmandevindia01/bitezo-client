@@ -38,8 +38,6 @@ export const usePosRecall = () => {
       if (params.ProviderName?.trim()) cleanParams.ProviderName = params.ProviderName.trim();
 
       const response = await orderApi.getRecallOrders(cleanParams);
-      console.log("RECALL PARAMS SENT:", cleanParams);
-      console.log("RECALL RESPONSE:", response);
       
       if (response.isSuccess) {
         setOrders(response.data || []);

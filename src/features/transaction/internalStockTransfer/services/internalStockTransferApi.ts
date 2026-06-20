@@ -62,8 +62,8 @@ export const internalStockTransferApi = {
   },
 
   // 8. Get Units
-  getUnits: async (unitId: number, category: string) => {
-    const response = await axiosInstance.get(`/stock-transfer/unit-list-name?unitId=${unitId}&category=${category}`);
+  getUnits: async (unitCategory: string) => {
+    const response = await axiosInstance.get(`/stock-transfer/unit-list-name?unitCategory=${unitCategory}`);
     return response.data.data;
   },
 

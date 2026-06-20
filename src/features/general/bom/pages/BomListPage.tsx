@@ -92,13 +92,12 @@ const BomListPage = () => {
             { header: "Branch", accessor: "branchName" },
             { header: "Product", accessor: "productName" },
             { header: "Unit", accessor: "unitName" },
-            { header: "Qty", accessor: "qty", align: "right" },
+            { header: "Qty", accessor: "qty" },
             {
               header: "Actions",
               accessor: "transId",
-              align: "right",
               render: (row) => (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => navigate(`/dashboard/bom?id=${row.transId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"

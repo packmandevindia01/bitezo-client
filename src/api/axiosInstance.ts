@@ -17,7 +17,7 @@ axiosInstance.interceptors.request.use((config) => {
     ? sessionStorage.getItem("backoffice_accessToken") 
     : localStorage.getItem("accessToken");
   const explicitTenantId = config.headers ? (config.headers["clientDb"] || config.headers["clientdb"]) : undefined;
-  const tenantId = typeof explicitTenantId === "string" ? explicitTenantId : (localStorage.getItem("tenantId") ?? "app_db");
+  const tenantId = typeof explicitTenantId === "string" ? explicitTenantId : (localStorage.getItem("tenantId") ?? "");
 
   // Identify onboarding/auth endpoints that should be "clean"
   const url = config.url || "";
@@ -72,6 +72,17 @@ axiosInstance.interceptors.request.use((config) => {
     }
   }
 
+
+  // 4. Inject branchId for specific GET requests (Backoffice Reporting/Master Data)
+  const activeBranchId = isBackofficeMode 
+    ? sessionStorage.getItem("backoffice_activeBranchId") 
+    : localStorage.getItem("activeBranchId");
+
+  if (config.method?.toLowerCase() === "get" && activeBranchId) {
+    if (normalizedUrl.includes("/settled-orders") || normalizedUrl.includes("load-master")) {
+      config.params = { ...config.params, branchId: activeBranchId };
+    }
+  }
 
   return config;
 });

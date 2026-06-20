@@ -126,7 +126,7 @@ const PosProductGrid = ({
       </button>
 
       {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && (
-        <div className="absolute top-8 right-2 z-10 flex items-center justify-end bg-white/90 backdrop-blur-sm px-2 py-1 rounded-b-lg shadow-sm border border-t-0 border-slate-100">
+        <div className="w-full flex items-center justify-end px-2 pt-2 shrink-0">
           {breadcrumbs.length > 0 && (
             <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
               {breadcrumbs.map((crumb, idx) => (

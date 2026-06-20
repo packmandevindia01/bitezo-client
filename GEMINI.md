@@ -589,11 +589,27 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 ---
 
 ## Behavior Rules
-- Before creating a new component → check `src/components/` first
-- Before creating a new feature folder → check if the domain already exists under `src/features/`
-- Before creating a new hook → check `src/hooks/` for shared hooks
+- Before creating a new component — check `src/components/` first
+- Before creating a new feature folder — check if the domain already exists under `src/features/`
+- Before creating a new hook — check `src/hooks/` for shared hooks
 - Never duplicate a page, hook, or service — extend the existing one instead
-- If the correct location for a file is unclear → ask before creating
+- If the correct location for a file is unclear — ask before creating
 - No unused imports in any file
 - No `console.log` statements in production code
-- If unsure about design or architecture → ask before proceeding
+- If unsure about design or architecture — ask before proceeding
+
+---
+
+## 24. Strict Production Standards (No Development Fallbacks)
+- **No Hardcoded Tenants/Databases:** Never leave hardcoded fallback databases (e.g., `app_db`, `test_db`) or hardcoded tenant IDs in API calls. Missing tenant IDs must fail fast (`""` or throw an error) to prevent cross-tenant data leakage.
+- **No Localhost Endpoints:** Never commit hardcoded `http://localhost` URLs or dummy API keys. Always use `.env` variables or dynamic runtime configurations (`config.ts`).
+- **No Silent Failures:** Do not bypass critical business logic with dummy data arrays, mocked UI components, or silent API failures unless explicitly marked with a `TODO:` for active development.
+- **Cleanup:** All temporary development shortcuts must be strictly removed before pushing code intended for a production environment.
+
+---
+
+## 25. 800px Tablet Layout Constraints (CRITICAL)
+- **CSS Grid and Fixed Drawers:** When a column (like an Order Panel) transforms into a `fixed` sliding drawer on smaller screens, you MUST update the parent CSS grid (`grid-cols-x`) to remove that column. Otherwise, the grid will leave a massive empty hole that squishes all remaining content.
+- **Horizontal Scrolling vs Squishing:** When putting multiple buttons into a horizontally scrolling Top Navigation or header, do NOT use `min-w-0` on the buttons. Use `shrink-0` so they maintain their full width and correctly trigger the parent's `overflow-x-auto` instead of clipping their text.
+- **Typography Density:** Do not use aggressive text classes (`font-black`, `tracking-wider`) on buttons inside dense, multi-column layouts (e.g., a 5-column Action Button grid on an 800px screen). Use `font-bold` and standard tracking to ensure text fits cleanly inside button boundaries.
+- **Floating Button Anchors:** Do not anchor floating elements (like Cart bubbles) to the absolute bottom of the main viewport (`fixed bottom-6`) if there is a fixed Action Bar spanning the bottom of the screen. Anchor floating elements inside a `relative` wrapper (like the product grid) so they sit *above* the action buttons.

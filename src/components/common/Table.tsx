@@ -58,8 +58,7 @@ const Table = <T,>({
                       className={`
                         sticky top-0 bg-gray-50 z-10
                         px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap md:px-4
-                        ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
-                        ${index === 0 ? "pl-[18px] md:pl-[22px]" : ""} 
+                        ${col.align === "left" ? "text-left" : col.align === "right" ? "text-right" : "text-center"} 
                       `}
                     >
                       {col.header}
@@ -95,10 +94,8 @@ const Table = <T,>({
                           key={colIndex}
                         className={`
                           px-3 py-1.5 text-xs text-gray-700 whitespace-nowrap md:px-4
-                          ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}
-                          ${colIndex === 0
-                            ? "font-medium text-gray-900 border-l-[3px] border-l-[#49293e] group-hover:border-l-[#6b3d5a]"
-                            : ""}
+                          ${col.align === "left" ? "text-left" : col.align === "right" ? "text-right" : "text-center [&>div.flex]:justify-center"}
+                          ${colIndex === 0 ? "font-medium text-gray-900" : ""}
                         `}
                       >
                         {col.render

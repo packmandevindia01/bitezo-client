@@ -59,7 +59,7 @@ const VoucherSeriesPage = () => {
             header: "Actions",
             accessor: "voucherId",
             render: (row) => (
-              <div className="flex gap-2">
+              <div className="flex justify-center gap-2">
                 {canEdit && (
                   <button
                     type="button"

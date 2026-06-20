@@ -207,7 +207,7 @@ export const usePosCartActions = () => {
                   configs.defaultDeliverycharge !== undefined ? configs.defaultDeliverycharge :
                   full.deliveryCharge !== undefined ? full.deliveryCharge :
                   full.defaultDeliveryCharge !== undefined ? full.defaultDeliveryCharge : 0;
-      console.log("[usePosCartActions] getDeliveryChargeValue: configs JSON = ", JSON.stringify(configs), "extracted =", val);
+      // console.log removed
       return Number(val) || 0;
     } catch (e) {
       console.error("[usePosCartActions] Error parsing delivery charge:", e);
@@ -566,7 +566,7 @@ export const usePosCartActions = () => {
         providerNo: session.providerOrderNo || "",
       };
 
-      console.log('--- KOT ORDER PUNCH PAYLOAD ---', JSON.stringify(payload, null, 2));
+      // console.log removed
       const response = await orderApi.submitOrder(payload);
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");

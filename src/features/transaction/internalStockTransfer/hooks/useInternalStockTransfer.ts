@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
-import { bomApi } from "../../../general/bom/services/bomApi";
 import { useToast } from "../../../../app/providers/useToast";
 import type { InternalStockTransferForm, InternalStockTransferLineItem } from "../types";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
@@ -160,8 +159,11 @@ export const useInternalStockTransfer = (id?: string) => {
     const product = products.find(p => String(p.productId) === form.product);
     if (product) {
       const productCode = product.barcode || product.code || "";
-      setForm(prev => ({ ...prev, code: productCode }));
-
+      
+      // Immediately reset dependent fields to clear stale data from previous selections
+      setForm(prev => ({ ...prev, code: productCode, cost: "0", amount: "0", unit: "", unitName: "" }));
+      setUnitOptions([]);
+      
       // Fetch Cost and Unit Data
       const fetchProductDetails = async () => {
         try {
@@ -175,35 +177,29 @@ export const useInternalStockTransfer = (id?: string) => {
             cost: String(costValue),
           }));
 
-          // Use BOM API for unit resolution exactly as per BOM notes
-          if (form.fromBranch) {
-            const branchId = parseInt(form.fromBranch, 10);
-            const prodUnitData = await bomApi.getProductUnitData(branchId, productCode).catch(() => null);
-            
-            if (prodUnitData) {
-              const unitListData = await bomApi.getUnitListByName(prodUnitData.unitId, prodUnitData.unitCategory).catch(() => []);
-              if (unitListData && unitListData.length > 0) {
-                setUnitOptions(unitListData.map(u => ({ label: u.unitName, value: String(u.unitId) })));
-                
-                // Try to find the matching unit based on costData.baseUnitId or prodUnitData.unitId
-                const defaultUnit = unitListData.find(u => u.unitId === prodUnitData.unitId) || unitListData[0];
-                setForm(prev => ({ 
-                  ...prev, 
-                  unit: String(defaultUnit.unitId),
-                  unitName: defaultUnit.unitName 
-                }));
-              } else {
-                setUnitOptions([{ label: prodUnitData.unitCategory || "Unit", value: String(prodUnitData.unitId) }]);
-                setForm(prev => ({ ...prev, unit: String(prodUnitData.unitId), unitName: prodUnitData.unitCategory || "Unit" }));
-              }
+          // Use internalStockTransferApi for unit resolution
+          if (costData) {
+            const unitListData = await internalStockTransferApi.getUnits(costData.unitCategory).catch(() => []);
+            if (unitListData && unitListData.length > 0) {
+              setUnitOptions(unitListData.map((u: any) => ({ label: u.name, value: String(u.unitId) })));
+              
+              // Find the default unit based on baseUnitId
+              const defaultUnit = unitListData.find((u: any) => u.unitId === costData.baseUnitId) || unitListData[0];
+              setForm(prev => ({ 
+                ...prev, 
+                unit: String(defaultUnit.unitId),
+                unitName: defaultUnit.name 
+              }));
             } else {
-              setForm(prev => ({ ...prev, unitName: "Unit" }));
+              setUnitOptions([{ label: costData.unitCategory || "Unit", value: String(costData.baseUnitId) }]);
+              setForm(prev => ({ ...prev, unit: String(costData.baseUnitId), unitName: costData.unitCategory || "Unit" }));
             }
-          } else {
-             setForm(prev => ({ ...prev, unitName: "Unit" }));
           }
         } catch (err) {
           console.error("Failed to load product details", err);
+          // Simple fallback to prevent crashes. The real data will populate once the backend team fixes the 404 error on product-cost-data.
+          setUnitOptions([{ label: product.unitName || "Unit", value: String(product.unitId || "0") }]);
+          setForm(prev => ({ ...prev, unit: String(product.unitId || "0"), unitName: product.unitName || "Unit", cost: "0" }));
         }
       };
 
@@ -268,6 +264,7 @@ export const useInternalStockTransfer = (id?: string) => {
         employeeId: parseInt(form.salesman, 10) || 0,
         netAmount: grandTotal,
         narration: "",
+        createdAt: new Date().toISOString(),
         details: items.map(item => ({
           productId: item.productId,
           unitId: item.unitId,

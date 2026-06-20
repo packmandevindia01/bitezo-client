@@ -58,7 +58,7 @@ export const productService = {
     const url = `${BASE}/product-list`;
     const finalParams = {
       ...(params || {}),
-      clientDb: localStorage.getItem("tenantId") || "app_db",
+      clientDb: localStorage.getItem("tenantId") || "",
     };
     return unwrap(
       axiosInstance.get<ApiResponse<ProductListItem[]>>(url, { params: finalParams })

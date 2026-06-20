@@ -15,6 +15,7 @@ const PosProductCard = ({ product, onAdd, price, hasAlts, onLongPress }: PosProd
   const { formatAmount } = useCurrency();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const finalPrice = price !== undefined ? price : product.price;
   const showPrice = finalPrice >= 0 && !hasAlts;
@@ -55,14 +56,12 @@ const PosProductCard = ({ product, onAdd, price, hasAlts, onLongPress }: PosProd
       "
     >
       <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
-        {product.imageUrl ? (
+        {(product.imageUrl && !imageError) ? (
           <img 
             src={product.imageUrl} 
             alt={product.name} 
             className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
+            onError={() => setImageError(true)}
           />
         ) : (
           <span className="text-sm font-black text-slate-300 uppercase select-none">

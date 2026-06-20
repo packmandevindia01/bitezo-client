@@ -22,7 +22,7 @@ const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) =>
   });
 
 const getTenantQuery = () => {
-  const tenantId = localStorage.getItem("tenantId") || "app_db";
+  const tenantId = localStorage.getItem("tenantId") || "";
   return `?clientDb=${tenantId}`;
 };
 
@@ -45,7 +45,7 @@ export const menuApi = {
 
     const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data`, {
       params: {
-        clientDb: localStorage.getItem("tenantId") || "app_db",
+        clientDb: localStorage.getItem("tenantId") || "",
         currentTime: timeSpanString
       }
     }));
@@ -69,59 +69,75 @@ export const menuApi = {
   /** GET /api/menu/order-types */
   getOrderTypes: () =>
     unwrap(axiosInstance.get<ApiResponse<PosOrderType[]>>(`/menu/order-types`, {
-      params: { clientDb: localStorage.getItem("tenantId") || "app_db" }
+      params: { clientDb: localStorage.getItem("tenantId") || "" }
     })),
 
   /** GET /api/menu/{groupId}/categories */
   getGroupCategories: async (groupId: number, orderTypeId?: number) => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories`, {
-      params: {
-        clientDb: localStorage.getItem("tenantId") || "app_db",
-        orderTypeId
-      }
-    }));
-    return raw.map((c: any) => ({
-      id: c.categoryId,
-      name: c.categoryName,
-      arabicName: c.arabicName,
-      imageUrl: c.imageUrl,
-      colorCode: c.colorCode
-    })) as PosCategory[];
+    try {
+      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories`, {
+        params: {
+          clientDb: localStorage.getItem("tenantId") || "",
+          orderTypeId
+        }
+      }));
+      return raw.map((c: any) => ({
+        id: c.categoryId,
+        name: c.categoryName,
+        arabicName: c.arabicName,
+        imageUrl: c.imageUrl,
+        colorCode: c.colorCode
+      })) as PosCategory[];
+    } catch (error) {
+      console.error(`[menuApi] Failed to fetch group categories for groupId ${groupId}:`, error);
+      return [];
+    }
   },
 
   /** GET /api/menu/categories/{categoryId}/sub-categories */
-  getSubCategories: (categoryId: number) => 
-    unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories`, {
-      params: { clientDb: localStorage.getItem("tenantId") || "app_db" }
-    })),
+  getSubCategories: async (categoryId: number) => {
+    try {
+      return await unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories`, {
+        params: { clientDb: localStorage.getItem("tenantId") || "" }
+      }));
+    } catch (error) {
+      console.error(`[menuApi] Failed to fetch sub-categories for categoryId ${categoryId}:`, error);
+      return [];
+    }
+  },
 
   /** GET /api/menu/categories/{categoryId}/sub-categories/{subCategoryId}/products */
   getProducts: async (categoryId: number, subCategoryId: number, orderTypeId?: number) => {
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products`, {
-      params: {
-        clientDb: localStorage.getItem("tenantId") || "app_db",
-        orderTypeId,
-        currentDateTime: new Date().toISOString(),
-        providerOwnStatus: getProviderOwnStatus()
-      }
-    }));
-    return raw.map((p: any) => ({
-      id: p.productId,
-      name: p.productName,
-      arabicName: p.arabicName,
-      categoryId: categoryId,
-      price: p.price,
-      imageUrl: p.imageUrl,
-      colorCode: p.colorCode,
-      vatValue: p.vatValue,
-      unitId: p.unitId ?? p.defaultUnitId ?? undefined,
-      hasAlternatives: p.hasAlternatives ?? false,
-      isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
-              p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
-              p.isincl !== undefined ? Boolean(p.isincl) :
-              p.priceView !== undefined ? (p.priceView === 'Inclusive') :
-              undefined,
-    })) as PosProduct[];
+    try {
+      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products`, {
+        params: {
+          clientDb: localStorage.getItem("tenantId") || "",
+          orderTypeId,
+          currentDateTime: new Date().toISOString(),
+          providerOwnStatus: getProviderOwnStatus()
+        }
+      }));
+      return raw.map((p: any) => ({
+        id: p.productId,
+        name: p.productName,
+        arabicName: p.arabicName,
+        categoryId: categoryId,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        colorCode: p.colorCode,
+        vatValue: p.vatValue,
+        unitId: p.unitId ?? p.defaultUnitId ?? undefined,
+        hasAlternatives: p.hasAlternatives ?? false,
+        isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
+                p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+                p.isincl !== undefined ? Boolean(p.isincl) :
+                p.priceView !== undefined ? (p.priceView === 'Inclusive') :
+                undefined,
+      })) as PosProduct[];
+    } catch (error) {
+      console.error(`[menuApi] Failed to fetch products for cat ${categoryId} sub ${subCategoryId}:`, error);
+      return [];
+    }
   },
 
   /** GET /api/menu/products/{productId}/alternatives */
@@ -132,7 +148,7 @@ export const menuApi = {
 
     const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/products/${productId}/alternatives`, {
       params: {
-        clientDb: localStorage.getItem("tenantId") || "app_db",
+        clientDb: localStorage.getItem("tenantId") || "",
         orderTypeId,
         providerOwnStatus: getProviderOwnStatus(),
         currentDateTime
@@ -159,7 +175,7 @@ export const menuApi = {
 
     const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/products/${productId}/data`, {
       params: {
-        clientDb: localStorage.getItem("tenantId") || "app_db",
+        clientDb: localStorage.getItem("tenantId") || "",
         orderTypeId,
         currentDateTime
       }
@@ -181,7 +197,7 @@ export const menuApi = {
 
   /** GET /api/menu/extras */
   getExtras: (typeId?: number, categoryId?: number) =>
-    unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "app_db", typeId, categoryId } })),
+    unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "", typeId, categoryId } })),
 
   /** GET /api/menu/extras-type */
   getExtraTypes: () =>
@@ -189,7 +205,7 @@ export const menuApi = {
 
   /** GET /api/menu/modifiers */
   getModifiers: (typeId?: number, categoryId?: number) =>
-    unwrap(axiosInstance.get<ApiResponse<{ modifier: any[] | null }>>("/menu/modifiers", { params: { clientDb: localStorage.getItem("tenantId") || "app_db", typeId, categoryId } })),
+    unwrap(axiosInstance.get<ApiResponse<{ modifier: any[] | null }>>("/menu/modifiers", { params: { clientDb: localStorage.getItem("tenantId") || "", typeId, categoryId } })),
 
   /** GET /api/menu/modifier-type */
   getModifierTypes: () =>
