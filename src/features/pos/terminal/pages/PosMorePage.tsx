@@ -4,11 +4,11 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { Loader } from '../../../../components/common';
-import { PrinterSettingsTab } from '../components/PrinterSettingsTab';
-import { ProductWisePrinterTab } from '../components/ProductWisePrinterTab';
-import { SectionWisePrinterTab } from '../components/SectionWisePrinterTab';
-import { OrderTypeWisePrinterTab } from '../components/OrderTypeWisePrinterTab';
-import { CategoryWisePrinterTab } from '../components/CategoryWisePrinterTab';
+import { PrinterSettingsTab } from '../components/printer/PrinterSettingsTab';
+import { ProductWisePrinterTab } from '../components/printer/ProductWisePrinterTab';
+import { SectionWisePrinterTab } from '../components/printer/SectionWisePrinterTab';
+import { OrderTypeWisePrinterTab } from '../components/printer/OrderTypeWisePrinterTab';
+import { CategoryWisePrinterTab } from '../components/printer/CategoryWisePrinterTab';
 import { usePrinterSettings } from '../hooks/usePrinterSettings';
 
 type PrinterTab = 'GENERAL' | 'CATEGORY' | 'PRODUCT' | 'SECTION' | 'ORDER_TYPE';

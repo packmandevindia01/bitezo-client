@@ -5,6 +5,7 @@ import type {
   EmployeeListResponse,
   UpdateEmployeePayload,
   BranchOption,
+  EmployeeRoleOption,
   ValidateEmployeePasswordResponse,
 } from "../types";
 
@@ -48,6 +49,11 @@ export const deleteEmployee = async (empId: number) => {
 // ── Branches ──────────────────────────────────────────────────────────────────
 export const getBranches = async (): Promise<BranchOption[]> => {
   const res = await axiosInstance.get("/Branch/false/list-name");
+  return res.data?.data ?? [];
+};
+
+export const getEmployeeRoles = async (): Promise<EmployeeRoleOption[]> => {
+  const res = await axiosInstance.get("/EmployeeRole/employee-role-listname");
   return res.data?.data ?? [];
 };
 

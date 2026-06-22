@@ -8,11 +8,24 @@ interface AppProvidersProps {
   children: ReactNode;
 }
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
 const AppProviders = ({ children }: AppProvidersProps) => {
   return (
-    <Provider store={store}>
-      <ToastProvider>{children}</ToastProvider>
-    </Provider>
+    <QueryClientProvider client={queryClient}>
+      <Provider store={store}>
+        <ToastProvider>{children}</ToastProvider>
+      </Provider>
+    </QueryClientProvider>
   );
 };
 

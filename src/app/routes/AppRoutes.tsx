@@ -52,6 +52,7 @@ const RecipePage = lazy(() => import("../../features/general/recipe/pages/Recipe
 const BomListPage = lazy(() => import("../../features/general/bom/pages/BomListPage"));
 const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
 const ProductionPage = lazy(() => import("../../features/transaction/production/pages/ProductionPage"));
+const ProductionListPage = lazy(() => import("../../features/transaction/production/pages/ProductionListPage"));
 const StockAdjustmentPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentPage"));
 const StockAdjustmentListPage = lazy(() => import("../../features/transaction/stockAdjustment/pages/StockAdjustmentListPage"));
 const InternalStockTransferPage = lazy(() => import("../../features/transaction/internalStockTransfer/pages/InternalStockTransferPage"));
@@ -182,6 +183,8 @@ const AppRoutes = () => {
                   <Route path="boms" element={<RoleGuard moduleName="BOM Master"><BomListPage /></RoleGuard>} />
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
+                  <Route path="production/:id" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
+                  <Route path="production-list" element={<RoleGuard moduleName="Production"><ProductionListPage /></RoleGuard>} />
                   <Route path="stock-adjustments" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentListPage /></RoleGuard>} />
                   <Route path="stock-adjustment" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentPage /></RoleGuard>} />
                   <Route path="internal-stock-transfers" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferListPage /></RoleGuard>} />

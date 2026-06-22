@@ -1,12 +1,15 @@
 import type { ProductionForm } from "./types";
 
 export const createEmptyProductionForm = (): ProductionForm => ({
+  branchId: "",
+  employeeId: "",
+  productionNo: "",
   finishedProduct: "",
   finishedProductCode: "",
   finishedProductUnit: "",
-  finishedProductQty: "1",
-  
-  product: "",
+  finishedProductQty: "",
+  items: [],
+  narration: "",
   code: "",
   unit: "",
   qty: "0",

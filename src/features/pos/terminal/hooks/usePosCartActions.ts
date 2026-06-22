@@ -7,37 +7,8 @@ import { POS_PRODUCTS } from "../../constants";
 import type { MenuOrderRequest, MenuOrderUpdateRequest, PosCartItem } from "../../types";
 import { menuApi } from "../../services/menuApi";
 import { productDataCache } from "../hooks/usePosProducts";
-import {
-  addToCart,
-  incrementItem,
-  decrementItem,
-  removeFromCart,
-  clearCart,
-  addVoidProduct,
-  addVoidModifier,
-  setOrderType,
-  setTenderOption,
-  setBillDiscount,
-  setItemDiscount,
-  setAllItemsDiscount,
-  updateItemPrice,
-  updateItemQty,
-  setItemCustomizations,
-  setCustomerId,
-  setAddressId,
-  setChange,
-  selectCartDetails,
-  selectSubtotal,
-  selectDiscount,
-  selectTax,
-  selectTotal,
-  selectCharges,
-  selectTotalServiceCharge,
-  selectTotalLevy,
-  selectItemCount,
-  selectTotalExtras,
-  selectBaseSubtotal,
-} from "../store/posSlice";
+import { addToCart, incrementItem, decrementItem, removeFromCart, clearCart, addVoidProduct, addVoidModifier, setOrderType, setTenderOption, setBillDiscount, setItemDiscount, setAllItemsDiscount, updateItemPrice, updateItemQty, setItemCustomizations, setCustomerId, setAddressId, setChange } from "../store/posSlice";
+import { selectCartDetails, selectSubtotal, selectDiscount, selectTax, selectTotal, selectCharges, selectTotalServiceCharge, selectTotalLevy, selectItemCount, selectTotalExtras, selectBaseSubtotal } from "../store/posSelectors";
 import { getBillingConfig } from "../utils/billing";
 
 export const usePosCartActions = () => {

@@ -1,23 +1,15 @@
 import { Button, Checkbox, FormInput, Modal, SelectInput } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
-import type { BranchOption } from "../types";
-
-interface EmployeeFormState {
-  name: string;
-  code: string;
-  branchId: string;
-  driver: boolean;
-  active: boolean;
-  isMaster: boolean;
-}
+import type { BranchOption, EmployeeRoleOption, EmployeeForm } from "../types";
+import type { UseFormReturn } from "react-hook-form";
 
 interface Props {
   isOpen: boolean;
   editingId: number | null;
-  form: EmployeeFormState;
+  form: UseFormReturn<EmployeeForm>;
   branches: BranchOption[];
+  roles: EmployeeRoleOption[];
   saving?: boolean;
-  onChange: (patch: Partial<EmployeeFormState>) => void;
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
@@ -29,13 +21,25 @@ const EmployeeModal = ({
   editingId,
   form,
   branches,
+  roles,
   saving = false,
-  onChange,
   onClose,
   onClear,
   onSave,
   onDelete,
 }: Props) => {
+  const { watch, setValue, formState: { errors } } = form;
+
+  const branchOptions = branches.map((b) => ({
+    label: b.branchName,
+    value: String(b.branchId),
+  }));
+
+  const roleOptions = roles.map((r) => ({
+    label: r.roleName,
+    value: String(r.roleId),
+  }));
+
   return (
     <Modal
       isOpen={isOpen}
@@ -77,51 +81,71 @@ const EmployeeModal = ({
       }
     >
       <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Name</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+          Name {errors.name && <span className="lowercase text-red-500 font-normal ml-1">({errors.name.message})</span>}
+        </p>
         <FormInput
-          value={form.name}
-          onChange={(e) => onChange({ name: e.target.value })}
+          value={watch("name")}
+          onChange={(e) => setValue("name", e.target.value)}
           placeholder="Enter employee name"
           autoFocus
         />
 
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Code</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+          Code {errors.code && <span className="lowercase text-red-500 font-normal ml-1">({errors.code.message})</span>}
+        </p>
         <FormInput
-          value={form.code}
-          onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+          value={watch("code")}
+          onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, ''))}
           placeholder="Enter employee code"
         />
 
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-          Branch Name
+          Branch Name {errors.branchId && <span className="lowercase text-red-500 font-normal ml-1">({errors.branchId.message})</span>}
         </p>
         <SelectInput
-          value={form.branchId}
-          onChange={(e) => onChange({ branchId: e.target.value })}
-          options={branches.map((b) => ({
-            label: b.branchName,
-            value: String(b.branchId),
-          }))}
-          placeholder={branches.length === 0 ? "Loading branches…" : "Select a branch"}
+          value={watch("branchId")}
+          onChange={(e) => setValue("branchId", e.target.value)}
+          options={branchOptions}
+          placeholder="Select a branch"
         />
-      </div>
 
-      <div className="mt-4 flex flex-wrap gap-4 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
-        <Checkbox
-          label="Driver"
-          checked={form.driver}
-          onChange={(e) => onChange({ driver: e.target.checked })}
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+          Role {errors.roleId && <span className="lowercase text-red-500 font-normal ml-1">({errors.roleId.message})</span>}
+        </p>
+        <SelectInput
+          value={watch("roleId")}
+          onChange={(e) => setValue("roleId", e.target.value)}
+          options={roleOptions}
+          placeholder="Select a role"
         />
-        <Checkbox
-          label="Active"
-          checked={form.active}
-          onChange={(e) => onChange({ active: e.target.checked })}
-        />
-        <Checkbox
-          label="Master"
-          checked={form.isMaster}
-          onChange={(e) => onChange({ isMaster: e.target.checked })}
-        />
+
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Driver</p>
+        <div className="flex items-center h-10.5">
+          <Checkbox
+            label="Is Driver"
+            checked={watch("driver")}
+            onChange={(e) => setValue("driver", e.target.checked)}
+          />
+        </div>
+
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Active</p>
+        <div className="flex items-center h-10.5">
+          <Checkbox
+            label="Is Active"
+            checked={watch("active")}
+            onChange={(e) => setValue("active", e.target.checked)}
+          />
+        </div>
+
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">System Admin</p>
+        <div className="flex items-center h-10.5">
+          <Checkbox
+            label="Is Master"
+            checked={watch("isMaster")}
+            onChange={(e) => setValue("isMaster", e.target.checked)}
+          />
+        </div>
       </div>
     </Modal>
   );

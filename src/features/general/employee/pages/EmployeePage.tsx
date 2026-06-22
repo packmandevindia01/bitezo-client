@@ -8,16 +8,15 @@ const EmployeePage = () => {
   const { hasPermission } = usePermissions();
   const {
     form,
-    setForm,
     editingId,
     search,
     setSearch,
     open,
     branches,
+    roles,
     loading,
     saving,
     deleting,
-    error,
     deleteCandidate,
     setDeleteCandidate,
     resetForm,
@@ -35,12 +34,6 @@ const EmployeePage = () => {
 
   return (
     <PageShell title="Employee Creation">
-      {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
       <EmployeeTable
         employees={filteredEmployees}
         search={search}
@@ -54,13 +47,13 @@ const EmployeePage = () => {
       <EmployeeModal
         isOpen={open}
         editingId={editingId}
-        form={form}
+        form={form as any}
         branches={branches}
+        roles={roles}
         saving={saving}
-        onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
         onClose={closeModal}
         onClear={resetForm}
-        onSave={handleSave}
+        onSave={() => void handleSave()}
         onDelete={() => {
           if (!canDelete) return;
           const record = filteredEmployees.find((e) => e.id === editingId);

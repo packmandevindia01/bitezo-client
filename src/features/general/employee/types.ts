@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 // --- From employeeApiTypes.ts ---
 export interface CreateEmployeePayload {
   code: string;
@@ -6,6 +8,7 @@ export interface CreateEmployeePayload {
   isDriver: boolean;
   isMaster: boolean;
   isActive: boolean;
+  roleId: number;
 }
 
 export interface UpdateEmployeePayload {
@@ -16,6 +19,7 @@ export interface UpdateEmployeePayload {
   isDriver: boolean;
   isActive: boolean;
   isMaster: boolean;
+  roleId: number;
   updatedAt: string;
 }
 
@@ -27,6 +31,7 @@ export interface EmployeeDetailResponse {
   isDriver: boolean;
   isActive: boolean;
   isMaster: boolean;
+  roleId: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,6 +45,11 @@ export interface EmployeeListResponse {
   isActive: string;
 }
 
+export interface EmployeeRoleOption {
+  roleId: number;
+  roleName: string;
+}
+
 // --- From types.ts ---
 export interface EmployeeRecord {
   id: number;
@@ -50,12 +60,25 @@ export interface EmployeeRecord {
   driver: boolean;
   active: boolean;
   isMaster: boolean;
+  roleId: number;
 }
 
 export interface BranchOption {
   branchId: number;
   branchName: string;
 }
+
+export const employeeSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  branchId: z.string().min(1, "Branch is required"),
+  roleId: z.string().min(1, "Role is required"),
+  driver: z.boolean().default(false),
+  active: z.boolean().default(true),
+  isMaster: z.boolean().default(false),
+});
+
+export type EmployeeForm = z.infer<typeof employeeSchema>;
 
 export interface ValidateEmployeePasswordRequest {
   password: string;

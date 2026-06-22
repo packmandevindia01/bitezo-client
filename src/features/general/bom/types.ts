@@ -47,5 +47,4 @@ export interface BomDetailParams {
   BranchId?: number;
   ProductId?: number;
   UnitId?: number;
-  Decimals?: number;
 }

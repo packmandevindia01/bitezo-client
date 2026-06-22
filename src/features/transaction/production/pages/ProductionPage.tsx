@@ -1,33 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Save, Download, Plus, Trash2 } from "lucide-react";
-import { Button, FormInput, PageShell } from "../../../../components/common";
+import { useEffect, useState } from "react";
+import { Save, Trash2, RotateCcw, PackagePlus, Loader2 } from "lucide-react";
+import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
-import { createEmptyProductionForm } from "../constants";
-import type { ProductionLineItem, ProductionForm } from "../types";
+import { useProductionForm } from "../hooks/useProductionForm";
+import { useParams } from "react-router-dom";
 import { useCurrency } from "../../../../hooks/useCurrency";
 
 const ProductionPage = () => {
-  const { formatAmount } = useCurrency();
-  const initialForm = useMemo(() => {
-    const empty = createEmptyProductionForm();
-    empty.cost = formatAmount(0);
-    empty.otherCharge = formatAmount(0);
-    return empty;
-  }, [formatAmount]);
+  const { id } = useParams();
+  const { formatAmount, decimalPart } = useCurrency();
+  const step = Math.pow(10, -decimalPart).toString();
+  
+  const {
+    form,
+    items,
+    remove,
+    totals,
+    isLoadingInitialData,
+    isSaving,
+    finishedProducts,
+    rawMaterials,
+    branches,
+    employees,
+    handleFinishedProductSelect,
+    handleRawMaterialSelect,
+    handleAddItem,
+    loadBom,
+    isBomLoading,
+    onSubmit
+  } = useProductionForm(id ? parseInt(id, 10) : undefined);
 
-  const [form, setForm] = useState<ProductionForm>(initialForm);
-  const [items, setItems] = useState<ProductionLineItem[]>([]);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { watch, setValue } = form;
 
-  const nextItemId = useRef(1);
-
-  const toNumber = (value: string) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
+  const handleMoneyBlur = (field: Parameters<typeof setValue>[0], value: string) => {
+    const num = Number(value);
+    if (!isNaN(num)) {
+      setValue(field, num.toFixed(decimalPart));
+    }
   };
 
-  const setField = (key: keyof ProductionForm, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const handleClearClick = () => {
+    if (items.length > 0) {
+      setShowClearConfirm(true);
+    } else {
+      form.reset();
+    }
   };
 
   const hk = (e: React.KeyboardEvent, nextId?: string) => {
@@ -36,98 +55,56 @@ const ProductionPage = () => {
 
   useEffect(() => { setTimeout(() => { document.getElementById("prod-finProduct")?.focus(); }, 200); }, []);
 
-  const currentLine = useMemo<ProductionLineItem>(
-    () => ({
-      id: 0,
-      product: form.product.trim(),
-      code: form.code.trim(),
-      unit: form.unit.trim(),
-      qty: toNumber(form.qty),
-      cost: toNumber(form.cost),
-      amount: toNumber(form.qty) * toNumber(form.cost),
-    }),
-    [form]
-  );
-
-  const totals = useMemo(() => {
-    const itemTotal = items.reduce((acc, item) => acc + item.amount, 0);
-    const otherCharge = toNumber(form.otherCharge);
-    const grandTotal = itemTotal + otherCharge;
-    const costPerUnit = toNumber(form.finishedProductQty) > 0 ? grandTotal / toNumber(form.finishedProductQty) : 0;
-
-    return {
-      grandTotal,
-      costPerUnit,
-    };
-  }, [items, form.otherCharge, form.finishedProductQty]);
-
-  const addItem = () => {
-    if (!currentLine.product) return;
-
-    const itemId = nextItemId.current;
-    nextItemId.current += 1;
-    setItems((prev) => [...prev, { ...currentLine, id: itemId }]);
-    setForm((prev) => ({
-      ...prev,
-      product: "",
-      code: "",
-      unit: "",
-      qty: "0",
-      cost: formatAmount(0),
-    }));
-    setTimeout(() => document.getElementById("prod-product")?.focus(), 0);
-  };
-
-  const resetForm = () => {
-    setForm(initialForm);
-    setItems([]);
-    setShowClearConfirm(false);
-  };
-
-  const handleClearClick = () => {
-    const isDirty = items.length > 0 || JSON.stringify(form) !== JSON.stringify(initialForm);
-    if (isDirty) {
-      setShowClearConfirm(true);
-    } else {
-      resetForm();
-    }
-  };
-
+  if (isLoadingInitialData) {
+    return (
+      <PageShell title="Production">
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#49293e]" />
+        </div>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="Production">
       <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto p-3 md:p-4">
+        
+        <div className="mb-2 grid gap-x-3 gap-y-2 md:grid-cols-3 lg:grid-cols-5 border-b border-gray-100 pb-2">
+          <SelectInput id="prod-branch" label="Branch" options={branches} value={watch("branchId")} onChange={(e) => setValue("branchId", e.target.value)} required />
+          <SelectInput id="prod-employee" label="Employee" options={employees} value={watch("employeeId")} onChange={(e) => setValue("employeeId", e.target.value)} required />
+          <FormInput id="prod-no" label="Production No" value={watch("productionNo") || ""} disabled className="bg-gray-50 cursor-not-allowed font-mono text-gray-600" />
+        </div>
 
-        <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 lg:grid-cols-5">
-          <FormInput id="prod-finProduct" label="Finished Product" value={form.finishedProduct} onChange={(e) => setField("finishedProduct", e.target.value)} onKeyDown={(e) => hk(e, "prod-finCode")} required />
-          <FormInput id="prod-finCode" label="Product Code" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "prod-finUnit")} required />
-          <FormInput id="prod-finUnit" label="Unit" value={form.finishedProductUnit} onChange={(e) => setField("finishedProductUnit", e.target.value)} onKeyDown={(e) => hk(e, "prod-finQty")} required />
-          <FormInput id="prod-finQty" label="Output Qty" value={form.finishedProductQty} inputClassName="text-right" onChange={(e) => setField("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "prod-product")} required />
+        <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 lg:grid-cols-4">
+          <SearchableSelect id="prod-finProduct" label="Finished Product" options={finishedProducts} value={watch("finishedProduct")} onChange={(val) => handleFinishedProductSelect(val)} required />
+          <FormInput id="prod-finCode" label="Product Code" value={watch("finishedProductCode") || ""} onChange={(e) => setValue("finishedProductCode", e.target.value)} onKeyDown={(e) => { hk(e, "prod-finUnit"); }} required />
+          <FormInput id="prod-finUnit" label="Unit" value={watch("finishedProductUnitName") || watch("finishedProductUnit")} onChange={(e) => setValue("finishedProductUnitName", e.target.value)} disabled className="cursor-not-allowed bg-gray-50" required />
+          <FormInput id="prod-finQty" label="Output Qty" value={watch("finishedProductQty")} inputClassName="text-right" onChange={(e) => setValue("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "prod-product")} required />
         </div>
 
         <div className="mt-1 rounded-xl border border-gray-200 bg-gray-50/70 p-2">
           <div className="grid gap-x-2 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
-            <FormInput id="prod-product" label="Raw Material / Ingredient" value={form.product} onChange={(e) => setField("product", e.target.value)} onKeyDown={(e) => hk(e, "prod-code")} />
-            <FormInput id="prod-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "prod-unit")} />
-            <FormInput id="prod-unit" label="Unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} onKeyDown={(e) => hk(e, "prod-qty")} />
-            <FormInput id="prod-qty" label="Qty" value={form.qty} inputClassName="text-right" onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
-            <FormInput id="prod-cost" label="Cost" value={form.cost} inputClassName="text-right" onChange={(e) => setField("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
+            <SearchableSelect id="prod-product" label="Raw Material / Ingredient" options={rawMaterials} value={watch("product") || ""} onChange={(val) => handleRawMaterialSelect(val)} />
+            <FormInput id="prod-code" label="Code" value={watch("code") || ""} onChange={(e) => setValue("code", e.target.value)} onKeyDown={(e) => hk(e, "prod-unit")} />
+            <FormInput id="prod-unit" label="Unit" value={watch("unit") || ""} disabled className="cursor-not-allowed bg-gray-50" />
+            <FormInput id="prod-qty" label="Qty" value={watch("qty") || ""} inputClassName="text-right" onChange={(e) => setValue("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
+            <FormInput id="prod-cost" label="Cost" type="number" step={step} value={watch("cost") || ""} inputClassName="text-right" onChange={(e) => setValue("cost", e.target.value)} onBlur={(e) => handleMoneyBlur("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
             <div className="flex items-end pb-1">
               <Button
                 id="prod-add-btn"
-                onClick={addItem}
+                onClick={handleAddItem}
+                variant="primary"
                 className="h-10.5 w-full"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    addItem();
+                    handleAddItem();
                   }
                 }}
-                icon={<Plus size={18} />}
               >
-                Add
+                ADD
               </Button>
             </div>
           </div>
@@ -142,32 +119,43 @@ const ProductionPage = () => {
                     (column) => (
                       <th
                         key={column}
-                        className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400"
+                        className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 text-center"
                       >
                         {column}
                       </th>
                     ),
                   )}
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="h-28 px-4 text-center text-sm text-gray-400">
+                    <td colSpan={7} className="py-6 px-4 text-center text-sm text-gray-400">
                       No items added
                     </td>
                   </tr>
                 ) : (
-                  items.map((item) => (
+                  items.map((item, index) => (
                     <tr key={item.id} className="hover:bg-[#49293e]/5">
-                      <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900">
+                      <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900 text-center">
                         {item.product}
                       </td>
-                      <td className="px-4 py-3">{item.code || "-"}</td>
-                      <td className="px-4 py-3">{item.unit || "-"}</td>
-                      <td className="px-4 py-3">{item.qty}</td>
-                      <td className="px-4 py-3 font-mono">{formatAmount(item.cost)}</td>
-                      <td className="px-4 py-3 font-mono font-semibold text-gray-900">{formatAmount(item.amount)}</td>
+                      <td className="px-4 py-3 text-center">{item.code || "-"}</td>
+                      <td className="px-4 py-3 text-center">{item.unit || "-"}</td>
+                      <td className="px-4 py-3 text-right">{item.qty}</td>
+                      <td className="px-4 py-3 font-mono text-right">{formatAmount(item.cost)}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-gray-900 text-right">{formatAmount(item.amount)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => remove(index)}
+                          className="inline-flex rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          title="Remove item"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -176,61 +164,55 @@ const ProductionPage = () => {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div className="pb-4">
-            <Button 
-              variant="secondary" 
-              isAction
-              icon={<Download size={18} />}
-            >
-              Export
-            </Button>
-          </div>
-
-          <div className="w-full md:w-80 rounded-xl border border-gray-100 bg-gray-50/40 p-3 flex flex-col gap-2">
-            <FormInput
-              label="Other Charge"
-              value={form.otherCharge}
-              inputClassName="text-right"
-              onChange={(e) => setField("otherCharge", e.target.value)}
-            />
-            <div className="flex items-center justify-between rounded-lg border border-[#49293e]/10 bg-white px-3 py-2 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Grand Total</p>
-              <p className="text-xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
+        <div className="mt-2 flex flex-wrap items-end justify-end gap-4 rounded-xl border border-gray-100 bg-gray-50/40 p-2">
+            <div className="w-40">
+              <FormInput
+                label="Other Charge"
+                type="number"
+                step={step}
+                value={watch("otherCharge") || ""}
+                inputClassName="text-right"
+                onChange={(e) => setValue("otherCharge", e.target.value)}
+                onBlur={(e) => handleMoneyBlur("otherCharge", e.target.value)}
+              />
             </div>
-            <div className="flex items-center justify-between px-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Cost / Unit</p>
-              <p className="text-sm font-bold text-gray-700">{formatAmount(totals.costPerUnit)}</p>
+            <div className="flex items-center gap-6 rounded-lg border border-[#49293e]/10 bg-white px-4 py-2 shadow-sm mb-1">
+              <div className="text-right">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Cost / Unit</p>
+                <p className="text-sm font-bold text-gray-700">{formatAmount(totals.costPerUnit)}</p>
+              </div>
+              <div className="h-8 w-px bg-gray-200"></div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Grand Total</p>
+                <p className="text-xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
+              </div>
             </div>
-          </div>
         </div>
         </div>{/* end scrollable body */}
 
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-3xl">
+          <Button onClick={loadBom} variant="secondary" loading={isBomLoading} disabled={isSaving || isBomLoading} icon={<PackagePlus size={18} />}>
+            Load BOM
+          </Button>
           <Button 
             variant="secondary" 
             onClick={handleClearClick} 
             tabIndex={-1}
             isAction
-            icon={<Plus size={18} />}
+            icon={<RotateCcw size={18} />}
           >
             New
           </Button>
           <Button
-            onClick={() => {}} // TODO: Implement save
+            variant="primary"
+            onClick={onSubmit}
+            loading={isSaving}
+            disabled={isSaving}
             isAction
             icon={<Save size={18} />}
           >
             Save
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={() => setItems([])}
-            isAction
-            icon={<Trash2 size={18} />}
-          >
-            Clear All
           </Button>
         </div>
       </div>
@@ -240,7 +222,10 @@ const ProductionPage = () => {
         title="Clear Form"
         message="Are you sure you want to clear the form? All unsaved data will be lost."
         confirmLabel="Clear"
-        onConfirm={resetForm}
+        onConfirm={async () => {
+          form.reset();
+          setShowClearConfirm(false);
+        }}
         onCancel={() => setShowClearConfirm(false)}
       />
     </PageShell>

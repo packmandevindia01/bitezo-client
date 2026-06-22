@@ -11,6 +11,14 @@
 
 ---
 
+## Next-Generation Architecture Rule (NEW STANDARD)
+*Every new feature and any major refactor of an existing feature MUST strictly follow this architecture:*
+- **Data Fetching:** MUST use `@tanstack/react-query` (`useQuery`, `useMutation`) instead of manual `useEffect` fetching. Rely on React Query for caching, loading states, and cache invalidation.
+- **Form Management:** MUST use `react-hook-form` (`useForm`, `useFieldArray`, `useWatch`) instead of creating localized `useState` variables for inputs.
+- **Validation:** MUST use `zod` for rigorous schema definitions, integrated into forms via `@hookform/resolvers/zod`. Fail fast and display inline errors safely without sending bad payloads to the backend.
+
+---
+
 ## Actual Project Structure — STRICTLY follow this
 
 ```
@@ -66,6 +74,11 @@ features/<domain>/
 - `pos` — POS-specific (lockItem, cashier flows, etc.)
 - `systemRegistration` — system registration
 - `transaction` — vouchers, stock adjustment, production
+
+### Large Feature Component Organization (Sub-Domains)
+* If a feature's `components/` folder grows beyond 10-15 files (like the POS Terminal), it **MUST** be broken down into functional sub-domains to prevent a monolithic folder structure.
+* Group components by their logical domain (e.g., `components/modals/`, `components/cart/`, `components/layout/`, `components/menu/`).
+* Never dump dozens of distinct UI components, dialogs, and layout wrappers into a single flat `components/` directory.
 
 ---
 
@@ -262,7 +275,9 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 - Search must filter client-side if the dataset is small, server-side if paginated
 - Every list page must show the total record count
 - Tables must have consistent columns: Code | Name | (feature-specific fields) | Status | Actions
-- Action buttons per row: Edit (pencil icon) and Delete (trash icon) — consistent across all pages
+- Action buttons per row: Edit (pencil icon) and Delete (trash icon) — consistent across all pages.
+  - **Edit Button Pattern**: `<button className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"><Pencil size={16} /></button>`
+  - **Delete Button Pattern**: `<button className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>`
 
 ### 7. Code / ID Fields
 - Auto-generated codes (item codes, voucher numbers) must be read-only in the form
@@ -453,7 +468,22 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 **Zero Scrolling Philosophy for POS Views:**
 - Because this is a high-speed POS environment, users rely on muscle memory and fast taps. Scrolling ruins this workflow.
 - You must aim to fit the entire UI "above the fold" on standard POS pages.
-- Avoid using `overflow-y-auto` as a lazy fix for bad layout sizing. Only use `overflow-y-auto` as a failsafe on the outermost container, but the default 1024x768 view should NEVER trigger a scrollbar.
+- **CRITICAL Page Wrapper Pattern**: Every transaction/POS page MUST use the exact `calc(100vh - 120px)` and `flex-1 overflow-y-auto` wrapper pattern to guarantee the sticky action footer stays anchored to the bottom of the screen.
+  ```tsx
+  <PageShell title="Transaction Page">
+    <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+      {/* ── Scrollable Body ── */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-4">
+        {/* Form Content */}
+      </div>
+      {/* ── Sticky Action Footer ── */}
+      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-3xl">
+        <Button>Save</Button>
+      </div>
+    </div>
+  </PageShell>
+  ```
+- Avoid using `overflow-y-auto` on inner nested containers as a lazy fix for bad layout sizing. The default 1024x768 view should NEVER trigger a scrollbar on the outer container.
 - Never design modals or panels that expand vertically beyond the viewport and hide their submit/action buttons.
 
 **What NEVER to do:**

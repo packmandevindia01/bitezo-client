@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { bomApi } from "../services/bomApi";
-import { useCurrency } from "../../../../hooks/useCurrency";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
 
 export const useBomList = () => {
-  const { decimalPart } = useCurrency();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,8 +56,7 @@ export const useBomList = () => {
       const data = await bomApi.getBomDetails({
         BranchId: filters.branchId ? parseInt(filters.branchId, 10) : undefined,
         ProductId: filters.productId ? parseInt(filters.productId, 10) : undefined,
-        UnitId: filters.unitId ? parseInt(filters.unitId, 10) : undefined,
-        Decimals: decimalPart
+        UnitId: filters.unitId ? parseInt(filters.unitId, 10) : undefined
       });
       const sortedData = (data || []).sort((a: any, b: any) => {
         const dateA = new Date(a.transDate || a.createdAt || a.date || 0).getTime();

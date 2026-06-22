@@ -17,6 +17,7 @@ interface RecordTableCardProps<T> {
   data: T[];
   rowKey: keyof T | ((row: T) => string | number);
   actionLabel?: string;
+  actionIcon?: React.ReactNode;
   onAction?: () => void;
   loading?: boolean;
   autoFocusSearch?: boolean;
@@ -31,6 +32,7 @@ const RecordTableCard = <T,>({
   data,
   rowKey,
   actionLabel,
+  actionIcon,
   onAction,
   loading = false,
   autoFocusSearch,
@@ -65,7 +67,7 @@ const RecordTableCard = <T,>({
           )}
 
           {actionLabel && onAction && (
-            <Button onClick={onAction} className="w-full md:w-auto">
+            <Button onClick={onAction} className="w-full md:w-auto" isAction icon={actionIcon}>
               {actionLabel}
             </Button>
           )}

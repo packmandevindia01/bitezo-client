@@ -6,8 +6,8 @@ import { useAppDispatch } from '../../../../app/hooks';
 import { setSectionId, setTableId, setTableNo, setGuestNo, clearCart, setOrderTypeByName } from '../store/posSlice';
 import { useDineIn } from '../hooks/useDineIn';
 import { Loader } from '../../../../components/common';
-import { GuestCountModal } from '../components/GuestCountModal';
-import { DineInTableOrdersModal } from '../components/DineInTableOrdersModal';
+import { GuestCountModal } from '../components/modals/GuestCountModal';
+import { DineInTableOrdersModal } from '../components/modals/DineInTableOrdersModal';
 import type { DineInTable } from '../../types';
 
 /* ─────────────────────────── helpers ─────────────────────────────────── */

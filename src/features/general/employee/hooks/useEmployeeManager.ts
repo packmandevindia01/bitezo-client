@@ -1,74 +1,153 @@
-import { useEffect, useMemo, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
-import { emptyEmployeeForm } from "../constants";
-import type { EmployeeRecord } from "../types";
+import type { EmployeeRecord, EmployeeForm } from "../types";
+import { employeeSchema } from "../types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createEmployee,
   deleteEmployee,
   getBranches,
+  getEmployeeRoles,
   getEmployeeById,
   getEmployees,
   updateEmployee,
-  type BranchOption,
 } from "../services/employeeService";
 
 export const useEmployeeManager = () => {
-  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
-  const [branches, setBranches] = useState<BranchOption[]>([]);
-  const [form, setForm] = useState(emptyEmployeeForm);
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<EmployeeRecord | null>(null);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { showToast } = useToast();
+  // 1. Form Instance
+  const form = useForm({
+    resolver: zodResolver(employeeSchema),
+    defaultValues: {
+      name: "",
+      code: "",
+      branchId: "",
+      roleId: "",
+      driver: false,
+      active: true,
+      isMaster: false,
+    },
+  });
 
-  // ── Fetch list ──────────────────────────────────────────────────────────────
-  const fetchEmployees = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const { reset } = form;
+
+  // 2. Data Fetching (React Query)
+  const { data: employees = [], isLoading: loading } = useQuery<EmployeeRecord[]>({
+    queryKey: ["employees"],
+    queryFn: async () => {
       const data = await getEmployees();
-      setEmployees(
-        data.map((item) => ({
-          id: item.empId,
-          name: item.empName,
-          code: item.empCode,
-          branch: item.branch,
-          branchId: item.branchId,
-          driver: false,        // list endpoint doesn't return isDriver
-          active: item.isActive === "Active",
-          isMaster: false,      // list endpoint doesn't return isMaster
-        }))
-      );
-    } catch {
-      setError("Failed to load employees. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data.map((item) => ({
+        id: item.empId,
+        name: item.empName,
+        code: item.empCode,
+        branch: item.branch,
+        branchId: item.branchId,
+        driver: false,
+        active: item.isActive === "Active",
+        isMaster: false,
+        roleId: 0,
+      }));
+    },
+  });
 
-  // ── Fetch branches ──────────────────────────────────────────────────────────
-  const fetchBranches = async () => {
-    try {
-      setBranches(await getBranches());
-    } catch {
-      setBranches([]);
-    }
-  };
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches"],
+    queryFn: async () => {
+      return await getBranches();
+    },
+  });
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchBranches();
-  }, []);
+  const { data: roles = [] } = useQuery({
+    queryKey: ["employeeRoles"],
+    queryFn: async () => {
+      return await getEmployeeRoles();
+    },
+  });
 
-  // ── Form helpers ────────────────────────────────────────────────────────────
+  // 3. Search Filter
+  const filteredEmployees = useMemo(() => {
+    if (!search) return employees;
+    const lower = search.toLowerCase();
+    return employees.filter(
+      (e) =>
+        e.name.toLowerCase().includes(lower) ||
+        e.code.toLowerCase().includes(lower) ||
+        e.branch.toLowerCase().includes(lower)
+    );
+  }, [search, employees]);
+
+  // 4. Mutations
+  const saveMutation = useMutation({
+    mutationFn: async (data: EmployeeForm) => {
+      if (editingId) {
+        await updateEmployee(editingId, {
+          empId: editingId,
+          empCode: data.code,
+          empName: data.name,
+          branchId: parseInt(data.branchId, 10),
+          roleId: parseInt(data.roleId, 10),
+          isDriver: data.driver,
+          isActive: data.active,
+          isMaster: data.isMaster,
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        await createEmployee({
+          code: data.code,
+          name: data.name,
+          branchId: parseInt(data.branchId, 10),
+          roleId: parseInt(data.roleId, 10),
+          isDriver: data.driver,
+          isMaster: data.isMaster,
+          isActive: data.active,
+        });
+      }
+    },
+    onSuccess: () => {
+      showToast(editingId ? "Employee updated successfully!" : "Employee added successfully!", "success");
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      closeModal();
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || err.message || "Failed to save employee", "error");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await deleteEmployee(id);
+    },
+    onSuccess: () => {
+      showToast("Employee deleted successfully!", "success");
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      setDeleteCandidate(null);
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || err.message || "Failed to delete employee", "error");
+    },
+  });
+
+  // 5. Handlers
   const resetForm = () => {
-    setForm(emptyEmployeeForm);
+    reset({
+      name: "",
+      code: "",
+      branchId: "",
+      roleId: "",
+      driver: false,
+      active: true,
+      isMaster: false,
+    });
     setEditingId(null);
   };
 
@@ -82,120 +161,62 @@ export const useEmployeeManager = () => {
     setOpen(true);
   };
 
-  // ── Edit — fetch full record so we get isDriver / isMaster ─────────────────
   const handleEdit = async (record: EmployeeRecord) => {
     try {
-      setError(null);
       const detail = await getEmployeeById(record.id);
       setEditingId(detail.empId);
-      setForm({
+      reset({
         name: detail.empName,
         code: detail.empCode,
         branchId: String(detail.branchId),
+        roleId: detail.roleId ? String(detail.roleId) : "",
         driver: detail.isDriver,
         active: detail.isActive,
         isMaster: detail.isMaster,
       });
       setOpen(true);
     } catch {
-      setError("Failed to load employee details. Please try again.");
+      showToast("Failed to fetch employee details", "error");
     }
   };
 
-  // ── Save (create or update) ─────────────────────────────────────────────────
-  const handleSave = async () => {
-    if (!form.name.trim() || !form.code.trim() || !form.branchId) return;
+  const handleDelete = () => {
+    if (deleteCandidate) {
+      deleteMutation.mutate(deleteCandidate.id);
+    }
+  };
 
-    try {
-      setSaving(true);
-      setError(null);
-
-      if (editingId !== null) {
-        // UPDATE
-        await updateEmployee(editingId, {
-          empId: editingId,
-          empCode: form.code.trim(),
-          empName: form.name.trim(),
-          branchId: Number(form.branchId),
-          isDriver: form.driver,
-          isActive: form.active,
-          isMaster: form.isMaster,
-          updatedAt: new Date().toISOString(),
-        });
-      } else {
-        // CREATE
-        await createEmployee({
-          code: form.code.trim(),
-          name: form.name.trim(),
-          branchId: Number(form.branchId),
-          isDriver: form.driver,
-          isMaster: form.isMaster,
-          isActive: form.active,
-        });
+  const handleSave = form.handleSubmit(
+    (data: any) => {
+      saveMutation.mutate(data as EmployeeForm);
+    },
+    (errors) => {
+      const firstError = Object.values(errors)[0];
+      if (firstError?.message) {
+        showToast(firstError.message as string, "error");
       }
-
-      await fetchEmployees();
-      showToast(editingId !== null ? "Employee updated successfully" : "Employee created successfully", "success");
-      closeModal();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : (editingId ? "Failed to update employee" : "Failed to create employee");
-      setError(msg);
-      showToast(msg, "error");
-    } finally {
-      setSaving(false);
     }
-  };
-
-  // ── Delete ──────────────────────────────────────────────────────────────────
-  const handleDelete = async () => {
-    if (!deleteCandidate) return;
-    try {
-      setDeleting(true);
-      setError(null);
-      await deleteEmployee(deleteCandidate.id);
-      await fetchEmployees();
-      showToast("Employee deleted successfully", "success");
-      setDeleteCandidate(null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to delete employee";
-      setError(msg);
-      showToast(msg, "error");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // ── Search filter ───────────────────────────────────────────────────────────
-  const filteredEmployees = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return employees;
-    return employees.filter((item) =>
-      [item.name, item.code, item.branch].some((v) =>
-        v.toLowerCase().includes(query)
-      )
-    );
-  }, [employees, search]);
+  );
 
   return {
     form,
-    setForm,
     editingId,
     search,
     setSearch,
     open,
     branches,
+    roles,
     loading,
-    saving,
-    deleting,
-    error,
+    saving: saveMutation.isPending,
+    deleting: deleteMutation.isPending,
     deleteCandidate,
     setDeleteCandidate,
+    filteredEmployees,
     resetForm,
     closeModal,
     openCreateModal,
     handleSave,
     handleEdit,
     handleDelete,
-    filteredEmployees,
   };
 };
