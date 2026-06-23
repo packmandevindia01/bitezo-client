@@ -48,6 +48,7 @@ const PurchaseInvoiceListPage = lazy(() => import("../../features/transaction/pu
 const PurchaseInvoiceFormPage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoiceFormPage"));
 const PurchaseReturnListPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnListPage"));
 const PurchaseReturnFormPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnFormPage"));
+const RecipeListPage = lazy(() => import("../../features/general/recipe/pages/RecipeListPage"));
 const RecipePage = lazy(() => import("../../features/general/recipe/pages/RecipePage"));
 const BomListPage = lazy(() => import("../../features/general/bom/pages/BomListPage"));
 const BomPage = lazy(() => import("../../features/general/bom/pages/BomPage"));
@@ -179,7 +180,9 @@ const AppRoutes = () => {
                   <Route path="purchase-return/new" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
                   <Route path="purchase-return/edit/:id" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
 
-                  <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
+                  <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipeListPage /></RoleGuard>} />
+                  <Route path="recipe-form" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
+                  <Route path="recipe-form/:id" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />
                   <Route path="boms" element={<RoleGuard moduleName="BOM Master"><BomListPage /></RoleGuard>} />
                   <Route path="bom" element={<RoleGuard moduleName="BOM Master"><BomPage /></RoleGuard>} />
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />

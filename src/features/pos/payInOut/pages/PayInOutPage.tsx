@@ -1,31 +1,30 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowDownLeft, 
   ArrowUpRight, 
   ArrowLeft,
-  XCircle,
+  Trash2,
   Pencil
 } from 'lucide-react';
-import { Button, FormInput, SelectInput, Loader, ConfirmDialog, RecordTableCard, Modal } from '../../../../components/common';
-import { payInOutService, type PayInOutItem } from '../services/payInOutService';
-import { paymodeService } from '../../../general/paymode/services/paymodeService';
-import { cashierLogService } from '../../cashier/services/cashierLogService';
+import { ConfirmDialog, RecordTableCard } from '../../../../components/common';
+import { type PayInOutItem } from '../services/payInOutService';
 import { useToast } from '../../../../app/providers/useToast';
 import { useCurrency } from '../../../../hooks/useCurrency';
+import { PayInOutFormModal, type PayInOutFormData } from '../components/PayInOutFormModal';
+import { 
+  useCashierStatus, 
+  usePaymodesForCounter, 
+  usePayInOutTransactions, 
+  usePayInOutDetails, 
+  usePayInOutMutations 
+} from '../hooks/usePayInOutQueries';
 
 const PayInOutPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { formatAmount, currencySymbol, decimalPart } = useCurrency();
+  const { formatAmount, currencySymbol } = useCurrency();
 
-  const [type, setType] = useState<'IN' | 'OUT'>('IN');
-  const [vchNo, setVchNo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [paymodeId, setPaymodeId] = useState<string>('');
-  
   // Search Filters
   const [searchFromDate, setSearchFromDate] = useState(() => {
     const d = new Date();
@@ -36,59 +35,22 @@ const PayInOutPage: React.FC = () => {
   const [searchInOut, setSearchInOut] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [cancelId, setCancelId] = useState<number | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [items, setItems] = useState<PayInOutItem[]>([]);
-  const [paymodes, setPaymodes] = useState<{ value: string; label: string }[]>([]);
-  const [cashierStatus, setCashierStatus] = useState<any>(null);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
-      const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
-      const status = await cashierLogService.checkStatus(branchId, counterId);
-      setCashierStatus(status.cashierInStatus);
-    } catch (error) {
-      console.error("Failed to fetch cashier status", error);
-      showToast("Could not verify cashier session", "warning");
-    }
-  }, [showToast]);
+  const { data: cashierStatus } = useCashierStatus();
+  const { data: paymodesData = [] } = usePaymodesForCounter();
+  const { data: items = [], isLoading } = usePayInOutTransactions(searchFromDate, searchToDate, searchQuery);
+  
+  // Fetch details only when editing
+  const { data: editingData } = usePayInOutDetails(editingId);
+  
+  const { createTransaction, updateTransaction, cancelTransaction } = usePayInOutMutations();
 
-  const fetchPaymodes = useCallback(async () => {
-    try {
-      const counterId = Number(localStorage.getItem("systemCounterId")) || 1;
-      const data = await paymodeService.listByCounter(counterId);
-      setPaymodes(data.map(p => ({ value: p.paymodeId.toString(), label: p.paymodeName })));
-      if (data.length > 0) setPaymodeId(data[0].paymodeId.toString());
-    } catch (error) {
-      console.error("Failed to fetch paymodes", error);
-    }
-  }, []);
-
-  const fetchTransactions = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const fromD = new Date(searchFromDate);
-      fromD.setHours(0, 0, 0, 0);
-      const toD = new Date(searchToDate);
-      toD.setHours(23, 59, 59, 999);
-
-      const data = await payInOutService.list({
-        fromDate: fromD.toISOString(),
-        toDate: toD.toISOString(),
-        description: searchQuery || undefined
-      });
-      setItems(data.data || []);
-    } catch (error) {
-      console.error("Failed to fetch transactions", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchFromDate, searchToDate, searchQuery]);
+  const paymodes = useMemo(() => {
+    return paymodesData.map(p => ({ value: p.paymodeId.toString(), label: p.paymodeName }));
+  }, [paymodesData]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -97,91 +59,59 @@ const PayInOutPage: React.FC = () => {
     });
   }, [items, searchInOut]);
 
-  useEffect(() => {
-    fetchStatus();
-    fetchPaymodes();
-    fetchTransactions();
-  }, [fetchStatus, fetchPaymodes, fetchTransactions]);
-
-  const handleClear = () => {
-    setVchNo('');
-    setDate(new Date().toISOString().split('T')[0]);
-    setDescription('');
-    setAmount('');
-    if (paymodes.length > 0) setPaymodeId(paymodes[0].value);
-    setEditingId(null);
+  const handleEdit = (item: PayInOutItem) => {
+    setEditingId(item.transId);
+    setIsFormModalOpen(true);
   };
 
-  useEffect(() => {
-    if (isFormModalOpen) {
-      setTimeout(() => document.getElementById('pay-desc')?.focus(), 100);
-    }
-  }, [isFormModalOpen]);
-
-  const handleEdit = async (item: PayInOutItem) => {
-    setIsLoading(true);
-    try {
-      const response = await payInOutService.getById(item.transId);
-      const detail = response.data;
-      setEditingId(item.transId);
-      setType(detail.inOut);
-      setVchNo(String(detail.vchNo || ''));
-      setDate(detail.voucherDate.split('T')[0]);
-      setDescription(detail.description);
-      setAmount(String(detail.amount));
-      setPaymodeId(String(detail.paymodeId));
-      setIsFormModalOpen(true);
-    } catch (error: any) {
-      showToast("Failed to load details", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!description || !amount || !paymodeId) {
-      showToast("Please fill all required fields", "warning");
-      return;
-    }
-
+  const handleSave = (data: PayInOutFormData) => {
     if (!cashierStatus || cashierStatus.isDayClosed || cashierStatus.isShiftClosed) {
       showToast("No active cashier session found. Please open a session first.", "error");
       return;
     }
 
-    setIsSaving(true);
-    try {
-      if (editingId) {
-        await payInOutService.update(editingId, {
+    if (editingId) {
+      updateTransaction.mutate({
+        id: editingId,
+        data: {
           transId: editingId,
-          inOut: type,
-          voucherDate: new Date(date).toISOString(),
-          description,
-          amount: Number(amount),
-          paymodeId: Number(paymodeId),
+          inOut: data.type,
+          voucherDate: new Date(data.date).toISOString(),
+          description: data.description,
+          amount: Number(data.amount),
+          paymodeId: data.paymodeId,
           updatedAt: new Date().toISOString()
-        });
-        showToast("Transaction updated successfully", "success");
-      } else {
-        await payInOutService.create({
-          inOut: type,
-          voucherDate: new Date(date).toISOString(),
-          description,
-          amount: Number(amount),
-          paymodeId: Number(paymodeId),
-          dayId: cashierStatus.dayId,
-          shiftId: cashierStatus.shiftId,
-          createdAt: new Date().toISOString()
-        });
-        showToast("Transaction saved successfully", "success");
-      }
-      setIsFormModalOpen(false);
-      handleClear();
-      fetchTransactions();
-    } catch (error: any) {
-      showToast(error.message || "Failed to save transaction", "error");
-    } finally {
-      setIsSaving(false);
+        }
+      }, {
+        onSuccess: () => {
+          showToast("Transaction updated successfully", "success");
+          setIsFormModalOpen(false);
+          setEditingId(null);
+        },
+        onError: (error: any) => {
+          showToast(error.message || "Failed to save transaction", "error");
+        }
+      });
+    } else {
+      createTransaction.mutate({
+        inOut: data.type,
+        voucherDate: new Date(data.date).toISOString(),
+        description: data.description,
+        amount: Number(data.amount),
+        paymodeId: data.paymodeId,
+        dayId: cashierStatus.dayId,
+        shiftId: cashierStatus.shiftId,
+        createdAt: new Date().toISOString()
+      }, {
+        onSuccess: () => {
+          showToast("Transaction saved successfully", "success");
+          setIsFormModalOpen(false);
+          setEditingId(null);
+        },
+        onError: (error: any) => {
+          showToast(error.message || "Failed to save transaction", "error");
+        }
+      });
     }
   };
 
@@ -189,19 +119,18 @@ const PayInOutPage: React.FC = () => {
     setCancelId(transId);
   };
 
-  const confirmCancel = async () => {
+  const confirmCancel = () => {
     if (cancelId === null) return;
-    setIsCancelling(true);
-    try {
-      await payInOutService.cancel(cancelId);
-      showToast("Transaction cancelled successfully", "success");
-      fetchTransactions();
-    } catch (error: any) {
-      showToast(error.message || "Failed to cancel transaction", "error");
-    } finally {
-      setIsCancelling(false);
-      setCancelId(null);
-    }
+    cancelTransaction.mutate(cancelId, {
+      onSuccess: () => {
+        showToast("Transaction cancelled successfully", "success");
+        setCancelId(null);
+      },
+      onError: (error: any) => {
+        showToast(error.message || "Failed to cancel transaction", "error");
+        setCancelId(null);
+      }
+    });
   };
 
   return (
@@ -234,7 +163,6 @@ const PayInOutPage: React.FC = () => {
           actionLabel="+ Add Transaction"
           onAction={() => {
             setEditingId(null);
-            handleClear();
             setIsFormModalOpen(true);
           }}
           extraActions={
@@ -313,17 +241,17 @@ const PayInOutPage: React.FC = () => {
                 <div className="flex justify-center gap-2">
                   <button
                     onClick={() => handleEdit(row)}
-                    className="p-1.5 text-slate-400 hover:text-[#49293e] hover:bg-[#49293e]/10 rounded-lg transition-all"
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
                     title="Edit transaction"
                   >
                     <Pencil size={16} />
                   </button>
                   <button
                     onClick={() => handleCancel(row.transId)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
                     title="Cancel transaction"
                   >
-                    <XCircle size={16} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               )
@@ -333,113 +261,17 @@ const PayInOutPage: React.FC = () => {
       </div>
 
       {/* Form Modal */}
-      <Modal
+      <PayInOutFormModal
         isOpen={isFormModalOpen}
         onClose={() => {
           setIsFormModalOpen(false);
-          handleClear();
+          setEditingId(null);
         }}
-        title={editingId ? "Edit Transaction" : "Add Pay In / Out"}
-        size="lg"
-        footer={
-          <div className="flex gap-3">
-            <Button 
-              variant="secondary"
-              onClick={handleClear}
-              className="px-6 h-10.5 text-xs font-bold uppercase tracking-widest"
-              tabIndex={-1}
-            >
-              Clear
-            </Button>
-            <Button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-8 h-10.5 text-xs font-bold uppercase tracking-widest bg-[#49293e] hover:bg-[#3d2234] shadow-md shadow-[#49293e]/15"
-            >
-              {isSaving ? <Loader size="sm" /> : "Save"}
-            </Button>
-          </div>
-        }
-      >
-        <div className="grid gap-4 md:grid-cols-[120px_minmax(0,1fr)] md:items-center py-2">
-          
-          {/* TYPE Selection (IN / OUT Radio) */}
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Type</span>
-          <div className="flex gap-6 items-center py-2">
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-black text-[#49293e] uppercase tracking-[0.1em] select-none">
-              <input
-                type="radio"
-                name="inOutType"
-                checked={type === 'IN'}
-                onChange={() => setType('IN')}
-                className="w-4 h-4 text-[#49293e] focus:ring-[#49293e]/30 border-gray-300"
-              />
-              IN
-            </label>
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-black text-[#49293e] uppercase tracking-[0.1em] select-none">
-              <input
-                type="radio"
-                name="inOutType"
-                checked={type === 'OUT'}
-                onChange={() => setType('OUT')}
-                className="w-4 h-4 text-[#49293e] focus:ring-[#49293e]/30 border-gray-300"
-              />
-              OUT
-            </label>
-          </div>
-
-          {/* VCH NO Row */}
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Vch No</label>
-          <FormInput
-            value={vchNo}
-            onChange={(e) => setVchNo(e.target.value.toUpperCase().replace(/\s/g, ''))}
-            placeholder="Enter voucher number..."
-            hideLabel
-          />
-
-          {/* DATE Row */}
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Date</label>
-          <FormInput
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            hideLabel
-          />
-
-          {/* DESCRIPTION Row */}
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Description</label>
-          <FormInput
-            id="pay-desc"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter description..."
-            autoFocus
-            hideLabel
-          />
-
-          {/* AMOUNT Row */}
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Amount</label>
-          <FormInput
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={(0).toFixed(decimalPart)}
-            step={Math.pow(10, -decimalPart).toString()}
-            inputClassName="text-right font-black"
-            hideLabel
-          />
-
-          {/* PAYMODE Row */}
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Paymode</label>
-          <SelectInput
-            value={paymodeId}
-            onChange={(e) => setPaymodeId(e.target.value)}
-            options={paymodes}
-            noMargin
-          />
-
-        </div>
-      </Modal>
+        onSubmit={handleSave}
+        initialData={editingId ? editingData : null}
+        paymodes={paymodes}
+        isSaving={createTransaction.isPending || updateTransaction.isPending}
+      />
 
       <ConfirmDialog
         isOpen={cancelId !== null}
@@ -448,7 +280,7 @@ const PayInOutPage: React.FC = () => {
         confirmLabel="Yes, Cancel"
         cancelLabel="No, Keep"
         confirmVariant="danger"
-        loading={isCancelling}
+        loading={cancelTransaction.isPending}
         onConfirm={confirmCancel}
         onCancel={() => setCancelId(null)}
       />

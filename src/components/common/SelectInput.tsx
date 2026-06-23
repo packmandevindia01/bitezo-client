@@ -25,7 +25,7 @@ interface Props {
   tabIndex?: number;
 }
 
-const SelectInput = ({
+export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
   label,
   name,
   id,
@@ -42,7 +42,8 @@ const SelectInput = ({
   className = "",
   noMargin = false,
   tabIndex,
-}: Props) => {
+  ...rest
+}, ref) => {
 
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
@@ -63,6 +64,7 @@ const SelectInput = ({
 
       {/* SELECT */}
       <select
+        ref={ref}
         id={selectId}
         name={name}
         value={value}
@@ -83,6 +85,7 @@ const SelectInput = ({
           focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
           ${className}
         `}
+        {...rest}
       >
         {/* Placeholder */}
         <option value="">
@@ -97,10 +100,16 @@ const SelectInput = ({
         ))}
       </select>
 
-      {/* ERROR is rendered inline in the label */}
-
+      {/* ERROR (FALLBACK IF LABEL IS NOT PROVIDED) */}
+      {error && !label && (
+        <div className="absolute -bottom-3.5 left-1 text-[10px] text-red-600 font-semibold animate-in fade-in slide-in-from-top-1 z-10">
+          {error}
+        </div>
+      )}
     </div>
   );
-};
+});
+
+SelectInput.displayName = "SelectInput";
 
 export default SelectInput;

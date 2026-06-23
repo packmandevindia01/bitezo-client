@@ -1,8 +1,8 @@
-import { useRef, useMemo, useState, useEffect } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../../types";
-import PosProductCard from "./PosProductCard";
+import { PosProductCard } from "./PosProductCard";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 
 interface PosProductGridProps {
@@ -37,19 +37,44 @@ const PosProductGrid = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const firstAltRef = useRef<HTMLButtonElement>(null);
   const { formatAmount } = useCurrency();
-  const [columns, setColumns] = useState(1);
+  const [columns, setColumns] = useState(4);
+
+  // Stable callbacks using the ref pattern to prevent stale closures
+  // without needing to wrap the heavy parent functions in useCallback
+  const onAddRef = useRef(onAdd);
+  const onLongPressRef = useRef(onLongPress);
+
+  useEffect(() => {
+    onAddRef.current = onAdd;
+    onLongPressRef.current = onLongPress;
+  });
+
+  const stableOnAdd = useCallback((productId: number) => {
+    onAddRef.current(productId);
+  }, []);
+
+  const stableOnLongPress = useCallback((productId: number) => {
+    if (onLongPressRef.current) {
+      onLongPressRef.current(productId);
+    }
+  }, []);
 
   useEffect(() => {
     if (!scrollRef.current) return;
 
+    const computeColumns = (width: number) => {
+      if (width > 520) return 6;
+      return 4;
+    };
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const width = entry.contentRect.width;
-        if (width > 520) setColumns(6);
-        else setColumns(4);
+        setColumns(computeColumns(entry.contentRect.width));
       }
     });
 
+    // Fire immediately with current width so first render is correct
+    setColumns(computeColumns(scrollRef.current.getBoundingClientRect().width));
     observer.observe(scrollRef.current);
     return () => observer.disconnect();
   }, []);
@@ -115,32 +140,29 @@ const PosProductGrid = ({
 
   return (
     <section className="relative flex-1 bg-transparent overflow-hidden flex flex-col">
-      {/* Scroll Up Button - Desktop only */}
+      {/* Scroll Up Button - Desktop only (breadcrumb overlaid on right) */}
       <button
         type="button"
         onClick={() => scrollProducts("up")}
-        className="hidden lg:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-b border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0"
+        className="hidden lg:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-b border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0 relative"
         aria-label="Scroll Up Products"
       >
         <ChevronUp size={18} strokeWidth={2.5} />
-      </button>
 
-      {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && (
-        <div className="w-full flex items-center justify-end px-2 pt-2 shrink-0">
-          {breadcrumbs.length > 0 && (
-            <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-              {breadcrumbs.map((crumb, idx) => (
-                <div key={crumb} className="flex items-center gap-1.5">
-                  <span className={idx === breadcrumbs.length - 1 ? "text-[#49293e] font-black" : ""}>
-                    {crumb}
-                  </span>
-                  {idx < breadcrumbs.length - 1 && <ChevronRight size={10} className="text-slate-400" />}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        {/* Breadcrumb overlaid on right side of the scroll-up bar */}
+        {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && breadcrumbs.length > 0 && (
+          <div className="absolute right-3 flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest pointer-events-none">
+            {breadcrumbs.map((crumb, idx) => (
+              <div key={crumb} className="flex items-center gap-1.5">
+                <span className={idx === breadcrumbs.length - 1 ? "text-[#49293e] font-black" : ""}>
+                  {crumb}
+                </span>
+                {idx < breadcrumbs.length - 1 && <ChevronRight size={10} className="text-slate-400" />}
+              </div>
+            ))}
+          </div>
+        )}
+      </button>
 
       <div 
         ref={scrollRef}
@@ -254,8 +276,8 @@ const PosProductGrid = ({
                         <PosProductCard 
                           key={product.id} 
                           product={product} 
-                          onAdd={onAdd} 
-                          onLongPress={onLongPress}
+                          onAdd={stableOnAdd} 
+                          onLongPress={stableOnLongPress}
                           price={product.hasAlternatives ? undefined : product.price}
                           hasAlts={product.hasAlternatives}
                         />

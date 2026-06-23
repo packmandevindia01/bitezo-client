@@ -164,29 +164,32 @@ const ProductionPage = () => {
           </div>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-end justify-end gap-4 rounded-xl border border-gray-100 bg-gray-50/40 p-2">
-            <div className="w-40">
-              <FormInput
-                label="Other Charge"
+        <div className="mt-2 flex justify-end">
+          <div className="flex items-center gap-6 rounded-xl border border-gray-200 bg-white px-5 h-[52px] shadow-sm">
+            <div className="flex items-center gap-3">
+              <label htmlFor="prod-otherCharge" className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Other Charge :</label>
+              <input
+                id="prod-otherCharge"
                 type="number"
                 step={step}
                 value={watch("otherCharge") || ""}
-                inputClassName="text-right"
                 onChange={(e) => setValue("otherCharge", e.target.value)}
                 onBlur={(e) => handleMoneyBlur("otherCharge", e.target.value)}
+                readOnly={isSaving}
+                className="w-24 text-right text-sm font-bold text-gray-700 font-mono border-b border-gray-300 focus:border-[#49293e] focus:outline-none bg-transparent transition-colors pb-0.5"
               />
             </div>
-            <div className="flex items-center gap-6 rounded-lg border border-[#49293e]/10 bg-white px-4 py-2 shadow-sm mb-1">
-              <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Cost / Unit</p>
-                <p className="text-sm font-bold text-gray-700">{formatAmount(totals.costPerUnit)}</p>
-              </div>
-              <div className="h-8 w-px bg-gray-200"></div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Grand Total</p>
-                <p className="text-xl font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
-              </div>
+            <div className="h-6 w-px bg-gray-200"></div>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Cost / Unit :</p>
+              <p className="text-sm font-bold text-gray-700 font-mono">{formatAmount(totals.costPerUnit)}</p>
             </div>
+            <div className="h-6 w-px bg-gray-200"></div>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Grand Total :</p>
+              <p className="text-lg font-bold text-[#49293e] font-mono">{formatAmount(totals.grandTotal)}</p>
+            </div>
+          </div>
         </div>
         </div>{/* end scrollable body */}
 

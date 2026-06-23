@@ -6,11 +6,8 @@ import {
 } from '../../constants';
 import type { 
   PosCartItem, 
-  MenuGroup, 
-  PosCategory, 
-  MenuSubCategory, 
-  PosProduct,
-  PosOrderType
+  PosOrderType,
+  PosProduct
 } from '../../types';
 
 interface PosState {
@@ -29,10 +26,6 @@ interface PosState {
   customDeliveryCharge: number | null;
 
   // Dynamic Menu Data
-  groups: MenuGroup[];
-  categories: PosCategory[];
-  subCategories: MenuSubCategory[];
-  products: PosProduct[];
   productCache: Record<number, PosProduct>; // Keep track of all products for cart display
   
   activeGroupId: number | null;
@@ -83,10 +76,6 @@ const initialState: PosState = {
 
   customDeliveryCharge: null,
 
-  groups: [],
-  categories: [],
-  subCategories: [],
-  products: [],
   productCache: {},
   
   activeGroupId: null,
@@ -165,6 +154,11 @@ const posSlice = createSlice({
         });
       }
     },
+    cacheProducts: (state, action: PayloadAction<PosProduct[]>) => {
+      action.payload.forEach(product => {
+        state.productCache[product.id] = product;
+      });
+    },
     incrementItem: (state, action: PayloadAction<{ uniqueId: string }>) => {
       state.isCartModified = true;
       const { uniqueId } = action.payload;
@@ -220,8 +214,6 @@ const posSlice = createSlice({
     setCategory: (state, action: PayloadAction<number | null>) => {
       state.activeCategoryId = action.payload;
       state.activeSubCategoryId = null; // reset subcat on cat change
-      state.subCategories = []; // clear subcategories to prevent stale data
-      state.products = []; // clear products to prevent stale data
     },
     setSearch: (state, action: PayloadAction<string>) => {
       state.search = action.payload;
@@ -328,32 +320,14 @@ const posSlice = createSlice({
     },
     
     // Dynamic Menu Actions
-    setGroups: (state, action: PayloadAction<MenuGroup[]>) => {
-      state.groups = action.payload;
-    },
     setGroup: (state, action: PayloadAction<number | null>) => {
       state.activeGroupId = action.payload;
       state.activeCategoryId = null; // reset hierarchy
       state.activeSubCategoryId = null;
-      state.categories = [];
-      state.subCategories = [];
-      state.products = [];
     },
-    setCategories: (state, action: PayloadAction<PosCategory[]>) => {
-      state.categories = action.payload;
-    },
-    setSubCategories: (state, action: PayloadAction<MenuSubCategory[]>) => {
-      state.subCategories = action.payload;
-    },
+
     setSubCategory: (state, action: PayloadAction<number | null>) => {
       state.activeSubCategoryId = action.payload;
-    },
-    setProducts: (state, action: PayloadAction<PosProduct[]>) => {
-      state.products = action.payload;
-      // Add to cache
-      action.payload.forEach(p => {
-        state.productCache[p.id] = p;
-      });
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
@@ -477,6 +451,7 @@ const posSlice = createSlice({
 
 export const {
   addToCart,
+  cacheProducts,
   incrementItem,
   decrementItem,
   removeFromCart,
@@ -497,12 +472,8 @@ export const {
   updateItemPrice,
   updateItemQty,
   setItemCustomizations,
-  setGroups,
   setGroup,
-  setCategories,
-  setSubCategories,
   setSubCategory,
-  setProducts,
   setLoading,
   setError,
   setCustomerId,

@@ -13,9 +13,13 @@
 
 ## Next-Generation Architecture Rule (NEW STANDARD)
 *Every new feature and any major refactor of an existing feature MUST strictly follow this architecture:*
+
+**Golden Reference Modules:** Look at `src/features/transaction/production` or `src/features/transaction/internalStockTransfer` for the perfect implementation of this architecture.
+
 - **Data Fetching:** MUST use `@tanstack/react-query` (`useQuery`, `useMutation`) instead of manual `useEffect` fetching. Rely on React Query for caching, loading states, and cache invalidation.
 - **Form Management:** MUST use `react-hook-form` (`useForm`, `useFieldArray`, `useWatch`) instead of creating localized `useState` variables for inputs.
 - **Validation:** MUST use `zod` for rigorous schema definitions, integrated into forms via `@hookform/resolvers/zod`. Fail fast and display inline errors safely without sending bad payloads to the backend.
+- **State Encapsulation:** Form logic, API integration, and mathematical calculations MUST be encapsulated inside a dedicated hook (e.g. `useRecipeForm.ts`). The Page component must remain purely a visual shell that maps state to UI components.
 
 ---
 
@@ -358,6 +362,11 @@ export const formatAmount = (value: number): string => {
   const step = Math.pow(10, -getDecimalPart()).toString(); // "0.001" for BHD
   <FormInput type="number" step={step} inputClassName="text-right" ... />
 ```
+- **React Hook Form & Zod Schema for Money Fields**: To ensure `<input type="number">` successfully displays trailing zeroes (e.g. `0.000` instead of `0`), you MUST NOT use `valueAsNumber: true` in the `register` call, and you MUST NOT use `z.coerce.number()` in the Zod schema. Instead:
+  1. Define the field as a string in Zod with a refine block: `amount: z.string().min(1, "Amount is required").refine(val => Number(val) > 0, "Invalid amount")`
+  2. Set the default value as a formatted string: `amount: (0).toFixed(decimalPart)`
+  3. Register the input simply as a string: `{...register('amount')}`
+  4. Cast it to a number before sending to the API: `amount: Number(data.amount)`
 - Column headers show symbol: `<th>Price ({getCurrencySymbol()})</th>`
 - Column cells use amount only: `<td className="text-right">{formatAmount(item.price)}</td>`
 - Grand total uses full format: `<span>{formatCurrency(grandTotal)}</span>`
@@ -643,3 +652,13 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 - **Horizontal Scrolling vs Squishing:** When putting multiple buttons into a horizontally scrolling Top Navigation or header, do NOT use `min-w-0` on the buttons. Use `shrink-0` so they maintain their full width and correctly trigger the parent's `overflow-x-auto` instead of clipping their text.
 - **Typography Density:** Do not use aggressive text classes (`font-black`, `tracking-wider`) on buttons inside dense, multi-column layouts (e.g., a 5-column Action Button grid on an 800px screen). Use `font-bold` and standard tracking to ensure text fits cleanly inside button boundaries.
 - **Floating Button Anchors:** Do not anchor floating elements (like Cart bubbles) to the absolute bottom of the main viewport (`fixed bottom-6`) if there is a fixed Action Bar spanning the bottom of the screen. Anchor floating elements inside a `relative` wrapper (like the product grid) so they sit *above* the action buttons.
+
+---
+
+## 26. Monolith Decomposition & Employee Authorization (Phase 3 Standard)
+- **Breakdown Large Modals:** Never build massive modals (like Split, Combine, Settlement) with all business logic inline. Break them down into custom hooks (e.g., `useSplitOrderData`, `useSplitBuckets`) that manage mathematical/state logic and React Query API calls, separating them from the UI presentation components.
+- **Strict Backend Validation (EmployeeId vs UserId):** The backend explicitly strictly validates `EmployeeId` against the `Employees` table for many critical actions (like `order-split`, `order-void`, `order-recall`). Passing a generic `userId` (like `1`) or `0` will trigger a backend `404 Reference Not Found` if that exact ID does not exist in the Employees table.
+- **Always Request Authorization:** Before opening critical order modification modals (Split, Void, Recall), you MUST wrap the action in `requestAuthorization` from `useEmployeeAuthorization`.
+  - Capture the returned, verified `employeeId`.
+  - Pass this valid `employeeId` explicitly down into the modal and its custom hooks.
+  - Send this verified `employeeId` in the API payload instead of falling back to Redux session state, guaranteeing the backend database validation will pass.

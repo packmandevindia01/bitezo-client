@@ -5,7 +5,7 @@ import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { usePurchaseReturn, calculateLine } from "../hooks/usePurchaseReturn";
-import { PosMultiPayModal } from "../../../pos/terminal/components/modals/PosMultiPayModal";
+import { PosMultiPayModal } from "../../../pos/terminal/components/modals/payment/PosMultiPayModal";
 import { PurchasePrintPreviewModal } from "../../shared/components/PurchasePrintPreviewModal";
 import type { PurchasePrintData } from "../../shared/components/PurchasePrintTemplate";
 import { useState, useMemo } from "react";

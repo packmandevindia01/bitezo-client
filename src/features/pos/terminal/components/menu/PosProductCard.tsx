@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
 import type { PosProduct } from "../../../types";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { Lock } from "lucide-react";
@@ -11,7 +11,7 @@ interface PosProductCardProps {
   onLongPress?: (productId: number) => void;
 }
 
-const PosProductCard = ({ product, onAdd, price, hasAlts, onLongPress }: PosProductCardProps) => {
+const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: PosProductCardProps) => {
   const { formatAmount } = useCurrency();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
@@ -121,4 +121,15 @@ const PosProductCard = ({ product, onAdd, price, hasAlts, onLongPress }: PosProd
   );
 };
 
-export default PosProductCard;
+export const PosProductCard = memo(PosProductCardBase, (prev, next) => {
+  return (
+    prev.product.id === next.product.id &&
+    prev.product.price === next.product.price &&
+    prev.product.isLocked === next.product.isLocked &&
+    prev.product.isIncl === next.product.isIncl &&
+    prev.product.name === next.product.name &&
+    prev.product.imageUrl === next.product.imageUrl &&
+    prev.price === next.price &&
+    prev.hasAlts === next.hasAlts
+  );
+});
