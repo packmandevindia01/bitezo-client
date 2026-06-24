@@ -142,7 +142,7 @@ const PurchaseReturnFormPage = () => {
         </div>
       )}
 
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 110px)" }}>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
 
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto p-2 md:p-3">
@@ -280,6 +280,7 @@ const PurchaseReturnFormPage = () => {
                               className="text-gray-400 hover:text-red-500 transition-colors"
                               disabled={!canSave}
                               title="Remove item"
+                              tabIndex={-1}
                             >
                               <Trash2 size={14} />
                             </button>

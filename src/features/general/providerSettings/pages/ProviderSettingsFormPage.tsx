@@ -31,7 +31,7 @@ const ProviderSettingsFormPage = () => {
     <PageShell title={id ? "Edit Provider Settings" : "Create Provider Settings"}>
       <div
         className="rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col"
-        style={{ maxHeight: "calc(100vh - 80px)" }}
+        style={{ height: "calc(100vh - 80px)" }}
       >
         {/* Removed redundant header. Title is in Topbar Breadcrumbs */}
 

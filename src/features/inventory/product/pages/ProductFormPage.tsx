@@ -120,7 +120,7 @@ const ProductFormPage = () => {
 
   return (
     <PageShell title={id ? "Edit Product" : "Add Product"}>
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className={detailLoading ? "pointer-events-none opacity-50 relative" : "relative"}>

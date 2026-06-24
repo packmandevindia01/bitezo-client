@@ -1,13 +1,12 @@
-import { ChevronDown, X } from "lucide-react";
-import { useEffect, useRef, useState, useLayoutEffect, useCallback } from "react";
+import { ChevronDown, Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { handleFocusNextInput } from "../../utils/keyboard";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SearchableOption {
   label: string;
   value: string;
+  [key: string]: any;
 }
 
 interface Props {
@@ -20,7 +19,6 @@ interface Props {
   required?: boolean;
   disabled?: boolean;
   error?: string;
-  /** Show a clear (×) button when a value is selected. Default: true */
   clearable?: boolean;
   autoFocus?: boolean;
   tabIndex?: number;
@@ -33,9 +31,7 @@ interface Props {
   forcePlacement?: "top" | "bottom";
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
-const SearchableSelect = ({
+const SearchableCombobox = ({
   id,
   label,
   options = [],
@@ -58,32 +54,32 @@ const SearchableSelect = ({
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
+  
   const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, placement: "bottom" as "top" | "bottom" });
-  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const lastMousePos = useRef({ x: 0, y: 0 });
 
-  const inputCallbackRef = useCallback((node: HTMLInputElement | null) => {
-    inputRef.current = node;
-    setInputElement(node);
-  }, []);
+  const textSizeClass = className.includes('text-[10px]') ? 'text-[10px]' :
+                        className.includes('text-xs') ? 'text-xs' :
+                        className.includes('text-lg') ? 'text-lg' : 'text-sm';
 
-  // Auto focus logic
+  // Sync query with selected label when closed or value changes
   useEffect(() => {
-    if (autoFocus && triggerRef.current) {
-      triggerRef.current.focus();
-      setOpen(true);
+    if (!focused) {
+      const selectedLabel = options.find((o) => String(o.value) === String(value))?.label;
+      if (selectedLabel) {
+        setQuery(selectedLabel);
+      } else if (!value) {
+        setQuery("");
+      }
     }
-  }, [autoFocus]);
+  }, [value, options, focused]);
 
-  // Derive selected label from value - robust comparison. Fallback to value if not found (supports custom values)
-  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? value;
-
-  // Filtered options based on search query
   const meetsMinQuery = query.trim().length >= minQueryLength;
 
   const filtered = !meetsMinQuery
@@ -97,6 +93,7 @@ const SearchableSelect = ({
   useEffect(() => {
     if (onSearch) {
       if (query.trim().length < minQueryLength) return;
+      
       const timer = setTimeout(() => {
         onSearch(query.trim());
       }, 300);
@@ -104,12 +101,10 @@ const SearchableSelect = ({
     }
   }, [query, onSearch, minQueryLength]);
 
-  // Reset highlighted index when filtered list changes
   useEffect(() => {
     setHighlightedIndex(filtered.length > 0 ? 0 : -1);
   }, [filtered.length]);
 
-  // Scroll highlighted item into view manually without triggering page scroll
   useEffect(() => {
     if (highlightedIndex >= 0 && listRef.current) {
       const listEl = listRef.current;
@@ -134,28 +129,24 @@ const SearchableSelect = ({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // If clicking inside a portal, don't close
-        if ((e.target as HTMLElement).closest(".select-portal-content")) return;
-        
+        if ((e.target as HTMLElement).closest(".combobox-portal-content")) return;
         setOpen(false);
-        setQuery("");
+        setFocused(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Update coordinates when opening or scrolling
   useLayoutEffect(() => {
-    if (open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
-      const dropdownHeight = 280; // Estimated height including search
+      const dropdownHeight = 280;
       
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
       
-      // If not enough space below AND there is more space above, flip to top
       const placement = forcePlacement ? forcePlacement : (spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom");
 
       setCoords({
@@ -165,14 +156,13 @@ const SearchableSelect = ({
         placement
       });
     }
-  }, [open]);
+  }, [open, forcePlacement]);
 
-  // Re-calculate on window resize or scroll
   useEffect(() => {
     if (!open) return;
     const handleUpdate = () => {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const dropdownHeight = 280;
         const spaceBelow = viewportHeight - rect.bottom;
@@ -181,15 +171,8 @@ const SearchableSelect = ({
         const newTop = placement === "bottom" ? rect.bottom : rect.top;
 
         setCoords(prev => {
-          if (prev.top === newTop && prev.left === rect.left && prev.width === rect.width && prev.placement === placement) {
-            return prev;
-          }
-          return {
-            top: newTop,
-            left: rect.left,
-            width: rect.width,
-            placement
-          };
+          if (prev.top === newTop && prev.left === rect.left && prev.width === rect.width && prev.placement === placement) return prev;
+          return { top: newTop, left: rect.left, width: rect.width, placement };
         });
       }
     };
@@ -199,61 +182,58 @@ const SearchableSelect = ({
       window.removeEventListener("resize", handleUpdate);
       window.removeEventListener("scroll", handleUpdate, true);
     };
-  }, [open]);
+  }, [open, forcePlacement]);
 
-  // Focus input when dropdown opens and input mounts
-  useEffect(() => {
-    if (open && inputElement) {
-      const timer = setTimeout(() => {
-        inputElement.focus();
-      }, 10); // small delay ensures browser paints portal
-      return () => clearTimeout(timer);
-    }
-  }, [open, inputElement]);
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (disabled) return;
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) {
+        setOpen(true);
+        return;
+      }
+    }
 
     switch (e.key) {
       case "ArrowDown":
-        e.preventDefault();
         setHighlightedIndex((prev) => (prev + 1) % filtered.length);
         break;
       case "ArrowUp":
-        e.preventDefault();
         setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
         break;
       case "Enter":
         e.preventDefault();
         e.stopPropagation();
-        if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+        if (open && highlightedIndex >= 0 && highlightedIndex < filtered.length) {
           handleSelect(filtered[highlightedIndex].value);
         }
         break;
       case "Escape":
         e.preventDefault();
         setOpen(false);
-        setQuery("");
-        triggerRef.current?.focus();
+        inputRef.current?.blur();
         break;
       case "Tab":
-        // Do not e.preventDefault() here, we want the browser to move focus
         setOpen(false);
-        setQuery("");
-        triggerRef.current?.focus();
         break;
     }
+    
+    if (onKeyDown) onKeyDown(e);
   };
 
   const handleSelect = (optValue: string) => {
     onChange(optValue);
+    
+    const opt = options.find((o) => String(o.value) === String(optValue));
+    if (opt) setQuery(opt.label);
+    
     setOpen(false);
-    setQuery("");
-    // Focus the next logical input field after a tiny delay 
-    // to prevent 'keyup' events from accidentally clicking newly focused buttons
+    
+    // Focus the next logical input field after a tiny delay
     setTimeout(() => {
-      if (triggerRef.current) {
-        handleFocusNextInput(triggerRef.current);
+      if (inputRef.current) {
+        handleFocusNextInput(inputRef.current);
       }
     }, 50);
   };
@@ -262,62 +242,23 @@ const SearchableSelect = ({
     e.stopPropagation();
     onChange("");
     setQuery("");
+    inputRef.current?.focus();
   };
 
-  const toggleOpen = () => {
-    if (disabled) return;
-    setOpen((prev) => !prev);
-    if (!open) {
-      setQuery("");
-      setHighlightedIndex(filtered.length > 0 ? 0 : -1);
-    }
-  };
-
-  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
-
-    // Always prevent page scroll for up/down arrows when interacting with the select
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-    }
-
-    if (!open) {
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        setOpen(true);
-      }
-    } else {
-      // If open but focus is mysteriously still on the trigger, handle navigation directly
-      if (e.key === "ArrowDown") {
-        setHighlightedIndex((prev) => (prev + 1) % filtered.length);
-      } else if (e.key === "ArrowUp") {
-        setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
-          handleSelect(filtered[highlightedIndex].value);
-        }
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        setOpen(false);
-      }
-    }
-    
-    onKeyDown?.(e);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setOpen(true);
   };
 
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full relative" ref={containerRef}>
-      {/* Label */}
+    <div className="flex flex-col gap-1 mb-1 w-full relative">
       {label && (
         <label 
           htmlFor={id}
           className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit mb-0.5"
           onClick={() => {
             if (disabled) return;
-            triggerRef.current?.focus();
-            setOpen(true);
+            inputRef.current?.focus();
           }}
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
@@ -327,45 +268,50 @@ const SearchableSelect = ({
         </label>
       )}
 
-      {/* Trigger */}
       <div
-        id={id}
-        ref={triggerRef}
-        role="combobox"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        tabIndex={disabled ? -1 : (tabIndex ?? 0)}
-        onMouseDown={(e) => {
-          if (disabled) return;
-          // If clicking the clear button, don't toggle open here
-          if ((e.target as HTMLElement).closest(".clear-btn")) return;
-          
-          e.preventDefault(); // Prevent trigger focus to avoid flash, we'll focus the search input
-          toggleOpen();
-        }}
-        onFocus={() => {
-          if (disabled) return;
-          if (!open) {
-            setOpen(true);
-          }
-        }}
-        onKeyDown={handleTriggerKeyDown}
+        ref={containerRef}
         className={`
-          relative flex w-full cursor-pointer items-center gap-2
-          rounded-md border px-3 text-sm outline-none transition md:px-4
+          relative flex w-full cursor-text items-center gap-2
+          rounded-md border px-3 transition md:px-4
+          ${textSizeClass}
           ${className.includes('h-') ? '' : 'h-10.5'}
           ${className}
           ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
           ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50" : ""}
-          ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"}
+          ${open || focused ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400"}
         `}
+        onClick={() => {
+          if (!disabled) {
+            inputRef.current?.focus();
+          }
+        }}
       >
-        {/* Displayed value or placeholder */}
-        <span className={`flex-1 truncate ${!selectedLabel ? "text-gray-400 font-normal" : "text-gray-900 font-medium"}`}>
-          {selectedLabel || placeholder}
-        </span>
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            setFocused(true);
+            setOpen(true);
+            inputRef.current?.select();
+          }}
+          onBlur={() => {
+            // Delay blur slightly so click on dropdown can register
+            setTimeout(() => {
+              setFocused(false);
+            }, 150);
+          }}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          tabIndex={disabled ? -1 : (tabIndex ?? 0)}
+          className={`flex-1 w-full min-w-0 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 ${textSizeClass}`}
+          autoComplete="off"
+        />
 
-        {/* Clear button */}
         {clearable && value && !disabled && (
           <button
             type="button"
@@ -379,55 +325,52 @@ const SearchableSelect = ({
           </button>
         )}
 
-        {/* Chevron */}
-        <ChevronDown
-          size={16}
-          className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        {loading && (open || focused) ? (
+          <Loader2 size={16} className="animate-spin shrink-0 text-gray-400" />
+        ) : (
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (disabled) return;
+              if (open) {
+                setOpen(false);
+              } else {
+                inputRef.current?.focus();
+                setOpen(true);
+              }
+            }}
+          />
+        )}
       </div>
 
-      {/* Dropdown - Portaled */}
       {open && coords.width > 0 && createPortal(
         <div 
-          className="fixed z-[10001] select-portal-content"
+          className="fixed z-[10001] combobox-portal-content"
           style={{
             top: coords.placement === "bottom" ? coords.top + 4 : coords.top - 4,
             left: coords.left,
             width: coords.width,
             transform: coords.placement === "top" ? "translateY(-100%)" : "none"
           }}
-          onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div className={`
             w-full rounded-md border border-gray-200 bg-white shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] duration-100
             ${coords.placement === "bottom" ? "animate-in fade-in zoom-in-95" : "animate-in fade-in slide-in-from-bottom-2"}
           `}>
-            {/* Search input */}
-            <div className="border-b border-gray-100 p-2">
-              <input
-                ref={inputCallbackRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Type to search…"
-                className={`w-full rounded border border-gray-200 px-3 py-1.5 outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}
-              />
-            </div>
-
-            {/* Options list */}
             <ul
               ref={listRef}
               role="listbox"
               className="max-h-48 overflow-y-auto py-1"
             >
-              {loading && open ? (
-                <li className={`px-4 py-2 text-gray-400 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}>Loading...</li>
+              {loading ? (
+                <li className={`px-4 py-2 text-gray-400 ${textSizeClass}`}>Loading...</li>
               ) : !meetsMinQuery ? (
-                <li className={`px-4 py-2 text-gray-400 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}>Start typing to search...</li>
+                <li className={`px-4 py-2 text-gray-400 ${textSizeClass}`}>Start typing to search...</li>
               ) : filtered.length === 0 ? (
-                <li className={`px-4 py-2 text-gray-400 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}>No options found</li>
+                <li className={`px-4 py-2 text-gray-400 ${textSizeClass}`}>No options found</li>
               ) : (
                 filtered.map((opt, index) => (
                   <li
@@ -446,7 +389,7 @@ const SearchableSelect = ({
                     className={`
                       cursor-pointer px-3 transition flex items-center
                       ${className.includes('h-') ? className.match(/h-\d+(\.\d+)?/)?.[0] : 'py-2.5'}
-                      ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}
+                      ${textSizeClass}
                       ${index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e]" : "text-gray-700"}
                       ${String(opt.value) === String(value) ? "font-bold underline decoration-[#49293e]/30 underline-offset-4" : ""}
                     `}
@@ -460,10 +403,8 @@ const SearchableSelect = ({
         </div>,
         document.body
       )}
-
-      {/* Error is rendered inline in the label */}
     </div>
   );
 };
 
-export default SearchableSelect;
+export default SearchableCombobox;

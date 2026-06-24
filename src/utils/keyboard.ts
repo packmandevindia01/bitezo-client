@@ -27,6 +27,20 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
     return rect.width > 0 && rect.height > 0;
   });
 
+  // Sort by tabIndex (positive numbers first, then DOM order)
+  focusableElements.sort((a, b) => {
+    const aTab = a.tabIndex > 0 ? a.tabIndex : Number.MAX_SAFE_INTEGER;
+    const bTab = b.tabIndex > 0 ? b.tabIndex : Number.MAX_SAFE_INTEGER;
+    
+    if (aTab !== bTab) {
+      return aTab - bTab;
+    }
+    
+    // Stable sort fallback for equal tabIndex (like 0)
+    // compareDocumentPosition bitmask 4 means b follows a
+    return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+  });
+
   const index = focusableElements.indexOf(currentEl);
 
   if (index > -1 && index < focusableElements.length - 1) {

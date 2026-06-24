@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ export const useRecipeForm = (initialTransId?: number) => {
       unit: "",
       qty: "0",
       cost: Number(0).toFixed(decimalPart),
+      amount: Number(0).toFixed(decimalPart),
       items: [],
     },
   });
@@ -46,6 +47,14 @@ export const useRecipeForm = (initialTransId?: number) => {
   // Watch values for dynamic totals and dependent queries
   const watchedItems = useWatch({ control, name: "items" });
   const watchedFinishedProductQty = useWatch({ control, name: "finishedProductQty" });
+  const watchTempQty = useWatch({ control, name: "qty" });
+  const watchTempCost = useWatch({ control, name: "cost" });
+
+  useEffect(() => {
+    const q = Number(watchTempQty) || 0;
+    const c = Number(watchTempCost) || 0;
+    setValue("amount", (q * c).toFixed(decimalPart));
+  }, [watchTempQty, watchTempCost, decimalPart, setValue]);
 
   // 3. Totals Calculation
   const totals = useMemo(() => {
@@ -83,7 +92,7 @@ export const useRecipeForm = (initialTransId?: number) => {
   });
 
   // Fetch initial data if in Edit Mode
-  const { isLoading: isLoadingInitialData } = useQuery({
+  const { isLoading: isLoadingInitialData, isError: isInitialDataError, error: initialDataError } = useQuery({
     queryKey: ["recipeData", initialTransId],
     queryFn: async () => {
       if (!initialTransId) return null;
@@ -95,7 +104,7 @@ export const useRecipeForm = (initialTransId?: number) => {
         branchId: String(master.branchId || ""),
         finishedProduct: String(master.productId || ""),
         finishedProductUnit: String(master.unitId || ""),
-        finishedProductUnitName: master.unitName || String(master.unitId || ""),
+        finishedProductUnitName: (master as any).unitName || String(master.unitId || ""),
         finishedProductQty: String(master.qty || 1),
         items: details.map((item: any, idx: number) => ({
           id: idx,
@@ -145,7 +154,11 @@ export const useRecipeForm = (initialTransId?: number) => {
 
     try {
       const costData = await recipeApi.getProductCostData(prod.code);
+      const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
+      const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
+
       setValue("unit", String(costData.baseUnitId));
+      setValue("unitName", unitName);
       setValue("cost", Number(costData.cost).toFixed(decimalPart));
       setValue("qty", "1");
     } catch (err) {
@@ -169,7 +182,7 @@ export const useRecipeForm = (initialTransId?: number) => {
       product: prod ? prod.label : vals.rawMaterial,
       code: vals.code || "",
       unitId: Number(vals.unit),
-      unit: vals.unit,
+      unit: vals.unitName || vals.unit,
       qty: q,
       cost: c,
       amount: q * c
@@ -179,16 +192,16 @@ export const useRecipeForm = (initialTransId?: number) => {
     setValue("rawMaterial", "");
     setValue("code", "");
     setValue("unit", "");
+    setValue("unitName", "");
     setValue("qty", "0");
     setValue("cost", Number(0).toFixed(decimalPart));
+    setValue("amount", Number(0).toFixed(decimalPart));
   };
 
   // React Query Mutation for Save
   const saveMutation = useMutation({
     mutationFn: async (data: RecipeForm) => {
       const payload: RecipePayload = {
-        transId: initialTransId || 0,
-        transDate: new Date().toISOString().split('T')[0],
         productId: Number(data.finishedProduct),
         unitId: Number(data.finishedProductUnit),
         qty: Number(data.finishedProductQty),
@@ -196,7 +209,6 @@ export const useRecipeForm = (initialTransId?: number) => {
         amount: totals.grandTotal,
         baseQty: Number(data.finishedProductQty),
         branchId: Number(data.branchId),
-        createdAt: new Date().toISOString(),
         details: data.items.map(item => ({
           productId: item.productId,
           unitId: item.unitId,
@@ -209,8 +221,10 @@ export const useRecipeForm = (initialTransId?: number) => {
 
       if (initialTransId) {
         payload.transId = initialTransId;
+        payload.updateAt = new Date().toISOString();
         await recipeApi.updateRecipe(initialTransId, payload);
       } else {
+        payload.createdAt = new Date().toISOString();
         await recipeApi.createRecipe(payload);
       }
     },
@@ -241,6 +255,8 @@ export const useRecipeForm = (initialTransId?: number) => {
     remove,
     totals,
     isLoadingInitialData,
+    isInitialDataError,
+    initialDataError,
     isSaving: saveMutation.isPending,
     finishedProducts,
     rawMaterials,

@@ -161,7 +161,7 @@ const CompanyPage = () => {
     <PageShell title="Company">
       <div
         className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col"
-        style={{ maxHeight: "calc(100vh - 120px)" }}
+        style={{ height: "calc(100vh - 120px)" }}
       >
         {/* ── Header ── */}
         <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">

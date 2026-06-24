@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Ban, Trash2, Plus, Loader2 } from "lucide-react";
+import { Save, Ban, Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -19,6 +19,8 @@ const RecipePage = () => {
     remove,
     totals,
     isLoadingInitialData,
+    isInitialDataError,
+    initialDataError,
     isSaving,
     finishedProducts,
     rawMaterials,
@@ -69,9 +71,26 @@ const RecipePage = () => {
     );
   }
 
+  if (isInitialDataError) {
+    return (
+      <PageShell title="Recipe">
+        <div className="flex h-[50vh] flex-col items-center justify-center gap-4">
+          <div className="flex items-center gap-3 text-red-500">
+            <AlertCircle size={24} />
+            <span className="text-lg font-medium">Failed to load Recipe Data</span>
+          </div>
+          <p className="text-sm text-gray-500">
+            {initialDataError instanceof Error ? initialDataError.message : "The recipe could not be found or the server returned an error."}
+          </p>
+          <Button onClick={() => window.history.back()} variant="secondary">Go Back</Button>
+        </div>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell title={id ? "Edit Recipe" : "Add Recipe"}>
-      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
 
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -136,7 +155,7 @@ const RecipePage = () => {
 
           {/* ── Row 2: Raw Material Entry Row ── */}
           <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
-            <div className="grid gap-x-3 gap-y-3 grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
+            <div className="grid gap-x-3 gap-y-3 grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]">
               <SearchableSelect
                 id="rec-rawMaterial"
                 label="Raw Material"
@@ -158,8 +177,8 @@ const RecipePage = () => {
               <FormInput
                 id="rec-unit"
                 label="Unit"
-                value={watch("unit") || ""}
-                onChange={(e) => setValue("unit", e.target.value)}
+                value={watch("unitName") || watch("unit") || ""}
+                onChange={(e) => setValue("unitName", e.target.value)}
                 onKeyDown={(e) => hk(e, "rec-qty")}
                 disabled
                 className="bg-gray-50 cursor-not-allowed"
@@ -193,6 +212,17 @@ const RecipePage = () => {
                 }}
                 readOnly={!canAdd}
                 tabIndex={10}
+              />
+              <FormInput
+                id="rec-amount"
+                label="Amount"
+                type="number"
+                step={step}
+                inputClassName="text-right font-mono font-bold text-[#49293e]"
+                value={watch("amount") || ""}
+                disabled
+                className="bg-gray-50/50 cursor-not-allowed"
+                tabIndex={-1}
               />
               <div className="flex items-end pb-1">
                 <Button

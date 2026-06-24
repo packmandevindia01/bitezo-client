@@ -6,13 +6,11 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCurrency } from "../../../../hooks/useCurrency";
 
 const RecipeListPage = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { formatAmount } = useCurrency();
   const {
     records,
     loading,
@@ -92,10 +90,12 @@ const RecipeListPage = () => {
           rowKey="transId"
           loading={loading || deleteMutation.isPending}
           columns={[
-            { header: "S.No", accessor: "transId" },
+            { header: "S.No", accessor: "sNo" },
+            { header: "Recipe No", accessor: "recipeNo" },
             { header: "Branch", accessor: "branchName" },
             { header: "Finished Product", accessor: "productName" },
-            { header: "Total Amount", accessor: "totalAmount", render: (row) => formatAmount(row.totalAmount) },
+            { header: "Unit", accessor: "unitName" },
+            { header: "Qty", accessor: "qty" },
             {
               header: "Actions",
               accessor: "transId",

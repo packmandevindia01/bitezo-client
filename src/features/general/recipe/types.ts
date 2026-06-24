@@ -26,8 +26,10 @@ export const recipeSchema = z.object({
   rawMaterial: z.string().optional(),
   code: z.string().optional(),
   unit: z.string().optional(),
+  unitName: z.string().optional(),
   qty: z.string().optional(),
   cost: z.string().optional(),
+  amount: z.string().optional(),
   
   items: z.array(recipeItemSchema).min(1, "At least one raw material is required"),
 });
@@ -36,7 +38,6 @@ export type RecipeForm = z.infer<typeof recipeSchema>;
 
 export interface RecipePayload {
   transId?: number;
-  transDate: string;
   productId: number;
   unitId: number;
   qty: number;

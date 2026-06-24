@@ -11,15 +11,8 @@ export const createEmptyPurchaseInvoiceForm = (): PurchaseInvoiceForm => ({
   branch: "",
   salesman: "",
   
-  product: "",
-  code: "",
-  unit: "",
-  qty: "0",
-  foc: "0",
-  price: "0",
-  vatId: "0",
-  vatPercent: "0",
-  discPercent: "0",
+  items: [],
+  payments: [],
   
   globalDiscPercent: "0",
   discAmount: "0",

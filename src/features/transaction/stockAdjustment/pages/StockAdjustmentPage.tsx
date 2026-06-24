@@ -126,7 +126,7 @@ const StockAdjustmentPage = () => {
 
   return (
     <PageShell title="Stock Adjustment">
-      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto p-3 md:p-4">
 

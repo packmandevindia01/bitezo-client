@@ -60,13 +60,15 @@ src/
 Every feature follows this internal structure — never mix files across layers:
 
 ```
-features/<domain>/
+features/<domain>/<feature>/
   components/     # UI components specific to this feature
   hooks/          # Custom hooks → use<Feature>.ts
   pages/          # Page components → <Feature>Page.tsx
   services/       # API calls → <feature>Api.ts
   store/          # Redux slices → <feature>Slice.ts (only if needed)
-  types/          # TypeScript interfaces/types for this feature
+  constants.ts    # Constants specific to this feature (optional)
+  index.ts        # Exports pages and types
+  types.ts        # TypeScript interfaces/types for this feature
 ```
 
 **Existing feature domains:**
@@ -275,6 +277,24 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
   3. `RecordTableCard` for the data list
   4. `Modal` + form for Add/Edit (not a separate page)
   5. `ConfirmDialog` for delete confirmation
+
+### 6a. Transaction List Pages (Vouchers, Invoices, Returns) — Filter Header Pattern
+- Transaction list pages that include date filters (`From Date`, `To Date`) MUST organize their search and filter controls in a dedicated header section ABOVE the `RecordTableCard`, rather than putting them inside the card's `extraActions` or `search` props.
+- The layout must use a `flex` container that aligns the date inputs, search bar, and branch selector (if applicable) in a row on desktop, and wraps on mobile.
+- The "Add / New" button must also be placed on the far right of this top header section, NOT passed via the `actionLabel` prop to `RecordTableCard`.
+- **Layout Pattern**:
+  ```tsx
+  <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+    <div className="flex gap-4 items-end flex-1">
+      <div className="w-40"><FormInput label="From Date" type="date" ... /></div>
+      <div className="w-40"><FormInput label="To Date" type="date" ... /></div>
+      <div className="flex-1 max-w-sm"><SearchBar ... /></div>
+      <div className="w-48"><SelectInput label="Branch" ... /></div>
+    </div>
+    <Button icon={<Plus size={18} />}>Add New</Button>
+  </div>
+  ```
+- The `RecordTableCard` then remains a simple presentation component without its own search or action props.
 - The list must reload automatically after every Add, Edit, or Delete operation
 - Search must filter client-side if the dataset is small, server-side if paginated
 - Every list page must show the total record count
@@ -282,6 +302,12 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 - Action buttons per row: Edit (pencil icon) and Delete (trash icon) — consistent across all pages.
   - **Edit Button Pattern**: `<button className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"><Pencil size={16} /></button>`
   - **Delete Button Pattern**: `<button className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>`
+
+### 6b. Transaction Form Pages (Standalone Forms)
+- Transaction form pages that are rendered as separate full pages (not modals) MUST NOT have a "Cancel" or "Back" button in the bottom action bar.
+- Instead, place a Close "X" button (`<X size={20} />` from lucide-react) in the absolute top-right corner of the white form container. Clicking this should navigate back to the list page.
+- Layout for the X button: `<button onClick={() => navigate("...")} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors" title="Close"><X size={20} /></button>` (make sure the parent container has `relative` class).
+- If the form is opened in Edit mode and the transaction is not already cancelled/deleted, place a "Delete" (or "Cancel Invoice") button next to the "Clear" and "Save" buttons on the right side of the bottom action bar.
 
 ### 7. Code / ID Fields
 - Auto-generated codes (item codes, voucher numbers) must be read-only in the form

@@ -1,107 +1,86 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import axiosInstance from "../../../../api/axiosInstance";
+import type { ApiResponse } from "../../../inventory/product/types";
 import type { RecipePayload } from "../types";
 
-// Dummy API implementation for Recipe until actual endpoints are available
+function unwrap<T>(data: ApiResponse<T>): T {
+  // Support both `isSuccess` boolean and `status` codes for success checks
+  if (data.isSuccess === false || (data.status && data.status >= 400)) {
+    throw new Error(data.message || "Operation failed");
+  }
+  return data.data;
+}
+
+const BASE_URL = "/recipe";
+
 export const recipeApi = {
   getBranchList: async () => {
-    // Return dummy data
-    return [
-      { branchId: 1, branchName: "Main Branch" },
-      { branchId: 2, branchName: "Secondary Branch" },
-    ];
+    const response = await axiosInstance.get<ApiResponse<{ branchId: number; branchName: string }[]>>(`${BASE_URL}/list-branch-name`);
+    return unwrap(response.data);
   },
 
   getFinishedProductListByName: async (productName: string) => {
-    return [
-      { productId: 101, productName: "Special Burger", code: "SB001", barcode: "123456" },
-      { productId: 102, productName: "Classic Pizza", code: "CP002", barcode: "234567" },
-    ];
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productName: string; code: string; barcode: string }[]>>(`${BASE_URL}/finished-product-list-name`, { params: { productName } });
+    return unwrap(response.data);
+  },
+
+  getFinishedProductListByBarcode: async (barcode: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; barcode: string }[]>>(`${BASE_URL}/finished-product-list-barcode`, { params: { Barcode: barcode } });
+    return unwrap(response.data);
   },
 
   getRawMaterialProductListByName: async (productName: string) => {
-    return [
-      { productId: 201, productName: "Burger Bun", code: "RM001", barcode: "345678" },
-      { productId: 202, productName: "Beef Patty", code: "RM002", barcode: "456789" },
-      { productId: 203, productName: "Cheese Slice", code: "RM003", barcode: "567890" },
-    ];
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productName: string; code: string; barcode: string }[]>>(`${BASE_URL}/raw-material-product-list-name`, { params: { productName } });
+    return unwrap(response.data);
+  },
+
+  getRawMaterialProductListByBarcode: async (barcode: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; barcode: string }[]>>(`${BASE_URL}/raw-material-product-list-barcode`, { params: { Barcode: barcode } });
+    return unwrap(response.data);
+  },
+
+  getProductUnitData: async (branchId: number, barcode: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ unitId: number; unitCategory: string }>>(`${BASE_URL}/branches/${branchId}/barcode/${barcode}/product-unit-data`);
+    return unwrap(response.data);
   },
 
   getProductCostData: async (barcode: string) => {
-    // Dummy cost data
-    return {
-      productId: 201,
-      productCode: barcode,
-      productName: "Dummy Material",
-      baseUnitId: 1,
-      cost: 2.5,
-      altUnitId: 2,
-      vatId: 1,
-      vatName: "Standard",
-      vatValue: 5,
-      unitCategory: "Weight",
-    };
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number; unitCategory: string }>>(`${BASE_URL}/product-cost-data/${barcode}`);
+    return unwrap(response.data);
   },
 
   getUnitListByName: async (unitCategory: string) => {
-    return [
-      { unitId: 1, name: "Kg" },
-      { unitId: 2, name: "Gram" },
-      { unitId: 3, name: "Pcs" },
-    ];
+    const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/unit-list-name`, { params: { unitCategory } });
+    return unwrap(response.data);
+  },
+
+  getRecipeNumber: async (branchId: number) => {
+    const response = await axiosInstance.get<ApiResponse<{ recipeNo: number }>>(`${BASE_URL}/recipe-number/${branchId}`);
+    return unwrap(response.data);
   },
 
   getRecipeById: async (transId: number) => {
-    return {
-      masterData: {
-        branchId: 1,
-        productId: 101,
-        unitId: 3,
-        qty: 1,
-      },
-      detailsData: [
-        {
-          productId: 201,
-          productName: "Burger Bun",
-          barcode: "345678",
-          unitId: 3,
-          unitName: "Pcs",
-          qty: 1,
-          cost: 0.5,
-          amount: 0.5,
-        },
-        {
-          productId: 202,
-          productName: "Beef Patty",
-          barcode: "456789",
-          unitId: 3,
-          unitName: "Pcs",
-          qty: 1,
-          cost: 1.5,
-          amount: 1.5,
-        }
-      ]
-    };
+    const response = await axiosInstance.get<ApiResponse<any>>(`${BASE_URL}/data/${transId}`);
+    return unwrap(response.data);
   },
 
   createRecipe: async (payload: RecipePayload) => {
-    console.log("DUMMY API: createRecipe payload:", payload);
-    return { success: true, message: "Recipe created successfully" };
+    const response = await axiosInstance.post<ApiResponse<any>>(BASE_URL, payload);
+    return unwrap(response.data);
   },
 
   updateRecipe: async (transId: number, payload: RecipePayload) => {
-    console.log("DUMMY API: updateRecipe id:", transId, "payload:", payload);
-    return { success: true, message: "Recipe updated successfully" };
+    const response = await axiosInstance.put<ApiResponse<void>>(`${BASE_URL}/${transId}`, payload);
+    return unwrap(response.data);
   },
 
-  getRecipeList: async () => {
-    return [
-      { transId: 1, transDate: new Date().toISOString(), productName: "Special Burger", branchName: "Main Branch", totalAmount: 2.0 },
-      { transId: 2, transDate: new Date().toISOString(), productName: "Classic Pizza", branchName: "Main Branch", totalAmount: 4.5 },
-    ];
+  getRecipeList: async (params?: { BranchId?: number; ProductId?: number; UnitId?: number; Decimals?: number }) => {
+    const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/details`, { params });
+    return unwrap(response.data);
   },
 
   deleteRecipe: async (transId: number) => {
-    console.log("DUMMY API: deleteRecipe id:", transId);
-    return { success: true, message: "Recipe deleted successfully" };
+    const response = await axiosInstance.put<ApiResponse<void>>(`${BASE_URL}/cancel/${transId}`);
+    return unwrap(response.data);
   }
 };

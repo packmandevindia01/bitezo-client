@@ -22,4 +22,5 @@ export { default as Toggle } from "./Toggle";
 export { default as SearchableSelect } from "./Searchableselect";
 export { default as ErrorBoundary } from "./ErrorBoundary";
 export { default as AutocompleteInput } from "./AutocompleteInput";
+export { default as SearchableCombobox } from "./SearchableCombobox";
 export * from "./MasterDesign";
