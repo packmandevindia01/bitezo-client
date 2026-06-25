@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
-import { Save, Ban, Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
+import { Save, Ban, Trash2, Plus, Loader2, AlertCircle, X } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SelectInput, Checkbox, Modal } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useRecipeForm } from "../hooks/useRecipeForm";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const RecipePage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const { formatAmount, decimalPart } = useCurrency();
   const step = Math.pow(10, -decimalPart).toString();
@@ -99,7 +100,7 @@ const RecipePage = () => {
 
   return (
     <PageShell title={id ? "Edit Recipe" : "Add Recipe"}>
-      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
+      <div className="relative rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
 
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
