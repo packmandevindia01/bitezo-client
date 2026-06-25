@@ -149,14 +149,8 @@ const SearchableSelect = ({
   useLayoutEffect(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const dropdownHeight = 280; // Estimated height including search
-      
-      const spaceBelow = viewportHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      
-      // If not enough space below AND there is more space above, flip to top
-      const placement = forcePlacement ? forcePlacement : (spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom");
+      // Force bottom placement unless explicitly overridden, as requested by user
+      const placement = forcePlacement ? forcePlacement : "bottom";
 
       setCoords({
         top: placement === "bottom" ? rect.bottom : rect.top,
@@ -173,11 +167,7 @@ const SearchableSelect = ({
     const handleUpdate = () => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const dropdownHeight = 280;
-        const spaceBelow = viewportHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        const placement = forcePlacement ? forcePlacement : (spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom");
+        const placement = forcePlacement ? forcePlacement : "bottom";
         const newTop = placement === "bottom" ? rect.bottom : rect.top;
 
         setCoords(prev => {
@@ -313,7 +303,7 @@ const SearchableSelect = ({
       {label && (
         <label 
           htmlFor={id}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit mb-0.5"
+          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer min-w-0 mb-0.5"
           onClick={() => {
             if (disabled) return;
             triggerRef.current?.focus();
@@ -321,9 +311,9 @@ const SearchableSelect = ({
           }}
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
-          <span>{label}</span>
-          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
+          <span className="truncate">{label}</span>
+          {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error})</span>}
         </label>
       )}
 

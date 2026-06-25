@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useEffect, useCallback } from "react";
+import React, { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../../types";
@@ -304,4 +304,4 @@ const PosProductGrid = ({
   );
 };
 
-export default PosProductGrid;
+export default React.memo(PosProductGrid);

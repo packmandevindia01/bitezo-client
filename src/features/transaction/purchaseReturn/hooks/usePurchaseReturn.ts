@@ -1,29 +1,31 @@
-// trigger rebuild
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { createEmptyPurchaseReturnForm } from "../constants";
-import type { PurchaseReturnForm, PurchaseReturnLineItem, PurchasePaymentLine } from "../types";
+import { purchaseReturnSchema } from "../types";
+import type { PurchaseReturnLineItem } from "../types";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
 import type { PurchaseReturnMasterData } from "../services/purchaseReturnApi";
 import { useToast } from "../../../../app/providers/useToast";
 
-const toNumber = (value: string) => {
+const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
 export const calculateLine = (item: PurchaseReturnLineItem) => {
-  const amount = item.qty * item.price;
-  const discountAmount = amount * (item.discPercent / 100);
-  const vatAmount = (amount - discountAmount) * (item.vatPercent / 100);
+  const qty = toNumber(item.qty);
+  const price = toNumber(item.price);
+  const discPercent = toNumber(item.discPercent);
+  const vatPercent = toNumber(item.vatPercent);
+
+  const amount = qty * price;
+  const discountAmount = amount * (discPercent / 100);
+  const vatAmount = (amount - discountAmount) * (vatPercent / 100);
   const netAmount = amount - discountAmount + vatAmount;
 
-  return {
-    amount,
-    discountAmount,
-    vatAmount,
-    netAmount,
-  };
+  return { amount, discountAmount, vatAmount, netAmount };
 };
 
 export const usePurchaseReturn = (invoiceId?: string) => {
@@ -33,6 +35,125 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
   const [purchaseId, setPurchaseId] = useState<number>(0);
+  const [loadedInvoiceText, setLoadedInvoiceText] = useState("");
+
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Search States
+  const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+
+  const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
+  const [searchingSuppliers, setSearchingSuppliers] = useState(false);
+
+  const [invoiceOptions, setInvoiceOptions] = useState<{label: string, value: string}[]>([]);
+  const [searchingInvoices, setSearchingInvoices] = useState(false);
+
+  const initialForm = useMemo(() => {
+    const empty = createEmptyPurchaseReturnForm();
+    empty.discAmount = formatAmount(0);
+    empty.otherCharge = formatAmount(0);
+    empty.roundOff = formatAmount(0);
+    empty.items = [{
+        id: crypto.randomUUID(),
+        product: "",
+        code: "",
+        unit: "",
+        qty: "1",
+        foc: "0",
+        price: "0",
+        vatId: "0",
+        vatPercent: "0",
+        discPercent: "0",
+    }];
+    return empty;
+  }, [formatAmount]);
+
+  const methods = useForm<any>({
+    resolver: zodResolver(purchaseReturnSchema),
+    defaultValues: initialForm,
+  });
+
+  const { control, setValue, reset, getValues } = methods;
+
+  const { fields: items, append, remove, replace: replaceItems } = useFieldArray({
+    control,
+    name: "items",
+  });
+
+  const { replace: setPayments } = useFieldArray({
+    control,
+    name: "payments",
+  });
+
+  // Watchers for reactive totals
+  const watchedItems = useWatch({ control, name: "items" }) || [];
+  const watchedDiscAmount = useWatch({ control, name: "discAmount" });
+  const watchedOtherCharge = useWatch({ control, name: "otherCharge" });
+  const watchedRoundOff = useWatch({ control, name: "roundOff" });
+  const watchedPayments = useWatch({ control, name: "payments" }) || [];
+  const watchedGlobalDiscPercent = useWatch({ control, name: "globalDiscPercent" });
+  const watchedBranch = useWatch({ control, name: "branch" });
+  const watchedSupplier = useWatch({ control, name: "supplier" });
+  const watchedInvoiceNo = useWatch({ control, name: "invoiceNo" });
+
+  // Clear products if invoice text is manually edited after loading
+  useEffect(() => {
+    if (loadedInvoiceText !== "" && watchedInvoiceNo !== loadedInvoiceText) {
+      setPurchaseId(0);
+      setLoadedInvoiceText("");
+      replaceItems([{
+        id: crypto.randomUUID(),
+        product: "",
+        code: "",
+        unit: "",
+        qty: "1",
+        foc: "0",
+        price: "0",
+        vatId: "0",
+        vatPercent: "0",
+        discPercent: "0",
+      }]);
+      setProductOptions([]);
+    }
+  }, [watchedInvoiceNo, loadedInvoiceText, purchaseId, replaceItems]);
+  
+  // Calculate totals
+  const totals = useMemo(() => {
+    const itemTotals = watchedItems.reduce(
+      (acc: any, item: any) => {
+        const line = calculateLine(item as PurchaseReturnLineItem);
+        acc.discountAmount += line.discountAmount;
+        acc.vatAmount += line.vatAmount;
+        acc.netAmount += line.netAmount;
+        return acc;
+      },
+      { discountAmount: 0, vatAmount: 0, netAmount: 0 }
+    );
+
+    const manualDiscount = toNumber(watchedDiscAmount);
+    const otherCharge = toNumber(watchedOtherCharge);
+    const roundOff = toNumber(watchedRoundOff);
+    const grandTotal = itemTotals.netAmount - manualDiscount + otherCharge + roundOff;
+
+    return {
+      ...itemTotals,
+      grandTotal,
+    };
+  }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems]);
+
+  // Recalculate global discount amount when items change, if a percentage was set
+  useEffect(() => {
+    if (toNumber(watchedGlobalDiscPercent) > 0 && watchedItems.length > 0) {
+      const subTotal = watchedItems.reduce((acc: any, item: any) => acc + calculateLine(item as PurchaseReturnLineItem).netAmount, 0);
+      const newDiscAmt = formatAmount(subTotal * (toNumber(watchedGlobalDiscPercent) / 100));
+      if (newDiscAmt !== watchedDiscAmount) {
+        setValue("discAmount", newDiscAmt);
+      }
+    }
+  }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount]);
 
   useEffect(() => {
     const fetchMasterData = async () => {
@@ -41,16 +162,14 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         const data = await purchaseReturnApi.loadMasterData();
         if (data) {
           setMasterData(data);
-          // Pre-select first series and branch if available
-          if (data.series.length > 0) {
-            setForm((prev) => ({
-              ...prev,
-              series: data.series[0].seriesId.toString(),
-              purchaseNo: `${data.series[0].prefix}${data.series[0].startNo}`,
-            }));
-          }
-          if (data.branches.length > 0) {
-            setForm((prev) => ({ ...prev, branch: data.branches[0].branchId.toString() }));
+          if (!invoiceId) {
+             if (data.series.length > 0) {
+               setValue("series", data.series[0].seriesId.toString());
+               setValue("purchaseNo", `${data.series[0].prefix}${data.series[0].startNo}`);
+             }
+             if (data.branches.length > 0) {
+               setValue("branch", data.branches[0].branchId.toString());
+             }
           }
         }
       } catch (error: any) {
@@ -61,7 +180,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       }
     };
     fetchMasterData();
-  }, []);
+  }, [invoiceId, setValue]);
 
   const loadInvoiceData = async (id: string) => {
     try {
@@ -72,7 +191,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       const rootPaymodeId = res.masterData.paymodeId || 1;
       const rootAmount = (res.masterData.netAmount || 0) - (res.paymodesData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       
-      setForm({
+      const formPayload: any = {
         ...initialForm,
         series: master.seriesId?.toString() || "",
         branch: master.branchId?.toString() || "",
@@ -87,10 +206,17 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         discAmount: master.discAmount?.toString() || "0",
         roundOff: "0",
         otherCharge: "0",
-      } as PurchaseReturnForm);
+      };
+
+      if (master.supplierId) {
+        setSupplierOptions([{ label: master.supplierName || master.supplierId.toString(), value: master.supplierId.toString() }]);
+      }
+      if (master.purchaseInvoiceNo) {
+         setInvoiceOptions([{ label: master.purchaseInvoiceNo, value: (master.purchaseId || 0).toString() }]);
+      }
 
       const mappedItems = (res.detailsData || []).map((d: any) => ({
-        id: Math.random(),
+        id: crypto.randomUUID(),
         product: d.productId?.toString() || "",
         code: d.productId?.toString() || "",
         unit: d.unitId?.toString() || "",
@@ -98,32 +224,46 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         foc: d.foc?.toString() || "0",
         price: d.price?.toString() || "0",
         discPercent: d.discPer?.toString() || "0",
-        amount: (d.qty * d.price).toString(),
-        discAmount: d.discAmount?.toString() || "0",
-        vatAmount: d.vatAmount?.toString() || "0",
-        netAmount: d.netAmount?.toString() || "0",
-        vatId: d.vatId || 0,
-        vatPercent: d.vatValue || 0,
+        vatId: (d.vatId || 0).toString(),
+        vatPercent: (d.vatValue || 0).toString(),
       }));
-      setItems(mappedItems);
+      formPayload.items = mappedItems;
 
       if (res.paymodesData && res.paymodesData.length > 0) {
-        const mappedPayments = [
+        formPayload.payments = [
           {
-            id: Math.random(),
             mode: rootPaymodeId === 1 ? 'cash' : rootPaymodeId === 2 ? 'card' : 'credit',
-            amount: rootAmount,
+            amount: rootAmount.toString(),
           },
           ...res.paymodesData.map((p: any) => ({
-            id: Math.random(),
             mode: p.paymodeId === 1 ? 'cash' : p.paymodeId === 2 ? 'card' : 'credit',
-            amount: p.amount || 0,
+            amount: (p.amount || 0).toString(),
           }))
         ];
-        setPayments(mappedPayments);
       } else {
-        setPayments([]);
+        formPayload.payments = [];
       }
+
+      reset(formPayload);
+      
+      // Load product options for the mapped items
+      const productIds = Array.from(new Set(mappedItems.map((i: any) => i.product)));
+      const options: any[] = [];
+      for (const pId of productIds) {
+        if (!pId) continue;
+        const searchRes = await purchaseReturnApi.searchProductsByName("");
+        const pData = searchRes.find(r => r.productId.toString() === pId);
+        if (pData) {
+          options.push({
+            label: pData.productName,
+            value: pData.productId.toString(),
+            code: pData.code || "",
+            barcode: pData.barcode || ""
+          });
+        }
+      }
+      setProductOptions(options);
+
     } catch (error: any) {
       setMasterError(error.message);
       showToast(error.message || "Failed to load invoice details", "error");
@@ -137,32 +277,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       loadInvoiceData(invoiceId);
     }
   }, [invoiceId]);
-
-  const initialForm = useMemo(() => {
-    const empty = createEmptyPurchaseReturnForm();
-    empty.price = formatAmount(0);
-    empty.discAmount = formatAmount(0);
-    empty.otherCharge = formatAmount(0);
-    empty.roundOff = formatAmount(0);
-    return empty;
-  }, [formatAmount]);
-
-  const [form, setForm] = useState<PurchaseReturnForm>(initialForm);
-  const [items, setItems] = useState<PurchaseReturnLineItem[]>([]);
-  const [payments, setPayments] = useState<PurchasePaymentLine[]>([]);
-  
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
-
-  // Product Search State
-  const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
-  const [searchingProducts, setSearchingProducts] = useState(false);
-
-  const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
-  const [searchingSuppliers, setSearchingSuppliers] = useState(false);
-
-  const [invoiceOptions, setInvoiceOptions] = useState<{label: string, value: string}[]>([]);
-  const [searchingInvoices, setSearchingInvoices] = useState(false);
 
   const handleProductSearch = useCallback(async (query: string) => {
     setSearchingProducts(true);
@@ -201,12 +315,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   }, []);
 
   const handleInvoiceSearch = useCallback(async (query: string) => {
-    if (!form.branch || !form.supplier) {
-      return;
-    }
+    if (!watchedBranch || !watchedSupplier) return;
     setSearchingInvoices(true);
     try {
-      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(form.branch), Number(form.supplier), query || "");
+      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(watchedBranch), Number(watchedSupplier), query || "");
       const mapped = results.map((r: any) => {
         const invText = r.invoiceNo || r.purchaseNo || "Unknown";
         return {
@@ -214,34 +326,31 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           value: (r.purchaseId || r.id || 0).toString(),
         };
       });
-
       setInvoiceOptions(mapped);
     } catch (error) {
       console.error("Failed to search invoices", error);
     } finally {
       setSearchingInvoices(false);
     }
-  }, [form.branch, form.supplier]);
+  }, [watchedBranch, watchedSupplier]);
 
-  const handleInvoiceSelect = async (purchaseId: string, invoiceNoText: string) => {
-    if (!purchaseId || purchaseId === "0") {
-      setForm((prev) => ({ ...prev, invoiceNo: invoiceNoText }));
+  const handleInvoiceSelect = async (purchaseIdStr: string, invoiceNoText: string) => {
+    if (!purchaseIdStr || purchaseIdStr === "0") {
+      setValue("invoiceNo", invoiceNoText);
       return;
     }
-    setForm((prev) => ({ ...prev, invoiceNo: invoiceNoText }));
+    setValue("invoiceNo", invoiceNoText);
     try {
-      const res = await purchaseReturnApi.getPurchaseInvoiceData(purchaseId);
-      if (res && res.masterData) {
-        setPurchaseId(res.masterData.purchaseId || 0);
-        setForm((prev) => ({
-          ...prev,
-          invoiceDate: res.masterData.invoiceDate ? res.masterData.invoiceDate.split("T")[0] : prev.invoiceDate,
-          refNo: res.masterData.refNo || prev.refNo,
-        }));
+      const res = await purchaseReturnApi.getPurchaseInvoiceData(purchaseIdStr);
+      if (res && res.master) {
+        setPurchaseId(res.master.purchaseId || parseInt(purchaseIdStr) || 0);
+        setLoadedInvoiceText(invoiceNoText);
+        setValue("invoiceDate", res.master.invoiceDate ? res.master.invoiceDate.split("T")[0] : getValues("invoiceDate"));
+        setValue("refNo", res.master.refNo || getValues("refNo"));
       }
       if (res && res.detailsData) {
         const mappedItems = res.detailsData.map((d: any) => ({
-          id: Math.random(),
+          id: crypto.randomUUID(),
           product: d.productId?.toString() || "",
           code: d.productId?.toString() || "",
           unit: d.unitId?.toString() || "",
@@ -249,10 +358,27 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           foc: d.foc?.toString() || "0",
           price: d.price?.toString() || "0",
           discPercent: d.discPer?.toString() || "0",
-          vatId: d.vatId || 0,
-          vatPercent: d.vatValue || 0,
+          vatId: (d.vatId || 0).toString(),
+          vatPercent: (d.vatValue || 0).toString(),
         }));
-        setItems(mappedItems);
+        replaceItems(mappedItems);
+        
+        const productIds = Array.from(new Set(mappedItems.map((i: any) => i.product)));
+        const options: any[] = [];
+        for (const pId of productIds) {
+            if (!pId) continue;
+            const searchRes = await purchaseReturnApi.searchProductsByName("");
+            const pData = searchRes.find(r => r.productId.toString() === pId);
+            if (pData) {
+                options.push({
+                    label: pData.productName,
+                    value: pData.productId.toString(),
+                    code: pData.code || "",
+                    barcode: pData.barcode || ""
+                });
+            }
+        }
+        setProductOptions(options);
       }
     } catch (error: any) {
       console.error("Failed to fetch invoice details", error);
@@ -260,143 +386,32 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
-  const handleProductSelect = async (_productId: string, barcode: string) => {
-    if (!barcode) return;
+  const handleProductSelect = async (index: number, productId: string, _code: string) => {
+    const opt = productOptions.find(o => o.value === productId);
+    if (!opt || !opt.barcode) return;
     try {
-      const details = await purchaseReturnApi.getProductCostData(barcode);
-      setForm(prev => ({
-        ...prev,
-        unit: details.baseUnitId.toString(),
-        price: formatAmount(details.cost),
-        vatId: details.vatId?.toString() || "0",
-        vatPercent: details.vatValue.toString(),
-        qty: prev.qty === "0" || prev.qty === "" ? "1" : prev.qty
-      }));
+      const details = await purchaseReturnApi.getProductCostData(opt.barcode);
+      const currentQty = getValues(`items.${index}.qty`);
+      setValue(`items.${index}.unit`, details.baseUnitId.toString());
+      setValue(`items.${index}.price`, formatAmount(details.cost));
+      setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
+      setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+      if (currentQty === "0" || currentQty === "") {
+         setValue(`items.${index}.qty`, "1");
+      }
     } catch (error) {
       console.error("Failed to load product details", error);
     }
   };
 
-  const nextItemId = useRef(1);
-
-  const setField = (key: keyof PurchaseReturnForm, value: string) => {
-    setForm((prev) => {
-      const next = { ...prev, [key]: value };
-      
-      // Auto-generate P NO if series changes
-      if (key === "series" && masterData) {
-        const seriesObj = masterData.series.find((s) => s.seriesId.toString() === value);
-        if (seriesObj) {
-          next.purchaseNo = `${seriesObj.prefix}${seriesObj.startNo}`;
-        }
-      }
-
-      // Auto-calculate global discounts when editing the global discount fields
-      if (key === "globalDiscPercent") {
-        const discPct = toNumber(next.globalDiscPercent);
-        // Calculate subtotal manually because totals is not available inside setForm
-        const subTotal = items.reduce((acc, item) => acc + calculateLine(item).netAmount, 0);
-        next.discAmount = formatAmount(subTotal * (discPct / 100));
-      }
-
-      if (key === "discAmount") {
-        const discAmt = toNumber(value);
-        const subTotal = items.reduce((acc, item) => acc + calculateLine(item).netAmount, 0);
-        if (subTotal > 0) {
-          next.globalDiscPercent = ((discAmt / subTotal) * 100).toFixed(2);
-        }
-      }
-      
-      return next;
-    });
-  };
-
-  const currentLine = useMemo<PurchaseReturnLineItem>(
-    () => ({
-      id: 0,
-      product: form.product.trim(),
-      code: form.code.trim(),
-      unit: form.unit.trim(),
-      qty: toNumber(form.qty),
-      foc: toNumber(form.foc),
-      price: toNumber(form.price),
-      vatId: toNumber(form.vatId),
-      vatPercent: toNumber(form.vatPercent),
-      discPercent: toNumber(form.discPercent),
-    }),
-    [form]
-  );
-
-  const currentLineTotals = calculateLine(currentLine);
-
-  // Recalculate global discount amount when items change, if a percentage was set
-  useEffect(() => {
-    if (toNumber(form.globalDiscPercent) > 0 && items.length > 0) {
-      const subTotal = items.reduce((acc, item) => acc + calculateLine(item).netAmount, 0);
-      const newDiscAmt = formatAmount(subTotal * (toNumber(form.globalDiscPercent) / 100));
-      if (newDiscAmt !== form.discAmount) {
-        setForm(prev => ({ ...prev, discAmount: newDiscAmt }));
-      }
-    }
-  }, [items, form.globalDiscPercent]);
-
-  const totals = useMemo(() => {
-    const itemTotals = items.reduce(
-      (acc, item) => {
-        const line = calculateLine(item);
-        acc.discountAmount += line.discountAmount;
-        acc.vatAmount += line.vatAmount;
-        acc.netAmount += line.netAmount;
-        return acc;
-      },
-      { discountAmount: 0, vatAmount: 0, netAmount: 0 }
-    );
-
-    const manualDiscount = toNumber(form.discAmount);
-    const otherCharge = toNumber(form.otherCharge);
-    const roundOff = toNumber(form.roundOff);
-    const grandTotal = itemTotals.netAmount - manualDiscount + otherCharge + roundOff;
-
-    return {
-      ...itemTotals,
-      grandTotal,
-    };
-  }, [form.discAmount, form.otherCharge, form.roundOff, items]);
-
-  const addItem = () => {
-    if (!currentLine.product) return;
-
-    const itemId = nextItemId.current;
-    nextItemId.current += 1;
-    setItems((prev) => [...prev, { ...currentLine, id: itemId }]);
-    setForm((prev) => ({
-      ...prev,
-      product: "",
-      code: "",
-      unit: "",
-      qty: "0",
-      foc: "0",
-      price: formatAmount(0),
-      vatId: "0",
-      vatPercent: "0",
-      discPercent: "0",
-    }));
-    setTimeout(() => document.getElementById("pi-product")?.focus(), 0);
-  };
-
-  const removeItem = (id: number) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
   const handleReset = () => {
-    setForm(initialForm);
-    setItems([]);
-    setPayments([]);
+    reset(initialForm);
     setShowClearConfirm(false);
   };
 
   const handleClearClick = () => {
-    const isDirty = items.length > 0 || JSON.stringify(form) !== JSON.stringify(initialForm);
+    const currentItems = getValues("items");
+    const isDirty = currentItems.length > 1 || (currentItems[0] && currentItems[0].product !== "");
     if (isDirty) {
       setShowClearConfirm(true);
     } else {
@@ -404,108 +419,105 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async (): Promise<boolean> => {
-    if (items.length === 0) {
+  const onSubmit = async (data: any): Promise<boolean> => {
+    const validItems = data.items.filter((i: any) => i.product && i.product.trim() !== "");
+    
+    if (validItems.length === 0) {
       showToast("Please add at least one item", "warning");
       return false;
     }
-    if (!form.series || !form.branch || !form.supplier || !form.invoiceNo) {
-      showToast("Please fill in all required fields", "warning");
-      return false;
-    }
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPaid = watchedPayments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
     const roundedPaid = Number(totalPaid.toFixed(decimalPart));
     const roundedDue = Number(totals.grandTotal.toFixed(decimalPart));
-    if (payments.length === 0 || roundedPaid < roundedDue) {
-      showToast("Please settle the payment fully before saving", "warning");
-      return false;
+    if (roundedDue > 0) {
+      if (watchedPayments.length === 0 || roundedPaid < roundedDue) {
+        showToast("Please settle the payment fully before saving", "warning");
+        return false;
+      }
     }
 
     setSaving(true);
     try {
       const payload: any = {
-        seriesId: parseInt(form.series) || 0,
+        seriesId: parseInt(data.series) || 0,
         prefix: "",
-        supplierId: parseInt(form.supplier) || 0,
-        paymodeId: payments.length > 0 ? (payments[0].mode === 'cash' ? 1 : payments[0].mode === 'card' ? 2 : 3) : 1, // First payment is root
-        branchId: parseInt(form.branch) || 0,
-        employeeId: parseInt(form.salesman) || 0,
+        supplierId: parseInt(data.supplier) || 0,
+        paymodeId: watchedPayments.length > 0 ? (watchedPayments[0].mode === 'cash' ? 1 : watchedPayments[0].mode === 'card' ? 2 : 3) : 1,
+        branchId: parseInt(data.branch) || 0,
+        employeeId: parseInt(data.salesman) || 0,
         dayId: 0,
         shiftId: 0,
-        purchaseReturnDate: new Date(form.purchaseDate).toISOString(),
+        purchaseReturnDate: new Date(data.purchaseDate).toISOString(),
         purchaseId: purchaseId || 0,
-        purchaseInvoiceNo: form.invoiceNo,
-        refNo: form.refNo,
-        narration: form.narration,
-        discAmount: toNumber(form.discAmount),
+        purchaseInvoiceNo: data.invoiceNo,
+        refNo: data.refNo,
+        narration: data.narration,
+        discAmount: toNumber(data.discAmount),
         discPer: 0,
         vatExclAmount: totals.netAmount - totals.vatAmount,
         vatAmount: totals.vatAmount,
         netAmount: totals.grandTotal,
-        details: items.map((item) => {
-          const l = calculateLine(item);
+        details: validItems.map((item: any) => {
+          const l = calculateLine(item as PurchaseReturnLineItem);
           return {
             productId: parseInt(item.product) || 0,
             unitId: parseInt(item.unit) || 0,
-            vatId: item.vatId || 1,
-            qty: item.qty,
-            foc: item.foc,
-            price: item.price,
-            discPer: item.discPercent,
+            vatId: parseInt(item.vatId) || 1,
+            qty: toNumber(item.qty),
+            foc: toNumber(item.foc),
+            price: toNumber(item.price),
+            discPer: toNumber(item.discPercent),
             discAmount: l.discountAmount,
             vatAmount: l.vatAmount,
             netAmount: l.netAmount,
-            baseQty: item.qty + item.foc,
+            baseQty: toNumber(item.qty) + toNumber(item.foc),
           };
         }),
-        paymodes: payments.length <= 1 ? [] : payments.slice(1).map((p) => ({
+        paymodes: watchedPayments.length <= 1 ? [] : watchedPayments.slice(1).map((p: any) => ({
           paymodeId: p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3,
-          amount: p.amount,
+          amount: toNumber(p.amount),
         })),
       };
 
-        if (invoiceId) {
-          payload.purchaseReturnId = Number(invoiceId);
-          payload.updateAt = new Date().toISOString();
-          await purchaseReturnApi.updatePurchaseReturn(invoiceId, payload);
-          showToast("Purchase Return updated successfully", "success");
-        } else {
-          payload.createdAt = new Date().toISOString();
-          await purchaseReturnApi.savePurchaseReturn(payload);
-          showToast("Purchase Return saved successfully", "success");
-        }
-        return true;
-      } catch (error: any) {
-        console.error("Failed to save invoice", error);
-        const errMsg = error.response?.data?.message || error.message || "Failed to save invoice";
-        showToast(errMsg, "error");
-        return false;
-      } finally {
-        setSaving(false);
+      if (invoiceId) {
+        payload.purchaseReturnId = Number(invoiceId);
+        payload.updateAt = new Date().toISOString();
+        await purchaseReturnApi.updatePurchaseReturn(invoiceId, payload);
+        showToast("Purchase Return updated successfully", "success");
+      } else {
+        payload.createdAt = new Date().toISOString();
+        await purchaseReturnApi.savePurchaseReturn(payload);
+        showToast("Purchase Return saved successfully", "success");
       }
+      return true;
+    } catch (error: any) {
+      console.error("Failed to save invoice", error);
+      const errMsg = error.response?.data?.message || error.message || "Failed to save invoice";
+      showToast(errMsg, "error");
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSettlementSubmit = (newPayments: { mode: string; amount: number }[]) => {
-    setPayments(newPayments as PurchasePaymentLine[]);
+    setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString() })));
     setIsMultiPayOpen(false);
   };
 
   return {
-    form,
+    methods,
     items,
-    payments,
-    setField,
-    currentLineTotals,
+    append,
+    remove,
+    watchedItems,
+    payments: watchedPayments,
     totals,
-    addItem,
-    removeItem,
     showClearConfirm,
     setShowClearConfirm,
     handleReset,
     handleClearClick,
-    handleSave,
+    onSubmit,
     isMultiPayOpen,
     setIsMultiPayOpen,
     handleSettlementSubmit,

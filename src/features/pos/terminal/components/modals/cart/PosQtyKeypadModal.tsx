@@ -5,8 +5,7 @@ import { XCircle, Check } from "lucide-react";
 interface PosQtyKeypadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  qtyInputValue: string;
-  setQtyInputValue: React.Dispatch<React.SetStateAction<string>>;
+  initialValue?: string;
   currentSelectedItem: any;
   handleApplyQty: (val: string) => void;
 }
@@ -14,11 +13,17 @@ interface PosQtyKeypadModalProps {
 export const PosQtyKeypadModal: React.FC<PosQtyKeypadModalProps> = ({
   isOpen,
   onClose,
-  qtyInputValue,
-  setQtyInputValue,
+  initialValue = "",
   currentSelectedItem,
   handleApplyQty
 }) => {
+  const [internalValue, setInternalValue] = React.useState(initialValue);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setInternalValue(initialValue);
+    }
+  }, [isOpen, initialValue]);
   return (
     <Modal
       isOpen={isOpen}
@@ -44,16 +49,16 @@ export const PosQtyKeypadModal: React.FC<PosQtyKeypadModalProps> = ({
           <input
             type="text"
             autoFocus
-            value={qtyInputValue}
+            value={internalValue}
             onChange={(e) => {
               const val = e.target.value;
               if (/^[0-9]*$/.test(val)) {
-                setQtyInputValue(val);
+                setInternalValue(val);
               }
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                handleApplyQty(qtyInputValue);
+                handleApplyQty(internalValue);
               }
             }}
             placeholder="0"
@@ -67,10 +72,10 @@ export const PosQtyKeypadModal: React.FC<PosQtyKeypadModalProps> = ({
               <button
                 key={btn}
                 onClick={() => {
-                  if (btn === "Clear") setQtyInputValue("");
-                  else if (btn === "Back") setQtyInputValue(prev => prev.slice(0, -1));
+                  if (btn === "Clear") setInternalValue("");
+                  else if (btn === "Back") setInternalValue(prev => prev.slice(0, -1));
                   else {
-                    if (qtyInputValue.length < 5) setQtyInputValue(prev => prev + btn);
+                    if (internalValue.length < 5) setInternalValue(prev => prev + btn);
                   }
                 }}
                 className={`
@@ -93,7 +98,7 @@ export const PosQtyKeypadModal: React.FC<PosQtyKeypadModalProps> = ({
             Cancel
           </button>
           <button
-            onClick={() => handleApplyQty(qtyInputValue)}
+            onClick={() => handleApplyQty(internalValue)}
             className="h-12 sm:h-14 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <Check size={16} strokeWidth={3} />

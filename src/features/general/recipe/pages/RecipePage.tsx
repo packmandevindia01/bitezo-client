@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Save, Ban, Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
+import { Button, FormInput, PageShell, SearchableSelect, SelectInput, Checkbox, Modal } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -25,6 +25,7 @@ const RecipePage = () => {
     finishedProducts,
     rawMaterials,
     branches,
+    orderTypes,
     handleFinishedProductSelect,
     handleRawMaterialSelect,
     handleAddItem,
@@ -57,6 +58,14 @@ const RecipePage = () => {
 
   const hk = (e: React.KeyboardEvent, nextId?: string) => {
     if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
+  };
+
+  const [excludeOrdersModalOpen, setExcludeOrdersModalOpen] = useState(false);
+  const [excludeOrdersTarget, setExcludeOrdersTarget] = useState<"master" | number>("master");
+  
+  const handleExcludeOrdersClick = (target: "master" | number) => {
+    setExcludeOrdersTarget(target);
+    setExcludeOrdersModalOpen(true);
   };
 
   useEffect(() => { setTimeout(() => { document.getElementById("rec-finProduct")?.focus(); }, 200); }, []);
@@ -275,15 +284,25 @@ const RecipePage = () => {
                         <td className="px-4 py-3 text-right text-gray-700">{item.qty}</td>
                         <td className="px-4 py-3 text-right font-mono text-gray-700">{formatAmount(item.cost)}</td>
                         <td className="px-4 py-3 text-right font-mono font-semibold text-gray-900">{formatAmount(item.amount)}</td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
-                            title="Remove item"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleExcludeOrdersClick(index)}
+                              className="inline-flex rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
+                              title="Exclude order"
+                            >
+                              <Ban size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
+                              title="Remove item"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -302,6 +321,7 @@ const RecipePage = () => {
                 variant="secondary"
                 className="border-gray-200 shadow-sm mb-2 text-gray-700"
                 disabled={!canSave}
+                onClick={() => handleExcludeOrdersClick("master")}
                 isAction
                 icon={<Ban size={18} className="text-gray-500" />}
                 tabIndex={-1}
@@ -375,15 +395,71 @@ const RecipePage = () => {
 
       <ConfirmDialog
         isOpen={showClearConfirm}
-        title="Clear Form"
-        message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear"
+        title="Clear Recipe"
+        message="Are you sure you want to clear all data? Any unsaved changes will be lost."
+        confirmLabel="Yes, Clear Data"
         onConfirm={() => {
           form.reset();
           setShowClearConfirm(false);
         }}
         onCancel={() => setShowClearConfirm(false)}
       />
+
+      <Modal 
+        isOpen={excludeOrdersModalOpen} 
+        onClose={() => setExcludeOrdersModalOpen(false)} 
+        title={`Exclude Orders (${excludeOrdersTarget === "master" ? "Entire Recipe" : "Current Raw Material"})`}
+      >
+        <div className="p-4 space-y-3">
+          <p className="text-sm text-gray-500 mb-2">Select the order types where this item should be excluded.</p>
+          {orderTypes.map((ot: any) => {
+            const currentSelected = excludeOrdersTarget === "master" 
+              ? (watch("excludeOrders") || []) 
+              : (watch(`items.${excludeOrdersTarget}.excludeOrders`) || []);
+            const isChecked = currentSelected.includes(Number(ot.value));
+            return (
+              <div key={ot.value} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`ot-${ot.value}`} 
+                  checked={isChecked} 
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    const current = [...currentSelected];
+                    if (checked) {
+                      if (!current.includes(Number(ot.value))) current.push(Number(ot.value));
+                    } else {
+                      const idx = current.indexOf(Number(ot.value));
+                      if (idx > -1) current.splice(idx, 1);
+                    }
+                    if (excludeOrdersTarget === "master") {
+                      setValue("excludeOrders", current);
+                      // Sync to all items as requested
+                      const currentItems = watch("items") || [];
+                      const updatedItems = currentItems.map(item => {
+                        const itemOrders = [...(item.excludeOrders || [])];
+                        if (checked) {
+                          if (!itemOrders.includes(Number(ot.value))) itemOrders.push(Number(ot.value));
+                        } else {
+                          const idx = itemOrders.indexOf(Number(ot.value));
+                          if (idx > -1) itemOrders.splice(idx, 1);
+                        }
+                        return { ...item, excludeOrders: itemOrders };
+                      });
+                      setValue("items", updatedItems);
+                    } else {
+                      setValue(`items.${excludeOrdersTarget}.excludeOrders`, current);
+                    }
+                  }} 
+                />
+                <label htmlFor={`ot-${ot.value}`} className="text-sm cursor-pointer">{ot.label}</label>
+              </div>
+            );
+          })}
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => setExcludeOrdersModalOpen(false)}>Done</Button>
+          </div>
+        </div>
+      </Modal>
     </PageShell>
   );
 };

@@ -4,6 +4,7 @@ interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   labelIcon?: React.ReactNode;
   icon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
   error?: string;
   inputClassName?: string;
   hideLabel?: boolean;
@@ -13,6 +14,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   label,
   labelIcon,
   icon,
+  rightIcon,
   error,
   className = "",
   inputClassName = "",
@@ -36,12 +38,12 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
       {label && !hideLabel && (
         <label
           htmlFor={inputId}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5"
+          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
-          <span>{label}</span>
-          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
+          <span className="truncate">{label}</span>
+          {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error})</span>}
         </label>
       )}
 
@@ -71,7 +73,8 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
             w-full h-10.5
             text-sm
             rounded-md border outline-none transition
-            ${icon ? "pl-11 pr-4" : "px-4"}
+            ${icon ? "pl-11" : "pl-4"}
+            ${rightIcon ? "pr-10" : "pr-4"}
             ${isNumericField ? 'text-right' : 'text-left'}
             
             ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
@@ -84,6 +87,11 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
           `}
           {...props}
         />
+        {rightIcon && (
+          <div className="absolute right-3 text-slate-400 pointer-events-none">
+            {rightIcon}
+          </div>
+        )}
       </div>
 
       {/* ERROR (FALLBACK IF LABEL IS HIDDEN) */}

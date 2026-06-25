@@ -1,3 +1,4 @@
+import React from "react";
 import type { MenuGroup } from "../../../types";
 
 interface PosGroupTabsProps {
@@ -42,4 +43,4 @@ const PosGroupTabs = ({
   );
 };
 
-export default PosGroupTabs;
+export default React.memo(PosGroupTabs);

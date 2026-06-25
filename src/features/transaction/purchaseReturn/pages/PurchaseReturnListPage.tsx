@@ -99,7 +99,6 @@ const PurchaseReturnListPage = () => {
       render: (_: PurchaseReturnRow, index: number) => <span className="text-gray-500 font-medium">{index + 1}</span>
     },
     { header: "Return No", accessor: "purchaseReturnNo" as keyof PurchaseReturnRow },
-    { header: "Invoice No", accessor: "purchaseInvoiceNo" as keyof PurchaseReturnRow },
     { 
       header: "Date", 
       accessor: "purchaseReturnDate" as keyof PurchaseReturnRow,
@@ -179,7 +178,7 @@ const PurchaseReturnListPage = () => {
             <SearchBar
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="Search by Purchase No, Invoice No, or Supplier..."
+              placeholder="Search by Return No or Supplier..."
             />
           </div>
         </div>
@@ -201,7 +200,7 @@ const PurchaseReturnListPage = () => {
       <ConfirmDialog
         isOpen={cancelModal.open}
         title="Cancel Invoice"
-        message="Are you sure you want to cancel this Purchase Return? This action cannot be fully undone."
+        message="Are you sure you want to cancel this Purchase Return?"
         confirmLabel="Yes, Cancel it"
         onConfirm={handleCancel}
         onCancel={() => setCancelModal({ open: false, id: null })}

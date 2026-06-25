@@ -33,6 +33,7 @@ export const useRecipeForm = (initialTransId?: number) => {
       cost: Number(0).toFixed(decimalPart),
       amount: Number(0).toFixed(decimalPart),
       items: [],
+      excludeOrders: [],
     },
   });
 
@@ -91,6 +92,14 @@ export const useRecipeForm = (initialTransId?: number) => {
     }
   });
 
+  const { data: orderTypes = [] } = useQuery({
+    queryKey: ["orderTypes"],
+    queryFn: async () => {
+      const ol = await recipeApi.getOrderTypes();
+      return ol.map((o: any) => ({ label: o.providerName, value: String(o.providerId) }));
+    }
+  });
+
   // Fetch initial data if in Edit Mode
   const { isLoading: isLoadingInitialData, isError: isInitialDataError, error: initialDataError } = useQuery({
     queryKey: ["recipeData", initialTransId],
@@ -99,6 +108,20 @@ export const useRecipeForm = (initialTransId?: number) => {
       const data = await recipeApi.getRecipeById(initialTransId);
       const master = data.masterData || {};
       const details = data.detailsData || [];
+      const excludeOrderData = data.excludeOrder || [];
+      
+      const masterExcludeOrders: number[] = [];
+      const itemExcludeOrdersMap: Record<string, number[]> = {};
+
+      excludeOrderData.forEach((eo: any) => {
+        if (eo.productId === master.productId && eo.unitId === master.unitId) {
+          masterExcludeOrders.push(eo.orderTypeId);
+        } else {
+          const key = `${eo.productId}-${eo.unitId}`;
+          if (!itemExcludeOrdersMap[key]) itemExcludeOrdersMap[key] = [];
+          itemExcludeOrdersMap[key].push(eo.orderTypeId);
+        }
+      });
       
       reset({
         branchId: String(master.branchId || ""),
@@ -115,8 +138,10 @@ export const useRecipeForm = (initialTransId?: number) => {
           cost: item.cost,
           amount: item.amount,
           productId: item.productId,
-          unitId: item.unitId
-        }))
+          unitId: item.unitId,
+          excludeOrders: itemExcludeOrdersMap[`${item.productId}-${item.unitId}`] || []
+        })),
+        excludeOrders: masterExcludeOrders
       });
       return data;
     },
@@ -185,7 +210,8 @@ export const useRecipeForm = (initialTransId?: number) => {
       unit: vals.unitName || vals.unit,
       qty: q,
       cost: c,
-      amount: q * c
+      amount: q * c,
+      excludeOrders: []
     });
 
     // Reset temp fields
@@ -218,6 +244,33 @@ export const useRecipeForm = (initialTransId?: number) => {
           baseQty: item.qty
         }))
       };
+
+      const payloadExcludeOrders: any[] = [];
+      if (data.excludeOrders && data.excludeOrders.length > 0) {
+        data.excludeOrders.forEach(orderTypeId => {
+          payloadExcludeOrders.push({
+            orderTypeId: Number(orderTypeId),
+            productId: Number(data.finishedProduct),
+            unitId: Number(data.finishedProductUnit)
+          });
+        });
+      }
+
+      data.items.forEach(item => {
+        if (item.excludeOrders && item.excludeOrders.length > 0) {
+          item.excludeOrders.forEach(orderTypeId => {
+            payloadExcludeOrders.push({
+              orderTypeId: Number(orderTypeId),
+              productId: Number(item.productId),
+              unitId: Number(item.unitId)
+            });
+          });
+        }
+      });
+
+      if (payloadExcludeOrders.length > 0) {
+        payload.excludeOrders = payloadExcludeOrders;
+      }
 
       if (initialTransId) {
         payload.transId = initialTransId;
@@ -261,6 +314,7 @@ export const useRecipeForm = (initialTransId?: number) => {
     finishedProducts,
     rawMaterials,
     branches,
+    orderTypes,
     handleFinishedProductSelect,
     handleRawMaterialSelect,
     handleAddItem,

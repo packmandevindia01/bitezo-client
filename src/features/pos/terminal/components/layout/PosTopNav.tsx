@@ -1,3 +1,4 @@
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MoreHorizontal,
@@ -211,4 +212,4 @@ const PosTopNav = ({
   );
 };
 
-export default PosTopNav;
+export default React.memo(PosTopNav);

@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, RecordTableCard, SelectInput, FormInput, Button, SearchBar, ConfirmDialog } from "../../../../components/common";
-import { useReceiptVoucher } from "../hooks/useReceiptVoucher";
+import { usePaymentVoucher } from "../hooks/usePaymentVoucher";
 import { formatCurrency } from "../../../../utils/formatters";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-const ReceiptVoucherListPage = () => {
+const PaymentVoucherListPage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const {
-    receiptVouchers, 
+    paymentVouchers, 
     isLoadingList, 
     searchBranchList, 
     searchBranchId, 
@@ -19,7 +19,7 @@ const ReceiptVoucherListPage = () => {
     toDate,
     setToDate,
     cancelMutation
-  } = useReceiptVoucher();
+  } = usePaymentVoucher();
 
   const [cancelModal, setCancelModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
 
@@ -30,17 +30,17 @@ const ReceiptVoucherListPage = () => {
     }
   };
 
-  const filteredData = receiptVouchers.filter(item => 
+  const filteredData = paymentVouchers.filter(item => 
     Object.values(item).some(val => String(val).toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
-    <PageShell title="Receipt Voucher">
+    <PageShell title="Payment Voucher">
       <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
         <div className="flex gap-4 items-end flex-1">
           <div className="w-40">
             <FormInput
-              id="rv-search-from"
+              id="pv-search-from"
               label="From Date"
               type="date"
               value={fromDate}
@@ -49,7 +49,7 @@ const ReceiptVoucherListPage = () => {
           </div>
           <div className="w-40">
             <FormInput
-              id="rv-search-to"
+              id="pv-search-to"
               label="To Date"
               type="date"
               value={toDate}
@@ -68,7 +68,7 @@ const ReceiptVoucherListPage = () => {
           </div>
           <div className="w-48">
             <SelectInput
-              id="rv-search-branch"
+              id="pv-search-branch"
               label="Branch"
               value={String(searchBranchId)}
               onChange={(e) => setSearchBranchId(Number(e.target.value))}
@@ -76,14 +76,14 @@ const ReceiptVoucherListPage = () => {
             />
           </div>
         </div>
-        <Button onClick={() => navigate("/dashboard/receipt-voucher/new")} icon={<Plus size={18} />}>
-          Add Receipt
+        <Button onClick={() => navigate("/dashboard/payment-voucher/new")} icon={<Plus size={18} />}>
+          Add Payment
         </Button>
       </div>
 
       <div className="overflow-x-auto">
         <RecordTableCard
-          title="Saved Receipt List"
+          title="Saved Payment List"
           data={filteredData}
           loading={isLoadingList}
           rowKey={(row) => `${row.voucherNo}-${row.transId}`}
@@ -105,7 +105,7 @@ const ReceiptVoucherListPage = () => {
               header: "Amount", 
               accessor: "amount",
               align: "right",
-              render: (row) => <span className="font-bold text-emerald-600">{formatCurrency(Number(row.amount))}</span>
+              render: (row) => <span className="font-bold text-red-500">{formatCurrency(Number(row.amount))}</span>
             },
             {
               header: "Actions",
@@ -113,7 +113,7 @@ const ReceiptVoucherListPage = () => {
               render: (row) => (
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => navigate(`/dashboard/receipt-voucher/edit/${row.transId}`)}
+                    onClick={() => navigate(`/dashboard/payment-voucher/edit/${row.transId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
                   >
                     <Pencil size={16} />
@@ -133,8 +133,8 @@ const ReceiptVoucherListPage = () => {
 
       <ConfirmDialog
         isOpen={cancelModal.open}
-        title="Cancel Receipt Voucher"
-        message="Are you sure you want to delete this Receipt Voucher?"
+        title="Cancel Payment Voucher"
+        message="Are you sure you want to delete this Payment Voucher?"
         confirmLabel="Yes, Cancel it"
         onConfirm={handleCancel}
         onCancel={() => setCancelModal({ open: false, id: null })}
@@ -144,4 +144,4 @@ const ReceiptVoucherListPage = () => {
   );
 };
 
-export default ReceiptVoucherListPage;
+export default PaymentVoucherListPage;

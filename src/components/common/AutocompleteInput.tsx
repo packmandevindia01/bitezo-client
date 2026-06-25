@@ -21,6 +21,8 @@ interface Props {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   autoFocus?: boolean;
   tabIndex?: number;
+  className?: string;
+  inputClassName?: string;
 }
 
 export const AutocompleteInput = ({
@@ -37,10 +39,13 @@ export const AutocompleteInput = ({
   onKeyDown,
   autoFocus,
   tabIndex,
+  className = "",
+  inputClassName = "",
 }: Props) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const textSizeClass = inputClassName.includes("text-xs") ? "text-[11px]" : "text-sm";
 
   // Close when clicking outside
   useEffect(() => {
@@ -75,11 +80,19 @@ export const AutocompleteInput = ({
         setHighlightedIndex((prev) => (prev - 1 + options.length) % options.length);
         return;
       }
-      if (e.key === "Enter" && highlightedIndex >= 0) {
+      if (e.key === "Enter") {
         e.preventDefault();
-        const opt = options[highlightedIndex];
-        onSelectOption(opt.value, opt.label);
-        setOpen(false);
+        if (highlightedIndex >= 0) {
+          const opt = options[highlightedIndex];
+          onSelectOption(opt.value, opt.label);
+          setOpen(false);
+        } else if (value.trim()) {
+          const exactMatch = options.find(o => o.label.toLowerCase() === value.trim().toLowerCase());
+          if (exactMatch) {
+            onSelectOption(exactMatch.value, exactMatch.label);
+            setOpen(false);
+          }
+        }
         return;
       }
       if (e.key === "Escape") {
@@ -97,7 +110,7 @@ export const AutocompleteInput = ({
   };
 
   return (
-    <div className="relative w-full" ref={wrapperRef}>
+    <div className={`relative w-full ${className}`} ref={wrapperRef}>
       <div className="relative">
         <FormInput
           id={id}
@@ -109,29 +122,36 @@ export const AutocompleteInput = ({
             setHighlightedIndex(-1);
           }}
           onFocus={() => setOpen(true)}
+          onBlur={() => {
+            if (value.trim()) {
+              const exactMatch = options.find(o => o.label.toLowerCase() === value.trim().toLowerCase());
+              if (exactMatch) {
+                onSelectOption(exactMatch.value, exactMatch.label);
+              }
+            }
+          }}
           onKeyDown={handleKeyDown}
           required={required}
           disabled={disabled}
           autoFocus={autoFocus}
           tabIndex={tabIndex}
           autoComplete="off"
+          inputClassName={inputClassName}
+          rightIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} />}
         />
-        <div className="absolute right-3 top-[34px] text-gray-400 pointer-events-none">
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} />}
-        </div>
       </div>
 
       {open && !disabled && (
         <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
           {loading ? (
-            <div className="px-4 py-2 text-sm text-gray-500">Searching...</div>
+            <div className={`px-4 py-2 ${textSizeClass} text-gray-500`}>Searching...</div>
           ) : options.length === 0 ? (
-            <div className="px-4 py-2 text-sm text-gray-500">No matches found</div>
+            <div className={`px-4 py-2 ${textSizeClass} text-gray-500`}>No matches found</div>
           ) : (
             options.map((opt, index) => (
               <div
                 key={index}
-                className={`cursor-pointer px-4 py-2 text-sm transition-colors ${
+                className={`cursor-pointer px-4 py-2 ${textSizeClass} transition-colors ${
                   index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e] font-medium" : "text-gray-700 hover:bg-gray-50"
                 }`}
                 onMouseDown={(e) => {

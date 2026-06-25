@@ -54,11 +54,11 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
       {label && (
         <label
           htmlFor={selectId}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5"
+          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
         >
-          <span>{label}</span>
-          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
+          <span className="truncate">{label}</span>
+          {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error})</span>}
         </label>
       )}
 

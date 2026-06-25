@@ -59,6 +59,11 @@ export const recipeApi = {
     return unwrap(response.data);
   },
 
+  getOrderTypes: async () => {
+    const response = await axiosInstance.get<ApiResponse<{ providerId: number; providerName: string }[]>>(`${BASE_URL}/order-type-list-name`);
+    return unwrap(response.data);
+  },
+
   getRecipeById: async (transId: number) => {
     const response = await axiosInstance.get<ApiResponse<any>>(`${BASE_URL}/data/${transId}`);
     return unwrap(response.data);

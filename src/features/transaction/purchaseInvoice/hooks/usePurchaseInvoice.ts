@@ -310,9 +310,11 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     const totalPaid = data.payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
     const roundedPaid = Number(totalPaid.toFixed(decimalPart));
     const roundedDue = Number(totals.grandTotal.toFixed(decimalPart));
-    if (data.payments.length === 0 || roundedPaid < roundedDue) {
-      showToast("Please settle the payment fully before saving", "warning");
-      return false;
+    if (roundedDue > 0) {
+      if (data.payments.length === 0 || roundedPaid < roundedDue) {
+        showToast("Please settle the payment fully before saving", "warning");
+        return false;
+      }
     }
 
     setSaving(true);

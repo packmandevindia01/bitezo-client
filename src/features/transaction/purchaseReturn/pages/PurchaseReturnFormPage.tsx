@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2 } from "lucide-react";
-import { PageShell, Button, FormInput, SearchableSelect, AutocompleteInput } from "../../../../components/common";
+import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, AutocompleteInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -8,28 +8,29 @@ import { usePurchaseReturn, calculateLine } from "../hooks/usePurchaseReturn";
 import { PosMultiPayModal } from "../../../pos/terminal/components/modals/payment/PosMultiPayModal";
 import { PurchasePrintPreviewModal } from "../../shared/components/PurchasePrintPreviewModal";
 import type { PurchasePrintData } from "../../shared/components/PurchasePrintTemplate";
-import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { FormProvider, Controller } from "react-hook-form";
+import { useToast } from "../../../../app/providers/useToast";
 
 const PurchaseReturnFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = usePermissions();
   const { formatAmount } = useCurrency();
+  const { showToast } = useToast();
 
   const {
-    form,
+    methods,
     items,
+    append,
+    remove,
+    watchedItems,
     payments,
-    setField,
-    currentLineTotals,
     totals,
-    addItem,
-    removeItem,
     showClearConfirm,
     setShowClearConfirm,
     handleReset,
     handleClearClick,
-    handleSave,
+    onSubmit,
     isMultiPayOpen,
     setIsMultiPayOpen,
     handleSettlementSubmit,
@@ -50,15 +51,42 @@ const PurchaseReturnFormPage = () => {
     saving,
   } = usePurchaseReturn(id);
 
+  const { register, control, getValues, formState: { errors } } = methods;
+
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [shouldResetAfterPrint, setShouldResetAfterPrint] = useState(false);
 
   const onSaveClick = async () => {
-    const success = await handleSave();
-    if (success) {
-      setIsPrintModalOpen(true);
-      setShouldResetAfterPrint(!id);
+    // Clean empty rows before submission
+    const currentItems = getValues("items") || [];
+    const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
+    
+    if (validItems.length !== currentItems.length) {
+      methods.setValue("items", validItems);
     }
+
+    if (validItems.length === 0) {
+      showToast("Please add at least one product.", "warning");
+      return;
+    }
+
+    methods.handleSubmit(async (data) => {
+      const success = await onSubmit(data);
+      if (success) {
+        setIsPrintModalOpen(true);
+        setShouldResetAfterPrint(!id);
+      }
+    }, (errors) => {
+         console.error("Validation failed:", errors);
+         const firstErrorKey = Object.keys(errors)[0];
+         if (firstErrorKey) {
+           const err = (errors as any)[firstErrorKey];
+           const msg = (err as any)?.message || "Please fill all required fields.";
+           showToast(msg as string, "error");
+         } else {
+           showToast("Please fill all required fields.", "error");
+         }
+      })();
   };
 
   const handlePrintModalClose = () => {
@@ -71,9 +99,11 @@ const PurchaseReturnFormPage = () => {
 
   const printData = useMemo<Partial<PurchasePrintData>>(() => {
     const taxSummaryMap = new Map<number, { taxCode: string; taxable: number; vatAmount: number; netAmount: number }>();
-    items.forEach((item) => {
+    const validItems = watchedItems.filter((i: any) => i.product && i.product.trim() !== "");
+    
+    validItems.forEach((item: any) => {
       const line = calculateLine(item);
-      const pct = item.vatPercent || 0;
+      const pct = Number(item.vatPercent) || 0;
       if (!taxSummaryMap.has(pct)) {
         taxSummaryMap.set(pct, { taxCode: `${pct}%`, taxable: 0, vatAmount: 0, netAmount: 0 });
       }
@@ -83,42 +113,44 @@ const PurchaseReturnFormPage = () => {
       summary.netAmount += line.netAmount;
     });
 
+    const formVals = getValues();
+
     return {
-      docTitle: "Purchase Return",
-      supplierName: supplierOptions.find((s) => s.value === form.supplier)?.label || form.supplier,
+      docTitle: "PURCHASE RETURN",
+      supplierName: supplierOptions.find((s) => s.value === formVals.supplier)?.label || formVals.supplier,
       supplierAddress: "",
       supplierTrn: "",
-      voucherNo: form.invoiceNo,
-      purchaseNo: form.purchaseNo,
-      date: form.invoiceDate,
+      voucherNo: formVals.invoiceNo,
+      purchaseNo: formVals.purchaseNo,
+      date: formVals.purchaseDate,
       paymode: payments.length > 0 ? payments[0].mode.toUpperCase() : "CASH",
-      items: items.map(item => {
+      items: validItems.map((item: any) => {
         const line = calculateLine(item);
         return {
           productName: productOptions.find(p => p.value === item.product)?.label || item.product,
-          qty: item.qty,
-          foc: item.foc,
+          qty: Number(item.qty),
+          foc: Number(item.foc),
           unit: item.unit,
-          price: item.price,
-          discount: item.discPercent,
+          price: Number(item.price),
+          discount: Number(item.discPercent),
           amount: line.amount,
           netValue: line.amount - line.discountAmount,
-          vatPercent: item.vatPercent,
+          vatPercent: Number(item.vatPercent),
           vatAmt: line.vatAmount,
           netAmount: line.netAmount
         };
       }),
       totals: {
         total: totals.netAmount - totals.vatAmount + totals.discountAmount,
-        discount: totals.discountAmount + parseFloat(form.discAmount || "0"),
-        adjustmentAmount: totals.netAmount - totals.vatAmount,
-        roundOff: parseFloat(form.roundOff || "0"),
+        discount: totals.discountAmount + parseFloat(formVals.discAmount || "0"),
+        adjustmentAmount: 0,
+        roundOff: parseFloat(formVals.roundOff || "0"),
         vat: totals.vatAmount,
         grandTotal: totals.grandTotal
       },
       taxSummary: Array.from(taxSummaryMap.values())
     };
-  }, [form, items, payments, supplierOptions, productOptions, totals]);
+  }, [watchedItems, payments, supplierOptions, productOptions, totals, getValues]);
 
   const seriesOptions = masterData?.series.map(s => ({ label: s.seriesName, value: s.seriesId.toString() })) || [];
   const branchOptions = masterData?.branches.map(b => ({ label: b.branchName, value: b.branchId.toString() })) || [];
@@ -132,258 +164,297 @@ const PurchaseReturnFormPage = () => {
     if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
   };
 
+  const handleGridNav = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+       e.preventDefault();
+       // Emulate tab behavior for Enter key across all form elements including custom comboboxes
+       const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
+         .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
+         
+       const currentIndex = formElements.indexOf(e.target as Element);
+       if (currentIndex > -1 && formElements[currentIndex + 1]) {
+           (formElements[currentIndex + 1] as HTMLElement).focus();
+       }
+    }
+  };
+
   useEffect(() => { setTimeout(() => { document.getElementById("pr-series")?.focus(); }, 200); }, []);
+
+  const watchedBranch = getValues("branch");
+  const watchedSupplier = getValues("supplier");
 
   return (
     <PageShell title="Purchase Return">
-      {masterError && (
-        <div className="mb-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 border border-red-200">
-          Error loading master data: {masterError}
-        </div>
-      )}
-
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
-
-        {/* ── Scrollable Body ── */}
-        <div className="flex-1 overflow-y-auto p-2 md:p-3">
-
-          {/* ── Header Fields ── responsive: 3 cols on mobile, 5 on md, 9 on lg */}
-          <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-x-2 gap-y-1.5">
-            <SearchableSelect id="pr-series" label="Series" value={form.series} options={seriesOptions} onChange={(val) => setField("series", val)} onKeyDown={(e) => hk(e, "pr-purchaseNo")} required disabled={!canSave || loadingMaster} />
-            <FormInput id="pr-purchaseNo" label="P No" value={form.purchaseNo} onChange={(e) => setField("purchaseNo", e.target.value)} onKeyDown={(e) => hk(e, "pr-purchaseDate")} required readOnly={!canSave} />
-            <FormInput id="pr-purchaseDate" label="P Date" type="date" value={form.purchaseDate} onChange={(e) => setField("purchaseDate", e.target.value)} onKeyDown={(e) => hk(e, "pr-invoiceDate")} required readOnly={!canSave} />
-            <FormInput id="pr-invoiceDate" label="Inv Date" type="date" value={form.invoiceDate} onChange={(e) => setField("invoiceDate", e.target.value)} onKeyDown={(e) => hk(e, "pr-supplier")} required readOnly={!canSave} />
-            <SearchableSelect
-              id="pr-supplier"
-              label="Supplier"
-              value={form.supplier}
-              options={supplierOptions}
-              onSearch={handleSupplierSearch}
-              loading={searchingSuppliers}
-              onChange={(val) => setField("supplier", val)}
-              onKeyDown={(e) => hk(e, "pr-branch")}
-              required
-              disabled={!canSave}
-            />
-            <SearchableSelect id="pr-branch" label="Branch" value={form.branch} options={branchOptions} onChange={(val) => setField("branch", val)} onKeyDown={(e) => hk(e, "pr-invoiceNo")} required disabled={!canSave || loadingMaster} />
-            <AutocompleteInput
-              id="pr-invoiceNo"
-              label="Inv No"
-              value={form.invoiceNo}
-              options={invoiceOptions}
-              onSearch={handleInvoiceSearch}
-              loading={searchingInvoices}
-              onChange={(val) => setField("invoiceNo", val)}
-              onSelectOption={(val, label) => {
-                handleInvoiceSelect(val, label);
-              }}
-              onKeyDown={(e) => hk(e, "pr-refNo")}
-              required
-              disabled={!canSave || !form.branch || !form.supplier}
-            />
-            <FormInput id="pr-refNo" label="Ref No" value={form.refNo} onChange={(e) => setField("refNo", e.target.value)} onKeyDown={(e) => hk(e, "pr-salesman")} readOnly={!canSave} />
-            <SearchableSelect id="pr-salesman" label="Salesman" value={form.salesman} options={salesmanOptions} onChange={(val) => setField("salesman", val)} onKeyDown={(e) => hk(e, "pr-product")} disabled={!canSave || loadingMaster} />
+      <FormProvider {...methods}>
+        {masterError && (
+          <div className="mb-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 border border-red-200">
+            Error loading master data: {masterError}
           </div>
+        )}
 
-          {/* ── Item Entry Row ── horizontal scroll on small screens */}
-          <div className="mt-1.5 rounded-xl border border-gray-200 bg-gray-50/70 p-2">
-            <div className="overflow-x-auto">
-              <div className="min-w-[900px] grid grid-cols-[2fr_1fr_1fr_0.6fr_0.6fr_0.8fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr_1fr_auto] gap-x-1.5 gap-y-1">
-                <SearchableSelect
-                  id="pr-product"
-                  label="Product"
-                  value={form.product}
-                  options={productOptions}
-                  onSearch={handleProductSearch}
-                  loading={searchingProducts}
-                  onChange={(val) => {
-                    setField("product", val);
-                    const opt = productOptions.find(o => o.value === val);
-                    if (opt) {
-                      setField("code", opt.code || "");
-                      handleProductSelect(val, opt.code || "");
-                    }
-                  }}
-                  onKeyDown={(e) => hk(e, "pr-qty")}
-                  disabled={!canSave}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+
+          {/* ── Scrollable Body ── */}
+          <div className="flex-1 overflow-y-auto p-2 md:p-3">
+
+            {/* ── Header Fields ── Extemely dense padding to save space */}
+            <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-x-2 gap-y-1.5 mb-2">
+              <Controller name="series" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
+              )} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
+              
+              <Controller name="supplier" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+              )} />
+              <Controller name="branch" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
+              )} />
+              
+              <Controller name="invoiceNo" control={control} render={({ field }) => (
+                <AutocompleteInput
+                  inputClassName="!h-8 !px-2 !text-xs"
+                  id="pr-invoiceNo"
+                  label="Inv No"
+                  value={field.value}
+                  options={invoiceOptions}
+                  onSearch={handleInvoiceSearch}
+                  loading={searchingInvoices}
+                  onChange={field.onChange}
+                  onSelectOption={(val, label) => handleInvoiceSelect(val, label)}
+                  onKeyDown={(e) => hk(e, "pr-invoiceDate")}
+                  disabled={!canSave || !watchedBranch || !watchedSupplier}
                 />
-                <FormInput id="pr-code" label="Code" value={form.code} readOnly tabIndex={-1} />
-                <FormInput id="pr-unit" label="Unit" value={form.unit} readOnly tabIndex={-1} />
-                <FormInput id="pr-qty" label="Qty" value={form.qty} inputClassName="text-right" onChange={(e) => setField("qty", e.target.value)} onKeyDown={(e) => hk(e, "pr-foc")} readOnly={!canSave} />
-                <FormInput id="pr-foc" label="FOC" value={form.foc} inputClassName="text-right" onChange={(e) => setField("foc", e.target.value)} onKeyDown={(e) => hk(e, "pr-price")} readOnly={!canSave} />
-                <FormInput id="pr-price" label="Price" value={form.price} inputClassName="text-right" onChange={(e) => setField("price", e.target.value)} onKeyDown={(e) => hk(e, "pr-vatPercent")} readOnly={!canSave} />
-                <FormInput id="pr-vatPercent" label="VAT(%)" value={form.vatPercent} inputClassName="text-right" onChange={(e) => setField("vatPercent", e.target.value)} onKeyDown={(e) => hk(e, "pr-discPercent")} readOnly={!canSave} />
-                <FormInput id="pr-discPercent" label="Disc(%)" value={form.discPercent} inputClassName="text-right" onChange={(e) => setField("discPercent", e.target.value)} onKeyDown={(e) => hk(e, "pr-add-btn")} readOnly={!canSave} />
-                <FormInput label="Disc Amt" value={formatAmount(currentLineTotals.discountAmount)} inputClassName="text-right" readOnly />
-                <FormInput label="Amount" value={formatAmount(currentLineTotals.amount)} inputClassName="text-right" readOnly />
-                <FormInput label="VAT Amt" value={formatAmount(currentLineTotals.vatAmount)} inputClassName="text-right" readOnly />
-                <FormInput label="Net Amount" value={formatAmount(currentLineTotals.netAmount)} inputClassName="text-right font-bold text-[#49293e]" readOnly />
-                <div className="flex items-end pb-0.5">
-                  <Button
-                    id="pr-add-btn"
-                    onClick={addItem}
-                    className="h-10.5 w-full"
-                    disabled={!canSave}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}
-                    icon={<Plus size={16} />}
-                  >
-                    Add
-                  </Button>
-                </div>
-              </div>
+              )} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-invoiceDate" label="Inv Date" type="date" {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pr-refNo")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
+              
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-refNo" label="Ref No" {...register("refNo")} onKeyDown={(e) => hk(e, "pr-salesman")} readOnly={!canSave} error={errors.refNo?.message as string} />
+              <Controller name="salesman" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+              )} />
             </div>
-          </div>
 
-          {/* ── Items Table ── always scrollable horizontally */}
-          <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <div className="max-h-[220px] overflow-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50/80">
-                    {["Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc Amt", "VAT Amt", "Net Amount", ""].map(
-                      (col, i) => (
-                        <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                          {col}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {items.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="h-20 px-4 text-center text-sm text-gray-400">
-                        No items added
-                      </td>
+            {/* ── Inline Editable DataGrid ── */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="max-h-[350px] overflow-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/80">
+                      {["SL", "Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc(%)", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
+                        (col, i) => (
+                          <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                            {col}
+                          </th>
+                        )
+                      )}
                     </tr>
-                  ) : (
-                    items.map((item) => {
-                      const line = calculateLine(item);
-                      const productLabel = productOptions.find(p => p.value === item.product)?.label || item.product;
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {items.map((field, index) => {
+                      const itemWatch = watchedItems[index] || {};
+                      const lineTotals = calculateLine(itemWatch as any);
                       return (
-                        <tr key={item.id} className="hover:bg-[#49293e]/5">
-                          <td className="border-l-[3px] border-l-[#49293e] px-3 py-2 font-medium text-gray-900 max-w-[160px] truncate" title={productLabel}>
-                            {productLabel}
+                        <tr key={field.id} className="hover:bg-blue-50/30 transition-colors group">
+                          <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
+                          <td className="p-0.5 border-r border-gray-100 min-w-[200px] bg-white">
+                            <Controller
+                              name={`items.${index}.product`}
+                              control={control}
+                              render={({ field: selectField }) => (
+                                <div className="grid-product-select">
+                                    <SearchableCombobox
+                                      id={`product-select-${index}`}
+                                      className="h-7 !px-2 text-xs"
+                                      value={selectField.value}
+                                      options={productOptions}
+                                      onSearch={handleProductSearch}
+                                      loading={searchingProducts}
+                                      minQueryLength={1}
+                                      forcePlacement="bottom"
+                                      onChange={(val) => {
+                                        selectField.onChange(val);
+                                        const opt = productOptions.find(o => o.value === val);
+                                        if (opt) {
+                                            methods.setValue(`items.${index}.code`, opt.code || "");
+                                            handleProductSelect(index, val, opt.code || "");
+                                        }
+                                      }}
+                                      disabled={!canSave}
+                                    />
+                                </div>
+                              )}
+                            />
                           </td>
-                          <td className="px-3 py-2 text-gray-600">{item.code || "-"}</td>
-                          <td className="px-3 py-2 text-gray-600">{item.unit || "-"}</td>
-                          <td className="px-3 py-2 text-right">{item.qty}</td>
-                          <td className="px-3 py-2 text-right">{item.foc}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatAmount(item.price)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatAmount(line.amount)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatAmount(line.discountAmount)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatAmount(line.vatAmount)}</td>
-                          <td className="px-3 py-2 text-right font-mono font-semibold text-gray-900">{formatAmount(line.netAmount)}</td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.unit || "-"}</td>
+                          
+                          <td className="p-0 border-r border-gray-100 w-20">
+                            <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 w-16">
+                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 w-24">
+                            <input {...register(`items.${index}.price`)} type="number" min="0" step="0.001" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono" readOnly={!canSave} />
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.amount)}</td>
+                          
+                          <td className="p-0 border-r border-gray-100 w-20">
+                            <input {...register(`items.${index}.discPercent`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.discountAmount)}</td>
+                          
+                          <td className="p-0 border-r border-gray-100 w-20">
+                            <input {...register(`items.${index}.vatPercent`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.vatAmount)}</td>
+                          
+                          <td className="px-2 py-1 text-right font-mono font-bold text-[#49293e] bg-[#49293e]/5 border-r border-gray-100">{formatAmount(lineTotals.netAmount)}</td>
+                          <td className="px-2 py-1 text-center w-10">
                             <button
-                              onClick={() => removeItem(item.id)}
-                              className="text-gray-400 hover:text-red-500 transition-colors"
-                              disabled={!canSave}
-                              title="Remove item"
+                              type="button"
                               tabIndex={-1}
+                              onClick={() => items.length > 1 && remove(index)}
+                              className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
+                              disabled={!canSave || items.length <= 1}
+                              title="Remove item"
                             >
                               <Trash2 size={14} />
                             </button>
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Add Row Button */}
+              <div className="flex justify-start px-2 py-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    append({
+                      id: crypto.randomUUID(),
+                      product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0"
+                    }, { shouldFocus: false });
+                    
+                    setTimeout(() => {
+                      document.getElementById(`product-select-${items.length}`)?.focus();
+                    }, 50);
+                  }}
+                  disabled={!canSave}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={14} /> Add Item
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* ── Bottom Section ── */}
-          <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_auto]">
-            {/* Left: payments + disc + narration */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1.5">
-              <div className="flex flex-col gap-1">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-transparent select-none">-</label>
+          </div>{/* end scrollable body */}
+
+          {/* ── Compact Action Footer ── */}
+          <div className="border-t border-gray-200 bg-gray-50/50 p-3 rounded-b-2xl shrink-0 flex flex-col gap-3">
+            
+            {/* Top Row: Adjustments */}
+            <div className="flex flex-wrap items-end gap-2 w-full">
+              <div className="w-16">
+                <FormInput label="Disc(%)" {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+              </div>
+              <div className="w-24">
+                <FormInput label="Disc Amt" {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+              </div>
+              <div className="w-24">
+                <FormInput label="Other Chg" {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+              </div>
+              <div className="w-20">
+                <FormInput label="Round Off" {...register("roundOff")} onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <FormInput label="Narration" {...register("narration")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
+              </div>
+              {payments.length > 0 && (
+                <div className="min-w-[120px] max-w-[200px]">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-1">Payments</label>
+                    <div className="h-8 px-2 rounded-md border border-gray-200 bg-gray-50 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide text-xs font-bold text-gray-600">
+                      {payments.map((p: any, i: number) => (
+                        <span key={i} className="capitalize shrink-0">
+                          {p.mode}: {formatAmount(Number(p.amount))}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Row: Actions & Total */}
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full border-t border-gray-200 pt-3">
+              <div className="flex items-center">
                 <Button
+                  type="button"
                   onClick={() => setIsMultiPayOpen(true)}
                   disabled={!canSave || totals.grandTotal <= 0 || saving}
-                  className="h-10.5 w-full bg-blue-600 hover:bg-blue-700 font-bold text-sm"
+                  className="h-9 px-4 bg-blue-600 hover:bg-blue-700 font-bold text-sm shrink-0"
                   icon={<CreditCard size={16} />}
                 >
                   Settle Payments
                 </Button>
               </div>
-              <FormInput label="DISC(%)" value={form.globalDiscPercent} inputClassName="text-right" onChange={(e) => setField("globalDiscPercent", e.target.value)} readOnly={!canSave} />
-              <FormInput label="DISC AMT" value={form.discAmount} inputClassName="text-right" onChange={(e) => setField("discAmount", e.target.value)} readOnly={!canSave} />
-              <div className="col-span-2 sm:col-span-3">
-                <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} readOnly={!canSave} />
-              </div>
-            </div>
 
-            {/* Right: totals panel */}
-            <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-2 flex flex-col gap-1.5 min-w-[260px]">
-              <div className="grid grid-cols-2 gap-1.5">
-                <FormInput label="Other Charge" value={form.otherCharge} inputClassName="text-right" onChange={(e) => setField("otherCharge", e.target.value)} readOnly={!canSave} />
-                <FormInput label="Round Off" value={form.roundOff} inputClassName="text-right" onChange={(e) => setField("roundOff", e.target.value)} readOnly={!canSave} />
-              </div>
-              {payments.length > 0 && (
-                <div className="rounded-lg border border-gray-200 bg-white p-2 flex flex-col gap-1 shadow-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 border-b pb-1">Payments</p>
-                  {payments.map((p, i) => (
-                    <div key={i} className="flex justify-between text-xs font-medium text-gray-700">
-                      <span className="capitalize">{p.mode}</span>
-                      <span className="font-bold text-gray-900">{formatAmount(p.amount)}</span>
-                    </div>
-                  ))}
+              <div className="flex flex-wrap items-center gap-4 justify-end flex-1">
+                <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
+                  <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(totals.grandTotal)}</span>
                 </div>
-              )}
-              <div className="flex items-center justify-between rounded-lg border border-[#49293e]/20 bg-white px-3 py-2 shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Grand Total</p>
-                <p className="text-lg font-bold text-[#49293e]">{formatAmount(totals.grandTotal)}</p>
+
+                <div className="flex items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">
+                  {canAdd && (
+                    <Button type="button" variant="secondary" onClick={handleClearClick} tabIndex={-1} isAction icon={<Plus size={16} />}>
+                      New
+                    </Button>
+                  )}
+                  {canSave && (
+                    <Button type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
+                      Save
+                    </Button>
+                  )}
+                  <Button type="button" variant="secondary" isAction icon={<Printer size={16} />} onClick={() => setIsPrintModalOpen(true)} disabled={watchedItems.length === 0 || watchedItems[0]?.product === ""}>
+                    Print
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={handleClearClick} isAction icon={<RotateCcw size={16} />}>
+                    Clear
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-
-        </div>{/* end scrollable body */}
-
-        {/* ── Sticky Action Footer ── */}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 bg-white px-4 py-3 rounded-b-2xl">
-          {canAdd && (
-            <Button variant="secondary" onClick={handleClearClick} tabIndex={-1} isAction icon={<Plus size={16} />}>
-              New
-            </Button>
-          )}
-          {canSave && (
-            <Button onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
-              Save
-            </Button>
-          )}
-          <Button variant="secondary" isAction icon={<Printer size={16} />} onClick={() => setIsPrintModalOpen(true)} disabled={items.length === 0}>
-            Print
-          </Button>
-          <Button variant="secondary" onClick={handleClearClick} isAction icon={<RotateCcw size={16} />}>
-            Clear
-          </Button>
         </div>
-      </div>
 
-      <ConfirmDialog
-        isOpen={showClearConfirm}
-        title="Clear Form"
-        message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear"
-        onConfirm={handleReset}
-        onCancel={() => setShowClearConfirm(false)}
-      />
+        <ConfirmDialog
+          isOpen={showClearConfirm}
+          title="Clear Form"
+          message="Are you sure you want to clear the form? All unsaved data will be lost."
+          confirmLabel="Clear"
+          onConfirm={handleReset}
+          onCancel={() => setShowClearConfirm(false)}
+        />
 
-      <PosMultiPayModal
-        isOpen={isMultiPayOpen}
-        onClose={() => setIsMultiPayOpen(false)}
-        totalDue={totals.grandTotal}
-        onSubmit={handleSettlementSubmit}
-      />
+        <PosMultiPayModal
+          isOpen={isMultiPayOpen}
+          onClose={() => setIsMultiPayOpen(false)}
+          totalDue={totals.grandTotal}
+          onSubmit={handleSettlementSubmit}
+        />
 
-      <PurchasePrintPreviewModal
-        isOpen={isPrintModalOpen}
-        onClose={handlePrintModalClose}
-        data={printData}
-      />
+        <PurchasePrintPreviewModal
+          isOpen={isPrintModalOpen}
+          onClose={handlePrintModalClose}
+          data={printData}
+        />
+      </FormProvider>
     </PageShell>
   );
 };

@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import { X, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
-import * as XLSX from "xlsx-js-style";
 import type { StockAdjustmentForm, StockAdjustmentLineItem } from "../types";
 
 // Plain CSS only — no Tailwind, no CSS variables. Safe for html2pdf.
@@ -146,8 +145,9 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const XLSX = await import("xlsx-js-style");
       // Create worksheet data
       const wsData = [
         ["AL ASRIYA ADVANCED TRADING LLC"],

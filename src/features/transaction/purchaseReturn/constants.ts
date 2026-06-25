@@ -1,6 +1,5 @@
-import type { PurchaseReturnForm } from "./types";
 
-export const createEmptyPurchaseReturnForm = (): PurchaseReturnForm => ({
+export const createEmptyPurchaseReturnForm = (): any => ({
   series: "",
   purchaseNo: "",
   purchaseDate: new Date().toISOString().split("T")[0],
@@ -11,15 +10,8 @@ export const createEmptyPurchaseReturnForm = (): PurchaseReturnForm => ({
   branch: "",
   salesman: "",
   
-  product: "",
-  code: "",
-  unit: "",
-  qty: "0",
-  foc: "0",
-  price: "0",
-  vatId: "0",
-  vatPercent: "0",
-  discPercent: "0",
+  items: [],
+  payments: [],
   
   globalDiscPercent: "0",
   discAmount: "0",

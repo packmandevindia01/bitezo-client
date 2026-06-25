@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useEvent } from "../../../../hooks/useEvent";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import PosTopNav from "../components/layout/PosTopNav";
@@ -88,7 +89,6 @@ export const PosTerminalPage = () => {
   const [discountStep, setDiscountStep] = useState<'none' | 'choice' | 'value'>('none');
   const [discountType, setDiscountType] = useState<'bill' | 'item'>('bill');
   const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
-  const [discountInputValue, setDiscountInputValue] = useState("");
   const [billDiscountConfirmState, setBillDiscountConfirmState] = useState<{
     isOpen: boolean;
     value: number;
@@ -97,11 +97,9 @@ export const PosTerminalPage = () => {
 
   // Price Flow States
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
-  const [priceInputValue, setPriceInputValue] = useState("");
 
   // Quantity Flow States
   const [isQtyModalOpen, setIsQtyModalOpen] = useState(false);
-  const [qtyInputValue, setQtyInputValue] = useState("");
 
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
@@ -714,7 +712,6 @@ export const PosTerminalPage = () => {
       const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
       setSelectedKey(newKey);
       if (targetPrice === 0) {
-        setPriceInputValue("");
         setIsPriceModalOpen(true);
       }
       return;
@@ -774,7 +771,6 @@ export const PosTerminalPage = () => {
           const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
           setSelectedKey(newKey);
           if (targetPrice === 0) {
-            setPriceInputValue("");
             setIsPriceModalOpen(true);
           }
         }
@@ -847,7 +843,6 @@ export const PosTerminalPage = () => {
       );
       setSelectedKey(newKey);
       if (variant.price === 0) {
-        setPriceInputValue("");
         setIsPriceModalOpen(true);
       }
     }
@@ -1052,13 +1047,11 @@ export const PosTerminalPage = () => {
 
   const openPriceModal = () => {
     if (!selectedKey) return;
-    setPriceInputValue("");
     setIsPriceModalOpen(true);
   };
 
   const openQtyModal = () => {
     if (!selectedKey) return;
-    setQtyInputValue("");
     setIsQtyModalOpen(true);
   };
 
@@ -1073,9 +1066,27 @@ export const PosTerminalPage = () => {
         return;
     }
     setDiscountType(type);
-    setDiscountInputValue("");
     setDiscountStep('value');
   };
+
+  const stableSetCategory = useEvent((id: string) => {
+    const parsedId = parseInt(id, 10);
+    if (parsedId !== activeCategoryId) {
+      setCategory(parsedId);
+    } else {
+      setSubCategory(null);
+      setAlternatives([]);
+      setSelectedProduct(null);
+    }
+  });
+
+  const stableOnLongPress = useEvent((id: number) => {
+    setSelectedProductToLock(String(id));
+    setIsLockItemModalOpen(true);
+  });
+
+  const stableHandleOrder = useEvent((print: boolean) => handleOrder(print));
+  const stableHandleSettle = useEvent((print: boolean) => handleSettle(print));
 
   // Loading state
   if (isLoading && !status) {
@@ -1176,17 +1187,7 @@ export const PosTerminalPage = () => {
         <PosCategoryRail
           categories={categories}
           activeCategoryId={activeCategoryId ? activeCategoryId.toString() : ""}
-          onSelect={(id) => {
-            const parsedId = parseInt(id, 10);
-            if (parsedId !== activeCategoryId) {
-              setCategory(parsedId);
-            } else {
-              // Same category clicked again — reset to fresh top-level state
-              setSubCategory(null);
-              setAlternatives([]);
-              setSelectedProduct(null);
-            }
-          }}
+          onSelect={stableSetCategory}
         />
 
         {/* Middle Column: Grid */}
@@ -1202,10 +1203,7 @@ export const PosTerminalPage = () => {
                 onBack={handleGridBack}
                 onAdd={handleProductSelect}
                 onSelectAlt={handleAltSelect}
-                onLongPress={(id) => {
-                  setSelectedProductToLock(String(id));
-                  setIsLockItemModalOpen(true);
-                }}
+                onLongPress={stableOnLongPress}
                 categoryName={activeCategory?.name}
                 subCategoryName={activeSubCategory?.subCategoryName}
                 selectedProduct={selectedProduct}
@@ -1306,8 +1304,8 @@ export const PosTerminalPage = () => {
               setExtrasModifierType={setExtrasModifierType}
               showToast={showToast}
               openQtyModal={openQtyModal}
-              handleOrder={(print: boolean) => handleOrder(print)}
-              handleSettle={(print: boolean) => handleSettle(print)}
+              handleOrder={stableHandleOrder}
+              handleSettle={stableHandleSettle}
               orderLoading={orderLoading}
               isSettledEdit={isSettledEdit}
               selectedTender={selectedTender}
@@ -1335,8 +1333,6 @@ export const PosTerminalPage = () => {
         discountType={discountType}
         discountMode={discountMode}
         setDiscountMode={setDiscountMode}
-        discountInputValue={discountInputValue}
-        setDiscountInputValue={setDiscountInputValue}
         subtotal={subtotal}
         currentItem={currentItem}
         handleApplyDiscount={handleApplyDiscount}
@@ -1346,8 +1342,6 @@ export const PosTerminalPage = () => {
       <PosPriceKeypadModal
         isOpen={isPriceModalOpen}
         onClose={handlePriceModalClose}
-        priceInputValue={priceInputValue}
-        setPriceInputValue={setPriceInputValue}
         currentSelectedItem={currentSelectedItem}
         handleApplyPrice={handleApplyPrice}
       />
@@ -1356,8 +1350,6 @@ export const PosTerminalPage = () => {
       <PosQtyKeypadModal
         isOpen={isQtyModalOpen}
         onClose={() => setIsQtyModalOpen(false)}
-        qtyInputValue={qtyInputValue}
-        setQtyInputValue={setQtyInputValue}
         currentSelectedItem={currentSelectedItem}
         handleApplyQty={handleApplyQty}
       />

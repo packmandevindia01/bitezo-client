@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import type { PosCategory } from "../../../types";
 
@@ -8,7 +8,7 @@ interface PosCategoryRailProps {
   onSelect: (categoryId: string) => void;
 }
 
-const PosCategoryRail = ({
+const PosCategoryRailComponent = ({
   categories,
   activeCategoryId,
   onSelect,
@@ -107,4 +107,4 @@ const PosCategoryRail = ({
   );
 };
 
-export default PosCategoryRail;
+export default React.memo(PosCategoryRailComponent);

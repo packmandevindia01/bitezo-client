@@ -9,8 +9,7 @@ interface PosDiscountKeypadModalProps {
   discountType: 'bill' | 'item';
   discountMode: 'percentage' | 'amount';
   setDiscountMode: (mode: 'percentage' | 'amount') => void;
-  discountInputValue: string;
-  setDiscountInputValue: React.Dispatch<React.SetStateAction<string>>;
+  initialValue?: string;
   subtotal: number;
   currentItem: any;
   handleApplyDiscount: (val: string) => void;
@@ -22,12 +21,18 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
   discountType,
   discountMode,
   setDiscountMode,
-  discountInputValue,
-  setDiscountInputValue,
+  initialValue = "",
   subtotal,
   currentItem,
   handleApplyDiscount
 }) => {
+  const [internalValue, setInternalValue] = React.useState(initialValue);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setInternalValue(initialValue);
+    }
+  }, [isOpen, initialValue]);
   return (
     <Modal
       isOpen={isOpen}
@@ -47,7 +52,7 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
         {/* Elegant Mode Toggle */}
         <div className="flex p-1 bg-slate-200/60 rounded-2xl">
           <button 
-            onClick={() => { setDiscountMode('percentage'); setDiscountInputValue(""); }}
+            onClick={() => { setDiscountMode('percentage'); setInternalValue(""); }}
             className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
               discountMode === 'percentage' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
             }`}
@@ -56,7 +61,7 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
             Percentage
           </button>
           <button 
-            onClick={() => { setDiscountMode('amount'); setDiscountInputValue(""); }}
+            onClick={() => { setDiscountMode('amount'); setInternalValue(""); }}
             className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all ${
               discountMode === 'amount' ? "bg-white text-[#49293e] shadow-md" : "text-slate-500 hover:text-slate-700"
             }`}
@@ -80,7 +85,7 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Enter reduction</span>
           </div>
           <div className="text-3xl font-black text-white font-mono flex items-baseline gap-2">
-            {discountInputValue || "0"}
+            {internalValue || "0"}
             <span className="text-base text-[#ff9500]">
               {discountMode === 'percentage' ? "%" : formatCurrency(0).split(" ")[0]}
             </span>
@@ -93,11 +98,11 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
             <button
               key={btn}
               onClick={() => {
-                if (btn === "Clear") setDiscountInputValue("");
+                if (btn === "Clear") setInternalValue("");
                 else if (btn === ".") {
-                  if (!discountInputValue.includes(".")) setDiscountInputValue(prev => prev + ".");
+                  if (!internalValue.includes(".")) setInternalValue(prev => prev + ".");
                 } else {
-                  if (discountInputValue.length < 8) setDiscountInputValue(prev => prev + btn);
+                  if (internalValue.length < 8) setInternalValue(prev => prev + btn);
                 }
               }}
               className={`
@@ -120,7 +125,7 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
             Cancel
           </button>
           <button
-            onClick={() => handleApplyDiscount(discountInputValue)}
+            onClick={() => handleApplyDiscount(internalValue)}
             className="h-11 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <Check size={16} strokeWidth={3} />

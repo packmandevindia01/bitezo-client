@@ -37,7 +37,7 @@ interface PosCartPanelProps {
   setIsDeliveryChargeModalOpen: (open: boolean) => void;
 }
 
-export const PosCartPanel: React.FC<PosCartPanelProps> = ({
+const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   isCartOpen,
   setIsCartOpen,
   cartDetails,
@@ -147,3 +147,5 @@ export const PosCartPanel: React.FC<PosCartPanelProps> = ({
     </>
   );
 };
+
+export const PosCartPanel = React.memo(PosCartPanelComponent);

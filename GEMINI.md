@@ -269,6 +269,8 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 - Quantity inputs must restrict to whole numbers unless the item explicitly supports decimal qty
 - Never allow negative values in price, cost, quantity, or amount fields
 - Read-only or disabled input fields must use the `cursor-not-allowed` Tailwind CSS class so that a red circle with a line through it appears when hovered, visually indicating that the field is locked.
+- **High-Frequency Input State**: Never store real-time keystroke state (e.g., numeric keypad input) in a high-level parent component like a Page. Always localize `inputValue` state inside the Modal or localized component, and only pass the final value up via an `onSubmit` callback. This prevents massive UI re-renders on every keystroke.
+- **Safe Component Memoization**: When wrapping a component in `React.memo()` (like `PosProductGrid`), never pass inline functions or raw `useCallback` functions from the parent if they depend on rapidly changing state (like a shopping cart). This causes either broken memoization or "Stale Closures". Always use the `useEvent` hook (Latest Ref Pattern) to stabilize the callback reference while ensuring it has access to the absolute latest state.
 
 ### 6. Master Data Pages (Backoffice) — List + Form Pattern
 - Every master data page (Category, Product, Customer, Supplier, etc.) follows this pattern:
@@ -686,5 +688,36 @@ Every page must work correctly on all screen sizes from mobile (375px) to large 
 - **Strict Backend Validation (EmployeeId vs UserId):** The backend explicitly strictly validates `EmployeeId` against the `Employees` table for many critical actions (like `order-split`, `order-void`, `order-recall`). Passing a generic `userId` (like `1`) or `0` will trigger a backend `404 Reference Not Found` if that exact ID does not exist in the Employees table.
 - **Always Request Authorization:** Before opening critical order modification modals (Split, Void, Recall), you MUST wrap the action in `requestAuthorization` from `useEmployeeAuthorization`.
   - Capture the returned, verified `employeeId`.
-  - Pass this valid `employeeId` explicitly down into the modal and its custom hooks.
   - Send this verified `employeeId` in the API payload instead of falling back to Redux session state, guaranteeing the backend database validation will pass.
+
+---
+
+## 27. Post-Feature Pedagogical Review (Interview Prep)
+Whenever we complete a feature, the AI MUST provide a summary answering these 6 specific categories to help the developer understand the code deeply and prepare for technical interviews:
+
+1. **Understand WHAT was built**
+   - "Explain what this code does, line by line, in simple terms"
+   - "What is the overall flow of data in this feature?"
+   - "What are the main functions/components and what does each do?"
+2. **Understand WHY decisions were made**
+   - "Why did you choose this approach instead of [alternative]?"
+   - "What are the trade-offs of this implementation?"
+   - "Why did you use useState here instead of useReducer?"
+   - "Why this API call structure instead of another?"
+3. **Understand EDGE CASES**
+   - "What edge cases does this code handle?"
+   - "What happens if the API fails here?"
+   - "What happens if the user does X unexpected action?"
+   - "Is there any race condition possibility here?"
+4. **Understand PERFORMANCE implications**
+   - "Are there any performance concerns with this code?"
+   - "Would this cause unnecessary re-renders?"
+   - "Is there a more optimized way to write this?"
+5. **Understand HOW TO EXPLAIN it in an interview**
+   - "If an interviewer asks me to explain this feature, how should I describe it in 2-3 sentences?"
+   - "What follow-up questions might an interviewer ask about this code?"
+   - "Simplify this explanation as if explaining to a non-technical person"
+6. **Understand CONNECTIONS to fundamentals**
+   - "What JavaScript/React concepts does this code use?"
+   - "Is there a closure happening here? Where?"
+   - "Where is 'this' keyword behavior relevant in this code?"

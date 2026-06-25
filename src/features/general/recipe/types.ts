@@ -10,6 +10,7 @@ export const recipeItemSchema = z.object({
   qty: z.number().min(0.001, "Qty must be greater than 0"),
   cost: z.number(),
   amount: z.number(),
+  excludeOrders: z.array(z.number()).optional(),
 });
 
 export type RecipeLineItem = z.infer<typeof recipeItemSchema>;
@@ -32,6 +33,7 @@ export const recipeSchema = z.object({
   amount: z.string().optional(),
   
   items: z.array(recipeItemSchema).min(1, "At least one raw material is required"),
+  excludeOrders: z.array(z.number()).optional(),
 });
 
 export type RecipeForm = z.infer<typeof recipeSchema>;
@@ -54,5 +56,10 @@ export interface RecipePayload {
     cost: number;
     amount: number;
     baseQty: number;
+  }[];
+  excludeOrders?: {
+    orderTypeId: number;
+    productId: number;
+    unitId: number;
   }[];
 }

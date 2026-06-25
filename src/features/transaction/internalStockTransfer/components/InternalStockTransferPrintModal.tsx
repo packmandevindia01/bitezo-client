@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import { X, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
-import * as XLSX from "xlsx-js-style";
 
 // Interfaces to match the parent component's state
 interface PrintModalProps {
@@ -195,8 +194,9 @@ const InternalStockTransferPrintModal: React.FC<PrintModalProps> = ({
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const XLSX = await import("xlsx-js-style");
       // Create worksheet data
       const wsData = [
         ["AL ASRIYA ADVANCED TRADING LLC"],

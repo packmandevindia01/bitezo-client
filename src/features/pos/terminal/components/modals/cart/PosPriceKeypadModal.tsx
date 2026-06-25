@@ -6,8 +6,7 @@ import { formatCurrency } from "../../../../../../utils/formatters";
 interface PosPriceKeypadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  priceInputValue: string;
-  setPriceInputValue: React.Dispatch<React.SetStateAction<string>>;
+  initialValue?: string;
   currentSelectedItem: any;
   handleApplyPrice: (val: string) => void;
 }
@@ -15,11 +14,17 @@ interface PosPriceKeypadModalProps {
 export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
   isOpen,
   onClose,
-  priceInputValue,
-  setPriceInputValue,
+  initialValue = "",
   currentSelectedItem,
   handleApplyPrice
 }) => {
+  const [internalValue, setInternalValue] = React.useState(initialValue);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setInternalValue(initialValue);
+    }
+  }, [isOpen, initialValue]);
   return (
     <Modal
       isOpen={isOpen}
@@ -45,16 +50,16 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
           <input
             type="text"
             autoFocus
-            value={priceInputValue}
+            value={internalValue}
             onChange={(e) => {
               const val = e.target.value;
               if (/^[0-9]*\.?[0-9]*$/.test(val)) {
-                setPriceInputValue(val);
+                setInternalValue(val);
               }
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                handleApplyPrice(priceInputValue);
+                handleApplyPrice(internalValue);
               }
             }}
             placeholder="0"
@@ -73,14 +78,14 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
               <button
                 key={btn}
                 onClick={() => {
-                  if (btn === "Clear") setPriceInputValue("");
-                  else if (btn === "Back") setPriceInputValue(prev => prev.slice(0, -1));
+                  if (btn === "Clear") setInternalValue("");
+                  else if (btn === "Back") setInternalValue(prev => prev.slice(0, -1));
                   else if (btn === ".") {
-                    if (!priceInputValue.includes(".")) setPriceInputValue(prev => prev + ".");
+                    if (!internalValue.includes(".")) setInternalValue(prev => prev + ".");
                   } else {
-                    if (priceInputValue.length < 10) {
-                      const next = `${priceInputValue}${btn}`;
-                      setPriceInputValue(next.slice(0, 10));
+                    if (internalValue.length < 10) {
+                      const next = `${internalValue}${btn}`;
+                      setInternalValue(next.slice(0, 10));
                     }
                   }
                 }}
@@ -109,8 +114,8 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
             Cancel
           </button>
           <button
-            onClick={() => handleApplyPrice(priceInputValue)}
-            className="h-12 sm:h-14 bg-[#ff9500] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            onClick={() => handleApplyPrice(internalValue)}
+            className="h-12 sm:h-14 bg-[#49293e] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(73,41,62,0.3)] hover:bg-[#3a2132] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <Check size={16} strokeWidth={3} />
             Update Price
