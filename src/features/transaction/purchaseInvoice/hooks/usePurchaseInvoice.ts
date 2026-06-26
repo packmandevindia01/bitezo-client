@@ -8,6 +8,8 @@ import type { PurchaseInvoiceForm, PurchaseInvoiceLineItem } from "../types";
 import { purchaseInvoiceApi } from "../services/purchaseInvoiceApi";
 import type { PurchaseInvoiceMasterData } from "../services/purchaseInvoiceApi";
 import { useToast } from "../../../../app/providers/useToast";
+import { generateUUID } from "../../../../utils/uuid";
+
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -37,6 +39,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+  const [selectedPaymodeId, setSelectedPaymodeId] = useState<number>(0);
 
   // Product Search State
   const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
@@ -51,7 +54,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     empty.otherCharge = formatAmount(0);
     empty.roundOff = formatAmount(0);
     empty.items = [{
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         product: "",
         code: "",
         unit: "",
@@ -113,6 +116,14 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       grandTotal,
     };
   }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems]);
+
+  // Paymode list from master data — show all available paymodes as provided by the API.
+  // MultiPay (detected by name) is handled specially in the UI (opens the modal).
+  // BackofficeMultiPayModal has its own filter to exclude Credit/MultiPay from split options.
+  const paymodeList = useMemo(() => {
+    if (!masterData?.paymodes) return [];
+    return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
+  }, [masterData]);
 
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
@@ -209,7 +220,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       const rootAmount = (res.masterData.netAmount || 0) - (res.paymodesData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       
       const mappedItems = (res.detailsData || []).map((d: any) => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         product: d.productId?.toString() || "",
         code: d.productId?.toString() || "",
         unit: d.unitId?.toString() || "",
@@ -286,6 +297,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const handleReset = () => {
     reset(initialForm);
     setShowClearConfirm(false);
+    setSelectedPaymodeId(0);
   };
 
   const handleClearClick = () => {
@@ -296,6 +308,16 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       handleReset();
     }
   };
+
+  // Set a single paymode as the full payment — no modal needed
+  const handleSinglePayment = useCallback((paymodeId: number, paymodeName: string, grandTotal: number) => {
+    setPayments([{
+      mode: paymodeName.toLowerCase(),
+      amount: grandTotal.toFixed(decimalPart),
+      paymodeId,
+    } as any]);
+    setSelectedPaymodeId(paymodeId);
+  }, [setPayments, decimalPart]);
 
   const [saving, setSaving] = useState(false);
 
@@ -323,7 +345,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         seriesId: parseInt(data.series || "") || 0,
         prefix: "",
         supplierId: parseInt(data.supplier || "") || 0,
-        paymodeId: data.payments.length > 0 ? ((data.payments[0].mode || 'cash') === 'cash' ? 1 : (data.payments[0].mode || 'cash') === 'card' ? 2 : 3) : 1,
+        // master paymodeId: 3 if multi-payment, otherwise use stored paymodeId from first payment
+        paymodeId: data.payments.length > 1 ? 3 : (data.payments.length > 0 ? ((data.payments[0] as any).paymodeId || 1) : 1),
         branchId: parseInt(data.branch || "") || 0,
         employeeId: parseInt(data.salesman || "") || 0,
         dayId: 0,
@@ -354,8 +377,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
             baseQty: toNumber(item.qty) + toNumber(item.foc),
           };
         }),
-        paymodes: data.payments.length <= 1 ? [] : data.payments.slice(1).map((p) => ({
-          paymodeId: (p.mode || 'cash') === 'cash' ? 1 : (p.mode || 'cash') === 'card' ? 2 : 3,
+        paymodes: data.payments.length <= 1 ? [] : data.payments.slice(1).map((p: any) => ({
+          paymodeId: p.paymodeId || 1,
           amount: toNumber(p.amount),
         })),
       };
@@ -381,8 +404,9 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     }
   };
 
-  const handleSettlementSubmit = (newPayments: { mode: string; amount: number }[]) => {
-    setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString() })));
+  const handleSettlementSubmit = (newPayments: { mode: string; paymodeId: number; amount: number }[]) => {
+    setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString(), paymodeId: p.paymodeId })));
+    setSelectedPaymodeId(3); // master paymodeId=3 for multi-payment (business rule)
     setIsMultiPayOpen(false);
   };
 
@@ -403,6 +427,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     isMultiPayOpen,
     setIsMultiPayOpen,
     handleSettlementSubmit,
+    handleSinglePayment,
+    paymodeList,
+    selectedPaymodeId,
+    setSelectedPaymodeId,
     masterData,
     loadingMaster,
     masterError,

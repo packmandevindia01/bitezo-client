@@ -14,6 +14,7 @@ export interface CartRow {
   vatRate: number;
   price?: number;
   vatAmount: number;
+  originalLineTotal?: number;
   variantName?: string;
   extras?: { id: number; name: string; price: number; qty: number }[];
   modifiers?: { id: number; name: string; qty: number; typeName?: string }[];
@@ -100,7 +101,7 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
         {item.itemDiscount && item.itemDiscount > 0 ? (
           <>
             <p className="text-[9px] text-slate-400 line-through font-bold leading-none mb-0.5">
-              {formatAmount(item.amount > 0 ? (item.lineTotal / (1 - (item.itemDiscount / item.amount))) : 0)}
+              {formatAmount(item.originalLineTotal ?? (item.lineTotal + item.itemDiscount))}
             </p>
             <p className={`text-[11px] font-normal leading-none ${isSelected ? "text-[#49293e]" : "text-red-600"}`}>
               {formatAmount(item.lineTotal || 0)}

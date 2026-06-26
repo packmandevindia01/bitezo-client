@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '../../../../../../hooks/useCurrency';
+import { useToast } from '../../../../../../app/providers/useToast';
 import { Modal, Button } from '../../../../../../components/common';
 import { Banknote, CreditCard, Wallet, XCircle, Delete } from 'lucide-react';
 
@@ -214,6 +215,7 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
   loading
 }) => {
   const { formatAmount, currencySymbol, decimalPart } = useCurrency();
+  const { showToast } = useToast();
 
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   const [amountModalMode, setAmountModalMode] = useState<'cash' | 'card' | 'credit' | null>(null);
@@ -237,6 +239,16 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
   const handleAddPayment = (amount: number) => {
     if (amountModalMode) {
       const mode = amountModalMode;
+      
+      // Validation Rule: Non-Cash methods cannot cause an overpayment
+      if (mode !== 'cash') {
+        const potentialTotal = totalPaid + amount;
+        if (Number(potentialTotal.toFixed(decimalPart)) > roundedDue) {
+          showToast(`Overpayment is only allowed for Cash. Maximum allowed for ${MODE_CONFIG[mode].label} is ${formatAmount(remaining)}`, "error");
+          return;
+        }
+      }
+
       setPayments(prev => {
         const existing = prev.findIndex(p => p.mode === mode);
         if (existing >= 0) {

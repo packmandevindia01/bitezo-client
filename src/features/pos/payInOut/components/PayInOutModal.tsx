@@ -79,13 +79,25 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
     }
   }, [searchQuery]);
 
+  const fetchVoucherNumber = useCallback(async () => {
+    try {
+      const response = await payInOutService.getVoucherNumber();
+      if (response.data && response.data.vchNo) {
+        setVchNo(response.data.vchNo.toString());
+      }
+    } catch (error) {
+      console.error("Failed to fetch voucher number", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       fetchStatus();
       fetchPaymodes();
       fetchTransactions();
+      fetchVoucherNumber();
     }
-  }, [isOpen, fetchStatus, fetchPaymodes, fetchTransactions]);
+  }, [isOpen, fetchStatus, fetchPaymodes, fetchTransactions, fetchVoucherNumber]);
 
   const handleClear = () => {
     setVchNo('');
@@ -93,6 +105,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
     setDescription('');
     setAmount('');
     if (paymodes.length > 0) setPaymodeId(paymodes[0].value);
+    fetchVoucherNumber();
   };
 
   const handleSave = async () => {

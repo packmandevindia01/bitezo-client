@@ -58,6 +58,18 @@ export const usePayInOutDetails = (transId: number | null) => {
   });
 };
 
+export const usePayInOutVoucherNumber = (enabled: boolean) => {
+  return useQuery({
+    queryKey: ['payInOutVoucherNumber'],
+    queryFn: async () => {
+      const response = await payInOutService.getVoucherNumber();
+      return response.data.vchNo;
+    },
+    enabled
+  });
+};
+
+
 export const usePayInOutMutations = () => {
   const queryClient = useQueryClient();
 

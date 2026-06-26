@@ -4,6 +4,7 @@ import { Button, FormInput } from "../../../../components/common";
 import { createEmptyReceiptAgainstVoucherForm } from "../constants";
 import type { ReceiptAgainstVoucherForm as ReceiptAgainstVoucherFormType, ReceiptAgainstVoucherLineItem } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
 
 const toNumber = (value: string) => {
   const parsed = Number(value);
@@ -22,6 +23,7 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
   const { formatAmount } = useCurrency();
   const [form, setForm] = useState<ReceiptAgainstVoucherFormType>(initialData || createEmptyReceiptAgainstVoucherForm());
   const [items, setItems] = useState<ReceiptAgainstVoucherLineItem[]>(initialItems);
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const nextItemId = useRef(initialItems.length > 0 ? Math.max(...initialItems.map(i => i.id)) + 1 : 1);
 
   const setField = (key: keyof ReceiptAgainstVoucherFormType, value: string) => {
@@ -71,7 +73,7 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
               <FormInput label="Customer" value={form.customer} onChange={(e) => setField("customer", e.target.value)} />
             </div>
             <div className="flex items-end pb-1">
-              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
+              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20" onClick={() => setIsMultiPayOpen(true)}>
                 MULTI
               </Button>
             </div>
@@ -134,7 +136,7 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <FormInput label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} />
-            <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} />
+            <FormInput label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} disabled={form.paymode === "MULTI-PAY (SPLIT)"} />
           </div>
           <div className="flex justify-end items-end gap-3 pb-4">
             <Button 
@@ -152,6 +154,20 @@ const ReceiptAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
             />
           </div>
       </div>
+
+      <BackofficeMultiPayModal
+        isOpen={isMultiPayOpen}
+        onClose={() => setIsMultiPayOpen(false)}
+        totalDue={items.reduce((acc, item) => acc + item.amount, 0)}
+        onSubmit={(payments) => {
+          setIsMultiPayOpen(false);
+          setForm(prev => ({
+            ...prev,
+            payments: payments,
+            paymode: "MULTI-PAY (SPLIT)"
+          }));
+        }}
+      />
     </div>
   );
 };

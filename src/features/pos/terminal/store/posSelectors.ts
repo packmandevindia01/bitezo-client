@@ -37,34 +37,26 @@ export const selectCartDetails = createSelector(
       };
     }).filter((x): x is NonNullable<typeof x> => x !== null);
 
-    // Calculate global Bill Discount
-    let globalBillDiscount = 0;
-    if (pos.billDiscountValue) {
-      if (pos.billDiscountType === 'percentage') {
-        globalBillDiscount = (totalGross * pos.billDiscountValue) / 100;
-      } else {
-        globalBillDiscount = pos.billDiscountValue;
-      }
-    }
-
     // SECOND PASS: Distribute discount and calculate line items
     return itemsPreCalc.map(({ item, product, price, totalExtrasForLine, itemGross }) => {
       const displayName = item.variantName ? `${product.name} - ${item.variantName}` : product.name;
       
-      let itemDiscount = 0;
-      if (globalBillDiscount > 0 && totalGross > 0) {
-        // Proportional distribution of bill discount
-        itemDiscount = (itemGross / totalGross) * globalBillDiscount;
+      let discountObj: { type: 'percentage' | 'amount'; value: number } | number = 0;
+      if (pos.billDiscountValue > 0 && totalGross > 0) {
+        if (pos.billDiscountType === 'percentage') {
+          discountObj = { type: 'percentage', value: pos.billDiscountValue };
+        } else {
+          // Proportional distribution of flat bill discount
+          discountObj = { type: 'amount', value: (itemGross / totalGross) * pos.billDiscountValue };
+        }
       } else if (item.discountValue) {
         // Use individual item discount if no bill discount exists
-        if (item.discountType === 'percentage') {
-          itemDiscount = (itemGross * item.discountValue) / 100;
-        } else {
-          itemDiscount = item.discountValue;
-        }
+        discountObj = { type: item.discountType || 'amount', value: item.discountValue };
       }
 
-      const calcs = calculateLineItem(item.quantity, price, itemDiscount, totalExtrasForLine, config, product.vatValue, item.isIncl);
+      const calcs = calculateLineItem(item.quantity, price, discountObj, totalExtrasForLine, config, product.vatValue, item.isIncl);
+      const noDiscountCalcs = calculateLineItem(item.quantity, price, 0, totalExtrasForLine, config, product.vatValue, item.isIncl);
+      const itemDiscount = calcs.discountAmount ?? 0;
 
       return {
         ...item,
@@ -75,6 +67,7 @@ export const selectCartDetails = createSelector(
         },
         extrasTotal: totalExtrasForLine,
         itemDiscount,
+        originalLineTotal: noDiscountCalcs.lineNetAmount,
         baseAmount: calcs.baseAmount,
         amount: calcs.amount,
         netValue: calcs.netValue,

@@ -4,6 +4,7 @@ import { Button, FormInput } from "../../../../components/common";
 import { createEmptyPaymentAgainstVoucherForm } from "../constants";
 import type { PaymentAgainstVoucherForm as PaymentAgainstVoucherFormType, PaymentAgainstVoucherLineItem } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
 
 const toNumber = (value: string) => {
   const parsed = Number(value);
@@ -22,6 +23,7 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
   const { formatAmount } = useCurrency();
   const [form, setForm] = useState<PaymentAgainstVoucherFormType>(initialData || createEmptyPaymentAgainstVoucherForm());
   const [items, setItems] = useState<PaymentAgainstVoucherLineItem[]>(initialItems);
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const nextItemId = useRef(initialItems.length > 0 ? Math.max(...initialItems.map(i => i.id)) + 1 : 1);
 
   const setField = (key: keyof PaymentAgainstVoucherFormType, value: string) => {
@@ -117,7 +119,7 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
               />
             </div>
             <div className="flex items-end pb-1">
-              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20">
+              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20" onClick={() => setIsMultiPayOpen(true)}>
                 MULTI
               </Button>
             </div>
@@ -236,6 +238,7 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
                 value={form.paymode} 
                 onChange={(e) => setField("paymode", e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, "pav-save-btn")}
+                disabled={form.paymode === "MULTI-PAY (SPLIT)"}
             />
           </div>
           <div className="flex justify-end items-end gap-3 pb-4">
@@ -258,6 +261,21 @@ const PaymentAgainstVoucherForm = ({ initialData, initialItems = [], onSubmit, s
             </Button>
           </div>
       </div>
+
+      <BackofficeMultiPayModal
+        isOpen={isMultiPayOpen}
+        onClose={() => setIsMultiPayOpen(false)}
+        totalDue={items.reduce((acc, item) => acc + item.amount, 0)}
+        onSubmit={(payments) => {
+          setIsMultiPayOpen(false);
+          setForm(prev => ({
+            ...prev,
+            payments: payments,
+            paymode: "MULTI-PAY (SPLIT)"
+          }));
+          setTimeout(() => document.getElementById("pav-save-btn")?.focus(), 100);
+        }}
+      />
     </div>
   );
 };

@@ -23,4 +23,5 @@ export interface ReceiptAgainstVoucherForm {
   
   narration: string;
   paymode: string;
+  payments?: { mode: string; amount: number }[];
 }

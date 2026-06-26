@@ -5,6 +5,7 @@ import { Button, FormInput, PageShell } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { createEmptyPaymentAgainstVoucherForm } from "../constants";
 import type { PaymentAgainstVoucherLineItem, PaymentAgainstVoucherForm } from "../types";
+import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
 
 import { useCurrency } from "../../../../hooks/useCurrency";
 
@@ -22,6 +23,7 @@ const PaymentAgainstVoucherPage = () => {
   const [form, setForm] = useState<PaymentAgainstVoucherForm>(initialForm);
   const [items, setItems] = useState<PaymentAgainstVoucherLineItem[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
 
   const nextItemId = useRef(1);
 
@@ -110,7 +112,7 @@ const PaymentAgainstVoucherPage = () => {
               <FormInput id="pav-page-supplier" label="Supplier" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-vchType")} />
             </div>
             <div className="flex items-end pb-1">
-              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/5 text-[#49293e] border-[#49293e]/10 hover:bg-[#49293e]/10 text-xs font-bold">
+              <Button variant="secondary" className="h-10.5 px-3 bg-[#49293e]/5 text-[#49293e] border-[#49293e]/10 hover:bg-[#49293e]/10 text-xs font-bold" onClick={() => setIsMultiPayOpen(true)}>
                 MULTI
               </Button>
             </div>
@@ -191,7 +193,7 @@ const PaymentAgainstVoucherPage = () => {
         <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_300px]">
           <div className="grid gap-x-3 gap-y-1 md:grid-cols-2">
             <FormInput id="pav-page-narration" label="Narration" value={form.narration} onChange={(e) => setField("narration", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-paymode")} />
-            <FormInput id="pav-page-paymode" label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-save-btn")} />
+            <FormInput id="pav-page-paymode" label="Paymode" value={form.paymode} onChange={(e) => setField("paymode", e.target.value)} onKeyDown={(e) => handleKeyDown(e, "pav-page-save-btn")} disabled={form.paymode === "MULTI-PAY (SPLIT)"} />
           </div>
           <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-3 flex flex-col gap-2">
             <div className="flex items-center justify-between rounded-lg border border-[#49293e]/10 bg-white px-3 py-2 shadow-sm">
@@ -225,14 +227,29 @@ const PaymentAgainstVoucherPage = () => {
         </div>
       </div>
 
-      <ConfirmDialog
-        isOpen={showClearConfirm}
-        title="Clear Form"
-        message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear"
-        onConfirm={handleReset}
-        onCancel={() => setShowClearConfirm(false)}
-      />
+        <ConfirmDialog
+          isOpen={showClearConfirm}
+          title="Clear Form"
+          message="Are you sure you want to clear the form? All unsaved data will be lost."
+          confirmLabel="Clear"
+          onConfirm={handleReset}
+          onCancel={() => setShowClearConfirm(false)}
+        />
+
+        <BackofficeMultiPayModal
+          isOpen={isMultiPayOpen}
+          onClose={() => setIsMultiPayOpen(false)}
+          totalDue={items.reduce((acc, item) => acc + item.amount, 0)}
+          onSubmit={(payments) => {
+            setIsMultiPayOpen(false);
+            setForm(prev => ({
+              ...prev,
+              payments: payments,
+              paymode: "MULTI-PAY (SPLIT)"
+            }));
+            setTimeout(() => document.getElementById("pav-page-save-btn")?.focus(), 100);
+          }}
+        />
     </PageShell>
   );
 };

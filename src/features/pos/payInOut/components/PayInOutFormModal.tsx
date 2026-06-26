@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal, Button, FormInput, SelectInput, Loader } from '../../../../components/common';
 import { useCurrency } from '../../../../hooks/useCurrency';
+import { usePayInOutVoucherNumber } from '../hooks/usePayInOutQueries';
 
 const payInOutSchema = z.object({
   type: z.enum(['IN', 'OUT']),
@@ -34,6 +35,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
   isSaving
 }) => {
   const { decimalPart } = useCurrency();
+  const { data: voucherNumberStr } = usePayInOutVoucherNumber(isOpen && !initialData);
 
   const {
     register,
@@ -67,7 +69,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
       } else {
         reset({
           type: 'IN',
-          vchNo: '',
+          vchNo: voucherNumberStr?.toString() || '',
           date: new Date().toISOString().split('T')[0],
           description: '',
           amount: (0).toFixed(decimalPart),
@@ -75,12 +77,12 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
         });
       }
     }
-  }, [isOpen, initialData, reset, paymodes]);
+  }, [isOpen, initialData, reset, paymodes, voucherNumberStr, decimalPart]);
 
   const handleClear = () => {
     reset({
       type: 'IN',
-      vchNo: '',
+      vchNo: voucherNumberStr?.toString() || '',
       date: new Date().toISOString().split('T')[0],
       description: '',
       amount: (0).toFixed(decimalPart),
@@ -146,8 +148,9 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           {...register('vchNo', {
              onChange: (e) => setValue('vchNo', e.target.value.toUpperCase().replace(/\s/g, ''))
           })}
-          placeholder="Enter voucher number..."
+          placeholder="Auto Generated"
           hideLabel
+          disabled
           error={errors.vchNo?.message}
         />
 

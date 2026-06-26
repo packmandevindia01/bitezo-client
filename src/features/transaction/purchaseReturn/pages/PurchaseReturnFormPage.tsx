@@ -5,12 +5,13 @@ import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { usePurchaseReturn, calculateLine } from "../hooks/usePurchaseReturn";
-import { PosMultiPayModal } from "../../../pos/terminal/components/modals/payment/PosMultiPayModal";
+import { BackofficeMultiPayModal } from "../../../transaction/shared/components/BackofficeMultiPayModal";
 import { PurchasePrintPreviewModal } from "../../shared/components/PurchasePrintPreviewModal";
 import type { PurchasePrintData } from "../../shared/components/PurchasePrintTemplate";
 import { useParams } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
 import { useToast } from "../../../../app/providers/useToast";
+import { generateUUID } from "../../../../utils/uuid";
 
 const PurchaseReturnFormPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -336,7 +337,7 @@ const PurchaseReturnFormPage = () => {
                   type="button"
                   onClick={() => {
                     append({
-                      id: crypto.randomUUID(),
+                      id: generateUUID(),
                       product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0"
                     }, { shouldFocus: false });
                     
@@ -442,7 +443,7 @@ const PurchaseReturnFormPage = () => {
           onCancel={() => setShowClearConfirm(false)}
         />
 
-        <PosMultiPayModal
+        <BackofficeMultiPayModal
           isOpen={isMultiPayOpen}
           onClose={() => setIsMultiPayOpen(false)}
           totalDue={totals.grandTotal}

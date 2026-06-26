@@ -60,6 +60,11 @@ export const payInOutService = {
     return response.data;
   },
 
+  getVoucherNumber: async () => {
+    const response = await axiosInstance.get<ApiResponse<{ vchNo: number }>>("/pay-in-out/voucher-number");
+    return response.data;
+  },
+
   list: async (params: { fromDate: string; toDate: string; description?: string }) => {
     const response = await axiosInstance.get<ApiResponse<PayInOutItem[]>>("/pay-in-out/pay-in-out-list", { params });
     return response.data;

@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { PageShell, FormInput, SearchableSelect, Button, ConfirmDialog } from "../../../../components/common";
 import { usePaymentVoucher } from "../hooks/usePaymentVoucher";
+import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
 import { X, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const PaymentVoucherFormPage = () => {
   const { id } = useParams();
@@ -20,6 +21,8 @@ const PaymentVoucherFormPage = () => {
     paymodeList,
     isCancelled,
     cancelMutation,
+    isMultiPayOpen,
+    setIsMultiPayOpen,
   } = usePaymentVoucher(Number(id) || undefined, () => navigate("/dashboard/payment-voucher"));
 
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -28,6 +31,11 @@ const PaymentVoucherFormPage = () => {
 
   const { watch, setValue } = form;
   const watchedAmount = watch("amount");
+
+  // Stores the paymodeId that was active before the MultiPay modal was opened.
+  // Used to restore the dropdown cleanly if the user cancels the modal.
+  const previousPaymodeId = useRef<number>(0);
+  const [paymodeSelectKey, setPaymodeSelectKey] = useState(0);
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
@@ -112,15 +120,31 @@ const PaymentVoucherFormPage = () => {
             />
 
             <SearchableSelect
+              key={paymodeSelectKey}
               id="pv-paymode"
               label="PAYMODE"
-              value={String(watch("paymodeId") || "")}
-              onChange={(val) => setValue("paymodeId", Number(val))}
+              value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
+              onChange={(val) => {
+                const selectedId = Number(val);
+                const selectedPaymode = paymodeList.find(p => p.paymodeId === selectedId);
+                const isMultiPay = selectedPaymode?.paymodeName?.toLowerCase().includes("multi") || selectedId === 3;
+                if (isMultiPay) {
+                  // Save current selection so we can restore it if the user cancels
+                  previousPaymodeId.current = watch("paymodeId") || 0;
+                  if (watch("amount") && canSave) {
+                    setIsMultiPayOpen(true);
+                  }
+                } else {
+                  // Normal selection — commit immediately and clear any prior multipay data
+                  setValue("paymodeId", selectedId);
+                  setValue("paymodes", undefined);
+                }
+              }}
               placeholder="Select Paymode"
               options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "pv-narration")}
               tabIndex={9}
-              disabled={!canSave}
+              disabled={!canSave || watch("paymodeId") === 3}
             />
           </div>
 
@@ -231,6 +255,30 @@ const PaymentVoucherFormPage = () => {
         onConfirm={handleCancelVoucher}
         onCancel={() => setCancelModalOpen(false)}
         loading={cancelMutation.isPending}
+      />
+      <BackofficeMultiPayModal
+        isOpen={isMultiPayOpen}
+        paymodes={paymodeList}
+        onClose={() => {
+          // User cancelled — restore the previous paymode selection exactly as it was.
+          // Bump the key to force SearchableSelect to re-mount with the restored value,
+          // preventing any stale visual state (e.g. showing "MultiPay" in the input).
+          setIsMultiPayOpen(false);
+          setValue("paymodeId", previousPaymodeId.current);
+          setPaymodeSelectKey(k => k + 1);
+        }}
+        totalDue={Number(watch("amount") || 0)}
+        onSubmit={(payments) => {
+          setIsMultiPayOpen(false);
+          const mappedPayments = payments.map(p => ({
+            paymodeId: p.paymodeId,
+            amount: p.amount,
+            paymodeName: p.mode
+          }));
+          setValue("paymodeId", 3); // Set master paymode to Multi
+          setValue("paymodes", mappedPayments); // Set the array
+          setTimeout(() => document.getElementById("pv-narration")?.focus(), 100);
+        }}
       />
     </PageShell>
   );

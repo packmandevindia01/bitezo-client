@@ -38,7 +38,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
 export const calculateLineItem = (
   qty: number,
   price: number,
-  discount: number,
+  discount: number | { type: 'percentage' | 'amount'; value: number },
   extras: number,
   config: BillingConfig,
   itemVatRate?: number,
@@ -53,7 +53,7 @@ export const calculateLineItem = (
     config.vatType === 'Inclusive';
 
   let basePrice = price;
-  let baseDiscount = discount;
+  let baseDiscount = 0;
 
   // Extras are always inclusive of VAT, regardless of product's vatType
   let baseExtras = extras / (1 + activeVatRate);
@@ -63,14 +63,27 @@ export const calculateLineItem = (
     basePrice = price / (1 + activeVatRate);
   }
 
-  // Reverse Calculation for Discount based on Discount config
-  if (config.discountType === 'Inclusive') {
-    baseDiscount = discount / (1 + activeVatRate);
+  const amount = (qty * basePrice) + baseExtras;
+
+  if (typeof discount === 'object') {
+    if (discount.type === 'percentage') {
+      baseDiscount = amount * (discount.value / 100);
+    } else {
+      if (config.discountType === 'Inclusive') {
+        baseDiscount = discount.value / (1 + activeVatRate);
+      } else {
+        baseDiscount = discount.value;
+      }
+    }
   } else {
-    baseDiscount = discount;
+    // Reverse Calculation for Discount based on Discount config
+    if (config.discountType === 'Inclusive') {
+      baseDiscount = discount / (1 + activeVatRate);
+    } else {
+      baseDiscount = discount;
+    }
   }
 
-  const amount = (qty * basePrice) + baseExtras;
   const netValue = amount - baseDiscount;
   
   // SC applies only to Dine-In
@@ -96,7 +109,8 @@ export const calculateLineItem = (
     sc,
     levy,
     vatAmount,
-    lineNetAmount
+    lineNetAmount,
+    discountAmount: baseDiscount
   };
 };
 

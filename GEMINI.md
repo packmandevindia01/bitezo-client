@@ -21,6 +21,8 @@
 - **Validation:** MUST use `zod` for rigorous schema definitions, integrated into forms via `@hookform/resolvers/zod`. Fail fast and display inline errors safely without sending bad payloads to the backend.
 - **State Encapsulation:** Form logic, API integration, and mathematical calculations MUST be encapsulated inside a dedicated hook (e.g. `useRecipeForm.ts`). The Page component must remain purely a visual shell that maps state to UI components.
 
+> **Exception — Shared/Common Components:** Components that live in `src/components/` (global common components) or `src/features/transaction/shared/components/` (shared transaction UI) are **exempt** from this architecture rule. These are reusable UI building blocks used across many features. They may use local `useState`, `useEffect`, and direct service calls as needed, since wrapping them in `react-hook-form`/`zod`/dedicated hooks would over-engineer a generic utility. Keep them self-contained and focused solely on their UI responsibility.
+
 ---
 
 ## Actual Project Structure — STRICTLY follow this

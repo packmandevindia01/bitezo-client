@@ -44,6 +44,8 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
     queryFn: () => branchApi.fetchBranchNames(true),
   });
 
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+
   const searchBranchList = allBranches.map((b: BranchRecord) => ({ branchId: b.id, branchName: b.branchName }));
   const formBranchList = allBranches
     .filter((b: BranchRecord) => b.branchName.toLowerCase() !== "all")
@@ -142,7 +144,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
         refNo: data.refNo,
         narration: data.narration,
         createdAt: new Date().toISOString(),
-        paymodes: [],
+        paymodes: data.paymodes || [{ paymodeId: Number(data.paymodeId), amount: Number(data.amount) }],
       };
       
       if (transId) {
@@ -157,7 +159,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
           refNo: data.refNo || "",
           narration: data.narration || "",
           updatedAt: new Date().toISOString(),
-          paymodes: [{ paymodeId: Number(data.paymodeId), amount: Number(data.amount) }],
+          paymodes: data.paymodes || [{ paymodeId: Number(data.paymodeId), amount: Number(data.amount) }],
         };
         await paymentVoucherApi.updatePayment(transId, updatePayload as any);
       } else {
@@ -259,5 +261,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
     setToDate,
     cancelMutation,
     isCancelled,
+    isMultiPayOpen,
+    setIsMultiPayOpen,
   };
 };

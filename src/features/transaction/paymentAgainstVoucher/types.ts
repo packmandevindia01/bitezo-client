@@ -23,4 +23,5 @@ export interface PaymentAgainstVoucherForm {
   
   narration: string;
   paymode: string;
+  payments?: { mode: string; amount: number }[];
 }

@@ -8,6 +8,8 @@ import type { PurchaseReturnLineItem } from "../types";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
 import type { PurchaseReturnMasterData } from "../services/purchaseReturnApi";
 import { useToast } from "../../../../app/providers/useToast";
+import { generateUUID } from "../../../../utils/uuid";
+
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -57,7 +59,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     empty.otherCharge = formatAmount(0);
     empty.roundOff = formatAmount(0);
     empty.items = [{
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         product: "",
         code: "",
         unit: "",
@@ -105,7 +107,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setPurchaseId(0);
       setLoadedInvoiceText("");
       replaceItems([{
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         product: "",
         code: "",
         unit: "",
@@ -216,7 +218,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       }
 
       const mappedItems = (res.detailsData || []).map((d: any) => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         product: d.productId?.toString() || "",
         code: d.productId?.toString() || "",
         unit: d.unitId?.toString() || "",
@@ -350,7 +352,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       }
       if (res && res.detailsData) {
         const mappedItems = res.detailsData.map((d: any) => ({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           product: d.productId?.toString() || "",
           code: d.productId?.toString() || "",
           unit: d.unitId?.toString() || "",
@@ -442,7 +444,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         seriesId: parseInt(data.series) || 0,
         prefix: "",
         supplierId: parseInt(data.supplier) || 0,
-        paymodeId: watchedPayments.length > 0 ? (watchedPayments[0].mode === 'cash' ? 1 : watchedPayments[0].mode === 'card' ? 2 : 3) : 1,
+        paymodeId: watchedPayments.length > 1 ? 3 : (watchedPayments.length > 0 ? (watchedPayments[0].mode === 'cash' ? 1 : watchedPayments[0].mode === 'card' ? 2 : 3) : 1),
         branchId: parseInt(data.branch) || 0,
         employeeId: parseInt(data.salesman) || 0,
         dayId: 0,
@@ -474,7 +476,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           };
         }),
         paymodes: watchedPayments.length <= 1 ? [] : watchedPayments.slice(1).map((p: any) => ({
-          paymodeId: p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3,
+          paymodeId: p.paymodeId ?? (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3),
           amount: toNumber(p.amount),
         })),
       };

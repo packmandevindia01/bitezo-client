@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { PageShell, FormInput, SearchableSelect, Button, ConfirmDialog } from "../../../../components/common";
 import { useReceiptVoucher } from "../hooks/useReceiptVoucher";
+import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
 import { X, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -20,6 +21,8 @@ const ReceiptVoucherFormPage = () => {
     paymodeList,
     isCancelled,
     cancelMutation,
+    isMultiPayOpen,
+    setIsMultiPayOpen,
   } = useReceiptVoucher(Number(id) || undefined, () => navigate("/dashboard/receipt-voucher"));
 
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -111,17 +114,37 @@ const ReceiptVoucherFormPage = () => {
               disabled={!canSave}
             />
 
-            <SearchableSelect
-              id="rv-paymode"
-              label="PAYMODE"
-              value={String(watch("paymodeId") || "")}
-              onChange={(val) => setValue("paymodeId", Number(val))}
-              placeholder="Select Paymode"
-              options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
-              onKeyDown={(e) => handleKeyDown(e as any, "rv-narration")}
-              tabIndex={9}
-              disabled={!canSave}
-            />
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <SearchableSelect
+                  id="rv-paymode"
+                  label="PAYMODE"
+                  value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
+                  onChange={(val) => setValue("paymodeId", Number(val))}
+                  placeholder="Select Paymode"
+                  options={
+                    watch("paymodeId") === 3 
+                      ? [...paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) })), { label: "MULTI-PAY (SPLIT)", value: "3" }]
+                      : paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))
+                  }
+                  onKeyDown={(e) => handleKeyDown(e as any, "rv-narration")}
+                  tabIndex={9}
+                  disabled={!canSave || watch("paymodeId") === 3}
+                />
+              </div>
+              <div className="flex items-end pb-[2px]">
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20 text-xs font-bold" 
+                  onClick={() => setIsMultiPayOpen(true)}
+                  disabled={!canSave || !watch("amount")}
+                  tabIndex={-1}
+                >
+                  MULTI
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Column 2 */}
@@ -227,7 +250,6 @@ const ReceiptVoucherFormPage = () => {
             Save
           </Button>
         </div>
-
       </div>
 
       <ConfirmDialog
@@ -238,6 +260,23 @@ const ReceiptVoucherFormPage = () => {
         onConfirm={handleCancelVoucher}
         onCancel={() => setCancelModalOpen(false)}
         loading={cancelMutation?.isPending}
+      />
+
+      <BackofficeMultiPayModal
+        isOpen={isMultiPayOpen}
+        onClose={() => setIsMultiPayOpen(false)}
+        totalDue={Number(watch("amount") || 0)}
+        onSubmit={(payments) => {
+          setIsMultiPayOpen(false);
+          const mappedPayments = payments.map(p => ({
+            paymodeId: p.paymodeId,
+            amount: p.amount,
+            paymodeName: p.mode
+          }));
+          setValue("paymodeId", 3); // Set master paymode to Multi
+          setValue("paymodes", mappedPayments); // Set the array
+          setTimeout(() => document.getElementById("rv-narration")?.focus(), 100);
+        }}
       />
     </PageShell>
   );

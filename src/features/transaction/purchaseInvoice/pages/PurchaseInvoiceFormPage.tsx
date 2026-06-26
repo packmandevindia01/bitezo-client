@@ -1,16 +1,17 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2 } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { usePurchaseInvoice, calculateLine } from "../hooks/usePurchaseInvoice";
-import { PosMultiPayModal } from "../../../pos/terminal/components/modals/payment/PosMultiPayModal";
+import { BackofficeMultiPayModal } from "../../../transaction/shared/components/BackofficeMultiPayModal";
 import { PurchasePrintPreviewModal } from "../../shared/components/PurchasePrintPreviewModal";
 import type { PurchasePrintData } from "../../shared/components/PurchasePrintTemplate";
 import { useParams } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
 import { useToast } from "../../../../app/providers/useToast";
+import { generateUUID } from "../../../../utils/uuid";
 
 const PurchaseInvoiceFormPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +35,10 @@ const PurchaseInvoiceFormPage = () => {
     isMultiPayOpen,
     setIsMultiPayOpen,
     handleSettlementSubmit,
+    handleSinglePayment,
+    paymodeList,
+    selectedPaymodeId,
+    setSelectedPaymodeId,
     masterData,
     loadingMaster,
     masterError,
@@ -51,6 +56,10 @@ const PurchaseInvoiceFormPage = () => {
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [shouldResetAfterPrint, setShouldResetAfterPrint] = useState(false);
+
+  // Paymode dropdown state — store previous selection so cancel restores it cleanly
+  const previousPaymodeId = useRef<number>(0);
+  const [paymodeSelectKey, setPaymodeSelectKey] = useState(0);
 
   const onSaveClick = async () => {
     // Clean empty rows before submission
@@ -312,7 +321,7 @@ const PurchaseInvoiceFormPage = () => {
                   type="button"
                   onClick={() => {
                     append({
-                      id: crypto.randomUUID(),
+                      id: generateUUID(),
                       product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0"
                     }, { shouldFocus: false });
                     
@@ -368,16 +377,46 @@ const PurchaseInvoiceFormPage = () => {
 
             {/* Bottom Row: Actions & Total */}
             <div className="flex flex-wrap items-center justify-between gap-3 w-full border-t border-gray-200 pt-3">
-              <div className="flex items-center">
-                <Button
-                  type="button"
-                  onClick={() => setIsMultiPayOpen(true)}
-                  disabled={!canSave || totals.grandTotal <= 0 || saving}
-                  className="h-9 px-4 bg-blue-600 hover:bg-blue-700 font-bold text-sm shrink-0"
-                  icon={<CreditCard size={16} />}
-                >
-                  Settle Payments
-                </Button>
+              {/* Paymode Dropdown + Settle Payments */}
+              <div className="flex items-end gap-2">
+                <div className="w-36">
+                  <SearchableSelect
+                    key={paymodeSelectKey}
+                    id="pi-paymode"
+                    label="Paymode"
+                    value={selectedPaymodeId === 3 ? "3" : String(selectedPaymodeId || "")}
+                    forcePlacement="top"
+                    onChange={(val) => {
+                      const id = Number(val);
+                      const paymode = paymodeList.find((p: { paymodeId: number; paymodeName: string }) => p.paymodeId === id);
+                      const isMultiPay = paymode?.paymodeName?.toLowerCase().includes("multi") || id === 3;
+                      if (isMultiPay) {
+                        // Save current selection; commit paymodeId=3 only on modal submit
+                        previousPaymodeId.current = selectedPaymodeId;
+                        if (totals.grandTotal > 0 && canSave) setIsMultiPayOpen(true);
+                      } else if (paymode) {
+                        // Single paymode — auto-set full grand total, no modal needed
+                        handleSinglePayment(id, paymode.paymodeName, totals.grandTotal);
+                      }
+                    }}
+                    placeholder="Paymode"
+                    options={(paymodeList as { paymodeId: number; paymodeName: string }[]).map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
+                    disabled={!canSave || saving || selectedPaymodeId === 3}
+                    className="!h-8 !text-xs"
+                  />
+                </div>
+                {/* Show re-configure button only when multi-pay is active */}
+                {selectedPaymodeId === 3 && canSave && (
+                  <Button
+                    type="button"
+                    onClick={() => setIsMultiPayOpen(true)}
+                    disabled={saving}
+                    className="h-8 px-3 bg-blue-600 hover:bg-blue-700 font-bold text-xs shrink-0"
+                    icon={<CreditCard size={14} />}
+                  >
+                    Edit
+                  </Button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-4 justify-end flex-1">
@@ -418,9 +457,20 @@ const PurchaseInvoiceFormPage = () => {
           onCancel={() => setShowClearConfirm(false)}
         />
 
-        <PosMultiPayModal
+        <BackofficeMultiPayModal
           isOpen={isMultiPayOpen}
-          onClose={() => setIsMultiPayOpen(false)}
+          paymodes={paymodeList}
+          onClose={() => {
+            // Restore previous paymode selection; re-mount dropdown to clear stale display
+            setIsMultiPayOpen(false);
+            setSelectedPaymodeId(previousPaymodeId.current);
+            setPaymodeSelectKey(k => k + 1);
+            // If reverting to a single paymode, restore its payment amount too
+            if (previousPaymodeId.current > 0 && previousPaymodeId.current !== 3) {
+              const prev = (paymodeList as { paymodeId: number; paymodeName: string }[]).find(p => p.paymodeId === previousPaymodeId.current);
+              if (prev) handleSinglePayment(prev.paymodeId, prev.paymodeName, totals.grandTotal);
+            }
+          }}
           totalDue={totals.grandTotal}
           onSubmit={handleSettlementSubmit}
         />

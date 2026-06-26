@@ -386,7 +386,7 @@ export const PosTerminalPage = () => {
         seriesId: 1,
         prefix: "",
         customerId: orderPayload.customerId,
-        paymodeId: payments.length > 0 ? payments[0].paymodeId : 1,
+        paymodeId: payments.length > 1 ? 3 : (payments.length > 0 ? payments[0].paymodeId : 1),
         employeeId: orderPayload.employeeId,
         dayId: status.dayId,
         shiftId: status.shiftId,
