@@ -25,6 +25,10 @@ export interface PurchaseInvoiceMasterData {
     paymodeId: number;
     paymodeName: string;
   }[];
+  units?: {
+    label: string;
+    value: string;
+  }[];
 }
 
 export const purchaseInvoiceApi = {
@@ -40,6 +44,25 @@ export const purchaseInvoiceApi = {
       throw new Error(response.data.message || "Failed to load master data");
     }
 
+    return response.data.data;
+  },
+
+  getPurchaseNumber: async (seriesId: number) => {
+    const response = await axiosInstance.get<{
+      data: { purchaseNo: number };
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-invoice/purchase-number/${seriesId}`);
+
+    if (!response.data.isSuccess) {
+      throw new Error(response.data.message || "Failed to load purchase number");
+    }
+
+    return response.data.data;
+  },
+
+  getUnits: async (unitCategory: string) => {
+    const response = await axiosInstance.get(`/purchase-invoice/unit-list-name?unitCategory=${unitCategory}`);
     return response.data.data;
   },
 

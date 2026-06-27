@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2 } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, AutocompleteInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
@@ -16,7 +16,7 @@ import { generateUUID } from "../../../../utils/uuid";
 const PurchaseReturnFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = usePermissions();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, decimalPart } = useCurrency();
   const { showToast } = useToast();
 
   const {
@@ -38,9 +38,12 @@ const PurchaseReturnFormPage = () => {
     masterData,
     loadingMaster,
     masterError,
+    paymodeList,
+    multiPayId,
     productOptions,
     searchingProducts,
     handleProductSearch,
+    handleBarcodeScan,
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
@@ -50,44 +53,60 @@ const PurchaseReturnFormPage = () => {
     handleInvoiceSelect,
     handleProductSelect,
     saving,
+    selectedPaymodeId,
+    setSelectedPaymodeId,
+    handleSinglePayment,
+    purchaseId,
   } = usePurchaseReturn(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [shouldResetAfterPrint, setShouldResetAfterPrint] = useState(false);
+  // Tracks whether a product was just selected via Enter (so we don't exit grid accidentally)
+  const productSelectedRef = useRef(false);
 
-  const onSaveClick = async () => {
-    // Clean empty rows before submission
+  // Paymode dropdown state — store previous selection so cancel restores it cleanly
+  const previousPaymodeId = useRef<number>(0);
+  const [paymodeSelectKey, setPaymodeSelectKey] = useState(0);
+
+  // Paymode dropdown state — store previous selection so cancel restores it cleanly
+
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  const onSaveClick = () => {
     const currentItems = getValues("items") || [];
     const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
-    
-    if (validItems.length !== currentItems.length) {
-      methods.setValue("items", validItems);
-    }
-
     if (validItems.length === 0) {
       showToast("Please add at least one product.", "warning");
       return;
     }
+    setShowSaveConfirm(true);
+  };
 
+  const doSave = async () => {
+    setShowSaveConfirm(false);
+    const currentItems = getValues("items") || [];
+    const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
+    if (validItems.length !== currentItems.length) {
+      methods.setValue("items", validItems);
+    }
     methods.handleSubmit(async (data) => {
       const success = await onSubmit(data);
       if (success) {
         setIsPrintModalOpen(true);
         setShouldResetAfterPrint(!id);
       }
-    }, (errors) => {
-         console.error("Validation failed:", errors);
-         const firstErrorKey = Object.keys(errors)[0];
-         if (firstErrorKey) {
-           const err = (errors as any)[firstErrorKey];
-           const msg = (err as any)?.message || "Please fill all required fields.";
-           showToast(msg as string, "error");
-         } else {
-           showToast("Please fill all required fields.", "error");
-         }
-      })();
+    }, (errs) => {
+      console.error("Validation failed:", errs);
+      const firstErrorKey = Object.keys(errs)[0];
+      if (firstErrorKey) {
+        const err = (errs as any)[firstErrorKey];
+        showToast((err as any)?.message || "Please fill all required fields.", "error");
+      } else {
+        showToast("Please fill all required fields.", "error");
+      }
+    })();
   };
 
   const handlePrintModalClose = () => {
@@ -103,7 +122,7 @@ const PurchaseReturnFormPage = () => {
     const validItems = watchedItems.filter((i: any) => i.product && i.product.trim() !== "");
     
     validItems.forEach((item: any) => {
-      const line = calculateLine(item);
+      const line = calculateLine(item, decimalPart);
       const pct = Number(item.vatPercent) || 0;
       if (!taxSummaryMap.has(pct)) {
         taxSummaryMap.set(pct, { taxCode: `${pct}%`, taxable: 0, vatAmount: 0, netAmount: 0 });
@@ -165,17 +184,24 @@ const PurchaseReturnFormPage = () => {
     if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
   };
 
-  const handleGridNav = (e: React.KeyboardEvent) => {
+  const handleGridNav = (e: React.KeyboardEvent, rowIndex?: number) => {
     if (e.key === "Enter") {
-       e.preventDefault();
-       // Emulate tab behavior for Enter key across all form elements including custom comboboxes
-       const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
-         .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
-         
-       const currentIndex = formElements.indexOf(e.target as Element);
-       if (currentIndex > -1 && formElements[currentIndex + 1]) {
-           (formElements[currentIndex + 1] as HTMLElement).focus();
-       }
+      e.preventDefault();
+      // If the current row's product is empty → exit the grid, go to Disc(%)
+      if (rowIndex !== undefined) {
+        const rowProduct = methods.getValues(`items.${rowIndex}.product`);
+        if (!rowProduct || rowProduct.trim() === "") {
+          if (items.length > 1) remove(rowIndex);
+          setTimeout(() => document.getElementById("pr-disc-pct")?.focus(), 50);
+          return;
+        }
+      }
+      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]), select:not([tabindex=" -1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
+        .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
+      const currentIndex = formElements.indexOf(e.target as Element);
+      if (currentIndex > -1 && formElements[currentIndex + 1]) {
+        (formElements[currentIndex + 1] as HTMLElement).focus();
+      }
     }
   };
 
@@ -199,16 +225,18 @@ const PurchaseReturnFormPage = () => {
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
             {/* ── Header Fields ── Extemely dense padding to save space */}
-            <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-x-2 gap-y-1.5 mb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-[1fr_0.7fr_1fr_2fr_0.9fr_0.7fr_1fr_0.7fr_0.9fr] gap-x-2 gap-y-1.5 mb-2">
               <Controller name="series" control={control} render={({ field }) => (
                 <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
               <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               
-              <Controller name="supplier" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
-              )} />
+              <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1">
+                <Controller name="supplier" control={control} render={({ field }) => (
+                  <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                )} />
+              </div>
               <Controller name="branch" control={control} render={({ field }) => (
                 <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
               )} />
@@ -254,7 +282,7 @@ const PurchaseReturnFormPage = () => {
                   <tbody className="divide-y divide-gray-100">
                     {items.map((field, index) => {
                       const itemWatch = watchedItems[index] || {};
-                      const lineTotals = calculateLine(itemWatch as any);
+                      const lineTotals = calculateLine(itemWatch as any, decimalPart);
                       return (
                         <tr key={field.id} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
@@ -274,14 +302,42 @@ const PurchaseReturnFormPage = () => {
                                       minQueryLength={1}
                                       forcePlacement="bottom"
                                       onChange={(val) => {
+                                        productSelectedRef.current = true;
                                         selectField.onChange(val);
                                         const opt = productOptions.find(o => o.value === val);
                                         if (opt) {
-                                            methods.setValue(`items.${index}.code`, opt.code || "");
-                                            handleProductSelect(index, val, opt.code || "");
+                                          methods.setValue(`items.${index}.code`, opt.code || "");
+                                          handleProductSelect(index, val, opt.code || "");
+                                        }
+                                        // Focus the Qty field of this row after product selection
+                                        setTimeout(() => {
+                                          const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                          qtyInputs[0]?.focus();
+                                        }, 100);
+                                      }}
+                                      onKeyDown={async (e) => {
+                                        if (e.key === "Enter") {
+                                          if (productSelectedRef.current) {
+                                            productSelectedRef.current = false;
+                                            return;
+                                          }
+                                          const rawValue = e.currentTarget.value;
+                                          if (rawValue && rawValue.trim().length > 0) {
+                                            e.preventDefault();
+                                            const success = await handleBarcodeScan(index, rawValue.trim());
+                                            if (success) {
+                                              setTimeout(() => {
+                                                const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                                qtyInputs[0]?.focus();
+                                              }, 100);
+                                            }
+                                            return;
+                                          }
+                                          if (items.length > 1) remove(index);
+                                          setTimeout(() => document.getElementById("pr-disc-pct")?.focus(), 50);
                                         }
                                       }}
-                                      disabled={!canSave}
+                                      disabled={!canSave || purchaseId > 0}
                                     />
                                 </div>
                               )}
@@ -289,40 +345,58 @@ const PurchaseReturnFormPage = () => {
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.unit || "-"}</td>
-                          
                           <td className="p-0 border-r border-gray-100 w-20">
-                            <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                            <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave || purchaseId > 0} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-16">
-                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave || purchaseId > 0} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-24">
-                            <input {...register(`items.${index}.price`)} type="number" min="0" step="0.001" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono" readOnly={!canSave} />
+                            <input {...register(`items.${index}.price`)} type="number" min="0" step="0.001" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono" readOnly={!canSave || purchaseId > 0} />
                           </td>
                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.amount)}</td>
-                          
                           <td className="p-0 border-r border-gray-100 w-20">
-                            <input {...register(`items.${index}.discPercent`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
-                          </td>
-                          <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.discountAmount)}</td>
-                          
-                          <td className="p-0 border-r border-gray-100 w-20">
-                            <input {...register(`items.${index}.vatPercent`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
-                          </td>
-                          <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.vatAmount)}</td>
-                          
+                             <input
+                               {...register(`items.${index}.discPercent`)}
+                               type="number" min="0"
+                               onFocus={(e) => e.target.select()}
+                               onKeyDown={(e) => {
+                                 if (e.key === "Enter") {
+                                   e.preventDefault();
+                                   const rowProduct = methods.getValues(`items.${index}.product`);
+                                   if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                     // Last editable field of last filled row → auto-append new row
+                                     append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" }, { shouldFocus: false });
+                                     setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+                                   } else {
+                                     handleGridNav(e, index);
+                                   }
+                                 }
+                               }}
+                               className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none"
+                               readOnly={!canSave || purchaseId > 0}
+                             />
+                           </td>
+                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.discountAmount)}</td>
+
+                           {/* VAT% — read-only, auto-set from product */}
+                           <td className="px-2 py-1 text-right text-xs text-gray-500 bg-gray-50/50 border-r border-gray-100 tabular-nums">
+                             <input {...register(`items.${index}.vatPercent`)} type="hidden" />
+                             {itemWatch.vatPercent || "0"}
+                           </td>
+                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.vatAmount)}</td>
                           <td className="px-2 py-1 text-right font-mono font-bold text-[#49293e] bg-[#49293e]/5 border-r border-gray-100">{formatAmount(lineTotals.netAmount)}</td>
                           <td className="px-2 py-1 text-center w-10">
-                            <button
-                              type="button"
-                              tabIndex={-1}
-                              onClick={() => items.length > 1 && remove(index)}
-                              className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
-                              disabled={!canSave || items.length <= 1}
-                              title="Remove item"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                             <button
+                               type="button"
+                               tabIndex={-1}
+                               onClick={() => items.length > 1 && remove(index)}
+                               className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
+                               disabled={!canSave || items.length <= 1}
+                               title="Remove item"
+                             >
+                               <Trash2 size={14} />
+                             </button>
                           </td>
                         </tr>
                       );
@@ -345,7 +419,7 @@ const PurchaseReturnFormPage = () => {
                       document.getElementById(`product-select-${items.length}`)?.focus();
                     }, 50);
                   }}
-                  disabled={!canSave}
+                  disabled={!canSave || purchaseId > 0}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={14} /> Add Item
@@ -361,19 +435,19 @@ const PurchaseReturnFormPage = () => {
             {/* Top Row: Adjustments */}
             <div className="flex flex-wrap items-end gap-2 w-full">
               <div className="w-16">
-                <FormInput label="Disc(%)" {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pr-disc-pct" label="Disc(%)" {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-disc-amt")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="w-24">
-                <FormInput label="Disc Amt" {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pr-disc-amt" label="Disc Amt" {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-other-chg")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="w-24">
-                <FormInput label="Other Chg" {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pr-other-chg" label="Other Chg" {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-round-off")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="w-20">
-                <FormInput label="Round Off" {...register("roundOff")} onFocus={(e) => e.target.select()} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pr-round-off" label="Round Off" {...register("roundOff")} onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-narration")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="flex-1 min-w-[120px]">
-                <FormInput label="Narration" {...register("narration")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pr-narration" label="Narration" {...register("narration")} onKeyDown={(e) => hk(e, "pr-paymode")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               {payments.length > 0 && (
                 <div className="min-w-[120px] max-w-[200px]">
@@ -393,16 +467,49 @@ const PurchaseReturnFormPage = () => {
 
             {/* Bottom Row: Actions & Total */}
             <div className="flex flex-wrap items-center justify-between gap-3 w-full border-t border-gray-200 pt-3">
-              <div className="flex items-center">
-                <Button
-                  type="button"
-                  onClick={() => setIsMultiPayOpen(true)}
-                  disabled={!canSave || totals.grandTotal <= 0 || saving}
-                  className="h-9 px-4 bg-blue-600 hover:bg-blue-700 font-bold text-sm shrink-0"
-                  icon={<CreditCard size={16} />}
-                >
-                  Settle Payments
-                </Button>
+              <div className="flex items-start gap-1.5 min-w-[200px]">
+                <div className="w-40">
+                  <SearchableSelect
+                    key={paymodeSelectKey}
+                    id="pr-paymode"
+                    label="Paymode"
+                    value={selectedPaymodeId === multiPayId ? String(multiPayId) : String(selectedPaymodeId || "")}
+                    forcePlacement="top"
+                    onChange={(val) => {
+                      const id = Number(val);
+                      const paymode = paymodeList.find((p: { paymodeId: number; paymodeName: string }) => p.paymodeId === id);
+                      const isMultiPay = paymode?.paymodeName?.toLowerCase().includes("multi") || (multiPayId > 0 && id === multiPayId);
+                      if (isMultiPay) {
+                        previousPaymodeId.current = selectedPaymodeId;
+                        if (totals.grandTotal > 0) {
+                          if (canSave) setIsMultiPayOpen(true);
+                        } else {
+                          showToast("Please add items with a price to enable MultiPay settlement", "warning");
+                        }
+                      } else if (paymode) {
+                        handleSinglePayment(id, paymode.paymodeName, totals.grandTotal);
+                        setTimeout(() => document.getElementById("pr-save-btn")?.focus(), 150);
+                      }
+                    }}
+                    placeholder="Paymode"
+                    options={(paymodeList as { paymodeId: number; paymodeName: string }[]).map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
+                    disabled={!canSave || saving}
+                    className="!h-9"
+                  />
+                </div>
+                {/* Show re-configure button only when multi-pay is active — tabIndex=-1 to keep keyboard flow: paymode → Save */}
+                {selectedPaymodeId === multiPayId && canSave && (
+                  <Button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setIsMultiPayOpen(true)}
+                    disabled={saving}
+                    className="h-9 px-4 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shrink-0 !rounded-md border-0 mt-[20px]"
+                    icon={<CreditCard size={14} />}
+                  >
+                    Edit
+                  </Button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-4 justify-end flex-1">
@@ -418,7 +525,7 @@ const PurchaseReturnFormPage = () => {
                     </Button>
                   )}
                   {canSave && (
-                    <Button type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
+                    <Button id="pr-save-btn" type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
                       Save
                     </Button>
                   )}
@@ -435,6 +542,15 @@ const PurchaseReturnFormPage = () => {
         </div>
 
         <ConfirmDialog
+          isOpen={showSaveConfirm}
+          title="Save Purchase Return"
+          message="Are you sure you want to save this purchase return?"
+          confirmLabel="Save"
+          onConfirm={doSave}
+          onCancel={() => setShowSaveConfirm(false)}
+        />
+
+        <ConfirmDialog
           isOpen={showClearConfirm}
           title="Clear Form"
           message="Are you sure you want to clear the form? All unsaved data will be lost."
@@ -445,9 +561,27 @@ const PurchaseReturnFormPage = () => {
 
         <BackofficeMultiPayModal
           isOpen={isMultiPayOpen}
-          onClose={() => setIsMultiPayOpen(false)}
+          paymodes={paymodeList}
+          initialPayments={
+            payments
+              ?.filter((p: any) => p.paymodeId && parseFloat(p.amount) > 0)
+              .map((p: any) => ({ paymodeId: p.paymodeId, amount: parseFloat(p.amount) || 0 }))
+          }
+          onClose={() => {
+            setIsMultiPayOpen(false);
+            setSelectedPaymodeId(previousPaymodeId.current);
+            setPaymodeSelectKey(k => k + 1);
+            if (previousPaymodeId.current > 0 && previousPaymodeId.current !== multiPayId) {
+              const prev = (paymodeList as { paymodeId: number; paymodeName: string }[]).find(p => p.paymodeId === previousPaymodeId.current);
+              if (prev) handleSinglePayment(prev.paymodeId, prev.paymodeName, totals.grandTotal);
+            }
+          }}
           totalDue={totals.grandTotal}
-          onSubmit={handleSettlementSubmit}
+          onSubmit={(payments) => {
+            handleSettlementSubmit(payments);
+            // Focus Save button after Settle Payments modal submits
+            setTimeout(() => document.getElementById("pr-save-btn")?.focus(), 200);
+          }}
         />
 
         <PurchasePrintPreviewModal

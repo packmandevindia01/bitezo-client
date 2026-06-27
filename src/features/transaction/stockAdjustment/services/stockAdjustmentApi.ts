@@ -33,12 +33,17 @@ export const stockAdjustmentApi = {
   },
 
   getPurchaseCostData: async (barcode: string) => {
-    const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number }>>(`${BASE_URL}/product-cost-data/${barcode}`);
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number; unitCategory: string; }>>(`${BASE_URL}/product-cost-data/${barcode}`);
     return unwrap(response.data);
   },
 
   getUnitCost: async (productId: number, unitId: number) => {
     const response = await axiosInstance.get<ApiResponse<{ cost: number }>>(`${BASE_URL}/${productId}/unit-cost/${unitId}`);
+    return unwrap(response.data);
+  },
+
+  getUnitList: async (unitCategory: string) => {
+    const response = await axiosInstance.get<ApiResponse<{ unitId: number; unitName: string }[]>>(`${BASE_URL}/unit-list-name`, { params: { unitCategory } });
     return unwrap(response.data);
   },
 

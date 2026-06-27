@@ -34,7 +34,7 @@ const ConfirmDialog = ({
           <Button variant="secondary" onClick={onCancel} disabled={loading} tabIndex={-1}>
             {cancelLabel}
           </Button>
-          <Button variant={confirmVariant} onClick={onConfirm} disabled={loading}>
+          <Button variant={confirmVariant} autoFocus onClick={onConfirm} disabled={loading}>
             {loading ? "Please wait..." : confirmLabel}
           </Button>
         </div>

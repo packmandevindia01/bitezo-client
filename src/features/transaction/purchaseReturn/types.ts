@@ -14,8 +14,9 @@ export const purchaseReturnItemSchema = z.object({
 });
 
 export const purchaseReturnPaymentSchema = z.object({
-  mode: z.enum(["cash", "card", "credit"]),
+  mode: z.string(),
   amount: z.string(),
+  paymodeId: z.number().optional(),
 });
 
 export const purchaseReturnSchema = z.object({

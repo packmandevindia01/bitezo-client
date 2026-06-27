@@ -1,26 +1,28 @@
-import { AlertCircle, X, Search, Pencil, Trash2 } from "lucide-react";
-import { Button, FormInput, PageShell, SelectInput, RecordTableCard, ConfirmDialog } from "../../../../components/common";
+import { AlertCircle, Pencil, Trash2, Plus } from "lucide-react";
+import { Button, FormInput, PageShell, SelectInput, RecordTableCard, ConfirmDialog, SearchBar } from "../../../../components/common";
 import { useInternalStockTransferList } from "../hooks/useInternalStockTransferList";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
 import { useToast } from "../../../../app/providers/useToast";
+import { useQueryClient } from "@tanstack/react-query";
 
 const InternalStockTransferListPage = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
+  const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const {
     records,
     loading,
     error,
-    setError,
     filters,
     handleFilterChange,
-    fetchList,
-    branches
+    branches,
+    searchTerm,
+    setSearchTerm
   } = useInternalStockTransferList();
 
   const handleDelete = async () => {
@@ -28,7 +30,7 @@ const InternalStockTransferListPage = () => {
     try {
       await internalStockTransferApi.cancelTransfer(deleteId);
       showToast("Transfer cancelled successfully", "success");
-      fetchList();
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferList"] });
     } catch (err: any) {
       showToast(err.message || "Failed to cancel transfer", "error");
     } finally {
@@ -42,52 +44,53 @@ const InternalStockTransferListPage = () => {
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <span className="flex-1">{error}</span>
-          <button type="button" onClick={() => setError(null)} className="shrink-0 rounded p-0.5 hover:bg-red-100">
-            <X size={14} />
-          </button>
         </div>
       )}
 
-      {/* Filter Section */}
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <SelectInput 
-            label="Branch" 
-            placeholder="All Branches"
-            options={branches} 
-            value={filters.branchId} 
-            onChange={(e) => handleFilterChange("branchId", e.target.value)} 
-          />
-          <FormInput 
-            label="From Date" 
-            type="date" 
-            value={filters.fromDate} 
-            onChange={(e) => handleFilterChange("fromDate", e.target.value)} 
-          />
-          <FormInput 
-            label="To Date" 
-            type="date" 
-            value={filters.toDate} 
-            onChange={(e) => handleFilterChange("toDate", e.target.value)} 
-          />
-          <FormInput 
-            label="Ref No" 
-            value={filters.refNo} 
-            onChange={(e) => handleFilterChange("refNo", e.target.value)} 
-          />
-          <div className="flex items-end">
-            <Button onClick={fetchList} className="w-full">
-              <Search size={16} className="mr-2" /> Search
-            </Button>
+      {/* Filter Header Section */}
+      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+        <div className="flex gap-4 items-end flex-1 flex-wrap">
+          <div className="w-40">
+            <FormInput 
+              label="From Date" 
+              type="date" 
+              value={filters.fromDate} 
+              onChange={(e) => handleFilterChange("fromDate", e.target.value)} 
+            />
+          </div>
+          <div className="w-40">
+            <FormInput 
+              label="To Date" 
+              type="date" 
+              value={filters.toDate} 
+              onChange={(e) => handleFilterChange("toDate", e.target.value)} 
+            />
+          </div>
+          <div className="flex-1 max-w-sm">
+            <SearchBar 
+              value={searchTerm} 
+              onChange={setSearchTerm} 
+              placeholder="Search ref no or branch..." 
+            />
+          </div>
+          <div className="w-48">
+            <SelectInput 
+              label="Branch" 
+              placeholder="All Branches"
+              options={branches} 
+              value={filters.branchId} 
+              onChange={(e) => handleFilterChange("branchId", e.target.value)} 
+            />
           </div>
         </div>
+        <Button icon={<Plus size={18} />} onClick={() => navigate("/dashboard/internal-stock-transfer")}>
+          Add New
+        </Button>
       </div>
 
       <div className="overflow-x-auto">
         <RecordTableCard<any>
           title="Internal Stock Transfer Records"
-          actionLabel="+ New Transfer"
-          onAction={() => navigate("/dashboard/internal-stock-transfer")}
           data={records}
           rowKey="transId"
           loading={loading}

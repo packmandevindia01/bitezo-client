@@ -1,35 +1,31 @@
-export interface StockAdjustmentLineItem {
-  id: number;
-  productId: number;
-  product: string;
-  code: string;
-  unitId: number;
-  unit: string;
-  qty: number;
-  cost: number;
-  typeId: number;
-  type: string;
-  effect: string;
-  amount: number;
-}
+import { z } from "zod";
 
-export interface StockAdjustmentForm {
-  series: string;
-  refNo: string;
-  date: string;
-  branch: string;
-  salesman: string;
-  
-  // Current adding line item state
-  product: string;
-  code: string;
-  unit: string;
-  qty: string;
-  cost: string;
-  amount: string;
-  type: string;
-  effect: string;
-}
+export const stockAdjustmentItemSchema = z.object({
+  id: z.string().optional(),
+  product: z.string().min(1, "Product is required"),
+  code: z.string().optional(),
+  unit: z.string().optional(),
+  unitId: z.number().optional(),
+  qty: z.string().refine(val => Number(val) > 0, "Qty > 0").default("1"),
+  cost: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
+  type: z.string().min(1, "Type is required"),
+  typeId: z.number().optional(),
+  typeName: z.string().optional(),
+  effect: z.string().optional(),
+});
+
+export const stockAdjustmentSchema = z.object({
+  series: z.string().min(1, "Series is required"),
+  refNo: z.string().min(1, "Ref No is required"),
+  date: z.string().min(1, "Date is required"),
+  branch: z.string().min(1, "Branch is required"),
+  salesman: z.string().optional(),
+  items: z.array(stockAdjustmentItemSchema),
+});
+
+export type StockAdjustmentLineItem = z.infer<typeof stockAdjustmentItemSchema>;
+export type StockAdjustmentForm = z.infer<typeof stockAdjustmentSchema>;
+
 
 export interface StockAdjustmentPayloadDetail {
   productId: number;

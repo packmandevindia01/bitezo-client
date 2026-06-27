@@ -1,315 +1,274 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
 import { useToast } from "../../../../app/providers/useToast";
-import type { InternalStockTransferForm, InternalStockTransferLineItem } from "../types";
-import type { SearchableOption } from "../../../../components/common/Searchableselect";
+import { generateUUID } from "../../../../utils/uuid";
+import { formatAmount } from "../../../../utils/currency";
+import { InternalStockTransferFormSchema, type InternalStockTransferForm, type InternalStockTransferLineItem, type InternalStockTransferPayload } from "../types";
+
+const toNumber = (val: any): number => {
+  if (typeof val === "number") return val;
+  const parsed = parseFloat(String(val).replace(/,/g, ""));
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+const calculateLine = (item: any) => {
+  const qty = toNumber(item.qty);
+  const cost = toNumber(item.cost);
+  return { amount: qty * cost };
+};
 
 export const initialTransferForm: InternalStockTransferForm = {
   refNo: "",
-  transDate: new Date().toISOString().split("T")[0],
+  series: "",
+  date: new Date().toISOString().split("T")[0],
   fromBranch: "",
   toBranch: "",
   salesman: "",
-  product: "",
-  code: "",
-  unit: "",
-  unitName: "",
-  qty: "",
-  cost: "",
-  amount: "",
+  items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }],
 };
 
 export const useInternalStockTransfer = (id?: string) => {
   const { showToast } = useToast();
-  const [form, setForm] = useState<InternalStockTransferForm>(initialTransferForm);
-  const [items, setItems] = useState<InternalStockTransferLineItem[]>([]);
-  
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Master Data Lookups
-  const [branches, setBranches] = useState<SearchableOption[]>([]);
-  const [toBranches, setToBranches] = useState<SearchableOption[]>([]);
-  const [salesmen, setSalesmen] = useState<SearchableOption[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
-  const [unitOptions, setUnitOptions] = useState<SearchableOption[]>([]);
+  const methods = useForm<InternalStockTransferForm>({
+    resolver: zodResolver(InternalStockTransferFormSchema),
+    defaultValues: initialTransferForm,
+    mode: "onChange",
+  });
 
-  const nextItemId = useRef(1);
+  const { control, reset, setValue, getValues, watch } = methods;
 
-  // 1. Initial Load: Branches and Products
-  useEffect(() => {
-    const loadMasterData = async () => {
-      setLoading(true);
-      try {
-        const branchRes = await internalStockTransferApi.getFromBranches();
-        setBranches(branchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })));
-      } catch (err: any) {
-        setError(err.message || "Failed to load master data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadMasterData();
-  }, []);
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "items",
+  });
 
-  // 1b. Load existing record if ID is provided
-  useEffect(() => {
-    if (!id) return;
+  const watchedBranch = watch("fromBranch");
+  const watchedItems = useWatch({ control, name: "items" }) || [];
+  
+  // 1. Master Data Lookups
+  const { data: branchesData, isLoading: loadingMaster } = useQuery({
+    queryKey: ["internalStockTransferMaster"],
+    queryFn: async () => {
+      const [fromBranchRes, prodRes, unitsRes] = await Promise.all([
+        internalStockTransferApi.getFromBranches(),
+        internalStockTransferApi.getProductsByName(""),
+        internalStockTransferApi.getUnits("Quantity").catch(() => []),
+      ]);
+      return {
+        fromBranches: fromBranchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })),
+        products: prodRes,
+        productOptions: prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })),
+        units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) })),
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-    const loadRecord = async () => {
-      setLoading(true);
-      try {
-        const transId = parseInt(id, 10);
-        const responseData = await internalStockTransferApi.getTransferById(transId);
-        
-        // API returns data inside masterData and detailsData
-        const master = responseData.masterData || responseData;
-        const details = responseData.detailsData || responseData.details || [];
-        
-        // Populate form
-        setForm({
-          refNo: master.refNo || "",
-          transDate: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
-          fromBranch: String(master.fromBranchId || ""),
-          toBranch: String(master.toBranchId || ""),
-          salesman: String(master.employeeId || ""),
-          product: "",
-          code: "",
-          unit: "",
-          unitName: "",
-          qty: "",
-          cost: "",
-          amount: "",
-        });
+  // 2. Branch-dependent data
+  const { data: branchSpecificData, isLoading: loadingBranchSpecific } = useQuery({
+    queryKey: ["internalStockTransferBranchSpecific", watchedBranch],
+    queryFn: async () => {
+      if (!watchedBranch) return { employees: [], toBranches: [], refNo: "" };
+      const branchId = parseInt(watchedBranch, 10);
+      const [empRes, toBranchRes, refRes] = await Promise.all([
+        internalStockTransferApi.getEmployees(branchId).catch(() => []),
+        internalStockTransferApi.getToBranches(branchId).catch(() => []),
+        internalStockTransferApi.getRefNumber(branchId).catch(() => "")
+      ]);
+      return {
+        employees: empRes.map((e: any) => ({ label: e.empName, value: String(e.empId) })),
+        toBranches: toBranchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })),
+        refNo: String(refRes || "")
+      };
+    },
+    enabled: !!watchedBranch,
+  });
 
-        // Populate items
-        if (details.length > 0) {
-          const mappedItems: InternalStockTransferLineItem[] = details.map((d: any, index: number) => ({
-            id: index + 1,
-            productId: d.productId,
-            productName: d.productName || "",
-            code: d.barcode || d.productCode || "",
-            unitId: d.unitId,
-            unitName: d.unitName || "",
-            qty: d.qty,
-            cost: d.price || d.cost || 0,
-            amount: d.amount || (d.qty * (d.price || d.cost || 0))
-          }));
-          setItems(mappedItems);
-          nextItemId.current = mappedItems.length + 1;
-        }
-
-      } catch (err: any) {
-        setError(err.message || "Failed to load transfer details.");
-        showToast("Failed to load existing record", "error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadRecord();
-  }, [id]);
-
-  // 2. When 'fromBranch' changes, load Ref Number, Salesmen, and ToBranches
-  useEffect(() => {
-    if (!form.fromBranch) {
-      setForm(prev => ({ ...prev, salesman: "", refNo: "", toBranch: "" }));
-      setToBranches([]);
-      setSalesmen([]);
-      return;
-    }
-    
-    const loadBranchData = async () => {
-      try {
-        const branchId = parseInt(form.fromBranch, 10);
-        const [empRes, refRes, toBranchesRes, prodRes] = await Promise.all([
-          internalStockTransferApi.getEmployees(branchId).catch(() => []),
-          internalStockTransferApi.getRefNumber(branchId).catch(() => ""),
-          internalStockTransferApi.getToBranches(branchId).catch(() => []),
-          internalStockTransferApi.getProductsByName("").catch(() => []),
-        ]);
-        setSalesmen(empRes.map((e: any) => ({ label: e.empName, value: String(e.empId) })));
-        setToBranches(toBranchesRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })));
-        
-        // Only auto-generate Ref No if we are not editing an existing record
-        if (!id) {
-          setForm(prev => ({ ...prev, refNo: String(refRes || "") }));
-        }
-        
-        // I will just fetch products here.
-        setProducts(prodRes);
-        setProductOptions(prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
-      } catch (err: any) {
-        console.error("Failed to load branch specifics:", err);
-      }
-    };
-    loadBranchData();
-  }, [form.fromBranch]);
-
-  // 3. When Product changes, Auto-fill Code, Unit, and Cost
-  useEffect(() => {
-    if (!form.product) {
-      setForm(prev => ({ ...prev, code: "", unit: "", unitName: "", cost: "", amount: "" }));
-      setUnitOptions([]);
-      return;
-    }
-
-    const product = products.find(p => String(p.productId) === form.product);
-    if (product) {
-      const productCode = product.barcode || product.code || "";
+  // 3. Load existing record (Edit Mode)
+  const { isLoading: loadingRecord } = useQuery({
+    queryKey: ["internalStockTransferRecord", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const transId = parseInt(id, 10);
+      const responseData = await internalStockTransferApi.getTransferById(transId);
       
-      // Immediately reset dependent fields to clear stale data from previous selections
-      setForm(prev => ({ ...prev, code: productCode, cost: "0", amount: "0", unit: "", unitName: "" }));
-      setUnitOptions([]);
+      const master = responseData.masterData || responseData;
+      const details = responseData.detailsData || responseData.details || [];
       
-      // Fetch Cost and Unit Data
-      const fetchProductDetails = async () => {
-        try {
-          const costData = await internalStockTransferApi.getProductCostData(productCode);
-          const unitId = costData.baseUnitId;
-          const costValue = costData.cost;
-          
-          setForm(prev => ({ 
-            ...prev, 
-            unit: String(unitId), 
-            cost: String(costValue),
-          }));
-
-          // Use internalStockTransferApi for unit resolution
-          if (costData) {
-            const unitListData = await internalStockTransferApi.getUnits(costData.unitCategory).catch(() => []);
-            if (unitListData && unitListData.length > 0) {
-              setUnitOptions(unitListData.map((u: any) => ({ label: u.name, value: String(u.unitId) })));
-              
-              // Find the default unit based on baseUnitId
-              const defaultUnit = unitListData.find((u: any) => u.unitId === costData.baseUnitId) || unitListData[0];
-              setForm(prev => ({ 
-                ...prev, 
-                unit: String(defaultUnit.unitId),
-                unitName: defaultUnit.name 
-              }));
-            } else {
-              setUnitOptions([{ label: costData.unitCategory || "Unit", value: String(costData.baseUnitId) }]);
-              setForm(prev => ({ ...prev, unit: String(costData.baseUnitId), unitName: costData.unitCategory || "Unit" }));
-            }
-          }
-        } catch (err) {
-          console.error("Failed to load product details", err);
-          // Simple fallback to prevent crashes. The real data will populate once the backend team fixes the 404 error on product-cost-data.
-          setUnitOptions([{ label: product.unitName || "Unit", value: String(product.unitId || "0") }]);
-          setForm(prev => ({ ...prev, unit: String(product.unitId || "0"), unitName: product.unitName || "Unit", cost: "0" }));
-        }
+      const formPayload: any = {
+        series: master.narration || master.series || master.seriesName || "",
+        refNo: String(master.refNo || transId || ""),
+        date: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
+        fromBranch: String(master.fromBranchId || master.branchId || ""),
+        toBranch: String(master.toBranchId || ""),
+        salesman: String(master.employeeId || ""),
       };
 
-      fetchProductDetails();
-    }
-  }, [form.product, form.fromBranch, products]);
+      if (details.length > 0) {
+        const mappedItems: InternalStockTransferLineItem[] = details.map((d: any) => ({
+          id: generateUUID(),
+          productId: d.productId,
+          product: String(d.productId),
+          code: d.barcode || d.productCode || "",
+          unitId: d.unitId,
+          unit: d.unitName || String(d.unitId || ""),
+          qty: String(d.qty || "1"),
+          cost: formatAmount(d.cost || d.price || 0)
+        }));
+        formPayload.items = mappedItems;
+      } else {
+        formPayload.items = [initialTransferForm.items[0]];
+      }
 
-  // 4. Auto-calculate Amount when Qty or Cost changes
+      reset(formPayload);
+      return responseData;
+    },
+    enabled: !!id,
+  });
+
+  // Auto-set first branch and RefNo for new records
   useEffect(() => {
-    const qty = Number(form.qty) || 0;
-    const cost = Number(form.cost) || 0;
-    if (qty >= 0 && cost >= 0) {
-      setForm(prev => ({ ...prev, amount: String(qty * cost) }));
+    if (!id && branchesData?.fromBranches && branchesData.fromBranches.length > 0 && !getValues("fromBranch")) {
+      setValue("fromBranch", branchesData.fromBranches[0].value);
     }
-  }, [form.qty, form.cost]);
+  }, [branchesData, id, setValue, getValues]);
 
-  const toNumber = (val: string) => {
-    const num = Number(val);
-    return Number.isFinite(num) ? num : 0;
-  };
+  useEffect(() => {
+    if (!id && branchSpecificData?.refNo && !getValues("refNo")) {
+      setValue("refNo", branchSpecificData.refNo);
+    }
+    if (!id && branchSpecificData?.employees && branchSpecificData.employees.length > 0 && !getValues("salesman")) {
+      setValue("salesman", branchSpecificData.employees[0].value);
+    }
+  }, [branchSpecificData, id, setValue, getValues]);
 
-  const addItem = () => {
-    if (!form.product || toNumber(form.qty) <= 0) return;
-
-    const prodObj = products.find(p => String(p.productId) === form.product);
+  // Product Selection Logic
+  const handleProductSelect = async (index: number, productIdStr: string) => {
+    if (!branchesData?.products) return;
+    const product = branchesData.products.find((p: any) => String(p.productId) === productIdStr);
     
-    const newLine: InternalStockTransferLineItem = {
-      id: nextItemId.current++,
-      productId: parseInt(form.product, 10),
-      productName: prodObj ? prodObj.productName : "Unknown",
-      code: form.code,
-      unitId: parseInt(form.unit, 10) || 0,
-      unitName: form.unitName || "Unit",
-      qty: toNumber(form.qty),
-      cost: toNumber(form.cost),
-      amount: toNumber(form.amount) || (toNumber(form.qty) * toNumber(form.cost)),
-    };
-
-    setItems(prev => [...prev, newLine]);
-    setForm(prev => ({ ...prev, product: "", code: "", unit: "", unitName: "", qty: "", cost: "", amount: "" }));
-    
-    setTimeout(() => document.getElementById("ist-product")?.focus(), 0);
+    if (product) {
+      const code = product.barcode || product.code || "";
+      setValue(`items.${index}.code`, code);
+      setValue(`items.${index}.cost`, "0");
+      
+      try {
+        const costData = await internalStockTransferApi.getProductCostData(code);
+        if (costData) {
+          setValue(`items.${index}.unitId`, costData.baseUnitId);
+          setValue(`items.${index}.unit`, String(costData.baseUnitId));
+          setValue(`items.${index}.cost`, formatAmount(costData.cost || 0));
+        }
+      } catch (err) {
+        console.error("Failed to load product details", err);
+      }
+    }
   };
 
-  const removeItem = (id: number) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+  const handleBarcodeScan = async (index: number, barcode: string) => {
+    try {
+      const pRes = await internalStockTransferApi.getProductsByBarcode(barcode);
+      if (pRes && pRes.length > 0) {
+        const pIdStr = String(pRes[0].productId);
+        setValue(`items.${index}.product`, pIdStr);
+        await handleProductSelect(index, pIdStr);
+      }
+    } catch (err) {
+      console.error("Barcode scan failed", err);
+    }
   };
 
-  const handleSave = async () => {
-    if (!form.fromBranch || !form.toBranch || items.length === 0) {
-      showToast("Please fill all required fields and add items", "warning");
-      return;
+  const handleReset = () => {
+    reset(initialTransferForm);
+  };
+
+  const onSubmit = async (data: InternalStockTransferForm): Promise<boolean> => {
+    const validItems = data.items.filter(item => item.product && item.product.trim() !== "");
+    if (validItems.length === 0) {
+      showToast("Please add at least one product.", "warning");
+      return false;
     }
 
     setSaving(true);
-    setError(null);
     try {
-      const payload = {
-        transDate: form.transDate,
-        fromBranchId: parseInt(form.fromBranch, 10),
-        toBranchId: parseInt(form.toBranch, 10),
-        employeeId: parseInt(form.salesman, 10) || 0,
-        netAmount: grandTotal,
-        narration: "",
+      const netAmount = validItems.reduce((acc, item) => {
+        const line = calculateLine(item as any);
+        return acc + line.amount;
+      }, 0);
+
+      const payload: InternalStockTransferPayload = {
+        transDate: data.date,
+        fromBranchId: parseInt(data.fromBranch, 10),
+        toBranchId: parseInt(data.toBranch, 10),
+        employeeId: parseInt(data.salesman || "", 10) || 0,
+        netAmount,
+        narration: data.series || "",
         createdAt: new Date().toISOString(),
-        details: items.map(item => ({
-          productId: item.productId,
-          unitId: item.unitId,
-          qty: item.qty,
-          price: item.cost,
-          amount: item.amount,
-          baseQty: item.qty // usually unit conversion ratio * qty
+        details: validItems.map(item => ({
+          productId: parseInt(item.product, 10) || 0,
+          unitId: item.unitId || parseInt(item.unit || "1", 10) || 1,
+          qty: toNumber(item.qty),
+          price: toNumber(item.cost),
+          amount: toNumber(item.qty) * toNumber(item.cost),
+          baseQty: toNumber(item.qty)
         }))
       };
 
-      await internalStockTransferApi.createTransfer(payload);
-      showToast("Internal Stock Transfer saved successfully", "success");
-      
-      // Reset form
-      setForm(initialTransferForm);
-      setItems([]);
-      nextItemId.current = 1;
+      if (id) {
+        await internalStockTransferApi.updateTransfer(Number(id), payload);
+        showToast("Stock transfer updated successfully", "success");
+      } else {
+        await internalStockTransferApi.createTransfer(payload);
+        showToast("Stock transfer saved successfully", "success");
+      }
+
+      return true;
     } catch (err: any) {
-      setError(err.message || "Failed to save Internal Stock Transfer");
-      showToast(err.message || "Failed to save transfer", "error");
+      console.error("Save error:", err);
+      showToast(err.message || "Failed to save stock transfer", "error");
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const grandTotal = useMemo(() => items.reduce((sum, item) => sum + item.amount, 0), [items]);
+  const masterData = {
+    fromBranches: branchesData?.fromBranches || [],
+    toBranches: branchSpecificData?.toBranches || [],
+    employees: branchSpecificData?.employees || [],
+    products: branchesData?.products || [],
+    productOptions: branchesData?.productOptions || [],
+    units: branchesData?.units || [],
+  };
+
+  const grandTotal = useMemo(() => {
+    return watchedItems.reduce((sum: number, item: any) => {
+      const line = calculateLine(item as any);
+      return sum + line.amount;
+    }, 0);
+  }, [watchedItems]);
 
   return {
-    form,
-    setForm,
-    items,
-    setItems,
-    loading,
+    methods,
+    fields,
+    append,
+    remove,
+    masterData,
+    loadingMaster: loadingMaster || loadingBranchSpecific || loadingRecord,
     saving,
-    error,
-    setError,
-    branches,
-    toBranches,
-    salesmen,
-    products,
-    productOptions,
-    unitOptions,
-    addItem,
-    removeItem,
-    handleSave,
     grandTotal,
+    handleProductSelect,
+    handleBarcodeScan,
+    handleReset,
+    onSubmit,
+    watchedItems,
+    isPrintModalOpen,
+    setIsPrintModalOpen
   };
 };

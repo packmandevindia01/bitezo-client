@@ -85,13 +85,14 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     name: "payments",
   });
 
-  // Watchers for reactive totals
+  // Watchers for reactive totals and series
   const watchedItems = useWatch({ control, name: "items" }) || [];
   const watchedDiscAmount = useWatch({ control, name: "discAmount" });
   const watchedOtherCharge = useWatch({ control, name: "otherCharge" });
   const watchedRoundOff = useWatch({ control, name: "roundOff" });
   const watchedPayments = useWatch({ control, name: "payments" }) || [];
   const watchedGlobalDiscPercent = useWatch({ control, name: "globalDiscPercent" });
+  const watchedSeries = useWatch({ control, name: "series" });
   
   // Calculate totals
   const totals = useMemo(() => {
@@ -125,6 +126,11 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
   }, [masterData]);
 
+  const multiPayId = useMemo(() => {
+    const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
+    return multi ? multi.paymodeId : 0;
+  }, [paymodeList]);
+
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
     if (toNumber(watchedGlobalDiscPercent) > 0 && watchedItems.length > 0) {
@@ -137,17 +143,44 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount]);
 
   const handleProductSearch = useCallback(async (query: string) => {
+    if (!query) {
+      setProductOptions([]);
+      return;
+    }
     setSearchingProducts(true);
     try {
-      const results = await purchaseInvoiceApi.searchProductsByName(query || "");
-      setProductOptions(
-        results.map((r) => ({
-          label: r.productName,
-          value: r.productId.toString(),
-          code: r.code || "",
-          barcode: r.barcode || "",
-        }))
-      );
+      const results = await purchaseInvoiceApi.searchProductsByName(query);
+      let mapped = results.map((r) => ({
+        label: r.productName,
+        value: r.productId.toString(),
+        code: r.code || "",
+        barcode: r.barcode || "",
+      }));
+      // Fallback: if name search returns nothing, query by barcode
+      if (mapped.length === 0) {
+        try {
+          const detail = await purchaseInvoiceApi.getProductCostData(query).catch(() => null);
+          if (detail) {
+            mapped = [{
+              label: detail.productName,
+              value: detail.productId.toString(),
+              code: detail.productCode || "",
+              barcode: query,
+            }];
+          }
+        } catch (e) {
+          console.error("Failed to lookup barcode", e);
+        }
+      }
+      
+      const seenIds = new Set<string>();
+      mapped = mapped.filter(item => {
+        if (seenIds.has(item.value)) return false;
+        seenIds.add(item.value);
+        return true;
+      });
+
+      setProductOptions(mapped);
     } catch (error) {
       console.error("Failed to search products", error);
     } finally {
@@ -185,17 +218,45 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     }
   };
 
+  const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
+    try {
+      const details = await purchaseInvoiceApi.getProductCostData(barcode).catch(() => null);
+      if (details) {
+        setProductOptions(prev => {
+          if (prev.find(o => o.value === String(details.productId))) return prev;
+          return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
+        });
+        setValue(`items.${index}.product`, String(details.productId));
+        setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unit`, details.baseUnitId.toString());
+        setValue(`items.${index}.price`, formatAmount(details.cost));
+        setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
+        setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+        return true;
+      }
+    } catch (e) {
+      console.error("Instant barcode lookup failed", e);
+    }
+    return false;
+  }, [setValue]);
+
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
         setMasterError(null);
-        const data = await purchaseInvoiceApi.loadMasterData();
+        const [data, unitsRes] = await Promise.all([
+          purchaseInvoiceApi.loadMasterData(),
+          purchaseInvoiceApi.getUnits("Quantity").catch(() => []),
+        ]);
         if (data) {
-          setMasterData(data);
+          const enrichedData = {
+            ...data,
+            units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) })),
+          };
+          setMasterData(enrichedData as any);
           // Pre-select first series and branch if available
           if (data.series.length > 0) {
             setValue("series", data.series[0].seriesId.toString());
-            setValue("purchaseNo", `${data.series[0].prefix}${data.series[0].startNo}`);
           }
           if (data.branches.length > 0) {
             setValue("branch", data.branches[0].branchId.toString());
@@ -211,13 +272,34 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     fetchMasterData();
   }, [setValue]);
 
+  // Dynamically fetch and set the next purchase number when series changes
+  useEffect(() => {
+    if (!invoiceId && watchedSeries) {
+      const fetchPurchaseNumber = async () => {
+        try {
+          const res = await purchaseInvoiceApi.getPurchaseNumber(Number(watchedSeries));
+          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
+          const prefix = selectedSeries ? selectedSeries.prefix : "";
+          setValue("purchaseNo", `${prefix}${res.purchaseNo}`);
+        } catch (error) {
+          console.error("Failed to load next purchase number", error);
+          // Fallback to startNo if API fails
+          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
+          if (selectedSeries) {
+            setValue("purchaseNo", `${selectedSeries.prefix}${selectedSeries.startNo}`);
+          }
+        }
+      };
+      fetchPurchaseNumber();
+    }
+  }, [invoiceId, watchedSeries, masterData, setValue]);
+
   const loadInvoiceData = async (id: string) => {
     try {
       setLoadingMaster(true);
       const res = await purchaseInvoiceApi.getPurchaseInvoiceById(id);
       const master = res.masterData;
       const rootPaymodeId = res.masterData.paymodeId || 1;
-      const rootAmount = (res.masterData.netAmount || 0) - (res.paymodesData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       
       const mappedItems = (res.detailsData || []).map((d: any) => ({
         id: generateUUID(),
@@ -247,18 +329,48 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       ).values());
       setProductOptions(uniqueProducts);
 
+      // Helper to map a paymodeId to a mode name using master paymodes list
+      const paymodeIdToMode = (pid: number): string => {
+        const found = masterData?.paymodes?.find((pm: any) => pm.paymodeId === pid);
+        if (found) return found.paymodeName.toLowerCase();
+        return pid === 1 ? 'cash' : pid === 2 ? 'card' : 'credit';
+      };
+
       let mappedPayments: any[] = [];
-      if (res.paymodesData && res.paymodesData.length > 0) {
-        mappedPayments = [
-          {
-            mode: rootPaymodeId === 1 ? 'cash' : rootPaymodeId === 2 ? 'card' : 'credit',
-            amount: rootAmount.toString(),
-          },
-          ...res.paymodesData.map((p: any) => ({
-            mode: p.paymodeId === 1 ? 'cash' : p.paymodeId === 2 ? 'card' : 'credit',
-            amount: p.amount?.toString() || "0",
-          }))
-        ];
+
+      if (rootPaymodeId === (multiPayId || 3) && res.paymodesData && res.paymodesData.length > 0) {
+        // MultiPay: with new save fix, ALL payments are stored in paymodesData
+        // With old save bug, only payments[1..n] were stored, so we also add the remainder as first entry
+        const storedTotal = res.paymodesData.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const remainder = Number(((res.masterData.netAmount || 0) - storedTotal).toFixed(decimalPart));
+
+        mappedPayments = res.paymodesData.map((p: any) => ({
+          mode: paymodeIdToMode(p.paymodeId),
+          amount: p.amount?.toString() || "0",
+          paymodeId: p.paymodeId,
+        }));
+
+        // If there's a remainder (old save format had slice(1) bug), prepend it as Cash
+        if (remainder > 0) {
+          mappedPayments = [
+            { mode: 'cash', amount: remainder.toString(), paymodeId: 1 },
+            ...mappedPayments,
+          ];
+        }
+      } else if (res.paymodesData && res.paymodesData.length > 0) {
+        // Single payment stored in paymodesData
+        mappedPayments = res.paymodesData.map((p: any) => ({
+          mode: paymodeIdToMode(p.paymodeId),
+          amount: p.amount?.toString() || "0",
+          paymodeId: p.paymodeId,
+        }));
+      } else if (rootPaymodeId && rootPaymodeId !== (multiPayId || 3)) {
+        // Single pay — only master has the paymode, no paymodesData entries
+        mappedPayments = [{
+          mode: paymodeIdToMode(rootPaymodeId),
+          amount: (res.masterData.netAmount || 0).toString(),
+          paymodeId: rootPaymodeId,
+        }];
       }
 
       reset({
@@ -279,6 +391,9 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         items: mappedItems,
         payments: mappedPayments,
       });
+
+      // Restore the selected paymode button state
+      setSelectedPaymodeId(rootPaymodeId || 1);
 
     } catch (error: any) {
       setMasterError(error.message);
@@ -345,8 +460,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         seriesId: parseInt(data.series || "") || 0,
         prefix: "",
         supplierId: parseInt(data.supplier || "") || 0,
-        // master paymodeId: 3 if multi-payment, otherwise use stored paymodeId from first payment
-        paymodeId: data.payments.length > 1 ? 3 : (data.payments.length > 0 ? ((data.payments[0] as any).paymodeId || 1) : 1),
+        // master paymodeId: multiPayId if multi-payment, otherwise use stored paymodeId from first payment
+        paymodeId: data.payments.length > 1 ? (multiPayId || 3) : (data.payments.length > 0 ? ((data.payments[0] as any).paymodeId || 1) : 1),
         branchId: parseInt(data.branch || "") || 0,
         employeeId: parseInt(data.salesman || "") || 0,
         dayId: 0,
@@ -377,10 +492,16 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
             baseQty: toNumber(item.qty) + toNumber(item.foc),
           };
         }),
-        paymodes: data.payments.length <= 1 ? [] : data.payments.slice(1).map((p: any) => ({
-          paymodeId: p.paymodeId || 1,
-          amount: toNumber(p.amount),
-        })),
+        paymodes: (() => {
+          if (data.payments.length <= 1) return [];
+          // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
+          const map = new Map<number, number>();
+          for (const p of data.payments as any[]) {
+            const pid = p.paymodeId || 1;
+            map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
+          }
+          return Array.from(map.entries()).map(([paymodeId, amount]) => ({ paymodeId, amount }));
+        })(),
       };
 
       if (invoiceId) {
@@ -406,7 +527,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
   const handleSettlementSubmit = (newPayments: { mode: string; paymodeId: number; amount: number }[]) => {
     setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString(), paymodeId: p.paymodeId })));
-    setSelectedPaymodeId(3); // master paymodeId=3 for multi-payment (business rule)
+    setSelectedPaymodeId(multiPayId || 3); // master paymodeId for multi-payment
     setIsMultiPayOpen(false);
   };
 
@@ -429,6 +550,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     handleSettlementSubmit,
     handleSinglePayment,
     paymodeList,
+    multiPayId,
     selectedPaymodeId,
     setSelectedPaymodeId,
     masterData,
@@ -437,6 +559,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     productOptions,
     searchingProducts,
     handleProductSearch,
+    handleBarcodeScan,
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,

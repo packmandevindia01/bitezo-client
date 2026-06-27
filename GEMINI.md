@@ -299,8 +299,9 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
   </div>
   ```
 - The `RecordTableCard` then remains a simple presentation component without its own search or action props.
-- The list must reload automatically after every Add, Edit, or Delete operation
-- Search must filter client-side if the dataset is small, server-side if paginated
+- **Auto-Fetching & React Query**: The hook for the list page (`use<Feature>List.ts`) MUST use `@tanstack/react-query` to automatically fetch data when API filters (like `FromDate`, `ToDate`, `BranchId`) change. Do NOT use a manual `Search` button or manual `fetchList` calls for fetching data.
+- **Search Bar / Filtering**: The `SearchBar` should be used for instant client-side filtering on the fetched `records` using a local `searchTerm` state. Do not trigger an API call on every keystroke.
+- The list must reload automatically after every Add, Edit, or Delete operation (via React Query invalidation or refetch).
 - Every list page must show the total record count
 - Tables must have consistent columns: Code | Name | (feature-specific fields) | Status | Actions
 - Action buttons per row: Edit (pencil icon) and Delete (trash icon) — consistent across all pages.
@@ -397,6 +398,7 @@ export const formatAmount = (value: number): string => {
   2. Set the default value as a formatted string: `amount: (0).toFixed(decimalPart)`
   3. Register the input simply as a string: `{...register('amount')}`
   4. Cast it to a number before sending to the API: `amount: Number(data.amount)`
+- **Auto-Select Numeric Text on Focus**: Every editable numeric or money field inside a data grid (e.g., Qty, Cost, Price, Discount) MUST include `onFocus={(e) => e.target.select()}`. This ensures that when a user clicks or tabs into a field with a default value like `0.000` or `1`, the entire text is highlighted so that their immediate keystroke overwrites it completely, preventing errors like typing `4` and getting `0.0004`.
 - Column headers show symbol: `<th>Price ({getCurrencySymbol()})</th>`
 - Column cells use amount only: `<td className="text-right">{formatAmount(item.price)}</td>`
 - Grand total uses full format: `<span>{formatCurrency(grandTotal)}</span>`

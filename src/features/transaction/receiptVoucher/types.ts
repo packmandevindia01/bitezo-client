@@ -13,6 +13,10 @@ export const receiptVoucherSchema = z.object({
   refNo: z.string().optional(),
   amount: z.string().min(1, "Amount is required").refine(val => Number(val) > 0, "Invalid amount"),
   narration: z.string().optional(),
+  paymodes: z.array(z.object({
+    paymodeId: z.number(),
+    amount: z.number()
+  })).optional(),
 });
 
 export type ReceiptVoucherForm = z.infer<typeof receiptVoucherSchema>;

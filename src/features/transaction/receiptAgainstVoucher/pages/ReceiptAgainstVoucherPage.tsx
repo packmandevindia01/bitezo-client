@@ -244,7 +244,6 @@ const ReceiptAgainstVoucherPage = () => {
             setTimeout(() => document.getElementById("rav-page-save-btn")?.focus(), 100);
           }}
         />
-      </div>
     </PageShell>
   );
 };

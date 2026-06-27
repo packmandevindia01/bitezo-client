@@ -1,267 +1,487 @@
-import { useState } from "react";
-import { Trash2, Plus, AlertCircle, X, Printer } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
-import ConfirmDialog from "../../../../components/common/ConfirmDialog";
-import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
-import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
-import { formatAmount } from "../../../../utils/formatters";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { FormProvider, Controller } from "react-hook-form";
+import PageShell from "../../../../components/common/PageShell";
+import Button from "../../../../components/common/Button";
+import FormInput from "../../../../components/common/FormInput";
+import SearchableSelect from "../../../../components/common/Searchableselect";
+import SearchableCombobox from "../../../../components/common/SearchableCombobox";
+import ConfirmDialog from "../../../../components/common/ConfirmDialog";
+import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert } from "lucide-react";
+import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
+import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
+import { formatAmount } from "../../../../utils/currency";
+import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import type { InternalStockTransferLineItem } from "../types";
+import { generateUUID } from "../../../../utils/uuid";
 
 const InternalStockTransferPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
+
   const {
-    form,
-    setForm,
-    items,
-    setItems,
-    loading,
+    methods,
+    fields: items,
+    append,
+    remove,
+    masterData,
+    loadingMaster,
     saving,
-    error,
-    setError,
-    branches,
-    toBranches,
-    salesmen,
-    productOptions,
-    unitOptions,
-    addItem,
-    removeItem,
-    handleSave,
     grandTotal,
+    handleProductSelect,
+    handleReset,
+    onSubmit,
+    watchedItems,
+    isPrintModalOpen,
+    setIsPrintModalOpen
   } = useInternalStockTransfer(id);
 
+  const { register, control, getValues, formState: { errors } } = methods;
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
-  // TODO: Add actual permission checks based on user roles
-  const canAdd = true; // hasPermission("Internal Stock Transfer", "Add");
-  const canEdit = true; // hasPermission("Internal Stock Transfer", "Edit");
-  const canDelete = true; // hasPermission("Internal Stock Transfer", "Delete");
-  const canSave = canAdd || canEdit;
+  // Dynamic search state
+  const [productOptions, setProductOptions] = useState<any[]>(masterData.productOptions || []);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const productSelectedRef = useRef(false);
 
-  const setField = (key: keyof typeof form, value: string) => {
-    if (!canSave) return;
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
+  useEffect(() => {
+    if (masterData.productOptions?.length > 0) {
+      setProductOptions(masterData.productOptions);
+    }
+  }, [masterData.productOptions]);
 
-  const hk = (e: React.KeyboardEvent, nextId?: string) => {
-    if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
-  };
+  const handleProductSearch = useCallback(async (query: string) => {
+    if (!query) {
+      setProductOptions(masterData.productOptions || []);
+      return;
+    }
+    setSearchingProducts(true);
+    try {
+      const results = await internalStockTransferApi.getProductsByName(query);
+      let mapped = (results || []).map((p: any) => ({
+        label: p.productName,
+        value: String(p.productId),
+        code: p.productCode,
+        barcode: p.barcode
+      }));
 
-  const handleClearClick = () => {
-    const isDirty = items.length > 0;
-    if (isDirty) {
-      setShowClearConfirm(true);
-    } else {
-      setItems([]);
-      // Reset form could go here, but clear button generally just clears items in transaction pages
+      // Fallback: if name search returns nothing, query by barcode
+      if (mapped.length === 0) {
+        try {
+          const detail = await internalStockTransferApi.getProductCostData(query).catch(() => null);
+          if (detail) {
+            mapped = [{
+              label: detail.productName,
+              value: detail.productId.toString(),
+              code: detail.productCode || "",
+              barcode: query,
+            }];
+          }
+        } catch (e) {
+          console.error("Failed to lookup barcode", e);
+        }
+      }
+      
+      const seenIds = new Set<string>();
+      mapped = mapped.filter((item: any) => {
+        if (seenIds.has(item.value)) return false;
+        seenIds.add(item.value);
+        return true;
+      });
+
+      setProductOptions(mapped);
+    } catch (e) {
+      setProductOptions([]);
+    } finally {
+      setSearchingProducts(false);
+    }
+  }, [masterData.productOptions]);
+
+  // Keyboard navigation logic
+  const handleGridNav = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, index: number) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    
+    const target = e.currentTarget as HTMLInputElement;
+    const name = target.name; 
+    if (!name) return;
+    
+    const parts = name.split("."); // e.g. ["items", "0", "qty"]
+    if (parts.length < 3) return;
+    const fieldName = parts[2];
+    
+    // Order: qty -> cost -> append new row
+    const order = ["qty", "cost"];
+    const fieldIndex = order.indexOf(fieldName);
+    
+    if (fieldIndex >= 0 && fieldIndex < order.length - 1) {
+      const nextFieldName = order[fieldIndex + 1];
+      const nextInput = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.${nextFieldName}"]`)[0];
+      if (nextInput) nextInput.focus();
+    } else if (fieldIndex === order.length - 1) {
+      const rowProduct = methods.getValues(`items.${index}.product`);
+      if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+        append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }, { shouldFocus: false });
+        setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+      }
     }
   };
 
+  const hk = (e: React.KeyboardEvent, nextId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextId) document.getElementById(nextId)?.focus();
+    }
+  };
+
+  // Map forms/items to display names for the print template
+  const printForm = useMemo(() => {
+    const vals = getValues();
+    return {
+      series: vals.series || "",
+      refNo: vals.refNo || "",
+      date: vals.date || "",
+      fromBranch: vals.fromBranch || "",
+      toBranch: vals.toBranch || "",
+      salesman: vals.salesman || "",
+      product: "",
+      code: "",
+      unit: "",
+      unitName: "",
+      qty: "0",
+      cost: "0",
+      amount: "0",
+    };
+  }, [getValues]);
+
+  const printItems = useMemo<InternalStockTransferLineItem[]>(() => {
+    return watchedItems
+      .filter((item: any) => item.product && item.product.trim() !== "")
+      .map((item: any) => {
+        const pOpt = productOptions.find(p => p.value === item.product);
+        const uOpt = masterData?.units?.find((u: any) => u.value === String(item.unit));
+        return {
+          ...item,
+          product: pOpt ? pOpt.label : item.product,
+          productName: pOpt ? pOpt.label : item.product,
+          unitName: uOpt ? uOpt.label : item.unit,
+          unit: uOpt ? uOpt.label : item.unit
+        };
+      });
+  }, [watchedItems, productOptions]);
+
+  const handleClearClick = () => {
+    if (items.length > 1 || (watchedItems[0] && watchedItems[0].product)) {
+      setShowClearConfirm(true);
+    } else {
+      handleReset();
+    }
+  };
+
+  const onSaveClick = () => {
+    const currentItems = getValues("items") || [];
+    const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
+    if (validItems.length === 0) {
+      methods.setError("items", { message: "Please add at least one product." });
+      return;
+    }
+    setShowSaveConfirm(true);
+  };
+
+  const doSave = async () => {
+    setShowSaveConfirm(false);
+    const currentItems = getValues("items") || [];
+    const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
+    if (validItems.length !== currentItems.length) {
+      methods.setValue("items", validItems);
+    }
+    methods.handleSubmit(async (data) => {
+      const success = await onSubmit(data);
+      if (success) {
+        setIsPrintModalOpen(true);
+      }
+    })();
+  };
+
+  const canSave = true; 
+
   return (
-    <PageShell title="INTERNAL STOCK TRANSFER">
-      <div className="mx-auto max-w-[1200px] rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-        
-        {error && (
-          <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-            <span className="flex-1">{error}</span>
-            <button type="button" onClick={() => setError(null)} className="shrink-0 rounded p-0.5 hover:bg-red-100">
-              <X size={14} />
-            </button>
+    <PageShell title={id ? "Edit Stock Transfer" : "Create Stock Transfer"}>
+      <FormProvider {...methods}>
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+
+          {/* ── Scrollable Body ── */}
+          <div className="flex-1 overflow-y-auto p-2 md:p-3">
+
+            {/* ── Header Fields ── Extremely dense padding to save space */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-[1fr_0.7fr_1.1fr_1.2fr_1.2fr_1.2fr] gap-x-2 gap-y-1.5 mb-2">
+              <FormInput autoFocus inputClassName="!h-8 !px-2 !text-xs text-[#49293e]" id="st-series" label="Series" {...register("series")} onKeyDown={(e) => hk(e, "st-date")} readOnly={!canSave} error={errors.series?.message as string} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="st-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
+              
+              <Controller name="fromBranch" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster} error={errors.fromBranch?.message as string} />
+              )} />
+              <Controller name="toBranch" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-toBranch" label="To Branch" value={field.value} options={masterData.toBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-salesman")} disabled={!canSave || loadingMaster} error={errors.toBranch?.message as string} />
+              )} />
+              <Controller name="salesman" control={control} render={({ field }) => (
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+              )} />
+            </div>
+
+            {/* ── Inline Editable DataGrid ── */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="max-h-[400px] overflow-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/80">
+                      {["SL", "Product", "Code", "Unit", "Qty", "Cost", "Amount", ""].map(
+                        (col, i) => (
+                          <th key={i} className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ${col === "Qty" || col === "Cost" || col === "Amount" ? "text-right" : ""}`}>
+                            {col}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {items.map((item, index) => {
+                      const itemWatch = watchedItems[index] || {};
+                      const qty = Number(itemWatch.qty) || 0;
+                      const cost = Number(itemWatch.cost) || 0;
+                      const lineAmount = qty * cost;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-[#49293e]/5 transition-colors">
+                          <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 w-10">{index + 1}</td>
+                          <td className="p-0 border-r border-gray-100 min-w-[200px] max-w-sm">
+                            <Controller
+                              name={`items.${index}.product`}
+                              control={control}
+                              render={({ field: selectField }) => (
+                                <div className="relative">
+                                  <SearchableCombobox
+                                    id={`product-select-${index}`}
+                                    className="h-7 !px-2 text-xs"
+                                    value={selectField.value}
+                                    options={productOptions}
+                                    onSearch={handleProductSearch}
+                                    loading={searchingProducts}
+                                    minQueryLength={1}
+                                    forcePlacement="bottom"
+                                    onChange={(val) => {
+                                      productSelectedRef.current = true;
+                                      selectField.onChange(val);
+                                      const opt = productOptions.find(o => o.value === val);
+                                      if (opt) {
+                                        methods.setValue(`items.${index}.code`, opt["code"] || "");
+                                        handleProductSelect(index, val);
+                                      }
+                                      setTimeout(() => {
+                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                        qtyInputs[0]?.focus();
+                                      }, 100);
+                                    }}
+                                    onKeyDown={async (e) => {
+                                      if (e.key === "Enter") {
+                                        if (productSelectedRef.current) {
+                                          productSelectedRef.current = false;
+                                          return;
+                                        }
+                                        const rawValue = e.currentTarget.value;
+                                        if (rawValue && rawValue.trim().length > 0) {
+                                          e.preventDefault();
+                                          try {
+                                            const bcRes = await internalStockTransferApi.getProductsByBarcode(rawValue.trim());
+                                            if (bcRes && bcRes.length > 0) {
+                                              const p = bcRes[0];
+                                              setProductOptions(prev => {
+                                                if (prev.find(o => o.value === String(p.productId))) return prev;
+                                                return [...prev, { label: p.productName, value: String(p.productId), code: p.productCode, barcode: p.barcode }];
+                                              });
+                                              methods.setValue(`items.${index}.product`, String(p.productId));
+                                              methods.setValue(`items.${index}.code`, p.productCode || "");
+                                              handleProductSelect(index, String(p.productId));
+                                              setTimeout(() => {
+                                                const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                                qtyInputs[0]?.focus();
+                                              }, 100);
+                                              return;
+                                            }
+                                          } catch (err) {}
+                                          return;
+                                        }
+                                        if (items.length > 1) remove(index);
+                                        setTimeout(() => document.getElementById("st-save-btn")?.focus(), 50);
+                                      }
+                                    }}
+                                    disabled={!canSave}
+                                  />
+                                </div>
+                              )}
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
+                          <td className="p-0 border-r border-gray-100 w-24 relative">
+                            <Controller
+                              name={`items.${index}.unit`}
+                              control={control}
+                              render={({ field: selectField }) => (
+                                <SearchableSelect
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
+                                  value={selectField.value}
+                                  options={masterData?.units || []}
+                                  onChange={(val) => selectField.onChange(val)}
+                                  disabled={!canSave}
+                                  placeholder="Unit"
+                                  disableAutoOpenOnFocus={true}
+                                />
+                              )}
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 w-24">
+                            <input
+                              type="number"
+                              step="any"
+                              {...register(`items.${index}.qty`)}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => handleGridNav(e, index)}
+                              className="w-full h-7 bg-transparent text-right border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-2 py-0 text-xs font-medium text-gray-900 outline-none transition-colors"
+                              readOnly={!canSave}
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 w-24">
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              {...register(`items.${index}.cost`)}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => handleGridNav(e, index)}
+                              className="w-full h-7 bg-transparent text-right border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-2 py-0 text-xs text-gray-600 outline-none transition-colors"
+                              readOnly={!canSave}
+                            />
+                          </td>
+
+                          <td className="px-2 py-1 text-right font-bold text-gray-900 border-r border-gray-100 bg-gray-50/50 w-28">
+                            {formatAmount(lineAmount)}
+                          </td>
+                          <td className="px-1 py-1 text-center w-10">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (items.length === 1) {
+                                  methods.setValue(`items.${index}`, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" });
+                                } else {
+                                  remove(index);
+                                }
+                              }}
+                              disabled={!canSave}
+                              className="inline-flex rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors mx-auto"
+                              tabIndex={-1}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Add Row Button */}
+              <div className="flex justify-start px-2 py-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }, { shouldFocus: false });
+                    setTimeout(() => {
+                      document.getElementById(`product-select-${items.length}`)?.focus();
+                    }, 50);
+                  }}
+                  disabled={!canSave}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={14} /> Add Item
+                </button>
+              </div>
+            </div>
+            
+            {errors.items?.message && (
+              <p className="mt-1 text-xs text-red-500">{errors.items.message as string}</p>
+            )}
+
           </div>
-        )}
 
-        {/* HEADER GRID: Prototype shows all in one row. Responsive maps to md:grid-cols-3 lg:grid-cols-5 */}
-        <div className="grid gap-x-4 gap-y-4 mb-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
-          <FormInput 
-            id="ist-refNo"
-            label="REF NO" 
-            value={form.refNo}
-            onChange={(e) => setField("refNo", e.target.value)}
-            disabled={!canSave}
-            readOnly
-          />
-          <FormInput 
-            id="ist-date"
-            label="DATE" 
-            type="date"
-            required
-            autoFocus
-            value={form.transDate}
-            onChange={(e) => setField("transDate", e.target.value)}
-            disabled={!canSave}
-          />
-          <SearchableSelect 
-            label="FROM BRANCH" 
-            required
-            options={branches}
-            value={form.fromBranch}
-            onChange={(val) => setField("fromBranch", val)}
-            disabled={!canSave}
-          />
-          <SearchableSelect 
-            label="TO BRANCH" 
-            required
-            options={toBranches}
-            value={form.toBranch}
-            onChange={(val) => setField("toBranch", val)}
-            disabled={!canSave}
-          />
-          <SearchableSelect 
-            label="SALESMAN" 
-            options={salesmen}
-            value={form.salesman}
-            onChange={(val) => setField("salesman", val)}
-            disabled={!canSave}
-          />
-        </div>
+          {/* ── Compact Action Footer ── */}
+          <div className="border-t border-gray-200 bg-gray-50/50 p-3 rounded-b-2xl shrink-0 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+              <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
+                <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(grandTotal)}</span>
+              </div>
 
-        {/* LINE ITEM ENTRY */}
-        <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
-          <div className="grid gap-x-3 gap-y-1 grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]">
-            <SearchableSelect 
-              id="ist-product"
-              label="PRODUCT" 
-              options={productOptions}
-              value={form.product}
-              onChange={(val) => setField("product", val)}
-              disabled={!canAdd}
-            />
-            <FormInput id="ist-code" label="CODE" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "ist-unit")} readOnly />
-            <SelectInput 
-              id="ist-unit" 
-              label="UNIT" 
-              options={unitOptions} 
-              value={form.unit} 
-              onChange={(e) => {
-                const val = e.target.value;
-                setField("unit", val);
-                const selected = unitOptions.find(o => o.value === val);
-                if (selected) setField("unitName", selected.label);
-              }} 
-              disabled={!canAdd || unitOptions.length <= 1} 
-            />
-            <FormInput id="ist-qty" label="QTY" type="number" value={form.qty} onChange={(e) => setField("qty", e.target.value)} inputClassName="text-right" onKeyDown={(e) => hk(e, "ist-add-btn")} readOnly={!canAdd} />
-            <FormInput id="ist-cost" label="COST" value={formatAmount(form.cost)} onChange={() => {}} inputClassName="text-right" readOnly />
-            <FormInput id="ist-amt" label="AMT" value={formatAmount(form.amount)} onChange={() => {}} inputClassName="text-right" readOnly />
-            <div className="flex items-end pb-1">
-              <Button
-                id="ist-add-btn"
-                onClick={addItem}
-                className="h-10.5 w-full px-8"
-                disabled={!canAdd}
-                icon={<Plus size={18} />}
-              >
-                ADD
-              </Button>
+              <div className="flex items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">
+                {id && (
+                  <Button type="button" variant="danger" icon={<ShieldAlert size={16} />} onClick={() => {}} disabled={true} tabIndex={-1}>
+                    Cancel Transfer
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" onClick={handleClearClick} tabIndex={-1} isAction icon={<Plus size={16} />}>
+                  New
+                </Button>
+                <Button id="st-save-btn" type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving || !canSave}>
+                  Save
+                </Button>
+                <Button type="button" variant="secondary" isAction icon={<Printer size={16} />} onClick={() => setIsPrintModalOpen(true)} disabled={items.length === 0 || items[0]?.product === ""}>
+                  Print
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleClearClick} isAction icon={<RotateCcw size={16} />}>
+                  Clear
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* DATA TABLE */}
-        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-[11px] font-bold uppercase tracking-widest text-slate-800 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3">PRODUCT</th>
-                <th className="px-4 py-3">CODE</th>
-                <th className="px-4 py-3">UNIT</th>
-                <th className="px-4 py-3 text-right">QTY</th>
-                <th className="px-4 py-3 text-right">COST</th>
-                <th className="px-4 py-3 text-right">AMOUNT</th>
-                <th className="w-16 px-4 py-3 text-center"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center text-gray-400">
-                    {/* Placeholder space for the large empty area shown in prototype */}
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-gray-50/50">
-                    <td className="px-4 py-2.5 font-medium text-gray-900">{item.productName}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{item.code}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{item.unitName}</td>
-                    <td className="px-4 py-2.5 text-right font-medium text-gray-900">{item.qty}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-600">{formatAmount(item.cost)}</td>
-                    <td className="px-4 py-2.5 text-right font-medium text-gray-900">{formatAmount(item.amount)}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        disabled={!canAdd}
-                        className="inline-flex rounded-lg p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* ── Confirmation Modals ── */}
+        <ConfirmDialog
+          isOpen={showClearConfirm}
+          title="Clear Form"
+          message="Are you sure you want to clear the form? All unsaved data will be lost."
+          confirmLabel="Clear Data"
+          confirmVariant="danger"
+          onConfirm={() => {
+            handleReset();
+            setShowClearConfirm(false);
+          }}
+          onCancel={() => setShowClearConfirm(false)}
+        />
 
-        {/* GRAND TOTAL */}
-        <div className="mt-4 flex justify-end items-center gap-4">
-          <span className="text-[12px] font-bold uppercase tracking-widest text-slate-800">GRAND TOTAL</span>
-          <div className="w-48">
-            <FormInput 
-              value={formatAmount(grandTotal)} 
-              onChange={() => {}} 
-              inputClassName="text-right font-bold text-lg bg-gray-50" 
-              readOnly 
-            />
-          </div>
-        </div>
+        <ConfirmDialog
+          isOpen={showSaveConfirm}
+          title="Save Stock Transfer"
+          message={`Are you sure you want to save this internal stock transfer with ${items.length} item(s)?`}
+          confirmLabel="Save"
+          onConfirm={doSave}
+          onCancel={() => setShowSaveConfirm(false)}
+        />
 
-        {/* ACTION BUTTONS */}
-        <div className="mt-8 flex flex-col-reverse justify-end gap-3 md:flex-row">
-          <Button variant="danger" className="w-full md:w-32" onClick={() => {}} disabled={!canDelete || items.length === 0} tabIndex={-1}>
-            DELETE
-          </Button>
-          {canSave && (
-            <Button className="w-full md:w-32" onClick={handleSave} disabled={loading || saving} loading={saving}>
-              SAVE
-            </Button>
-          )}
-          <Button variant="secondary" className="w-full md:w-32" onClick={handleClearClick} tabIndex={-1}>
-            NEW
-          </Button>
-          <Button 
-            variant="secondary" 
-            className="w-full md:w-auto" 
-            onClick={() => setIsPrintModalOpen(true)} 
-            icon={<Printer size={18} />}
-          >
-            EXPORT / PRINT
-          </Button>
-        </div>
-      </div>
-
-      <ConfirmDialog
-        isOpen={showClearConfirm}
-        title="Clear Form"
-        message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear Data"
-        confirmVariant="danger"
-        onConfirm={() => {
-          setItems([]);
-          setShowClearConfirm(false);
-        }}
-        onCancel={() => setShowClearConfirm(false)}
-      />
-
-      <InternalStockTransferPrintModal
-        isOpen={isPrintModalOpen}
-        onClose={() => setIsPrintModalOpen(false)}
-        form={form}
-        items={items}
-        branches={branches}
-        toBranches={toBranches}
-      />
+        <InternalStockTransferPrintModal
+          isOpen={isPrintModalOpen}
+          onClose={() => {
+            setIsPrintModalOpen(false);
+            if (!id) handleReset();
+          }}
+          form={printForm as any}
+          items={printItems as any}
+          branches={masterData.fromBranches}
+          toBranches={masterData.toBranches}
+        />
+      </FormProvider>
     </PageShell>
   );
 };

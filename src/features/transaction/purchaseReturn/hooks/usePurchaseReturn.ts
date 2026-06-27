@@ -16,7 +16,7 @@ const toNumber = (value: string | number | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const calculateLine = (item: PurchaseReturnLineItem) => {
+export const calculateLine = (item: PurchaseReturnLineItem, decimals: number = 3) => {
   const qty = toNumber(item.qty);
   const price = toNumber(item.price);
   const discPercent = toNumber(item.discPercent);
@@ -27,7 +27,12 @@ export const calculateLine = (item: PurchaseReturnLineItem) => {
   const vatAmount = (amount - discountAmount) * (vatPercent / 100);
   const netAmount = amount - discountAmount + vatAmount;
 
-  return { amount, discountAmount, vatAmount, netAmount };
+  return {
+    amount: Number(amount.toFixed(decimals)),
+    discountAmount: Number(discountAmount.toFixed(decimals)),
+    vatAmount: Number(vatAmount.toFixed(decimals)),
+    netAmount: Number(netAmount.toFixed(decimals))
+  };
 };
 
 export const usePurchaseReturn = (invoiceId?: string) => {
@@ -41,6 +46,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+  const [selectedPaymodeId, setSelectedPaymodeId] = useState<number>(0);
   const [saving, setSaving] = useState(false);
 
   // Search States
@@ -100,6 +106,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const watchedBranch = useWatch({ control, name: "branch" });
   const watchedSupplier = useWatch({ control, name: "supplier" });
   const watchedInvoiceNo = useWatch({ control, name: "invoiceNo" });
+  const watchedSeries = useWatch({ control, name: "series" });
 
   // Clear products if invoice text is manually edited after loading
   useEffect(() => {
@@ -126,7 +133,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const totals = useMemo(() => {
     const itemTotals = watchedItems.reduce(
       (acc: any, item: any) => {
-        const line = calculateLine(item as PurchaseReturnLineItem);
+        const line = calculateLine(item as PurchaseReturnLineItem, decimalPart);
         acc.discountAmount += line.discountAmount;
         acc.vatAmount += line.vatAmount;
         acc.netAmount += line.netAmount;
@@ -141,15 +148,27 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     const grandTotal = itemTotals.netAmount - manualDiscount + otherCharge + roundOff;
 
     return {
-      ...itemTotals,
-      grandTotal,
+      discountAmount: Number(itemTotals.discountAmount.toFixed(decimalPart)),
+      vatAmount: Number(itemTotals.vatAmount.toFixed(decimalPart)),
+      netAmount: Number(itemTotals.netAmount.toFixed(decimalPart)),
+      grandTotal: Number(grandTotal.toFixed(decimalPart)),
     };
   }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems]);
+
+  const paymodeList = useMemo(() => {
+    if (!masterData?.paymodes) return [];
+    return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
+  }, [masterData]);
+
+  const multiPayId = useMemo(() => {
+    const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
+    return multi ? multi.paymodeId : 0;
+  }, [paymodeList]);
 
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
     if (toNumber(watchedGlobalDiscPercent) > 0 && watchedItems.length > 0) {
-      const subTotal = watchedItems.reduce((acc: any, item: any) => acc + calculateLine(item as PurchaseReturnLineItem).netAmount, 0);
+      const subTotal = watchedItems.reduce((acc: any, item: any) => acc + calculateLine(item as PurchaseReturnLineItem, decimalPart).netAmount, 0);
       const newDiscAmt = formatAmount(subTotal * (toNumber(watchedGlobalDiscPercent) / 100));
       if (newDiscAmt !== watchedDiscAmount) {
         setValue("discAmount", newDiscAmt);
@@ -166,11 +185,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           setMasterData(data);
           if (!invoiceId) {
              if (data.series.length > 0) {
-               setValue("series", data.series[0].seriesId.toString());
-               setValue("purchaseNo", `${data.series[0].prefix}${data.series[0].startNo}`);
+                setValue("series", data.series[0].seriesId.toString());
              }
              if (data.branches.length > 0) {
-               setValue("branch", data.branches[0].branchId.toString());
+                setValue("branch", data.branches[0].branchId.toString());
              }
           }
         }
@@ -184,6 +202,28 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     fetchMasterData();
   }, [invoiceId, setValue]);
 
+  // Dynamically fetch next purchase return number when series changes
+  useEffect(() => {
+    if (!invoiceId && watchedSeries) {
+      const fetchPurchaseReturnNumber = async () => {
+        try {
+          const res = await purchaseReturnApi.getPurchaseReturnNumber(Number(watchedSeries));
+          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
+          const prefix = selectedSeries ? selectedSeries.prefix : "";
+          setValue("purchaseNo", `${prefix}${res.purchaseReturnNo}`);
+        } catch (error) {
+          console.error("Failed to load next purchase return number", error);
+          // Fallback to startNo if API fails or seriesId has DB errors (like seriesId=3)
+          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
+          if (selectedSeries) {
+            setValue("purchaseNo", `${selectedSeries.prefix}${selectedSeries.startNo}`);
+          }
+        }
+      };
+      fetchPurchaseReturnNumber();
+    }
+  }, [invoiceId, watchedSeries, masterData, setValue]);
+
   const loadInvoiceData = async (id: string) => {
     try {
       setLoadingMaster(true);
@@ -191,7 +231,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       const master = res.masterData;
       setPurchaseId(master.purchaseId || 0);
       const rootPaymodeId = res.masterData.paymodeId || 1;
-      const rootAmount = (res.masterData.netAmount || 0) - (res.paymodesData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       
       const formPayload: any = {
         ...initialForm,
@@ -200,9 +239,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         salesman: master.employeeId?.toString() || "",
         supplier: master.supplierId?.toString() || "",
         purchaseNo: master.purchaseReturnNo || "",
-        invoiceNo: master.purchaseInvoiceNo || "",
+        invoiceNo: master.purchaseInvoiceNo || master.invoiceNo || "",
         purchaseDate: master.purchaseReturnDate ? master.purchaseReturnDate.split("T")[0] : "",
-        invoiceDate: "",
+        invoiceDate: master.purchaseInvoiceDate ? master.purchaseInvoiceDate.split("T")[0] : (master.invoiceDate ? master.invoiceDate.split("T")[0] : ""),
         refNo: master.refNo || "",
         narration: master.narration || "",
         discAmount: master.discAmount?.toString() || "0",
@@ -231,20 +270,46 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       }));
       formPayload.items = mappedItems;
 
-      if (res.paymodesData && res.paymodesData.length > 0) {
-        formPayload.payments = [
-          {
-            mode: rootPaymodeId === 1 ? 'cash' : rootPaymodeId === 2 ? 'card' : 'credit',
-            amount: rootAmount.toString(),
-          },
-          ...res.paymodesData.map((p: any) => ({
-            mode: p.paymodeId === 1 ? 'cash' : p.paymodeId === 2 ? 'card' : 'credit',
-            amount: (p.amount || 0).toString(),
-          }))
-        ];
+      // Helper to map a paymodeId to a mode name using master paymodes list
+      const paymodeIdToMode = (pid: number): string => {
+        const found = masterData?.paymodes?.find((pm: any) => pm.paymodeId === pid);
+        if (found) return found.paymodeName.toLowerCase();
+        return pid === 1 ? 'cash' : pid === 2 ? 'card' : 'credit';
+      };
+
+      if (rootPaymodeId === (multiPayId || 3) && res.paymodesData && res.paymodesData.length > 0) {
+        const storedTotal = res.paymodesData.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const remainder = Number(((res.masterData.netAmount || 0) - storedTotal).toFixed(decimalPart));
+
+        formPayload.payments = res.paymodesData.map((p: any) => ({
+          mode: paymodeIdToMode(p.paymodeId),
+          amount: p.amount?.toString() || "0",
+          paymodeId: p.paymodeId,
+        }));
+
+        if (remainder > 0) {
+          formPayload.payments = [
+            { mode: 'cash', amount: remainder.toString(), paymodeId: 1 },
+            ...formPayload.payments,
+          ];
+        }
+      } else if (res.paymodesData && res.paymodesData.length > 0) {
+        formPayload.payments = res.paymodesData.map((p: any) => ({
+          mode: paymodeIdToMode(p.paymodeId),
+          amount: p.amount?.toString() || "0",
+          paymodeId: p.paymodeId,
+        }));
+      } else if (rootPaymodeId && rootPaymodeId !== (multiPayId || 3)) {
+        formPayload.payments = [{
+          mode: paymodeIdToMode(rootPaymodeId),
+          amount: (res.masterData.netAmount || 0).toString(),
+          paymodeId: rootPaymodeId,
+        }];
       } else {
         formPayload.payments = [];
       }
+
+      setSelectedPaymodeId(rootPaymodeId || 1);
 
       reset(formPayload);
       
@@ -281,17 +346,45 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   }, [invoiceId]);
 
   const handleProductSearch = useCallback(async (query: string) => {
+    if (!query) {
+      setProductOptions([]);
+      return;
+    }
     setSearchingProducts(true);
     try {
-      const results = await purchaseReturnApi.searchProductsByName(query || "");
-      setProductOptions(
-        results.map((r) => ({
-          label: r.productName,
-          value: r.productId.toString(),
-          code: r.code || "",
-          barcode: r.barcode || "",
-        }))
-      );
+      const results = await purchaseReturnApi.searchProductsByName(query);
+      let mapped = results.map((r) => ({
+        label: r.productName,
+        value: r.productId.toString(),
+        code: r.code || "",
+        barcode: r.barcode || "",
+      }));
+
+      // Fallback: if name search returns nothing, query by barcode
+      if (mapped.length === 0) {
+        try {
+          const detail = await purchaseReturnApi.getProductCostData(query).catch(() => null);
+          if (detail) {
+            mapped = [{
+              label: detail.productName,
+              value: detail.productId.toString(),
+              code: detail.productCode || "",
+              barcode: query,
+            }];
+          }
+        } catch (e) {
+          console.error("Failed to lookup barcode", e);
+        }
+      }
+      
+      const seenIds = new Set<string>();
+      mapped = mapped.filter(item => {
+        if (seenIds.has(item.value)) return false;
+        seenIds.add(item.value);
+        return true;
+      });
+
+      setProductOptions(mapped);
     } catch (error) {
       console.error("Failed to search products", error);
     } finally {
@@ -318,9 +411,13 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const handleInvoiceSearch = useCallback(async (query: string) => {
     if (!watchedBranch || !watchedSupplier) return;
+    if (!query) {
+      setInvoiceOptions([]);
+      return;
+    }
     setSearchingInvoices(true);
     try {
-      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(watchedBranch), Number(watchedSupplier), query || "");
+      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(watchedBranch), Number(watchedSupplier), query);
       const mapped = results.map((r: any) => {
         const invText = r.invoiceNo || r.purchaseNo || "Unknown";
         return {
@@ -344,11 +441,11 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     setValue("invoiceNo", invoiceNoText);
     try {
       const res = await purchaseReturnApi.getPurchaseInvoiceData(purchaseIdStr);
-      if (res && res.master) {
-        setPurchaseId(res.master.purchaseId || parseInt(purchaseIdStr) || 0);
+      if (res && res.masterData) {
+        setPurchaseId(res.masterData.purchaseId || parseInt(purchaseIdStr) || 0);
         setLoadedInvoiceText(invoiceNoText);
-        setValue("invoiceDate", res.master.invoiceDate ? res.master.invoiceDate.split("T")[0] : getValues("invoiceDate"));
-        setValue("refNo", res.master.refNo || getValues("refNo"));
+        setValue("invoiceDate", res.masterData.invoiceDate ? res.masterData.invoiceDate.split("T")[0] : getValues("invoiceDate"));
+        setValue("refNo", res.masterData.refNo || getValues("refNo"));
       }
       if (res && res.detailsData) {
         const mappedItems = res.detailsData.map((d: any) => ({
@@ -406,9 +503,36 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
+  const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
+    try {
+      const details = await purchaseReturnApi.getProductCostData(barcode).catch(() => null);
+      if (details) {
+        setProductOptions(prev => {
+          if (prev.find(o => o.value === String(details.productId))) return prev;
+          return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
+        });
+        setValue(`items.${index}.product`, String(details.productId));
+        setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unit`, details.baseUnitId.toString());
+        setValue(`items.${index}.price`, formatAmount(details.cost));
+        setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
+        setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+        const currentQty = getValues(`items.${index}.qty`);
+        if (currentQty === "0" || currentQty === "") {
+           setValue(`items.${index}.qty`, "1");
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("Instant barcode lookup failed", e);
+    }
+    return false;
+  }, [setValue, getValues]);
+
   const handleReset = () => {
     reset(initialForm);
     setShowClearConfirm(false);
+    setSelectedPaymodeId(0);
   };
 
   const handleClearClick = () => {
@@ -420,6 +544,15 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       handleReset();
     }
   };
+  // Set a single paymode as the full payment — no modal needed
+  const handleSinglePayment = useCallback((paymodeId: number, paymodeName: string, grandTotal: number) => {
+    setPayments([{
+      mode: paymodeName.toLowerCase(),
+      amount: grandTotal.toFixed(decimalPart),
+      paymodeId,
+    } as any]);
+    setSelectedPaymodeId(paymodeId);
+  }, [setPayments, decimalPart]);
 
   const onSubmit = async (data: any): Promise<boolean> => {
     const validItems = data.items.filter((i: any) => i.product && i.product.trim() !== "");
@@ -444,23 +577,23 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         seriesId: parseInt(data.series) || 0,
         prefix: "",
         supplierId: parseInt(data.supplier) || 0,
-        paymodeId: watchedPayments.length > 1 ? 3 : (watchedPayments.length > 0 ? (watchedPayments[0].mode === 'cash' ? 1 : watchedPayments[0].mode === 'card' ? 2 : 3) : 1),
+        paymodeId: watchedPayments.length > 1 ? (multiPayId || 3) : (watchedPayments.length > 0 ? (watchedPayments[0].paymodeId || 1) : 1),
         branchId: parseInt(data.branch) || 0,
         employeeId: parseInt(data.salesman) || 0,
         dayId: 0,
         shiftId: 0,
         purchaseReturnDate: new Date(data.purchaseDate).toISOString(),
         purchaseId: purchaseId || 0,
-        purchaseInvoiceNo: data.invoiceNo,
-        refNo: data.refNo,
-        narration: data.narration,
+        refNo: data.refNo || "",
+        narration: data.narration || "",
         discAmount: toNumber(data.discAmount),
         discPer: 0,
-        vatExclAmount: totals.netAmount - totals.vatAmount,
-        vatAmount: totals.vatAmount,
-        netAmount: totals.grandTotal,
+        vatExclAmount: Number((totals.netAmount - totals.vatAmount).toFixed(decimalPart)),
+        vatAmount: Number(totals.vatAmount.toFixed(decimalPart)),
+        netAmount: Number(totals.grandTotal.toFixed(decimalPart)),
+        createdAt: new Date().toISOString(),
         details: validItems.map((item: any) => {
-          const l = calculateLine(item as PurchaseReturnLineItem);
+          const l = calculateLine(item as PurchaseReturnLineItem, decimalPart);
           return {
             productId: parseInt(item.product) || 0,
             unitId: parseInt(item.unit) || 0,
@@ -475,10 +608,16 @@ export const usePurchaseReturn = (invoiceId?: string) => {
             baseQty: toNumber(item.qty) + toNumber(item.foc),
           };
         }),
-        paymodes: watchedPayments.length <= 1 ? [] : watchedPayments.slice(1).map((p: any) => ({
-          paymodeId: p.paymodeId ?? (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3),
-          amount: toNumber(p.amount),
-        })),
+        paymodes: (() => {
+          if (watchedPayments.length <= 1) return [];
+          // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
+          const map = new Map<number, number>();
+          for (const p of watchedPayments as any[]) {
+            const pid = p.paymodeId || 1;
+            map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
+          }
+          return Array.from(map.entries()).map(([paymodeId, amount]) => ({ paymodeId, amount }));
+        })(),
       };
 
       if (invoiceId) {
@@ -502,8 +641,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
-  const handleSettlementSubmit = (newPayments: { mode: string; amount: number }[]) => {
-    setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString() })));
+  const handleSettlementSubmit = (newPayments: { mode: string; paymodeId: number; amount: number }[]) => {
+    setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString(), paymodeId: p.paymodeId })));
+    setSelectedPaymodeId(multiPayId || 3);
     setIsMultiPayOpen(false);
   };
 
@@ -523,12 +663,18 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     isMultiPayOpen,
     setIsMultiPayOpen,
     handleSettlementSubmit,
+    selectedPaymodeId,
+    setSelectedPaymodeId,
+    handleSinglePayment,
     masterData,
     loadingMaster,
     masterError,
+    multiPayId,
+    paymodeList,
     productOptions,
     searchingProducts,
     handleProductSearch,
+    handleBarcodeScan,
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
@@ -538,5 +684,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     handleInvoiceSelect,
     handleProductSelect,
     saving,
+    purchaseId,
   };
 };

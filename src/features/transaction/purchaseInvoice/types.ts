@@ -14,8 +14,9 @@ export const purchaseInvoiceItemSchema = z.object({
 });
 
 export const purchaseInvoicePaymentSchema = z.object({
-  mode: z.enum(["cash", "card", "credit"]),
+  mode: z.string(),
   amount: z.string(),
+  paymodeId: z.number().optional(),
 });
 
 export const purchaseInvoiceSchema = z.object({

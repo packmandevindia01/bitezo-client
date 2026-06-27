@@ -8,6 +8,7 @@ import { handleFocusNextInput } from "../../utils/keyboard";
 export interface SearchableOption {
   label: string;
   value: string;
+  [key: string]: any;
 }
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
   className?: string;
   minQueryLength?: number;
   forcePlacement?: "top" | "bottom";
+  disableAutoOpenOnFocus?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ const SearchableSelect = ({
   className = "",
   minQueryLength = 0,
   forcePlacement,
+  disableAutoOpenOnFocus = false,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -297,8 +300,18 @@ const SearchableSelect = ({
     onKeyDown?.(e);
   };
 
+  const handleBlur = (e: React.FocusEvent) => {
+    const newFocus = e.relatedTarget as Node | null;
+    const isInsideContainer = containerRef.current?.contains(newFocus);
+    const isInsidePortal = newFocus && (newFocus as HTMLElement).closest(".select-portal-content");
+    
+    if (!isInsideContainer && !isInsidePortal) {
+      setOpen(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full relative" ref={containerRef}>
+    <div className="flex flex-col gap-1 mb-1 w-full relative" ref={containerRef} onBlur={handleBlur}>
       {/* Label */}
       {label && (
         <label 
@@ -335,7 +348,7 @@ const SearchableSelect = ({
         }}
         onFocus={() => {
           if (disabled) return;
-          if (!open) {
+          if (!open && !disableAutoOpenOnFocus) {
             setOpen(true);
           }
         }}

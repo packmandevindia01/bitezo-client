@@ -17,6 +17,8 @@ interface BackofficeMultiPayModalProps {
   loading?: boolean;
   /** Paymodes from the parent's master API. When provided, no extra fetch is made. */
   paymodes?: { paymodeId: number; paymodeName: string }[];
+  /** Pre-filled payments for edit mode — maps paymodeId to amount */
+  initialPayments?: { paymodeId: number; amount: number }[];
 }
 
 interface PaymodeRow {
@@ -32,6 +34,7 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
   onSubmit,
   loading,
   paymodes,
+  initialPayments,
 }) => {
   const { formatAmount, decimalPart } = useCurrency();
   const { showToast } = useToast();
@@ -41,6 +44,7 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
 
   // Build rows from the paymodes prop (passed from parent's master API).
   // Filter out any paymode whose name contains "multi" — no MultiPay inside MultiPay.
+  // Pre-fill amounts from initialPayments when editing an invoice.
   useEffect(() => {
     if (!isOpen) return;
     const source = paymodes && paymodes.length > 0
@@ -49,14 +53,18 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
 
     const builtRows: PaymodeRow[] = source
       .filter((p) => !p.paymodeName.toLowerCase().includes("multi"))
-      .map((p) => ({
-        paymodeId: p.paymodeId,
-        paymodeName: p.paymodeName,
-        inputValue: "",
-      }));
+      .map((p) => {
+        // Pre-fill amount if this paymode was used in the saved invoice
+        const existing = initialPayments?.find((ip) => ip.paymodeId === p.paymodeId);
+        return {
+          paymodeId: p.paymodeId,
+          paymodeName: p.paymodeName,
+          inputValue: existing ? existing.amount.toString() : "",
+        };
+      });
     setRows(builtRows);
     setTimeout(() => inputRefs.current[0]?.focus(), 150);
-  }, [isOpen, paymodes]);
+  }, [isOpen, paymodes, initialPayments]);
 
   const totalPaid = rows.reduce((sum, r) => sum + (parseFloat(r.inputValue) || 0), 0);
   const roundedPaid = Number(totalPaid.toFixed(decimalPart));
@@ -75,15 +83,23 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" || e.key === "ArrowDown") {
       e.preventDefault();
       // Move to next row, or submit if last
       const next = inputRefs.current[idx + 1];
       if (next) {
         next.focus();
         next.select();
-      } else {
+      } else if (e.key === "Enter") {
         handleSubmit();
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      // Move to previous row
+      const prev = inputRefs.current[idx - 1];
+      if (prev) {
+        prev.focus();
+        prev.select();
       }
     }
   };

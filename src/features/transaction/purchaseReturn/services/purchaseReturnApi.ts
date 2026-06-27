@@ -43,6 +43,20 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
+  getPurchaseReturnNumber: async (seriesId: number) => {
+    const response = await axiosInstance.get<{
+      data: { purchaseReturnNo: number };
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/purchase_return-number/${seriesId}`);
+
+    if (!response.data.isSuccess) {
+      throw new Error(response.data.message || "Failed to load purchase return number");
+    }
+
+    return response.data.data;
+  },
+
   searchProductsByName: async (productName: string) => {
     const response = await axiosInstance.get<{
       data: {

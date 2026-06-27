@@ -164,7 +164,7 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
         wsData.push([
           (index + 1).toString(),
           item.product,
-          item.code,
+          item.code || "",
           item.effect === "+" ? "(+)" : item.effect === "-" ? "(-)" : "(All)",
           item.qty.toString()
         ]);

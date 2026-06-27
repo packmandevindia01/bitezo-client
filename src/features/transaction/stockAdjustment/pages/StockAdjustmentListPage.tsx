@@ -1,5 +1,5 @@
-import { AlertCircle, X, Search, Pencil, Trash2 } from "lucide-react";
-import { Button, FormInput, PageShell, SelectInput, RecordTableCard, ConfirmDialog } from "../../../../components/common";
+import { AlertCircle, X, Pencil, Trash2, Plus } from "lucide-react";
+import { Button, FormInput, PageShell, SelectInput, RecordTableCard, ConfirmDialog, SearchBar } from "../../../../components/common";
 import { useStockAdjustmentList } from "../hooks/useStockAdjustmentList";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
@@ -12,15 +12,19 @@ const StockAdjustmentListPage = () => {
   const {
     records,
     loading,
-    error,
-    setError,
+    error: fetchError,
     filters,
     handleFilterChange,
     fetchList,
     branches
   } = useStockAdjustmentList();
 
+  const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const error = localError || fetchError;
+  const setError = setLocalError;
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -33,6 +37,15 @@ const StockAdjustmentListPage = () => {
       setDeleteId(null);
     }
   };
+
+  const filteredRecords = records.filter(row => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (row.refNo || "").toLowerCase().includes(term) ||
+      (row.branch || "").toLowerCase().includes(term)
+    );
+  });
 
   return (
     <PageShell title="Saved Stock Adjustments" description="View and manage previous stock adjustments.">
@@ -47,46 +60,53 @@ const StockAdjustmentListPage = () => {
       )}
 
       {/* Filter Section */}
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <SelectInput 
-            label="Branch" 
-            placeholder="All Branches"
-            options={branches} 
-            value={filters.branchId} 
-            onChange={(e) => handleFilterChange("branchId", e.target.value)} 
-          />
-          <FormInput 
-            label="From Date" 
-            type="date" 
-            value={filters.fromDate} 
-            onChange={(e) => handleFilterChange("fromDate", e.target.value)} 
-          />
-          <FormInput 
-            label="To Date" 
-            type="date" 
-            value={filters.toDate} 
-            onChange={(e) => handleFilterChange("toDate", e.target.value)} 
-          />
-          <FormInput 
-            label="Ref No" 
-            value={filters.refNo} 
-            onChange={(e) => handleFilterChange("refNo", e.target.value)} 
-          />
-          <div className="flex items-end">
-            <Button onClick={fetchList} className="w-full">
-              <Search size={16} className="mr-2" /> Search
-            </Button>
+      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+        <div className="flex gap-4 items-end flex-1">
+          <div className="w-40">
+            <FormInput 
+              label="From Date" 
+              type="date" 
+              value={filters.fromDate} 
+              onChange={(e) => handleFilterChange("fromDate", e.target.value)} 
+            />
+          </div>
+          <div className="w-40">
+            <FormInput 
+              label="To Date" 
+              type="date" 
+              value={filters.toDate} 
+              onChange={(e) => handleFilterChange("toDate", e.target.value)} 
+            />
+          </div>
+          <div className="flex-1 max-w-sm flex flex-col gap-1 mb-1 relative">
+            <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-transparent mb-0.5 select-none pointer-events-none">
+              -
+            </label>
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search by Ref No or Branch..."
+            />
+          </div>
+          <div className="w-48">
+            <SelectInput 
+              label="Branch" 
+              placeholder="All Branches"
+              options={branches} 
+              value={filters.branchId} 
+              onChange={(e) => handleFilterChange("branchId", e.target.value)} 
+            />
           </div>
         </div>
+        <Button onClick={() => navigate("/dashboard/stock-adjustment")} icon={<Plus size={18} />}>
+          Add New
+        </Button>
       </div>
 
       <div className="overflow-x-auto">
         <RecordTableCard<any>
           title="Stock Adjustment Records"
-          actionLabel="+ New Stock Adjustment"
-          onAction={() => navigate("/dashboard/stock-adjustment")}
-          data={records}
+          data={filteredRecords}
           rowKey="transId"
           loading={loading}
           columns={[
