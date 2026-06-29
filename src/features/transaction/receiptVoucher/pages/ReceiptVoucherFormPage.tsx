@@ -2,8 +2,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { PageShell, FormInput, SearchableSelect, Button, ConfirmDialog } from "../../../../components/common";
 import { useReceiptVoucher } from "../hooks/useReceiptVoucher";
 import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
-import { X, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { VoucherPrintPreviewModal } from "../../shared/components/VoucherPrintPreviewModal";
+import type { VoucherPrintData } from "../../shared/components/VoucherPrintTemplate";
+import { X, Trash2, Printer } from "lucide-react";
+import { useState, useMemo } from "react";
+import { numberToWords } from "../../../../utils/numberToWords";
 
 const ReceiptVoucherFormPage = () => {
   const { id } = useParams();
@@ -25,7 +28,10 @@ const ReceiptVoucherFormPage = () => {
     setIsMultiPayOpen,
   } = useReceiptVoucher(Number(id) || undefined, () => navigate("/dashboard/receipt-voucher"));
 
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  
+
 
   const canSave = !isCancelled;
 
@@ -40,6 +46,23 @@ const ReceiptVoucherFormPage = () => {
       }
     }
   };
+
+  const printData = useMemo<Partial<VoucherPrintData>>(() => {
+    const vals = form.getValues();
+    const account = accountList.find(a => a.accountId === Number(vals.accountId));
+    const paymode = paymodeList.find(p => p.paymodeId === Number(vals.paymodeId));
+
+    return {
+      voucherType: "RECEIPT",
+      voucherNo: vals.voucherNo || "",
+      date: vals.voucherDate || "",
+      paymentType: paymode?.paymodeName || "CASH RECEIPT",
+      partyName: account?.accountName || "",
+      amount: Number(vals.amount) || 0,
+      amountInWords: numberToWords(Number(vals.amount) || 0).toUpperCase(),
+      narration: vals.narration || "",
+    };
+  }, [form.watch(), accountList, paymodeList]);
 
   const handleCancelVoucher = async () => {
     if (id) {
@@ -239,18 +262,37 @@ const ReceiptVoucherFormPage = () => {
           >
             Clear
           </Button>
-          <Button 
-            id="rv-save-btn"
+          <Button
+            id="rv-print"
+            type="button"
+            variant="secondary"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="w-32"
+            tabIndex={-1}
+            disabled={!isEditMode || !canSave}
+            icon={<Printer size={16} />}
+          >
+            Print
+          </Button>
+          <Button
+            id="rv-save"
             variant="primary"
             onClick={onSubmit}
             loading={isSaving}
-            disabled={isSaving || !canSave}
             className="w-32"
+            tabIndex={11}
+            disabled={!canSave || isSaving}
           >
             Save
           </Button>
         </div>
       </div>
+
+      <VoucherPrintPreviewModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        data={printData}
+      />
 
       <ConfirmDialog
         isOpen={cancelModalOpen}

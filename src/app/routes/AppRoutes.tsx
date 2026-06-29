@@ -66,7 +66,9 @@ const ProviderFormPage = lazy(() => import("../../features/general/provider/page
 const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsList"));
 const SupplierList = lazy(() => import("../../features/general/supplier/pages/SupplierList"));
 const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherPage"));
+const PaymentAgainstVoucherListPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherListPage"));
 const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherPage"));
+const ReceiptAgainstVoucherListPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherListPage"));
 const PaymentVoucherListPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherListPage"));
 const PaymentVoucherFormPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherFormPage"));
 const ReceiptVoucherListPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherListPage"));
@@ -196,8 +198,12 @@ const AppRoutes = () => {
                   <Route path="internal-stock-transfer" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferPage /></RoleGuard>} />
                   <Route path="internal-stock-transfer/edit/:id" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferPage /></RoleGuard>} />
                   <Route path="stock-adjustment-type" element={<RoleGuard moduleName="Stock Adjustment Type"><StockAdjustmentTypePage /></RoleGuard>} />
-                  <Route path="payment-against-voucher" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherPage /></RoleGuard>} />
-                  <Route path="receipt-against-voucher" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherPage /></RoleGuard>} />
+                  <Route path="payment-against-voucher" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherListPage /></RoleGuard>} />
+                  <Route path="payment-against-voucher/new" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherPage /></RoleGuard>} />
+                  <Route path="payment-against-voucher/:id" element={<RoleGuard moduleName="Payment Against Voucher"><PaymentAgainstVoucherPage /></RoleGuard>} />
+                  <Route path="receipt-against-voucher" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherListPage /></RoleGuard>} />
+                  <Route path="receipt-against-voucher/new" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherPage /></RoleGuard>} />
+                  <Route path="receipt-against-voucher/:id" element={<RoleGuard moduleName="Receipt Against Voucher"><ReceiptAgainstVoucherPage /></RoleGuard>} />
                   <Route path="payment-voucher" element={<RoleGuard moduleName="Payment Voucher"><PaymentVoucherListPage /></RoleGuard>} />
                   <Route path="payment-voucher/new" element={<RoleGuard moduleName="Payment Voucher"><PaymentVoucherFormPage /></RoleGuard>} />
                   <Route path="payment-voucher/edit/:id" element={<RoleGuard moduleName="Payment Voucher"><PaymentVoucherFormPage /></RoleGuard>} />

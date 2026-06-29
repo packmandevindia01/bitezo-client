@@ -2,8 +2,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { PageShell, FormInput, SearchableSelect, Button, ConfirmDialog } from "../../../../components/common";
 import { usePaymentVoucher } from "../hooks/usePaymentVoucher";
 import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
-import { X, Trash2 } from "lucide-react";
-import { useState, useRef } from "react";
+import { VoucherPrintPreviewModal } from "../../shared/components/VoucherPrintPreviewModal";
+import type { VoucherPrintData } from "../../shared/components/VoucherPrintTemplate";
+import { X, Trash2, Printer } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { numberToWords } from "../../../../utils/numberToWords";
 
 const PaymentVoucherFormPage = () => {
   const { id } = useParams();
@@ -25,6 +28,7 @@ const PaymentVoucherFormPage = () => {
     setIsMultiPayOpen,
   } = usePaymentVoucher(Number(id) || undefined, () => navigate("/dashboard/payment-voucher"));
 
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const canSave = !isCancelled;
@@ -45,6 +49,23 @@ const PaymentVoucherFormPage = () => {
       }
     }
   };
+
+  const printData = useMemo<Partial<VoucherPrintData>>(() => {
+    const vals = form.getValues();
+    const account = accountList.find(a => a.accountId === Number(vals.accountId));
+    const paymode = paymodeList.find(p => p.paymodeId === Number(vals.paymodeId));
+
+    return {
+      voucherType: "PAYMENT",
+      voucherNo: vals.voucherNo || "",
+      date: vals.voucherDate || "",
+      paymentType: paymode?.paymodeName || "CASH PAYMENT",
+      partyName: account?.accountName || "",
+      amount: Number(vals.amount) || 0,
+      amountInWords: numberToWords(Number(vals.amount) || 0).toUpperCase(),
+      narration: vals.narration || "",
+    };
+  }, [form.watch(), accountList, paymodeList]);
 
   const handleCancelVoucher = async () => {
     if (id) {
@@ -234,6 +255,18 @@ const PaymentVoucherFormPage = () => {
             Clear
           </Button>
           <Button
+            id="pv-print"
+            type="button"
+            variant="secondary"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="w-32"
+            tabIndex={-1}
+            disabled={!isEditMode || !canSave}
+            icon={<Printer size={16} />}
+          >
+            Print
+          </Button>
+          <Button
             id="pv-save"
             variant="primary"
             onClick={onSubmit}
@@ -246,6 +279,12 @@ const PaymentVoucherFormPage = () => {
           </Button>
         </div>
       </div>
+
+      <VoucherPrintPreviewModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        data={printData}
+      />
 
       <ConfirmDialog
         isOpen={cancelModalOpen}
