@@ -504,6 +504,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         })(),
       };
 
+      console.log("Purchase Invoice Payload:", JSON.stringify(payload, null, 2));
+
       if (invoiceId) {
         payload.purchaseId = Number(invoiceId);
         payload.updateAt = new Date().toISOString();
@@ -563,6 +565,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
+    handleSupplierCreated: useCallback((id: number, name: string) => {
+      setSupplierOptions(prev => [...prev, { label: name, value: String(id) }]);
+      methods.setValue("supplier", String(id), { shouldValidate: true });
+    }, [methods]),
     handleProductSelect,
     saving,
   };

@@ -97,6 +97,15 @@ export const productService = {
     );
   },
 
+  /** GET /api/product/next-barcode */
+  getNextBarcode: async (): Promise<string> => {
+    const url = `${BASE}/next-barcode`;
+    const response = await unwrap(
+      axiosInstance.get<ApiResponse<{ barcode: string }>>(url)
+    );
+    return response.barcode;
+  },
+
   /** POST /api/product */
   async create(payload: CreateProductPayload & { imageFile?: File }): Promise<{ id: number }> {
     const { imageFile, ...jsonData } = payload;
@@ -142,6 +151,14 @@ export const productService = {
     return data;
   },
   
+  /** DELETE /api/product/{productId} */
+  async delete(productId: number): Promise<void> {
+    const url = `${BASE}/${productId}`;
+    await unwrap(
+      axiosInstance.delete<ApiResponse<void>>(url)
+    );
+  },
+
   /** POST /api/product/product-image */
   async uploadImage(productId: number, imageFile: File, oldPath: string = "string"): Promise<void> {
     const url = `${BASE}/product-image`;
@@ -153,8 +170,8 @@ export const productService = {
 
     await axiosInstance.post(url, formData, {
       headers: {
-        "Content-Type": undefined,
-      },
+        "Content-Type": "multipart/form-data"
+      }
     });
   },
 

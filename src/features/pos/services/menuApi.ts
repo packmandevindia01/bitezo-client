@@ -52,6 +52,7 @@ export const menuApi = {
     const groups = raw.groups ?? raw.group ?? [];
     const categories = raw.categories ?? raw.category ?? [];
     const orderTypes = raw.orderTypes ?? [];
+    const paymodes = raw.paymodes ?? [];
 
     return {
       group: groups,
@@ -62,7 +63,8 @@ export const menuApi = {
         imageUrl: c.imageUrl,
         colorCode: c.colorCode
       })),
-      orderTypes
+      orderTypes,
+      paymodes
     } as MenuMasterData;
   },
 

@@ -52,20 +52,19 @@ export const fetchProviderById = async (id: number): Promise<ProviderDetail> => 
 
 
 export const uploadProviderImage = async (id: number, imageFile: File, oldPath: string = "string"): Promise<void> => {
-  const url = `${BASE}/provider-image`;
   const formData = new FormData();
   formData.append("ProviderId", String(id));
   formData.append("OldPath", oldPath || "string");
   formData.append("ProviderImage", imageFile);
 
-  await axiosInstance.post(url, formData, {
+  await axiosInstance.post("/provider/provider-image", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
   });
 };
 
-export const createProvider = async (payload: ProviderPayload): Promise<void> => {
+export const createProvider = async (payload: ProviderPayload): Promise<{id: number}> => {
   const { imageFile, ...jsonData } = payload;
   
   // Remove providerId for create request
@@ -79,12 +78,10 @@ export const createProvider = async (payload: ProviderPayload): Promise<void> =>
   );
 
   if (response?.id && imageFile) {
-    try {
-      await uploadProviderImage(response.id, imageFile);
-    } catch (error) {
-      console.error("Provider image upload failed:", error);
-    }
+    await uploadProviderImage(response.id, imageFile);
   }
+  
+  return response;
 };
 
 export const updateProvider = async (id: number, payload: ProviderPayload): Promise<void> => {

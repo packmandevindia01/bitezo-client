@@ -35,6 +35,7 @@ interface PosCartPanelProps {
   setIsMultiPayModalOpen: (open: boolean) => void;
   setIsCashModalOpen: (open: boolean) => void;
   setIsDeliveryChargeModalOpen: (open: boolean) => void;
+  tenderOptions: { id: string; label: string }[];
 }
 
 const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
@@ -67,7 +68,8 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   setSelectedTender,
   setIsMultiPayModalOpen,
   setIsCashModalOpen,
-  setIsDeliveryChargeModalOpen
+  setIsDeliveryChargeModalOpen,
+  tenderOptions
 }) => {
   return (
     <>
@@ -129,12 +131,14 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
             orderLoading={orderLoading}
             isSettledEdit={isSettledEdit}
             selectedTender={selectedTender}
-            onSelectTender={(tender) => {
-              setSelectedTender(tender);
+            tenderOptions={tenderOptions}
+            onSelectTender={(tenderId) => {
+              setSelectedTender(tenderId);
               if (total > 0) {
-                if (tender === 'multi') {
+                const modeName = tenderOptions.find(t => t.id === tenderId)?.label?.toLowerCase() || '';
+                if (modeName.includes('multi')) {
                   setIsMultiPayModalOpen(true);
-                } else if (tender === 'cash') {
+                } else if (modeName.includes('cash')) {
                   setIsCashModalOpen(true);
                 }
               }

@@ -5,7 +5,8 @@ import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { SearchableSelect } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
-import type { AltProductDraft, ProductMasterData, MasterItem } from "../types";
+import type { ProductMasterData, MasterItem } from "../types";
+import type { AltProductDraft } from "../schema/productSchema";
 
 interface AlternativePricingGridProps {
   alternatives: AltProductDraft[];
@@ -13,6 +14,9 @@ interface AlternativePricingGridProps {
   branches: MasterItem[];
   mainUnitId: string;
   mainBranchId: string;
+  baseBarcode?: string;
+  baseCode?: string;
+  baseName?: string;
   onAlternativesChange: (alternatives: AltProductDraft[]) => void;
 }
 
@@ -22,6 +26,9 @@ export const AlternativePricingGrid = ({
   branches,
   mainUnitId,
   mainBranchId,
+  baseBarcode,
+  baseCode,
+  baseName,
   onAlternativesChange,
 }: AlternativePricingGridProps) => {
   const { showToast } = useToast();
@@ -30,9 +37,19 @@ export const AlternativePricingGrid = ({
   const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const nextRowId = useRef(-1);
+  const isInitialMount = useRef(true);
   const TOTAL_COLS = 7;
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // If there are no alternatives, it's fine to focus the add button, but otherwise do not steal focus on tab switch.
+      if (alternatives.length === 0) {
+        addButtonRef.current?.focus();
+      }
+      return;
+    }
+
     if (alternatives.length === 0) {
       addButtonRef.current?.focus();
       return;
@@ -131,20 +148,42 @@ export const AlternativePricingGrid = ({
     onAlternativesChange(next);
   };
 
+  const generateNextBarcode = () => {
+    if (!baseBarcode) return "";
+    let maxSuffix = 0;
+    alternatives.forEach(alt => {
+      if (alt.barcode.startsWith(baseBarcode)) {
+        const suffixStr = alt.barcode.substring(baseBarcode.length);
+        const suffix = parseInt(suffixStr);
+        if (!isNaN(suffix) && suffix > maxSuffix && suffixStr === String(suffix)) {
+          maxSuffix = suffix;
+        }
+      }
+    });
+    return `${baseBarcode}${maxSuffix + 1}`;
+  };
+
   const addGridRow = () => {
+    if (!baseCode?.trim() || !baseName?.trim() || !baseBarcode?.trim()) {
+      showToast("Base Barcode, Product Code, and Product Name must be populated first.", "warning");
+      return;
+    }
+
     const nextRowIndex = alternatives.length;
-    const newRow: AltProductDraft = {
+    const newRow: any = {
       id: nextRowId.current,
-      branchId: branches[0]?.id || 0,
-      barcode: "",
+      branchId: String(branches[0]?.id || ""),
+      barcode: generateNextBarcode(),
       isIncl: true,
-      unitId: masterData?.unit?.[0]?.id || 0,
+      unitId: String(masterData?.unit?.[0]?.id || ""),
       price: "0",
       altName: "",
       altArabic: "",
     };
     nextRowId.current -= 1;
     onAlternativesChange([...alternatives, newRow]);
+    
+    // Always start focus from the first column (Branch) for a new row.
     setFocusPos({ r: nextRowIndex, c: 0 });
   };
 
@@ -160,34 +199,25 @@ export const AlternativePricingGrid = ({
     const isLastCol = c === TOTAL_COLS - 1;
 
     switch (e.key) {
-      case "ArrowUp":
-        if (e.currentTarget instanceof HTMLSelectElement) return;
-        e.preventDefault();
-        setFocusPos(p => ({ ...p, r: Math.max(0, r - 1) }));
-        break;
-      case "ArrowDown":
-        if (e.currentTarget instanceof HTMLSelectElement) return;
-        e.preventDefault();
-        if (isLastRow) addGridRow();
-        setFocusPos(p => ({ ...p, r: Math.min(alternatives.length, r + 1) }));
-        break;
-      case "ArrowLeft":
-        if (e.currentTarget instanceof HTMLInputElement && e.currentTarget.selectionStart !== 0) return;
-        setFocusPos(p => ({ ...p, c: Math.max(0, c - 1) }));
-        break;
-      case "ArrowRight":
-        if (e.currentTarget instanceof HTMLInputElement && e.currentTarget.selectionStart !== e.currentTarget.value.length) return;
-        setFocusPos(p => ({ ...p, c: Math.min(TOTAL_COLS - 1, c + 1) }));
-        break;
       case "Enter":
+        e.preventDefault();
         if (c === 3) {
-          e.preventDefault();
           handleGridChange(r, "isIncl", !alternatives[r].isIncl);
+          setFocusPos({ r, c: c + 1 });
           return;
         }
-        e.preventDefault();
-        if (isLastRow) addGridRow();
-        setFocusPos({ r: r + 1, c: 0 });
+        
+        if (isLastCol) {
+          if (isLastRow) {
+            addGridRow();
+          } else {
+            setFocusPos({ r: r + 1, c: 0 });
+          }
+        } else {
+          // If we are on Branch (c=0) and baseBarcode exists (auto-generation is ON), skip Barcode (c=1) and go to Unit (c=2).
+          const nextC = (c === 0 && baseBarcode) ? 2 : c + 1;
+          setFocusPos({ r, c: nextC });
+        }
         break;
       case "Tab":
         if (isLastCol && isLastRow && !e.shiftKey) {
@@ -231,18 +261,25 @@ export const AlternativePricingGrid = ({
                 </tr>
               ) : (
                 alternatives.map((alt, rIdx) => (
-                  <tr key={alt.id} className="group border-b border-gray-100 transition-colors hover:bg-gray-50/50">
+                  <tr key={alt.id ?? rIdx} className="group border-b border-gray-100 transition-colors hover:bg-gray-50/50">
                     <td className="p-0 border-r border-gray-100">
-                      <select
-                        ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-0`, el); }}
-                        value={alt.branchId}
+                      <div
                         onFocus={() => setFocusPos({ r: rIdx, c: 0 })}
-                        onKeyDown={(e) => handleKeyDown(e, rIdx, 0)}
-                        onChange={(e) => handleGridChange(rIdx, "branchId", parseInt(e.target.value))}
-                        className="h-8 w-full appearance-none border-none bg-transparent px-2 py-0 text-sm font-bold outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
+                        className="px-0.5 py-0"
                       >
-                        {branchOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                      </select>
+                        <SearchableSelect
+                          ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-0`, el); }}
+                          key={`branch-select-${rIdx}-${alt.id}`}
+                          id={`alt-branch-${rIdx}`}
+                          options={branchOptions}
+                          value={String(alt.branchId || "")}
+                          onChange={(value) => handleGridChange(rIdx, "branchId", value)}
+                          onKeyDown={(e) => handleKeyDown(e, rIdx, 0)}
+                          placeholder="Branch"
+                          clearable={false}
+                          className="h-8 w-full border-none !bg-transparent text-sm font-bold shadow-none focus-within:bg-white focus-within:ring-1 focus-within:ring-[#49293e]/10 [&>button]:!bg-transparent [&>button]:!border-none [&>button]:!shadow-none [&>button]:!ring-0 [&>button]:hover:!bg-transparent"
+                        />
+                      </div>
                     </td>
                     <td className="p-0 border-r border-gray-100">
                       <input
@@ -250,6 +287,11 @@ export const AlternativePricingGrid = ({
                         type="text"
                         value={alt.barcode}
                         onFocus={() => setFocusPos({ r: rIdx, c: 1 })}
+                        onBlur={(e) => {
+                          if (!e.target.value.trim() && baseBarcode) {
+                            handleGridChange(rIdx, "barcode", generateNextBarcode());
+                          }
+                        }}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 1)}
                         onChange={(e) => handleGridChange(rIdx, "barcode", e.target.value)}
                         className="h-8 w-full border-none bg-transparent px-2 py-0 font-mono text-sm font-bold text-[#49293e] outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10"
@@ -265,7 +307,8 @@ export const AlternativePricingGrid = ({
                           id={`alt-unit-${rIdx}`}
                           options={altUnitOptions}
                           value={String(alt.unitId || "")}
-                          onChange={(value) => handleGridChange(rIdx, "unitId", parseInt(value) || 0)}
+                          onChange={(value) => handleGridChange(rIdx, "unitId", value)}
+                          onKeyDown={(e) => handleKeyDown(e, rIdx, 2)}
                           placeholder="Unit"
                         />
                       </div>

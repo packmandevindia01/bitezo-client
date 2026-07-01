@@ -80,7 +80,7 @@ const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockIt
 const PosMorePage = lazy(() => import("../../features/pos/terminal/pages/PosMorePage"));
 const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages/DineInSelectionPage"));
 const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
-
+const SalesReportPage = lazy(() => import("../../features/reports/salesReport/pages/SalesReportPage"));
 
 
 const LoginRedirect = () => {
@@ -221,6 +221,8 @@ const AppRoutes = () => {
                   <Route path="happy-hour" element={<RoleGuard moduleName="Configuration"><HappyHourPage /></RoleGuard>} />
                   <Route path="happy-hour/new" element={<RoleGuard moduleName="Configuration"><HappyHourFormPage /></RoleGuard>} />
                   <Route path="happy-hour/edit/:id" element={<RoleGuard moduleName="Configuration"><HappyHourFormPage /></RoleGuard>} />
+                  
+                  <Route path="reports/sales" element={<RoleGuard moduleName="Sales Report"><SalesReportPage /></RoleGuard>} />
                 </Route>
 
               </Route>

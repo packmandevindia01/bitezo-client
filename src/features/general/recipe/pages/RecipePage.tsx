@@ -26,6 +26,8 @@ const RecipePage = () => {
     rawMaterials,
     branches,
     orderTypes,
+    finishedProductUnits,
+    rawMaterialUnits,
     handleFinishedProductSelect,
     handleRawMaterialSelect,
     handleAddItem,
@@ -126,14 +128,19 @@ const RecipePage = () => {
               readOnly={!canSave}
               tabIndex={2}
             />
-            <FormInput
+            <SearchableSelect
               id="rec-finUnit"
               label="Unit"
-              value={watch("finishedProductUnitName") || watch("finishedProductUnit")}
-              onChange={(e) => setValue("finishedProductUnitName", e.target.value)}
+              options={finishedProductUnits}
+              value={watch("finishedProductUnit") || ""}
+              onChange={(val) => {
+                setValue("finishedProductUnit", val);
+                const name = finishedProductUnits.find(u => u.value === val)?.label || val;
+                setValue("finishedProductUnitName", name);
+              }}
               required
-              disabled
-              className="bg-gray-50 cursor-not-allowed"
+              disabled={finishedProductUnits.length === 0 || !canSave}
+              placeholder={finishedProductUnits.length === 0 ? "Select product first" : "Select unit"}
               tabIndex={3}
             />
             <FormInput
@@ -150,15 +157,16 @@ const RecipePage = () => {
               readOnly={!canSave}
               tabIndex={4}
             />
-            <SelectInput
+            <SearchableSelect
               id="rec-branch"
               label="Branch"
               options={branches}
               value={watch("branchId")}
-              onChange={(e) => setValue("branchId", e.target.value)}
+              onChange={(val) => setValue("branchId", val)}
               required
               disabled={!canSave}
               tabIndex={5}
+              placeholder="Select branch"
             />
           </div>
 
@@ -183,16 +191,20 @@ const RecipePage = () => {
                 readOnly={!canAdd}
                 tabIndex={7}
               />
-              <FormInput
-                id="rec-unit"
-                label="Unit"
-                value={watch("unitName") || watch("unit") || ""}
-                onChange={(e) => setValue("unitName", e.target.value)}
-                onKeyDown={(e) => hk(e, "rec-qty")}
-                disabled
-                className="bg-gray-50 cursor-not-allowed"
-                tabIndex={8}
-              />
+              <SearchableSelect
+              id="rec-unit"
+              label="Unit"
+              options={rawMaterialUnits}
+              value={watch("unit") || ""}
+              onChange={(val) => {
+                setValue("unit", val);
+                const name = rawMaterialUnits.find(u => u.value === val)?.label || val;
+                setValue("unitName", name);
+              }}
+              disabled={rawMaterialUnits.length === 0 || !canAdd}
+              placeholder={rawMaterialUnits.length === 0 ? "Select material first" : "Select unit"}
+              tabIndex={8}
+            />
               <FormInput
                 id="rec-qty"
                 label="Qty"
@@ -233,11 +245,11 @@ const RecipePage = () => {
                 className="bg-gray-50/50 cursor-not-allowed"
                 tabIndex={-1}
               />
-              <div className="flex items-end pb-1">
+              <div className="flex items-end mb-1">
                 <Button
                   id="rec-add-btn"
                   onClick={handleAddItem}
-                  className="h-10.5 w-full px-6"
+                  className="h-10.5 w-full px-6 !bg-[#2a1723] !border-[#2a1723] hover:!bg-[#1c0f17]"
                   disabled={!canAdd}
                   icon={<Plus size={18} />}
                   tabIndex={11}

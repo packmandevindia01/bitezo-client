@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trash2, Save, RotateCcw, X } from "lucide-react";
-import { Button, FormInput, SelectInput } from "../../../../components/common";
+import { Button, FormInput } from "../../../../components/common";
+import SearchableSelect from "../../../../components/common/Searchableselect";
 import { unitCategoryOptions } from "../constants";
 import { unitService } from "../services/unitService";
 import type { UnitFormState, UnitDetail, UnitNameListItem } from "../types";
@@ -112,16 +113,15 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
       )}
 
       <section className="grid gap-x-4 gap-y-3 md:grid-cols-2">
-        <SelectInput
+        <SearchableSelect
           id="unit-category"
           label="Category"
           options={unitCategoryOptions}
           value={form.category}
-          onChange={(e) => {
-            handleChange("category", e.target.value);
-            handleChange("parentId", 0); // Reset parent on category change
+          onChange={(v) => {
+            handleChange("category", v);
+            handleChange("parentId", 0);
           }}
-          onKeyDown={(e) => handleKeyDown(e, "unit-name")}
           placeholder="Select category"
           required
           autoFocus
@@ -153,12 +153,15 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           required
         />
 
-        <SelectInput
+        <SearchableSelect
           id="unit-parent"
           label="Parent Unit"
-          options={selectOptions}
+          options={[
+            { label: loadingParents ? "Loading..." : "Select parent unit", value: "" },
+            ...selectOptions,
+          ]}
           value={form.parentId ? String(form.parentId) : ""}
-          onChange={(e) => handleChange("parentId", Number(e.target.value))}
+          onChange={(v) => handleChange("parentId", Number(v))}
           disabled={loadingParents}
           placeholder="Select parent unit"
           required

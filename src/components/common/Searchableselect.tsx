@@ -1,5 +1,5 @@
 import { ChevronDown, X } from "lucide-react";
-import { useEffect, useRef, useState, useLayoutEffect, useCallback } from "react";
+import { useEffect, useRef, useState, useLayoutEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
 import { handleFocusNextInput } from "../../utils/keyboard";
 
@@ -37,7 +37,7 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const SearchableSelect = ({
+const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
   id,
   label,
   options = [],
@@ -58,11 +58,14 @@ const SearchableSelect = ({
   minQueryLength = 0,
   forcePlacement,
   disableAutoOpenOnFocus = false,
-}: Props) => {
+}, ref) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  
+  useImperativeHandle(ref, () => triggerRef.current as HTMLDivElement);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -221,6 +224,9 @@ const SearchableSelect = ({
         e.stopPropagation();
         if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
           handleSelect(filtered[highlightedIndex].value);
+        } else if (filtered.length === 1) {
+          // If only one option, select it on Enter
+          handleSelect(filtered[0].value);
         }
         break;
       case "Escape":
@@ -467,6 +473,6 @@ const SearchableSelect = ({
       {/* Error is rendered inline in the label */}
     </div>
   );
-};
+});
 
 export default SearchableSelect;

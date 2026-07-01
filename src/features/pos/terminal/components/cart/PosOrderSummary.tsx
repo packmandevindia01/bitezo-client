@@ -18,9 +18,10 @@ interface PosOrderSummaryProps {
   isSettledEdit?: boolean;
   selectedTender: string;
   onSelectTender: (tender: string) => void;
+  tenderOptions: { id: string; label: string }[];
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
     <div className="shrink-0 p-2 lg:p-2.5 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2">
@@ -93,18 +94,18 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
 
       {/* Payment Methods */}
       <div className="grid grid-cols-5 gap-1.5">
-        {["cash", "card", "credit", "multi"].map((mode) => (
+        {(tenderOptions || []).map((mode) => (
           <button
-            key={mode}
-            onClick={() => onSelectTender(mode)}
+            key={mode.id}
+            onClick={() => onSelectTender(mode.id)}
             className={`
               h-9 lg:h-10 rounded-xl border-2 text-[9px] font-bold transition-all shadow-sm active:scale-95 uppercase
-              ${selectedTender === mode
+              ${selectedTender === mode.id
                 ? "border-pos-green bg-pos-green/10 text-pos-green-dark"
                 : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"}
             `}
           >
-            {mode}
+            {mode.label}
           </button>
         ))}
         <div className="h-9 lg:h-10 rounded-xl border-2 border-dashed border-slate-200" />

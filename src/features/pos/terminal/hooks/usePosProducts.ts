@@ -36,6 +36,7 @@ export const usePosProducts = () => {
 
   const { data: masterData, isLoading: groupsLoading, refetch: refreshMasterData } = usePosMasterData();
   const groups = masterData?.group ?? [];
+  const paymodes = masterData?.paymodes ?? [];
 
   const { data: categories = [], isLoading: catsLoading } = usePosCategories(activeGroupId, selectedOrderTypeId);
   
@@ -114,7 +115,7 @@ export const usePosProducts = () => {
     products,
     loading,
     error,
-    
+    paymodes,
     setGroup: (id: number) => dispatch(setGroup(id)),
     setCategory: (id: number) => dispatch(setCategory(id)),
     setSubCategory: (id: number | null) => dispatch(setSubCategory(id)),

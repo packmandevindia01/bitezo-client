@@ -1,17 +1,21 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBarcodeScanner } from "../../../pos/terminal/hooks/useBarcodeScanner";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
-import { PageShell } from "../../../../components/common";
+import { PageShell, SearchBar, Button } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
+import { Plus } from "lucide-react";
 import ProductListCard from "../components/ProductListCard";
-import { useProductManager } from "../hooks/useProductManager";
+import { useProductList } from "../hooks/useProductList";
 import type { ProductListItem } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ProductListPage = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const {
     products, 
@@ -19,12 +23,22 @@ const ProductListPage = () => {
     filteredProducts,
     listLoading,
     setSearch,
-    requestDelete,
-    pendingDelete,
-    deleting,
-    confirmDelete,
-    cancelDelete,
-  } = useProductManager();
+  } = useProductList();
+
+  const [pendingDelete, setPendingDelete] = useState<{ productId: number; name: string } | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => productService.delete(id),
+    onSuccess: () => {
+      showToast("Product deleted successfully", "success", "Success");
+      queryClient.invalidateQueries({ queryKey: ["productsList"] });
+      setPendingDelete(null);
+    },
+    onError: (error: any) => {
+      showToast(error.message || "Failed to delete product", "error", "Error");
+      setPendingDelete(null);
+    }
+  });
 
   const canAdd = hasPermission("Product Master", "Add");
   const canEdit = hasPermission("Product Master", "Edit");
@@ -69,14 +83,32 @@ const ProductListPage = () => {
 
   return (
     <PageShell title="Product Master">
+      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+        <div className="flex gap-4 items-end flex-1">
+          <div className="flex-1 max-w-sm">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Search products..."
+              autoFocus
+            />
+          </div>
+        </div>
+        {canAdd && (
+          <Button
+            onClick={() => navigate("/dashboard/products/add")}
+            icon={<Plus size={18} />}
+          >
+            Add Product
+          </Button>
+        )}
+      </div>
+
       <ProductListCard
         records={filteredProducts}
-        search={search}
         loading={listLoading}
-        onSearchChange={setSearch}
-        onAdd={canAdd ? () => navigate("/dashboard/products/add") : undefined}
         onEdit={canEdit ? (record: ProductListItem) => navigate(`/dashboard/products/edit/${record.productId}`) : undefined}
-        onDelete={canDelete ? requestDelete : undefined}
+        onDelete={canDelete ? (record: { productId: number; name: string }) => setPendingDelete(record) : undefined}
       />
 
       {/* ── Delete confirmation dialog ───────────────────────────────────── */}
@@ -89,9 +121,14 @@ const ProductListPage = () => {
             : ""
         }
         confirmLabel="Delete"
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
+        confirmVariant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (pendingDelete) {
+            deleteMutation.mutate(pendingDelete.productId);
+          }
+        }}
+        onCancel={() => setPendingDelete(null)}
       />
     </PageShell>
   );

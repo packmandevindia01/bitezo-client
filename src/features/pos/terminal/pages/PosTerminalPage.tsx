@@ -103,7 +103,7 @@ export const PosTerminalPage = () => {
 
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
-  const [selectedTender, setSelectedTender] = useState<string>("cash");
+  const [selectedTender, setSelectedTender] = useState<string>("");
   const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
   const [isSettledModalOpen, setIsSettledModalOpen] = useState(false);
   const [isSettledAuthOpen, setIsSettledAuthOpen] = useState(false);
@@ -140,6 +140,7 @@ export const PosTerminalPage = () => {
 
 
 
+  // Keep POS config loaded in background
   const {
     groups,
     categories,
@@ -184,7 +185,14 @@ export const PosTerminalPage = () => {
     addVoidModifier,
     getDirectSettleOrderPayload,
     refreshLockedProducts,
+    tenderOptions,
   } = usePosTerminal();
+
+  useEffect(() => {
+    if (tenderOptions.length > 0 && !selectedTender) {
+      setSelectedTender(tenderOptions[0].id);
+    }
+  }, [tenderOptions, selectedTender]);
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
   const { productCache } = useAppSelector((state) => state.pos);
@@ -593,7 +601,7 @@ export const PosTerminalPage = () => {
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const payments = [{ paymodeId: selectedTender === "card" ? 2 : 3, amount: total }];
+    const payments = [{ paymodeId: Number(selectedTender), amount: total }];
 
     if (defaultEmployeeEnabled) {
       if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
@@ -620,9 +628,11 @@ export const PosTerminalPage = () => {
     
     settleShouldPrintRef.current = shouldPrint;
     
-    if (selectedTender === "cash") {
+    const selectedMode = tenderOptions.find(t => t.id === selectedTender)?.label?.toLowerCase() || '';
+    
+    if (selectedMode.includes("cash")) {
       setIsCashModalOpen(true);
-    } else if (selectedTender === "multi") {
+    } else if (selectedMode.includes("multi")) {
       setIsMultiPayModalOpen(true);
     } else {
       // For Card or Credit, handle card/credit settlement (dummy flow)
@@ -1313,6 +1323,7 @@ export const PosTerminalPage = () => {
               setIsMultiPayModalOpen={setIsMultiPayModalOpen}
               setIsCashModalOpen={setIsCashModalOpen}
               setIsDeliveryChargeModalOpen={setIsDeliveryChargeModalOpen}
+              tenderOptions={tenderOptions}
             />
       </main>
 
@@ -1508,7 +1519,8 @@ export const PosTerminalPage = () => {
         totalDue={total}
         onSubmit={(_, changeAmount) => {
           setIsCashModalOpen(false);
-          handleCompleteSettlement([{ paymodeId: 1, amount: total }], changeAmount);
+          const cashPaymodeId = tenderOptions.find(t => t.label.toLowerCase().includes('cash'))?.id || tenderOptions[0]?.id;
+          handleCompleteSettlement([{ paymodeId: Number(cashPaymodeId), amount: total }], changeAmount);
         }}
         loading={orderLoading}
       />
@@ -1531,10 +1543,14 @@ export const PosTerminalPage = () => {
             setIsRecallModalOpen(false);
             setReturnToRecallOnCancel(false);
           }
-          const mappedPayments = payments.map(p => ({
-            paymodeId: p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3,
-            amount: p.amount
-          }));
+          const mappedPayments = payments.map(p => {
+            const matchedTender = tenderOptions.find(t => t.label.toLowerCase().includes(p.mode.toLowerCase()));
+            const id = matchedTender ? Number(matchedTender.id) : (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3);
+            return {
+              paymodeId: id,
+              amount: p.amount
+            };
+          });
           handleCompleteSettlement(mappedPayments, changeAmount);
         }}
         loading={orderLoading}

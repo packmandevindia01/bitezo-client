@@ -75,7 +75,7 @@ export const uploadCategoryImage = async (id: number, imageFile: File, oldPath: 
 
   await axiosInstance.post("/category/category-image", formData, {
     headers: {
-      "Content-Type": undefined,
+      "Content-Type": "multipart/form-data",
     },
   });
 };

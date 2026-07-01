@@ -7,20 +7,14 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 
 interface ProductListCardProps {
   records: ProductListItem[];
-  search: string;
   loading?: boolean;
-  onSearchChange: (value: string) => void;
-  onAdd?: () => void;
   onEdit?: (record: ProductListItem) => void;
   onDelete?: (record: ProductListItem) => void;
 }
 
 const ProductListCard = ({
   records,
-  search,
   loading = false,
-  onSearchChange,
-  onAdd,
   onEdit,
   onDelete,
 }: ProductListCardProps) => {
@@ -29,14 +23,9 @@ const ProductListCard = ({
   return (
     <RecordTableCard
       title="Saved Product List"
-      search={search}
-      onSearchChange={onSearchChange}
       data={records}
       loading={loading}
       rowKey="productId"
-      actionLabel={onAdd ? "+ Add Product" : undefined}
-      onAction={onAdd}
-      autoFocusSearch
       columns={[
         { header: "S No", accessor: "sNo" },
         { header: "Product Name", accessor: "name" },

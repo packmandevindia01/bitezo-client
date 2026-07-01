@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,10 @@ export const useRecipeForm = (initialTransId?: number) => {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  // Unit lists for Finished Product and Raw Material rows
+  const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string }[]>([]);
+  const [rawMaterialUnits, setRawMaterialUnits] = useState<{ label: string; value: string }[]>([]);
 
   // 1. Initialize React Hook Form
   const form = useForm<RecipeForm>({
@@ -161,6 +165,9 @@ export const useRecipeForm = (initialTransId?: number) => {
       const costData = await recipeApi.getProductCostData(prod.code);
       const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
       
+      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+      setFinishedProductUnits(unitOptions);
+
       setValue("finishedProductUnit", String(costData.baseUnitId));
       const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
       setValue("finishedProductUnitName", unitName);
@@ -180,6 +187,10 @@ export const useRecipeForm = (initialTransId?: number) => {
     try {
       const costData = await recipeApi.getProductCostData(prod.code);
       const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
+      
+      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+      setRawMaterialUnits(unitOptions);
+
       const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
 
       setValue("unit", String(costData.baseUnitId));
@@ -200,6 +211,7 @@ export const useRecipeForm = (initialTransId?: number) => {
     const q = Number(vals.qty) || 0;
     const c = Number(vals.cost) || 0;
     const prod = rawMaterials.find(p => p.value === vals.rawMaterial);
+    const resolvedUnitName = rawMaterialUnits.find(u => u.value === vals.unit)?.label || vals.unitName || vals.unit;
     
     append({
       id: Date.now(),
@@ -207,7 +219,7 @@ export const useRecipeForm = (initialTransId?: number) => {
       product: prod ? prod.label : vals.rawMaterial,
       code: vals.code || "",
       unitId: Number(vals.unit),
-      unit: vals.unitName || vals.unit,
+      unit: resolvedUnitName,
       qty: q,
       cost: c,
       amount: q * c,
@@ -222,6 +234,7 @@ export const useRecipeForm = (initialTransId?: number) => {
     setValue("qty", "0");
     setValue("cost", Number(0).toFixed(decimalPart));
     setValue("amount", Number(0).toFixed(decimalPart));
+    setRawMaterialUnits([]);
   };
 
   // React Query Mutation for Save
@@ -268,9 +281,7 @@ export const useRecipeForm = (initialTransId?: number) => {
         }
       });
 
-      if (payloadExcludeOrders.length > 0) {
-        payload.excludeOrders = payloadExcludeOrders;
-      }
+      payload.excludeOrders = payloadExcludeOrders;
 
       if (initialTransId) {
         payload.transId = initialTransId;
@@ -287,7 +298,19 @@ export const useRecipeForm = (initialTransId?: number) => {
       navigate("/dashboard/recipes");
     },
     onError: (err: any) => {
-      showToast(err.message || "Failed to save recipe", "error");
+      let errorMsg = "Failed to save recipe";
+      if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        const firstKey = Object.keys(errors)[0];
+        if (firstKey && errors[firstKey].length > 0) {
+          errorMsg = errors[firstKey][0];
+        }
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      showToast(errorMsg, "error");
     }
   });
 
@@ -315,6 +338,8 @@ export const useRecipeForm = (initialTransId?: number) => {
     rawMaterials,
     branches,
     orderTypes,
+    finishedProductUnits,
+    rawMaterialUnits,
     handleFinishedProductSelect,
     handleRawMaterialSelect,
     handleAddItem,

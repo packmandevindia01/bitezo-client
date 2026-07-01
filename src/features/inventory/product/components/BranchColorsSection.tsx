@@ -1,38 +1,36 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
-import type { MasterItem, ProductColorItem } from "../types";
+import type { UseFormReturn } from "react-hook-form";
+import type { ProductFormData } from "../schema/productSchema";
 
 interface BranchColorsSectionProps {
-  productColors: ProductColorItem[];
-  branches: MasterItem[];
-  onChange: (colors: ProductColorItem[]) => void;
-  disabled?: boolean;
+  form: UseFormReturn<ProductFormData>;
+  branchOptions: { label: string; value: string }[];
 }
 
 export const BranchColorsSection = ({
-  productColors,
-  branches,
-  onChange,
-  disabled = false,
+  form,
+  branchOptions,
 }: BranchColorsSectionProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { watch, setValue } = form;
+  const productColors = watch("productColors");
 
   const normalizeHexColor = (value?: string) => {
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value! : "#49293e";
   };
 
   // Filter out the "All" branch, then filter by search query
-  const validBranches = branches.filter(b => {
-    const isAll = b.name?.toLowerCase() === "all" || (b as any).branchName?.toLowerCase() === "all";
+  const validBranches = branchOptions.filter(b => {
+    const isAll = b.label?.toLowerCase() === "all";
     if (isAll) return false;
     
     if (!searchQuery.trim()) return true;
     
-    const name = (b.name || (b as any).branchName || "").toLowerCase();
-    return name.includes(searchQuery.toLowerCase().trim());
+    return b.label.toLowerCase().includes(searchQuery.toLowerCase().trim());
   });
 
-  const handleUpdateColor = (branchId: number, colorCode: string) => {
+  const handleUpdateColor = (branchId: string, colorCode: string) => {
     const next = [...productColors];
     const existingIndex = next.findIndex(pc => pc.branchId === branchId);
     
@@ -42,7 +40,7 @@ export const BranchColorsSection = ({
       next.push({ branchId, colorCode });
     }
     
-    onChange(next);
+    setValue("productColors", next, { shouldValidate: true });
   };
 
   return (
@@ -56,66 +54,51 @@ export const BranchColorsSection = ({
           placeholder="Search branches..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          disabled={disabled}
           className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-[#49293e]/50 focus:ring-1 focus:ring-[#49293e]/20 transition-all placeholder:text-gray-400 font-medium"
         />
       </div>
 
-      {validBranches.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 py-8">
-          <p className="text-xs font-medium text-gray-400">
-            {searchQuery ? "No branches match your search" : "No branches available"}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-2">
-          {validBranches.map((branch) => {
-            const existingColor = productColors.find(pc => pc.branchId === branch.id);
-            const colorValue = normalizeHexColor(existingColor?.colorCode);
-            
-            return (
-              <div 
-                key={branch.id} 
-                className="group relative flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:border-[#49293e]/20"
-              >
-                <div className="flex-1 min-w-0 border-b border-gray-50 pb-2">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5 block">
-                    Branch
-                  </label>
-                  <p className="w-full bg-transparent text-xs font-black text-gray-900 truncate">
-                    {branch.name || (branch as any).branchName || "Unknown"}
-                  </p>
-                </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {validBranches.map((branch) => {
+          const existingColor = productColors.find(pc => pc.branchId === branch.value);
+          const colorValue = normalizeHexColor(existingColor?.colorCode);
 
-                <div className="flex flex-col shrink-0 pt-1">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1 block">
-                    Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-gray-200 shadow-sm shrink-0">
-                      <input
-                        type="color"
-                        value={colorValue}
-                        onChange={(e) => handleUpdateColor(branch.id, e.target.value)}
-                        disabled={disabled}
-                        className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      value={colorValue}
-                      onChange={(e) => handleUpdateColor(branch.id, e.target.value)}
-                      disabled={disabled}
-                      className="flex-1 bg-gray-50 rounded-md px-2 py-1.5 text-[11px] font-mono font-bold text-gray-600 outline-none uppercase border border-gray-100 focus:border-[#49293e]/30"
-                      maxLength={7}
-                    />
-                  </div>
-                </div>
+          return (
+            <div 
+              key={branch.value} 
+              className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-sm transition-all"
+            >
+              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-[#49293e]/20 transition-all">
+                <input
+                  type="color"
+                  value={colorValue}
+                  onChange={(e) => handleUpdateColor(branch.value, e.target.value)}
+                  className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
+                />
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider truncate">
+                  {branch.label}
+                </span>
+                <input
+                  type="text"
+                  value={colorValue}
+                  onChange={(e) => handleUpdateColor(branch.value, e.target.value)}
+                  className="w-20 p-0 rounded-md border-none bg-transparent text-[10px] font-mono outline-none focus:ring-0 uppercase text-slate-500"
+                  placeholder="#000000"
+                  maxLength={7}
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        {validBranches.length === 0 && (
+          <div className="col-span-full py-8 text-center text-sm font-medium text-gray-500 bg-gray-50/50 rounded-xl border border-gray-100 border-dashed">
+            {searchQuery ? "No branches match your search." : "No branches available."}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -93,6 +93,7 @@ export interface ProductDetail {
     createdAt: string;
     updatedAt: string;
     colorCode: string | null;
+    oldPath?: string | null;
   } | null;
   altProducts: AltProductItem[] | null;
   productColors: ProductColorItem[] | null;
@@ -119,6 +120,7 @@ export interface CreateProductPayload {
   priceIsIncl: boolean;
   colorCode: string;
   createdAt: string;
+  oldPath?: string | null;
   altProducts: AltProductItem[];
   productColors: ProductColorItem[];
 }
@@ -128,35 +130,4 @@ export interface UpdateProductPayload extends Omit<CreateProductPayload, "create
   updatedAt: string;
 }
 
-// ─── UI / Form Shapes ─────────────────────────────────────────────────────────
-
-export interface ProductFormState {
-  code: string;
-  name: string;
-  arabicName: string;
-  categoryId: string; // IDs kept as strings for Select components
-  subCatId: string;
-  groupId: string;
-  typeId: string;
-  unitId: string;
-  pVatId: string;
-  sVatId: string;
-  cost: string;
-  price: string;
-  barcode: string;
-  branchId: string;
-  isActive: boolean;
-  priceIsIncl: boolean;
-  colorCode: string;
-  productColors: ProductColorItem[];
-  // File handling
-  fileName?: string;
-  filePath?: string;
-  imageFile?: File;
-}
-
-/** Internal UI state for alternative products */
-export interface AltProductDraft extends Omit<AltProductItem, "price"> {
-  id: number; // local ID for list tracking
-  price: string;
-}
+export type { ProductFormData, AltProductFormData, ProductColorFormData } from "./schema/productSchema";

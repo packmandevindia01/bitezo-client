@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,10 @@ export const useProductionForm = (initialTransId?: number) => {
   const { decimalPart } = useCurrency();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+
+  // Unit lists for Finished Product and Raw Material rows
+  const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string }[]>([]);
+  const [rawMaterialUnits, setRawMaterialUnits] = useState<{ label: string; value: string }[]>([]);
 
   // 1. Initialize React Hook Form
   const form = useForm<ProductionForm>({
@@ -99,6 +103,19 @@ export const useProductionForm = (initialTransId?: number) => {
     enabled: !!watchedBranchId && !isNaN(Number(watchedBranchId)),
   });
 
+  // Dependent Query: Production Number (requires branchId)
+  const { data: prodNoData } = useQuery({
+    queryKey: ["productionNumber", watchedBranchId],
+    queryFn: () => productionApi.getProductionNumber(Number(watchedBranchId)),
+    enabled: !!watchedBranchId && !isNaN(Number(watchedBranchId)) && !initialTransId,
+  });
+
+  useEffect(() => {
+    if (prodNoData?.productionNo && !initialTransId) {
+      setValue("productionNo", String(prodNoData.productionNo));
+    }
+  }, [prodNoData, initialTransId, setValue]);
+
   // Fetch initial data if in Edit Mode
   const { isLoading: isLoadingInitialData } = useQuery({
     queryKey: ["productionData", initialTransId],
@@ -152,7 +169,11 @@ export const useProductionForm = (initialTransId?: number) => {
     try {
       const costData = await productionApi.getProductCostData(prod.code);
       const unitsResp = await productionApi.getUnitListByName(costData.unitCategory);
-      
+
+      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+      setFinishedProductUnits(unitOptions);
+
+      // Default to baseUnitId
       setValue("finishedProductUnit", String(costData.baseUnitId));
       const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
       setValue("finishedProductUnitName", unitName);
@@ -176,6 +197,12 @@ export const useProductionForm = (initialTransId?: number) => {
 
     try {
       const costData = await productionApi.getProductCostData(prod.code);
+      const unitsResp = await productionApi.getUnitListByName(costData.unitCategory);
+
+      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+      setRawMaterialUnits(unitOptions);
+
+      // Default to baseUnitId
       setValue("unit", String(costData.baseUnitId));
       setValue("cost", Number(costData.cost).toFixed(decimalPart));
       setValue("qty", "1");
@@ -193,6 +220,7 @@ export const useProductionForm = (initialTransId?: number) => {
     const q = Number(vals.qty) || 0;
     const c = Number(vals.cost) || 0;
     const prod = rawMaterials.find(p => p.value === vals.product);
+    const unitName = rawMaterialUnits.find(u => u.value === vals.unit)?.label || vals.unit;
     
     append({
       id: Date.now(),
@@ -200,7 +228,7 @@ export const useProductionForm = (initialTransId?: number) => {
       product: prod ? prod.label : vals.product,
       code: vals.code || "",
       unitId: Number(vals.unit),
-      unit: vals.unit,
+      unit: unitName,
       qty: q,
       cost: c,
       amount: q * c
@@ -212,6 +240,7 @@ export const useProductionForm = (initialTransId?: number) => {
     setValue("unit", "");
     setValue("qty", "0");
     setValue("cost", Number(0).toFixed(decimalPart));
+    setRawMaterialUnits([]);
   };
 
   const [isBomLoading, setIsBomLoading] = useState(false);
@@ -342,8 +371,8 @@ export const useProductionForm = (initialTransId?: number) => {
     rawMaterials,
     branches,
     employees,
-    finishedProductUnits: [],
-    rawMaterialUnits: [],
+    finishedProductUnits,
+    rawMaterialUnits,
     handleFinishedProductSelect,
     handleRawMaterialSelect,
     handleAddItem,

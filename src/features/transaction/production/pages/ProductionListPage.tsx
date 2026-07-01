@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AlertCircle, Search, Trash2, Pencil, Plus } from "lucide-react";
+import { AlertCircle, Trash2, Pencil, Plus } from "lucide-react";
 import { Button, PageShell, RecordTableCard, ConfirmDialog, SelectInput, SearchableSelect } from "../../../../components/common";
 import { useProductionList } from "../hooks/useProductionList";
 import { productionApi } from "../services/productionApi";
@@ -20,7 +20,6 @@ const ProductionListPage = () => {
     branches,
     products,
     handleFilterChange,
-    fetchList,
   } = useProductionList();
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -55,38 +54,38 @@ const ProductionListPage = () => {
         </div>
       )}
 
-      {/* Filter Section */}
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
-          <SelectInput 
-            id="filter-branch"
-            label="Branch" 
-            placeholder="All Branches"
-            options={branches} 
-            value={filters.branchId} 
-            onChange={(e) => handleFilterChange("branchId", e.target.value)} 
-          />
-          <SearchableSelect 
-            id="filter-product"
-            label="Product" 
-            options={products}
-            value={filters.productId} 
-            onChange={(val) => handleFilterChange("productId", val)} 
-          />
-          <div className="flex items-end pb-1">
-            <Button onClick={() => fetchList()} isAction icon={<Search size={18} />}>
-              Search
-            </Button>
+      {/* Standard Filter Header */}
+      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+        <div className="flex gap-4 items-end flex-1 flex-wrap">
+          <div className="w-48">
+            <SelectInput 
+              id="filter-branch"
+              label="Branch" 
+              placeholder="All Branches"
+              options={branches} 
+              value={filters.branchId} 
+              onChange={(e) => handleFilterChange("branchId", e.target.value)} 
+            />
+          </div>
+          <div className="flex-1 max-w-sm">
+            <SearchableSelect 
+              id="filter-product"
+              label="Product" 
+              placeholder="All Products"
+              options={products}
+              value={filters.productId} 
+              onChange={(val) => handleFilterChange("productId", val)} 
+            />
           </div>
         </div>
+        <Button onClick={() => navigate("/dashboard/production")} icon={<Plus size={18} />}>
+          Add New
+        </Button>
       </div>
 
       <div className="overflow-x-auto">
         <RecordTableCard<any>
           title="Production Records"
-          actionLabel="New Production"
-          actionIcon={<Plus size={18} />}
-          onAction={() => navigate("/dashboard/production")}
           data={records}
           rowKey="transId"
           loading={loading || deleteMutation.isPending}

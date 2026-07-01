@@ -48,7 +48,11 @@ const Sidebar = ({ onClose, onDenominationOpen }: Props) => {
           itemClassName={itemClassName}
         />
 
-        <NavReportGroup onClose={onClose} />
+        <NavReportGroup 
+          navigate={navigate}
+          onClose={onClose}
+          itemClassName={itemClassName}
+        />
 
         <NavSettingsGroup
           navigate={navigate}

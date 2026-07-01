@@ -1,14 +1,18 @@
 import { usePosProducts } from "./usePosProducts";
 import { usePosCartActions } from "./usePosCartActions";
-import { POS_TENDER_OPTIONS } from "../../constants";
 
 export const usePosTerminal = () => {
   const products = usePosProducts();
   const cart = usePosCartActions();
 
+  const tenderOptions = products.paymodes?.map(p => ({
+    id: String(p.paymodeId),
+    label: p.paymodeName
+  })) || [];
+
   return {
     ...products,
     ...cart,
-    tenderOptions: POS_TENDER_OPTIONS,
+    tenderOptions,
   };
 };

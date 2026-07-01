@@ -83,38 +83,59 @@ export const fetchSupplierById = async (id: number) => {
 
 export const createSupplier = async (payload: SupplierPayload) => {
   const { name, ...rest } = payload;
-  const { data } = await axiosInstance.post<ApiResponse<{ id?: number }>>("/supplier", {
-    ...rest,
-    supplierName: name,
-    createdAt: new Date().toISOString(),
-  });
-  if (!data.isSuccess) {
-    throw new Error(data.message || "Failed to create supplier");
+  try {
+    const { data } = await axiosInstance.post<ApiResponse<{ id?: number }>>("/supplier", {
+      ...rest,
+      supplierName: name,
+      createdAt: new Date().toISOString(),
+    });
+    if (!data.isSuccess) {
+      throw new Error(data.message || "Failed to create supplier");
+    }
+    return data;
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw error;
   }
-  return data;
 };
 
 export const updateSupplier = async (id: number, payload: SupplierPayload) => {
   const { name, ...rest } = payload;
-  const { data } = await axiosInstance.put<ApiResponse<{ id?: number }>>(`/supplier/${id}`, {
-    ...rest,
-    supplierId: id,
-    supplierName: name,
-    updatedAt: new Date().toISOString(),
-  });
-  if (!data.isSuccess) {
-    throw new Error(data.message || "Failed to update supplier");
+  try {
+    const { data } = await axiosInstance.put<ApiResponse<{ id?: number }>>(`/supplier/${id}`, {
+      ...rest,
+      supplierId: id,
+      supplierName: name,
+      updatedAt: new Date().toISOString(),
+    });
+    if (!data.isSuccess) {
+      throw new Error(data.message || "Failed to update supplier");
+    }
+    return data;
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw error;
   }
-  return data;
 };
 
 export const deleteSupplier = async (id: number) => {
   console.log("Attempting to delete supplier with ID:", id);
   const url = `/supplier/${id}`;
   console.log("Delete URL:", url);
-  const { data } = await axiosInstance.delete<ApiResponse<{ id?: number }>>(url);
-  if (!data.isSuccess) {
-    throw new Error(data.message || "Failed to delete supplier");
+  try {
+    const { data } = await axiosInstance.delete<ApiResponse<{ id?: number }>>(url);
+    if (!data.isSuccess) {
+      throw new Error(data.message || "Failed to delete supplier");
+    }
+    return data;
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw error;
   }
-  return data;
 };

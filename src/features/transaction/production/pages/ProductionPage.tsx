@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Save, Trash2, RotateCcw, PackagePlus, Loader2 } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
+import { Button, FormInput, PageShell, SearchableSelect } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useProductionForm } from "../hooks/useProductionForm";
 import { useParams } from "react-router-dom";
@@ -22,6 +22,8 @@ const ProductionPage = () => {
     rawMaterials,
     branches,
     employees,
+    finishedProductUnits,
+    rawMaterialUnits,
     handleFinishedProductSelect,
     handleRawMaterialSelect,
     handleAddItem,
@@ -53,7 +55,7 @@ const ProductionPage = () => {
     if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
   };
 
-  useEffect(() => { setTimeout(() => { document.getElementById("prod-finProduct")?.focus(); }, 200); }, []);
+  useEffect(() => { setTimeout(() => { document.getElementById("prod-branch")?.focus(); }, 200); }, []);
 
   if (isLoadingInitialData) {
     return (
@@ -72,15 +74,45 @@ const ProductionPage = () => {
         <div className="flex-1 overflow-y-auto p-3 md:p-4">
         
         <div className="mb-2 grid gap-x-3 gap-y-2 md:grid-cols-3 lg:grid-cols-5 border-b border-gray-100 pb-2">
-          <SelectInput id="prod-branch" label="Branch" options={branches} value={watch("branchId")} onChange={(e) => setValue("branchId", e.target.value)} required />
-          <SelectInput id="prod-employee" label="Employee" options={employees} value={watch("employeeId")} onChange={(e) => setValue("employeeId", e.target.value)} required />
-          <FormInput id="prod-no" label="Production No" value={watch("productionNo") || ""} disabled className="bg-gray-50 cursor-not-allowed font-mono text-gray-600" />
+          <SearchableSelect
+            id="prod-branch"
+            label="Branch"
+            required
+            options={branches}
+            value={watch("branchId")}
+            onChange={(val) => setValue("branchId", val)}
+            placeholder="Select branch"
+          />
+          <SearchableSelect
+            id="prod-employee"
+            label="Employee"
+            required
+            options={employees}
+            value={watch("employeeId")}
+            onChange={(val) => setValue("employeeId", val)}
+            placeholder={!watch("branchId") ? "Select branch first" : "Select employee"}
+            disabled={!watch("branchId")}
+          />
+          <FormInput id="prod-no" label="Production No" value={watch("productionNo") || ""} disabled inputClassName="bg-gray-50 cursor-not-allowed font-mono text-gray-600" />
         </div>
 
         <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 lg:grid-cols-4">
           <SearchableSelect id="prod-finProduct" label="Finished Product" options={finishedProducts} value={watch("finishedProduct")} onChange={(val) => handleFinishedProductSelect(val)} required />
           <FormInput id="prod-finCode" label="Product Code" value={watch("finishedProductCode") || ""} onChange={(e) => setValue("finishedProductCode", e.target.value)} onKeyDown={(e) => { hk(e, "prod-finUnit"); }} required />
-          <FormInput id="prod-finUnit" label="Unit" value={watch("finishedProductUnitName") || watch("finishedProductUnit")} onChange={(e) => setValue("finishedProductUnitName", e.target.value)} disabled className="cursor-not-allowed bg-gray-50" required />
+          <SearchableSelect
+            id="prod-finUnit"
+            label="Unit"
+            required
+            options={finishedProductUnits}
+            value={watch("finishedProductUnit") || ""}
+            onChange={(val) => {
+              setValue("finishedProductUnit", val);
+              const name = finishedProductUnits.find(u => u.value === val)?.label || val;
+              setValue("finishedProductUnitName", name);
+            }}
+            placeholder={finishedProductUnits.length === 0 ? "Select product first" : "Select unit"}
+            disabled={finishedProductUnits.length === 0}
+          />
           <FormInput id="prod-finQty" label="Output Qty" value={watch("finishedProductQty")} inputClassName="text-right" onChange={(e) => setValue("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "prod-product")} required />
         </div>
 
@@ -88,7 +120,15 @@ const ProductionPage = () => {
           <div className="grid gap-x-2 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
             <SearchableSelect id="prod-product" label="Raw Material / Ingredient" options={rawMaterials} value={watch("product") || ""} onChange={(val) => handleRawMaterialSelect(val)} />
             <FormInput id="prod-code" label="Code" value={watch("code") || ""} onChange={(e) => setValue("code", e.target.value)} onKeyDown={(e) => hk(e, "prod-unit")} />
-            <FormInput id="prod-unit" label="Unit" value={watch("unit") || ""} disabled className="cursor-not-allowed bg-gray-50" />
+            <SearchableSelect
+              id="prod-unit"
+              label="Unit"
+              options={rawMaterialUnits}
+              value={watch("unit") || ""}
+              onChange={(val) => setValue("unit", val)}
+              placeholder={rawMaterialUnits.length === 0 ? "Select material first" : "Select unit"}
+              disabled={rawMaterialUnits.length === 0}
+            />
             <FormInput id="prod-qty" label="Qty" value={watch("qty") || ""} inputClassName="text-right" onChange={(e) => setValue("qty", e.target.value)} onKeyDown={(e) => hk(e, "prod-cost")} />
             <FormInput id="prod-cost" label="Cost" type="number" step={step} value={watch("cost") || ""} inputClassName="text-right" onChange={(e) => setValue("cost", e.target.value)} onBlur={(e) => handleMoneyBlur("cost", e.target.value)} onKeyDown={(e) => hk(e, "prod-add-btn")} />
             <div className="flex items-end pb-1">

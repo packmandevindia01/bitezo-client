@@ -177,10 +177,16 @@ export interface MenuSubCategory {
   imageUrl: string | null;
 }
 
+export interface PosPaymode {
+  paymodeId: number;
+  paymodeName: string;
+}
+
 export interface MenuMasterData {
   group: MenuGroup[];
   category: PosCategory[];
   orderTypes: PosOrderType[];
+  paymodes: PosPaymode[];
 }
 
 export interface PosAlternative {

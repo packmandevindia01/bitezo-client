@@ -5,8 +5,8 @@ import {
   FormInput,
   ImageUploadPanel,
   Modal,
-  SelectInput,
 } from "../../../../components/common";
+import SearchableSelect from "../../../../components/common/Searchableselect";
 
 interface SubCategoryFormState {
   code: string;
@@ -102,14 +102,14 @@ const SubCategoryModal = ({
               error={errors.arabicName}
             />
 
-            <SelectInput
+            <SearchableSelect
               id="subcat-category"
               label="Category"
               required
               options={categoryOptions.map(opt => ({ label: opt.label, value: String(opt.value) }))}
               value={String(form.categoryId)}
-              onChange={(e) => onChange({ categoryId: Number(e.target.value) })}
-              placeholder="Choose category"
+              onChange={(v) => onChange({ categoryId: Number(v) })}
+              placeholder="Select category"
               error={errors.categoryId}
             />
 

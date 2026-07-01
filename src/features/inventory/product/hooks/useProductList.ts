@@ -1,25 +1,16 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { productService } from "../services/productService";
-import type { ProductListItem } from "../types";
 
 export const useProductList = () => {
-  const [products, setProducts] = useState<ProductListItem[]>([]);
-  const [listLoading, setListLoading] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const fetchProducts = useCallback(async () => {
-    setListLoading(true);
-    setListError(null);
-    try {
-      const data = await productService.list();
-      setProducts(data);
-    } catch (err) {
-      setListError(err instanceof Error ? err.message : "Failed to load products.");
-    } finally {
-      setListLoading(false);
-    }
-  }, []);
+  const { data: products = [], isLoading: listLoading, error, refetch: fetchProducts } = useQuery({
+    queryKey: ["productsList"],
+    queryFn: () => productService.list(),
+  });
+
+  const listError = error ? (error instanceof Error ? error.message : "Failed to load products.") : null;
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();

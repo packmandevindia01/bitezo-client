@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { Ban, RotateCcw, Save, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Save, Trash2, Ban, X } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
-import { useProductManager } from "../hooks/useProductManager";
+import { useProductForm } from "../hooks/useProductForm";
 import { useBarcodeScanner } from '../../../pos/terminal/hooks/useBarcodeScanner';
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
@@ -12,51 +12,22 @@ const ProductFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  
   const {
-    products,
     form,
-    editingId,
-    saving,
-    detailLoading,
-    imagePreview,
-    alternatives,
     masterData,
     branches,
     subCategories,
-    loadingSubs,
-    setField,
-    setAlternatives,
-    resetForm,
-    handleSave,
-    handleDeactivate,
-    handleImageSelect,
-    handleEditById,
-    pendingDelete,
-    requestDelete,
-    cancelDelete,
-    confirmDelete,
-    deleting,
-    errors,
-  } = useProductManager();
+    isLoading,
+    isSaving,
+    isDeleting,
+    imagePreview,
+    setImageFile,
+    saveMutation,
+    deleteMutation
+  } = useProductForm(id ? parseInt(id) : undefined);
 
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-
-  const handleClearClick = () => {
-    if (form.name || form.code || (form.cost !== "0" && form.cost !== "0.00") || (alternatives && alternatives.length > 0)) {
-      setShowClearConfirm(true);
-    } else {
-      resetForm();
-    }
-  };
-
-  useEffect(() => {
-    if (id) {
-      handleEditById(parseInt(id));
-    } else {
-      resetForm();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  const [pendingDelete, setPendingDelete] = useState(false);
 
   // ─── Scan to Edit Logic (Multipage) ──────────────────────────────────────
 
@@ -66,18 +37,7 @@ const ProductFormPage = () => {
 
     showToast(`Quick Switch: ${code}...`, "info");
 
-    // 1. Local Lookup
-    const localMatch = (products || []).find((p: any) => 
-      typeof p.code === "string" && p.code.toLowerCase() === code.toLowerCase()
-    );
-    
-    if (localMatch) {
-      showToast(`Switched to: ${localMatch.name}`, "success");
-      navigate(`/dashboard/products/edit/${localMatch.productId}`);
-      return;
-    }
-
-    // 2. Server Lookup (Specialized search)
+    // Server Lookup (Specialized search)
     try {
       const detail = await productService.getByCode(code);
       const productArr = Array.isArray(detail.product) ? detail.product : detail.product ? [detail.product] : [];
@@ -87,155 +47,129 @@ const ProductFormPage = () => {
         showToast(`Switched to: ${item.name}`, "success");
         navigate(`/dashboard/products/edit/${item.productId}`);
       } else {
-        // If not found on server, and we are in "Add" mode or want to change current code, fill the field
-        setField("code", code);
+        form.setValue("code", code, { shouldValidate: true });
         showToast(`New code detected: ${code}`, "info");
       }
     } catch {
-      // If error (like 404), treat as new code
-      setField("code", code);
+      form.setValue("code", code, { shouldValidate: true });
       showToast(`New code detected: ${code}`, "info");
     }
   };
 
   useBarcodeScanner(handleScan);
 
-  const [showPriceWarning, setShowPriceWarning] = useState(false);
-
-  const onSave = () => {
-    const hasGeneralPrice = parseFloat(String(form.price || "0")) > 0;
-    const hasAlternatives = alternatives && alternatives.length > 0;
-
-    if (hasGeneralPrice && hasAlternatives) {
-      setShowPriceWarning(true);
-    } else {
-      handleSave(() => navigate("/dashboard/products"));
-    }
-  };
-
-  const handleConfirmSaveWithWarning = () => {
-    setShowPriceWarning(false);
-    handleSave(() => navigate("/dashboard/products"));
-  };
-
   return (
     <PageShell title={id ? "Edit Product" : "Add Product"}>
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col relative" style={{ height: "calc(100vh - 120px)" }}>
+        
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard/products")}
+          className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
+          title="Close"
+        >
+          <X size={20} />
+        </button>
+
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className={detailLoading ? "pointer-events-none opacity-50 relative" : "relative"}>
-            {detailLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
-                 <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#49293e] border-t-transparent" />
-              </div>
-            )}
-            
-            <ProductMasterForm
-              form={form}
-              saving={saving}
-              imagePreview={imagePreview}
-              alternatives={alternatives}
-              masterData={masterData}
-              branches={branches}
-              subCategories={subCategories}
-              loadingSubs={loadingSubs}
-              onChange={setField}
-              onAlternativesChange={setAlternatives}
-              onClear={resetForm}
-              onSave={onSave}
-              onDeactivate={handleDeactivate}
-              onBackToList={() => navigate("/dashboard/products")}
-              onImageSelect={handleImageSelect}
-              onDelete={() => {
-                if (editingId) {
-                  requestDelete({ productId: editingId, name: form.name });
-                }
-              }}
-              errors={errors}
-            />
-          </div>
+        <div className="flex-1 p-6 h-[calc(100vh-140px)] overflow-hidden flex flex-col">
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#49293e]" />
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <ProductMasterForm
+                form={form}
+                imagePreview={imagePreview}
+                masterData={masterData || { unit: [], group: [], category: [], vat: [], type: [] }}
+                branches={branches}
+                subCategories={subCategories}
+                onImageSelect={setImageFile}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Sticky Action Footer */}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-2xl">
-          {Boolean(editingId) && (
+        {/* Fixed Footer */}
+        <div className="shrink-0 flex items-center justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              form.reset();
+              setImageFile(null);
+            }}
+            disabled={isSaving || isDeleting || isLoading}
+            icon={<Ban size={18} />}
+          >
+            Clear
+          </Button>
+          
+          {id && (
             <Button
-              variant="danger"
-              disabled={saving}
-              onClick={() => { if (editingId) requestDelete({ productId: editingId, name: form.name }); }}
               type="button"
-              isAction
+              variant="danger"
+              onClick={() => setPendingDelete(true)}
+              disabled={isSaving || isDeleting || isLoading}
+              loading={isDeleting}
               icon={<Trash2 size={18} />}
             >
               Delete
             </Button>
           )}
-          <Button 
-            variant="secondary" 
-            onClick={handleClearClick} 
-            type="button" 
-            disabled={saving} 
-            tabIndex={-1}
-            isAction
-            icon={<RotateCcw size={18} />}
-          >
-            Clear
-          </Button>
-          <Button 
-            onClick={onSave} 
-            type="button" 
-            disabled={saving}
-            isAction
-            loading={saving}
+
+          <Button
+            type="button"
+            variant="primary"
+            onClick={form.handleSubmit(
+              (data) => {
+                saveMutation.mutate(data, {
+                  onSuccess: () => navigate("/dashboard/products")
+                });
+              },
+              (errors) => {
+                // Show the first validation error in a toast
+                const getFirstError = (obj: any, path: string = ""): string => {
+                  for (const key in obj) {
+                    const currentPath = path ? `${path}.${key}` : key;
+                    if (obj[key]?.message) return `[${currentPath}] ${obj[key].message}`;
+                    if (typeof obj[key] === "object") {
+                      const msg = getFirstError(obj[key], currentPath);
+                      if (msg) return msg;
+                    }
+                  }
+                  return "Please check the form for validation errors.";
+                };
+                showToast(getFirstError(errors), "error");
+              }
+            )}
+            disabled={isSaving || isDeleting || isLoading}
+            loading={isSaving}
             icon={<Save size={18} />}
           >
-            Save
-          </Button>
-          <Button
-            variant="secondary"
-            className="text-red-600 border-red-100 hover:bg-red-50"
-            disabled={!Boolean(editingId) || saving}
-            onClick={handleDeactivate}
-            type="button"
-            isAction
-            icon={<Ban size={18} />}
-          >
-            Deactivate
+            Save Product
           </Button>
         </div>
       </div>
 
       <ConfirmDialog
-        isOpen={Boolean(pendingDelete)}
-        onCancel={cancelDelete}
-        onConfirm={async () => {
-          await confirmDelete();
-          navigate("/dashboard/products");
-        }}
-        loading={deleting}
+        isOpen={pendingDelete}
+        title="Delete Product"
         message="Are you sure you want to delete this product? This action cannot be undone."
-      />
-
-      <ConfirmDialog
-        isOpen={showClearConfirm}
-        onCancel={() => setShowClearConfirm(false)}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={isDeleting}
         onConfirm={() => {
-          resetForm();
-          setShowClearConfirm(false);
+          if (id) {
+           const handleGoBack = () => navigate("/dashboard/products");
+            deleteMutation.mutate(Number(id), {
+              onSuccess: () => handleGoBack()
+            });
+          }
         }}
-        title="Clear Form"
-        message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear"
-      />
-
-      <ConfirmDialog
-        isOpen={showPriceWarning}
-        onCancel={() => setShowPriceWarning(false)}
-        onConfirm={handleConfirmSaveWithWarning}
-        title="Pricing Conflict"
-        message="⚠️ Alternatives Found: Alternative prices will take priority. The General Price will be ignored in POS. Proceed?"
-        confirmLabel="Save Anyway"
-        confirmVariant="primary"
+        onCancel={() => setPendingDelete(false)}
       />
     </PageShell>
   );

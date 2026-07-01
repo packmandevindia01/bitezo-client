@@ -217,6 +217,7 @@ This is a POS system used with keyboard. Input behavior must be consistent acros
 - Apply `text-right` Tailwind class to the inner input element via `inputClassName`.
 - **CRITICAL**: Only the text *inside* the input box is right-aligned. The **Label** must always remain **left-aligned** for visual consistency in form grids.
 - Never left-align a numeric/money value — it is confusing for cashiers reading values.
+- **Hide Spinners**: All `<input type="number">` fields across the application MUST hide the browser's default up/down arrows (spinners). This is handled globally via CSS in `index.css`, so avoid adding inline styles or classes like `[&::-webkit-inner-spin-button]:appearance-none` manually to components.
 
 ```tsx
 <FormInput
@@ -274,14 +275,22 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 - **High-Frequency Input State**: Never store real-time keystroke state (e.g., numeric keypad input) in a high-level parent component like a Page. Always localize `inputValue` state inside the Modal or localized component, and only pass the final value up via an `onSubmit` callback. This prevents massive UI re-renders on every keystroke.
 - **Safe Component Memoization**: When wrapping a component in `React.memo()` (like `PosProductGrid`), never pass inline functions or raw `useCallback` functions from the parent if they depend on rapidly changing state (like a shopping cart). This causes either broken memoization or "Stale Closures". Always use the `useEvent` hook (Latest Ref Pattern) to stabilize the callback reference while ensuring it has access to the absolute latest state.
 
-### 6. Master Data Pages (Backoffice) — List + Form Pattern
+### 6. Master Data Pages (Backoffice) — Uniform Header Pattern
 - Every master data page (Category, Product, Customer, Supplier, etc.) follows this pattern:
   1. `PageShell` as the outer wrapper
-  2. `SearchBar` + Add button in the header
+  2. A dedicated uniform header section (`<div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">`) containing a `SearchBar` on the left and the "+ Add" `Button` on the far right. Do NOT pass search or add actions into the `RecordTableCard` props.
   3. `RecordTableCard` for the data list
-  4. `Modal` + form for Add/Edit (not a separate page)
+  4. `Modal` + form for Add/Edit (unless it's a complex multi-tab form like Product Master)
   5. `ConfirmDialog` for delete confirmation
-
+- **Layout Pattern**:
+  ```tsx
+  <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+    <div className="flex gap-4 items-end flex-1">
+      <div className="flex-1 max-w-sm"><SearchBar ... /></div>
+    </div>
+    <Button icon={<Plus size={18} />}>+ Add Record</Button>
+  </div>
+  ```
 ### 6a. Transaction List Pages (Vouchers, Invoices, Returns) — Filter Header Pattern
 - Transaction list pages that include date filters (`From Date`, `To Date`) MUST organize their search and filter controls in a dedicated header section ABOVE the `RecordTableCard`, rather than putting them inside the card's `extraActions` or `search` props.
 - The layout must use a `flex` container that aligns the date inputs, search bar, and branch selector (if applicable) in a row on desktop, and wraps on mobile.

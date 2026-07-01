@@ -1,4 +1,4 @@
-import type { ProductFormState, AltProductDraft } from "./types";
+import type { ProductFormData, AltProductDraft } from "./schema/productSchema";
 
 export const productTypeOptions = [
   { label: "Standard", value: "1" },
@@ -6,7 +6,7 @@ export const productTypeOptions = [
   { label: "Add On", value: "3" },
 ];
 
-export const emptyForm: ProductFormState = {
+export const emptyForm: ProductFormData = {
   code: "",
   name: "",
   arabicName: "",
@@ -20,21 +20,21 @@ export const emptyForm: ProductFormState = {
   cost: "0",
   price: "0",
   barcode: "",
-  branchId: "",
   isActive: true,
   priceIsIncl: true,
   colorCode: "#49293e",
+  altProducts: [],
   productColors: [],
 };
 
 export const emptyAltDraft: Omit<AltProductDraft, "id"> = {
-  unitId: 0,
+  unitId: "",
   barcode: "",
   isIncl: true,
   price: "0",
   altName: "",
   altArabic: "",
-  branchId: 0,
+  branchId: "",
 };
 
 /** Mock data for UI development if API is offline */

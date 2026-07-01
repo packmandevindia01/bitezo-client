@@ -1,41 +1,19 @@
-import { useEffect, useState } from "react";
+import React from "react";
 import { Button, Checkbox, FormInput, SearchableSelect } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
-import { isRequired } from "../../../../lib/validators";
+import { useSupplierForm } from "../hooks/useSupplierForm";
 import type { Supplier, SupplierPayload } from "../types";
-import axiosInstance from "../../../../api/axiosInstance";
-import type { ApiResponse } from "../../../inventory/product/types";
-
-interface Branch {
-  branchId: number;
-  branchName: string;
-}
+import { getDecimalPart } from "../../../../utils/currency";
 
 interface Props {
   initialData?: Supplier | null;
-  onSubmit: (data: SupplierPayload) => void | Promise<void>;
+  onSubmit?: (data: SupplierPayload) => void | Promise<void>;
   onCancel?: () => void;
   submitting?: boolean;
   onDelete?: () => void | Promise<void>;
   deleting?: boolean;
   onClear?: () => void;
 }
-
-const createInitialForm = (initialData?: Supplier | null): SupplierPayload => ({
-  code: initialData?.code ?? "",
-  name: initialData?.name ?? "",
-  arabicName: initialData?.arabicName ?? "",
-  mobileNo: initialData?.mobileNo ?? "",
-  telNo: initialData?.telNo ?? "",
-  email: initialData?.email ?? "",
-  address: initialData?.address ?? "",
-  area: initialData?.area ?? "",
-  identityNo: initialData?.identityNo ?? "",
-  trnNo: initialData?.trnNo ?? "",
-  branchId: initialData?.branchId ?? 0,
-  openingBalance: initialData?.openingBalance ?? 0,
-  isActive: initialData?.isActive ?? true,
-});
 
 const SupplierForm = ({
   initialData,
@@ -45,125 +23,71 @@ const SupplierForm = ({
   deleting = false,
   onClear,
 }: Props) => {
-  const [form, setForm] = useState<SupplierPayload>(() => createInitialForm(initialData));
-  const [errors, setErrors] = useState<Partial<Record<keyof SupplierPayload, string>>>({});
-  
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [branchesLoading, setBranchesLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    errors,
+    branches,
+    branchesLoading,
+    isSubmitting,
+    isDeleting,
+    handleClear,
+  } = useSupplierForm({
+    initialData,
+    onSubmitOverride: onSubmit,
+    onClear,
+  });
 
-  useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        setBranchesLoading(true);
-        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/true/list-name");
-        setBranches(data.data ?? []);
-      } catch {
-        setBranches([]);
-      } finally {
-        setBranchesLoading(false);
-      }
-    };
-    fetchBranches();
-  }, []);
-
-  const handleChange = <K extends keyof SupplierPayload>(key: K, value: SupplierPayload[K]) => {
-    setForm((prev) => {
-      let val = value;
-      // Enforce uppercase and no spaces for code
-      if (key === "code" && typeof val === "string") {
-        val = val.toUpperCase().replace(/\s/g, "") as SupplierPayload[K];
-      }
-      return { ...prev, [key]: val };
-    });
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
-
-  const handleClear = () => {
-    setForm(createInitialForm(null));
-    setErrors({});
-    if (onClear) onClear();
-  };
-
-  const validate = () => {
-    const newErrors: typeof errors = {};
-
-    if (!isRequired(form.code)) newErrors.code = "Code is required";
-    if (!isRequired(form.name)) newErrors.name = "Name is required";
-    if (!form.branchId || form.branchId <= 0) newErrors.branchId = "Branch is required";
-    
-    // Optional basic email validation
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-    
-    const payload: SupplierPayload = {
-      ...form,
-      name: form.name.trim(),
-      code: form.code.trim(),
-      branchId: Number(form.branchId),
-      openingBalance: Number(form.openingBalance) || 0,
-    };
-
-    await onSubmit(payload);
-  };
+  const watchBranchId = watch("branchId");
+  const watchIsActive = watch("isActive");
+  const watchOpeningBalance = watch("openingBalance");
 
   return (
-    <form className="flex flex-col w-full min-h-[55vh]" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+    <form className="flex flex-col w-full min-h-[55vh]" onSubmit={handleSubmit}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 pb-16">
         <FormInput
           tabIndex={1}
           label="Supplier Code"
           required
           autoFocus
-          value={form.code}
-          onChange={(e) => handleChange("code", e.target.value)}
-          error={errors.code}
+          {...register("code")}
+          error={errors.code?.message}
         />
         
         <FormInput
           tabIndex={2}
           label="Supplier Name"
           required
-          value={form.name}
-          onChange={(e) => handleChange("name", e.target.value)}
-          error={errors.name}
+          {...register("name")}
+          error={errors.name?.message}
         />
 
         <FormInput
           tabIndex={3}
           label="Arabic Name"
-          value={form.arabicName}
-          onChange={(e) => handleChange("arabicName", e.target.value)}
+          {...register("arabicName")}
         />
 
         <FormInput
           tabIndex={4}
           label="Mobile No"
-          value={form.mobileNo}
-          onChange={(e) => handleChange("mobileNo", e.target.value)}
+          {...register("mobileNo")}
         />
 
         <FormInput
           tabIndex={5}
           label="Tel No"
-          value={form.telNo}
-          onChange={(e) => handleChange("telNo", e.target.value)}
+          {...register("telNo")}
         />
 
         <FormInput
           tabIndex={6}
           label="Email"
           type="email"
-          value={form.email}
-          onChange={(e) => handleChange("email", e.target.value)}
-          error={errors.email}
+          {...register("email")}
+          error={errors.email?.message}
         />
 
         <div className="flex flex-col gap-1 w-full relative md:col-span-3">
@@ -172,8 +96,7 @@ const SupplierForm = ({
           </label>
           <textarea
             tabIndex={7}
-            value={form.address}
-            onChange={(e) => handleChange("address", e.target.value)}
+            {...register("address")}
             className="w-full text-sm rounded-md border border-gray-300 bg-white px-4 py-2 outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-none h-10.5"
             placeholder="Enter full address"
           />
@@ -182,32 +105,29 @@ const SupplierForm = ({
         <FormInput
           tabIndex={8}
           label="Area"
-          value={form.area}
-          onChange={(e) => handleChange("area", e.target.value)}
+          {...register("area")}
         />
 
         <FormInput
           tabIndex={9}
           label="Identity No"
-          value={form.identityNo}
-          onChange={(e) => handleChange("identityNo", e.target.value)}
+          {...register("identityNo")}
         />
 
         <FormInput
           tabIndex={10}
           label="TRN No"
-          value={form.trnNo}
-          onChange={(e) => handleChange("trnNo", e.target.value)}
+          {...register("trnNo")}
         />
 
         <SearchableSelect
           tabIndex={11}
           label="Branch"
           required
-          value={form.branchId ? String(form.branchId) : ""}
-          onChange={(val) => handleChange("branchId", Number(val))}
+          value={watchBranchId ? String(watchBranchId) : ""}
+          onChange={(val) => setValue("branchId", Number(val), { shouldValidate: true })}
           disabled={branchesLoading}
-          error={errors.branchId}
+          error={errors.branchId?.message}
           options={branches.map((b) => ({
             label: b.branchName,
             value: String(b.branchId),
@@ -219,19 +139,19 @@ const SupplierForm = ({
           tabIndex={12}
           label="Opening Balance"
           type="number"
-          step="0.001"
+          step={Math.pow(10, -getDecimalPart()).toString()}
           inputClassName="text-right"
-          value={form.openingBalance === 0 && !form.openingBalance.toString().includes('.') ? "" : form.openingBalance}
-          onChange={(e) => handleChange("openingBalance", e.target.value === "" ? 0 : parseFloat(e.target.value))}
-          placeholder="0.000"
+          {...register("openingBalance")}
+          error={errors.openingBalance?.message}
+          placeholder={(0).toFixed(getDecimalPart())}
         />
 
         <div className="flex items-center h-10.5 mt-[18px]">
           <Checkbox
             tabIndex={13}
             label="Active"
-            checked={form.isActive}
-            onChange={(e) => handleChange("isActive", e.target.checked)}
+            checked={watchIsActive}
+            onChange={(e) => setValue("isActive", e.target.checked, { shouldValidate: true })}
           />
         </div>
       </div>
@@ -250,7 +170,7 @@ const SupplierForm = ({
 
         <Button 
           type="submit"
-          loading={submitting}
+          loading={submitting || isSubmitting}
           isAction
           tabIndex={14}
           icon={<Save size={18} />}
@@ -263,7 +183,7 @@ const SupplierForm = ({
             type="button"
             variant="danger" 
             onClick={onDelete} 
-            loading={deleting} 
+            loading={deleting || isDeleting} 
             tabIndex={-1}
             isAction
             icon={<Trash2 size={18} />}
