@@ -66,7 +66,7 @@ export const purchaseInvoiceApi = {
     return response.data.data;
   },
 
-  searchProductsByName: async (productName: string) => {
+  searchProductsByName: async (branchId: number, productName: string) => {
     const response = await axiosInstance.get<{
       data: {
         productId: number;
@@ -77,7 +77,7 @@ export const purchaseInvoiceApi = {
       isSuccess: boolean;
       message: string;
     }>("/purchase-invoice/product-list-name", {
-      params: { productName }
+      params: { branchId, productName }
     });
 
     if (!response.data.isSuccess) {
@@ -114,6 +114,7 @@ export const purchaseInvoiceApi = {
         vatId: number;
         vatName: string;
         vatValue: number;
+        unitCategory: string;
       };
       isSuccess: boolean;
       message: string;
@@ -200,5 +201,21 @@ export const purchaseInvoiceApi = {
     }>(`/purchase-invoice/cancel/${purchaseId}`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data;
+  },
+
+  getUnitsByCategory: async (unitCategory: string) => {
+    const response = await axiosInstance.get<{
+      data: {
+        unitId: number;
+        name: string;
+        currentValue: number;
+      }[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-invoice/unit-list-name", {
+      params: { unitCategory }
+    });
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
   },
 };

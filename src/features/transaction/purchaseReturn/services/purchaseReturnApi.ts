@@ -25,6 +25,10 @@ export interface PurchaseReturnMasterData {
     paymodeId: number;
     paymodeName: string;
   }[];
+  units?: {
+    label: string;
+    value: string;
+  }[];
 }
 
 export const purchaseReturnApi = {
@@ -62,7 +66,7 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
-  searchProductsByName: async (productName: string) => {
+  searchProductsByName: async (branchId: number, productName: string) => {
     const response = await axiosInstance.get<{
       data: {
         productId: number;
@@ -73,7 +77,7 @@ export const purchaseReturnApi = {
       isSuccess: boolean;
       message: string;
     }>("/purchase-return-invoice/product-list-name", {
-      params: { productName }
+      params: { branchId, productName }
     });
 
     if (!response.data.isSuccess) {
@@ -110,6 +114,7 @@ export const purchaseReturnApi = {
         vatId: number;
         vatName: string;
         vatValue: number;
+        unitCategory: string;
       };
       isSuccess: boolean;
       message: string;
@@ -196,6 +201,22 @@ export const purchaseReturnApi = {
     }>(`/purchase-return-invoice/cancel/${purchaseReturnId}`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data;
+  },
+
+  getUnitsByCategory: async (unitCategory: string) => {
+    const response = await axiosInstance.get<{
+      data: {
+        unitId: number;
+        name: string;
+        currentValue: number;
+      }[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-return-invoice/unit-list-name", {
+      params: { unitCategory }
+    });
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
   },
 
   searchPurchaseInvoices: async (branchId: number, supplierId: number, invoiceNo: string = "") => {

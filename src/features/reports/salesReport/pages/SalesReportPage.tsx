@@ -17,7 +17,7 @@ const SalesReportPage = () => {
 
   const customerOptions = useMemo(() => [
     { label: "All Customers", value: "0" },
-    ...masterData.customers.map(c => ({ label: c.customerName, value: String(c.customerId) }))
+    ...masterData.customers.map((c: any) => ({ label: c.customerName, value: String(c.customerId) }))
   ], [masterData.customers]);
 
   const paymodeOptions = useMemo(() => [
@@ -133,8 +133,8 @@ const SalesReportPage = () => {
           
           <div className="flex-1 min-w-[200px]">
             <SearchBar 
-              searchTerm={filters.searchTerm}
-              onSearch={filters.setSearchTerm}
+              value={filters.searchTerm}
+              onChange={filters.setSearchTerm}
               placeholder="Search invoice, customer..."
             />
           </div>

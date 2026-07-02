@@ -46,9 +46,24 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   // Product Search State
   const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
+  const [searchingSuppliers, setSearchingSuppliers] = useState(false);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+
+  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
+    if (!unitCategory) return;
+    setCategoryUnits(prev => {
+      if (prev[unitCategory]) return prev;
+      purchaseInvoiceApi.getUnitsByCategory(unitCategory).then(res => {
+        setCategoryUnits(current => ({
+          ...current,
+          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId) }))
+        }));
+      }).catch(console.error);
+      return prev;
+    });
+  }, []);
 
   const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
-  const [searchingSuppliers, setSearchingSuppliers] = useState(false);
 
   const initialForm = useMemo(() => {
     const empty = createEmptyPurchaseInvoiceForm();
@@ -95,6 +110,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const watchedPayments = useWatch({ control, name: "payments" }) || [];
   const watchedGlobalDiscPercent = useWatch({ control, name: "globalDiscPercent" });
   const watchedSeries = useWatch({ control, name: "series" });
+  const watchedBranch = useWatch({ control, name: "branch" });
   
   // Calculate totals
   const grossTotal = useMemo(() => {
@@ -150,13 +166,14 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     }
   }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount]);
 
-  // Fetch all products on mount to allow local combobox search by name and code
+  // Fetch products by branch to allow local combobox search by name and code
   useEffect(() => {
+    if (!watchedBranch) return;
     setSearchingProducts(true);
-    productService.list()
+    purchaseInvoiceApi.searchProductsByName(Number(watchedBranch), "")
       .then(results => {
         const mapped = results.map((r) => ({
-          label: r.code ? `[${r.code}] ${r.name}` : r.name,
+          label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
           value: r.productId.toString(),
           code: r.code || "",
           barcode: r.barcode || "",
@@ -171,7 +188,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       })
       .catch(e => console.error("Failed to load products", e))
       .finally(() => setSearchingProducts(false));
-  }, []);
+  }, [watchedBranch]);
 
   const handleSupplierSearch = useCallback(async (query: string) => {
     setSearchingSuppliers(true);
@@ -194,10 +211,15 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     if (!barcode) return;
     try {
       const details = await purchaseInvoiceApi.getProductCostData(barcode);
+      setValue(`items.${index}.unitCategory`, details.unitCategory || "");
       setValue(`items.${index}.unit`, details.baseUnitId.toString());
       setValue(`items.${index}.price`, formatAmount(details.cost));
       setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
       setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+      
+      if (details.unitCategory) {
+        loadCategoryUnits(details.unitCategory);
+      }
     } catch (error) {
       console.error("Failed to load product details", error);
     }
@@ -213,10 +235,15 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         });
         setValue(`items.${index}.product`, String(details.productId));
         setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unitCategory`, details.unitCategory || "");
         setValue(`items.${index}.unit`, details.baseUnitId.toString());
         setValue(`items.${index}.price`, formatAmount(details.cost));
         setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
         setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+        
+        if (details.unitCategory) {
+          loadCategoryUnits(details.unitCategory);
+        }
         return true;
       }
     } catch (e) {
@@ -566,6 +593,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       methods.setValue("supplier", String(id), { shouldValidate: true });
     }, [methods]),
     handleProductSelect,
+    categoryUnits,
     saving,
   };
 };

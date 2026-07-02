@@ -102,7 +102,7 @@ const SearchableCombobox = ({
   }, [query, onSearch, minQueryLength]);
 
   useEffect(() => {
-    setHighlightedIndex(filtered.length > 0 && query.trim().length > 0 ? 0 : -1);
+    setHighlightedIndex(-1);
   }, [filtered.length, query]);
 
   useEffect(() => {
@@ -203,10 +203,19 @@ const SearchableCombobox = ({
         setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
         break;
       case "Enter":
-        if (open && highlightedIndex >= 0 && highlightedIndex < filtered.length) {
-          e.preventDefault();
-          e.stopPropagation();
-          handleSelect(filtered[highlightedIndex].value);
+        if (open) {
+          if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSelect(filtered[highlightedIndex].value);
+          } else if (query.trim()) {
+            const exactMatch = options.find(o => o.label.toLowerCase() === query.trim().toLowerCase());
+            if (exactMatch) {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSelect(exactMatch.value);
+            }
+          }
         }
         break;
       case "Escape":

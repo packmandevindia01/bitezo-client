@@ -47,7 +47,6 @@ const PurchaseInvoiceFormPage = () => {
     masterError,
     productOptions,
     searchingProducts,
-    handleProductSearch,
     handleBarcodeScan,
     supplierOptions,
     searchingSuppliers,
@@ -57,6 +56,7 @@ const PurchaseInvoiceFormPage = () => {
     saving,
     grossTotal,
     watchedDiscAmount,
+    categoryUnits,
   } = usePurchaseInvoice(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -371,7 +371,7 @@ const PurchaseInvoiceFormPage = () => {
                                 <SearchableSelect
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={masterData?.units || []}
+                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
                                   onChange={(val) => selectField.onChange(val)}
                                   disabled={!canSave}
                                   placeholder="Unit"

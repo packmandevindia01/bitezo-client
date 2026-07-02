@@ -132,7 +132,6 @@ export const exportSalesReportExcel = (
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
   const headerStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "49293E" } } };
-  const numStyle = { numFmt: "#,##0.000" }; // Adjust for 3 decimals based on typical POS settings
 
   for (let c = 0; c < salesHeaders.length; c++) {
     const cellRef = XLSX.utils.encode_cell({ r: 3, c });

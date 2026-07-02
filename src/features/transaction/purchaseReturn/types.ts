@@ -5,6 +5,7 @@ export const purchaseReturnItemSchema = z.object({
   product: z.string().min(1, "Product is required"),
   code: z.string().optional(),
   unit: z.string().optional(),
+  unitCategory: z.string().optional(),
   qty: z.string().refine(val => Number(val) > 0, "Qty > 0").default("1"),
   foc: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
   price: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),

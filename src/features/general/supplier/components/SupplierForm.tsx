@@ -1,4 +1,3 @@
-import React from "react";
 import { Button, Checkbox, FormInput, SearchableSelect } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { useSupplierForm } from "../hooks/useSupplierForm";
@@ -42,7 +41,7 @@ const SupplierForm = ({
 
   const watchBranchId = watch("branchId");
   const watchIsActive = watch("isActive");
-  const watchOpeningBalance = watch("openingBalance");
+
 
   return (
     <form className="flex flex-col w-full min-h-[55vh]" onSubmit={handleSubmit}>

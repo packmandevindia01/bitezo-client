@@ -42,7 +42,6 @@ const PurchaseReturnFormPage = () => {
     multiPayId,
     productOptions,
     searchingProducts,
-    handleProductSearch,
     handleBarcodeScan,
     supplierOptions,
     searchingSuppliers,
@@ -54,10 +53,12 @@ const PurchaseReturnFormPage = () => {
     handleProductSelect,
     saving,
     selectedPaymodeId,
+    setSelectedPaymodeId,
     handleSinglePayment,
     purchaseId,
     grossTotal,
     watchedDiscAmount,
+    categoryUnits,
   } = usePurchaseReturn(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -367,7 +368,7 @@ const PurchaseReturnFormPage = () => {
                                 <SearchableSelect
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={(masterData as any)?.units || []}
+                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : ((masterData as any)?.units || [])}
                                   onChange={(val) => selectField.onChange(val)}
                                   disabled={!canSave || purchaseId > 0}
                                   placeholder="Unit"

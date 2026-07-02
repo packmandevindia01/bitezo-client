@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Save, Ban, Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SelectInput, Checkbox, Modal } from "../../../../components/common";
+import { Button, FormInput, PageShell, SearchableSelect, Checkbox, Modal } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";

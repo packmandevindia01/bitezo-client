@@ -54,12 +54,26 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   // Search States
   const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
-
   const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
   const [searchingSuppliers, setSearchingSuppliers] = useState(false);
+  const [searchingInvoices, setSearchingInvoices] = useState(false);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+
+  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
+    if (!unitCategory) return;
+    setCategoryUnits(prev => {
+      if (prev[unitCategory]) return prev;
+      purchaseReturnApi.getUnitsByCategory(unitCategory).then(res => {
+        setCategoryUnits(current => ({
+          ...current,
+          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId) }))
+        }));
+      }).catch(console.error);
+      return prev;
+    });
+  }, []);
 
   const [invoiceOptions, setInvoiceOptions] = useState<{label: string, value: string}[]>([]);
-  const [searchingInvoices, setSearchingInvoices] = useState(false);
 
   const initialForm = useMemo(() => {
     const empty = createEmptyPurchaseReturnForm();
@@ -370,13 +384,14 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   }, [invoiceId]);
 
-  // Fetch all products on mount to allow local combobox search by name and code
+  // Fetch products by branch to allow local combobox search by name and code
   useEffect(() => {
+    if (!watchedBranch) return;
     setSearchingProducts(true);
-    productService.list()
+    purchaseReturnApi.searchProductsByName(Number(watchedBranch), "")
       .then(results => {
         const mapped = results.map((r) => ({
-          label: r.code ? `[${r.code}] ${r.name}` : r.name,
+          label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
           value: r.productId.toString(),
           code: r.code || "",
           barcode: r.barcode || "",
@@ -391,7 +406,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       })
       .catch(e => console.error("Failed to load products", e))
       .finally(() => setSearchingProducts(false));
-  }, []);
+  }, [watchedBranch]);
 
   const handleSupplierSearch = useCallback(async (query: string) => {
     setSearchingSuppliers(true);
@@ -501,12 +516,16 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     try {
       const details = await purchaseReturnApi.getProductCostData(opt.barcode);
       const currentQty = getValues(`items.${index}.qty`);
+      setValue(`items.${index}.unitCategory`, details.unitCategory || "");
       setValue(`items.${index}.unit`, details.baseUnitId.toString());
       setValue(`items.${index}.price`, formatAmount(details.cost));
       setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
       setValue(`items.${index}.vatPercent`, details.vatValue.toString());
       if (currentQty === "0" || currentQty === "") {
          setValue(`items.${index}.qty`, "1");
+      }
+      if (details.unitCategory) {
+        loadCategoryUnits(details.unitCategory);
       }
     } catch (error) {
       console.error("Failed to load product details", error);
@@ -523,6 +542,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         });
         setValue(`items.${index}.product`, String(details.productId));
         setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unitCategory`, details.unitCategory || "");
         setValue(`items.${index}.unit`, details.baseUnitId.toString());
         setValue(`items.${index}.price`, formatAmount(details.cost));
         setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
@@ -531,13 +551,16 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         if (currentQty === "0" || currentQty === "") {
            setValue(`items.${index}.qty`, "1");
         }
+        if (details.unitCategory) {
+          loadCategoryUnits(details.unitCategory);
+        }
         return true;
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
     }
     return false;
-  }, [setValue, getValues]);
+  }, [setValue, getValues, loadCategoryUnits]);
 
   const handleReset = () => {
     reset(initialForm);
@@ -667,6 +690,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     items,
     append,
     remove,
+    setPayments,
+    categoryUnits,
     watchedItems,
     payments: watchedPayments,
     watchedDiscAmount,
@@ -694,6 +719,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
+    handleSupplierCreated: useCallback((id: number, name: string) => {
+      setSupplierOptions(prev => [...prev, { label: name, value: String(id) }]);
+      methods.setValue("supplier", String(id), { shouldValidate: true });
+    }, [methods]),
     invoiceOptions,
     searchingInvoices,
     handleInvoiceSearch,

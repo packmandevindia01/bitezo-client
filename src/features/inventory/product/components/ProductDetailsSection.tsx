@@ -287,14 +287,14 @@ export const ProductDetailsSection = ({
       <QuickAddGroupModal
         isOpen={groupModalOpen}
         onClose={() => setGroupModalOpen(false)}
-        onCreated={(id, name) => {
+        onCreated={(id) => {
           setValue("groupId", id, { shouldValidate: true });
         }}
       />
       <QuickAddCategoryModal
         isOpen={categoryModalOpen}
         onClose={() => setCategoryModalOpen(false)}
-        onCreated={(id, name) => {
+        onCreated={(id) => {
           setValue("categoryId", id, { shouldValidate: true });
           setValue("subCatId", "");
         }}
@@ -304,14 +304,14 @@ export const ProductDetailsSection = ({
         onClose={() => setSubCatModalOpen(false)}
         preselectedCategoryId={watch("categoryId")}
         categoryOptions={categoryOptions}
-        onCreated={(id, name) => {
+        onCreated={(id) => {
           setValue("subCatId", id, { shouldValidate: true });
         }}
       />
       <QuickAddUnitModal
         isOpen={unitModalOpen}
         onClose={() => setUnitModalOpen(false)}
-        onCreated={(id, name) => {
+        onCreated={(id) => {
           setValue("unitId", id, { shouldValidate: true });
         }}
       />

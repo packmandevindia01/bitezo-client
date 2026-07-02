@@ -9,8 +9,8 @@ import { useToast } from "../../../../app/providers/useToast";
 const schema = z.object({
   name: z.string().min(1, "Unit name is required").trim(),
   category: z.string().min(1, "Category is required"),
-  conversion: z.coerce.number().min(0.000001, "Conversion must be greater than 0"),
-  parentId: z.coerce.number(),
+  conversion: z.union([z.string(), z.number()]),
+  parentId: z.union([z.string(), z.number()]),
   currentValue: z.number(),
 });
 
@@ -58,9 +58,9 @@ export const useQuickAddUnit = (
       unitService.create({
         name: data.name,
         category: data.category,
-        conversion: data.conversion,
+        conversion: Number(data.conversion),
         currentValue: data.currentValue,
-        parentId: data.parentId,
+        parentId: Number(data.parentId),
         createdAt: new Date().toISOString(),
       }),
     onSuccess: (res, variables) => {
