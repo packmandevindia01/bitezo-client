@@ -57,7 +57,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
   const [searchingSuppliers, setSearchingSuppliers] = useState(false);
   const [searchingInvoices, setSearchingInvoices] = useState(false);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
@@ -66,7 +66,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       purchaseReturnApi.getUnitsByCategory(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId) }))
+          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId), currentValue: u.currentValue ?? 1 }))
         }));
       }).catch(console.error);
       return prev;
@@ -532,6 +532,21 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
+  // When user changes unit on a line — fetch updated cost for that product+unit combination
+  const handleUnitChange = useCallback(async (index: number, unitId: string) => {
+    setValue(`items.${index}.unit`, unitId);
+    const productId = methods.getValues(`items.${index}.product`);
+    if (!productId || !unitId) return;
+    try {
+      const result = await purchaseReturnApi.getUnitCost(Number(productId), Number(unitId));
+      if (result.cost !== undefined && result.cost !== null) {
+        setValue(`items.${index}.price`, formatAmount(result.cost));
+      }
+    } catch (error) {
+      console.error("Failed to fetch unit cost", error);
+    }
+  }, [methods, setValue, formatAmount]);
+
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
       const details = await purchaseReturnApi.getProductCostData(barcode).catch(() => null);
@@ -632,6 +647,14 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         createdAt: new Date().toISOString(),
         details: validItems.map((item: any) => {
           const l = calculateLine(item as PurchaseReturnLineItem, decimalPart, grossTotal, toNumber(data.discAmount));
+          // Find the unit's currentValue from loaded categoryUnits
+          const unitCurrentValue = (() => {
+            for (const units of Object.values(categoryUnits)) {
+              const found = units.find(u => u.value === item.unit);
+              if (found) return found.currentValue;
+            }
+            return 1; // default to 1 (base unit)
+          })();
           return {
             productId: parseInt(item.product) || 0,
             unitId: parseInt(item.unit) || 0,
@@ -643,7 +666,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
             discAmount: l.discountAmount,
             vatAmount: l.vatAmount,
             netAmount: l.netAmount,
-            baseQty: toNumber(item.qty) + toNumber(item.foc),
+            baseQty: toNumber(item.qty) * unitCurrentValue,
           };
         }),
         paymodes: (() => {
@@ -728,6 +751,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     handleInvoiceSearch,
     handleInvoiceSelect,
     handleProductSelect,
+    handleUnitChange,
     saving,
     purchaseId,
   };

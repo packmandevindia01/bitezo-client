@@ -53,6 +53,7 @@ const PurchaseInvoiceFormPage = () => {
     handleSupplierSearch,
     handleSupplierCreated,
     handleProductSelect,
+    handleUnitChange,
     saving,
     grossTotal,
     watchedDiscAmount,
@@ -372,7 +373,7 @@ const PurchaseInvoiceFormPage = () => {
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
-                                  onChange={(val) => selectField.onChange(val)}
+                                  onChange={(val) => handleUnitChange(index, val)}
                                   disabled={!canSave}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}

@@ -1,17 +1,22 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSalesReport, getBranchList, getPaymodeList, getCustomerList, getSeriesList } from "../services/salesReportApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
-import type { BranchOption, PaymodeOption, CustomerOption } from "../types";
+import type { BranchOption, PaymodeOption, SupplierOption } from "../types";
+import {
+  getPurchaseReport,
+  getBranchList,
+  getPaymodeList,
+  getSupplierList,
+  getSeriesList,
+} from "../services/purchaseReportApi";
 
-export const useSalesReport = () => {
+export const usePurchaseReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
 
   // Filter states
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
-    // Default to start of current month as is common for reports
     return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
   });
   const [toDate, setToDate] = useState<string>(() => {
@@ -25,7 +30,7 @@ export const useSalesReport = () => {
       : localStorage.getItem("activeBranchId");
     return activeBranchId || "1";
   });
-  const [customerId, setCustomerId] = useState<string>("0");
+  const [supplierId, setSupplierId] = useState<string>("0");
   const [paymodeId, setPaymodeId] = useState<string>("0");
   const [seriesId, setSeriesId] = useState<string>("0");
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,40 +46,40 @@ export const useSalesReport = () => {
     queryFn: getPaymodeList,
   });
 
-  const { data: customers = [] as CustomerOption[], isLoading: customersLoading } = useQuery({
-    queryKey: ["customerList", "all"],
-    queryFn: getCustomerList,
+  const { data: suppliers = [] as SupplierOption[], isLoading: suppliersLoading } = useQuery({
+    queryKey: ["supplierList", "all"],
+    queryFn: getSupplierList,
   });
 
   const { data: seriesList = [] as any[], isLoading: seriesLoading } = useQuery({
-    queryKey: ["seriesList", branchId],
+    queryKey: ["seriesList", "purchase", branchId],
     queryFn: () => getSeriesList(Number(branchId)),
     enabled: !!branchId,
   });
 
   // Report query
   const { data: reportData, isLoading: reportLoading, isFetching, refetch } = useQuery({
-    queryKey: ["salesReport", { fromDate, toDate, branchId, customerId, paymodeId, seriesId, decimalPart }],
+    queryKey: ["purchaseReport", { fromDate, toDate, branchId, supplierId, paymodeId, seriesId, decimalPart }],
     queryFn: () =>
-      getSalesReport({
+      getPurchaseReport({
         BranchId: Number(branchId),
         SeriesId: Number(seriesId),
         FromDate: fromDate,
         ToDate: toDate,
-        CustomerId: Number(customerId),
+        SupplierId: Number(supplierId),
         PaymodeId: Number(paymodeId),
         Decimals: decimalPart,
       }),
   });
 
-  // Client-side filtering
-  const filteredSalesData = (reportData?.salesData || []).filter((row: any) => {
-    // 1. Customer Filter
-    if (customerId !== "0") {
-      const selectedCust = customers.find((c: any) => String(c.customerId) === customerId);
-      if (selectedCust) {
-        const matchesName = row.customerName?.toLowerCase() === selectedCust.customerName?.toLowerCase();
-        const matchesCode = row.customerCode?.toLowerCase() === selectedCust.code?.toLowerCase();
+  // Client-side filtering fallback
+  const filteredPurchaseData = (reportData?.purchaseData || []).filter((row: any) => {
+    // 1. Supplier Filter
+    if (supplierId !== "0") {
+      const selectedSup = suppliers.find((s: any) => String(s.supplierId) === supplierId);
+      if (selectedSup) {
+        const matchesName = row.supplierName?.toLowerCase() === selectedSup.supplierName?.toLowerCase();
+        const matchesCode = row.supplierCode?.toLowerCase() === selectedSup.code?.toLowerCase();
         if (!matchesName && !matchesCode) return false;
       }
     }
@@ -116,8 +121,8 @@ export const useSalesReport = () => {
       setToDate,
       branchId,
       setBranchId,
-      customerId,
-      setCustomerId,
+      supplierId,
+      setSupplierId,
       paymodeId,
       setPaymodeId,
       seriesId,
@@ -130,13 +135,13 @@ export const useSalesReport = () => {
       branchesLoading,
       paymodes,
       paymodesLoading,
-      customers,
-      customersLoading,
+      suppliers,
+      suppliersLoading,
       series: seriesList,
       seriesLoading,
     },
     report: {
-      salesData: filteredSalesData,
+      purchaseData: filteredPurchaseData,
       paymodeData: reportData?.paymodeData || [],
       totalData: reportData?.totalData?.[0] || null,
       isLoading: reportLoading || isFetching,

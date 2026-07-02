@@ -1,11 +1,10 @@
 import axiosInstance from "../../../../api/axiosInstance";
-
 import type {
-  SalesReportParams,
-  SalesReportResponse,
+  PurchaseReportParams,
+  PurchaseReportResponse,
   BranchOption,
   PaymodeOption,
-  CustomerOption,
+  SupplierOption,
 } from "../types";
 
 export interface ApiResponse<T> {
@@ -23,11 +22,11 @@ function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
   return response.data;
 }
 
-export const getSalesReport = async (params: SalesReportParams) => {
-  const response = await axiosInstance.get<SalesReportResponse>("/reports/sales-report", {
+export const getPurchaseReport = async (params: PurchaseReportParams) => {
+  const response = await axiosInstance.get<PurchaseReportResponse>("/reports/purchase-report", {
     params,
   });
-  return unwrap<SalesReportResponse>(response);
+  return unwrap<PurchaseReportResponse>(response);
 };
 
 export const getBranchList = async () => {
@@ -40,12 +39,11 @@ export const getPaymodeList = async () => {
   return unwrap<PaymodeOption[]>(response);
 };
 
-export const getCustomerList = async () => {
-  // Pass empty strings to get all customers, or we can handle search on client side
-  const response = await axiosInstance.get<CustomerOption[]>("/customer/list-name", {
+export const getSupplierList = async () => {
+  const response = await axiosInstance.get<SupplierOption[]>("/supplier/list-name", {
     params: {
-      customerCode: "",
-      customerName: "",
+      supplierCode: "",
+      supplierName: "",
     },
   });
   return unwrap<any>(response);
@@ -55,8 +53,8 @@ export const getSeriesList = async (branchId: number) => {
   const response = await axiosInstance.get("/voucherseries/list-name", {
     params: {
       branchId,
-      voucherType: "Sales"
-    }
+      voucherType: "Purchase",
+    },
   });
   return unwrap<any>(response);
 };

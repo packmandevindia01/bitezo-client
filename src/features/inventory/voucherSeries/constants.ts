@@ -1,7 +1,7 @@
 import type { VoucherSeriesForm } from "./types";
 
 export const voucherTypeOptions = [
-  { label: "Sale", value: "Sale" },
+  { label: "Sales", value: "Sales" },
   { label: "Sales Return", value: "Sales Return" },
   { label: "Purchase", value: "Purchase" },
   { label: "Purchase Return", value: "Purchase Return" },

@@ -24,6 +24,9 @@ const getPageTitle = (pathname: string): string => {
 
   const map: Record<string, string> = {
     "/dashboard": "Dashboard",
+    "/dashboard/reports/sales": "Sales Report",
+    "/dashboard/reports/purchase": "Purchase Report",
+    "/dashboard/reports/purchase-return": "Purchase Return Report",
     "/dashboard/users": "Users",
     "/dashboard/user-roles": "User Roles",
     "/dashboard/customers": "Customers",

@@ -26,7 +26,6 @@ const Checkbox = ({
   return (
     <div className="flex flex-col gap-1">
       <label
-        htmlFor={inputId}
         className={`flex items-center justify-start gap-3.5 group py-1.5 px-1 rounded-lg transition-colors
           ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-slate-50"}
         `}

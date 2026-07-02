@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx-js-style";
 import { formatAmount } from "../../../../utils/currency";
-import type { SalesData, PaymodeData, TotalData } from "../types";
+import type { PurchaseData, PaymodeData, TotalData } from "../types";
 
 const formatHeaderDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -14,8 +14,8 @@ const formatHeaderDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-export const exportSalesReportPDF = (
-  salesData: SalesData[],
+export const exportPurchaseReportPDF = (
+  purchaseData: PurchaseData[],
   _paymodeData: PaymodeData[],
   totalData: TotalData | null,
   filters: any
@@ -35,7 +35,7 @@ export const exportSalesReportPDF = (
   doc.text(companyAddress, 105, 20, { align: "center" });
 
   // Underlined report title
-  const dateStr = `Sales Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`;
+  const dateStr = `Purchase Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text(dateStr, 105, 28, { align: "center" });
@@ -43,28 +43,28 @@ export const exportSalesReportPDF = (
   const titleWidth = doc.getTextWidth(dateStr);
   doc.line(105 - titleWidth / 2, 29, 105 + titleWidth / 2, 29);
 
-  // Sales Data Table (Exact columns matching the prototype)
-  const salesHeaders = [["BillDate", "BillNo", "Ref No", "Customer", "Paymode", "Net Value", "Vat Amount", "Amount"]];
-  const salesBody = salesData.map((row) => [
+  // Purchase Data Table (Exact columns matching the prototype)
+  const purchaseHeaders = [["BillDate", "BillNo", "Ref No", "Supplier", "Paymode", "Net Value", "Vat Amount", "Amount"]];
+  const purchaseBody = purchaseData.map((row) => [
     row.invoiceDate ? formatHeaderDate(row.invoiceDate) : "",
     row.invoiceNo || "",
     row.refNo || "",
-    row.customerName || "",
+    row.supplierName || "",
     row.paymode || "",
     formatAmount(Number(row.netValue || 0)),
     formatAmount(Number(row.vatAmount || 0)),
     formatAmount(Number(row.netAmount || 0)),
   ]);
 
-  const cashTotal = salesData.filter(r => r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
-  const creditTotal = salesData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
-  const grandTotal = totalData ? totalData.netAmount : salesData.reduce((s, r) => s + Number(r.netAmount || 0), 0);
+  const cashTotal = purchaseData.filter(r => r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
+  const creditTotal = purchaseData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
+  const grandTotal = totalData ? totalData.netAmount : purchaseData.reduce((s, r) => s + Number(r.netAmount || 0), 0);
 
   // Spanned footer matching the template exactly:
   // - Colspan 6 (from BillDate up to Net Value) for Paymodes Cash & Credit summary
   // - Col 7 for "Total" label
   // - Col 8 for Grand Total value
-  const salesFoot = [[
+  const purchaseFoot = [[
     { 
       content: `Cash: ${formatAmount(cashTotal)} Credit: ${formatAmount(creditTotal)}`, 
       colSpan: 6, 
@@ -82,9 +82,9 @@ export const exportSalesReportPDF = (
 
   autoTable(doc, {
     startY: 35,
-    head: salesHeaders,
-    body: salesBody,
-    foot: salesFoot,
+    head: purchaseHeaders,
+    body: purchaseBody,
+    foot: purchaseFoot,
     theme: "striped",
     headStyles: { fillColor: [73, 41, 62], textColor: [255, 255, 255] }, // #49293e
     footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { top: 0.5 }, lineColor: [200, 200, 200] },
@@ -103,11 +103,11 @@ export const exportSalesReportPDF = (
     }
   });
 
-  doc.save(`Sales_Report_${filters.fromDate}_to_${filters.toDate}.pdf`);
+  doc.save(`Purchase_Report_${filters.fromDate}_to_${filters.toDate}.pdf`);
 };
 
-export const exportSalesReportExcel = (
-  salesData: SalesData[],
+export const exportPurchaseReportExcel = (
+  purchaseData: PurchaseData[],
   _paymodeData: PaymodeData[],
   totalData: TotalData | null,
   filters: any
@@ -115,12 +115,12 @@ export const exportSalesReportExcel = (
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
   const companyAddress = localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21";
 
-  const cashTotal = salesData.filter(r => r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
-  const creditTotal = salesData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
+  const cashTotal = purchaseData.filter(r => r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
+  const creditTotal = purchaseData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0);
   
-  const totalNetValue = salesData.reduce((s, r) => s + Number(r.netValue || 0), 0);
-  const totalVatAmount = salesData.reduce((s, r) => s + Number(r.vatAmount || 0), 0);
-  const grandTotal = totalData ? totalData.netAmount : salesData.reduce((s, r) => s + Number(r.netAmount || 0), 0);
+  const totalNetValue = purchaseData.reduce((s, r) => s + Number(r.netValue || 0), 0);
+  const totalVatAmount = purchaseData.reduce((s, r) => s + Number(r.vatAmount || 0), 0);
+  const grandTotal = totalData ? totalData.netAmount : purchaseData.reduce((s, r) => s + Number(r.netAmount || 0), 0);
 
   const cellHelper = (v: any, isBold = false, align: "left" | "center" | "right" = "left", extraStyle = {}) => {
     const isNum = typeof v === "number";
@@ -146,7 +146,7 @@ export const exportSalesReportExcel = (
   // 1. Title Block
   rows.push([cellHelper(companyName, true, "center", { font: { bold: true, sz: 14 } }), "", "", "", "", "", "", ""]);
   rows.push([cellHelper(companyAddress, false, "center", { font: { sz: 8.5, color: { rgb: "475569" } } }), "", "", "", "", "", "", ""]);
-  rows.push([cellHelper(`Sales Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`, true, "center", { font: { bold: true, sz: 11, underline: true } }), "", "", "", "", "", "", ""]);
+  rows.push([cellHelper(`Purchase Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`, true, "center", { font: { bold: true, sz: 11, underline: true } }), "", "", "", "", "", "", ""]);
   rows.push(["", "", "", "", "", "", "", ""]); // empty divider
 
   // 2. Table Headers Style
@@ -165,7 +165,7 @@ export const exportSalesReportExcel = (
     cellHelper("BillDate", true, "left", headerStyle),
     cellHelper("BillNo", true, "center", headerStyle),
     cellHelper("Ref No", true, "center", headerStyle),
-    cellHelper("Customer", true, "left", headerStyle),
+    cellHelper("Supplier", true, "left", headerStyle),
     cellHelper("Paymode", true, "center", headerStyle),
     cellHelper("Net Value", true, "right", headerStyle),
     cellHelper("Vat Amount", true, "right", headerStyle),
@@ -173,7 +173,7 @@ export const exportSalesReportExcel = (
   ]);
 
   // 3. Table Data
-  salesData.forEach((row, idx) => {
+  purchaseData.forEach((row, idx) => {
     const dataStyle = {
       border: {
         top: { style: "thin", color: { rgb: "E2E8F0" } },
@@ -188,7 +188,7 @@ export const exportSalesReportExcel = (
       cellHelper(row.invoiceDate ? formatHeaderDate(row.invoiceDate) : "", false, "left", dataStyle),
       cellHelper(row.invoiceNo || "", false, "center", dataStyle),
       cellHelper(row.refNo || "", false, "center", dataStyle),
-      cellHelper((row.customerName || "").toUpperCase(), false, "left", dataStyle),
+      cellHelper((row.supplierName || "").toUpperCase(), false, "left", dataStyle),
       cellHelper((row.paymode || "").toUpperCase(), false, "center", dataStyle),
       cellHelper(Number(row.netValue || 0), false, "right", dataStyle),
       cellHelper(Number(row.vatAmount || 0), false, "right", dataStyle),
@@ -235,7 +235,7 @@ export const exportSalesReportExcel = (
     { wch: 15 }, // BillDate
     { wch: 10 }, // BillNo
     { wch: 10 }, // Ref No
-    { wch: 30 }, // Customer
+    { wch: 30 }, // Supplier
     { wch: 12 }, // Paymode
     { wch: 14 }, // Net Value
     { wch: 14 }, // Vat Amount
@@ -243,6 +243,6 @@ export const exportSalesReportExcel = (
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
-  XLSX.writeFile(wb, `Sales_Report_${filters.fromDate}_to_${filters.toDate}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "Purchase Report");
+  XLSX.writeFile(wb, `Purchase_Report_${filters.fromDate}_to_${filters.toDate}.xlsx`);
 };

@@ -1,22 +1,21 @@
-// Vite HMR trigger
-export interface SalesReportParams {
+export interface PurchaseReturnReportParams {
   BranchId: number;
   SeriesId: number;
   FromDate: string;
   ToDate: string;
-  CustomerId: number;
+  SupplierId: number;
   PaymodeId: number;
   Decimals: number;
 }
 
-export interface SalesData {
-  salesId: number;
+export interface PurchaseReturnData {
+  purchaseReturnId: number;
   sNo: number;
   invoiceDate: string;
   invoiceNo: string;
   refNo?: string;
-  customerCode: string;
-  customerName: string;
+  supplierCode: string;
+  supplierName: string;
   employee?: string;
   paymode: string;
   netValue: string | number;
@@ -38,8 +37,8 @@ export interface TotalData {
   netAmount: number;
 }
 
-export interface SalesReportResponse {
-  salesData: SalesData[];
+export interface PurchaseReturnReportResponse {
+  purchaseReturnData: PurchaseReturnData[];
   paymodeData: PaymodeData[];
   totalData: TotalData[];
 }
@@ -57,8 +56,8 @@ export interface PaymodeOption {
   isActive: string;
 }
 
-export interface CustomerOption {
-  customerId: number;
+export interface SupplierOption {
+  supplierId: number;
   code: string;
-  customerName: string;
+  supplierName: string;
 }

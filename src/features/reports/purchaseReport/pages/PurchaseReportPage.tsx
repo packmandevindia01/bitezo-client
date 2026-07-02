@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useCallback } from "react";
 import { Printer, X, Download } from "lucide-react";
-import { useSalesReport } from "../hooks/useSalesReport";
-import { exportSalesReportPDF, exportSalesReportExcel } from "../utils/exportUtils";
+import { usePurchaseReport } from "../hooks/usePurchaseReport";
+import { exportPurchaseReportPDF, exportPurchaseReportExcel } from "../utils/purchaseExportUtils";
 import { formatAmount } from "../../../../utils/currency";
 import {
   PageShell,
@@ -12,14 +12,14 @@ import {
   SearchableSelect,
   Checkbox
 } from "../../../../components/common";
-import { SalesReportPrintPreviewModal } from "../components/SalesReportPrintPreviewModal";
+import { PurchaseReportPrintPreviewModal } from "../components/PurchaseReportPrintPreviewModal";
 
 // ─── Group-by options ──────────────────────────────────────────────────────────
-type GroupByOption = "All" | "Customer" | "Paymode" | "Series";
+type GroupByOption = "All" | "Supplier" | "Paymode" | "Series";
 
 const GROUP_LABEL: Record<GroupByOption, string> = {
   All: "All",
-  Customer: "Customer",
+  Supplier: "Supplier",
   Paymode: "Paymode",
   Series: "Series",
 };
@@ -30,7 +30,7 @@ const COLS = [
   { key: "billDate",   label: "BillDate",   cls: "w-[12%] text-left" },
   { key: "billNo",     label: "BillNo",     cls: "w-[6%] text-center" },
   { key: "refNo",      label: "Ref No",     cls: "w-[6%] text-center" },
-  { key: "customer",   label: "Customer",   cls: "w-[20%] text-left" },
+  { key: "supplier",   label: "Supplier",   cls: "w-[20%] text-left" },
   { key: "code",       label: "Code",       cls: "w-[6%] text-center" },
   { key: "employee",   label: "Employee",   cls: "w-[8%] text-center" },
   { key: "paymode",    label: "Paymode",    cls: "w-[7%] text-center" },
@@ -53,9 +53,9 @@ const formatDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 };
 
-const SalesReportPage = () => {
+const PurchaseReportPage = () => {
   const navigate = useNavigate();
-  const { filters, masterData, report } = useSalesReport();
+  const { filters, masterData, report } = usePurchaseReport();
   const [groupBy, setGroupBy] = useState<GroupByOption>("All");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -66,13 +66,13 @@ const SalesReportPage = () => {
     }));
   }, [masterData.branches]);
 
-  const customerOptions = useMemo(() => [
+  const supplierOptions = useMemo(() => [
     { label: "All", value: "0" },
-    ...masterData.customers.map((c: any) => ({
-      label: c.code ? `[${c.code}] ${c.customerName}` : c.customerName,
-      value: String(c.customerId)
+    ...masterData.suppliers.map((s: any) => ({
+      label: s.code ? `[${s.code}] ${s.supplierName}` : s.supplierName,
+      value: String(s.supplierId)
     })),
-  ], [masterData.customers]);
+  ], [masterData.suppliers]);
 
   const paymodeOptions = useMemo(() => [
     { label: "All", value: "0" },
@@ -85,21 +85,21 @@ const SalesReportPage = () => {
   ], [masterData.series]);
 
   // ─── Client-side grouping ──────────────────────────────────────────────────
-  const groupedSalesData = useMemo(() => {
-    const rawData = report.salesData;
+  const groupedPurchaseData = useMemo(() => {
+    const rawData = report.purchaseData;
     if (groupBy === "All") return rawData;
 
-    if (groupBy === "Customer") {
+    if (groupBy === "Supplier") {
       const groups: Record<string, any> = {};
       rawData.forEach((row: any) => {
-        const key = row.customerName || "Unknown";
+        const key = row.supplierName || "Unknown";
         if (!groups[key]) {
           groups[key] = {
             invoiceDate: "",
             invoiceNo: "",
             refNo: "",
-            customerName: row.customerName || "Unknown Customer",
-            customerCode: row.customerCode || "",
+            supplierName: row.supplierName || "Unknown Supplier",
+            supplierCode: row.supplierCode || "",
             employee: "",
             paymode: "",
             netValue: 0,
@@ -127,8 +127,8 @@ const SalesReportPage = () => {
             invoiceDate: "",
             invoiceNo: "",
             refNo: "",
-            customerName: "",
-            customerCode: "",
+            supplierName: "",
+            supplierCode: "",
             employee: "",
             paymode: row.paymode || "Unknown",
             netValue: 0,
@@ -157,8 +157,8 @@ const SalesReportPage = () => {
             invoiceDate: "",
             invoiceNo: key,
             refNo: "",
-            customerName: "",
-            customerCode: "",
+            supplierName: "",
+            supplierCode: "",
             employee: "",
             paymode: "",
             netValue: 0,
@@ -178,57 +178,54 @@ const SalesReportPage = () => {
     }
 
     return rawData;
-  }, [report.salesData, groupBy]);
+  }, [report.purchaseData, groupBy]);
 
   const handleExportPDF = useCallback(() => {
-    exportSalesReportPDF(groupedSalesData, report.paymodeData, report.totalData, {
+    exportPurchaseReportPDF(groupedPurchaseData, report.paymodeData, report.totalData, {
       ...filters,
       branchName:   branchOptions.find(o => o.value === filters.branchId)?.label,
-      customerName: customerOptions.find(o => o.value === filters.customerId)?.label,
+      supplierName: supplierOptions.find(o => o.value === filters.supplierId)?.label,
       paymodeName:  paymodeOptions.find(o => o.value === filters.paymodeId)?.label,
     });
-  }, [filters, branchOptions, customerOptions, paymodeOptions, report, groupedSalesData]);
+  }, [filters, branchOptions, supplierOptions, paymodeOptions, report, groupedPurchaseData]);
 
   const handleExportExcel = useCallback(() => {
-    exportSalesReportExcel(groupedSalesData, report.paymodeData, report.totalData, {
+    exportPurchaseReportExcel(groupedPurchaseData, report.paymodeData, report.totalData, {
       ...filters,
       branchName:   branchOptions.find(o => o.value === filters.branchId)?.label,
-      customerName: customerOptions.find(o => o.value === filters.customerId)?.label,
+      supplierName: supplierOptions.find(o => o.value === filters.supplierId)?.label,
       paymodeName:  paymodeOptions.find(o => o.value === filters.paymodeId)?.label,
     });
-  }, [filters, branchOptions, customerOptions, paymodeOptions, report, groupedSalesData]);
+  }, [filters, branchOptions, supplierOptions, paymodeOptions, report, groupedPurchaseData]);
 
   // ─── Grand totals ──────────────────────────────────────────────────────────
   const grandTotals = useMemo(() => ({
-    netValue:   groupedSalesData.reduce((s, r) => s + Number(r.netValue  || 0), 0),
-    vatAmount:  groupedSalesData.reduce((s, r) => s + Number(r.vatAmount || 0), 0),
-    netAmount:  groupedSalesData.reduce((s, r) => s + Number(r.netAmount || 0), 0),
-    billsundry: groupedSalesData.reduce((s, r) => s + Number(r.billsundry || 0), 0),
-    roundOff:   groupedSalesData.reduce((s, r) => s + Number(r.roundOff   || 0), 0),
-  }), [groupedSalesData]);
+    netValue:   groupedPurchaseData.reduce((s, r) => s + Number(r.netValue  || 0), 0),
+    vatAmount:  groupedPurchaseData.reduce((s, r) => s + Number(r.vatAmount || 0), 0),
+    netAmount:  groupedPurchaseData.reduce((s, r) => s + Number(r.netAmount || 0), 0),
+    billsundry: groupedPurchaseData.reduce((s, r) => s + Number(r.billsundry || 0), 0),
+    roundOff:   groupedPurchaseData.reduce((s, r) => s + Number(r.roundOff   || 0), 0),
+  }), [groupedPurchaseData]);
 
-  const cashTotal   = useMemo(() => report.salesData.filter(r =>  r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0), [report.salesData]);
-  const creditTotal = useMemo(() => report.salesData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0), [report.salesData]);
+  const cashTotal   = useMemo(() => report.purchaseData.filter(r =>  r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0), [report.purchaseData]);
+  const creditTotal = useMemo(() => report.purchaseData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0), [report.purchaseData]);
 
   const previewData = useMemo(() => ({
-    salesData: groupedSalesData,
+    purchaseData: groupedPurchaseData,
     cashTotal,
     creditTotal,
     grandTotal: grandTotals.netAmount,
     filters,
     companyName: localStorage.getItem("companyName") || "FEKRA advertising",
     companyAddress: localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21",
-  }), [groupedSalesData, cashTotal, creditTotal, grandTotals.netAmount, filters]);
+  }), [groupedPurchaseData, cashTotal, creditTotal, grandTotals.netAmount, filters]);
 
   return (
-    <PageShell title="Sales Report">
-      {/* Container to fill remaining viewport height */}
+    <PageShell title="Purchase Report">
       <div className="flex flex-col h-[calc(100vh-92px)] overflow-hidden p-1 gap-3 relative">
 
-        {/* ── Filter Panel (Fixed Height, compact padding) ────────────────── */}
+        {/* ── Filter Panel ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
-          
-          {/* Close Button positioned neatly inside the card container */}
           <button
             onClick={() => navigate("/dashboard")}
             className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
@@ -242,10 +239,10 @@ const SalesReportPage = () => {
             {/* 1. Group-By Filter */}
             <div className="shrink-0 flex flex-col gap-0.5 pr-4 justify-center">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Group By</span>
-              {(["All", "Customer", "Paymode", "Series"] as GroupByOption[]).map((val) => (
+              {(["All", "Supplier", "Paymode", "Series"] as GroupByOption[]).map((val) => (
                 <div key={val} className="h-7 flex items-center">
                   <Checkbox
-                    id={`sr-group-${val}`}
+                    id={`pr-group-${val}`}
                     label={GROUP_LABEL[val]}
                     checked={groupBy === val}
                     onChange={() => setGroupBy(val)}
@@ -259,29 +256,29 @@ const SalesReportPage = () => {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
                 <div className="w-40">
-                  <SearchableSelect id="sr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" />
+                  <SearchableSelect id="pr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Series</span>
                 <div className="w-40">
-                  <SelectInput id="sr-series" options={seriesOptions} value={filters.seriesId} onChange={(e) => filters.setSeriesId(e.target.value)} />
+                  <SelectInput id="pr-series" options={seriesOptions} value={filters.seriesId} onChange={(e) => filters.setSeriesId(e.target.value)} />
                 </div>
               </div>
             </div>
 
-            {/* 3. Customer + Paymode */}
+            {/* 3. Supplier + Paymode */}
             <div className="pt-3 xl:pt-0 xl:px-5 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Customer</span>
+                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Supplier</span>
                 <div className="w-44">
-                  <SearchableSelect id="sr-customer" options={customerOptions} value={filters.customerId} onChange={filters.setCustomerId} placeholder="All" />
+                  <SearchableSelect id="pr-supplier" options={supplierOptions} value={filters.supplierId} onChange={filters.setSupplierId} placeholder="All" />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Paymode</span>
                 <div className="w-44">
-                  <SelectInput id="sr-paymode" options={paymodeOptions} value={filters.paymodeId} onChange={(e) => filters.setPaymodeId(e.target.value)} />
+                  <SelectInput id="pr-paymode" options={paymodeOptions} value={filters.paymodeId} onChange={(e) => filters.setPaymodeId(e.target.value)} />
                 </div>
               </div>
             </div>
@@ -291,13 +288,13 @@ const SalesReportPage = () => {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">From</span>
                 <div className="w-36">
-                  <FormInput id="sr-from-date" type="date" value={filters.fromDate} onChange={(e) => filters.setFromDate(e.target.value)} />
+                  <FormInput id="pr-from-date" type="date" value={filters.fromDate} onChange={(e) => filters.setFromDate(e.target.value)} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">To</span>
                 <div className="w-36">
-                  <FormInput id="sr-to-date" type="date" value={filters.toDate} onChange={(e) => filters.setToDate(e.target.value)} />
+                  <FormInput id="pr-to-date" type="date" value={filters.toDate} onChange={(e) => filters.setToDate(e.target.value)} />
                 </div>
               </div>
             </div>
@@ -305,20 +302,16 @@ const SalesReportPage = () => {
           </div>
         </div>
 
-        {/* ── Table Card (Expands to fill remaining viewport space) ─────── */}
+        {/* ── Table Card ──────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-
-          {/* Report Caption */}
-          {!report.isLoading && groupedSalesData.length > 0 && (
+          {!report.isLoading && groupedPurchaseData.length > 0 && (
             <p className="text-center text-[11px] font-semibold text-[#49293e] py-1.5 border-b border-gray-100 shrink-0">
-              Sales Report from {filters.fromDate} To {filters.toDate}
+              Purchase Report from {filters.fromDate} To {filters.toDate}
             </p>
           )}
 
-          {/* Scrollable Table body wrapper */}
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full text-xs min-w-[1100px] table-layout-fixed">
-              {/* thead */}
               <thead className="sticky top-0 z-10 bg-gray-100 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
                 <tr>
                   {COLS.map(col => (
@@ -332,7 +325,6 @@ const SalesReportPage = () => {
                 </tr>
               </thead>
 
-              {/* tbody */}
               <tbody className="divide-y divide-gray-100">
                 {report.isLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
@@ -344,16 +336,16 @@ const SalesReportPage = () => {
                       ))}
                     </tr>
                   ))
-                ) : groupedSalesData.length === 0 ? (
+                ) : groupedPurchaseData.length === 0 ? (
                   <tr>
                     <td colSpan={COLS.length} className="text-center py-20 text-gray-400 text-sm">
                       No records found. Adjust filters.
                     </td>
                   </tr>
                 ) : (
-                  groupedSalesData.map((row: any, idx: number) => (
+                  groupedPurchaseData.map((row: any, idx: number) => (
                     <tr
-                      key={row.salesId ?? idx}
+                      key={row.purchaseId ?? idx}
                       className={`hover:bg-[#49293e]/5 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}
                     >
                       <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{idx + 1}</td>
@@ -362,8 +354,8 @@ const SalesReportPage = () => {
                       </td>
                       <td className="px-2 py-1.5 text-center font-mono text-gray-800 border-r border-gray-100">{row.invoiceNo}</td>
                       <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{row.refNo || ""}</td>
-                      <td className="px-2 py-1.5 text-left font-medium uppercase text-gray-800 border-r border-gray-100">{row.customerName || ""}</td>
-                      <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{row.customerCode || ""}</td>
+                      <td className="px-2 py-1.5 text-left font-medium uppercase text-gray-800 border-r border-gray-100">{row.supplierName || ""}</td>
+                      <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{row.supplierCode || ""}</td>
                       <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{row.employee || ""}</td>
                       <td className="px-2 py-1.5 text-center font-medium uppercase text-gray-700 border-r border-gray-100">{row.paymode || ""}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-gray-800 border-r border-gray-100">{formatAmount(Number(row.netValue || 0))}</td>
@@ -376,8 +368,7 @@ const SalesReportPage = () => {
                 )}
               </tbody>
 
-              {/* tfoot inside the SAME table element - guarantees perfect column width alignment */}
-              {!report.isLoading && groupedSalesData.length > 0 && (
+              {!report.isLoading && groupedPurchaseData.length > 0 && (
                 <tfoot className="sticky bottom-0 z-10 bg-gray-100 border-t-2 border-t-[#49293e]/20 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
                   <tr>
                     <td className="py-1.5 border-r border-gray-200" />
@@ -400,7 +391,7 @@ const SalesReportPage = () => {
           </div>
         </div>
 
-        {/* ── Sticky Bottom Summary / Actions Bar (Shrink-0) ──────────────── */}
+        {/* ── Sticky Bottom Summary / Actions Bar ─────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2 shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-5 text-xs font-medium text-gray-600">
             <span>
@@ -414,9 +405,9 @@ const SalesReportPage = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {groupedSalesData.length > 0 && (
+            {groupedPurchaseData.length > 0 && (
               <span className="text-xs text-gray-400">
-                {groupedSalesData.length} record{groupedSalesData.length !== 1 ? "s" : ""}
+                {groupedPurchaseData.length} record{groupedPurchaseData.length !== 1 ? "s" : ""}
               </span>
             )}
             <div className="h-4 w-px bg-gray-200" />
@@ -424,14 +415,14 @@ const SalesReportPage = () => {
               size="sm"
               icon={<Printer size={15} />}
               onClick={() => setIsPreviewOpen(true)}
-              disabled={report.isLoading || groupedSalesData.length === 0}
+              disabled={report.isLoading || groupedPurchaseData.length === 0}
             >
               Print Preview
             </Button>
             <Button
               size="sm"
               onClick={handleExportExcel}
-              disabled={report.isLoading || groupedSalesData.length === 0}
+              disabled={report.isLoading || groupedPurchaseData.length === 0}
               icon={<Download size={15} />}
               className="!bg-green-600 !border-green-600 hover:!bg-green-700 !text-white"
             >
@@ -440,7 +431,7 @@ const SalesReportPage = () => {
           </div>
         </div>
 
-        <SalesReportPrintPreviewModal
+        <PurchaseReportPrintPreviewModal
           isOpen={isPreviewOpen}
           onClose={() => setIsPreviewOpen(false)}
           data={previewData}
@@ -452,4 +443,4 @@ const SalesReportPage = () => {
   );
 };
 
-export default SalesReportPage;
+export default PurchaseReportPage;

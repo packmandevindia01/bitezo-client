@@ -51,6 +51,7 @@ const PurchaseReturnFormPage = () => {
     handleInvoiceSearch,
     handleInvoiceSelect,
     handleProductSelect,
+    handleUnitChange,
     saving,
     selectedPaymodeId,
     setSelectedPaymodeId,
@@ -369,7 +370,7 @@ const PurchaseReturnFormPage = () => {
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : ((masterData as any)?.units || [])}
-                                  onChange={(val) => selectField.onChange(val)}
+                                  onChange={(val) => handleUnitChange(index, val)}
                                   disabled={!canSave || purchaseId > 0}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
