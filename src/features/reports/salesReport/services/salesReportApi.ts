@@ -27,17 +27,17 @@ export const getSalesReport = async (params: SalesReportParams) => {
   const response = await axiosInstance.get<SalesReportResponse>("/reports/sales-report", {
     params,
   });
-  return unwrap(response);
+  return unwrap<SalesReportResponse>(response);
 };
 
 export const getBranchList = async () => {
   const response = await axiosInstance.get<BranchOption[]>("/Branch/true/list-name");
-  return unwrap(response);
+  return unwrap<BranchOption[]>(response);
 };
 
 export const getPaymodeList = async () => {
   const response = await axiosInstance.get<PaymodeOption[]>("/paymode/paymode-list");
-  return unwrap(response);
+  return unwrap<PaymodeOption[]>(response);
 };
 
 export const getCustomerList = async () => {
@@ -48,5 +48,5 @@ export const getCustomerList = async () => {
       customerName: "",
     },
   });
-  return unwrap(response);
+  return unwrap<any>(response);
 };

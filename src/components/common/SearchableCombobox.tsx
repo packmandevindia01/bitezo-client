@@ -102,8 +102,8 @@ const SearchableCombobox = ({
   }, [query, onSearch, minQueryLength]);
 
   useEffect(() => {
-    setHighlightedIndex(filtered.length > 0 ? 0 : -1);
-  }, [filtered.length]);
+    setHighlightedIndex(filtered.length > 0 && query.trim().length > 0 ? 0 : -1);
+  }, [filtered.length, query]);
 
   useEffect(() => {
     if (highlightedIndex >= 0 && listRef.current) {
@@ -203,9 +203,9 @@ const SearchableCombobox = ({
         setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
         break;
       case "Enter":
-        e.preventDefault();
-        e.stopPropagation();
         if (open && highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+          e.preventDefault();
+          e.stopPropagation();
           handleSelect(filtered[highlightedIndex].value);
         }
         break;
@@ -251,7 +251,7 @@ const SearchableCombobox = ({
   };
 
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full relative">
+    <div className="flex flex-col gap-1 mb-1 w-full min-w-0 relative">
       {label && (
         <label 
           htmlFor={id}
@@ -264,7 +264,7 @@ const SearchableCombobox = ({
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
           <span>{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 

@@ -48,7 +48,7 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
   return (
-    <div className={`flex flex-col gap-1 w-full relative ${noMargin ? "" : "mb-1"}`}>
+    <div className={`flex flex-col gap-1 w-full min-w-0 relative ${noMargin ? "" : "mb-1"}`}>
 
       {/* LABEL */}
       {label && (
@@ -58,7 +58,7 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
         >
           <span className="truncate">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 

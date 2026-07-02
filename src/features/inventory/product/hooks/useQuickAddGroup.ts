@@ -8,8 +8,8 @@ import { useToast } from "../../../../app/providers/useToast";
 const schema = z.object({
   code: z.string().min(1, "Code is required").transform(v => v.toUpperCase().replace(/\s/g, "")),
   name: z.string().min(1, "Name is required").trim(),
-  arabicName: z.string().optional().default(""),
-  isActive: z.boolean().default(true),
+  arabicName: z.string(),
+  isActive: z.boolean(),
 });
 
 export type QuickAddGroupFormData = z.infer<typeof schema>;

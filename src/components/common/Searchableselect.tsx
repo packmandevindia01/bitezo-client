@@ -317,7 +317,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
   };
 
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full relative" ref={containerRef} onBlur={handleBlur}>
+    <div className="flex flex-col gap-1 mb-1 w-full min-w-0 relative" ref={containerRef} onBlur={handleBlur}>
       {/* Label */}
       {label && (
         <label 
@@ -332,7 +332,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
           <span className="truncate">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 

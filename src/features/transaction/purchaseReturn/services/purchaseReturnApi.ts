@@ -57,6 +57,11 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
+  getUnits: async (unitCategory: string) => {
+    const response = await axiosInstance.get(`/purchase-return-invoice/unit-list-name?unitCategory=${unitCategory}`);
+    return response.data.data;
+  },
+
   searchProductsByName: async (productName: string) => {
     const response = await axiosInstance.get<{
       data: {

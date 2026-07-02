@@ -10,8 +10,8 @@ const schema = z.object({
   name: z.string().min(1, "Unit name is required").trim(),
   category: z.string().min(1, "Category is required"),
   conversion: z.coerce.number().min(0.000001, "Conversion must be greater than 0"),
-  parentId: z.coerce.number().default(0),
-  currentValue: z.number().default(0),
+  parentId: z.coerce.number(),
+  currentValue: z.number(),
 });
 
 export type QuickAddUnitFormData = z.infer<typeof schema>;

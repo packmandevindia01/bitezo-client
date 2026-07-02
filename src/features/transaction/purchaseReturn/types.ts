@@ -28,7 +28,7 @@ export const purchaseReturnSchema = z.object({
   invoiceDate: z.string().min(1, "Invoice Date is required"),
   supplier: z.string().min(1, "Supplier is required"),
   branch: z.string().min(1, "Branch is required"),
-  salesman: z.string().optional(),
+  salesman: z.string().min(1, "Salesman is required"),
   
   items: z.array(purchaseReturnItemSchema),
   payments: z.array(purchaseReturnPaymentSchema),

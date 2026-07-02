@@ -54,9 +54,10 @@ const PurchaseReturnFormPage = () => {
     handleProductSelect,
     saving,
     selectedPaymodeId,
-    setSelectedPaymodeId,
     handleSinglePayment,
     purchaseId,
+    grossTotal,
+    watchedDiscAmount,
   } = usePurchaseReturn(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -95,14 +96,24 @@ const PurchaseReturnFormPage = () => {
       const success = await onSubmit(data);
       if (success) {
         setIsPrintModalOpen(true);
-        setShouldResetAfterPrint(!id);
+        setShouldResetAfterPrint(true);
       }
     }, (errs) => {
       console.error("Validation failed:", errs);
       const firstErrorKey = Object.keys(errs)[0];
       if (firstErrorKey) {
         const err = (errs as any)[firstErrorKey];
-        showToast((err as any)?.message || "Please fill all required fields.", "error");
+        showToast((err as any)?.message || `Please fill required fields (${firstErrorKey}).`, "error");
+        
+        setTimeout(() => {
+          const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
+          if (el) {
+            el.focus();
+          } else {
+            const elId = document.getElementById(`pr-${firstErrorKey}`);
+            if (elId) elId.focus();
+          }
+        }, 100);
       } else {
         showToast("Please fill all required fields.", "error");
       }
@@ -121,8 +132,9 @@ const PurchaseReturnFormPage = () => {
     const taxSummaryMap = new Map<number, { taxCode: string; taxable: number; vatAmount: number; netAmount: number }>();
     const validItems = watchedItems.filter((i: any) => i.product && i.product.trim() !== "");
     
+    const currentDiscAmount = Number(watchedDiscAmount) || 0;
     validItems.forEach((item: any) => {
-      const line = calculateLine(item, decimalPart);
+      const line = calculateLine(item, decimalPart, grossTotal, currentDiscAmount);
       const pct = Number(item.vatPercent) || 0;
       if (!taxSummaryMap.has(pct)) {
         taxSummaryMap.set(pct, { taxCode: `${pct}%`, taxable: 0, vatAmount: 0, netAmount: 0 });
@@ -145,12 +157,13 @@ const PurchaseReturnFormPage = () => {
       date: formVals.purchaseDate,
       paymode: payments.length > 0 ? payments[0].mode.toUpperCase() : "CASH",
       items: validItems.map((item: any) => {
-        const line = calculateLine(item);
+        const line = calculateLine(item, decimalPart, grossTotal, Number(watchedDiscAmount) || 0);
+        const uOpt = masterData?.units?.find((u: any) => u.value === String(item.unit));
         return {
           productName: productOptions.find(p => p.value === item.product)?.label || item.product,
           qty: Number(item.qty),
           foc: Number(item.foc),
-          unit: item.unit,
+          unit: uOpt ? uOpt.label : item.unit,
           price: Number(item.price),
           discount: Number(item.discPercent),
           amount: line.amount,
@@ -221,28 +234,29 @@ const PurchaseReturnFormPage = () => {
 
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
 
-          {/* ── Scrollable Body ── */}
-          <div className="flex-1 overflow-y-auto p-2 md:p-3">
+          {/* ── Static Header Fields ── */}
+          <div className="p-2 md:p-3 pb-0">
 
             {/* ── Header Fields ── Extemely dense padding to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-[1fr_0.7fr_1fr_2fr_0.9fr_0.7fr_1fr_0.7fr_0.9fr] gap-x-2 gap-y-1.5 mb-2">
               <Controller name="series" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               
               <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1">
                 <Controller name="supplier" control={control} render={({ field }) => (
-                  <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                  <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
                 )} />
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
               )} />
               
               <Controller name="invoiceNo" control={control} render={({ field }) => (
                 <AutocompleteInput
+                  required={true}
                   inputClassName="!h-8 !px-2 !text-xs"
                   id="pr-invoiceNo"
                   label="Inv No"
@@ -256,21 +270,23 @@ const PurchaseReturnFormPage = () => {
                   disabled={!canSave || !watchedBranch || !watchedSupplier}
                 />
               )} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-invoiceDate" label="Inv Date" type="date" {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pr-refNo")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-invoiceDate" label="Inv Date" type="date" {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pr-refNo")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
               
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-refNo" label="Ref No" {...register("refNo")} onKeyDown={(e) => hk(e, "pr-salesman")} readOnly={!canSave} error={errors.refNo?.message as string} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
+          </div>
 
-            {/* ── Inline Editable DataGrid ── */}
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-              <div className="max-h-[350px] overflow-auto">
+          {/* ── Scrollable DataGrid ── */}
+          <div className="flex-1 overflow-y-auto p-2 md:p-3">
+            <div className="h-full flex flex-col rounded-xl border border-gray-200 bg-white">
+              <div className="flex-1 overflow-auto">
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc(%)", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
+                      {["SL", "Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
                         (col, i) => (
                           <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                             {col}
@@ -282,7 +298,7 @@ const PurchaseReturnFormPage = () => {
                   <tbody className="divide-y divide-gray-100">
                     {items.map((field, index) => {
                       const itemWatch = watchedItems[index] || {};
-                      const lineTotals = calculateLine(itemWatch as any, decimalPart);
+                      const lineTotals = calculateLine(itemWatch as any, decimalPart, grossTotal, Number(watchedDiscAmount) || 0);
                       return (
                         <tr key={field.id} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
@@ -297,9 +313,8 @@ const PurchaseReturnFormPage = () => {
                                       className="h-7 !px-2 text-xs"
                                       value={selectField.value}
                                       options={productOptions}
-                                      onSearch={handleProductSearch}
                                       loading={searchingProducts}
-                                      minQueryLength={1}
+                                      minQueryLength={0}
                                       forcePlacement="bottom"
                                       onChange={(val) => {
                                         productSelectedRef.current = true;
@@ -343,8 +358,24 @@ const PurchaseReturnFormPage = () => {
                               )}
                             />
                           </td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.unit || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 min-w-[80px]">{itemWatch.code || "-"}</td>
+                          <td className="p-0 border-r border-gray-100 w-24 relative">
+                            <Controller
+                              name={`items.${index}.unit`}
+                              control={control}
+                              render={({ field: selectField }) => (
+                                <SearchableSelect
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
+                                  value={selectField.value}
+                                  options={(masterData as any)?.units || []}
+                                  onChange={(val) => selectField.onChange(val)}
+                                  disabled={!canSave || purchaseId > 0}
+                                  placeholder="Unit"
+                                  disableAutoOpenOnFocus={true}
+                                />
+                              )}
+                            />
+                          </td>
                           <td className="p-0 border-r border-gray-100 w-20">
                             <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave || purchaseId > 0} />
                           </td>
@@ -352,32 +383,28 @@ const PurchaseReturnFormPage = () => {
                             <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave || purchaseId > 0} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-24">
-                            <input {...register(`items.${index}.price`)} type="number" min="0" step="0.001" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono" readOnly={!canSave || purchaseId > 0} />
+                            <input
+                              {...register(`items.${index}.price`)}
+                              type="number" min="0" step="0.001"
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  const rowProduct = methods.getValues(`items.${index}.product`);
+                                  if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                    append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" }, { shouldFocus: false });
+                                    setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+                                  } else {
+                                    handleGridNav(e, index);
+                                  }
+                                }
+                              }}
+                              className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono"
+                              readOnly={!canSave || purchaseId > 0}
+                            />
                           </td>
                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.amount)}</td>
-                          <td className="p-0 border-r border-gray-100 w-20">
-                             <input
-                               {...register(`items.${index}.discPercent`)}
-                               type="number" min="0"
-                               onFocus={(e) => e.target.select()}
-                               onKeyDown={(e) => {
-                                 if (e.key === "Enter") {
-                                   e.preventDefault();
-                                   const rowProduct = methods.getValues(`items.${index}.product`);
-                                   if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-                                     // Last editable field of last filled row → auto-append new row
-                                     append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" }, { shouldFocus: false });
-                                     setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
-                                   } else {
-                                     handleGridNav(e, index);
-                                   }
-                                 }
-                               }}
-                               className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none"
-                               readOnly={!canSave || purchaseId > 0}
-                             />
-                           </td>
-                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.discountAmount)}</td>
+                          <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.discountAmount)}</td>
 
                            {/* VAT% — read-only, auto-set from product */}
                            <td className="px-2 py-1 text-right text-xs text-gray-500 bg-gray-50/50 border-r border-gray-100 tabular-nums">

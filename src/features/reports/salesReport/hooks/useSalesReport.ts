@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getSalesReport, getBranchList, getPaymodeList, getCustomerList } from "../services/salesReportApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
+import type { BranchOption, PaymodeOption, CustomerOption } from "../types";
 
 export const useSalesReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
@@ -29,17 +30,17 @@ export const useSalesReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Master data queries
-  const { data: branches = [], isLoading: branchesLoading } = useQuery({
+  const { data: branches = [] as BranchOption[], isLoading: branchesLoading } = useQuery({
     queryKey: ["branchList", "all"],
     queryFn: getBranchList,
   });
 
-  const { data: paymodes = [], isLoading: paymodesLoading } = useQuery({
+  const { data: paymodes = [] as PaymodeOption[], isLoading: paymodesLoading } = useQuery({
     queryKey: ["paymodeList"],
     queryFn: getPaymodeList,
   });
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
+  const { data: customers = [] as CustomerOption[], isLoading: customersLoading } = useQuery({
     queryKey: ["customerList", "all"],
     queryFn: getCustomerList,
   });
@@ -60,7 +61,7 @@ export const useSalesReport = () => {
   });
 
   // Client-side filtering
-  const filteredSalesData = (reportData?.salesData || []).filter((row) => {
+  const filteredSalesData = (reportData?.salesData || []).filter((row: any) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
