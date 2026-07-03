@@ -69,7 +69,7 @@ const StockAdjustmentPage = () => {
           return;
         }
       }
-      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
+      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
         .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
       const currentIndex = formElements.indexOf(e.target as Element);
       if (currentIndex > -1 && formElements[currentIndex + 1]) {

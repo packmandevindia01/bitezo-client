@@ -230,7 +230,7 @@ const PurchaseInvoiceFormPage = () => {
           return;
         }
       }
-      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
+      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
         .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
       const currentIndex = formElements.indexOf(e.target as Element);
       if (currentIndex > -1 && formElements[currentIndex + 1]) {
@@ -414,7 +414,7 @@ const PurchaseInvoiceFormPage = () => {
                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.discountAmount)}</td>
                           
                           <td className="px-2 py-1 text-right text-xs text-gray-500 bg-gray-50/50 border-r border-gray-100 tabular-nums">
-                            <input {...register(`items.${index}.vatPercent`)} type="hidden" />
+                            <input {...register(`items.${index}.vatPercent`)} type="hidden" tabIndex={-1} />
                             {itemWatch.vatPercent || "0"}
                           </td>
                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.vatAmount)}</td>

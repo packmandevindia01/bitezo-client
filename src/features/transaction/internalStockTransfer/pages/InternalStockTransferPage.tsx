@@ -121,9 +121,13 @@ const InternalStockTransferPage = () => {
       if (nextInput) nextInput.focus();
     } else if (fieldIndex === order.length - 1) {
       const rowProduct = methods.getValues(`items.${index}.product`);
-      if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-        append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }, { shouldFocus: false });
-        setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+      if (rowProduct && rowProduct.trim() !== "") {
+        if (index === items.length - 1) {
+          append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }, { shouldFocus: false });
+          setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+        } else {
+          setTimeout(() => document.getElementById(`product-select-${index + 1}`)?.focus(), 50);
+        }
       }
     }
   };

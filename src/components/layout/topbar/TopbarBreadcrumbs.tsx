@@ -26,6 +26,8 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard": "Dashboard",
     "/dashboard/reports/sales": "Sales Report",
     "/dashboard/reports/purchase": "Purchase Report",
+    "/dashboard/reports/product-wise-purchase": "Product Wise Purchase Report",
+    "/dashboard/reports/stock-register": "Stock Register Report",
     "/dashboard/reports/purchase-return": "Purchase Return Report",
     "/dashboard/users": "Users",
     "/dashboard/user-roles": "User Roles",

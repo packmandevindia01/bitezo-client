@@ -2,16 +2,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
-import type { BranchOption, PaymodeOption, SupplierOption } from "../types";
+import type { BranchOption, SupplierOption, ProductOption, ProductWisePurchaseReportParams } from "../types";
 import {
-  getPurchaseReport,
+  getProductWisePurchaseReport,
   getBranchList,
-  getPaymodeList,
   getSupplierList,
-  getSeriesList,
-} from "../services/purchaseReportApi";
+  getProductList,
+} from "../services/productWisePurchaseReportApi";
 
-export const usePurchaseReport = () => {
+export const useProductWisePurchaseReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
 
   // Filter states
@@ -30,9 +29,8 @@ export const usePurchaseReport = () => {
       : localStorage.getItem("activeBranchId");
     return activeBranchId || "1";
   });
+  const [productId, setProductId] = useState<string>("0");
   const [supplierId, setSupplierId] = useState<string>("0");
-  const [paymodeId, setPaymodeId] = useState<string>("0");
-  const [seriesId, setSeriesId] = useState<string>("0");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Master data queries
@@ -41,73 +39,63 @@ export const usePurchaseReport = () => {
     queryFn: getBranchList,
   });
 
-  const { data: paymodes = [] as PaymodeOption[], isLoading: paymodesLoading } = useQuery({
-    queryKey: ["paymodeList"],
-    queryFn: getPaymodeList,
-  });
-
   const { data: suppliers = [] as SupplierOption[], isLoading: suppliersLoading } = useQuery({
     queryKey: ["supplierList", "all"],
     queryFn: getSupplierList,
   });
 
-  const { data: seriesList = [] as any[], isLoading: seriesLoading } = useQuery({
-    queryKey: ["seriesList", "purchase", branchId],
-    queryFn: () => getSeriesList(Number(branchId)),
-    enabled: !!branchId,
+  const { data: products = [] as ProductOption[], isLoading: productsLoading } = useQuery({
+    queryKey: ["productList", "all"],
+    queryFn: getProductList,
   });
 
   // Report query
   const { data: reportData, isLoading: reportLoading, isFetching, refetch } = useQuery({
-    queryKey: ["purchaseReport", { fromDate, toDate, branchId, supplierId, paymodeId, seriesId, decimalPart }],
-    queryFn: () =>
-      getPurchaseReport({
+    queryKey: ["productWisePurchaseReport", { fromDate, toDate, branchId, productId, supplierId, decimalPart }],
+    queryFn: () => {
+      const params: ProductWisePurchaseReportParams = {
         BranchId: Number(branchId),
-        SeriesId: Number(seriesId),
         FromDate: fromDate,
         ToDate: toDate,
-        SupplierId: Number(supplierId),
-        PaymodeId: Number(paymodeId),
         Decimals: decimalPart,
-      }),
+      };
+      if (productId && productId !== "0") params.productId = Number(productId);
+      if (supplierId && supplierId !== "0") params.supplierId = Number(supplierId);
+      return getProductWisePurchaseReport(params);
+    },
   });
 
-  // Client-side filtering fallback
+  // Client-side filtering fallback for search term and filter selections
   const filteredPurchaseData = (reportData?.purchaseData || []).filter((row: any) => {
     // 1. Supplier Filter
     if (supplierId !== "0") {
       const selectedSup = suppliers.find((s: any) => String(s.supplierId) === supplierId);
       if (selectedSup) {
         const matchesName = row.supplierName?.toLowerCase() === selectedSup.supplierName?.toLowerCase();
-        const matchesCode = row.supplierCode?.toLowerCase() === selectedSup.code?.toLowerCase();
+        if (!matchesName) return false;
+      }
+    }
+
+    // 2. Product Filter
+    if (productId !== "0") {
+      const selectedProd = products.find((p: any) => String(p.productId) === productId);
+      if (selectedProd) {
+        const matchesName = row.productnName?.toLowerCase() === selectedProd.productName?.toLowerCase();
+        const matchesCode = row.productCode?.toLowerCase() === selectedProd.code?.toLowerCase();
         if (!matchesName && !matchesCode) return false;
       }
     }
 
-    // 2. Paymode Filter
-    if (paymodeId !== "0") {
-      const selectedPaymodeName = paymodes.find((p: any) => String(p.paymodeId) === paymodeId)?.paymodeName;
-      if (selectedPaymodeName && row.paymode && row.paymode.toLowerCase() !== selectedPaymodeName.toLowerCase()) {
-        return false;
-      }
-    }
-
-    // 3. Branch Filter
-    if (branchId !== "0") {
-      const selectedBranchName = branches.find((b: any) => String(b.branchId) === branchId)?.branchName;
-      if (selectedBranchName) {
-        if (row.branchId !== undefined && String(row.branchId) !== branchId) return false;
-        if (row.branchName && row.branchName.toLowerCase() !== selectedBranchName.toLowerCase()) return false;
-      }
-    }
-
-    // 4. Series Filter
-    if (seriesId !== "0") {
-      const selectedSeriesName = seriesList.find((s: any) => String(s.seriesId) === seriesId)?.seriesName;
-      if (selectedSeriesName) {
-        if (row.seriesId !== undefined && String(row.seriesId) !== seriesId) return false;
-        if (row.seriesName && row.seriesName.toLowerCase() !== selectedSeriesName.toLowerCase()) return false;
-      }
+    // 3. Search Term Filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      return (
+        (row.productnName && row.productnName.toLowerCase().includes(term)) ||
+        (row.productCode && row.productCode.toLowerCase().includes(term)) ||
+        (row.supplierName && row.supplierName.toLowerCase().includes(term)) ||
+        (row["p/R Number"] && row["p/R Number"].toLowerCase().includes(term)) ||
+        (row.invoiceNo && row.invoiceNo.toLowerCase().includes(term))
+      );
     }
 
     return true;
@@ -127,9 +115,8 @@ export const usePurchaseReport = () => {
     setFromDate(defaultFrom);
     setToDate(defaultTo);
     setBranchId(defaultBranch);
+    setProductId("0");
     setSupplierId("0");
-    setPaymodeId("0");
-    setSeriesId("0");
     setSearchTerm("");
   };
 
@@ -141,12 +128,10 @@ export const usePurchaseReport = () => {
       setToDate,
       branchId,
       setBranchId,
+      productId,
+      setProductId,
       supplierId,
       setSupplierId,
-      paymodeId,
-      setPaymodeId,
-      seriesId,
-      setSeriesId,
       searchTerm,
       setSearchTerm,
       resetFilters,
@@ -154,17 +139,14 @@ export const usePurchaseReport = () => {
     masterData: {
       branches,
       branchesLoading,
-      paymodes,
-      paymodesLoading,
       suppliers,
       suppliersLoading,
-      series: seriesList,
-      seriesLoading,
+      products,
+      productsLoading,
     },
     report: {
       purchaseData: filteredPurchaseData,
-      paymodeData: reportData?.paymodeData || [],
-      totalData: reportData?.totalData?.[0] || null,
+      totalData: reportData?.totalData || null,
       isLoading: reportLoading || isFetching,
       refetch,
     },

@@ -535,7 +535,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
             discAmount: l.discountAmount,
             vatAmount: l.vatAmount,
             netAmount: l.netAmount,
-            baseQty: toNumber(item.qty) * unitCurrentValue,
+            baseQty: (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue,
           };
         }),
         paymodes: (() => {

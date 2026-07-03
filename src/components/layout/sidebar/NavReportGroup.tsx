@@ -28,12 +28,17 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
       )}
 
       {hasPermission("Purchase Report", "View") && (
-        <div onClick={() => handleItemClick("/dashboard/reports/purchase")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <ShoppingCart size={14} />
-            <span>Purchase Report</span>
+        <SidebarDropdown icon={<ShoppingCart size={14} />} label="Purchase Report" nested={true}>
+          <div onClick={() => handleItemClick("/dashboard/reports/purchase")} className={itemClassName}>
+            <span>Purchase Summary</span>
           </div>
-        </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-wise-purchase")} className={itemClassName}>
+            <span>Product Wise Purchase</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/stock-register")} className={itemClassName}>
+            <span>Stock Register Report</span>
+          </div>
+        </SidebarDropdown>
       )}
 
       {hasPermission("Purchase Return Report", "View") && (

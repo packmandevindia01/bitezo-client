@@ -10,7 +10,8 @@ import {
   Button,
   SelectInput,
   SearchableSelect,
-  Checkbox
+  Checkbox,
+  ResetButton
 } from "../../../../components/common";
 import { SalesReportPrintPreviewModal } from "../components/SalesReportPrintPreviewModal";
 
@@ -58,6 +59,11 @@ const SalesReportPage = () => {
   const { filters, masterData, report } = useSalesReport();
   const [groupBy, setGroupBy] = useState<GroupByOption>("All");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handleReset = () => {
+    filters.resetFilters();
+    setGroupBy("All");
+  };
 
   const branchOptions = useMemo(() => {
     return masterData.branches.map(b => ({
@@ -223,7 +229,7 @@ const SalesReportPage = () => {
   return (
     <PageShell title="Sales Report">
       {/* Container to fill remaining viewport height */}
-      <div className="flex flex-col h-[calc(100vh-92px)] overflow-hidden p-1 gap-3 relative">
+      <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
 
         {/* ── Filter Panel (Fixed Height, compact padding) ────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
@@ -237,7 +243,12 @@ const SalesReportPage = () => {
             <X size={18} />
           </button>
 
-          <div className="px-4 py-3 flex flex-col xl:flex-row gap-5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
+          <ResetButton
+            onReset={handleReset}
+            className="absolute bottom-3 right-3"
+          />
+
+          <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
 
             {/* 1. Group-By Filter */}
             <div className="shrink-0 flex flex-col gap-0.5 pr-4 justify-center">
@@ -255,7 +266,7 @@ const SalesReportPage = () => {
             </div>
 
             {/* 2. Location + Series */}
-            <div className="pt-3 xl:pt-0 xl:px-5 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
                 <div className="w-40">
@@ -271,7 +282,7 @@ const SalesReportPage = () => {
             </div>
 
             {/* 3. Customer + Paymode */}
-            <div className="pt-3 xl:pt-0 xl:px-5 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Customer</span>
                 <div className="w-44">
@@ -287,7 +298,7 @@ const SalesReportPage = () => {
             </div>
 
             {/* 4. Dates */}
-            <div className="pt-3 xl:pt-0 xl:pl-5 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:pl-3 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">From</span>
                 <div className="w-36">

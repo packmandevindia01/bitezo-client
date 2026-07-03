@@ -108,6 +108,26 @@ export const useSalesReport = () => {
     return true;
   });
 
+  const resetFilters = () => {
+    const today = new Date();
+    const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    const defaultTo = today.toISOString().split("T")[0];
+    
+    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+    const activeBranchId = isBackofficeMode 
+      ? sessionStorage.getItem("backoffice_activeBranchId") 
+      : localStorage.getItem("activeBranchId");
+    const defaultBranch = activeBranchId || "1";
+
+    setFromDate(defaultFrom);
+    setToDate(defaultTo);
+    setBranchId(defaultBranch);
+    setCustomerId("0");
+    setPaymodeId("0");
+    setSeriesId("0");
+    setSearchTerm("");
+  };
+
   return {
     filters: {
       fromDate,
@@ -124,6 +144,7 @@ export const useSalesReport = () => {
       setSeriesId,
       searchTerm,
       setSearchTerm,
+      resetFilters,
     },
     masterData: {
       branches,
