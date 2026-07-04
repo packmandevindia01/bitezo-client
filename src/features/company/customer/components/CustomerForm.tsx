@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
-import { isRequired } from "../../../../lib/validators";
-import type { Customer } from "../../../pos/customer/types/customer";
+import type { Customer } from "../types";
+import { useCustomerForm } from "../hooks/useCustomerForm";
+import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
 
 interface Props {
   initialData?: Customer | null;
@@ -14,27 +14,6 @@ interface Props {
   onClear?: () => void;
 }
 
-const createInitialForm = (initialData?: Customer | null): Customer => ({
-  id: initialData?.id,
-  customerCode: initialData?.customerCode ?? "",
-  customerName: initialData?.customerName ?? "",
-  arabicName: initialData?.arabicName ?? "",
-  mobileNo: initialData?.mobileNo ?? "",
-  telNo: initialData?.telNo ?? "",
-  email: initialData?.email ?? "",
-  address: initialData?.address ?? "",
-  area: initialData?.area ?? "",
-  flatNo: initialData?.flatNo ?? "",
-  buildingNo: initialData?.buildingNo ?? "",
-  blockNo: initialData?.blockNo ?? "",
-  roadNo: initialData?.roadNo ?? "",
-  identityNo: initialData?.identityNo ?? "",
-  trnNo: initialData?.trnNo ?? "",
-  branch: initialData?.branch ?? "",
-  openingBalance: initialData?.openingBalance ?? "",
-  isActive: initialData?.isActive ?? true,
-});
-
 const CustomerForm = ({
   initialData,
   onSubmit,
@@ -43,143 +22,222 @@ const CustomerForm = ({
   deleting = false,
   onClear,
 }: Props) => {
-  const [form, setForm] = useState<Customer>(() => createInitialForm(initialData));
-  const [errors, setErrors] = useState<Partial<Record<keyof Customer, string>>>({});
+  const { form, handleSubmit } = useCustomerForm({
+    initialData,
+    onSubmit,
+  });
 
-  const handleChange = <K extends keyof Customer>(key: K, value: Customer[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
+  const { register, watch, setValue, formState: { errors } } = form;
+  const handleKeyDown = useEnterKeyNavigation();
 
   const handleClear = () => {
-    setForm(createInitialForm(null));
-    setErrors({});
+    form.reset();
     if (onClear) onClear();
-  };
-
-  const validate = () => {
-    const newErrors: typeof errors = {};
-
-    if (!isRequired(form.customerName)) newErrors.customerName = "Customer name is required";
-    if (!isRequired(form.mobileNo)) newErrors.mobileNo = "Mobile number is required";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-    await onSubmit(form);
   };
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-1 py-2 px-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 py-2 px-1">
+        {/* Customer Code - Read Only */}
         <FormInput
+          id="cust-code"
           label="Customer Code"
-          value={form.customerCode}
-          onChange={(e) => handleChange("customerCode", e.target.value.toUpperCase())}
           placeholder="AUTO"
           readOnly
-        />
-        <FormInput
-          label="Customer Name"
-          required
-          autoFocus
-          value={form.customerName}
-          onChange={(e) => handleChange("customerName", e.target.value)}
-          error={errors.customerName}
-        />
-        <FormInput
-          label="Arabic Name"
-          value={form.arabicName}
-          onChange={(e) => handleChange("arabicName", e.target.value)}
-          inputClassName="text-right font-arabic"
-        />
-        <FormInput
-          label="Mobile No"
-          required
-          value={form.mobileNo}
-          onChange={(e) => handleChange("mobileNo", e.target.value)}
-          error={errors.mobileNo}
-        />
-        <FormInput
-          label="Tel No"
-          value={form.telNo}
-          onChange={(e) => handleChange("telNo", e.target.value)}
-        />
-        <FormInput
-          label="Email"
-          type="email"
-          value={form.email}
-          onChange={(e) => handleChange("email", e.target.value)}
-        />
-        <FormInput
-          label="Identity No"
-          value={form.identityNo}
-          onChange={(e) => handleChange("identityNo", e.target.value)}
-        />
-        <FormInput
-          label="TRN No"
-          value={form.trnNo}
-          onChange={(e) => handleChange("trnNo", e.target.value)}
+          tabIndex={-1}
+          {...register("customerCode")}
         />
 
-        {/* Address Full Width on mobile/tablet, 2 cols on lg+ */}
-        <div className="md:col-span-2 lg:col-span-2 flex flex-col gap-1 mb-4 w-full">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Address</label>
+        {/* Address */}
+        <div className="flex flex-col gap-1 w-full relative">
+          <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0">
+            Address
+            {errors.address && (
+              <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink">
+                ({(errors.address as any).message})
+              </span>
+            )}
+          </label>
           <textarea
-            value={form.address}
-            onChange={(e) => handleChange("address", e.target.value)}
-            className="w-full px-3 md:px-4 py-2 text-sm rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-none h-[42px]"
+            id="cust-address"
             placeholder="Enter full address"
+            tabIndex={2}
+            {...register("address")}
+            onKeyDown={(e) => handleKeyDown(e, "cust-area")}
+            className={`w-full px-4 py-2 text-sm rounded-md border outline-none transition resize-none h-[42px] ${
+              errors.address ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"
+            } focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20`}
           />
         </div>
 
+        {/* Customer Name */}
         <FormInput
-          label="Area"
-          value={form.area}
-          onChange={(e) => handleChange("area", e.target.value)}
-        />
-        <FormInput
-          label="Building No"
-          value={form.buildingNo}
-          onChange={(e) => handleChange("buildingNo", e.target.value)}
-        />
-        <FormInput
-          label="Flat No"
-          value={form.flatNo}
-          onChange={(e) => handleChange("flatNo", e.target.value)}
-        />
-        <FormInput
-          label="Block No"
-          value={form.blockNo}
-          onChange={(e) => handleChange("blockNo", e.target.value)}
-        />
-        <FormInput
-          label="Road No"
-          value={form.roadNo}
-          onChange={(e) => handleChange("roadNo", e.target.value)}
-        />
-        <SelectInput
-          label="Branch"
-          value={form.branch}
-          onChange={(e) => handleChange("branch", e.target.value)}
-          options={[{ label: "Select Branch...", value: "" }, { label: "Main Branch", value: "main" }]}
-        />
-        <FormInput
-          label="Opening Balance"
-          type="number"
-          value={form.openingBalance}
-          onChange={(e) => handleChange("openingBalance", e.target.value)}
-          inputClassName="text-right"
+          id="cust-name"
+          label="Customer Name"
+          required
+          autoFocus
+          placeholder="Enter customer name"
+          tabIndex={1}
+          {...register("customerName")}
+          error={(errors.customerName as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-arabic")}
         />
 
-        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 mt-2">
+        {/* Area */}
+        <FormInput
+          id="cust-area"
+          label="Area"
+          placeholder="Enter area"
+          tabIndex={4}
+          {...register("area")}
+          error={(errors.area as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-building")}
+        />
+
+        {/* Arabic Name */}
+        <FormInput
+          id="cust-arabic"
+          label="Arabic Name"
+          placeholder="Enter arabic name"
+          tabIndex={3}
+          inputClassName="text-right font-arabic"
+          {...register("arabicName")}
+          error={(errors.arabicName as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-mobile")}
+        />
+
+        {/* Building No */}
+        <FormInput
+          id="cust-building"
+          label="Building No"
+          placeholder="Enter building no"
+          tabIndex={6}
+          {...register("buildingNo")}
+          error={(errors.buildingNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-flat")}
+        />
+
+        {/* Mobile No */}
+        <FormInput
+          id="cust-mobile"
+          label="Mobile No"
+          required
+          placeholder="Enter mobile number"
+          tabIndex={5}
+          {...register("mobileNo")}
+          error={(errors.mobileNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-tel")}
+        />
+
+        {/* Flat No */}
+        <FormInput
+          id="cust-flat"
+          label="Flat No"
+          placeholder="Enter flat no"
+          tabIndex={8}
+          {...register("flatNo")}
+          error={(errors.flatNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-block")}
+        />
+
+        {/* Tel No */}
+        <FormInput
+          id="cust-tel"
+          label="Tel No"
+          placeholder="Enter tel number"
+          tabIndex={7}
+          {...register("telNo")}
+          error={(errors.telNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-email")}
+        />
+
+        {/* Block No */}
+        <FormInput
+          id="cust-block"
+          label="Block No"
+          placeholder="Enter block no"
+          tabIndex={10}
+          {...register("blockNo")}
+          error={(errors.blockNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-road")}
+        />
+
+        {/* Email */}
+        <FormInput
+          id="cust-email"
+          label="Email"
+          type="email"
+          placeholder="Enter email address"
+          tabIndex={9}
+          {...register("email")}
+          error={(errors.email as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-id-no")}
+        />
+
+        {/* Road No */}
+        <FormInput
+          id="cust-road"
+          label="Road No"
+          placeholder="Enter road no"
+          tabIndex={12}
+          {...register("roadNo")}
+          error={(errors.roadNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-branch")}
+        />
+
+        {/* Identity No */}
+        <FormInput
+          id="cust-id-no"
+          label="Identity No"
+          placeholder="Enter identity number"
+          tabIndex={11}
+          {...register("identityNo")}
+          error={(errors.identityNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-trn")}
+        />
+
+        {/* Branch */}
+        <SelectInput
+          id="cust-branch"
+          label="Branch"
+          placeholder="Select Branch..."
+          tabIndex={14}
+          options={[{ label: "Main Branch", value: "main" }]}
+          {...register("branch")}
+          error={(errors.branch as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-balance")}
+        />
+
+        {/* TRN No */}
+        <FormInput
+          id="cust-trn"
+          label="TRN No"
+          placeholder="Enter TRN number"
+          tabIndex={13}
+          {...register("trnNo")}
+          error={(errors.trnNo as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-address")}
+        />
+
+        {/* Opening Balance */}
+        <FormInput
+          id="cust-balance"
+          label="Opening Balance"
+          type="number"
+          placeholder="0.000"
+          tabIndex={15}
+          inputClassName="text-right"
+          {...register("openingBalance")}
+          error={(errors.openingBalance as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-save-btn")}
+        />
+
+        <div className="md:col-span-2 mt-2">
           <Checkbox
             label="Active"
-            checked={form.isActive}
-            onChange={(e) => handleChange("isActive", e.target.checked)}
+            checked={watch("isActive")}
+            tabIndex={16}
+            onChange={(e) => setValue("isActive", e.target.checked)}
           />
         </div>
       </div>
@@ -196,9 +254,11 @@ const CustomerForm = ({
         </Button>
 
         <Button 
+          id="cust-save-btn"
           onClick={handleSubmit} 
           loading={submitting}
           isAction
+          tabIndex={17}
           icon={<Save size={18} />}
         >
           {initialData ? "Update" : "Save"}
@@ -210,6 +270,7 @@ const CustomerForm = ({
             onClick={onDelete} 
             loading={deleting}
             isAction
+            tabIndex={18}
             icon={<Trash2 size={18} />}
           >
             Delete
