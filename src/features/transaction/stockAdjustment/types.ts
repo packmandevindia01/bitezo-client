@@ -6,6 +6,7 @@ export const stockAdjustmentItemSchema = z.object({
   code: z.string().optional(),
   unit: z.string().optional(),
   unitId: z.number().optional(),
+  unitCategory: z.string().optional(),
   qty: z.string().refine(val => Number(val) > 0, "Qty > 0").default("1"),
   cost: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
   type: z.string().min(1, "Type is required"),
@@ -15,7 +16,7 @@ export const stockAdjustmentItemSchema = z.object({
 });
 
 export const stockAdjustmentSchema = z.object({
-  series: z.string().min(1, "Series is required"),
+  series: z.string().optional(),
   refNo: z.string().min(1, "Ref No is required"),
   date: z.string().min(1, "Date is required"),
   branch: z.string().min(1, "Branch is required"),

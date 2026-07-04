@@ -16,6 +16,7 @@ interface Props {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLSelectElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLSelectElement>) => void;
   error?: string;
   disabled?: boolean;
@@ -35,6 +36,7 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
   value,
   onChange,
   onBlur,
+  onFocus,
   onKeyDown,
   error,
   disabled,
@@ -54,11 +56,11 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
       {label && (
         <label
           htmlFor={selectId}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
+          className="flex flex-wrap items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
         >
           <span className="truncate">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 
@@ -70,6 +72,7 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
         value={value}
         onChange={onChange}
         onBlur={onBlur}
+        onFocus={onFocus}
         onKeyDown={onKeyDown}
         disabled={disabled}
         autoFocus={autoFocus}

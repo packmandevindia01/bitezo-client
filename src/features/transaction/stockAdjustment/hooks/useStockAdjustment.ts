@@ -29,6 +29,23 @@ export const useStockAdjustment = (id?: string | null) => {
   const { showToast } = useToast();
 
   const [saving, setSaving] = useState(false);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+
+  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
+    if (!unitCategory) return;
+    setCategoryUnits(prev => {
+      if (prev[unitCategory]) return prev;
+      stockAdjustmentApi.getUnitList(unitCategory).then(res => {
+        setCategoryUnits(current => ({
+          ...current,
+          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+        }));
+      }).catch(err => {
+        console.error("Failed to load units for category", unitCategory, err);
+      });
+      return prev;
+    });
+  }, []);
 
   // Product Search State
   const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
@@ -146,20 +163,36 @@ export const useStockAdjustment = (id?: string | null) => {
       };
 
       if (details.length > 0) {
-        const mappedItems: StockAdjustmentLineItem[] = details.map((d: any) => ({
-          id: generateUUID(),
-          productId: d.productId,
-          product: String(d.productId),
-          code: d.barcode || d.productCode || "",
-          unitId: d.unitId,
-          unit: d.unitName || String(d.unitId || ""),
-          qty: String(d.qty || "1"),
-          cost: formatAmount(d.cost || d.price || 0),
-          type: String(d.typeId || ""),
-          typeId: d.typeId || 0,
-          typeName: d.typeName || "",
-          effect: d.effect || "",
-        }));
+        const mappedItems: StockAdjustmentLineItem[] = [];
+        for (const d of details) {
+          const barcode = d.barcode || d.productCode || "";
+          let unitCategory = "";
+          if (barcode) {
+            try {
+              const costData = await stockAdjustmentApi.getPurchaseCostData(barcode);
+              unitCategory = costData.unitCategory || "";
+              if (unitCategory) {
+                await loadCategoryUnits(unitCategory);
+              }
+            } catch (e) {
+              console.error("Failed to fetch product cost data for detail item", d, e);
+            }
+          }
+          mappedItems.push({
+            id: generateUUID(),
+            product: String(d.productId),
+            code: d.barcode || d.productCode || "",
+            unitId: d.unitId,
+            unit: String(d.unitId || ""),
+            unitCategory,
+            qty: String(d.qty || "1"),
+            cost: formatAmount(d.cost || d.price || 0),
+            type: String(d.typeId || ""),
+            typeId: d.typeId || 0,
+            typeName: d.typeName || "",
+            effect: d.effect || "",
+          });
+        }
         formPayload.items = mappedItems;
       } else {
         formPayload.items = [];
@@ -176,7 +209,7 @@ export const useStockAdjustment = (id?: string | null) => {
         const pData = searchRes.find(r => r.productId === pId);
         if (pData) {
           options.push({
-            label: pData.productName,
+            label: pData.code ? `[${pData.code}] ${pData.productName}` : pData.productName,
             value: pData.productId.toString(),
             code: pData.code || "",
             barcode: pData.barcode || ""
@@ -217,29 +250,28 @@ export const useStockAdjustment = (id?: string | null) => {
     }
     setSearchingProducts(true);
     try {
-      const results = await stockAdjustmentApi.getProductListByName(query);
-      let mapped = results.map((r) => ({
-        label: r.productName,
+      // Search by name and code/barcode in parallel
+      const [nameResults, costDetail] = await Promise.all([
+        stockAdjustmentApi.getProductListByName(query).catch(() => []),
+        stockAdjustmentApi.getPurchaseCostData(query).catch(() => null)
+      ]);
+
+      let mapped = nameResults.map((r) => ({
+        label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
         value: r.productId.toString(),
         code: r.code || "",
         barcode: r.barcode || "",
       }));
 
-      // Fallback to barcode search
-      if (mapped.length === 0) {
-        try {
-          const detail = await stockAdjustmentApi.getPurchaseCostData(query).catch(() => null);
-          if (detail) {
-            mapped = [{
-              label: detail.productName,
-              value: detail.productId.toString(),
-              code: detail.productCode || "",
-              barcode: query,
-            }];
-          }
-        } catch (e) {
-          console.error("Failed to lookup barcode", e);
-        }
+      if (costDetail) {
+        const costOption = {
+          label: costDetail.productCode ? `[${costDetail.productCode}] ${costDetail.productName}` : costDetail.productName,
+          value: costDetail.productId.toString(),
+          code: costDetail.productCode || "",
+          barcode: query,
+        };
+        // Prepend matched code result for instant display at the top of options list
+        mapped = [costOption, ...mapped];
       }
       
       const seenIds = new Set<string>();
@@ -262,9 +294,13 @@ export const useStockAdjustment = (id?: string | null) => {
     if (!barcode) return;
     try {
       const details = await stockAdjustmentApi.getPurchaseCostData(barcode);
+      setValue(`items.${index}.unitCategory`, details.unitCategory || "");
       setValue(`items.${index}.unitId`, details.baseUnitId);
       setValue(`items.${index}.unit`, String(details.baseUnitId));
       setValue(`items.${index}.cost`, formatAmount(details.cost));
+      if (details.unitCategory) {
+        loadCategoryUnits(details.unitCategory);
+      }
     } catch (error) {
       console.error("Failed to load product details", error);
     }
@@ -276,25 +312,32 @@ export const useStockAdjustment = (id?: string | null) => {
       if (details) {
         setProductOptions(prev => {
           if (prev.find(o => o.value === String(details.productId))) return prev;
-          return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
+          const labelWithCode = details.productCode ? `[${details.productCode}] ${details.productName}` : details.productName;
+          return [...prev, { label: labelWithCode, value: String(details.productId), code: details.productCode || "", barcode }];
         });
         setValue(`items.${index}.product`, String(details.productId));
         setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unitCategory`, details.unitCategory || "");
         setValue(`items.${index}.unitId`, details.baseUnitId);
         setValue(`items.${index}.unit`, String(details.baseUnitId));
         setValue(`items.${index}.cost`, formatAmount(details.cost));
+        if (details.unitCategory) {
+          loadCategoryUnits(details.unitCategory);
+        }
         return true;
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
     }
     return false;
-  }, [setValue]);
+  }, [setValue, loadCategoryUnits]);
 
   const handleTypeSelect = (index: number, typeIdStr: string) => {
     const t = typesData.raw.find((t: any) => String(t.typeId) === typeIdStr);
     if (t) {
-      setValue(`items.${index}.effect`, t.effect || "");
+      // Default to '+' for types with 'All' effect, allowing user interaction in the dropdown
+      const effectVal = (t.effect === "All" || t.effect === "all" || t.effect === "*") ? "+" : (t.effect || "");
+      setValue(`items.${index}.effect`, effectVal);
       setValue(`items.${index}.typeId`, t.typeId);
       setValue(`items.${index}.typeName`, t.typeName);
     }
@@ -339,6 +382,8 @@ export const useStockAdjustment = (id?: string | null) => {
         }))
       };
 
+      console.log("Saving Stock Adjustment payload:", JSON.stringify(payload, null, 2));
+
       if (id) {
         await stockAdjustmentApi.updateStockAdjustment(Number(id), payload);
         showToast("Stock adjustment updated successfully", "success");
@@ -367,7 +412,7 @@ export const useStockAdjustment = (id?: string | null) => {
     totals,
     handleReset,
     onSubmit,
-    masterData: { branches, employees: branchData.employees, types: typesData.options, units: typesData.units || [] },
+    masterData: { branches, employees: branchData.employees, types: typesData.options, typesRaw: typesData.raw, units: typesData.units || [] },
     loadingMaster,
     masterError: null, // React Query handles separate error states or transparent fallback
     productOptions,
@@ -377,5 +422,6 @@ export const useStockAdjustment = (id?: string | null) => {
     handleProductSelect,
     handleTypeSelect,
     saving,
+    categoryUnits,
   };
 };

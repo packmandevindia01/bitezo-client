@@ -3,6 +3,9 @@ import { Plus, Trash2, Save } from "lucide-react";
 import { Modal, FormInput, Button, ConfirmDialog, SelectInput } from "../../../../components/common";
 import { useCustomer } from "../hooks/useCustomer";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
+import { FormProvider } from "react-hook-form";
+import { getDecimalPart } from "../../../../utils/currency";
+import { handleFocusNextInput } from "../../../../utils/keyboard";
 
 interface PosCustomerModalProps {
   isOpen: boolean;
@@ -10,43 +13,48 @@ interface PosCustomerModalProps {
 }
 
 export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => {
-  const { form, setForm, loading, saveCustomer, deleteCustomer, resetForm } = useCustomer();
-  const [activeField, setActiveField] = useState<keyof typeof form | null>(null);
+  const { methods, loading, saveCustomer, deleteCustomer, resetForm } = useCustomer(onClose);
+  const [isKeyboardEnabled, setIsKeyboardEnabled] = useState(true);
   const [showKeyboard, setShowKeyboard] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [pendingData, setPendingData] = useState<any>(null);
   
   const firstInputRef = useRef<HTMLInputElement>(null);
 
+  const { register, formState: { errors }, watch } = methods;
+  const customerId = watch("id");
+
+  const handleFormSubmit = methods.handleSubmit((data) => {
+    setPendingData(data);
+    setShowSaveConfirm(true);
+  });
+
+  const handleConfirmSave = () => {
+    if (pendingData) {
+      saveCustomer(pendingData);
+    }
+    setShowSaveConfirm(false);
+  };
+
   useEffect(() => {
     if (isOpen) {
+      resetForm();
+      setIsKeyboardEnabled(true);
+      setShowKeyboard(true);
       setTimeout(() => firstInputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
-  const handleInput = (val: string) => {
-    if (!activeField) return;
-    setForm({ ...form, [activeField]: (form[activeField] as string) + val });
+  const handleInputFocus = () => {
+    if (isKeyboardEnabled) {
+      setShowKeyboard(true);
+    }
   };
 
-  const handleBackspace = () => {
-    if (!activeField) return;
-    setForm({ ...form, [activeField]: (form[activeField] as string).slice(0, -1) });
-  };
+  const step = Math.pow(10, -getDecimalPart()).toString();
 
-  const handleClear = () => {
-    if (!activeField) return;
-    setForm({ ...form, [activeField]: "" });
-  };
-
-  const handleFieldFocus = (field: keyof typeof form) => {
-    setActiveField(field);
-    setShowKeyboard(true);
-  };
-
-  const handleFieldClick = (field: keyof typeof form) => {
-    setActiveField(field);
-    setShowKeyboard(true);
-  };
+  const { ref: nameFormRef, ...nameRegister } = register("customerName");
 
   return (
     <Modal
@@ -55,185 +63,260 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
       title="Customer Master"
       className="!max-w-[95vw] w-[95vw] !max-h-[95vh] h-[95vh] bg-slate-50 flex flex-col"
     >
-      <div className="flex flex-col flex-1 h-full min-h-0">
-        {/* Action Bar (Top) */}
-        <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm mb-4 shrink-0">
-          <div className="flex items-center gap-2 text-[10px] font-black text-[#9c142c] uppercase animate-pulse">
-            {showKeyboard && (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M11 19a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9Z"/></svg>
-                Keyboard Active
-              </>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Button 
-              variant="secondary" 
-              onClick={() => {
-                resetForm();
-                setTimeout(() => firstInputRef.current?.focus(), 50);
-              }} 
-              disabled={loading} 
-              isAction
-              icon={<Plus size={20} />}
-            />
-            <Button 
-              variant="danger" 
-              onClick={() => setShowDeleteConfirm(true)} 
-              disabled={loading || !form.id} 
-              isAction
-              icon={<Trash2 size={20} />}
-            />
-            <Button 
-              onClick={saveCustomer} 
-              loading={loading} 
-              isAction
-              icon={<Save size={20} />}
-            />
-          </div>
-        </div>
-
-        {/* Form Section */}
-        <div className="flex-1 overflow-y-auto p-2 md:p-6 bg-white rounded-xl shadow-inner border border-slate-100">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-            <div className="space-y-4">
-              <FormInput
-                label="Customer Code"
-                value={form.customerCode}
-                onChange={(e) => setForm({ ...form, customerCode: e.target.value.toUpperCase() })}
-                onFocus={() => handleFieldFocus("customerCode")}
-                onClick={() => handleFieldClick("customerCode")}
-                placeholder="AUTO"
-                readOnly
-                inputMode="none"
+      <FormProvider {...methods}>
+        <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 h-full min-h-0">
+          {/* Action Bar (Top) */}
+          <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm mb-4 shrink-0">
+            <div>
+              <button 
+                type="button"
+                onClick={() => {
+                  const newVal = !isKeyboardEnabled;
+                  setIsKeyboardEnabled(newVal);
+                  setShowKeyboard(newVal);
+                  setTimeout(() => firstInputRef.current?.focus(), 50);
+                }}
+                className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-wider px-2 py-1.5 rounded-lg border transition-all ${
+                  isKeyboardEnabled 
+                    ? "text-[#49293e] bg-[#49293e]/5 border-[#49293e]/20 hover:bg-[#49293e]/10" 
+                    : "text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M11 19a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9Z"/>
+                </svg>
+                {isKeyboardEnabled ? "Keyboard: Touch" : "Keyboard: Physical"}
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                variant="secondary" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  resetForm();
+                  setTimeout(() => firstInputRef.current?.focus(), 50);
+                }} 
+                disabled={loading} 
+                isAction
+                icon={<Plus size={20} />}
+                tabIndex={-1}
               />
-              <FormInput
-                label="Customer Name"
-                value={form.customerName}
-                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                onFocus={() => handleFieldFocus("customerName")}
-                onClick={() => handleFieldClick("customerName")}
-                ref={firstInputRef}
-                autoFocus
-                required
-                inputMode="none"
+              <Button 
+                variant="danger" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }} 
+                disabled={loading || !customerId} 
+                isAction
+                icon={<Trash2 size={20} />}
+                tabIndex={13}
               />
-              <FormInput
-                label="Arabic Name"
-                value={form.arabicName}
-                onChange={(e) => setForm({ ...form, arabicName: e.target.value })}
-                onFocus={() => handleFieldFocus("arabicName")}
-                onClick={() => handleFieldClick("arabicName")}
-                inputClassName="text-right font-arabic"
-                inputMode="none"
-              />
-              <FormInput
-                label="Mobile No"
-                value={form.mobileNo}
-                onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
-                onFocus={() => handleFieldFocus("mobileNo")}
-                onClick={() => handleFieldClick("mobileNo")}
-                required
-                inputMode="none"
-              />
-              <FormInput
-                label="Tel No"
-                value={form.telNo}
-                onChange={(e) => setForm({ ...form, telNo: e.target.value })}
-                onFocus={() => handleFieldFocus("telNo")}
-                onClick={() => handleFieldClick("telNo")}
-                inputMode="none"
-              />
-              <FormInput
-                label="Email"
-                value={form.email}
-                type="email"
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                onFocus={() => handleFieldFocus("email")}
-                onClick={() => handleFieldClick("email")}
-                inputMode="none"
+              <Button 
+                type="submit"
+                loading={loading} 
+                isAction
+                icon={<Save size={20} />}
+                tabIndex={12}
               />
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1 w-full mb-4">
-                <label className="text-xs md:text-sm font-medium text-gray-700">Address</label>
-                <textarea
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  onFocus={() => handleFieldFocus("address")}
-                  onClick={() => handleFieldClick("address")}
-                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base rounded-md border border-gray-300 bg-white outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-y min-h-[80px]"
-                  placeholder="Enter full address"
+          {/* Form Section */}
+          <div className="flex-1 overflow-y-auto p-2 md:p-6 bg-white rounded-xl shadow-inner border border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+              <div className="space-y-4">
+                <FormInput
+                  label="Customer Code"
+                  {...register("customerCode")}
+                  placeholder="AUTO"
+                  readOnly
+                  inputMode="none"
+                  tabIndex={-1}
+                />
+                <FormInput
+                  label="Customer Name"
+                  required
+                  {...nameRegister}
+                  ref={(el) => {
+                    nameFormRef(el);
+                    (firstInputRef as any).current = el;
+                  }}
+                  error={errors.customerName?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={1}
+                />
+                <FormInput
+                  label="Arabic Name"
+                  {...register("arabicName")}
+                  error={errors.arabicName?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputClassName="text-right font-arabic"
+                  inputMode="none"
+                  tabIndex={3}
+                />
+                <FormInput
+                  label="Mobile No"
+                  required
+                  {...register("mobileNo")}
+                  error={errors.mobileNo?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={5}
+                />
+                <FormInput
+                  label="Tel No"
+                  {...register("telNo")}
+                  error={errors.telNo?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={7}
+                />
+                <FormInput
+                  label="Email"
+                  type="email"
+                  {...register("email")}
+                  error={errors.email?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={9}
                 />
               </div>
 
-              <FormInput
-                label="Area"
-                value={form.area}
-                onChange={(e) => setForm({ ...form, area: e.target.value })}
-                onFocus={() => handleFieldFocus("area")}
-                onClick={() => handleFieldClick("area")}
-                inputMode="none"
-              />
-              <FormInput
-                label="Identity No"
-                value={form.identityNo}
-                onChange={(e) => setForm({ ...form, identityNo: e.target.value })}
-                onFocus={() => handleFieldFocus("identityNo")}
-                onClick={() => handleFieldClick("identityNo")}
-                inputMode="none"
-              />
-              <FormInput
-                label="TRN No"
-                value={form.trnNo}
-                onChange={(e) => setForm({ ...form, trnNo: e.target.value })}
-                onFocus={() => handleFieldFocus("trnNo")}
-                onClick={() => handleFieldClick("trnNo")}
-                inputMode="none"
-              />
-              <SelectInput
-                label="Branch"
-                value={form.branch}
-                onChange={(e) => setForm({ ...form, branch: e.target.value })}
-                options={[{ label: "Select Branch...", value: "" }, { label: "Main Branch", value: "main" }]}
-              />
-              <FormInput
-                label="Opening Balance"
-                type="number"
-                value={form.openingBalance}
-                onChange={(e) => setForm({ ...form, openingBalance: e.target.value })}
-                onFocus={() => handleFieldFocus("openingBalance")}
-                onClick={() => handleFieldClick("openingBalance")}
-                inputClassName="text-right"
-                inputMode="none"
-              />
+              <div className="space-y-4">
+                <div className="flex flex-col gap-1 w-full mb-1 relative">
+                  <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0">
+                    Address
+                    {errors.address && (
+                      <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink">
+                        ({errors.address.message})
+                      </span>
+                    )}
+                  </label>
+                  <textarea
+                    {...register("address")}
+                    onFocus={handleInputFocus}
+                    onClick={handleInputFocus}
+                    className={`w-full px-4 py-2 text-sm rounded-md border outline-none transition resize-y min-h-[80px] ${
+                      errors.address ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"
+                    } focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20`}
+                    placeholder="Enter full address"
+                    inputMode="none"
+                    tabIndex={2}
+                  />
+                </div>
+
+                <FormInput
+                  label="Area"
+                  {...register("area")}
+                  error={errors.area?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={4}
+                />
+                <FormInput
+                  label="Identity No"
+                  {...register("identityNo")}
+                  error={errors.identityNo?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={6}
+                />
+                <FormInput
+                  label="TRN No"
+                  {...register("trnNo")}
+                  error={errors.trnNo?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputMode="none"
+                  tabIndex={8}
+                />
+                <SelectInput
+                  label="Branch"
+                  placeholder="Select Branch..."
+                  {...register("branch")}
+                  error={errors.branch?.message}
+                  tabIndex={10}
+                  onFocus={(e) => {
+                    try {
+                      e.target.showPicker();
+                    } catch (err) {
+                      // Fallback for older browsers
+                    }
+                  }}
+                  onChange={(e) => {
+                    register("branch").onChange(e);
+                    setTimeout(() => {
+                      handleFocusNextInput(e.target as HTMLElement);
+                    }, 50);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTimeout(() => {
+                        handleFocusNextInput(e.target as HTMLElement);
+                      }, 50);
+                    }
+                  }}
+                  options={[
+                    { label: "Main Branch", value: "main" }
+                  ]}
+                />
+                <FormInput
+                  label="Opening Balance"
+                  type="number"
+                  step={step}
+                  {...register("openingBalance")}
+                  error={errors.openingBalance?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  inputClassName="text-right"
+                  inputMode="none"
+                  tabIndex={11}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Keyboard Section - Slides up over content */}
-        {showKeyboard && (
-          <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[-0_-10px_40px_rgba(0,0,0,0.1)] z-10 transition-transform duration-300 transform translate-y-0 p-2 md:p-3">
-            <TouchKeyboard
-              onInput={handleInput}
-              onBackspace={handleBackspace}
-              onClear={handleClear}
-              onClose={() => setShowKeyboard(false)}
-            />
-          </div>
-        )}
-      </div>
+          {/* Keyboard Section - Participates in layout to allow scrolling to covered inputs */}
+          {showKeyboard && (
+            <div className="bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-10 p-2 md:p-3 shrink-0">
+              <TouchKeyboard
+                onClose={() => setShowKeyboard(false)}
+              />
+            </div>
+          )}
+        </form>
+      </FormProvider>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={() => {
-          if (form.id) deleteCustomer(form.id);
+          if (customerId) deleteCustomer(Number(customerId));
           setShowDeleteConfirm(false);
         }}
         title="Delete Customer"
         message="Are you sure you want to delete this customer? This action cannot be undone."
+      />
+
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        onCancel={() => setShowSaveConfirm(false)}
+        onConfirm={handleConfirmSave}
+        title="Save Customer"
+        message="Are you sure you want to save this customer?"
+        confirmLabel="Save"
+        confirmVariant="primary"
       />
     </Modal>
   );

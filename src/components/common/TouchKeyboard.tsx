@@ -29,10 +29,58 @@ export const TouchKeyboard = ({
     initialLayout || "qwerty"
   );
   const [isCaps, setIsCaps] = useState(false);
+  const [isCapsLock, setIsCapsLock] = useState(false);
+  const lastShiftTapRef = useRef<number>(0);
+  const shiftLongPressTimeoutRef = useRef<any>(null);
   const [pressedKeys, setPressedKeys] = useState<{ [key: string]: boolean }>({});
 
   const backspaceTimeoutRef = useRef<any>(null);
   const backspaceIntervalRef = useRef<any>(null);
+
+  const lastActiveInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const lastSelectionStartRef = useRef<number>(0);
+  const hasTypedInCurrentInputRef = useRef<boolean>(false);
+
+  // Safe helper to read cursor selection coordinates to prevent Chrome DOMExceptions on type="email"/"number"
+  const getSafeSelection = (inputEl: HTMLInputElement | HTMLTextAreaElement) => {
+    try {
+      const start = inputEl.selectionStart;
+      const end = inputEl.selectionEnd;
+      return {
+        start: start !== null ? start : inputEl.value.length,
+        end: end !== null ? end : inputEl.value.length,
+        supported: true,
+      };
+    } catch (e) {
+      return {
+        start: inputEl.value.length,
+        end: inputEl.value.length,
+        supported: false,
+      };
+    }
+  };
+
+  // 1a. Track cursor position and active input to prevent layout-shift selection resets
+  useEffect(() => {
+    const handleGlobalFocusOrClick = (e: Event) => {
+      const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) {
+        const target = e.target as HTMLElement | null;
+        if (target && !target.closest("[data-touch-keyboard='true']")) {
+          const sel = getSafeSelection(activeEl);
+          lastSelectionStartRef.current = sel.start;
+          lastActiveInputRef.current = activeEl;
+        }
+      }
+    };
+
+    window.addEventListener("focusin", handleGlobalFocusOrClick, true);
+    window.addEventListener("click", handleGlobalFocusOrClick, true);
+    return () => {
+      window.removeEventListener("focusin", handleGlobalFocusOrClick, true);
+      window.removeEventListener("click", handleGlobalFocusOrClick, true);
+    };
+  }, []);
 
   // 1. Intelligent Auto-Layout Detection based on focused Input Field attributes
   useEffect(() => {
@@ -76,8 +124,13 @@ export const TouchKeyboard = ({
   useEffect(() => {
     const handlePhysicalKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
-        const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
-        const isInput = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+        const activeEl = document.activeElement as HTMLElement | null;
+        const isInteractiveFormElement = activeEl && (
+          activeEl.tagName === "INPUT" || 
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.tagName === "SELECT" ||
+          activeEl.getAttribute("role") === "combobox"
+        );
         
         // Exclude searchable select inputs, dropdown portals, and search filters from auto-focus navigation
         const placeholder = (activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement) 
@@ -90,10 +143,10 @@ export const TouchKeyboard = ({
           activeEl.getAttribute("role") === "combobox"
         );
 
-        // Only intercept if we are currently typing inside an input/textarea inside the active modal/form
-        if (isInput && !activeEl.readOnly && !activeEl.disabled && !isSearchSelectInput) {
-          // If it's a textarea, let it normal enter (newline) unless Shift is pressed
-          if (activeEl.tagName === "TEXTAREA" && !e.shiftKey) {
+        // Only intercept if we are currently inside an interactive form element inside the active modal/form
+        if (isInteractiveFormElement && !(activeEl as any).readOnly && !(activeEl as any).disabled && !isSearchSelectInput) {
+          // If it's a textarea, let it normal enter (newline) if Shift is pressed
+          if (activeEl.tagName === "TEXTAREA" && e.shiftKey) {
             return;
           }
           
@@ -117,15 +170,15 @@ export const TouchKeyboard = ({
     ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
     ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
     ["a", "s", "d", "f", "g", "h", "j", "k", "l", "."],
-    ["z", "x", "c", "v", "b", "n", "m", "Enter"],
-    ["123", "Space", "Back Space", "Close"],
+    ["Shift", "z", "x", "c", "v", "b", "n", "m", "Enter"],
+    ["123", "Symbols", "Space", "Back Space", "Close"],
   ];
 
   const symbolLayout = [
     ["[", "]", "{", "}", "(", ")", "<", ">", "_", "-"],
     ["!", "@", "#", "$", "%", "^", "&", "*", "+", "="],
     ["~", "`", "|", "\\", ":", ";", "\"", "'", "?", "/"],
-    ["ABC", "Space", "Back Space", "Close"],
+    ["ABC", "123", "Space", "Back Space", "Close"],
   ];
 
   const numericLayout = [
@@ -147,8 +200,13 @@ export const TouchKeyboard = ({
       return;
     }
 
-    const start = activeEl.selectionStart ?? 0;
-    const end = activeEl.selectionEnd ?? 0;
+    const sel = getSafeSelection(activeEl);
+    const start = (sel.start === 0 && lastActiveInputRef.current === activeEl && lastSelectionStartRef.current > 0)
+      ? lastSelectionStartRef.current
+      : sel.start;
+    const end = (sel.start === 0 && lastActiveInputRef.current === activeEl && lastSelectionStartRef.current > 0)
+      ? lastSelectionStartRef.current
+      : sel.end;
     const val = activeEl.value;
 
     let newVal = val;
@@ -164,6 +222,10 @@ export const TouchKeyboard = ({
       newCursorPos = start;
     }
 
+    lastSelectionStartRef.current = newCursorPos;
+    lastActiveInputRef.current = activeEl;
+    hasTypedInCurrentInputRef.current = true;
+
     triggerReactOnChange(activeEl, newVal, newCursorPos);
   };
 
@@ -175,6 +237,10 @@ export const TouchKeyboard = ({
       onClear?.();
       return;
     }
+
+    lastSelectionStartRef.current = 0;
+    lastActiveInputRef.current = activeEl;
+    hasTypedInCurrentInputRef.current = true;
 
     triggerReactOnChange(activeEl, "", 0);
   };
@@ -265,7 +331,11 @@ export const TouchKeyboard = ({
     // Retain focus and set precise cursor positioning
     activeEl.focus();
     setTimeout(() => {
-      activeEl.setSelectionRange(newCursorPos, newCursorPos);
+      try {
+        activeEl.setSelectionRange(newCursorPos, newCursorPos);
+      } catch (e) {
+        // Ignore errors on inputs that do not support selection (like type="email" or type="number")
+      }
     }, 0);
   };
 
@@ -287,8 +357,39 @@ export const TouchKeyboard = ({
     const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
     const isInput = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
 
+    if (isInput) {
+      if (lastActiveInputRef.current !== activeEl) {
+        hasTypedInCurrentInputRef.current = false;
+      }
+    }
+
     if (key === "Shift") {
-      setIsCaps((c) => !c);
+      const now = Date.now();
+      const delay = now - lastShiftTapRef.current;
+      lastShiftTapRef.current = now;
+
+      if (delay < 350) {
+        // Double tap: lock caps
+        setIsCapsLock(true);
+        setIsCaps(true);
+      } else {
+        if (isCapsLock) {
+          setIsCapsLock(false);
+          setIsCaps(false);
+        } else {
+          setIsCaps((c) => !c);
+        }
+      }
+
+      if (shiftLongPressTimeoutRef.current) {
+        clearTimeout(shiftLongPressTimeoutRef.current);
+      }
+      shiftLongPressTimeoutRef.current = setTimeout(() => {
+        setIsCapsLock(true);
+        setIsCaps(true);
+        setPressedKeys((prev) => ({ ...prev, Shift: true }));
+      }, 500);
+
       return;
     }
 
@@ -323,30 +424,54 @@ export const TouchKeyboard = ({
     }
 
     // Text character insertion
-    if (!isInput) {
+    if (!isInput) { 
       // Fallback if no active input is detected
-      const char = key === "Space" ? " " : isCaps ? key.toUpperCase() : key;
+      const char = key === "Space" ? " " : (isCaps || isCapsLock) ? key.toUpperCase() : key;
       onInput?.(char);
       return;
     }
 
-    const start = activeEl.selectionStart ?? 0;
-    const end = activeEl.selectionEnd ?? 0;
+    const sel = getSafeSelection(activeEl);
+    const start = (sel.start === 0 && lastActiveInputRef.current === activeEl && lastSelectionStartRef.current > 0)
+      ? lastSelectionStartRef.current
+      : sel.start;
+    const end = (sel.start === 0 && lastActiveInputRef.current === activeEl && lastSelectionStartRef.current > 0)
+      ? lastSelectionStartRef.current
+      : sel.end;
     const val = activeEl.value;
 
-    const char = key === "Space" ? " " : isCaps ? key.toUpperCase() : key;
-    const newVal = val.slice(0, start) + char + val.slice(end);
-    const newCursorPos = start + char.length;
+    const char = key === "Space" ? " " : (isCaps || isCapsLock) ? key.toUpperCase() : key;
+    let newVal = val.slice(0, start) + char + val.slice(end);
+    let newCursorPos = start + char.length;
+
+    // Overwrite default zero values on first keystroke inside this input
+    if (!hasTypedInCurrentInputRef.current && isInput) {
+      const isZeroValue = /^0(\.0+)?$/.test(val.trim());
+      if (isZeroValue && key !== "." && key !== "Back Space" && key !== "Back" && key !== "Space") {
+        newVal = char;
+        newCursorPos = char.length;
+      }
+      hasTypedInCurrentInputRef.current = true;
+    }
+
+    lastSelectionStartRef.current = newCursorPos;
+    lastActiveInputRef.current = activeEl;
 
     triggerReactOnChange(activeEl, newVal, newCursorPos);
 
-    // If shift was on, reset it after typing a letter (standard mobile keyboard layout behavior)
-    if (isCaps && key !== "Space") {
+    // If shift was on, reset it after typing a letter (standard mobile keyboard layout behavior, unless Caps Lock is active)
+    if (isCaps && !isCapsLock && key !== "Space") {
       setIsCaps(false);
     }
   };
 
   const handleKeyTouchEnd = (key: string) => {
+    if (key === "Shift") {
+      if (shiftLongPressTimeoutRef.current) {
+        clearTimeout(shiftLongPressTimeoutRef.current);
+        shiftLongPressTimeoutRef.current = null;
+      }
+    }
     // Clear visual active key states
     setTimeout(() => {
       setPressedKeys((prev) => {
@@ -403,6 +528,7 @@ export const TouchKeyboard = ({
 
   return (
     <div
+      data-touch-keyboard="true"
       className={`
         w-full ${embedded ? "max-w-none" : isCompact ? "max-w-[550px]" : isLarge ? "max-w-[1100px]" : "max-w-[920px]"} mx-auto select-none transition-all duration-300 ease-out
         ${embedded ? "" : `
@@ -464,7 +590,7 @@ export const TouchKeyboard = ({
 
               const isSpecial = ["Shift", "Back", "Back Space", "Clear", "Space", "Enter", "Close", "Symbols", "ABC", "123"].includes(key);
               const isActive = !!pressedKeys[key];
-              const isShiftOn = key === "Shift" && isCaps;
+              const isShiftOn = key === "Shift" && (isCaps || isCapsLock);
 
               // Grid sizing configurations for standard POS layouts
               let flexClass = "flex-1";
@@ -533,6 +659,7 @@ export const TouchKeyboard = ({
               return (
                 <button
                   key={key}
+                  type="button"
                   onPointerDown={(e) => handleKeyTouchStart(key, e)}
                   onPointerUp={() => handleKeyTouchEnd(key)}
                   onPointerLeave={() => handleKeyTouchEnd(key)}
@@ -566,11 +693,18 @@ export const TouchKeyboard = ({
                       )}
                     </div>
                   ) : key === "Shift" ? (
-                    <ChevronUp
-                      size={isCompact ? 12 : 16}
-                      strokeWidth={3}
-                      className={isCaps ? "text-white animate-bounce" : "text-slate-600"}
-                    />
+                    <div className="flex items-center gap-1.5 justify-center">
+                      <ChevronUp
+                        size={isCompact ? 12 : 15}
+                        strokeWidth={3}
+                        className={(isCaps || isCapsLock) ? "text-white animate-bounce" : "text-slate-600"}
+                      />
+                      {!isCompact && (
+                        <span className={`text-[9px] font-bold uppercase tracking-wider ${(isCaps || isCapsLock) ? "text-white" : "text-slate-500"}`}>
+                          Shift
+                        </span>
+                      )}
+                    </div>
                   ) : key === "Space" ? (
                     <div className="flex items-center gap-1.5 text-slate-400 w-full px-2">
                       <div className="h-[2px] flex-1 max-w-[20px] rounded-full bg-slate-300" />
@@ -602,7 +736,7 @@ export const TouchKeyboard = ({
                         font-bold tabular-nums leading-none
                       `}
                     >
-                      {isCaps && !isSpecial ? key.toUpperCase() : key}
+                      {(isCaps || isCapsLock) && !isSpecial ? key.toUpperCase() : key}
                     </span>
                   )}
                 </button>

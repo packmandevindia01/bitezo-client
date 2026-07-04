@@ -311,6 +311,7 @@ const SearchableCombobox = ({
             // Delay blur slightly so click on dropdown can register
             setTimeout(() => {
               setFocused(false);
+              setOpen(false);
             }, 150);
           }}
           placeholder={placeholder}

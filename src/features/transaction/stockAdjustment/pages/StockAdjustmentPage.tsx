@@ -46,6 +46,7 @@ const StockAdjustmentPage = () => {
     handleProductSelect,
     handleTypeSelect,
     saving,
+    categoryUnits,
   } = useStockAdjustment(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -80,7 +81,7 @@ const StockAdjustmentPage = () => {
 
   useEffect(() => {
     setTimeout(() => {
-      document.getElementById("sa-series")?.focus();
+      document.getElementById("sa-date")?.focus();
     }, 200);
   }, []);
 
@@ -168,8 +169,7 @@ const StockAdjustmentPage = () => {
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
             {/* ── Header Fields ── Extremely dense padding to save space */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-[1fr_0.7fr_1.1fr_1.2fr_1.2fr] gap-x-2 gap-y-1.5 mb-2">
-              <FormInput inputClassName="!h-8 !px-2 !text-xs text-[#49293e]" id="sa-series" label="Series" {...register("series")} onKeyDown={(e) => hk(e, "sa-date")} readOnly={!canSave} error={errors.series?.message as string} />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
               <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="sa-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
               
@@ -202,6 +202,9 @@ const StockAdjustmentPage = () => {
                       const qty = toNumber(itemWatch.qty);
                       const cost = toNumber(itemWatch.cost);
                       const lineAmount = qty * cost;
+
+                      const rawType = (masterData as any).typesRaw?.find((t: any) => String(t.typeId) === String(itemWatch.type));
+                      const isEffectEditable = rawType && (rawType.effect === "All" || rawType.effect === "all" || rawType.effect === "*");
 
                       return (
                         <tr key={item.id} className="hover:bg-[#49293e]/5 transition-colors">
@@ -241,7 +244,8 @@ const StockAdjustmentPage = () => {
                                           return;
                                         }
                                         const rawValue = e.currentTarget.value;
-                                        if (rawValue && rawValue.trim().length > 0) {
+                                        // Avoid treating formatted labels (e.g. "[3] CHICKEN") as barcodes
+                                        if (rawValue && rawValue.trim().length > 0 && !rawValue.includes("[")) {
                                           e.preventDefault();
                                           const success = await handleBarcodeScan(index, rawValue.trim());
                                           if (success) {
@@ -271,7 +275,7 @@ const StockAdjustmentPage = () => {
                                 <SearchableSelect
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={masterData?.units || []}
+                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
                                   onChange={(val) => selectField.onChange(val)}
                                   disabled={!canSave}
                                   placeholder="Unit"
@@ -300,11 +304,22 @@ const StockAdjustmentPage = () => {
                                     selectField.onChange(val);
                                     handleTypeSelect(index, val);
                                     
+                                    // Check if the selected type has an editable effect (All)
+                                    const rawType = (masterData as any).typesRaw?.find((t: any) => String(t.typeId) === String(val));
+                                    const isEditable = rawType && (rawType.effect === "All" || rawType.effect === "all" || rawType.effect === "*");
+                                    
+                                    if (isEditable) {
+                                      setTimeout(() => {
+                                        document.getElementById(`effect-select-${index}`)?.focus();
+                                      }, 100);
+                                      return;
+                                    }
+
                                     const rowProduct = methods.getValues(`items.${index}.product`);
                                     if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
                                       // Wait slightly longer than SearchableSelect's internal 50ms handleFocusNextInput 
                                       setTimeout(() => {
-                                        append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0", type: "", effect: "" }, { shouldFocus: false });
+                                        append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: "0", type: "", effect: "" }, { shouldFocus: false });
                                         setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
                                       }, 60);
                                     }
@@ -316,12 +331,45 @@ const StockAdjustmentPage = () => {
                             />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-20">
-                            <input
-                              {...register(`items.${index}.effect`)}
-                              className={`w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs font-bold text-center outline-none cursor-not-allowed ${itemWatch.effect === '-' ? 'text-red-500' : itemWatch.effect === '+' ? 'text-green-600' : 'text-[#49293e]'}`}
-                              readOnly
-                              tabIndex={-1}
-                            />
+                            {isEffectEditable ? (
+                              <select
+                                id={`effect-select-${index}`}
+                                {...register(`items.${index}.effect`)}
+                                className="w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs font-bold text-center outline-none cursor-pointer text-[#49293e] focus:border-blue-500 focus:ring-0"
+                                onFocus={(e) => {
+                                  try {
+                                    e.target.showPicker();
+                                  } catch (err) {
+                                    // Fallback for older browsers
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    
+                                    const rowProduct = methods.getValues(`items.${index}.product`);
+                                    if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                      append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: "0", type: "", effect: "" }, { shouldFocus: false });
+                                      setTimeout(() => {
+                                        document.getElementById(`product-select-${items.length}`)?.focus();
+                                      }, 100);
+                                    } else {
+                                      handleGridNav(e, index);
+                                    }
+                                  }
+                                }}
+                              >
+                                <option value="+">+</option>
+                                <option value="-">-</option>
+                              </select>
+                            ) : (
+                              <input
+                                {...register(`items.${index}.effect`)}
+                                className={`w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs font-bold text-center outline-none cursor-not-allowed ${itemWatch.effect === '-' ? 'text-red-500' : itemWatch.effect === '+' ? 'text-green-600' : 'text-[#49293e]'}`}
+                                readOnly
+                                tabIndex={-1}
+                              />
+                            )}
                           </td>
                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineAmount)}</td>
                           <td className="px-2 py-1 text-center w-10">

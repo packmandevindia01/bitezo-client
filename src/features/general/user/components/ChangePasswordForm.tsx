@@ -1,105 +1,69 @@
-import { useState } from "react";
 import { Button, FormInput } from "../../../../components/common";
 import { X, KeyRound } from "lucide-react";
-import { isRequired } from "../../../../lib/validators";
-import type { ChangePasswordPayload, User } from "../types";
+import type { ChangePasswordFormData } from "../schema/userSchema";
+import type { User } from "../types";
+import { useChangePasswordForm } from "../hooks/useChangePasswordForm";
+import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
 
 interface Props {
   user: User | null;
-  onSubmit: (payload: ChangePasswordPayload) => void | Promise<void>;
+  onSubmit: (payload: ChangePasswordFormData) => void | Promise<void>;
   onCancel: () => void;
   submitting?: boolean;
 }
 
-const ChangePasswordForm = ({ user, onSubmit, onCancel, submitting = false }: Props) => {
-  const [form, setForm] = useState({
-    oldPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
-
-  const handleChange = (key: keyof typeof form, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
-
-  const validate = () => {
-    const newErrors: typeof errors = {};
-
-    if (!isRequired(form.oldPassword)) newErrors.oldPassword = "Old password is required";
-    if (!isRequired(form.newPassword)) newErrors.newPassword = "New password is required";
-    if (!isRequired(form.confirmPassword)) newErrors.confirmPassword = "Confirm password is required";
-    if (form.newPassword && form.confirmPassword && form.newPassword !== form.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-
-    await onSubmit({
-      oldPassword: form.oldPassword,
-      newPassword: form.newPassword,
-    });
-
-    setForm({
-      oldPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-    setErrors({});
-  };
+export const ChangePasswordForm = ({ user, onSubmit, onCancel, submitting = false }: Props) => {
+  const { form, handleSubmit } = useChangePasswordForm({ onSubmit });
+  const { register, formState: { errors } } = form;
+  const handleKeyDown = useEnterKeyNavigation();
 
   return (
     <>
-      <h2 className="mb-6 text-center text-lg font-bold">CHANGE PASSWORD</h2>
-
-      <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        User: <span className="font-semibold">{user?.name ?? "-"}</span>
+      <div className="mb-5 rounded-xl bg-slate-50 px-4 py-3.5 text-sm text-slate-700 border border-slate-100">
+        Changing password for user: <span className="font-semibold text-slate-900">{user?.name ?? "-"}</span>
       </div>
 
-      <div className="flex max-w-sm flex-col gap-4">
+      <div className="flex w-full flex-col gap-4">
         <FormInput
+          id="pwd-old"
           label="Old Password"
           type="password"
           autoFocus
-          value={form.oldPassword}
-          onChange={(e) => handleChange("oldPassword", e.target.value)}
-          error={errors.oldPassword}
+          {...register("oldPassword")}
+          error={errors.oldPassword?.message}
+          onKeyDown={(e) => handleKeyDown(e, "pwd-new")}
         />
 
         <FormInput
+          id="pwd-new"
           label="New Password"
           type="password"
-          value={form.newPassword}
-          onChange={(e) => handleChange("newPassword", e.target.value)}
-          error={errors.newPassword}
+          {...register("newPassword")}
+          error={errors.newPassword?.message}
+          onKeyDown={(e) => handleKeyDown(e, "pwd-confirm")}
         />
 
         <FormInput
+          id="pwd-confirm"
           label="Confirm New Password"
           type="password"
-          value={form.confirmPassword}
-          onChange={(e) => handleChange("confirmPassword", e.target.value)}
-          error={errors.confirmPassword}
+          {...register("confirmPassword")}
+          error={errors.confirmPassword?.message}
+          onKeyDown={(e) => handleKeyDown(e, "pwd-save-btn")}
         />
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex justify-end gap-3">
         <Button 
           variant="secondary" 
           onClick={onCancel} 
-          tabIndex={-1}
           isAction
           icon={<X size={18} />}
         >
           Cancel
         </Button>
         <Button 
+          id="pwd-save-btn"
           onClick={handleSubmit} 
           loading={submitting}
           isAction

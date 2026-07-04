@@ -3,10 +3,11 @@ import type { ApiResponse } from "../../../inventory/product/types";
 import { useEffect, useState } from "react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
-import { isRequired } from "../../../../lib/validators";
-import type { User, UserFormData, UserPayload } from "../types";
+import type { User } from "../types";
 import { userRoleService } from "../../userRole/services/userRoleService";
 import type { UserRoleNameOption } from "../../userRole/types";
+import { useUserForm } from "../hooks/useUserForm";
+import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
 
 interface Branch {
   branchId: number;
@@ -15,34 +16,27 @@ interface Branch {
 
 interface Props {
   initialData?: User | null;
-  onSubmit: (user: UserPayload) => void | Promise<void>;
-  onCancel?: () => void;
-  submitting?: boolean;
-  onDelete?: () => void | Promise<void>;
+  onSuccess: () => void;
+  onDelete?: () => void;
   deleting?: boolean;
   onClear?: () => void;
 }
 
-const createInitialForm = (initialData?: User | null): UserFormData => ({
-  name: initialData?.name ?? "",
-  password: "",
-  confirmPassword: "",
-  branchId: initialData?.branchId ? String(initialData.branchId) : "",
-  roleId: initialData?.roleId ? String(initialData.roleId) : "",
-  isActive: initialData?.isActive ?? false,
-  isMaster: false,
-});
-
-const UserForm = ({
+export const UserForm = ({
   initialData,
-  onSubmit,
-  submitting = false,
+  onSuccess,
   onDelete,
   deleting = false,
   onClear,
 }: Props) => {
-  const [form, setForm] = useState<UserFormData>(() => createInitialForm(initialData));
-  const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
+  const { form, handleSubmit, saving } = useUserForm({
+    initialData,
+    onSuccess,
+  });
+
+  const { register, formState: { errors } } = form;
+  const handleKeyDown = useEnterKeyNavigation();
+
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [roles, setRoles] = useState<UserRoleNameOption[]>([]);
@@ -77,133 +71,99 @@ const UserForm = ({
     fetchRoles();
   }, []);
 
-  const handleChange = <K extends keyof UserFormData>(key: K, value: UserFormData[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
-
   const handleClear = () => {
-    setForm(createInitialForm(null));
-    setErrors({});
-    if (onClear) onClear();
-  };
-
-  const validate = () => {
-    const newErrors: typeof errors = {};
-    const requiresPassword = !initialData;
-
-    if (!isRequired(form.name)) newErrors.name = "User name is required";
-    if (requiresPassword && !isRequired(form.password)) newErrors.password = "Password is required";
-    if (requiresPassword && !isRequired(form.confirmPassword)) {
-      newErrors.confirmPassword = "Confirm password is required";
-    }
-    if (
-      (requiresPassword || form.password || form.confirmPassword) &&
-      form.password !== form.confirmPassword
-    ) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    if (!isRequired(form.branchId)) {
-      newErrors.branchId = "Branch is required";
-    }
-
-    if (!isRequired(form.roleId)) {
-      newErrors.roleId = "Role is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-
-    const payload: UserPayload = {
-      name: form.name.trim(),
-      branchId: Number(form.branchId),
-      roleId: Number(form.roleId),
-      isActive: form.isActive,
+    form.reset({
+      name: "",
+      password: "",
+      confirmPassword: "",
+      branchId: "",
+      roleId: "",
+      isActive: true,
       isMaster: false,
-    };
-
-    if (!initialData && form.password) {
-      payload.password = form.password;
-    }
-
-    await onSubmit(payload);
+    });
+    if (onClear) onClear();
   };
 
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
         <FormInput
+          id="user-name"
           label="User Name"
           required
           autoFocus
-          value={form.name}
-          onChange={(e) => handleChange("name", e.target.value)}
-          error={errors.name}
-          autoComplete="new-username"
+          {...register("name")}
+          error={errors.name?.message}
+          autoComplete="off"
+          onKeyDown={(e) => handleKeyDown(e, "user-branch")}
         />
 
         <SelectInput
+          id="user-branch"
           label="Branch"
           required
-          value={form.branchId}
-          onChange={(e) => handleChange("branchId", e.target.value)}
+          {...register("branchId")}
           disabled={branchesLoading}
-          error={errors.branchId}
+          error={errors.branchId?.message}
           options={branches.map((b) => ({
             label: b.branchName,
             value: String(b.branchId),
           }))}
           placeholder={branchesLoading ? "Loading..." : "Select a branch"}
+          onKeyDown={(e) => handleKeyDown(e, "user-role")}
         />
 
         <SelectInput
+          id="user-role"
           label="User Role"
           required
-          value={form.roleId}
-          onChange={(e) => handleChange("roleId", e.target.value)}
+          {...register("roleId")}
           disabled={rolesLoading}
-          error={errors.roleId}
+          error={errors.roleId?.message}
           options={roles.map((r) => ({
             label: r.roleName,
             value: String(r.roleId),
           }))}
           placeholder={rolesLoading ? "Loading..." : "Select a role"}
+          onKeyDown={(e) => handleKeyDown(e, initialData ? "user-save-btn" : "user-password")}
         />
 
         {!initialData && (
           <>
             <FormInput
+              id="user-password"
               label="Password"
               type="password"
               required
-              value={form.password}
-              onChange={(e) => handleChange("password", e.target.value)}
-              error={errors.password}
+              {...register("password")}
+              error={errors.password?.message}
               autoComplete="new-password"
+              onKeyDown={(e) => handleKeyDown(e, "user-confirm-pwd")}
             />
 
             <FormInput
+              id="user-confirm-pwd"
               label="Confirm Pwd"
               type="password"
               required
-              value={form.confirmPassword}
-              onChange={(e) => handleChange("confirmPassword", e.target.value)}
-              error={errors.confirmPassword}
+              {...register("confirmPassword")}
+              error={errors.confirmPassword?.message}
               autoComplete="new-password"
+              onKeyDown={(e) => handleKeyDown(e, "user-save-btn")}
             />
           </>
         )}
 
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex items-center gap-6">
           <Checkbox
             label="Active"
-            checked={form.isActive}
-            onChange={(e) => handleChange("isActive", e.target.checked)}
+            checked={form.watch("isActive")}
+            onChange={(e) => form.setValue("isActive", e.target.checked)}
+          />
+          <Checkbox
+            label="Is Master"
+            checked={form.watch("isMaster")}
+            onChange={(e) => form.setValue("isMaster", e.target.checked)}
           />
         </div>
       </div>
@@ -220,8 +180,9 @@ const UserForm = ({
         </Button>
 
         <Button 
+          id="user-save-btn"
           onClick={handleSubmit} 
-          loading={submitting}
+          loading={saving}
           isAction
           icon={<Save size={18} />}
         >

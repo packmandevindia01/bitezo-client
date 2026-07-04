@@ -30,7 +30,7 @@ export const useProductForm = (productId?: number) => {
       categoryId: "",
       subCatId: "",
       groupId: "",
-      typeId: "1",
+      typeId: "",
       unitId: "",
       pVatId: "",
       sVatId: "",
@@ -40,6 +40,9 @@ export const useProductForm = (productId?: number) => {
       colorCode: "#49293e",
       isActive: true,
       priceIsIncl: false,
+      fileName: "",
+      fileUrl: "",
+      filePath: "",
       altProducts: [],
       productColors: []
     }
@@ -92,6 +95,33 @@ export const useProductForm = (productId?: number) => {
     enabled: !!productId
   });
 
+  // Manage local image preview URL and memory cleanup
+  useEffect(() => {
+    if (!imageFile) {
+      let path = existingData?.product?.filePath;
+      if (path && path !== "string") {
+        // Normalize backslashes to forward slashes
+        path = path.replace(/\\/g, "/");
+        // If absolute URL points to backend server, strip it to go through local proxy
+        if (path.startsWith("http://84.255.173.131:8068")) {
+          path = path.replace("http://84.255.173.131:8068", "");
+        }
+        // If already an absolute URL, use it directly. Otherwise prepend base URL.
+        const fullUrl = path.startsWith("http://") || path.startsWith("https://")
+          ? path
+          : `${window.location.origin}${path}`;
+        console.log("[useProductForm] Product ID:", productId, "Existing image URL:", fullUrl);
+        setImagePreview(fullUrl);
+      } else {
+        setImagePreview("");
+      }
+    } else {
+        const objectUrl = URL.createObjectURL(imageFile);
+        setImagePreview(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }
+  }, [imageFile, existingData, productId]);
+
   // Generate Base Barcode on Mount (if creating new)
   useEffect(() => {
     if (!productId) {
@@ -127,6 +157,7 @@ export const useProductForm = (productId?: number) => {
         isActive: p.isActive,
         priceIsIncl: p.priceIsIncl,
         fileName: p.fileName,
+        fileUrl: p.filePath,
         filePath: p.filePath,
         altProducts: existingData.altProducts?.map(a => ({
           unitId: String(a.unitId),
@@ -142,8 +173,26 @@ export const useProductForm = (productId?: number) => {
           colorCode: c.colorCode || "#49293e"
         })) || []
       });
-      if (p.filePath) {
-        setImagePreview(`http://84.255.173.131:8068${p.filePath}`);
+
+      // Preload existing image from server as File to prevent backend from clearing it on PUT
+      const path = p.filePath;
+      if (path && path !== "string") {
+        let normalizedPath = path.replace(/\\/g, "/");
+        if (normalizedPath.startsWith("http://84.255.173.131:8068")) {
+          normalizedPath = normalizedPath.replace("http://84.255.173.131:8068", "");
+        }
+        const fullUrl = normalizedPath.startsWith("http")
+          ? normalizedPath
+          : `${window.location.origin}${normalizedPath}`;
+
+        fetch(fullUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const fileName = normalizedPath.split("/").pop() || "image.jpg";
+            const file = new File([blob], fileName, { type: blob.type });
+            setImageFile(file);
+          })
+          .catch(err => console.error("Failed to preload existing image file", err));
       }
     }
   }, [existingData, form]);
@@ -169,6 +218,9 @@ export const useProductForm = (productId?: number) => {
         isActive: data.isActive,
         priceIsIncl: data.priceIsIncl,
         colorCode: data.colorCode,
+        fileName: data.fileUrl ? data.fileUrl.split("/").pop() || "" : data.fileName || "",
+        fileUrl: data.fileUrl,
+        filePath: data.filePath ? (data.filePath.startsWith("http") ? new URL(data.filePath).pathname : data.filePath).replace(/\\/g, "/") : "",
         altProducts: data.altProducts.map(a => ({
           unitId: Number(a.unitId),
           barcode: a.barcode || "",
@@ -176,13 +228,13 @@ export const useProductForm = (productId?: number) => {
           price: Number(a.price),
           altName: a.altName || "",
           altArabic: a.altArabic || "",
-          branchId: a.branchId ? Number(a.branchId) : currentBranchId
+          branchId: Number(a.branchId)
         })),
         productColors: data.productColors.map(c => ({
           branchId: Number(c.branchId),
           colorCode: c.colorCode
         })),
-        oldPath: "string"
+        oldPath: data.filePath ? (data.filePath.startsWith("http") ? new URL(data.filePath).pathname : data.filePath).replace(/\\/g, "/") : "string"
       };
 
       console.log("Submitting payload to API:", JSON.stringify(payload, null, 2));

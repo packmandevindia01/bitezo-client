@@ -1,4 +1,5 @@
-import { ConfirmDialog, PageShell } from "../../../../components/common";
+import { ConfirmDialog, PageShell, SearchBar, Button } from "../../../../components/common";
+import { Plus } from "lucide-react";
 import EmployeeModal from "../components/EmployeeModal";
 import EmployeeTable from "../components/EmployeeTable";
 import { useEmployeeManager } from "../hooks/useEmployeeManager";
@@ -33,12 +34,26 @@ const EmployeePage = () => {
   const canDelete = hasPermission("Employee Master", "Delete");
 
   return (
-    <PageShell title="Employee Creation">
+    <PageShell title="Employee Management">
+      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+        <div className="flex gap-4 items-end flex-1">
+          <div className="flex-1 max-w-sm">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Search employees..."
+            />
+          </div>
+        </div>
+        {canAdd && (
+          <Button icon={<Plus size={18} />} onClick={openCreateModal}>
+            + Add Employee
+          </Button>
+        )}
+      </div>
+
       <EmployeeTable
         employees={filteredEmployees}
-        search={search}
-        onSearchChange={setSearch}
-        onAdd={canAdd ? openCreateModal : undefined}
         onEdit={canEdit ? handleEdit : undefined}
         onDelete={canDelete ? setDeleteCandidate : undefined}
         loading={loading}

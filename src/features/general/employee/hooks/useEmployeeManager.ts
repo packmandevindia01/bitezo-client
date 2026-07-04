@@ -186,17 +186,9 @@ export const useEmployeeManager = () => {
     }
   };
 
-  const handleSave = form.handleSubmit(
-    (data: any) => {
-      saveMutation.mutate(data as EmployeeForm);
-    },
-    (errors) => {
-      const firstError = Object.values(errors)[0];
-      if (firstError?.message) {
-        showToast(firstError.message as string, "error");
-      }
-    }
-  );
+  const handleSave = form.handleSubmit((data: any) => {
+    saveMutation.mutate(data as EmployeeForm);
+  });
 
   return {
     form,

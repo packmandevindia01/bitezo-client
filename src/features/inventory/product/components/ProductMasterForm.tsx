@@ -35,7 +35,7 @@ const ProductMasterForm = ({
   
   const handleTabSwitch = (tab: "product" | "alternatives" | "colors") => {
     if (tab !== "product") {
-      const { code, name, categoryId, groupId, unitId, pVatId, sVatId } = form.getValues();
+      const { code, name, categoryId, groupId, unitId, pVatId, sVatId, typeId } = form.getValues();
       const required = [
         { val: name, label: "Name" },
         { val: code, label: "Code" },
@@ -44,6 +44,7 @@ const ProductMasterForm = ({
         { val: unitId, label: "Unit" },
         { val: pVatId, label: "Purchase VAT" },
         { val: sVatId, label: "Sales VAT" },
+        { val: typeId, label: "Type" },
       ];
 
       const missing = required.filter(f => !f.val);

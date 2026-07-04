@@ -4,16 +4,96 @@ import type { Customer } from "../types/customer";
 const unwrap = <T>(promise: Promise<{ data: any }>) => 
   promise.then(res => res.data as T);
 
+export const mapToFrontend = (item: any): Customer => ({
+  id: item.customerId ?? item.id,
+  customerCode: item.code ?? item.customerCode ?? "",
+  customerName: item.customerName ?? "",
+  arabicName: item.arabicName ?? "",
+  mobileNo: item.mobileNo ?? "",
+  telNo: item.telNo ?? "",
+  email: item.email ?? "",
+  address: item.address ?? "",
+  area: item.area ?? "",
+  identityNo: item.identityNo ?? "",
+  trnNo: item.trnNo ?? "",
+  branch: item.branchId ? String(item.branchId) : (item.branch ?? ""),
+  openingBalance: item.openingBalance !== undefined && item.openingBalance !== null ? String(item.openingBalance) : "0.000",
+  isActive: item.isActive ?? true,
+  flatNo: item.flatNo ?? "",
+  buildingNo: item.buildingNo ?? "",
+  blockNo: item.blockNo ?? "",
+  roadNo: item.roadNo ?? "",
+  callType: item.callType ?? "",
+});
+
+export const mapToBackend = (customer: Customer): any => {
+  const currentBranchId = localStorage.getItem("activeBranchId") 
+    ? parseInt(localStorage.getItem("activeBranchId")!, 10) 
+    : 2;
+
+  return {
+    customerId: customer.id || 0,
+    code: customer.customerCode || "",
+    customerName: customer.customerName || "",
+    arabicName: customer.arabicName || "",
+    openingBalance: customer.openingBalance ? parseFloat(String(customer.openingBalance)) : 0,
+    mobileNo: customer.mobileNo || "",
+    telNo: customer.telNo || "",
+    email: customer.email || "",
+    address: customer.address || "",
+    area: customer.area || "",
+    identityNo: customer.identityNo || "",
+    trnNo: customer.trnNo || "",
+    branchId: customer.branch ? (parseInt(customer.branch, 10) || currentBranchId) : currentBranchId,
+    isActive: customer.isActive ?? true,
+  };
+};
+
 export const customerApi = {
-  getCustomers: () => 
-    unwrap<{ data: Customer[] }>(axiosInstance.get("/pos/customer/list")),
+  getCustomers: (params?: { customerCode?: string; customerName?: string }) => 
+    unwrap<{ data: any[] }>(axiosInstance.get("/customer/list", { params }))
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        return {
+          ...res,
+          data: list.map(mapToFrontend)
+        };
+      }),
   
-  saveCustomer: (customer: Customer) =>
-    unwrap<{ data: Customer }>(axiosInstance.post("/pos/customer/save", customer)),
+  getCustomerById: (id: number) =>
+    unwrap<{ data: any }>(axiosInstance.get(`/customer/${id}/customer-data`))
+      .then(res => ({
+        ...res,
+        data: res.data ? mapToFrontend(res.data) : null
+      })),
+
+  saveCustomer: (customer: Customer) => {
+    const payload = mapToBackend(customer);
+    if (customer.id) {
+      return unwrap<{ data: any }>(axiosInstance.put(`/customer/${customer.id}`, payload))
+        .then(res => ({
+          ...res,
+          data: res.data ? mapToFrontend(res.data) : customer
+        }));
+    } else {
+      return unwrap<{ data: any }>(axiosInstance.post("/customer", payload))
+        .then(res => ({
+          ...res,
+          data: res.data ? mapToFrontend(res.data) : customer
+        }));
+    }
+  },
   
   deleteCustomer: (id: number) =>
-    unwrap<any>(axiosInstance.delete(`/pos/customer/delete/${id}`)),
+    unwrap<any>(axiosInstance.delete(`/customer/${id}`)),
 
   searchCustomer: (query: string) =>
-    unwrap<{ data: Customer[] }>(axiosInstance.get(`/pos/customer/search?query=${query}`)),
+    unwrap<{ data: any[] }>(axiosInstance.get("/customer/list", { params: { customerName: query } }))
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        return {
+          ...res,
+          data: list.map(mapToFrontend)
+        };
+      }),
 };

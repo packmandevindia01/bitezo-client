@@ -1,12 +1,9 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { RecordTableCard } from "../../../../components/common";
+import { RecordTableCard, StatusBadge } from "../../../../components/common";
 import type { EmployeeRecord } from "../types";
 
 interface Props {
   employees: EmployeeRecord[];
-  search: string;
-  onSearchChange: (value: string) => void;
-  onAdd?: () => void;
   onEdit?: (record: EmployeeRecord) => void;
   onDelete?: (record: EmployeeRecord) => void;
   loading?: boolean;
@@ -14,9 +11,6 @@ interface Props {
 
 const EmployeeTable = ({
   employees,
-  search,
-  onSearchChange,
-  onAdd,
   onEdit,
   onDelete,
   loading = false,
@@ -24,33 +18,35 @@ const EmployeeTable = ({
   return (
     <RecordTableCard
       title="Saved Employee List"
-      search={search}
-      onSearchChange={onSearchChange}
       rowKey="id"
       data={employees}
-      actionLabel={onAdd ? "+ Add Employee" : undefined}
-      onAction={onAdd}
       loading={loading}
-      autoFocusSearch
       columns={[
-        { header: "Name", accessor: "name" },
-        { header: "Code", accessor: "code" },
-        { header: "Branch", accessor: "branch" },
+        { header: "Name", accessor: "name", align: "center" },
+        { header: "Code", accessor: "code", align: "center" },
+        { header: "Branch", accessor: "branch", align: "center" },
         {
           header: "Status",
           accessor: "active",
-          render: (row) => (row.active ? "Active" : "Inactive"),
+          align: "center",
+          render: (row) => (
+            <StatusBadge
+              status={row.active ? "active" : "inactive"}
+              label={row.active ? "Active" : "Inactive"}
+            />
+          ),
         },
         {
           header: "Actions",
           accessor: "id",
+          align: "center",
           render: (row) => (
-            <div className="flex gap-2">
+            <div className="flex justify-center gap-2">
               {onEdit && (
                 <button
                   type="button"
                   onClick={() => onEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
                 >
                   <Pencil size={16} />
                 </button>
@@ -59,7 +55,7 @@ const EmployeeTable = ({
                 <button
                   type="button"
                   onClick={() => onDelete(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>

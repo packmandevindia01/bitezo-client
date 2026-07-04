@@ -29,34 +29,50 @@ export const QuickAddUnitModal = ({ isOpen, onClose, onCreated }: Props) => {
     value: o.value,
   }));
 
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={() => { form.reset(); onClose(); }} title="Quick Add Unit" size="sm">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 pb-2">
         <FormInput
+          id="q-unit-name"
           label="Unit Name"
           required
           autoFocus
           {...register("name")}
+          onKeyDown={(e) => handleKeyDown(e, "q-unit-category")}
           error={errors.name?.message}
         />
         <SearchableSelect
+          id="q-unit-category"
           label="Category"
           required
           options={categorySelectOptions}
           value={watch("category")}
           onChange={(v) => setValue("category", v, { shouldValidate: true })}
           placeholder="Select category"
+          onKeyDown={(e) => handleKeyDown(e, "q-unit-conversion")}
           error={errors.category?.message}
         />
         <FormInput
+          id="q-unit-conversion"
           label="Conversion Factor"
           type="number"
           step="0.000001"
           inputClassName="text-right"
           {...register("conversion")}
+          onKeyDown={(e) => handleKeyDown(e, "q-unit-parent")}
           error={errors.conversion?.message}
         />
         <SearchableSelect
+          id="q-unit-parent"
           label="Parent Unit"
           options={parentSelectOptions}
           value={String(watch("parentId") ?? 0)}

@@ -172,10 +172,10 @@ export const AlternativePricingGrid = ({
     const nextRowIndex = alternatives.length;
     const newRow: any = {
       id: nextRowId.current,
-      branchId: String(branches[0]?.id || ""),
+      branchId: "",
       barcode: generateNextBarcode(),
       isIncl: true,
-      unitId: String(masterData?.unit?.[0]?.id || ""),
+      unitId: "",
       price: "0",
       altName: "",
       altArabic: "",
@@ -201,6 +201,13 @@ export const AlternativePricingGrid = ({
     switch (e.key) {
       case "Enter":
         e.preventDefault();
+        if (isLastRow && c === 0 && !alternatives[r].branchId) {
+          removeGridRow(r);
+          setTimeout(() => {
+            document.getElementById("prod-save-btn")?.focus();
+          }, 50);
+          return;
+        }
         if (c === 3) {
           handleGridChange(r, "isIncl", !alternatives[r].isIncl);
           setFocusPos({ r, c: c + 1 });
@@ -286,6 +293,7 @@ export const AlternativePricingGrid = ({
                         ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-1`, el); }}
                         type="text"
                         value={alt.barcode}
+                        maxLength={100}
                         onFocus={() => setFocusPos({ r: rIdx, c: 1 })}
                         onBlur={(e) => {
                           if (!e.target.value.trim() && baseBarcode) {
@@ -355,6 +363,7 @@ export const AlternativePricingGrid = ({
                         ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-5`, el); }}
                         type="text"
                         value={alt.altName}
+                        maxLength={500}
                         onFocus={() => setFocusPos({ r: rIdx, c: 5 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 5)}
                         onChange={(e) => handleGridChange(rIdx, "altName", e.target.value)}
@@ -367,6 +376,7 @@ export const AlternativePricingGrid = ({
                         type="text"
                         dir="rtl"
                         value={alt.altArabic || ""}
+                        maxLength={500}
                         onFocus={() => setFocusPos({ r: rIdx, c: 6 })}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 6)}
                         onChange={(e) => handleGridChange(rIdx, "altArabic", e.target.value)}

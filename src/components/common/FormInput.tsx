@@ -38,12 +38,12 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
       {label && !hideLabel && (
         <label
           htmlFor={inputId}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
+          className="flex flex-wrap items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
           <span className="truncate">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 
@@ -63,6 +63,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
           placeholder={placeholder || (required ? "Enter value" : "")}
           min={isNumericField ? (props.min ?? 0) : props.min}
           step={props.step ?? (type === 'number' ? 'any' : undefined)}
+          autoComplete={props.autoComplete ?? "off"}
           onKeyDown={(e) => {
             if (isNumericField && (e.key === '-' || e.key === 'e')) {
               e.preventDefault();

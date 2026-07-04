@@ -84,6 +84,7 @@ axiosInstance.interceptors.request.use((config) => {
     }
   }
 
+  console.log(`[axiosInstance] Final headers for ${config.method?.toUpperCase()} ${config.url}:`, config.headers);
   return config;
 });
 

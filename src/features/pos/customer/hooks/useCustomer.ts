@@ -1,83 +1,83 @@
-import { useState, useCallback } from "react";
-import type { Customer } from "../types/customer";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerApi } from "../services/customerApi";
 import { useToast } from "../../../../app/providers/useToast";
+import { customerSchema, type Customer } from "../types/customer";
 
-export const useCustomer = () => {
-  const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+export const initialForm: Customer = {
+  customerCode: "",
+  customerName: "",
+  arabicName: "",
+  mobileNo: "",
+  telNo: "",
+  email: "",
+  address: "",
+  area: "",
+  identityNo: "",
+  trnNo: "",
+  branch: "",
+  openingBalance: "0.000",
+  isActive: true,
+  flatNo: "",
+  buildingNo: "",
+  blockNo: "",
+  roadNo: "",
+  callType: ""
+};
+
+export const useCustomer = (onSuccess?: () => void) => {
   const { showToast } = useToast();
-  
-  const initialForm: Customer = {
-    customerCode: "",
-    customerName: "",
-    arabicName: "",
-    mobileNo: "",
-    telNo: "",
-    email: "",
-    address: "",
-    area: "",
-    identityNo: "",
-    trnNo: "",
-    branch: "",
-    openingBalance: "0.000",
-    isActive: true
-  };
+  const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Customer>(initialForm);
+  const methods = useForm<Customer>({
+    resolver: zodResolver(customerSchema) as any,
+    defaultValues: initialForm,
+    mode: "onChange",
+  });
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await customerApi.getCustomers();
-      setCustomers(res.data);
-    } catch (error) {
-      showToast("Failed to fetch customers", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
+  const { reset } = methods;
 
-  const saveCustomer = async () => {
-    if (!form.customerName || !form.mobileNo) {
-      showToast("Name and Mobile are required", "warning");
-      return;
-    }
-    try {
-      setLoading(true);
-      await customerApi.saveCustomer(form);
+  const saveMutation = useMutation({
+    mutationFn: (data: Customer) => customerApi.saveCustomer(data),
+    onSuccess: () => {
       showToast("Customer saved successfully", "success");
-      setForm(initialForm);
-      fetchCustomers();
-    } catch (error) {
-      showToast("Failed to save customer", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      reset(initialForm);
+      if (onSuccess) onSuccess();
+    },
+    onError: (error: any) => {
+      const errMsg = error?.response?.data?.message || error?.message || "Failed to save customer";
+      showToast(errMsg, "error");
+    },
+  });
 
-  const deleteCustomer = async (id: number) => {
-    try {
-      setLoading(true);
-      await customerApi.deleteCustomer(id);
-      showToast("Customer deleted", "success");
-      fetchCustomers();
-    } catch (error) {
-      showToast("Failed to delete customer", "error");
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => customerApi.deleteCustomer(id),
+    onSuccess: () => {
+      showToast("Customer deleted successfully", "success");
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      reset(initialForm);
+      if (onSuccess) onSuccess();
+    },
+    onError: (error: any) => {
+      const errMsg = error?.response?.data?.message || error?.message || "Failed to delete customer";
+      showToast(errMsg, "error");
+    },
+  });
 
-    } finally {
-      setLoading(false);
-    }
-  };
+  const customersQuery = useQuery({
+    queryKey: ["customers"],
+    queryFn: () => customerApi.getCustomers().then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+  });
 
   return {
-    loading,
-    customers,
-    form,
-    setForm,
-    saveCustomer,
-    deleteCustomer,
-    fetchCustomers,
-    resetForm: () => setForm(initialForm)
+    methods,
+    saveCustomer: (data: Customer) => saveMutation.mutate(data),
+    deleteCustomer: (id: number) => deleteMutation.mutate(id),
+    loading: saveMutation.isPending || deleteMutation.isPending || customersQuery.isLoading,
+    customers: customersQuery.data || [],
+    resetForm: () => reset(initialForm),
   };
 };

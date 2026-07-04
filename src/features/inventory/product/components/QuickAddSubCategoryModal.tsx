@@ -25,37 +25,55 @@ export const QuickAddSubCategoryModal = ({
   );
   const { register, watch, setValue, formState: { errors } } = form;
 
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextFieldId) {
+        document.getElementById(nextFieldId)?.focus();
+      }
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={() => { form.reset(); onClose(); }} title="Quick Add Sub Category" size="sm">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 pb-2">
         <FormInput
+          id="q-sub-code"
           label="Code"
           required
           autoFocus
           {...register("code")}
+          onKeyDown={(e) => handleKeyDown(e, "q-sub-name")}
           error={errors.code?.message}
         />
         <FormInput
+          id="q-sub-name"
           label="Name"
           required
           {...register("name")}
+          onKeyDown={(e) => handleKeyDown(e, "q-sub-arabic")}
           error={errors.name?.message}
         />
         <FormInput
+          id="q-sub-arabic"
           label="Arabic Name"
           {...register("arabicName")}
+          onKeyDown={(e) => handleKeyDown(e, "q-sub-category")}
         />
         <SearchableSelect
+          id="q-sub-category"
           label="Category"
           required
           options={categoryOptions}
           value={watch("categoryId")}
           onChange={(v) => setValue("categoryId", v, { shouldValidate: true })}
           placeholder="Select Category"
+          onKeyDown={(e) => handleKeyDown(e, "q-sub-active")}
           error={errors.categoryId?.message}
         />
         <div className="flex items-center h-10">
           <Checkbox
+            id="q-sub-active"
             label="Active"
             checked={watch("isActive")}
             onChange={(e) => setValue("isActive", e.target.checked)}

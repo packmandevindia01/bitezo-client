@@ -274,6 +274,8 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 - Read-only or disabled input fields must use the `cursor-not-allowed` Tailwind CSS class so that a red circle with a line through it appears when hovered, visually indicating that the field is locked.
 - **High-Frequency Input State**: Never store real-time keystroke state (e.g., numeric keypad input) in a high-level parent component like a Page. Always localize `inputValue` state inside the Modal or localized component, and only pass the final value up via an `onSubmit` callback. This prevents massive UI re-renders on every keystroke.
 - **Safe Component Memoization**: When wrapping a component in `React.memo()` (like `PosProductGrid`), never pass inline functions or raw `useCallback` functions from the parent if they depend on rapidly changing state (like a shopping cart). This causes either broken memoization or "Stale Closures". Always use the `useEvent` hook (Latest Ref Pattern) to stabilize the callback reference while ensuring it has access to the absolute latest state.
+- **Browser Autocomplete Dropdowns**: Never use custom values like `new-username` for the `autoComplete` property on standard text inputs. This overrides the default global `"off"` and triggers Chrome's native input history dropdown, covering custom dropdowns and forms. Standard text inputs must remain unassigned so they default to `"off"`. Only use `new-password` explicitly on password input fields.
+
 
 ### 6. Master Data Pages (Backoffice) — Uniform Header Pattern
 - Every master data page (Category, Product, Customer, Supplier, etc.) follows this pattern:

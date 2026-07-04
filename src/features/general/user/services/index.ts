@@ -114,7 +114,11 @@ export const deleteUser = async (userId: number) => {
 
 export const changeUserPassword = async (userId: number, payload: ChangePasswordPayload) => {
   try {
-    const { data } = await axiosInstance.patch<ApiResponse<unknown>>(`/user/${userId}/change-password`, payload);
+    const { data } = await axiosInstance.patch<ApiResponse<unknown>>(`/user/${userId}/change-password`, {
+      userId,
+      oldPassword: payload.oldPassword,
+      newPassword: payload.newPassword,
+    });
     if (!data.isSuccess) {
       throw new Error(data.message || "Failed to change password");
     }

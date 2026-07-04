@@ -54,6 +54,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      "/images": {
+        target: "http://84.255.173.131:8068/",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })

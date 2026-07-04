@@ -121,6 +121,7 @@ const ProductFormPage = () => {
           )}
 
           <Button
+            id="prod-save-btn"
             type="button"
             variant="primary"
             onClick={form.handleSubmit(

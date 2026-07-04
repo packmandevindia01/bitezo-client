@@ -64,11 +64,16 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
       container.querySelectorAll<HTMLButtonElement>("button:not([disabled])")
     ).filter((btn) => {
       const text = (btn.textContent || "").toLowerCase();
+      const type = (btn.getAttribute("type") || "").toLowerCase();
+      const title = (btn.getAttribute("title") || "").toLowerCase();
       const rect = btn.getBoundingClientRect();
       return (
         rect.width > 0 &&
         rect.height > 0 &&
-        (text.includes("save") ||
+        (type === "submit" ||
+          title.includes("save") ||
+          title.includes("submit") ||
+          text.includes("save") ||
           text.includes("submit") ||
           text.includes("select") ||
           text.includes("update") ||
@@ -79,6 +84,9 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
 
     if (actionButtons.length > 0) {
       actionButtons[0].focus();
+      if (actionButtons[0].getAttribute("type") === "submit") {
+        actionButtons[0].click();
+      }
     }
   }
 };

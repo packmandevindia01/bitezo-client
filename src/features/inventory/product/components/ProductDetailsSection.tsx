@@ -12,6 +12,7 @@ import { QuickAddGroupModal } from "./QuickAddGroupModal";
 import { QuickAddCategoryModal } from "./QuickAddCategoryModal";
 import { QuickAddSubCategoryModal } from "./QuickAddSubCategoryModal";
 import { QuickAddUnitModal } from "./QuickAddUnitModal";
+import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
 
 interface ProductDetailsSectionProps {
   form: UseFormReturn<ProductFormData>;
@@ -55,14 +56,7 @@ export const ProductDetailsSection = ({
   const [subCatModalOpen, setSubCatModalOpen] = useState(false);
   const [unitModalOpen, setUnitModalOpen] = useState(false);
 
-  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (nextFieldId) {
-        document.getElementById(nextFieldId)?.focus();
-      }
-    }
-  };
+  const handleKeyDown = useEnterKeyNavigation();
 
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
@@ -71,6 +65,7 @@ export const ProductDetailsSection = ({
           id="prod-name"
           label="Product Name"
           {...register("name")}
+          maxLength={500}
           onKeyDown={(e) => handleKeyDown(e, "prod-arabic")}
           required
           autoFocus
@@ -80,6 +75,7 @@ export const ProductDetailsSection = ({
           id="prod-arabic"
           label="Arabic Name"
           {...register("arabicName")}
+          maxLength={500}
           onKeyDown={(e) => handleKeyDown(e, "prod-unit")}
         />
 
@@ -105,8 +101,9 @@ export const ProductDetailsSection = ({
           id="prod-code"
           label="Product Code"
           value={watch("code")}
+          maxLength={100}
           onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, '_'), { shouldValidate: true })}
-          onKeyDown={(e) => handleKeyDown(e, "prod-branch")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-group")}
           required
           error={errors.code?.message as string}
         />
@@ -114,6 +111,7 @@ export const ProductDetailsSection = ({
           id="prod-barcode"
           label="Barcode"
           {...register("barcode")}
+          maxLength={100}
           readOnly
           tabIndex={-1}
           inputClassName="cursor-not-allowed bg-gray-50"
@@ -256,6 +254,7 @@ export const ProductDetailsSection = ({
                 type="color"
                 value={colorValue}
                 onChange={(e) => setValue("colorCode", e.target.value, { shouldValidate: true })}
+                onKeyDown={(e) => handleKeyDown(e, "prod-s-vat")}
                 className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
               />
             </div>
@@ -289,6 +288,7 @@ export const ProductDetailsSection = ({
         onClose={() => setGroupModalOpen(false)}
         onCreated={(id) => {
           setValue("groupId", id, { shouldValidate: true });
+          setTimeout(() => document.getElementById("prod-group")?.focus(), 100);
         }}
       />
       <QuickAddCategoryModal
@@ -297,6 +297,7 @@ export const ProductDetailsSection = ({
         onCreated={(id) => {
           setValue("categoryId", id, { shouldValidate: true });
           setValue("subCatId", "");
+          setTimeout(() => document.getElementById("prod-category")?.focus(), 100);
         }}
       />
       <QuickAddSubCategoryModal
@@ -306,6 +307,7 @@ export const ProductDetailsSection = ({
         categoryOptions={categoryOptions}
         onCreated={(id) => {
           setValue("subCatId", id, { shouldValidate: true });
+          setTimeout(() => document.getElementById("prod-subcat")?.focus(), 100);
         }}
       />
       <QuickAddUnitModal
@@ -313,6 +315,7 @@ export const ProductDetailsSection = ({
         onClose={() => setUnitModalOpen(false)}
         onCreated={(id) => {
           setValue("unitId", id, { shouldValidate: true });
+          setTimeout(() => document.getElementById("prod-unit")?.focus(), 100);
         }}
       />
     </div>

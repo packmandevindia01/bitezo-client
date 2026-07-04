@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import ChangePasswordForm from "../components/ChangePasswordForm";
 import UserForm from "../components/UserForm";
@@ -11,31 +11,31 @@ import {
   StatusBadge,
 } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
-import {
-  changeUserPassword,
-  createUser,
-  deleteUser,
-  fetchUserById,
-  fetchUsers,
-  updateUser,
-} from "../services";
-import type { ChangePasswordPayload, User, UserPayload } from "../types";
+import { fetchUserById } from "../services";
+import type { ChangePasswordFormData } from "../schema/userSchema";
+import type { User } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useUserList } from "../hooks/useUserList";
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message.trim()) return error.message;
-  return "Something went wrong while saving the user.";
+  return "Something went wrong.";
 };
 
-const UserList = () => {
+export const UserList = () => {
   const { showToast } = useToast();
   const { hasPermission } = usePermissions();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const {
+    users,
+    loading,
+    deleteUser,
+    deleting,
+    changePassword,
+    passwordChanging,
+  } = useUserList();
+
   const [detailLoading, setDetailLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [passwordChanging, setPasswordChanging] = useState(false);
   const [open, setOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -46,22 +46,6 @@ const UserList = () => {
   const canAdd = hasPermission("User Master", "Add");
   const canEdit = hasPermission("User Master", "Edit");
   const canDelete = hasPermission("User Master", "Delete");
-
-  const loadUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const records = await fetchUsers();
-      setUsers(records);
-    } catch (error) {
-      showToast(getErrorMessage(error), "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
-
-  useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
 
   const closeModal = () => {
     setOpen(false);
@@ -121,65 +105,29 @@ const UserList = () => {
     }
   };
 
-  const handleSave = async (data: UserPayload) => {
-    try {
-      setSaving(true);
-
-      if (editUser) {
-        if (!canEdit) throw new Error("Permission denied");
-        await updateUser(editUser.id, data);
-        await loadUsers();
-        showToast("User updated successfully", "success");
-      } else {
-        if (!canAdd) throw new Error("Permission denied");
-        await createUser(data);
-        await loadUsers();
-        showToast("User created successfully", "success");
-      }
-
-      closeModal();
-    } catch (error) {
-      showToast(getErrorMessage(error), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async () => {
     if (!deleteCandidate || !canDelete) return;
 
     try {
-      setDeleting(true);
       await deleteUser(deleteCandidate.id);
-      await loadUsers();
       setDeleteCandidate(null);
 
       if (editUser?.id === deleteCandidate.id) {
         closeModal();
       }
-
-      showToast("User deleted successfully", "success");
     } catch (error) {
       showToast(getErrorMessage(error), "error");
-    } finally {
-      setDeleting(false);
     }
   };
 
-  const handlePasswordChange = async (payload: ChangePasswordPayload) => {
+  const handlePasswordChange = async (payload: ChangePasswordFormData) => {
     if (!passwordUser || !canEdit) return;
 
     try {
-      setPasswordChanging(true);
-      await changeUserPassword(passwordUser.id, payload);
-      showToast("Password changed successfully", "success");
+      await changePassword({ userId: passwordUser.id, payload });
       closePasswordModal();
     } catch (error) {
-      const msg = getErrorMessage(error);
-      const isDuplicate = msg.toLowerCase().includes("already been used") || msg.toLowerCase().includes("duplicate");
-      showToast(msg, isDuplicate ? "warning" : "error");
-    } finally {
-      setPasswordChanging(false);
+      // Error handles in custom hook toast
     }
   };
 
@@ -216,33 +164,31 @@ const UserList = () => {
           actionLabel={canAdd ? "+ Add User" : undefined}
           onAction={canAdd ? openCreateModal : undefined}
           columns={[
-            { header: "#", accessor: "id" },
-            { header: "User Name", accessor: "name" },
+            { header: "#", accessor: "id", align: "center" },
+            { header: "User Name", accessor: "name", align: "center" },
             {
               header: "Branch",
               accessor: "branchName",
+              align: "center",
               render: (row) => <span>{row.branchName || row.branchId || "-"}</span>,
-            },
-            {
-              header: "User Role",
-              accessor: "roleName",
-              render: (row) => <span>{row.roleName || "-"}</span>,
             },
             {
               header: "Status",
               accessor: "isActive",
-              render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} />,
+              align: "center",
+              render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} label={row.isActive ? "Active" : "Inactive"} />,
             },
             {
               header: "Actions",
               accessor: "id",
+              align: "center",
               render: (row) => (
-                <div className="flex gap-2">
+                <div className="flex justify-center gap-2">
                   {canEdit && (
                     <button
                       type="button"
                       onClick={() => void handleEdit(row.id)}
-                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
+                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
                       aria-label={`Edit ${row.name}`}
                     >
                       <Pencil size={16} />
@@ -252,7 +198,7 @@ const UserList = () => {
                     <button
                       type="button"
                       onClick={() => void handleOpenPasswordModal(row.id)}
-                      className="inline-flex rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                      className="inline-flex rounded-lg p-2 text-blue-600 hover:bg-blue-50 transition-colors"
                       aria-label={`Change password for ${row.name}`}
                     >
                       <KeyRound size={16} />
@@ -262,7 +208,7 @@ const UserList = () => {
                     <button
                       type="button"
                       onClick={() => setDeleteCandidate(row)}
-                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
+                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
                       aria-label={`Delete ${row.name}`}
                     >
                       <Trash2 size={16} />
@@ -284,9 +230,7 @@ const UserList = () => {
           <UserForm
             key={editUser?.id ?? "new-user"}
             initialData={editUser}
-            onSubmit={handleSave}
-            onCancel={closeModal}
-            submitting={saving}
+            onSuccess={closeModal}
             onDelete={editUser && canDelete ? () => setDeleteCandidate(editUser) : undefined}
             deleting={deleting}
             onClear={() => setEditUser(null)}
