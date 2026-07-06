@@ -1117,18 +1117,8 @@ export const PosTerminalPage = () => {
   return (
     <div className="flex h-dvh flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
       <PosTopNav 
-        onNewOrder={handleClearCart} 
-        onMore={() => setIsMoreModalOpen(true)} 
-        onCustomerMaster={() => setIsCustomerModalOpen(true)}
         onDelivery={() => setIsDeliveryModalOpen(true)}
         onDriveThrough={() => setIsDriveThroughModalOpen(true)}
-        onRecall={() => {
-          requestAuthorization({
-            actionLabel: "Recall",
-            onAuthorized: () => setIsRecallModalOpen(true),
-          });
-        }}
-        onVoidOrder={() => setIsVoidModalOpen(true)}
         onProvider={() => setIsProviderModalOpen(true)}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
@@ -1144,8 +1134,13 @@ export const PosTerminalPage = () => {
         activeProvider={activeProvider}
       />
       
-      <div className="flex flex-col lg:flex-row lg:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 px-3 lg:px-4 xl:px-6">
-        <div className="shrink-0">
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* Left Side: Tabs + Categories + Grid */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          
+          <div className="flex flex-col lg:flex-row lg:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-3 lg:pl-4 xl:pl-6 pr-3">
+            <div className="shrink-0">
           <PosGroupTabs 
             groups={groups} 
             activeGroupId={activeGroupId} 
@@ -1158,8 +1153,8 @@ export const PosTerminalPage = () => {
         </div>
         
         <div className="flex-1 flex items-center justify-end py-2 lg:py-1">
-          <div className="relative w-full max-w-md group">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#49293e] transition-colors">
+          <div className="relative w-full max-w-xs group">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -1169,14 +1164,9 @@ export const PosTerminalPage = () => {
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-10 text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/10 transition-all outline-none"
+              placeholder="Search by name..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-10 text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-1 focus:ring-[#f37021]/20 transition-all outline-none"
             />
-          </div>
-          
-          <div className="hidden lg:flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total</span>
-            <span className="text-sm font-bold text-[#49293e]">{visibleProducts.length}</span>
           </div>
         </div>
       </div>
@@ -1192,7 +1182,7 @@ export const PosTerminalPage = () => {
         </div>
       )}
 
-      <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)_370px] xl:grid-cols-[200px_minmax(0,1fr)_460px]">
+      <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]">
         {/* Left Column: Categories */}
         <PosCategoryRail
           categories={categories}
@@ -1241,91 +1231,99 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Action Button Bar */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-9 gap-1.5 p-1.5 sm:p-2 bg-white border-t border-slate-100 shrink-0">
-            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm" tabIndex={-1}>
-              Close
-            </button>
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1.5 p-1.5 sm:p-2 bg-white border-t border-slate-100 shrink-0">
             <button
               onClick={handleClearCart}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm"
+              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
               tabIndex={-1}
             >
               Clear
             </button>
-            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm">
+            <button
+              onClick={() => setIsCustomerModalOpen(true)}
+              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
+              tabIndex={-1}
+            >
+              Customer
+            </button>
+            <button className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm">
               Waiter
             </button>
             <button
+              onClick={() => setIsSplitOpen(true)}
+              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              disabled={!editingOrderId}
+            >
+              Split
+            </button>
+            <button
               onClick={() => setIsCombineOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               disabled={!editingOrderId}
             >
               Combine
             </button>
             <button
-              onClick={() => setIsSplitOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[9px] font-bold uppercase transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!editingOrderId}
+              onClick={() => {
+                requestAuthorization({
+                  actionLabel: "Recall",
+                  onAuthorized: () => setIsRecallModalOpen(true),
+                });
+              }}
+              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
             >
-              Split
+              Recall
             </button>
-            <button 
-              onClick={openDiscountChoice}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={itemCount === 0}
+            <button
+              onClick={() => setIsMoreModalOpen(true)}
+              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
             >
-              Discount
-            </button>
-            <button 
-              onClick={openPriceModal}
-              className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!selectedKey}
-            >
-              Price
-            </button>
-            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
-              Note
-            </button>
-            <button className="h-9 lg:h-10 rounded bg-[#ff9500] hover:bg-[#e68600] text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm">
               More
             </button>
           </div>
-        </div>
+          </div>
+        </main>
+      </div>
 
-        <PosCartPanel
-              isCartOpen={isCartOpen}
-              setIsCartOpen={setIsCartOpen}
-              selectedKey={selectedKey}
-              cartDetails={cartDetails}
-              subtotal={subtotal}
-              discount={discount}
-              tax={tax}
-              charges={charges}
-              total={total}
-              totalExtras={totalExtras}
-              baseSubtotal={baseSubtotal}
-              deliveryCharge={deliveryCharge}
-              isDelivery={isDelivery}
-              isSettling={isSettling}
-              setSelectedKey={setSelectedKey}
-              incrementItem={incrementItem}
-              handleDecrementItem={handleDecrementItem}
-              handleRemoveItem={handleRemoveItem}
-              setExtrasModifierType={setExtrasModifierType}
-              showToast={showToast}
-              openQtyModal={openQtyModal}
-              handleOrder={stableHandleOrder}
-              handleSettle={stableHandleSettle}
-              orderLoading={orderLoading}
-              isSettledEdit={isSettledEdit}
-              selectedTender={selectedTender}
-              setSelectedTender={setSelectedTender}
-              setIsMultiPayModalOpen={setIsMultiPayModalOpen}
-              setIsCashModalOpen={setIsCashModalOpen}
-              setIsDeliveryChargeModalOpen={setIsDeliveryChargeModalOpen}
-              tenderOptions={tenderOptions}
-            />
-      </main>
+      <PosCartPanel
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
+        selectedKey={selectedKey}
+        cartDetails={cartDetails}
+        subtotal={subtotal}
+        discount={discount}
+        tax={tax}
+        charges={charges}
+        total={total}
+        totalExtras={totalExtras}
+        baseSubtotal={baseSubtotal}
+        deliveryCharge={deliveryCharge}
+        isDelivery={isDelivery}
+        isSettling={isSettling}
+        setSelectedKey={setSelectedKey}
+        incrementItem={incrementItem}
+        handleDecrementItem={handleDecrementItem}
+        handleRemoveItem={handleRemoveItem}
+        setExtrasModifierType={setExtrasModifierType}
+        showToast={showToast}
+        openQtyModal={openQtyModal}
+        handleOrder={stableHandleOrder}
+        handleSettle={stableHandleSettle}
+        orderLoading={orderLoading}
+        isSettledEdit={isSettledEdit}
+        selectedTender={selectedTender}
+        setSelectedTender={setSelectedTender}
+        setIsMultiPayModalOpen={setIsMultiPayModalOpen}
+        setIsCashModalOpen={setIsCashModalOpen}
+        setIsDeliveryChargeModalOpen={setIsDeliveryChargeModalOpen}
+        tenderOptions={tenderOptions}
+        onPrice={openPriceModal}
+        onDiscount={openDiscountChoice}
+        onVoidOrder={() => setIsVoidModalOpen(true)}
+        onMessage={() => alert("Message/Note functionality to be implemented")}
+        onCom={() => alert("COM functionality to be implemented")}
+      />
+    </div>
 
       {/* Discount Choice Modal - Clean & Modern */}
       <PosDiscountChoiceModal

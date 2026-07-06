@@ -19,9 +19,11 @@ interface PosOrderSummaryProps {
   selectedTender: string;
   onSelectTender: (tender: string) => void;
   tenderOptions: { id: string; label: string }[];
+  onDiscount?: () => void;
+  onCom?: () => void;
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, onDiscount, onCom }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
     <div className="shrink-0 p-2 lg:p-2.5 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2">
@@ -81,8 +83,19 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="flex gap-1.5">
-          {/* Discount button removed per user request */}
+        <div className="flex gap-1.5 mt-1">
+          <button 
+            onClick={onDiscount}
+            className="h-8 lg:h-9 px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[9px] font-bold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
+          >
+            Discount
+          </button>
+          <button 
+            onClick={onCom}
+            className="h-8 lg:h-9 px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[9px] font-bold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
+          >
+            COM
+          </button>
         </div>
         <div className="flex flex-col items-end leading-none mt-1">
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Grand Total</span>
