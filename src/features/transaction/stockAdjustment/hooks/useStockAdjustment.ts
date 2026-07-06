@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
 import { stockAdjustmentTypeApi } from "../../../inventory/stockAdjustmentType/services/stockAdjustmentTypeApi";
+import { productService } from "../../../inventory/product/services/productService";
 import { createEmptyStockAdjustmentForm } from "../constants";
 import { stockAdjustmentSchema } from "../types";
 import type { StockAdjustmentForm, StockAdjustmentLineItem, StockAdjustmentPayload } from "../types";
@@ -109,14 +110,15 @@ export const useStockAdjustment = (id?: string | null) => {
     queryKey: ["stockAdjustmentTypes"],
     queryFn: async () => {
       try {
-        const [typeRes, unitRes] = await Promise.all([
+        const [typeRes, productMaster] = await Promise.all([
           stockAdjustmentTypeApi.getAll(),
-          stockAdjustmentApi.getUnitList("Quantity").catch(() => []),
+          productService.loadMasterData().catch(() => null),
         ]);
+        const unitsRes = productMaster?.unit || [];
         return {
           options: typeRes.map((t: any) => ({ label: t.typeName, value: String(t.typeId) })),
           raw: typeRes,
-          units: unitRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) })),
+          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) })),
         };
       } catch (err: any) {
         showToast("Error loading Types: " + (err.message || "Unknown error"), "error");
@@ -242,18 +244,26 @@ export const useStockAdjustment = (id?: string | null) => {
   // Combined loading state
   const loadingMaster = loadingBranches || loadingTypes || loadingBranchDetails || loadingRecord;
 
+  // Build per-row options: always include the stored product label so the
+  // combobox can display the name even before/after a barcode scan
+  const getRowOptions = useCallback((index: number) => {
+    const stored = (watchedItems[index] as any);
+    const storedValue = stored?.product;
+    const storedName = stored?.productName;
+    if (!storedValue || !storedName) return productOptions;
+    const alreadyPresent = productOptions.some((o: any) => o.value === storedValue);
+    if (alreadyPresent) return productOptions;
+    return [{ label: storedName, value: storedValue }, ...productOptions];
+  }, [productOptions, watchedItems]);
+
   // 5. Product Search with Barcode Fallback and deduplication
   const handleProductSearch = useCallback(async (query: string) => {
-    if (!query) {
-      setProductOptions([]);
-      return;
-    }
     setSearchingProducts(true);
     try {
-      // Search by name and code/barcode in parallel
+      // When query is empty, fetch all products so the dropdown is populated on first click
       const [nameResults, costDetail] = await Promise.all([
         stockAdjustmentApi.getProductListByName(query).catch(() => []),
-        stockAdjustmentApi.getPurchaseCostData(query).catch(() => null)
+        query ? stockAdjustmentApi.getPurchaseCostData(query).catch(() => null) : Promise.resolve(null)
       ]);
 
       let mapped = nameResults.map((r) => ({
@@ -308,14 +318,40 @@ export const useStockAdjustment = (id?: string | null) => {
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
-      const details = await stockAdjustmentApi.getPurchaseCostData(barcode).catch(() => null);
+      // Try barcode/code via cost-data endpoint first
+      let details = await stockAdjustmentApi.getPurchaseCostData(barcode).catch(() => null);
+
+      // Fallback: search by name/code if cost-data returns nothing
+      if (!details) {
+        const nameResults = await stockAdjustmentApi.getProductListByName(barcode).catch(() => []);
+        if (nameResults && nameResults.length > 0) {
+          // Use the first match, then fetch its cost data using its barcode
+          const first = nameResults[0];
+          const barcodeToUse = first.barcode || first.code || barcode;
+          details = await stockAdjustmentApi.getPurchaseCostData(barcodeToUse).catch(() => null);
+          // If still no cost data, create a minimal details object
+          if (!details) {
+            setProductOptions(prev => {
+              if (prev.find(o => o.value === String(first.productId))) return prev;
+              const lbl = first.code ? `[${first.code}] ${first.productName}` : first.productName;
+              return [...prev, { label: lbl, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
+            });
+            setValue(`items.${index}.product`, String(first.productId));
+            setValue(`items.${index}.productName`, first.code ? `[${first.code}] ${first.productName}` : first.productName);
+            setValue(`items.${index}.code`, first.code || "");
+            return true;
+          }
+        }
+      }
+
       if (details) {
+        const labelWithCode = details.productCode ? `[${details.productCode}] ${details.productName}` : details.productName;
         setProductOptions(prev => {
-          if (prev.find(o => o.value === String(details.productId))) return prev;
-          const labelWithCode = details.productCode ? `[${details.productCode}] ${details.productName}` : details.productName;
-          return [...prev, { label: labelWithCode, value: String(details.productId), code: details.productCode || "", barcode }];
+          if (prev.find(o => o.value === String(details!.productId))) return prev;
+          return [...prev, { label: labelWithCode, value: String(details!.productId), code: details!.productCode || "", barcode }];
         });
         setValue(`items.${index}.product`, String(details.productId));
+        setValue(`items.${index}.productName`, labelWithCode);
         setValue(`items.${index}.code`, details.productCode || "");
         setValue(`items.${index}.unitCategory`, details.unitCategory || "");
         setValue(`items.${index}.unitId`, details.baseUnitId);
@@ -330,7 +366,7 @@ export const useStockAdjustment = (id?: string | null) => {
       console.error("Instant barcode lookup failed", e);
     }
     return false;
-  }, [setValue, loadCategoryUnits]);
+  }, [setValue, loadCategoryUnits, formatAmount]);
 
   const handleTypeSelect = (index: number, typeIdStr: string) => {
     const t = typesData.raw.find((t: any) => String(t.typeId) === typeIdStr);
@@ -342,6 +378,21 @@ export const useStockAdjustment = (id?: string | null) => {
       setValue(`items.${index}.typeName`, t.typeName);
     }
   };
+
+  const handleUnitChange = useCallback(async (index: number, unitId: string) => {
+    setValue(`items.${index}.unit`, unitId);
+    setValue(`items.${index}.unitId`, Number(unitId));
+    const productId = getValues(`items.${index}.product`);
+    if (!productId || !unitId) return;
+    try {
+      const result = await stockAdjustmentApi.getUnitCost(Number(productId), Number(unitId));
+      if (result.cost !== undefined && result.cost !== null) {
+        setValue(`items.${index}.cost`, formatAmount(result.cost));
+      }
+    } catch (error) {
+      console.error("Failed to fetch unit cost", error);
+    }
+  }, [setValue, getValues, formatAmount]);
 
   const handleReset = () => {
     reset(initialForm);
@@ -421,7 +472,9 @@ export const useStockAdjustment = (id?: string | null) => {
     handleBarcodeScan,
     handleProductSelect,
     handleTypeSelect,
+    handleUnitChange,
     saving,
     categoryUnits,
+    getRowOptions,
   };
 };

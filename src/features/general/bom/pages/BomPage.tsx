@@ -1,31 +1,36 @@
-import { useState } from "react";
-import { Save, Trash2, Plus, AlertCircle, X } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SelectInput } from "../../../../components/common";
+import { useState, useEffect, useRef } from "react";
+import { Save, Trash2, Plus, X as CloseIcon, Loader2 } from "lucide-react";
+import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useBom } from "../hooks/useBom";
 import { usePermissions } from "../../../../hooks/usePermissions";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { FormProvider, Controller } from "react-hook-form";
+import { generateUUID } from "../../../../utils/uuid";
 
 const BomPage = () => {
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
+  const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const {
     form,
-    setForm,
     items,
-    setItems,
+    append,
+    remove,
     loading,
     saving,
-    error,
-    setError,
     branches,
-    finProductOptions,
-    rawProductOptions,
-    addItem,
-    removeItem,
-    handleSave,
-  } = useBom(id);
+    finishedProducts,
+    categoryUnits,
+    handleFinishedProductSelect,
+    handleGridProductSelect,
+    handleGridUnitChange,
+    handleBarcodeScan,
+    getRowOptions,
+    onSubmit,
+    masterData
+  } = useBom(id ? parseInt(id, 10) : undefined);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -34,149 +39,367 @@ const BomPage = () => {
   const canDelete = hasPermission("BOM Master", "Delete");
   const canSave = canAdd || canEdit;
 
-  const setField = (key: keyof typeof form, value: string) => {
-    if (!canSave) return;
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
+  const { watch, setValue, control, register } = form;
+  const watchedItems = watch("items") || [];
+  const productSelectedRef = useRef(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      document.getElementById("bom-name")?.focus();
+    }, 200);
+  }, []);
 
   const hk = (e: React.KeyboardEvent, nextId?: string) => {
-    if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
-  };
-
-  const handleClearClick = () => {
-    const isDirty = items.length > 0;
-    if (isDirty) {
-      setShowClearConfirm(true);
-    } else {
-      setItems([]);
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextId) document.getElementById(nextId)?.focus();
     }
   };
 
+  const handleGridNav = (e: React.KeyboardEvent, rowIndex?: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (rowIndex !== undefined) {
+        const rowProduct = form.getValues(`items.${rowIndex}.product`);
+        if (!rowProduct || rowProduct.trim() === "") {
+          if (items.length > 1) remove(rowIndex);
+          setTimeout(() => document.getElementById("bom-save-btn")?.focus(), 50);
+          return;
+        }
+      }
+      const container = (e.target as HTMLElement).closest('.relative');
+      const formElements = container
+        ? Array.from(container.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
+            .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'))
+        : [];
+      const currentIndex = formElements.indexOf(e.target as Element);
+      if (currentIndex > -1 && formElements[currentIndex + 1]) {
+        (formElements[currentIndex + 1] as HTMLElement).focus();
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <PageShell title="BOM">
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#49293e]" />
+        </div>
+      </PageShell>
+    );
+  }
+
   return (
-    <PageShell title="BOM">
-      <div className="mx-auto max-w-5xl rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-        
-        {error && (
-          <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-            <span className="flex-1">{error}</span>
-            <button type="button" onClick={() => setError(null)} className="shrink-0 rounded p-0.5 hover:bg-red-100">
-              <X size={14} />
-            </button>
-          </div>
-        )}
+    <PageShell title={id ? "Edit BOM" : "Add BOM"}>
+      <FormProvider {...form}>
+        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+          
+          {/* Close Button in top right */}
+          <button
+            type="button"
+            onClick={() => navigate("/general/boms")}
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
+            title="Close"
+          >
+            <CloseIcon size={20} />
+          </button>
 
-        <div className="grid gap-x-4 gap-y-4 mb-4 md:grid-cols-2">
-          <FormInput 
-            label="BOM Name *" 
-            value={form.bomName}
-            onChange={(e) => setField("bomName", e.target.value)}
-            disabled={!canSave}
-            autoFocus
-          />
-          <SelectInput 
-            label="Branch *" 
-            options={branches}
-            value={form.branchId}
-            onChange={(e) => setField("branchId", e.target.value)}
-            disabled={!canSave}
-          />
-        </div>
-
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-4">
-          <SearchableSelect 
-            label="Finished Product *" 
-            options={finProductOptions}
-            value={form.finishedProduct}
-            onChange={(val) => setField("finishedProduct", val)}
-            disabled={!canSave}
-          />
-          <FormInput id="bom-finCode" label="Code *" value={form.finishedProductCode} onChange={(e) => setField("finishedProductCode", e.target.value)} onKeyDown={(e) => hk(e, "bom-finUnit")} required readOnly={!canSave} />
-          <FormInput id="bom-finUnit" label="Unit *" value={form.finishedProductUnitName} onChange={(e) => setField("finishedProductUnitName", e.target.value)} readOnly />
-          <FormInput id="bom-finQty" label="Qty *" value={form.finishedProductQty} onChange={(e) => setField("finishedProductQty", e.target.value)} inputClassName="text-right" onKeyDown={(e) => hk(e, "bom-product")} required readOnly={!canSave} />
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50/70 p-3">
-          <div className="grid gap-x-3 gap-y-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-            <SearchableSelect 
-              label="Raw Materials" 
-              options={rawProductOptions}
-              value={form.product}
-              onChange={(val) => setField("product", val)}
-              disabled={!canAdd}
-            />
-            <FormInput id="bom-code" label="Code" value={form.code} onChange={(e) => setField("code", e.target.value)} onKeyDown={(e) => hk(e, "bom-unit")} readOnly />
-            <FormInput id="bom-unit" label="Unit" value={form.unitName} onChange={(e) => setField("unitName", e.target.value)} readOnly />
-            <FormInput id="bom-qty" label="Qty" value={form.qty} onChange={(e) => setField("qty", e.target.value)} inputClassName="text-right" onKeyDown={(e) => hk(e, "bom-add-btn")} readOnly={!canAdd} />
-            <div className="flex items-end pb-1">
-              <Button
-                id="bom-add-btn"
-                onClick={addItem}
-                className="h-10.5 w-full px-8"
-                disabled={!canAdd}
-                icon={<Plus size={18} />}
-              >
-                Add
-              </Button>
+          {/* ── Static Header Fields ── */}
+          <div className="p-2 md:p-3 pb-0" style={{ paddingRight: "60px" }}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-x-2 gap-y-1.5 mb-2">
+              <FormInput 
+                id="bom-name"
+                label="BOM Name" 
+                inputClassName="!h-8 !px-2 !text-xs"
+                value={watch("bomName")}
+                onChange={(e) => setValue("bomName", e.target.value)}
+                disabled={!canSave}
+                onKeyDown={(e) => hk(e, "bom-branch")}
+                autoFocus
+              />
+              <Controller
+                name="branchId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect 
+                    id="bom-branch"
+                    label="Branch" 
+                    className="h-8 !px-2 !text-xs"
+                    options={branches}
+                    value={field.value}
+                    onChange={(val) => setValue("branchId", val)}
+                    disabled={!canSave}
+                  />
+                )}
+              />
+              <Controller
+                name="finishedProduct"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect 
+                    id="bom-finProduct"
+                    label="Finished Product" 
+                    className="h-8 !px-2 !text-xs"
+                    options={finishedProducts}
+                    value={field.value}
+                    onChange={(val) => handleFinishedProductSelect(val)}
+                    disabled={!canSave}
+                  />
+                )}
+              />
+              <FormInput 
+                id="bom-finCode" 
+                label="Code" 
+                inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" 
+                value={watch("finishedProductCode") || ""} 
+                onChange={(e) => setValue("finishedProductCode", e.target.value)} 
+                onKeyDown={(e) => hk(e, "bom-finQty")} 
+                required 
+                readOnly={true} 
+              />
+              <FormInput 
+                id="bom-finUnit" 
+                label="Unit" 
+                inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed" 
+                value={watch("finishedProductUnitName") || ""} 
+                onChange={(e) => setValue("finishedProductUnitName", e.target.value)} 
+                readOnly={true} 
+              />
+              <FormInput 
+                id="bom-finQty" 
+                label="Qty" 
+                type="number"
+                inputClassName="!h-8 !px-2 !text-xs text-right"
+                value={watch("finishedProductQty")} 
+                onChange={(e) => setValue("finishedProductQty", e.target.value)} 
+                onKeyDown={(e) => hk(e, "product-select-0")} 
+                required 
+                readOnly={!canSave} 
+              />
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-100/80 text-[10px] font-bold uppercase tracking-widest text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Unit</th>
-                <th className="px-4 py-3 text-right">Qty</th>
-                <th className="w-16 px-4 py-3 text-center"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
-                    No materials added yet
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-gray-50/50">
-                    <td className="px-4 py-2.5 font-medium text-gray-900">{item.productName}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{item.code}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{item.unitName}</td>
-                    <td className="px-4 py-2.5 text-right font-medium text-gray-900">{item.qty}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        disabled={!canAdd}
-                        className="inline-flex rounded-lg p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+          {/* ── Scrollable DataGrid ── */}
+          <div className="flex-1 overflow-y-auto p-2 md:p-3">
+            <div className="h-full flex flex-col rounded-xl border border-gray-200 bg-white">
+              <div className="flex-1 overflow-auto">
+                <table className="min-w-full table-fixed text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/80">
+                      {[
+                        { name: "SL", width: "w-[5%]" },
+                        { name: "Raw Material", width: "w-[45%]" },
+                        { name: "Code", width: "w-[15%]" },
+                        { name: "Unit", width: "w-[15%]" },
+                        { name: "Qty", width: "w-[12%]" },
+                        { name: "", width: "w-[8%]" }
+                      ].map((col, i) => (
+                        <th key={i} className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 ${col.width} ${col.name === "SL" || col.name === "" ? "text-center" : col.name === "Qty" ? "text-right" : "text-center"}`}>
+                          {col.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {items.map((item, index) => {
+                      const itemWatch = watchedItems[index] || {};
+                      const rowOptions = getRowOptions(index);
+                      return (
+                        <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
+                          <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 bg-gray-50/30">{index + 1}</td>
+                          <td className="p-0.5 border-r border-gray-100 bg-white">
+                            <Controller
+                              name={`items.${index}.product`}
+                              control={control}
+                              render={({ field: selectField }) => (
+                                <div className="grid-product-select">
+                                  <SearchableCombobox
+                                    id={`product-select-${index}`}
+                                    className="h-7 !px-2 text-xs"
+                                    value={selectField.value}
+                                    options={rowOptions}
+                                    onChange={(val) => {
+                                      productSelectedRef.current = true;
+                                      selectField.onChange(val);
+                                      const opt = rowOptions.find(o => o.value === val) as any;
+                                      if (opt) {
+                                        setValue(`items.${index}.productName`, opt.label);
+                                        setValue(`items.${index}.code`, opt.code || "");
+                                        handleGridProductSelect(index, val, opt.code || "");
+                                      }
+                                      setTimeout(() => {
+                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                        qtyInputs[0]?.focus();
+                                      }, 100);
+                                    }}
+                                    onKeyDown={async (e) => {
+                                      if (e.key === "Enter") {
+                                        if (productSelectedRef.current) {
+                                          productSelectedRef.current = false;
+                                          return;
+                                        }
+                                        const rawValue = e.currentTarget.value;
+                                        if (rawValue && rawValue.trim().length > 0) {
+                                          e.preventDefault();
+                                          const success = await handleBarcodeScan(index, rawValue.trim());
+                                          if (success) {
+                                            setTimeout(() => {
+                                              const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                              qtyInputs[0]?.focus();
+                                            }, 100);
+                                          }
+                                          return;
+                                        }
+                                        if (items.length > 1) remove(index);
+                                        setTimeout(() => document.getElementById("bom-save-btn")?.focus(), 50);
+                                      }
+                                    }}
+                                    disabled={!canSave}
+                                    minQueryLength={0}
+                                  />
+                                </div>
+                              )}
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 text-center">{itemWatch.code || "-"}</td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <Controller
+                              name={`items.${index}.unit`}
+                              control={control}
+                              render={({ field: selectField }) => (
+                                <SearchableSelect
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
+                                  value={selectField.value}
+                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
+                                  onChange={(val) => handleGridUnitChange(index, val)}
+                                  disabled={!canSave}
+                                  placeholder="Unit"
+                                  disableAutoOpenOnFocus={true}
+                                />
+                              )}
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100">
+                            <input
+                              {...register(`items.${index}.qty`)}
+                              type="number"
+                              min="0"
+                              step="any"
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  const rowProduct = form.getValues(`items.${index}.product`);
+                                  if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                    append({
+                                      id: generateUUID(),
+                                      product: "", code: "", unit: "", qty: "1"
+                                    }, { shouldFocus: false });
+                                    setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+                                  } else {
+                                    handleGridNav(e, index);
+                                  }
+                                }
+                              }}
+                              className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none"
+                              readOnly={!canSave}
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-center">
+                            <button
+                              type="button"
+                              tabIndex={-1}
+                              onClick={() => items.length > 1 && remove(index)}
+                              className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
+                              disabled={!canSave || items.length <= 1}
+                              title="Remove item"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-        <div className="mt-8 flex flex-col-reverse justify-end gap-3 md:flex-row">
-          <Button variant="danger" className="w-full md:w-auto" onClick={() => {}} disabled={!canDelete || items.length === 0} icon={<Trash2 size={18} />}>
-            Delete
-          </Button>
-          <Button variant="secondary" className="w-full md:w-auto" onClick={handleClearClick}>
-            Clear
-          </Button>
-          {canSave && (
-            <Button isAction icon={<Save size={18} />} onClick={handleSave} disabled={loading || saving} loading={saving}>
-              Save
-            </Button>
-          )}
+              {/* Add Row Button */}
+              <div className="flex justify-start px-2 py-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    append({
+                      id: generateUUID(),
+                      product: "", code: "", unit: "", qty: "1"
+                    }, { shouldFocus: false });
+
+                    setTimeout(() => {
+                      document.getElementById(`product-select-${items.length}`)?.focus();
+                    }, 50);
+                  }}
+                  disabled={!canSave}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={14} /> Add Item
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Compact Action Footer ── */}
+          <div className="border-t border-gray-200 bg-gray-50/50 p-3 rounded-b-2xl shrink-0 flex items-center justify-end gap-3">
+            {canAdd && (
+              <Button 
+                type="button"
+                variant="secondary" 
+                onClick={() => {
+                  if (items.length > 0) {
+                    setShowClearConfirm(true);
+                  } else {
+                    form.reset();
+                  }
+                }}
+                tabIndex={-1}
+                isAction
+                icon={<Plus size={16} />}
+              >
+                New
+              </Button>
+            )}
+            {canSave && (
+              <Button 
+                id="bom-save-btn"
+                type="button"
+                isAction 
+                icon={<Save size={16} />} 
+                onClick={onSubmit} 
+                disabled={saving} 
+                loading={saving}
+                tabIndex={12}
+              >
+                Save
+              </Button>
+            )}
+            {canDelete && (
+              <Button 
+                type="button"
+                variant="danger" 
+                onClick={() => {
+                  if (items.length > 0) setShowClearConfirm(true);
+                }} 
+                disabled={!canDelete || items.length === 0} 
+                isAction
+                icon={<Trash2 size={16} />}
+                tabIndex={13}
+              >
+                Delete
+              </Button>
+            )}
+          </div>
+
         </div>
-      </div>
+      </FormProvider>
 
       <ConfirmDialog
         isOpen={showClearConfirm}
@@ -185,8 +408,7 @@ const BomPage = () => {
         confirmLabel="Clear Data"
         confirmVariant="danger"
         onConfirm={() => {
-          setItems([]);
-          setForm(prev => ({ ...prev, product: "", code: "", unit: "", qty: "" }));
+          form.reset();
           setShowClearConfirm(false);
         }}
         onCancel={() => setShowClearConfirm(false)}

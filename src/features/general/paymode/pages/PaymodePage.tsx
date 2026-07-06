@@ -20,7 +20,6 @@ const PaymodePage = () => {
     counterAllocOpen,
     setCounterAllocOpen,
     setSearch,
-    setField,
     toggleCounterSelection,
     resetForm,
     closeModal,
@@ -101,10 +100,9 @@ const PaymodePage = () => {
         form={form}
         saving={saving}
         counterAllocOpen={counterAllocOpen}
-        selectedCounterIds={form.counterIds}
+        selectedCounterIds={form.watch("counterIds")}
         counterOptions={counterOptions}
         onClose={closeModal}
-        onChange={setField}
         onToggleCounterAlloc={() => setCounterAllocOpen(!counterAllocOpen)}
         onToggleCounter={toggleCounterSelection}
         onClear={resetForm}

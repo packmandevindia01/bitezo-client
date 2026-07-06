@@ -270,7 +270,7 @@ const SalesReportPage = () => {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
                 <div className="w-40">
-                  <SearchableSelect id="sr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" />
+                  <SearchableSelect id="sr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" autoFocus={true} />
                 </div>
               </div>
               <div className="flex items-center gap-2">

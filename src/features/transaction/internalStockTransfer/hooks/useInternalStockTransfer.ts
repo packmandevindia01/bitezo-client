@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import { productService } from "../../../inventory/product/services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { formatAmount } from "../../../../utils/currency";
@@ -22,7 +23,6 @@ const calculateLine = (item: any) => {
 
 export const initialTransferForm: InternalStockTransferForm = {
   refNo: "",
-  series: "",
   date: new Date().toISOString().split("T")[0],
   fromBranch: "",
   toBranch: "",
@@ -34,6 +34,23 @@ export const useInternalStockTransfer = (id?: string) => {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+
+  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
+    if (!unitCategory) return;
+    setCategoryUnits(prev => {
+      if (prev[unitCategory]) return prev;
+      internalStockTransferApi.getUnits(unitCategory).then(res => {
+        setCategoryUnits(current => ({
+          ...current,
+          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+        }));
+      }).catch(err => {
+        console.error("Failed to load units for category", unitCategory, err);
+      });
+      return prev;
+    });
+  }, []);
 
   const methods = useForm<InternalStockTransferForm>({
     resolver: zodResolver(InternalStockTransferFormSchema),
@@ -55,16 +72,17 @@ export const useInternalStockTransfer = (id?: string) => {
   const { data: branchesData, isLoading: loadingMaster } = useQuery({
     queryKey: ["internalStockTransferMaster"],
     queryFn: async () => {
-      const [fromBranchRes, prodRes, unitsRes] = await Promise.all([
+      const [fromBranchRes, prodRes, productMaster] = await Promise.all([
         internalStockTransferApi.getFromBranches(),
         internalStockTransferApi.getProductsByName(""),
-        internalStockTransferApi.getUnits("Quantity").catch(() => []),
+        productService.loadMasterData().catch(() => null),
       ]);
+      const unitsRes = productMaster?.unit || [];
       return {
         fromBranches: fromBranchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })),
         products: prodRes,
         productOptions: prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })),
-        units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) })),
+        units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) })),
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -102,7 +120,6 @@ export const useInternalStockTransfer = (id?: string) => {
       const details = responseData.detailsData || responseData.details || [];
       
       const formPayload: any = {
-        series: master.narration || master.series || master.seriesName || "",
         refNo: String(master.refNo || transId || ""),
         date: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
         fromBranch: String(master.fromBranchId || master.branchId || ""),
@@ -111,16 +128,34 @@ export const useInternalStockTransfer = (id?: string) => {
       };
 
       if (details.length > 0) {
-        const mappedItems: InternalStockTransferLineItem[] = details.map((d: any) => ({
-          id: generateUUID(),
-          productId: d.productId,
-          product: String(d.productId),
-          code: d.barcode || d.productCode || "",
-          unitId: d.unitId,
-          unit: d.unitName || String(d.unitId || ""),
-          qty: String(d.qty || "1"),
-          cost: formatAmount(d.cost || d.price || 0)
-        }));
+        const mappedItems: InternalStockTransferLineItem[] = [];
+        for (const d of details) {
+          const barcode = d.barcode || d.productCode || "";
+          let unitCategory = "";
+          if (barcode) {
+            try {
+              const costData = await internalStockTransferApi.getProductCostData(barcode);
+              unitCategory = costData.unitCategory || "";
+              if (unitCategory) {
+                await loadCategoryUnits(unitCategory);
+              }
+            } catch (e) {
+              console.error("Failed to fetch product cost data for detail item", d, e);
+            }
+          }
+          mappedItems.push({
+            id: generateUUID(),
+            productId: d.productId,
+            product: String(d.productId),
+            productName: d.productName || d.name || "",
+            code: d.barcode || d.productCode || "",
+            unitId: d.unitId,
+            unit: String(d.unitId || ""),
+            unitCategory,
+            qty: String(d.qty || "1"),
+            cost: formatAmount(d.cost || d.price || 0)
+          });
+        }
         formPayload.items = mappedItems;
       } else {
         formPayload.items = [initialTransferForm.items[0]];
@@ -156,14 +191,19 @@ export const useInternalStockTransfer = (id?: string) => {
     if (product) {
       const code = product.barcode || product.code || "";
       setValue(`items.${index}.code`, code);
+      setValue(`items.${index}.productName`, product.productName || "");
       setValue(`items.${index}.cost`, "0");
       
       try {
         const costData = await internalStockTransferApi.getProductCostData(code);
         if (costData) {
+          setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
           setValue(`items.${index}.unitId`, costData.baseUnitId);
           setValue(`items.${index}.unit`, String(costData.baseUnitId));
           setValue(`items.${index}.cost`, formatAmount(costData.cost || 0));
+          if (costData.unitCategory) {
+            loadCategoryUnits(costData.unitCategory);
+          }
         }
       } catch (err) {
         console.error("Failed to load product details", err);
@@ -171,18 +211,21 @@ export const useInternalStockTransfer = (id?: string) => {
     }
   };
 
-  const handleBarcodeScan = async (index: number, barcode: string) => {
+
+  const handleUnitChange = useCallback(async (index: number, unitId: string) => {
+    setValue(`items.${index}.unit`, unitId);
+    setValue(`items.${index}.unitId`, Number(unitId));
+    const productId = getValues(`items.${index}.product`);
+    if (!productId || !unitId) return;
     try {
-      const pRes = await internalStockTransferApi.getProductsByBarcode(barcode);
-      if (pRes && pRes.length > 0) {
-        const pIdStr = String(pRes[0].productId);
-        setValue(`items.${index}.product`, pIdStr);
-        await handleProductSelect(index, pIdStr);
+      const cost = await internalStockTransferApi.getUnitCost(Number(productId), Number(unitId));
+      if (cost !== undefined && cost !== null) {
+        setValue(`items.${index}.cost`, formatAmount(cost));
       }
-    } catch (err) {
-      console.error("Barcode scan failed", err);
+    } catch (error) {
+      console.error("Failed to fetch unit cost", error);
     }
-  };
+  }, [setValue, getValues, formatAmount]);
 
   const handleReset = () => {
     reset(initialTransferForm);
@@ -208,8 +251,7 @@ export const useInternalStockTransfer = (id?: string) => {
         toBranchId: parseInt(data.toBranch, 10),
         employeeId: parseInt(data.salesman || "", 10) || 0,
         netAmount,
-        narration: data.series || "",
-        createdAt: new Date().toISOString(),
+        narration: "",
         details: validItems.map(item => ({
           productId: parseInt(item.product, 10) || 0,
           unitId: item.unitId || parseInt(item.unit || "1", 10) || 1,
@@ -264,11 +306,12 @@ export const useInternalStockTransfer = (id?: string) => {
     saving,
     grandTotal,
     handleProductSelect,
-    handleBarcodeScan,
+    handleUnitChange,
     handleReset,
     onSubmit,
     watchedItems,
     isPrintModalOpen,
-    setIsPrintModalOpen
+    setIsPrintModalOpen,
+    categoryUnits,
   };
 };

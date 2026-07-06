@@ -1,4 +1,5 @@
 import type { ProductionForm } from "./types";
+import { generateUUID } from "../../../utils/uuid";
 
 export const createEmptyProductionForm = (): ProductionForm => ({
   branchId: "",
@@ -7,13 +8,9 @@ export const createEmptyProductionForm = (): ProductionForm => ({
   finishedProduct: "",
   finishedProductCode: "",
   finishedProductUnit: "",
-  finishedProductQty: "",
-  items: [],
-  narration: "",
-  code: "",
-  unit: "",
-  qty: "0",
-  cost: "0",
-  
+  finishedProductUnitName: "",
+  finishedProductQty: "1",
   otherCharge: "0",
+  narration: "",
+  items: [{ id: generateUUID(), product: "", qty: "1", cost: "0" }],
 });

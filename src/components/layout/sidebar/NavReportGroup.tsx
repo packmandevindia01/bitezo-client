@@ -19,23 +19,30 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
   return (
     <SidebarDropdown icon={<BarChart3 size={18} />} label="Reports">
       {hasPermission("Sales Report", "View") && (
-        <div onClick={() => handleItemClick("/dashboard/reports/sales")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <TrendingUp size={14} />
-            <span>Sales Report</span>
+        <SidebarDropdown icon={<TrendingUp size={14} />} label="Sales Report" nested={true}>
+          <div onClick={() => handleItemClick("/dashboard/reports/sales")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Sales Summary</span>
           </div>
-        </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/daily-sales")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Daily Sales Report</span>
+          </div>
+        </SidebarDropdown>
       )}
 
       {hasPermission("Purchase Report", "View") && (
         <SidebarDropdown icon={<ShoppingCart size={14} />} label="Purchase Report" nested={true}>
           <div onClick={() => handleItemClick("/dashboard/reports/purchase")} className={itemClassName}>
+            <ShoppingCart size={13} className="shrink-0" />
             <span>Purchase Summary</span>
           </div>
           <div onClick={() => handleItemClick("/dashboard/reports/product-wise-purchase")} className={itemClassName}>
+            <ShoppingCart size={13} className="shrink-0" />
             <span>Product Wise Purchase</span>
           </div>
           <div onClick={() => handleItemClick("/dashboard/reports/stock-register")} className={itemClassName}>
+            <ShoppingCart size={13} className="shrink-0" />
             <span>Stock Register Report</span>
           </div>
         </SidebarDropdown>
@@ -43,20 +50,22 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
 
       {hasPermission("Purchase Return Report", "View") && (
         <div onClick={() => handleItemClick("/dashboard/reports/purchase-return")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <ShoppingCart size={14} />
-            <span>Purchase Return Report</span>
-          </div>
+          <ShoppingCart size={13} className="shrink-0" />
+          <span>Purchase Return Report</span>
         </div>
       )}
 
       {hasPermission("Stock Report", "View") && (
-        <div onClick={() => handleItemClick("/dashboard/reports/stock")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <PackageSearch size={14} />
+        <>
+          <div onClick={() => handleItemClick("/dashboard/reports/stock")} className={itemClassName}>
+            <PackageSearch size={13} className="shrink-0" />
             <span>Stock Report</span>
           </div>
-        </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-transaction-log")} className={itemClassName}>
+            <PackageSearch size={13} className="shrink-0" />
+            <span>Product Transaction Log</span>
+          </div>
+        </>
       )}
     </SidebarDropdown>
   );

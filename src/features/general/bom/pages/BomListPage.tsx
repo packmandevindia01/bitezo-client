@@ -1,4 +1,4 @@
-import { AlertCircle, X, Search, Pencil, Trash2 } from "lucide-react";
+import { AlertCircle, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button, PageShell, RecordTableCard, ConfirmDialog, SelectInput, SearchableSelect } from "../../../../components/common";
 import { useBomList } from "../hooks/useBomList";
 import { bomApi } from "../services/bomApi";
@@ -13,7 +13,6 @@ const BomListPage = () => {
     records,
     loading,
     error,
-    setError,
     filters,
     branches,
     products,
@@ -43,47 +42,49 @@ const BomListPage = () => {
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <span className="flex-1">{error}</span>
-          <button type="button" onClick={() => setError(null)} className="shrink-0 rounded p-0.5 hover:bg-red-100">
-            <X size={14} />
-          </button>
         </div>
       )}
 
-      {/* Filter Section */}
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <SelectInput 
-            label="Branch" 
-            placeholder="All Branches"
-            options={branches} 
-            value={filters.branchId} 
-            onChange={(e) => handleFilterChange("branchId", e.target.value)} 
-          />
-          <SearchableSelect 
-            label="Product" 
-            options={products}
-            value={filters.productId} 
-            onChange={(val) => handleFilterChange("productId", val)} 
-          />
-          <SelectInput 
-            label="Unit" 
-            options={units}
-            value={filters.unitId} 
-            onChange={(e) => handleFilterChange("unitId", e.target.value)} 
-          />
-          <div className="flex items-end">
-            <Button onClick={fetchList} className="w-full">
-              <Search size={16} className="mr-2" /> Search
-            </Button>
+      {/* Uniform Header & Filter Section */}
+      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
+        <div className="flex flex-wrap gap-4 items-end flex-1">
+          <div className="w-48">
+            <SelectInput 
+              label="Branch" 
+              placeholder="All Branches"
+              options={branches} 
+              value={filters.branchId} 
+              onChange={(e) => handleFilterChange("branchId", e.target.value)} 
+            />
+          </div>
+          <div className="w-64">
+            <SearchableSelect 
+              label="Product" 
+              placeholder="Search product..."
+              options={products}
+              value={filters.productId} 
+              onChange={(val) => handleFilterChange("productId", val)} 
+            />
+          </div>
+          <div className="w-48">
+            <SelectInput 
+              label="Unit" 
+              placeholder="Select Unit"
+              options={units}
+              value={filters.unitId} 
+              onChange={(e) => handleFilterChange("unitId", e.target.value)} 
+              disabled={!filters.productId}
+            />
           </div>
         </div>
+        <Button onClick={() => navigate("/dashboard/bom")} icon={<Plus size={18} />}>
+          + New BOM
+        </Button>
       </div>
 
       <div className="overflow-x-auto">
         <RecordTableCard<any>
           title="BOM Records"
-          actionLabel="+ New BOM"
-          onAction={() => navigate("/dashboard/bom")}
           data={records}
           rowKey="transId"
           loading={loading}

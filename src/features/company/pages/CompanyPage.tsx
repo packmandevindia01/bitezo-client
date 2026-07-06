@@ -1,153 +1,29 @@
-import { useEffect, useRef, useState } from "react";
-import type { CountryCode } from "libphonenumber-js";
+import { useRef } from "react";
 import { Building2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput, Loader, PageShell, SelectInput } from "../../../components/common";
-import { useToast } from "../../../app/providers/useToast";
-import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";
-import { fetchCompany, updateCompany, fetchCurrencyList } from "../services/companyApi";
-import type { CompanyFormData, CurrencyOption } from "../types";
-import { formatPhone } from "../utils/formatters";
-
-
-const emptyForm = (): CompanyFormData => ({
-  custName: "",
-  custMob: "",
-  custMob2: "",
-  block: "",
-  area: "",
-  road: "",
-  building: "",
-  flatNo: "",
-  branchCount: 0,
-  regId: "",
-  startDate: new Date().toISOString(),
-  isDemo: false,
-  database: "",
-  crNo: "",
-  email: "",
-  taxRegNo: "",
-  currency: "",
-  customerId: "",
-});
+import { useCompanyForm } from "../hooks/useCompanyForm";
 
 const CompanyPage = () => {
-  const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
-
-  const [form, setForm] = useState<CompanyFormData>(emptyForm);
-  const [originalForm, setOriginalForm] = useState<CompanyFormData>(emptyForm);
-  const [comId, setComId] = useState<number>(0);
-  const [errors, setErrors] = useState<Partial<Record<keyof CompanyFormData, string>>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
-
-  const countryCode = "BH" as CountryCode;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        // Fetch company info and currency list in parallel
-        const [raw, currencyData] = await Promise.all([
-          fetchCompany() as Promise<any>,
-          fetchCurrencyList()
-        ]);
-        
-        if (cancelled) return;
-
-        setCurrencies(currencyData);
-
-        const filled: CompanyFormData = {
-          ...emptyForm(),
-          custName:   String(raw.name    ?? ""),
-          custMob:    String(raw.mobNo   ?? ""),
-          custMob2:   String(raw.telNo   ?? ""),
-          crNo:       String(raw.crNo    ?? ""),
-          email:      String(raw.email   ?? ""),
-          taxRegNo:   String(raw.taxRegNo ?? ""),
-          regId:      String(raw.regId   ?? ""),
-          block:      String(raw.block   ?? ""),
-          area:       String(raw.area    ?? ""),
-          road:       String(raw.road    ?? ""),
-          building:   String(raw.building ?? ""),
-          flatNo:     String(raw.flatNo  ?? ""),
-          // currencyId comes as a number, store as string for SelectInput
-          currency:   raw.currencyId ? String(raw.currencyId) : "",
-          startDate:  String(raw.createdAt ?? new Date().toISOString()),
-        };
-
-        setComId(Number(raw.comId ?? 0));
-        setForm(filled);
-        setOriginalForm(filled);
-      } catch {
-        if (!cancelled) {
-          showToast("Could not load company data. You can still edit and save.", "error");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-    return () => { cancelled = true; };
-  }, [showToast]);
-
-  const handleChange = <K extends keyof CompanyFormData>(key: K, value: CompanyFormData[K]) => {
-    if (saving) return;
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
-
-  const validate = () => {
-    const newErrors: typeof errors = {};
-    if (!isRequired(form.custName)) newErrors.custName = "Company name is required";
-    if (!isRequired(form.crNo ?? "")) newErrors.crNo = "CR No is required";
-    if (!isRequired(form.custMob)) {
-      newErrors.custMob = "Mobile number is required";
-    } else if (!isValidMobile(form.custMob)) {
-      newErrors.custMob = "Invalid mobile number";
-    }
-    if (!isRequired(form.currency)) newErrors.currency = "Currency is required";
-    if (form.email && !isValidEmail(form.email)) newErrors.email = "Invalid email";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validate()) {
-      showToast("Please fill all required fields", "error");
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateCompany({
-        ...form,
-        custMob: formatPhone(form.custMob.trim(), countryCode),
-      }, comId);
-      showToast("Company updated successfully", "success");
-      setOriginalForm(form);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to update company";
-      showToast(msg, "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleReset = () => {
-    setForm(originalForm);
-    setErrors({});
-  };
+  
+  const {
+    form: {
+      register,
+      formState: { errors },
+    },
+    currencies,
+    isLoading,
+    isSaving,
+    onSubmit,
+    handleReset,
+  } = useCompanyForm();
 
   const currencyOptions = currencies.map((item) => ({
     label: item.currencyName,
     value: item.currencyId.toString(),
   }));
 
-  if (loading) {
+  if (isLoading) {
     return (
       <PageShell title="Company">
         <div className="flex items-center justify-center py-24">
@@ -159,7 +35,8 @@ const CompanyPage = () => {
 
   return (
     <PageShell title="Company">
-      <div
+      <form
+        onSubmit={onSubmit}
         className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col"
         style={{ height: "calc(100vh - 120px)" }}
       >
@@ -178,46 +55,41 @@ const CompanyPage = () => {
             <FormInput
               id="co-reg-id"
               label="Registration ID"
-              value={form.regId}
-              onChange={(e) => handleChange("regId", e.target.value)}
-              disabled={saving}
+              {...register("regId")}
+              disabled
               readOnly
               tabIndex={-1}
+              inputClassName="cursor-not-allowed"
             />
 
+            {/* Read-Only Company Name */}
             <FormInput
               id="co-name"
               label="Company Name"
-              required
-              autoFocus
-              value={form.custName}
-              onChange={(e) => handleChange("custName", e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  document.getElementById("co-cr-no")?.focus();
-                }
-              }}
-              error={errors.custName}
-              disabled={saving}
-              tabIndex={1}
+              {...register("custName")}
+              error={errors.custName?.message}
+              disabled
+              readOnly
+              tabIndex={-1}
+              inputClassName="cursor-not-allowed"
             />
 
+            {/* Editable fields start here, so CR No is autofocus */}
             <FormInput
               id="co-cr-no"
               label="CR No"
               required
-              value={form.crNo}
-              onChange={(e) => handleChange("crNo", e.target.value)}
+              autoFocus
+              {...register("crNo")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-mobile")?.focus();
                 }
               }}
-              error={errors.crNo}
-              disabled={saving}
-              tabIndex={2}
+              error={errors.crNo?.message}
+              disabled={isSaving}
+              tabIndex={1}
             />
 
             <FormInput
@@ -225,71 +97,64 @@ const CompanyPage = () => {
               label="Mobile No"
               required
               placeholder="+973 36001234"
-              value={form.custMob}
-              onChange={(e) => handleChange("custMob", e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  document.getElementById("co-email")?.focus();
-                }
-              }}
-              error={errors.custMob}
-              disabled={saving}
-              tabIndex={3}
-            />
-
-            <FormInput
-              id="co-email"
-              label="Email Address"
-              value={form.email}
-              onChange={(e) => handleChange("email", e.target.value)}
+              {...register("custMob")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-tel")?.focus();
                 }
               }}
-              error={errors.email}
-              disabled={saving}
-              tabIndex={4}
+              error={errors.custMob?.message}
+              disabled={isSaving}
+              tabIndex={2}
+            />
+
+            {/* Read-Only Email */}
+            <FormInput
+              id="co-email"
+              label="Email Address"
+              {...register("email")}
+              error={errors.email?.message}
+              disabled
+              readOnly
+              tabIndex={-1}
+              inputClassName="cursor-not-allowed"
             />
 
             <FormInput
               id="co-tel"
               label="Tel No / Landline"
-              value={form.custMob2}
-              onChange={(e) => handleChange("custMob2", e.target.value)}
+              {...register("custMob2")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-tax-no")?.focus();
                 }
               }}
-              disabled={saving}
-              tabIndex={5}
+              error={errors.custMob2?.message}
+              disabled={isSaving}
+              tabIndex={3}
             />
 
             <FormInput
               id="co-tax-no"
               label="Tax Reg No"
-              value={form.taxRegNo}
-              onChange={(e) => handleChange("taxRegNo", e.target.value)}
+              {...register("taxRegNo")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-currency")?.focus();
                 }
               }}
-              disabled={saving}
-              tabIndex={6}
+              disabled={isSaving}
+              tabIndex={4}
             />
 
             <SelectInput
               id="co-currency"
               label="Currency"
               required
-              value={form.currency}
-              onChange={(e) => handleChange("currency", e.target.value)}
+              {...register("currency")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -297,78 +162,73 @@ const CompanyPage = () => {
                 }
               }}
               options={currencyOptions}
-              error={errors.currency}
-              disabled={saving}
-              tabIndex={7}
+              error={errors.currency?.message}
+              disabled={isSaving}
+              tabIndex={5}
             />
 
             <FormInput
               id="co-block"
               label="Block No"
-              value={form.block}
-              onChange={(e) => handleChange("block", e.target.value)}
+              {...register("block")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-area")?.focus();
                 }
               }}
-              disabled={saving}
-              tabIndex={8}
+              disabled={isSaving}
+              tabIndex={6}
             />
 
             <FormInput
               id="co-area"
               label="Area / Street"
-              value={form.area}
-              onChange={(e) => handleChange("area", e.target.value)}
+              {...register("area")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-building")?.focus();
                 }
               }}
-              disabled={saving}
-              tabIndex={9}
+              disabled={isSaving}
+              tabIndex={7}
             />
 
             <FormInput
               id="co-building"
               label="Building No"
-              value={form.building}
-              onChange={(e) => handleChange("building", e.target.value)}
+              {...register("building")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-road")?.focus();
                 }
               }}
-              disabled={saving}
-              tabIndex={10}
+              disabled={isSaving}
+              tabIndex={8}
             />
 
             <FormInput
               id="co-road"
               label="Road No"
-              value={form.road}
-              onChange={(e) => handleChange("road", e.target.value)}
+              {...register("road")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("co-flat")?.focus();
                 }
               }}
-              disabled={saving}
-              tabIndex={11}
+              disabled={isSaving}
+              tabIndex={9}
             />
 
             <FormInput
               id="co-flat"
               label="Flat / Shop No"
-              value={form.flatNo}
-              onChange={(e) => handleChange("flatNo", e.target.value)}
-              disabled={saving}
-              tabIndex={12}
+              {...register("flatNo")}
+              disabled={isSaving}
+              tabIndex={10}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -382,9 +242,10 @@ const CompanyPage = () => {
         {/* ── Sticky Action Footer ── */}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4 rounded-b-3xl">
           <Button 
+            type="button"
             variant="secondary" 
             onClick={handleReset} 
-            disabled={saving} 
+            disabled={isSaving} 
             tabIndex={-1}
             isAction
             icon={<RotateCcw size={18} />}
@@ -392,17 +253,17 @@ const CompanyPage = () => {
             Clear
           </Button>
           <Button 
+            type="submit"
             ref={saveBtnRef} 
-            onClick={handleSave} 
-            disabled={saving}
+            disabled={isSaving}
             isAction
-            loading={saving}
+            loading={isSaving}
             icon={<Save size={18} />}
           >
             Update
           </Button>
         </div>
-      </div>
+      </form>
     </PageShell>
   );
 };

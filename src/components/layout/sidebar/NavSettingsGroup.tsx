@@ -20,34 +20,26 @@ const NavSettingsGroup = ({ navigate, onClose, itemClassName }: NavSettingsGroup
     <SidebarDropdown icon={<Settings size={18} />} label="Settings">
       {hasPermission("Configuration", "View") && (
         <div onClick={() => handleItemClick("/dashboard/configuration")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <Settings size={14} />
-            <span>Configuration</span>
-          </div>
+          <Settings size={13} className="shrink-0" />
+          <span>Configuration</span>
         </div>
       )}
       {hasPermission("Configuration", "View") && (
         <div onClick={() => handleItemClick("/dashboard/backoffice-configuration")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <Settings size={14} />
-            <span>Backoffice Configuration</span>
-          </div>
+          <Settings size={13} className="shrink-0" />
+          <span>Backoffice Configuration</span>
         </div>
       )}
       {hasPermission("Configuration", "View") && (
         <div onClick={() => handleItemClick("/dashboard/provider-settings")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <Settings size={14} />
-            <span>Provider Settings</span>
-          </div>
+          <Settings size={13} className="shrink-0" />
+          <span>Provider Settings</span>
         </div>
       )}
       {hasPermission("Configuration", "View") && (
         <div onClick={() => handleItemClick("/dashboard/happy-hour")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <Clock size={14} />
-            <span>Happy Hour</span>
-          </div>
+          <Clock size={13} className="shrink-0" />
+          <span>Happy Hour</span>
         </div>
       )}
     </SidebarDropdown>

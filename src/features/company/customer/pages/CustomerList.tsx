@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import CustomerForm from "../components/CustomerForm";
 import {
   ConfirmDialog,
@@ -7,8 +7,6 @@ import {
   PageShell,
   RecordTableCard,
   StatusBadge,
-  SearchBar,
-  Button,
 } from "../../../../components/common";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -20,7 +18,6 @@ const CustomerList = () => {
 
   const {
     customers,
-    totalCount,
     loading,
     saving,
     deleting,
@@ -44,26 +41,6 @@ const CustomerList = () => {
 
   return (
     <PageShell title="Customer Master">
-      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-        <div className="flex gap-4 items-end flex-1">
-          <div className="flex-1 max-w-sm">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Search customers..."
-            />
-          </div>
-          <div className="text-xs font-bold text-slate-500 mb-1.5 shrink-0">
-            Total Records: {totalCount}
-          </div>
-        </div>
-        {canAdd && (
-          <Button icon={<Plus size={18} />} onClick={openCreateModal}>
-            + Add Customer
-          </Button>
-        )}
-      </div>
-
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Loader text="Loading customers..." />
@@ -71,6 +48,11 @@ const CustomerList = () => {
       ) : (
         <RecordTableCard
           title="Saved Customer List"
+          search={search}
+          onSearchChange={setSearch}
+          actionLabel={canAdd ? "+ Add Customer" : undefined}
+          onAction={canAdd ? openCreateModal : undefined}
+          autoFocusSearch
           rowKey="id"
           data={customers}
           columns={[

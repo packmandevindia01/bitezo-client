@@ -30,7 +30,7 @@ const COLS = [
   { key: "productName", label: "Product",     cls: "w-[27%] text-left" },
   { key: "group",       label: "Group",       cls: "w-[15%] text-left" },
   { key: "category",    label: "Category",    cls: "w-[15%] text-left" },
-  { key: "stock",       label: "Stock",       cls: "w-[12%] text-center" },
+  { key: "stock",       label: "Stock",       cls: "w-[12%] text-right" },
   { key: "cost",        label: "Cost",        cls: "w-[9%] text-right" },
   { key: "value",       label: "Value",       cls: "w-[9%] text-right" },
 ];
@@ -205,7 +205,7 @@ const StockRegisterReportPage = () => {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
                 <div className="w-40">
-                  <SearchableSelect id="st-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" />
+                  <SearchableSelect id="st-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" autoFocus={true} />
                 </div>
               </div>
               <div className="flex items-center gap-2">

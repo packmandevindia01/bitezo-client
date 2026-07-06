@@ -32,7 +32,9 @@ const InternalStockTransferPage = () => {
     onSubmit,
     watchedItems,
     isPrintModalOpen,
-    setIsPrintModalOpen
+    setIsPrintModalOpen,
+    categoryUnits,
+    handleUnitChange
   } = useInternalStockTransfer(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -98,6 +100,18 @@ const InternalStockTransferPage = () => {
     }
   }, [masterData.productOptions]);
 
+  // Build per-row options: always include the stored product label so the
+  // combobox can display the name even before the user searches
+  const getRowOptions = useCallback((index: number) => {
+    const stored = (watchedItems[index] as any);
+    const storedValue = stored?.product;
+    const storedName = stored?.productName;
+    if (!storedValue || !storedName) return productOptions;
+    const alreadyPresent = productOptions.some((o: any) => o.value === storedValue);
+    if (alreadyPresent) return productOptions;
+    return [{ label: storedName, value: storedValue }, ...productOptions];
+  }, [productOptions, watchedItems]);
+
   // Keyboard navigation logic
   const handleGridNav = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, index: number) => {
     if (e.key !== "Enter") return;
@@ -143,7 +157,6 @@ const InternalStockTransferPage = () => {
   const printForm = useMemo(() => {
     const vals = getValues();
     return {
-      series: vals.series || "",
       refNo: vals.refNo || "",
       date: vals.date || "",
       fromBranch: vals.fromBranch || "",
@@ -219,10 +232,8 @@ const InternalStockTransferPage = () => {
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
             {/* ── Header Fields ── Extremely dense padding to save space */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-[1fr_0.7fr_1.1fr_1.2fr_1.2fr_1.2fr] gap-x-2 gap-y-1.5 mb-2">
-              <FormInput autoFocus inputClassName="!h-8 !px-2 !text-xs text-[#49293e]" id="st-series" label="Series" {...register("series")} onKeyDown={(e) => hk(e, "st-date")} readOnly={!canSave} error={errors.series?.message as string} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="st-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
+              <FormInput autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="fromBranch" control={control} render={({ field }) => (
                 <SearchableSelect className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster} error={errors.fromBranch?.message as string} />
@@ -264,67 +275,78 @@ const InternalStockTransferPage = () => {
                             <Controller
                               name={`items.${index}.product`}
                               control={control}
-                              render={({ field: selectField }) => (
-                                <div className="relative">
-                                  <SearchableCombobox
-                                    id={`product-select-${index}`}
-                                    className="h-7 !px-2 text-xs"
-                                    value={selectField.value}
-                                    options={productOptions}
-                                    onSearch={handleProductSearch}
-                                    loading={searchingProducts}
-                                    minQueryLength={1}
-                                    forcePlacement="bottom"
-                                    onChange={(val) => {
-                                      productSelectedRef.current = true;
-                                      selectField.onChange(val);
-                                      const opt = productOptions.find(o => o.value === val);
-                                      if (opt) {
-                                        methods.setValue(`items.${index}.code`, opt["code"] || "");
-                                        handleProductSelect(index, val);
-                                      }
-                                      setTimeout(() => {
-                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                        qtyInputs[0]?.focus();
-                                      }, 100);
-                                    }}
-                                    onKeyDown={async (e) => {
-                                      if (e.key === "Enter") {
-                                        if (productSelectedRef.current) {
-                                          productSelectedRef.current = false;
-                                          return;
+                              render={({ field: selectField }) => {
+                                const rowOptions = getRowOptions(index);
+                                return (
+                                  <div className="relative">
+                                    <SearchableCombobox
+                                      id={`product-select-${index}`}
+                                      className="h-7 !px-2 text-xs"
+                                      value={selectField.value}
+                                      options={rowOptions}
+                                      onSearch={handleProductSearch}
+                                      loading={searchingProducts}
+                                      minQueryLength={0}
+                                      forcePlacement="bottom"
+                                      onChange={(val) => {
+                                        productSelectedRef.current = true;
+                                        selectField.onChange(val);
+                                        const opt = rowOptions.find(o => o.value === val);
+                                        if (opt) {
+                                          methods.setValue(`items.${index}.code`, opt["code"] || "");
+                                          methods.setValue(`items.${index}.productName`, opt.label);
+                                          handleProductSelect(index, val);
                                         }
-                                        const rawValue = e.currentTarget.value;
-                                        if (rawValue && rawValue.trim().length > 0) {
-                                          e.preventDefault();
-                                          try {
-                                            const bcRes = await internalStockTransferApi.getProductsByBarcode(rawValue.trim());
-                                            if (bcRes && bcRes.length > 0) {
-                                              const p = bcRes[0];
-                                              setProductOptions(prev => {
-                                                if (prev.find(o => o.value === String(p.productId))) return prev;
-                                                return [...prev, { label: p.productName, value: String(p.productId), code: p.productCode, barcode: p.barcode }];
-                                              });
-                                              methods.setValue(`items.${index}.product`, String(p.productId));
-                                              methods.setValue(`items.${index}.code`, p.productCode || "");
-                                              handleProductSelect(index, String(p.productId));
-                                              setTimeout(() => {
-                                                const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                                qtyInputs[0]?.focus();
-                                              }, 100);
-                                              return;
-                                            }
-                                          } catch (err) {}
-                                          return;
+                                        setTimeout(() => {
+                                          const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                          qtyInputs[0]?.focus();
+                                        }, 100);
+                                      }}
+                                      onKeyDown={async (e) => {
+                                        if (e.key === "Enter") {
+                                          if (productSelectedRef.current) {
+                                            productSelectedRef.current = false;
+                                            return;
+                                          }
+                                          const rawValue = e.currentTarget.value;
+                                          if (rawValue && rawValue.trim().length > 0) {
+                                            e.preventDefault();
+                                            try {
+                                              // Try barcode lookup first
+                                              let bcRes = await internalStockTransferApi.getProductsByBarcode(rawValue.trim()).catch(() => []);
+                                              // Fallback: try name/code search if barcode returns nothing
+                                              if (!bcRes || bcRes.length === 0) {
+                                                bcRes = await internalStockTransferApi.getProductsByName(rawValue.trim()).catch(() => []);
+                                              }
+                                              if (bcRes && bcRes.length > 0) {
+                                                const p = bcRes[0];
+                                                const newOpt = { label: p.productName, value: String(p.productId), code: p.productCode, barcode: p.barcode };
+                                                setProductOptions(prev => {
+                                                  if (prev.find(o => o.value === String(p.productId))) return prev;
+                                                  return [...prev, newOpt];
+                                                });
+                                                methods.setValue(`items.${index}.product`, String(p.productId));
+                                                methods.setValue(`items.${index}.code`, p.productCode || "");
+                                                methods.setValue(`items.${index}.productName`, p.productName);
+                                                handleProductSelect(index, String(p.productId));
+                                                setTimeout(() => {
+                                                  const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                                  qtyInputs[0]?.focus();
+                                                }, 100);
+                                                return;
+                                              }
+                                            } catch (err) {}
+                                            return;
+                                          }
+                                          if (items.length > 1) remove(index);
+                                          setTimeout(() => document.getElementById("st-save-btn")?.focus(), 50);
                                         }
-                                        if (items.length > 1) remove(index);
-                                        setTimeout(() => document.getElementById("st-save-btn")?.focus(), 50);
-                                      }
-                                    }}
-                                    disabled={!canSave}
-                                  />
-                                </div>
-                              )}
+                                      }}
+                                      disabled={!canSave}
+                                    />
+                                  </div>
+                                );
+                              }}
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
@@ -336,8 +358,8 @@ const InternalStockTransferPage = () => {
                                 <SearchableSelect
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={masterData?.units || []}
-                                  onChange={(val) => selectField.onChange(val)}
+                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
+                                  onChange={(val) => handleUnitChange(index, val)}
                                   disabled={!canSave}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}

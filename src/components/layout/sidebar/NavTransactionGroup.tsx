@@ -20,92 +20,66 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
     <SidebarDropdown icon={<ReceiptText size={18} />} label="Transaction">
       {hasPermission("Purchase Invoice", "View") && (
         <div onClick={() => handleItemClick("/dashboard/purchase-invoice")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Purchase Invoice</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Purchase Invoice</span>
         </div>
       )}
 
       {hasPermission("Purchase Return", "View") && (
         <div onClick={() => handleItemClick("/dashboard/purchase-return")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <Repeat2 size={14} />
-            <span>Purchase Return</span>
-          </div>
+          <Repeat2 size={13} className="shrink-0" />
+          <span>Purchase Return</span>
         </div>
       )}
 
       {hasPermission("Production", "View") && (
         <div onClick={() => handleItemClick("/dashboard/production-list")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Production</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Production</span>
         </div>
       )}
 
       {hasPermission("Stock Adjustment", "View") && (
         <div onClick={() => handleItemClick("/dashboard/stock-adjustments")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Stock Adjustment</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Stock Adjustment</span>
         </div>
       )}
 
       {hasPermission("Internal Stock Transfer", "View") && (
         <div onClick={() => handleItemClick("/dashboard/internal-stock-transfers")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <Repeat2 size={14} />
-            <span>Internal Stock Transfer</span>
-          </div>
+          <Repeat2 size={13} className="shrink-0" />
+          <span>Internal Stock Transfer</span>
         </div>
       )}
 
       {hasPermission("Payment Against Voucher", "View") && (
         <div onClick={() => handleItemClick("/dashboard/payment-against-voucher")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Payment Against Voucher</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Payment Against Voucher</span>
         </div>
       )}
-
-
 
       {hasPermission("Receipt Against Voucher", "View") && (
         <div onClick={() => handleItemClick("/dashboard/receipt-against-voucher")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Receipt Against Voucher</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Receipt Against Voucher</span>
         </div>
       )}
-
-
 
       {hasPermission("Payment Voucher", "View") && (
         <div onClick={() => handleItemClick("/dashboard/payment-voucher")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Payment Voucher</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Payment Voucher</span>
         </div>
       )}
-
-
 
       {hasPermission("Receipt Voucher", "View") && (
         <div onClick={() => handleItemClick("/dashboard/receipt-voucher")} className={itemClassName}>
-          <div className="flex items-center gap-2">
-            <FileText size={14} />
-            <span>Receipt Voucher</span>
-          </div>
+          <FileText size={13} className="shrink-0" />
+          <span>Receipt Voucher</span>
         </div>
       )}
-
-
     </SidebarDropdown>
   );
 };

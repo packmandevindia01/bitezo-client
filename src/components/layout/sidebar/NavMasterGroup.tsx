@@ -41,7 +41,7 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
 
   const handleDenominationClick = () => {
     onOpenDenomination();
-    onClose(); 
+    onClose();
   };
 
   return (
@@ -49,118 +49,92 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
       <SidebarDropdown label="General" icon={<Layers3 size={14} />} nested defaultOpen>
         {hasPermission("User Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/users")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <ShieldUser size={14} />
-              <span>Users</span>
-            </div>
+            <ShieldUser size={13} className="shrink-0" />
+            <span>Users</span>
           </div>
         )}
 
         {hasPermission("User Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/user-roles")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={14} />
-              <span>User Roles</span>
-            </div>
+            <ShieldCheck size={13} className="shrink-0" />
+            <span>User Roles</span>
           </div>
         )}
 
         {hasPermission("Customer Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/company")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Building2 size={14} />
-              <span>Company</span>
-            </div>
+            <Building2 size={13} className="shrink-0" />
+            <span>Company</span>
           </div>
         )}
 
         {hasPermission("Customer Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/customers")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <UserCog size={14} />
-              <span>Customer</span>
-            </div>
+            <UserCog size={13} className="shrink-0" />
+            <span>Customer</span>
           </div>
         )}
 
         {hasPermission("Employee Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/employees")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <UserCog size={14} />
-              <span>Employees</span>
-            </div>
+            <UserCog size={13} className="shrink-0" />
+            <span>Employees</span>
           </div>
         )}
 
         {hasPermission("Paymode Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/paymodes")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Ticket size={14} />
-              <span>Paymode</span>
-            </div>
+            <Ticket size={13} className="shrink-0" />
+            <span>Paymode</span>
           </div>
         )}
 
         {hasPermission("Counter Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/counters")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Store size={14} />
-              <span>Counter</span>
-            </div>
+            <Store size={13} className="shrink-0" />
+            <span>Counter</span>
           </div>
         )}
 
         {hasPermission("Tax Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/taxes")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Percent size={14} />
-              <span>Tax Master</span>
-            </div>
+            <Percent size={13} className="shrink-0" />
+            <span>Tax Master</span>
           </div>
         )}
 
         {hasPermission("Denomination Master", "View") && (
           <div onClick={handleDenominationClick} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Coins size={14} />
-              <span>Denomination</span>
-            </div>
+            <Coins size={13} className="shrink-0" />
+            <span>Denomination</span>
           </div>
         )}
 
         {hasPermission("Recipe Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/recipes")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <UtensilsCrossed size={14} />
-              <span>Recipe</span>
-            </div>
+            <UtensilsCrossed size={13} className="shrink-0" />
+            <span>Recipe</span>
           </div>
         )}
 
         {hasPermission("BOM Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/boms")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Boxes size={14} />
-              <span>BOM</span>
-            </div>
+            <Boxes size={13} className="shrink-0" />
+            <span>BOM</span>
           </div>
         )}
 
         {hasPermission("Provider Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/providers")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Globe size={14} />
-              <span>Provider Master</span>
-            </div>
+            <Globe size={13} className="shrink-0" />
+            <span>Provider Master</span>
           </div>
         )}
 
         {hasPermission("Supplier Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/suppliers")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Building2 size={14} />
-              <span>Supplier Master</span>
-            </div>
+            <Building2 size={13} className="shrink-0" />
+            <span>Supplier Master</span>
           </div>
         )}
       </SidebarDropdown>
@@ -168,55 +142,43 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
       <SidebarDropdown label="Order" icon={<UtensilsCrossed size={14} />} nested defaultOpen>
         {hasPermission("Section Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/sections")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Layers3 size={14} />
-              <span>Section</span>
-            </div>
+            <Layers3 size={13} className="shrink-0" />
+            <span>Section</span>
           </div>
         )}
 
         {hasPermission("Modifier Type", "View") && (
           <div onClick={() => handleItemClick("/dashboard/modifier-type")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} />
-              <span>Modifier Type</span>
-            </div>
+            <SlidersHorizontal size={13} className="shrink-0" />
+            <span>Modifier Type</span>
           </div>
         )}
 
         {hasPermission("Modifier Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/modifiers")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} />
-              <span>Modifier</span>
-            </div>
+            <SlidersHorizontal size={13} className="shrink-0" />
+            <span>Modifier</span>
           </div>
         )}
 
         {hasPermission("Extras Type", "View") && (
           <div onClick={() => handleItemClick("/dashboard/extras-type")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <ListTree size={14} />
-              <span>Extras Type</span>
-            </div>
+            <ListTree size={13} className="shrink-0" />
+            <span>Extras Type</span>
           </div>
         )}
 
         {hasPermission("Extras Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/extras-master")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Shapes size={14} />
-              <span>Extras Master</span>
-            </div>
+            <Shapes size={13} className="shrink-0" />
+            <span>Extras Master</span>
           </div>
         )}
 
         {hasPermission("Table Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/tables")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Grid2x2 size={14} />
-              <span>Table Master</span>
-            </div>
+            <Grid2x2 size={13} className="shrink-0" />
+            <span>Table Master</span>
           </div>
         )}
       </SidebarDropdown>
@@ -224,73 +186,57 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
       <SidebarDropdown label="Inventory" icon={<PackageSearch size={14} />} nested defaultOpen>
         {hasPermission("Branch Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/branches")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Store size={14} />
-              <span>Branch</span>
-            </div>
+            <Store size={13} className="shrink-0" />
+            <span>Branch</span>
           </div>
         )}
 
         {hasPermission("Category Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/categories")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Tags size={14} />
-              <span>Category</span>
-            </div>
+            <Tags size={13} className="shrink-0" />
+            <span>Category</span>
           </div>
         )}
 
         {hasPermission("Sub Category Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/sub-categories")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Boxes size={14} />
-              <span>Sub Category</span>
-            </div>
+            <Boxes size={13} className="shrink-0" />
+            <span>Sub Category</span>
           </div>
         )}
 
         {hasPermission("Group Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/groups")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Grid2x2 size={14} />
-              <span>Group</span>
-            </div>
+            <Grid2x2 size={13} className="shrink-0" />
+            <span>Group</span>
           </div>
         )}
 
         {hasPermission("Unit Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/units")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Ruler size={14} />
-              <span>Unit</span>
-            </div>
+            <Ruler size={13} className="shrink-0" />
+            <span>Unit</span>
           </div>
         )}
 
         {hasPermission("Product Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/products")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <PackagePlus size={14} />
-              <span>Product</span>
-            </div>
+            <PackagePlus size={13} className="shrink-0" />
+            <span>Product</span>
           </div>
         )}
 
         {hasPermission("Voucher Series Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/voucher-series")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <Ticket size={14} />
-              <span>Voucher Series</span>
-            </div>
+            <Ticket size={13} className="shrink-0" />
+            <span>Voucher Series</span>
           </div>
         )}
 
         {hasPermission("Stock Adjustment Type", "View") && (
           <div onClick={() => handleItemClick("/dashboard/stock-adjustment-type")} className={itemClassName}>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={14} />
-              <span>Stock Adj. Type</span>
-            </div>
+            <SlidersHorizontal size={13} className="shrink-0" />
+            <span>Stock Adj. Type</span>
           </div>
         )}
       </SidebarDropdown>

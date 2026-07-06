@@ -49,6 +49,11 @@ export const recipeApi = {
     return unwrap(response.data);
   },
 
+  getUnitCost: async (productId: number, unitId: number) => {
+    const response = await axiosInstance.get<ApiResponse<{ cost: number }>>(`/purchase-invoice/${productId}/unit-cost/${unitId}`);
+    return unwrap(response.data);
+  },
+
   getUnitListByName: async (unitCategory: string) => {
     const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/unit-list-name`, { params: { unitCategory } });
     return unwrap(response.data);

@@ -45,8 +45,10 @@ const StockAdjustmentPage = () => {
     handleBarcodeScan,
     handleProductSelect,
     handleTypeSelect,
+    handleUnitChange,
     saving,
     categoryUnits,
+    getRowOptions,
   } = useStockAdjustment(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -213,25 +215,28 @@ const StockAdjustmentPage = () => {
                             <Controller
                               name={`items.${index}.product`}
                               control={control}
-                              render={({ field: selectField }) => (
-                                <div className="relative">
-                                  <SearchableCombobox
-                                    id={`product-select-${index}`}
-                                    className="h-7 !px-2 text-xs"
-                                    value={selectField.value}
-                                    options={productOptions}
-                                    onSearch={handleProductSearch}
-                                    loading={searchingProducts}
-                                    minQueryLength={1}
-                                    forcePlacement="bottom"
-                                    onChange={(val) => {
-                                      productSelectedRef.current = true;
-                                      selectField.onChange(val);
-                                      const opt = productOptions.find(o => o.value === val);
-                                      if (opt) {
-                                        methods.setValue(`items.${index}.code`, opt["code"] || "");
-                                        handleProductSelect(index, val, opt["barcode"] || opt["code"] || "");
-                                      }
+                              render={({ field: selectField }) => {
+                                const rowOptions = getRowOptions(index);
+                                return (
+                                  <div className="relative">
+                                    <SearchableCombobox
+                                      id={`product-select-${index}`}
+                                      className="h-7 !px-2 text-xs"
+                                      value={selectField.value}
+                                      options={rowOptions}
+                                      onSearch={handleProductSearch}
+                                      loading={searchingProducts}
+                                      minQueryLength={0}
+                                      forcePlacement="bottom"
+                                      onChange={(val) => {
+                                        productSelectedRef.current = true;
+                                        selectField.onChange(val);
+                                        const opt = rowOptions.find(o => o.value === val) as any;
+                                        if (opt) {
+                                          methods.setValue(`items.${index}.productName`, opt.label);
+                                          methods.setValue(`items.${index}.code`, opt["code"] || "");
+                                          handleProductSelect(index, val, opt["barcode"] || opt["code"] || "");
+                                        }
                                       setTimeout(() => {
                                         const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
                                         qtyInputs[0]?.focus();
@@ -262,8 +267,9 @@ const StockAdjustmentPage = () => {
                                     }}
                                     disabled={!canSave}
                                   />
-                                </div>
-                              )}
+                                  </div>
+                                );
+                              }}
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
@@ -276,7 +282,7 @@ const StockAdjustmentPage = () => {
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
-                                  onChange={(val) => selectField.onChange(val)}
+                                  onChange={(val) => handleUnitChange(index, val)}
                                   disabled={!canSave}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}

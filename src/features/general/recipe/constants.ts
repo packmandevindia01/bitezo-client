@@ -1,4 +1,5 @@
 import type { RecipeForm } from "./types";
+import { generateUUID } from "../../../utils/uuid";
 
 export const createEmptyRecipeForm = (): RecipeForm => ({
   branchId: "",
@@ -7,11 +8,5 @@ export const createEmptyRecipeForm = (): RecipeForm => ({
   finishedProductUnit: "",
   finishedProductUnitName: "",
   finishedProductQty: "1",
-
-  rawMaterial: "",
-  code: "",
-  unit: "",
-  qty: "0",
-  cost: "0",
-  items: [],
+  items: [{ id: generateUUID(), product: "", qty: "1", cost: "0" }],
 });

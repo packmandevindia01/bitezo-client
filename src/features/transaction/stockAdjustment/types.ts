@@ -3,6 +3,7 @@ import { z } from "zod";
 export const stockAdjustmentItemSchema = z.object({
   id: z.string().optional(),
   product: z.string().min(1, "Product is required"),
+  productName: z.string().optional(), // stored label for display
   code: z.string().optional(),
   unit: z.string().optional(),
   unitId: z.number().optional(),

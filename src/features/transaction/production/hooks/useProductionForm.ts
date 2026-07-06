@@ -1,14 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productionApi } from "../services/productionApi";
+import { productService } from "../../../inventory/product/services/productService";
 import { productionSchema } from "../types";
 import type { ProductionForm, ProductionPayload } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
+import { generateUUID } from "../../../../utils/uuid";
 
 export const useProductionForm = (initialTransId?: number) => {
   const { decimalPart } = useCurrency();
@@ -17,7 +19,23 @@ export const useProductionForm = (initialTransId?: number) => {
 
   // Unit lists for Finished Product and Raw Material rows
   const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string }[]>([]);
-  const [rawMaterialUnits, setRawMaterialUnits] = useState<{ label: string; value: string }[]>([]);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+
+  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
+    if (!unitCategory) return;
+    setCategoryUnits(prev => {
+      if (prev[unitCategory]) return prev;
+      productionApi.getUnitListByName(unitCategory).then(res => {
+        setCategoryUnits(current => ({
+          ...current,
+          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+        }));
+      }).catch(err => {
+        console.error("Failed to load units for category", unitCategory, err);
+      });
+      return prev;
+    });
+  }, []);
 
   // 1. Initialize React Hook Form
   const form = useForm<ProductionForm>({
@@ -31,14 +49,9 @@ export const useProductionForm = (initialTransId?: number) => {
       finishedProductUnit: "",
       finishedProductUnitName: "",
       finishedProductQty: "1",
-      product: "",
-      code: "",
-      unit: "",
-      qty: "0",
-      cost: Number(0).toFixed(decimalPart),
       otherCharge: Number(0).toFixed(decimalPart),
       narration: "",
-      items: [],
+      items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }],
     },
   });
 
@@ -51,7 +64,7 @@ export const useProductionForm = (initialTransId?: number) => {
   });
 
   // Watch values for dynamic totals and dependent queries
-  const watchedItems = useWatch({ control, name: "items" });
+  const watchedItems = useWatch({ control, name: "items" }) || [];
   const watchedOtherCharge = useWatch({ control, name: "otherCharge" });
   const watchedBranchId = useWatch({ control, name: "branchId" });
   const watchedFinishedProductQty = useWatch({ control, name: "finishedProductQty" });
@@ -59,7 +72,11 @@ export const useProductionForm = (initialTransId?: number) => {
   // 3. Totals Calculation
   const totals = useMemo(() => {
     const currentItems = watchedItems || [];
-    const itemTotal = currentItems.reduce((acc, item) => acc + (item.amount || 0), 0);
+    const itemTotal = currentItems.reduce((acc, item) => {
+      const q = Number(item.qty) || 0;
+      const c = Number(item.cost) || 0;
+      return acc + (q * c);
+    }, 0);
     const otherCharge = Number(watchedOtherCharge) || 0;
     const grandTotal = itemTotal + otherCharge;
     const finQty = Number(watchedFinishedProductQty) || 0;
@@ -73,15 +90,28 @@ export const useProductionForm = (initialTransId?: number) => {
     queryKey: ["finishedProducts"],
     queryFn: async () => {
       const fp = await productionApi.getFinishedProductListByName("");
-      return fp.map((p: any) => ({ label: p.productName, value: String(p.productId), code: p.barcode || p.code }));
+      return fp.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code
+      }));
     }
   });
 
-  const { data: rawMaterials = [] } = useQuery({
+  const [rawMaterials, setRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
+
+  useQuery({
     queryKey: ["rawMaterials"],
     queryFn: async () => {
       const rm = await productionApi.getRawMaterialProductListByName("");
-      return rm.map((p: any) => ({ label: p.productName, value: String(p.productId), code: p.barcode || p.code }));
+      const mapped = rm.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code || "",
+        barcode: p.barcode || ""
+      }));
+      setRawMaterials(mapped);
+      return mapped;
     }
   });
 
@@ -110,6 +140,14 @@ export const useProductionForm = (initialTransId?: number) => {
     enabled: !!watchedBranchId && !isNaN(Number(watchedBranchId)) && !initialTransId,
   });
 
+  const { data: allUnits = [] } = useQuery({
+    queryKey: ["allUnits"],
+    queryFn: async () => {
+      const pm = await productService.loadMasterData().catch(() => null);
+      return (pm?.unit || []).map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) }));
+    }
+  });
+
   useEffect(() => {
     if (prodNoData?.productionNo && !initialTransId) {
       setValue("productionNo", String(prodNoData.productionNo));
@@ -125,27 +163,46 @@ export const useProductionForm = (initialTransId?: number) => {
       const master = data.masterData || {};
       const details = data.detailsData || [];
       
-      reset({
-        branchId: String(master.branchId || ""),
-        employeeId: String(master.employeeId || ""),
-        finishedProduct: String(master.productId || ""),
-        finishedProductUnit: String(master.unitId || ""),
-        finishedProductUnitName: master.unitName || String(master.unitId || ""),
-        finishedProductQty: String(master.qty || 1),
-        otherCharge: Number(master.totalWage || 0).toFixed(decimalPart),
-        narration: master.narration || "",
-        items: details.map((item: any, idx: number) => ({
-          id: idx,
-          product: item.productName || String(item.productId),
-          code: item.barcode || item.code || "",
-          unit: item.unitName || String(item.unitId),
-          qty: item.qty,
-          cost: item.cost,
-          amount: item.amount,
-          productId: item.productId,
-          unitId: item.unitId
-        }))
-      });
+      if (details.length > 0) {
+        const mappedItems: any[] = [];
+        for (const item of details) {
+          const barcode = item.barcode || item.code || "";
+          let unitCategory = "";
+          if (barcode) {
+            try {
+              const costData = await productionApi.getProductCostData(barcode);
+              unitCategory = costData.unitCategory || "";
+              if (unitCategory) {
+                await loadCategoryUnits(unitCategory);
+              }
+            } catch (e) {
+              console.error("Failed to load unit category", e);
+            }
+          }
+          mappedItems.push({
+            id: generateUUID(),
+            product: String(item.productId),
+            code: item.barcode || item.code || "",
+            unit: String(item.unitId),
+            unitCategory,
+            qty: String(item.qty || "1"),
+            cost: Number(item.cost || 0).toFixed(decimalPart),
+            productId: item.productId,
+            unitId: item.unitId,
+          });
+        }
+        reset({
+          branchId: String(master.branchId || ""),
+          employeeId: String(master.employeeId || ""),
+          finishedProduct: String(master.productId || ""),
+          finishedProductUnit: String(master.unitId || ""),
+          finishedProductUnitName: master.unitName || String(master.unitId || ""),
+          finishedProductQty: String(master.qty || 1),
+          otherCharge: Number(master.totalWage || 0).toFixed(decimalPart),
+          narration: master.narration || "",
+          items: mappedItems,
+        });
+      }
       return data;
     },
     enabled: !!initialTransId,
@@ -183,64 +240,99 @@ export const useProductionForm = (initialTransId?: number) => {
     }
   };
 
-  const handleRawMaterialSelect = async (productId: string) => {
-    setValue("product", productId);
-    const prod = rawMaterials.find(p => p.value === productId);
-    if (!prod) return;
-    
-    setValue("code", prod.code);
-    const branchIdNum = Number(getValues("branchId"));
-    if (!branchIdNum) {
-      showToast("Please select a branch first.", "error");
-      return;
-    }
+  const handleGridProductSelect = async (index: number, productId: string, barcode: string) => {
+    setValue(`items.${index}.product`, productId);
+    setValue(`items.${index}.productId`, Number(productId));
+    if (!barcode) return;
 
     try {
-      const costData = await productionApi.getProductCostData(prod.code);
-      const unitsResp = await productionApi.getUnitListByName(costData.unitCategory);
-
-      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
-      setRawMaterialUnits(unitOptions);
-
-      // Default to baseUnitId
-      setValue("unit", String(costData.baseUnitId));
-      setValue("cost", Number(costData.cost).toFixed(decimalPart));
-      setValue("qty", "1");
+      const costData = await productionApi.getProductCostData(barcode);
+      if (costData) {
+        setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
+        setValue(`items.${index}.unitId`, costData.baseUnitId);
+        setValue(`items.${index}.unit`, String(costData.baseUnitId));
+        setValue(`items.${index}.cost`, Number(costData.cost).toFixed(decimalPart));
+        
+        if (costData.unitCategory) {
+          loadCategoryUnits(costData.unitCategory);
+        }
+      }
     } catch (err) {
-      showToast("Failed to fetch material details", "error");
+      console.error("Failed to fetch product details", err);
     }
   };
 
-  const handleAddItem = () => {
-    const vals = getValues();
-    if (!vals.product || !vals.qty || !vals.cost || !vals.unit) {
-      showToast("Please fill all raw material temporary fields", "warning");
-      return;
-    }
-    const q = Number(vals.qty) || 0;
-    const c = Number(vals.cost) || 0;
-    const prod = rawMaterials.find(p => p.value === vals.product);
-    const unitName = rawMaterialUnits.find(u => u.value === vals.unit)?.label || vals.unit;
-    
-    append({
-      id: Date.now(),
-      productId: Number(vals.product),
-      product: prod ? prod.label : vals.product,
-      code: vals.code || "",
-      unitId: Number(vals.unit),
-      unit: unitName,
-      qty: q,
-      cost: c,
-      amount: q * c
-    });
+  const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
+    try {
+      let details = await productionApi.getProductCostData(barcode).catch(() => null);
+      if (!details) {
+        const nameResults = await productionApi.getRawMaterialProductListByName(barcode).catch(() => []);
+        if (nameResults && nameResults.length > 0) {
+          const first = nameResults[0];
+          const bcToUse = first.barcode || first.code || barcode;
+          details = await productionApi.getProductCostData(bcToUse).catch(() => null);
+          if (!details) {
+            setRawMaterials(prev => {
+              if (prev.some(o => o.value === String(first.productId))) return prev;
+              return [...prev, { label: first.productName, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
+            });
+            setValue(`items.${index}.product`, String(first.productId));
+            setValue(`items.${index}.productId`, first.productId);
+            setValue(`items.${index}.productName`, first.productName);
+            setValue(`items.${index}.code`, first.code || "");
+            return true;
+          }
+        }
+      }
 
-    // Reset temp fields
-    setValue("product", "");
-    setValue("code", "");
-    setValue("unit", "");
-    setValue("qty", "0");
-    setValue("cost", Number(0).toFixed(decimalPart));
-    setRawMaterialUnits([]);
+      if (details) {
+        setRawMaterials(prev => {
+          if (prev.some(o => o.value === String(details.productId))) return prev;
+          return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
+        });
+        setValue(`items.${index}.product`, String(details.productId));
+        setValue(`items.${index}.productId`, details.productId);
+        setValue(`items.${index}.productName`, details.productName);
+        setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unitCategory`, details.unitCategory || "");
+        setValue(`items.${index}.unitId`, details.baseUnitId);
+        setValue(`items.${index}.unit`, String(details.baseUnitId));
+        setValue(`items.${index}.cost`, Number(details.cost).toFixed(decimalPart));
+        if (details.unitCategory) {
+          loadCategoryUnits(details.unitCategory);
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("Production barcode lookup failed", e);
+    }
+    return false;
+  }, [setValue, loadCategoryUnits, decimalPart]);
+
+  const getRowOptions = useCallback((index: number) => {
+    const stored = (watchedItems[index] as any);
+    const storedValue = stored?.product;
+    const storedName = stored?.productName;
+    if (!storedValue || !storedName) return rawMaterials;
+    const alreadyPresent = rawMaterials.some((o: any) => o.value === storedValue);
+    if (alreadyPresent) return rawMaterials;
+    return [...rawMaterials, { label: storedName, value: storedValue, code: stored.code || "" }];
+  }, [rawMaterials, watchedItems]);
+
+  const handleGridUnitChange = async (index: number, unitId: string) => {
+    setValue(`items.${index}.unit`, unitId);
+    setValue(`items.${index}.unitId`, Number(unitId));
+    const productId = getValues(`items.${index}.product`);
+    if (!productId || !unitId) return;
+
+    try {
+      const result = await productionApi.getUnitCost(Number(productId), Number(unitId)).catch(() => null);
+      if (result && result.cost !== undefined && result.cost !== null) {
+        setValue(`items.${index}.cost`, Number(result.cost).toFixed(decimalPart));
+      }
+    } catch (error) {
+      console.error("Failed to fetch unit cost", error);
+    }
   };
 
   const [isBomLoading, setIsBomLoading] = useState(false);
@@ -271,21 +363,26 @@ export const useProductionForm = (initialTransId?: number) => {
           const newItems = [];
           for (const item of bomData.detailsData) {
             let itemCost = 0;
+            let unitCategory = "";
             try {
                const costData = await productionApi.getProductCostData(item.barcode || item.code || String(item.productId));
                itemCost = costData.cost;
+               unitCategory = costData.unitCategory || "";
+               if (unitCategory) {
+                 await loadCategoryUnits(unitCategory);
+               }
             } catch (err) {
                itemCost = item.cost || 0;
             }
 
             newItems.push({
-              id: Date.now() + Math.random(),
-              product: item.productName,
+              id: generateUUID(),
+              product: String(item.productId),
               code: item.barcode || item.code || "",
-              unit: item.unitName || String(item.unitId),
-              qty: item.qty,
-              cost: itemCost,
-              amount: item.qty * itemCost,
+              unit: String(item.unitId),
+              unitCategory,
+              qty: String(item.qty),
+              cost: Number(itemCost).toFixed(decimalPart),
               productId: item.productId,
               unitId: item.unitId
             });
@@ -320,13 +417,13 @@ export const useProductionForm = (initialTransId?: number) => {
         employeeId: Number(data.employeeId),
         narration: data.narration || "",
         createdAt: new Date().toISOString(),
-        details: data.items.map(item => ({
-          productId: item.productId,
-          unitId: item.unitId,
-          qty: item.qty,
-          cost: item.cost,
-          amount: item.amount,
-          baseQty: item.qty
+        details: data.items.filter(item => item.product).map(item => ({
+          productId: Number(item.productId || item.product),
+          unitId: Number(item.unitId || item.unit),
+          qty: Number(item.qty),
+          cost: Number(item.cost),
+          amount: Number(item.qty) * Number(item.cost),
+          baseQty: Number(item.qty)
         }))
       };
 
@@ -372,12 +469,15 @@ export const useProductionForm = (initialTransId?: number) => {
     branches,
     employees,
     finishedProductUnits,
-    rawMaterialUnits,
+    categoryUnits,
     handleFinishedProductSelect,
-    handleRawMaterialSelect,
-    handleAddItem,
+    handleGridProductSelect,
+    handleGridUnitChange,
+    handleBarcodeScan,
+    getRowOptions,
     loadBom,
     isBomLoading,
-    onSubmit
+    onSubmit,
+    masterData: { units: allUnits },
   };
 };

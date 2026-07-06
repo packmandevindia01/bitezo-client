@@ -10,7 +10,8 @@ import {
   Button,
   SelectInput,
   SearchableSelect,
-  Checkbox
+  Checkbox,
+  ResetButton
 } from "../../../../components/common";
 import { PurchaseReturnReportPrintPreviewModal } from "../components/PurchaseReturnReportPrintPreviewModal";
 
@@ -58,6 +59,11 @@ const PurchaseReturnReportPage = () => {
   const { filters, masterData, report } = usePurchaseReturnReport();
   const [groupBy, setGroupBy] = useState<GroupByOption>("All");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handleReset = () => {
+    filters.resetFilters();
+    setGroupBy("All");
+  };
 
   const branchOptions = useMemo(() => {
     return masterData.branches.map(b => ({
@@ -222,7 +228,7 @@ const PurchaseReturnReportPage = () => {
 
   return (
     <PageShell title="Purchase Return Report">
-      <div className="flex flex-col h-[calc(100vh-92px)] overflow-hidden p-1 gap-3 relative">
+      <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
 
         {/* ── Filter Panel ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
@@ -233,6 +239,11 @@ const PurchaseReturnReportPage = () => {
           >
             <X size={18} />
           </button>
+
+          <ResetButton
+            onReset={handleReset}
+            className="absolute bottom-3 right-3"
+          />
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
 
@@ -256,7 +267,7 @@ const PurchaseReturnReportPage = () => {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
                 <div className="w-40">
-                  <SearchableSelect id="prr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" />
+                  <SearchableSelect id="prr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="All" autoFocus={true} />
                 </div>
               </div>
               <div className="flex items-center gap-2">

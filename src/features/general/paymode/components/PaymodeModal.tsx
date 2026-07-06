@@ -1,17 +1,17 @@
 import { Building2, Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, FormInput, Modal, Checkbox } from "../../../../components/common";
-import type { CounterOption, PaymodeForm } from "../types";
+import type { CounterOption } from "../types";
+import type { UseFormReturn } from "react-hook-form";
 
 interface Props {
   isOpen: boolean;
   editingId: number | null;
-  form: PaymodeForm;
+  form: UseFormReturn<any>; // from usePaymodeManager
   saving: boolean;
   counterAllocOpen: boolean;
   selectedCounterIds: number[];
   counterOptions: CounterOption[];
   onClose: () => void;
-  onChange: (patch: Partial<PaymodeForm>) => void;
   onToggleCounterAlloc: () => void;
   onToggleCounter: (counterId: number) => void;
   onClear: () => void;
@@ -28,13 +28,14 @@ const PaymodeModal = ({
   selectedCounterIds,
   counterOptions,
   onClose,
-  onChange,
   onToggleCounterAlloc,
   onToggleCounter,
   onClear,
   onSave,
   onDelete,
 }: Props) => {
+  const { register, formState: { errors } } = form;
+
   return (
     <Modal
       isOpen={isOpen}
@@ -44,6 +45,7 @@ const PaymodeModal = ({
       footer={
         <div className="flex gap-3">
           <Button
+            type="button"
             variant="secondary"
             className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
             onClick={onToggleCounterAlloc}
@@ -54,6 +56,7 @@ const PaymodeModal = ({
             Counters
           </Button>
           <Button 
+            type="button"
             variant="secondary" 
             onClick={onClear} 
             disabled={saving} 
@@ -64,6 +67,7 @@ const PaymodeModal = ({
             Clear
           </Button>
           <Button 
+            type="button"
             onClick={onSave} 
             disabled={saving}
             isAction
@@ -72,8 +76,9 @@ const PaymodeModal = ({
           >
             {editingId ? "Update" : "Save"}
           </Button>
-          {editingId && (
+          {editingId && onDelete && (
             <Button
+              type="button"
               variant="danger"
               onClick={onDelete}
               disabled={saving}
@@ -86,31 +91,34 @@ const PaymodeModal = ({
         </div>
       }
     >
-      <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+      {/* We use a form so users can submit via enter if desired, though onSave handles submit */}
+      <form onSubmit={(e) => { e.preventDefault(); onSave(); }} className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
         <div className="flex flex-col gap-6">
           <div className="grid gap-5 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
             {/* Paymode Code */}
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-              Paymode Code
+              Paymode Code <span className="text-red-500 ml-1">*</span>
             </p>
             <FormInput
-              value={form.code}
-              onChange={(e) => {
-                const val = e.target.value.toUpperCase().replace(/\s/g, "");
-                onChange({ code: val });
-              }}
+              {...register("code", {
+                onChange: (e) => {
+                  // Transform input directly on change: uppercase, no spaces
+                  e.target.value = e.target.value.toUpperCase().replace(/\s/g, "");
+                }
+              })}
               placeholder="Enter paymode code"
               autoFocus
+              error={errors.code?.message as string}
             />
 
             {/* Paymode Name */}
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-              Paymode Name
+              Paymode Name <span className="text-red-500 ml-1">*</span>
             </p>
             <FormInput
-              value={form.paymodeName}
-              onChange={(e) => onChange({ paymodeName: e.target.value })}
+              {...register("paymodeName")}
               placeholder="Enter paymode name"
+              error={errors.paymodeName?.message as string}
             />
 
             {/* Active toggle */}
@@ -118,8 +126,8 @@ const PaymodeModal = ({
               Active
             </p>
             <Checkbox
-              checked={form.isActive}
-              onChange={(e) => onChange({ isActive: e.target.checked })}
+              checked={form.watch("isActive")}
+              onChange={(e) => form.setValue("isActive", e.target.checked, { shouldDirty: true, shouldValidate: true })}
             />
           </div>
 
@@ -157,11 +165,9 @@ const PaymodeModal = ({
             </div>
           )}
         </div>
-      </section>
+      </form>
     </Modal>
   );
 };
 
 export default PaymodeModal;
-
-

@@ -1,268 +1,354 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { bomApi } from "../services/bomApi";
+import { productService } from "../../../inventory/product/services/productService";
+import { bomSchema } from "../types";
+import type { BomForm, BomPayload } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
-import type { BomForm, BomLineItem, BomPayload } from "../types";
-import type { SearchableOption } from "../../../../components/common/Searchableselect";
+import { generateUUID } from "../../../../utils/uuid";
 
-export const initialBomForm: BomForm = {
-  bomName: "",
-  branchId: "",
-  finishedProduct: "",
-  finishedProductCode: "",
-  finishedProductUnit: "",
-  finishedProductUnitName: "",
-  finishedProductQty: "",
-  product: "",
-  code: "",
-  unit: "",
-  unitName: "",
-  qty: "",
-};
-
-export const useBom = (id?: string | null) => {
+export const useBom = (initialTransId?: number) => {
   const { showToast } = useToast();
-  const [form, setForm] = useState<BomForm>(initialBomForm);
-  const [items, setItems] = useState<BomLineItem[]>([]);
-  
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Master Data
-  const [branches, setBranches] = useState<SearchableOption[]>([]);
-  const [finProducts, setFinProducts] = useState<any[]>([]);
-  const [finProductOptions, setFinProductOptions] = useState<SearchableOption[]>([]);
-  const [rawProducts, setRawProducts] = useState<any[]>([]);
-  const [rawProductOptions, setRawProductOptions] = useState<SearchableOption[]>([]);
-  
-  // Specific Data Lookups
-  const [finUnitOptions, setFinUnitOptions] = useState<SearchableOption[]>([]);
-  const [rawUnitOptions, setRawUnitOptions] = useState<SearchableOption[]>([]);
+  const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string }[]>([]);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
 
-  const nextItemId = useRef(1);
-
-  // 1. Initial Load Branches & Products
-  useEffect(() => {
-    const loadMasterData = async () => {
-      setLoading(true);
-      try {
-        const [branchRes, finProdRes, rawProdRes] = await Promise.all([
-          bomApi.getBranchList(),
-          bomApi.getFinishedProductListByName(""),
-          bomApi.getRawMaterialProductListByName(""),
-        ]);
-        setBranches(branchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })));
-        setFinProducts(finProdRes);
-        setFinProductOptions(finProdRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
-        setRawProducts(rawProdRes);
-        setRawProductOptions(rawProdRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })));
-      } catch (err: any) {
-        setError(err.message || "Failed to load master data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadMasterData();
+  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
+    if (!unitCategory) return;
+    setCategoryUnits(prev => {
+      if (prev[unitCategory]) return prev;
+      bomApi.getUnitListByName(unitCategory).then(res => {
+        setCategoryUnits(current => ({
+          ...current,
+          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+        }));
+      }).catch(err => {
+        console.error("Failed to load units for category", unitCategory, err);
+      });
+      return prev;
+    });
   }, []);
 
-  // 1b. Load existing record if ID is provided
-  useEffect(() => {
-    if (!id) return;
+  const form = useForm<BomForm>({
+    resolver: zodResolver(bomSchema),
+    defaultValues: {
+      bomName: "",
+      branchId: "",
+      finishedProduct: "",
+      finishedProductCode: "",
+      finishedProductUnit: "",
+      finishedProductUnitName: "",
+      finishedProductQty: "1",
+      items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1" }],
+    },
+  });
 
-    const loadRecord = async () => {
-      setLoading(true);
-      try {
-        const transId = parseInt(id, 10);
-        const responseData = await bomApi.getBomById(transId);
-        
-        const master = responseData.masterData || responseData;
-        const details = responseData.detailsData || responseData.details || [];
-        
-        setForm(prev => ({
-          ...prev,
+  const { control, setValue, getValues, handleSubmit, reset } = form;
+
+  const { fields: items, append, remove } = useFieldArray({
+    control,
+    name: "items",
+  });
+
+  const watchedItems = useWatch({ control, name: "items" }) || [];
+
+
+  const { data: finishedProducts = [] } = useQuery({
+    queryKey: ["finishedProducts"],
+    queryFn: async () => {
+      const fp = await bomApi.getFinishedProductListByName("");
+      return fp.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code
+      }));
+    }
+  });
+
+  const [rawMaterials, setRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
+  const [searchingRawMaterials, setSearchingRawMaterials] = useState(false);
+
+  const handleRawMaterialSearch = useCallback(async (query: string) => {
+    setSearchingRawMaterials(true);
+    try {
+      const rm = await bomApi.getRawMaterialProductListByName(query);
+      const mapped = rm.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code || "",
+        barcode: p.barcode || ""
+      }));
+      setRawMaterials(mapped);
+    } catch (e) {
+      console.error("Failed to search raw materials", e);
+    } finally {
+      setSearchingRawMaterials(false);
+    }
+  }, []);
+
+  useQuery({
+    queryKey: ["rawMaterialsInit"],
+    queryFn: async () => {
+      const rm = await bomApi.getRawMaterialProductListByName("");
+      const mapped = rm.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code || "",
+        barcode: p.barcode || ""
+      }));
+      setRawMaterials(mapped);
+      return mapped;
+    }
+  });
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches"],
+    queryFn: async () => {
+      const bl = await bomApi.getBranchList();
+      return bl.map((b: any) => ({ label: b.branchName, value: String(b.branchId) }));
+    }
+  });
+
+  const { data: allUnits = [] } = useQuery({
+    queryKey: ["allUnits"],
+    queryFn: async () => {
+      const pm = await productService.loadMasterData().catch(() => null);
+      return (pm?.unit || []).map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) }));
+    }
+  });
+
+  // Load record in Edit mode
+  const { isLoading: loadingRecord } = useQuery({
+    queryKey: ["bomData", initialTransId],
+    queryFn: async () => {
+      if (!initialTransId) return null;
+      const data = await bomApi.getBomById(initialTransId);
+      const master = data.masterData || {};
+      const details = data.detailsData || [];
+
+      if (details.length > 0) {
+        const mappedItems: any[] = [];
+        for (const item of details) {
+          const barcode = item.barcode || item.code || "";
+          let unitCategory = "";
+          if (barcode) {
+            try {
+              const costData = await bomApi.getProductCostData(barcode);
+              unitCategory = costData.unitCategory || "";
+              if (unitCategory) {
+                await loadCategoryUnits(unitCategory);
+              }
+            } catch (e) {
+              console.error("Failed to load unit category", e);
+            }
+          }
+          mappedItems.push({
+            id: generateUUID(),
+            product: String(item.productId),
+            productName: item.productName || item.name || item.productCode || "",
+            code: item.barcode || item.code || "",
+            unit: String(item.unitId),
+            unitCategory,
+            qty: String(item.qty || "1"),
+            productId: item.productId,
+            unitId: item.unitId,
+          });
+        }
+        reset({
           bomName: master.bomName || "",
           branchId: String(master.branchId || ""),
           finishedProduct: String(master.productId || ""),
-          finishedProductCode: master.productCode || master.barcode || "",
           finishedProductUnit: String(master.unitId || ""),
-          finishedProductUnitName: master.unitName || "",
+          finishedProductUnitName: master.unitName || String(master.unitId),
           finishedProductQty: String(master.qty || "1"),
-        }));
-
-        if (details.length > 0) {
-          const mappedItems: BomLineItem[] = details.map((d: any, index: number) => ({
-            id: index + 1,
-            productId: d.productId,
-            productName: d.productName || "",
-            code: d.productCode || d.barcode || "",
-            unitId: d.unitId,
-            unitName: d.unitName || "",
-            qty: String(d.qty),
-          }));
-          setItems(mappedItems);
-          nextItemId.current = mappedItems.length + 1;
-        }
-
-      } catch (err: any) {
-        setError(err.message || "Failed to load BOM details.");
-        showToast("Failed to load existing BOM", "error");
-      } finally {
-        setLoading(false);
+          items: mappedItems,
+        });
       }
-    };
+      return data;
+    },
+    enabled: !!initialTransId,
+  });
 
-    loadRecord();
-  }, [id]);
+  const handleFinishedProductSelect = async (productId: string) => {
+    setValue("finishedProduct", productId);
+    const prod = finishedProducts.find(p => p.value === productId);
+    if (!prod) return;
 
-  // Set Finished Product fields when selected
-  useEffect(() => {
-    if (!form.finishedProduct) {
-      setForm(prev => ({ ...prev, finishedProductCode: "", finishedProductUnit: "" }));
-      setFinUnitOptions([]);
-      return;
-    }
-    
-    const product = finProducts.find(p => String(p.productId) === form.finishedProduct);
-    if (product) {
-      setForm(prev => ({ ...prev, finishedProductCode: product.barcode || product.code || "" }));
-      
-      // If branch is selected, try to get product unit data
-      if (form.branchId) {
-        bomApi.getProductUnitData(parseInt(form.branchId, 10), product.barcode || product.code)
-          .then(unitData => {
-            if (unitData) {
-              setForm(prev => ({ ...prev, finishedProductUnit: String(unitData.unitId), finishedProductUnitName: unitData.unitCategory || "Unit" }));
-            }
-          })
-          .catch(err => console.error("Failed to fetch fin product unit:", err));
-      } else {
-        showToast("Please select a Branch first to load unit.", "warning");
-      }
-    }
-  }, [form.finishedProduct, form.branchId, finProducts]);
-
-  // Set Raw Material fields when selected
-  useEffect(() => {
-    if (!form.product) {
-      setForm(prev => ({ ...prev, code: "", unit: "" }));
-      setRawUnitOptions([]);
-      return;
-    }
-    
-    const product = rawProducts.find(p => String(p.productId) === form.product);
-    if (product) {
-      setForm(prev => ({ ...prev, code: product.barcode || product.code || "" }));
-      
-      // If branch is selected, try to get product unit data
-      if (form.branchId) {
-        bomApi.getProductUnitData(parseInt(form.branchId, 10), product.barcode || product.code)
-          .then(unitData => {
-            if (unitData) {
-              setForm(prev => ({ ...prev, unit: String(unitData.unitId), unitName: unitData.unitCategory || "Unit" }));
-            }
-          })
-          .catch(err => console.error("Failed to fetch raw product unit:", err));
-      } else {
-        showToast("Please select a Branch first to load unit.", "warning");
-      }
-    }
-  }, [form.product, form.branchId, rawProducts]);
-
-  const toNumber = (val: string) => {
-    const num = Number(val);
-    return Number.isFinite(num) ? num : 0;
-  };
-
-  const addItem = () => {
-    if (!form.product || toNumber(form.qty) <= 0) return;
-
-    const prodObj = rawProducts.find(p => String(p.productId) === form.product);
-    const newLine: BomLineItem = {
-      id: nextItemId.current++,
-      productId: parseInt(form.product, 10),
-      productName: prodObj ? prodObj.productName : "Unknown",
-      code: form.code,
-      unitId: parseInt(form.unit, 10),
-      unitName: form.unitName || "Unit",
-      qty: toNumber(form.qty),
-    };
-
-    setItems(prev => [...prev, newLine]);
-    setForm(prev => ({ ...prev, product: "", code: "", unit: "", unitName: "", qty: "" }));
-    
-    setTimeout(() => document.getElementById("bom-product")?.focus(), 0);
-  };
-
-  const removeItem = (id: number) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const handleSave = async () => {
-    if (!form.branchId || !form.finishedProduct || !form.finishedProductUnit || items.length === 0) {
-      showToast("Please fill all required fields and add items", "warning");
+    setValue("finishedProductCode", prod.code);
+    const branchIdVal = getValues("branchId");
+    if (!branchIdVal) {
+      showToast("Please select a Branch first to load unit.", "warning");
       return;
     }
 
-    setSaving(true);
-    setError(null);
     try {
+      const costData = await bomApi.getProductCostData(prod.code);
+      const unitsResp = await bomApi.getUnitListByName(costData.unitCategory);
+      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+      setFinishedProductUnits(unitOptions);
+
+      setValue("finishedProductUnit", String(costData.baseUnitId));
+      const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
+      setValue("finishedProductUnitName", unitName);
+    } catch (err) {
+      showToast("Failed to fetch product unit data", "error");
+    }
+  };
+
+  const handleGridProductSelect = async (index: number, productId: string, barcode: string) => {
+    setValue(`items.${index}.product`, productId);
+    setValue(`items.${index}.productId`, Number(productId));
+    if (!barcode) return;
+
+    try {
+      const costData = await bomApi.getProductCostData(barcode);
+      if (costData) {
+        setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
+        setValue(`items.${index}.unitId`, costData.baseUnitId);
+        setValue(`items.${index}.unit`, String(costData.baseUnitId));
+        
+        if (costData.unitCategory) {
+          loadCategoryUnits(costData.unitCategory);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch product details", err);
+    }
+  };
+
+  const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
+    try {
+      // Try barcode lookup first via cost data endpoint
+      let details = await bomApi.getProductCostData(barcode).catch(() => null);
+      
+      // Fallback: search by name/code if barcode lookup fails
+      if (!details) {
+        const nameResults = await bomApi.getRawMaterialProductListByName(barcode).catch(() => []);
+        if (nameResults && nameResults.length > 0) {
+          const first = nameResults[0];
+          const bcToUse = first.barcode || first.code || barcode;
+          details = await bomApi.getProductCostData(bcToUse).catch(() => null);
+          if (!details) {
+            setRawMaterials(prev => {
+              if (prev.some(o => o.value === String(first.productId))) return prev;
+              return [...prev, { label: first.productName, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
+            });
+            setValue(`items.${index}.product`, String(first.productId));
+            setValue(`items.${index}.productId`, first.productId);
+            setValue(`items.${index}.productName`, first.productName);
+            setValue(`items.${index}.code`, first.code || "");
+            return true;
+          }
+        }
+      }
+
+      if (details) {
+        setRawMaterials(prev => {
+          if (prev.some(o => o.value === String(details.productId))) return prev;
+          return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
+        });
+        setValue(`items.${index}.product`, String(details.productId));
+        setValue(`items.${index}.productId`, details.productId);
+        setValue(`items.${index}.productName`, details.productName);
+        setValue(`items.${index}.code`, details.productCode || "");
+        setValue(`items.${index}.unitCategory`, details.unitCategory || "");
+        setValue(`items.${index}.unitId`, details.baseUnitId);
+        setValue(`items.${index}.unit`, String(details.baseUnitId));
+        if (details.unitCategory) {
+          loadCategoryUnits(details.unitCategory);
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("BOM barcode lookup failed", e);
+    }
+    return false;
+  }, [setValue, loadCategoryUnits]);
+
+  const getRowOptions = useCallback((index: number) => {
+    const stored = (watchedItems[index] as any);
+    const storedValue = stored?.product;
+    const storedName = stored?.productName;
+    if (!storedValue || !storedName) return rawMaterials;
+    const alreadyPresent = rawMaterials.some((o: any) => o.value === storedValue);
+    if (alreadyPresent) return rawMaterials;
+    return [{ label: storedName, value: storedValue }, ...rawMaterials];
+  }, [rawMaterials, watchedItems]);
+
+  const handleGridUnitChange = async (index: number, unitId: string) => {
+    setValue(`items.${index}.unit`, unitId);
+    setValue(`items.${index}.unitId`, Number(unitId));
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: BomForm) => {
       const payload: BomPayload = {
-        bomName: form.bomName || "BOM",
-        productId: parseInt(form.finishedProduct, 10) || 0,
-        unitId: parseInt(form.finishedProductUnit, 10) || 0,
-        qty: toNumber(form.finishedProductQty),
-        branchId: parseInt(form.branchId, 10) || 0,
-        details: items.map(item => ({
-          productId: item.productId,
-          unitId: item.unitId,
-          qty: item.qty,
-          baseQty: item.qty
+        bomName: data.bomName || "BOM",
+        productId: Number(data.finishedProduct),
+        unitId: Number(data.finishedProductUnit),
+        qty: Number(data.finishedProductQty),
+        branchId: Number(data.branchId),
+        details: data.items.filter(item => item.product).map(item => ({
+          productId: Number(item.productId || item.product),
+          unitId: Number(item.unitId || item.unit),
+          qty: Number(item.qty),
+          baseQty: Number(item.qty),
         }))
       };
-      if (id) {
-        payload.transId = parseInt(id, 10);
+
+      if (initialTransId) {
+        payload.transId = initialTransId;
         payload.updatedAt = new Date().toISOString();
-        await bomApi.updateBom(parseInt(id, 10), payload);
-        showToast("BOM updated successfully", "success");
+        await bomApi.updateBom(initialTransId, payload);
       } else {
         payload.createdAt = new Date().toISOString();
         await bomApi.createBom(payload);
-        showToast("BOM created successfully", "success");
       }
-      
-      // If it was a create, reset. If update, keep the form data (or redirect)
-      if (!id) {
-        setForm(initialBomForm);
-        setItems([]);
-        nextItemId.current = 1;
+    },
+    onSuccess: () => {
+      showToast(`BOM ${initialTransId ? "updated" : "saved"} successfully!`, "success");
+      queryClient.invalidateQueries({ queryKey: ["bomList"] });
+      if (!initialTransId) {
+        reset();
       }
-    } catch (err: any) {
-      const backendMsg = err.response?.data?.message || err.message || "Failed to save BOM";
-      setError(backendMsg);
-      showToast(backendMsg, "error");
-    } finally {
-      setSaving(false);
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || "Failed to save BOM", "error");
     }
-  };
+  });
+
+  const onSubmit = handleSubmit((data) => {
+    saveMutation.mutate(data);
+  }, (errors) => {
+    const firstError = Object.values(errors)[0];
+    if (firstError?.message) {
+      showToast(firstError.message as string, "error");
+    }
+  });
 
   return {
     form,
-    setForm,
     items,
-    setItems,
-    loading,
-    saving,
-    error,
-    setError,
+    append,
+    remove,
+    loading: loadingRecord,
+    saving: saveMutation.isPending,
     branches,
-    finProducts,
-    finProductOptions,
-    rawProducts,
-    rawProductOptions,
-    finUnitOptions,
-    rawUnitOptions,
-    addItem,
-    removeItem,
-    handleSave,
+    finishedProducts,
+    rawMaterials,
+    finishedProductUnits,
+    categoryUnits,
+    handleFinishedProductSelect,
+    handleGridProductSelect,
+    handleGridUnitChange,
+    handleBarcodeScan,
+    getRowOptions,
+    handleRawMaterialSearch,
+    searchingRawMaterials,
+    onSubmit,
+    masterData: { units: allUnits },
   };
 };

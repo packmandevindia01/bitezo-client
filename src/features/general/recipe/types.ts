@@ -1,15 +1,17 @@
 import { z } from "zod";
 
 export const recipeItemSchema = z.object({
-  id: z.number().optional(),
-  productId: z.number(),
-  product: z.string().optional(),
+  id: z.string().optional(), // uuid
+  productId: z.number().optional(),
+  product: z.string().min(1, "Product is required"),
+  productName: z.string().optional(), // stored label for display
   code: z.string().optional(),
-  unitId: z.number(),
+  unitId: z.number().optional(),
   unit: z.string().optional(),
-  qty: z.number().min(0.001, "Qty must be greater than 0"),
-  cost: z.number(),
-  amount: z.number(),
+  unitCategory: z.string().optional(),
+  qty: z.string().min(1, "Qty required"),
+  cost: z.string().min(1, "Cost required"),
+  amount: z.number().optional(),
   excludeOrders: z.array(z.number()).optional(),
 });
 
@@ -22,16 +24,6 @@ export const recipeSchema = z.object({
   finishedProductUnit: z.string().min(1, "Unit is required"),
   finishedProductUnitName: z.string().optional(),
   finishedProductQty: z.string().min(1, "Output Qty is required").refine((val) => !isNaN(Number(val)) && Number(val) > 0, "Invalid Qty"),
-  
-  // Temporary fields for adding items
-  rawMaterial: z.string().optional(),
-  code: z.string().optional(),
-  unit: z.string().optional(),
-  unitName: z.string().optional(),
-  qty: z.string().optional(),
-  cost: z.string().optional(),
-  amount: z.string().optional(),
-  
   items: z.array(recipeItemSchema).min(1, "At least one raw material is required"),
   excludeOrders: z.array(z.number()).optional(),
 });

@@ -15,7 +15,7 @@ interface Props {
 }
 
 const itemClassName =
-  "px-4 py-2 rounded-md hover:bg-gray-100 hover:text-[#49293e] transition cursor-pointer";
+  "group flex items-center gap-2 px-3 py-1.5 mx-1 my-0.5 rounded-lg text-sm text-gray-600 cursor-pointer transition-all duration-150 hover:bg-[#49293e]/8 hover:text-[#49293e] hover:translate-x-0.5 active:scale-[0.98]";
 
 const Sidebar = ({ onClose, onDenominationOpen }: Props) => {
   const navigate = useNavigate();

@@ -85,6 +85,8 @@ const PurchaseReportPage = lazy(() => import("../../features/reports/purchaseRep
 const PurchaseReturnReportPage = lazy(() => import("../../features/reports/purchaseReturnReport/pages/PurchaseReturnReportPage"));
 const ProductWisePurchaseReportPage = lazy(() => import("../../features/reports/productWisePurchaseReport/pages/ProductWisePurchaseReportPage"));
 const StockRegisterReportPage = lazy(() => import("../../features/reports/stockRegisterReport/pages/StockRegisterReportPage"));
+const ProductTransactionLogReportPage = lazy(() => import("../../features/reports/productTransactionLogReport/pages/ProductTransactionLogReportPage"));
+const DailySalesReportPage = lazy(() => import("../../features/reports/dailySalesReport/pages/DailySalesReportPage"));
 
 
 const LoginRedirect = () => {
@@ -231,6 +233,8 @@ const AppRoutes = () => {
                   <Route path="reports/product-wise-purchase" element={<RoleGuard moduleName="Purchase Report"><ProductWisePurchaseReportPage /></RoleGuard>} />
                   <Route path="reports/stock-register" element={<RoleGuard moduleName="Purchase Report"><StockRegisterReportPage /></RoleGuard>} />
                   <Route path="reports/purchase-return" element={<RoleGuard moduleName="Purchase Return Report"><PurchaseReturnReportPage /></RoleGuard>} />
+                  <Route path="reports/product-transaction-log" element={<RoleGuard moduleName="Stock Report"><ProductTransactionLogReportPage /></RoleGuard>} />
+                  <Route path="reports/daily-sales" element={<RoleGuard moduleName="Sales Report"><DailySalesReportPage /></RoleGuard>} />
                 </Route>
 
               </Route>

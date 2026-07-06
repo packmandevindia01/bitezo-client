@@ -1,67 +1,127 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { createEmptyPaymodeForm } from "../constants";
-import type { CounterOption, PaymodeForm, PaymodeRecord } from "../types";
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymodeService } from "../services/paymodeService";
 import { counterService } from "../../counter/services/counterService";
 import { useToast } from "../../../../app/providers/useToast";
+import type { PaymodeForm, PaymodeRecord } from "../types";
+
+// We create a schema factory to inject existing codes for uniqueness validation
+const getPaymodeSchema = (existingRecords: PaymodeRecord[], editingId: number | null) => {
+  return z.object({
+    paymodeId: z.number(),
+    code: z.string()
+      .min(1, "Paymode code is required")
+      .max(10, "Code must not exceed 10 characters")
+      .regex(/^[A-Z0-9]+$/, "Code must contain only uppercase letters and numbers (no spaces)")
+      .refine((val) => {
+        // Uniqueness check
+        const isDuplicate = existingRecords.some(
+          (record) => String(record.code) === val && record.paymodeId !== editingId
+        );
+        return !isDuplicate;
+      }, "This Paymode Code already exists. Please choose a unique code."),
+    paymodeName: z.string().min(1, "Paymode name is required"),
+    isActive: z.boolean(),
+    counterIds: z.array(z.number()),
+  });
+};
+
+type PaymodeSchemaType = z.infer<ReturnType<typeof getPaymodeSchema>>;
 
 export const usePaymodeManager = () => {
   const { showToast } = useToast();
-  const [records, setRecords] = useState<PaymodeRecord[]>([]);
-  const [form, setForm] = useState<PaymodeForm>(createEmptyPaymodeForm());
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [counterOptions, setCounterOptions] = useState<CounterOption[]>([]);
   const [counterAllocOpen, setCounterAllocOpen] = useState(false);
 
-  const fetchRecords = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await paymodeService.list();
-      setRecords(data);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to fetch paymodes";
-      showToast(msg, "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
+  // ── Queries ─────────────────────────────────────────────
 
-  const fetchCounters = useCallback(async () => {
-    try {
+  const { data: records = [], isLoading: recordsLoading } = useQuery({
+    queryKey: ["paymodes"],
+    queryFn: () => paymodeService.list(),
+  });
+
+  const { data: counterOptions = [], isLoading: countersLoading } = useQuery({
+    queryKey: ["counters"],
+    queryFn: async () => {
       const data = await counterService.list();
-      setCounterOptions(data.map((c) => ({
+      return data.map((c) => ({
         counterId: c.counterId,
-        counterName: c.counterName
-      })));
-    } catch (error: unknown) {
-      console.error("Failed to fetch counters", error);
-    }
-  }, []);
+        counterName: c.counterName,
+      }));
+    },
+  });
 
-  useEffect(() => {
-    fetchRecords();
-    fetchCounters();
-  }, [fetchRecords, fetchCounters]);
+  // ── Form Setup ──────────────────────────────────────────
 
-  const setField = (patch: Partial<PaymodeForm>) => {
-    setForm((prev) => ({ ...prev, ...patch }));
-  };
+  const form = useForm<PaymodeSchemaType>({
+    resolver: (data, context, options) => {
+      // Re-evaluate schema dynamically with the latest records
+      return zodResolver(getPaymodeSchema(records, editingId))(data, context, options);
+    },
+    defaultValues: {
+      paymodeId: 0,
+      code: "",
+      paymodeName: "",
+      isActive: true,
+      counterIds: [],
+    },
+  });
 
-  const toggleCounterSelection = (counterId: number) => {
-    setForm(prev => {
-      const ids = prev.counterIds.includes(counterId)
-        ? prev.counterIds.filter(id => id !== counterId)
-        : [...prev.counterIds, counterId];
-      return { ...prev, counterIds: ids };
-    });
-  };
+  // ── Mutations ───────────────────────────────────────────
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: PaymodeSchemaType) => {
+      const payload = {
+        ...data,
+        code: data.code, // Pass as string, backend expects string or number
+      };
+      if (editingId) {
+        return await paymodeService.update(editingId, payload);
+      } else {
+        return await paymodeService.create(payload);
+      }
+    },
+    onSuccess: () => {
+      showToast(`Paymode ${editingId ? "updated" : "created"} successfully`, "success");
+      queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      closeModal();
+    },
+    onError: (error: any) => {
+      showToast(error?.message || "Failed to save paymode", "error");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (paymodeId: number) => paymodeService.remove(paymodeId),
+    onSuccess: () => {
+      showToast("Paymode deleted successfully", "success");
+      queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      if (editingId) {
+        closeModal();
+      }
+    },
+    onError: (error: any) => {
+      showToast(error?.message || "Failed to delete paymode", "error");
+    },
+  });
+
+  // ── Actions ─────────────────────────────────────────────
 
   const resetForm = () => {
-    setForm(createEmptyPaymodeForm());
+    form.reset({
+      paymodeId: 0,
+      code: "",
+      paymodeName: "",
+      isActive: true,
+      counterIds: [],
+    });
     setEditingId(null);
     setCounterAllocOpen(false);
   };
@@ -76,76 +136,49 @@ export const usePaymodeManager = () => {
     setOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!form.paymodeName.trim()) {
-      showToast("Paymode name is required", "error");
-      return;
-    }
-
-    const payload = {
-      ...form,
-      code: Number(form.code) || 0
-    };
-
-    try {
-      setSaving(true);
-      if (editingId) {
-        await paymodeService.update(editingId, payload);
-        showToast("Paymode updated successfully", "success");
-      } else {
-        await paymodeService.create(payload);
-        showToast("Paymode created successfully", "success");
-      }
-      fetchRecords();
-      closeModal();
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to save paymode";
-      showToast(msg, "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleEdit = async (record: PaymodeRecord) => {
     try {
-      setLoading(true);
       const detail = await paymodeService.getById(record.paymodeId);
       const p = detail.paymode[0];
       setEditingId(p.paymodeId);
-      setForm({
+      
+      form.reset({
         paymodeId: p.paymodeId,
         code: String(p.code),
         paymodeName: p.paymodeName,
         isActive: p.isActive,
-        counterIds: detail.counter.map(c => c.counterId)
+        counterIds: detail.counter.map((c) => c.counterId),
       });
 
       setOpen(true);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to fetch paymode details";
-      showToast(msg, "error");
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      showToast(error?.message || "Failed to fetch paymode details", "error");
     }
   };
 
-  const handleDelete = async (paymodeId: number) => {
-    try {
-      setLoading(true);
-      await paymodeService.remove(paymodeId);
-      showToast("Paymode deleted successfully", "success");
-      fetchRecords();
-      if (editingId === paymodeId) {
-        closeModal();
-      }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to delete paymode";
-      showToast(msg, "error");
-    } finally {
-      setLoading(false);
-    }
+  const handleSave = form.handleSubmit((data) => {
+    saveMutation.mutate(data);
+  });
+
+  const handleDelete = (paymodeId: number) => {
+    deleteMutation.mutate(paymodeId);
   };
 
+  const toggleCounterSelection = (counterId: number) => {
+    const current = form.getValues("counterIds");
+    const updated = current.includes(counterId)
+      ? current.filter((id) => id !== counterId)
+      : [...current, counterId];
+    
+    form.setValue("counterIds", updated, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const setField = (patch: Partial<PaymodeForm>) => {
+    // For compatibility with any old manual onChange wrappers
+    Object.entries(patch).forEach(([key, value]) => {
+      form.setValue(key as keyof PaymodeSchemaType, value as any, { shouldValidate: true, shouldDirty: true });
+    });
+  };
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -153,8 +186,8 @@ export const usePaymodeManager = () => {
 
     return records.filter((item) =>
       [String(item.paymodeId), item.paymodeName, String(item.code)].some((value) =>
-        value.toLowerCase().includes(query),
-      ),
+        value.toLowerCase().includes(query)
+      )
     );
   }, [records, search]);
 
@@ -164,8 +197,9 @@ export const usePaymodeManager = () => {
     search,
     editingId,
     filteredRecords,
-    loading,
-    saving,
+    loading: recordsLoading || countersLoading,
+    saving: saveMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     counterOptions,
     counterAllocOpen,
     setCounterAllocOpen,
@@ -180,4 +214,3 @@ export const usePaymodeManager = () => {
     handleDelete,
   };
 };
-
