@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { RecordTableCard } from "../../../../components/common";
+import { RecordTableCard, ListHeader } from "../../../../components/common";
 import type { CategoryListItem } from "../types";
 
 interface Props {
@@ -22,17 +22,21 @@ const CategoryTable = ({
   loading = false,
 }: Props) => {
   return (
-    <RecordTableCard
-      title="Saved Category List"
-      search={search}
-      onSearchChange={onSearchChange}
-      rowKey="id"
-      data={categories}
-      actionLabel={onAdd ? "+ Add Category" : undefined}
-      onAction={onAdd}
-      loading={loading}
-      autoFocusSearch
-      columns={[
+    <>
+      <ListHeader
+        search={search}
+        onSearchChange={onSearchChange}
+        searchPlaceholder="Search categories..."
+        autoFocusSearch
+        canAdd={!!onAdd}
+        onAdd={onAdd}
+      />
+      <RecordTableCard
+        title="Saved Category List"
+        rowKey="id"
+        data={categories}
+        loading={loading}
+        columns={[
         { header: "Code", accessor: "code" },
         { header: "Category Name", accessor: "name" },
         {
@@ -72,7 +76,8 @@ const CategoryTable = ({
           ),
         },
       ]}
-    />
+      />
+    </>
   );
 };
 

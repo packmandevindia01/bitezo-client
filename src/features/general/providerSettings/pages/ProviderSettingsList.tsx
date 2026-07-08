@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   Loader,
   PageShell,
-  RecordTableCard,
-} from "../../../../components/common";
+  RecordTableCard, ListHeader,
+  } from "../../../../components/common";
 import { useProviderSettingsList } from "../hooks/useProviderSettingsList";
 import ProviderSettingsDeleteDialog from "../components/ProviderSettingsDeleteDialog";
 
@@ -27,6 +27,15 @@ const ProviderSettingsList = () => {
 
   return (
     <PageShell title="Provider Pricing Settings">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search settings..."
+        autoFocusSearch
+        canAdd={true}
+        onAdd={handleCreate}
+      />
+
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Loader text="Loading settings list..." />
@@ -34,12 +43,8 @@ const ProviderSettingsList = () => {
       ) : (
         <RecordTableCard
           title="Configured Pricing"
-          search={search}
-          onSearchChange={setSearch}
           rowKey="transId"
           data={filteredList}
-          actionLabel="+ Add New"
-          onAction={handleCreate}
           columns={[
             { header: "S.No", accessor: "sNo" },
             { header: "Provider", accessor: "provider" },

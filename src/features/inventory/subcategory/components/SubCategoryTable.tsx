@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { RecordTableCard } from "../../../../components/common";
+import { RecordTableCard, ListHeader } from "../../../../components/common";
 import type { SubCategoryListItem } from "../types";
 
 interface Props {
@@ -22,17 +22,21 @@ const SubCategoryTable = ({
   loading = false,
 }: Props) => {
   return (
-    <RecordTableCard
-      title="Saved Sub Category List"
-      search={search}
-      onSearchChange={onSearchChange}
-      rowKey="id"
-      data={subCategories}
-      actionLabel={onAdd ? "+ Add Sub Category" : undefined}
-      onAction={onAdd}
-      loading={loading}
-      autoFocusSearch
-      columns={[
+    <>
+      <ListHeader
+        search={search}
+        onSearchChange={onSearchChange}
+        searchPlaceholder="Search sub categories..."
+        autoFocusSearch
+        canAdd={!!onAdd}
+        onAdd={onAdd}
+      />
+      <RecordTableCard
+        title="Saved Sub Category List"
+        rowKey="id"
+        data={subCategories}
+        loading={loading}
+        columns={[
         { header: "Code", accessor: "code" },
         { header: "Sub Category", accessor: "name" },
         {
@@ -73,7 +77,8 @@ const SubCategoryTable = ({
           ),
         },
       ]}
-    />
+      />
+    </>
   );
 };
 

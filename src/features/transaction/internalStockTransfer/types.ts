@@ -9,6 +9,7 @@ export const InternalStockTransferItemSchema = z.object({
   unitId: z.number().optional(),
   unit: z.string(),
   unitCategory: z.string().optional(),
+  stock: z.string().optional(),
   qty: z.string().min(1, "Qty is required"),
   cost: z.string(),
 });
@@ -33,6 +34,7 @@ export interface InternalStockTransferPayload {
   employeeId: number;
   netAmount: number;
   narration: string;
+  createdAt: string;
   details: {
     productId: number;
     unitId: number;

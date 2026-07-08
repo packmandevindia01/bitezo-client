@@ -1,6 +1,9 @@
+import { lazy, Suspense } from "react";
 import StatCard from "../components/StatCard";
-import SalesChart from "../components/SalesChart";
-import PurchaseChart from "../components/PurchaseChart";
+import { Loader } from "../../../components/common";
+
+const SalesChart = lazy(() => import("../components/SalesChart"));
+const PurchaseChart = lazy(() => import("../components/PurchaseChart"));
 
 import {
   ShoppingCart,
@@ -67,8 +70,12 @@ const DashboardPage = () => {
         "
       >
 
-        <PurchaseChart />
-        <SalesChart />
+        <Suspense fallback={<div className="h-64 flex items-center justify-center bg-white rounded-lg shadow-sm"><Loader text="Loading chart..." /></div>}>
+          <PurchaseChart />
+        </Suspense>
+        <Suspense fallback={<div className="h-64 flex items-center justify-center bg-white rounded-lg shadow-sm"><Loader text="Loading chart..." /></div>}>
+          <SalesChart />
+        </Suspense>
 
       </div>
 

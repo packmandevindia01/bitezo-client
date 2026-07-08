@@ -77,7 +77,7 @@ const ReceiptVoucherListPage = () => {
           </div>
         </div>
         <Button onClick={() => navigate("/dashboard/receipt-voucher/new")} icon={<Plus size={18} />}>
-          Add Receipt
+          Add New
         </Button>
       </div>
 

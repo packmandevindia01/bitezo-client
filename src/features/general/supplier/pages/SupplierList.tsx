@@ -6,9 +6,9 @@ import {
   Loader,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
   StatusBadge,
-} from "../../../../components/common";
+  } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import {
   createSupplier,
@@ -153,6 +153,15 @@ const SupplierList = () => {
 
   return (
     <PageShell title="Supplier Management">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search suppliers..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Loader text="Loading suppliers..." />
@@ -160,12 +169,8 @@ const SupplierList = () => {
       ) : (
         <RecordTableCard
           title="Saved Supplier List"
-          search={search}
-          onSearchChange={setSearch}
           rowKey="id"
           data={filteredSuppliers}
-          actionLabel={canAdd ? "+ Add Supplier" : undefined}
-          onAction={canAdd ? openCreateModal : undefined}
           columns={[
             { header: "Code", accessor: "code" },
             { header: "Supplier Name", accessor: "name" },

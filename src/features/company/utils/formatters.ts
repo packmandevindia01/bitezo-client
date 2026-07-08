@@ -1,5 +1,5 @@
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-import type { CountryCode } from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js/min";
+import type { CountryCode } from "libphonenumber-js/min";
 
 export const formatPhone = (
   value: string,

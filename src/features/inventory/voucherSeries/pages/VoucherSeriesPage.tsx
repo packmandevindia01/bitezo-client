@@ -5,7 +5,7 @@ import {
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
 } from "../../../../components/common";
 import VoucherSeriesForm from "../components/VoucherSeriesForm";
 import { useVoucherSeriesManager } from "../hooks/useVoucherSeriesManager";
@@ -40,15 +40,18 @@ const VoucherSeriesPage = () => {
 
   return (
     <PageShell title="Voucher Series">
-      <RecordTableCard
-        title="Saved Voucher Series list"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search voucher series..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+      <RecordTableCard
+        title="Saved Voucher Series list"
         rowKey="voucherId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Voucher Series" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
-        autoFocusSearch
         loading={loading}
         columns={[
           { header: "S No", accessor: "sNo" },

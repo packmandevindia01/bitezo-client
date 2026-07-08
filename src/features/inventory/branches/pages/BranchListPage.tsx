@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ConfirmDialog, Loader, PageShell } from "../../../../components/common";
+import { ConfirmDialog, PageShell } from "../../../../components/common";
 import BranchTable from "../components/BranchTable";
 import { useBranchManager } from "../hooks/useBranchManager";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -24,9 +24,8 @@ const BranchListPage = () => {
 
   return (
     <PageShell title="Branch Master Management">
-      {loading ? <Loader className="py-8" text="Loading branches..." /> : null}
-
       <BranchTable
+        loading={loading}
         branches={filteredBranches}
         search={search}
         onSearchChange={setSearch}

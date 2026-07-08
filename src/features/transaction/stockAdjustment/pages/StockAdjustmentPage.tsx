@@ -189,7 +189,7 @@ const StockAdjustmentPage = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Unit", "Qty", "Cost", "Type", "Effect", "Amount", ""].map(
+                      {["SL", "Product", "Code", "Stock", "Unit", "Qty", "Cost", "Type", "Effect", "Amount", ""].map(
                         (col, i) => (
                           <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                             {col}
@@ -273,6 +273,7 @@ const StockAdjustmentPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 font-mono text-center">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 w-24 relative">
                             <Controller
                               name={`items.${index}.unit`}

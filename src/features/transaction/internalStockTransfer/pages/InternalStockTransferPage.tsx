@@ -213,12 +213,18 @@ const InternalStockTransferPage = () => {
     if (validItems.length !== currentItems.length) {
       methods.setValue("items", validItems);
     }
-    methods.handleSubmit(async (data) => {
-      const success = await onSubmit(data);
-      if (success) {
-        setIsPrintModalOpen(true);
+    methods.handleSubmit(
+      async (data) => {
+        const success = await onSubmit(data);
+        if (success) {
+          setIsPrintModalOpen(true);
+        }
+      },
+      (errors) => {
+        console.error("Validation failed:", JSON.stringify(errors, null, 2));
+        alert(`Validation failed:\n${JSON.stringify(errors, null, 2)}`);
       }
-    })();
+    )();
   };
 
   const canSave = true; 
@@ -232,7 +238,8 @@ const InternalStockTransferPage = () => {
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
             {/* ── Header Fields ── Extremely dense padding to save space */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-2 gap-y-1.5 mb-2">
+              <FormInput inputClassName="!h-8 !px-2 !text-xs font-mono font-bold bg-gray-50 cursor-not-allowed" id="st-refNo" label="Ref No" type="text" {...register("refNo")} readOnly />
               <FormInput autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="fromBranch" control={control} render={({ field }) => (
@@ -252,7 +259,7 @@ const InternalStockTransferPage = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Unit", "Qty", "Cost", "Amount", ""].map(
+                      {["SL", "Product", "Code", "Stock", "Unit", "Qty", "Cost", "Amount", ""].map(
                         (col, i) => (
                           <th key={i} className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ${col === "Qty" || col === "Cost" || col === "Amount" ? "text-right" : ""}`}>
                             {col}
@@ -350,6 +357,7 @@ const InternalStockTransferPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 font-mono text-center">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 w-24 relative">
                             <Controller
                               name={`items.${index}.unit`}

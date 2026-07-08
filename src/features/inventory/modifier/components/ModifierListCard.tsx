@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { RecordTableCard } from "../../../../components/common";
+import { RecordTableCard, ListHeader } from "../../../../components/common";
 import type { ModifierRecord } from "../types";
 
 interface ModifierListCardProps {
@@ -21,15 +21,19 @@ const ModifierListCard = ({
 }: ModifierListCardProps) => {
 
   return (
-    <RecordTableCard
-      title="List Modifiers"
-      search={search}
-      onSearchChange={onSearchChange}
-      data={records}
-      rowKey="id"
-      actionLabel="+ Add Modifier"
-      onAction={onAdd}
-      columns={[
+    <>
+      <ListHeader
+        search={search}
+        onSearchChange={onSearchChange}
+        searchPlaceholder="Search modifiers..."
+        canAdd={!!onAdd}
+        onAdd={onAdd}
+      />
+      <RecordTableCard
+        title="List Modifiers"
+        data={records}
+        rowKey="id"
+        columns={[
         { header: "Name", accessor: "name" },
         { header: "Arabic", accessor: "arabic" },
 
@@ -71,7 +75,8 @@ const ModifierListCard = ({
           ),
         },
       ]}
-    />
+      />
+    </>
   );
 };
 

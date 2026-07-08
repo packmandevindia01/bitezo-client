@@ -1,6 +1,4 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx-js-style";
+
 import { formatAmount } from "../../../../utils/currency";
 import type { StockRegisterProductData, StockRegisterTotalData } from "../types";
 
@@ -14,11 +12,13 @@ const formatHeaderDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-export const exportStockRegisterReportPDF = (
+export const exportStockRegisterReportPDF = async (
   productData: StockRegisterProductData[],
   _totalData: StockRegisterTotalData | null,
   filters: any
 ) => {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF("p", "mm", "a4");
   
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
@@ -98,11 +98,12 @@ export const exportStockRegisterReportPDF = (
   doc.save(`Stock_Register_Report_${filters.asOnDate}.pdf`);
 };
 
-export const exportStockRegisterReportExcel = (
+export const exportStockRegisterReportExcel = async (
   productData: StockRegisterProductData[],
   _totalData: StockRegisterTotalData | null,
   filters: any
 ) => {
+  const XLSX = await import("xlsx-js-style");
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
   const companyAddress = localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21";
 

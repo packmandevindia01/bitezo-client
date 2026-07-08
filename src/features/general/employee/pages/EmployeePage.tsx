@@ -1,5 +1,4 @@
-import { ConfirmDialog, PageShell, SearchBar, Button } from "../../../../components/common";
-import { Plus } from "lucide-react";
+import { ConfirmDialog, PageShell, ListHeader } from "../../../../components/common";
 import EmployeeModal from "../components/EmployeeModal";
 import EmployeeTable from "../components/EmployeeTable";
 import { useEmployeeManager } from "../hooks/useEmployeeManager";
@@ -35,22 +34,13 @@ const EmployeePage = () => {
 
   return (
     <PageShell title="Employee Management">
-      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-        <div className="flex gap-4 items-end flex-1">
-          <div className="flex-1 max-w-sm">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Search employees..."
-            />
-          </div>
-        </div>
-        {canAdd && (
-          <Button icon={<Plus size={18} />} onClick={openCreateModal}>
-            + Add Employee
-          </Button>
-        )}
-      </div>
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search employees..."
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
 
       <EmployeeTable
         employees={filteredEmployees}

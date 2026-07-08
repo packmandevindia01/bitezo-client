@@ -305,6 +305,7 @@ export const useProductForm = (productId?: number) => {
     setImagePreview,
     saveMutation,
     deleteMutation,
-    handleAddAltProduct
+    handleAddAltProduct,
+    currentBranchId
   };
 };

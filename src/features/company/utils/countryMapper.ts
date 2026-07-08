@@ -1,4 +1,4 @@
-import type { CountryCode } from "libphonenumber-js";
+import type { CountryCode } from "libphonenumber-js/min";
 
 export const mapCountry = (country: string): CountryCode => {
   const c = country.toLowerCase();

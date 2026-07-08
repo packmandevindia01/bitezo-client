@@ -1,6 +1,4 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx-js-style";
+
 import type { ProductTransactionLogRecord, ProductTransactionLogTotals } from "../types";
 
 const formatHeaderDate = (dateStr: string) => {
@@ -11,11 +9,13 @@ const formatHeaderDate = (dateStr: string) => {
 };
 
 // ── PDF Export ────────────────────────────────────────────────────────────────
-export const exportProductTransactionLogReportPDF = (
+export const exportProductTransactionLogReportPDF = async (
   logData: ProductTransactionLogRecord[],
   totalData: ProductTransactionLogTotals,
   filters: any
 ) => {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF("l", "mm", "a4"); // landscape for wider table
   const companyName = localStorage.getItem("companyName") || "Company";
   const companyAddress = localStorage.getItem("companyAddress") || "";
@@ -81,11 +81,12 @@ export const exportProductTransactionLogReportPDF = (
 };
 
 // ── Excel Export ──────────────────────────────────────────────────────────────
-export const exportProductTransactionLogReportExcel = (
+export const exportProductTransactionLogReportExcel = async (
   logData: ProductTransactionLogRecord[],
   totalData: ProductTransactionLogTotals,
   filters: any
 ) => {
+  const XLSX = await import("xlsx-js-style");
   const companyName = localStorage.getItem("companyName") || "Company";
   const title = `Product Transaction Log — ${formatHeaderDate(filters.fromDate)} to ${formatHeaderDate(filters.toDate)}`;
 

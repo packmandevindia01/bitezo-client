@@ -5,7 +5,7 @@ import {
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
 } from "../../../../components/common";
 import ExtrasMasterForm from "../components/ExtrasMasterForm";
 import { useExtrasMasterManager } from "../hooks/useExtrasMasterManager";
@@ -49,16 +49,19 @@ const ExtrasMasterPage = () => {
   return (
     <PageShell
       title="Extras Master" >
-      <RecordTableCard
-        title="Saved Extras List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search extras..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+      <RecordTableCard
+        title="Saved Extras List"
         rowKey="id"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Extras" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
-        autoFocusSearch
         columns={[
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabic" },

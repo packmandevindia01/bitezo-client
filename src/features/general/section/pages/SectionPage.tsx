@@ -1,6 +1,6 @@
 import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import SectionModal from "../components/SectionModal";
 import { useSectionManager } from "../hooks/useSectionManager";
 import type { SectionRecord } from "../types";
@@ -34,15 +34,19 @@ const SectionPage = () => {
 
   return (
     <PageShell title="Section Master">
-      <RecordTableCard
-        title="Saved Section List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search sections..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
+      <RecordTableCard
+        title="Saved Section List"
         rowKey="sectionId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Section" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
-        autoFocusSearch
         loading={loading}
         columns={[
           { header: "S No", accessor: "sNo" },

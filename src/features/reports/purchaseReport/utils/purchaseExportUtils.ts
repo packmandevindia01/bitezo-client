@@ -1,6 +1,4 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx-js-style";
+
 import { formatAmount } from "../../../../utils/currency";
 import type { PurchaseData, PaymodeData, TotalData } from "../types";
 
@@ -14,12 +12,14 @@ const formatHeaderDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-export const exportPurchaseReportPDF = (
+export const exportPurchaseReportPDF = async (
   purchaseData: PurchaseData[],
   _paymodeData: PaymodeData[],
   totalData: TotalData | null,
   filters: any
 ) => {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF();
   
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
@@ -106,12 +106,13 @@ export const exportPurchaseReportPDF = (
   doc.save(`Purchase_Report_${filters.fromDate}_to_${filters.toDate}.pdf`);
 };
 
-export const exportPurchaseReportExcel = (
+export const exportPurchaseReportExcel = async (
   purchaseData: PurchaseData[],
   _paymodeData: PaymodeData[],
   totalData: TotalData | null,
   filters: any
 ) => {
+  const XLSX = await import("xlsx-js-style");
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
   const companyAddress = localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21";
 

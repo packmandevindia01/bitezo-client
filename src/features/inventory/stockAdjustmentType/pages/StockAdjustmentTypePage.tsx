@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { PageShell, RecordTableCard, Modal } from "../../../../components/common";
+import { PageShell, RecordTableCard, Modal, ListHeader } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useStockAdjustmentType } from "../hooks/useStockAdjustmentType";
 import { StockAdjustmentTypeForm } from "../components/StockAdjustmentTypeForm";
@@ -29,13 +29,18 @@ const StockAdjustmentTypePage = () => {
 
   return (
     <PageShell title="Stock Adjustment Type" description="Manage reasons and effects for stock adjustments.">
-      <div className="overflow-x-auto mt-6">
+      <ListHeader
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search adjustment types..."
+        autoFocusSearch
+        canAdd={true}
+        onAdd={() => handleOpenModal()}
+      />
+
+      <div className="overflow-x-auto">
         <RecordTableCard<StockAdjustmentType>
           title="Stock Adjustment Types"
-          search={searchQuery}
-          onSearchChange={setSearchQuery}
-          actionLabel="+ Add Type"
-          onAction={() => handleOpenModal()}
           rowKey="typeId"
           loading={loading}
           data={filteredTypes}

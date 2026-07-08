@@ -291,7 +291,7 @@ const PurchaseInvoiceFormPage = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
+                      {["SL", "Product", "Code", "Stock", "Unit", "Qty", "FOC", "Avg Cost", "Price", "Amount", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
                         (col, i) => (
                           <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                             {col}
@@ -364,6 +364,7 @@ const PurchaseInvoiceFormPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 min-w-[80px]">{itemWatch.code || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 min-w-[80px] font-mono">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 w-24 relative">
                             <Controller
                               name={`items.${index}.unit`}
@@ -388,6 +389,7 @@ const PurchaseInvoiceFormPage = () => {
                           <td className="p-0 border-r border-gray-100 w-16">
                             <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
                           </td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 w-20 text-right font-mono">{typeof itemWatch.avgCost === 'number' ? formatAmount(itemWatch.avgCost) : (itemWatch.avgCost || "-")}</td>
                           <td className="p-0 border-r border-gray-100 w-24">
                             <input
                               {...register(`items.${index}.price`)}

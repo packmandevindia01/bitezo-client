@@ -94,12 +94,12 @@ const PaymodeModal = ({
       {/* We use a form so users can submit via enter if desired, though onSave handles submit */}
       <form onSubmit={(e) => { e.preventDefault(); onSave(); }} className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
         <div className="flex flex-col gap-6">
-          <div className="grid gap-5 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
+          <div className="flex flex-col gap-4">
             {/* Paymode Code */}
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-              Paymode Code <span className="text-red-500 ml-1">*</span>
-            </p>
             <FormInput
+              label="Paymode Code"
+              required
+              tabIndex={1}
               {...register("code", {
                 onChange: (e) => {
                   // Transform input directly on change: uppercase, no spaces
@@ -112,20 +112,19 @@ const PaymodeModal = ({
             />
 
             {/* Paymode Name */}
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-              Paymode Name <span className="text-red-500 ml-1">*</span>
-            </p>
             <FormInput
+              label="Paymode Name"
+              required
+              tabIndex={2}
               {...register("paymodeName")}
               placeholder="Enter paymode name"
               error={errors.paymodeName?.message as string}
             />
 
             {/* Active toggle */}
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-              Active
-            </p>
             <Checkbox
+              label="Active"
+              tabIndex={3}
               checked={form.watch("isActive")}
               onChange={(e) => form.setValue("isActive", e.target.checked, { shouldDirty: true, shouldValidate: true })}
             />

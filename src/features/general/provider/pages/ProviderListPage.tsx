@@ -5,9 +5,9 @@ import {
   ConfirmDialog,
   Loader,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
   StatusBadge,
-} from "../../../../components/common";
+  } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import { fetchProviders, deleteProvider } from "../services/providerService";
 import type { ProviderListItem } from "../types";
@@ -70,6 +70,15 @@ const ProviderListPage = () => {
 
   return (
     <PageShell title="Provider Management">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search providers..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={() => navigate("/dashboard/providers/new")}
+      />
+
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-12 shadow-sm">
           <Loader text="Loading providers..." />
@@ -77,12 +86,8 @@ const ProviderListPage = () => {
       ) : (
         <RecordTableCard
           title="Registered Provider List"
-          search={search}
-          onSearchChange={setSearch}
           data={filteredProviders}
           rowKey="providerId"
-          actionLabel={canAdd ? "+ Add Provider" : undefined}
-          onAction={() => navigate("/dashboard/providers/new")}
           columns={[
             { 
               header: "Provider Info", 

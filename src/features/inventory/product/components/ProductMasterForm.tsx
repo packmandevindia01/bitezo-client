@@ -8,6 +8,9 @@ import { useToast } from "../../../../app/providers/useToast";
 import { ProductDetailsSection } from "./ProductDetailsSection";
 import { AlternativePricingGrid } from "./AlternativePricingGrid";
 import { BranchColorsSection } from "./BranchColorsSection";
+import { useQuery } from "@tanstack/react-query";
+import { productService } from "../services/productService";
+import { formatAmount } from "../../../../utils/currency";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +21,7 @@ interface ProductMasterFormProps {
   branches: MasterItem[];
   subCategories: MasterItem[];
   onImageSelect: (file: File | null) => void;
+  currentBranchId: number;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -28,7 +32,8 @@ const ProductMasterForm = ({
   masterData,
   branches,
   subCategories,
-  onImageSelect
+  onImageSelect,
+  currentBranchId
 }: ProductMasterFormProps) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"product" | "alternatives" | "colors">("product");
@@ -59,6 +64,21 @@ const ProductMasterForm = ({
 
   const branchOptions = branches.map(b => ({ label: b.name, value: String(b.id) }));
   const subCatOptions = subCategories.map(s => ({ label: s.name, value: String(s.id) }));
+
+  const productId = form.watch("productId");
+  const unitId = form.watch("unitId");
+
+  const { data: stockData, isLoading: isLoadingStock } = useQuery({
+    queryKey: ["productClosingStock", productId, currentBranchId],
+    queryFn: () => productService.getClosingStock(Number(productId), currentBranchId),
+    enabled: !!productId && !!currentBranchId
+  });
+
+  const { data: costData, isLoading: isLoadingCost } = useQuery({
+    queryKey: ["productAverageCost", productId, unitId, currentBranchId],
+    queryFn: () => productService.getAverageCost(Number(productId), Number(unitId), currentBranchId),
+    enabled: !!productId && !!unitId && !!currentBranchId
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,6 +139,27 @@ const ProductMasterForm = ({
               preview={imagePreview}
               onSelect={onImageSelect}
             />
+            {productId && (
+              <div className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Current Branch Details
+                </h3>
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50/50 border border-gray-100">
+                    <span className="text-xs font-medium text-gray-500">Stock</span>
+                    <span className="text-sm font-bold text-[#49293e]">
+                      {isLoadingStock ? "..." : (stockData?.stock || "0")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50/50 border border-gray-100">
+                    <span className="text-xs font-medium text-gray-500">Avg Cost</span>
+                    <span className="text-sm font-bold font-mono text-gray-700">
+                      {isLoadingCost ? "..." : (typeof costData?.avgCost === 'number' ? formatAmount(costData.avgCost) : "0.000")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

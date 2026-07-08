@@ -5,7 +5,7 @@ import {
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
 } from "../../../../components/common";
 import ModifierTypeForm from "../components/ModifierTypeForm";
 import { useModifierTypeManager } from "../hooks/useModifierTypeManager";
@@ -40,14 +40,18 @@ const ModifierTypePage = () => {
   return (
     <PageShell
       title="Modifier Type">
-      <RecordTableCard
-        title="Saved Modifier Type List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search modifier type..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+      <RecordTableCard
+        title="Saved Modifier Type List"
         rowKey="typeId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Modifier Type" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
         columns={[
           { header: "#", accessor: "typeId" },

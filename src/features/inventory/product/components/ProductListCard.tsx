@@ -37,11 +37,13 @@ const ProductListCard = ({
         { 
           header: "Cost", 
           accessor: "cost",
+          align: "right",
           render: (row: ProductListItem) => formatCurrency(row.cost, decimalPart)
         },
         { 
           header: "Price", 
           accessor: "price",
+          align: "right",
           render: (row: ProductListItem) => formatCurrency(row.price, decimalPart)
         },
         {

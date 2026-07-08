@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import UserRoleModal from "../components/UserRoleModal";
 import { useUserRoleManager } from "../hooks/useUserRoleManager";
 import type { UserRoleRecord } from "../types";
@@ -39,15 +39,19 @@ const UserRolePage = () => {
 
   return (
     <PageShell title="User Role Master">
-      <RecordTableCard
-        title="Saved User Role List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search roles..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
+      <RecordTableCard
+        title="Saved User Role List"
         rowKey="roleId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Role" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
-        autoFocusSearch
         loading={loading}
         columns={[
           { header: "S No", accessor: "sNo" },

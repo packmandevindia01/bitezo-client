@@ -7,9 +7,9 @@ import {
   Loader,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
   StatusBadge,
-} from "../../../../components/common";
+  } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import { fetchUserById } from "../services";
 import type { ChangePasswordFormData } from "../schema/userSchema";
@@ -150,6 +150,15 @@ export const UserList = () => {
 
   return (
     <PageShell title="User Management">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search users..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Loader text="Loading users..." />
@@ -157,12 +166,8 @@ export const UserList = () => {
       ) : (
         <RecordTableCard
           title="Saved User List"
-          search={search}
-          onSearchChange={setSearch}
           rowKey="id"
           data={filteredUsers}
-          actionLabel={canAdd ? "+ Add User" : undefined}
-          onAction={canAdd ? openCreateModal : undefined}
           columns={[
             { header: "#", accessor: "id", align: "center" },
             { header: "User Name", accessor: "name", align: "center" },

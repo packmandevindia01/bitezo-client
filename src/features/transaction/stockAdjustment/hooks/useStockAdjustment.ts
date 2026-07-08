@@ -300,9 +300,11 @@ export const useStockAdjustment = (id?: string | null) => {
   }, []);
 
   // 6. Select details from product
-  const handleProductSelect = async (index: number, _val: string, barcode: string) => {
+  const handleProductSelect = async (index: number, val: string, barcode: string) => {
+    setValue(`items.${index}.product`, val);
     if (!barcode) return;
     try {
+      setValue(`items.${index}.stock`, "...");
       const details = await stockAdjustmentApi.getPurchaseCostData(barcode);
       setValue(`items.${index}.unitCategory`, details.unitCategory || "");
       setValue(`items.${index}.unitId`, details.baseUnitId);
@@ -311,13 +313,21 @@ export const useStockAdjustment = (id?: string | null) => {
       if (details.unitCategory) {
         loadCategoryUnits(details.unitCategory);
       }
+      const branchIdStr = getValues("branch");
+      if (branchIdStr && val) {
+        productService.getClosingStock(Number(val), Number(branchIdStr))
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
+      }
     } catch (error) {
       console.error("Failed to load product details", error);
+      setValue(`items.${index}.stock`, "Error");
     }
   };
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
+      setValue(`items.${index}.stock`, "...");
       // Try barcode/code via cost-data endpoint first
       let details = await stockAdjustmentApi.getPurchaseCostData(barcode).catch(() => null);
 
@@ -339,6 +349,14 @@ export const useStockAdjustment = (id?: string | null) => {
             setValue(`items.${index}.product`, String(first.productId));
             setValue(`items.${index}.productName`, first.code ? `[${first.code}] ${first.productName}` : first.productName);
             setValue(`items.${index}.code`, first.code || "");
+
+            const branchIdStr = getValues("branch");
+            if (branchIdStr && first.productId) {
+              productService.getClosingStock(first.productId, Number(branchIdStr))
+                .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+                .catch(() => setValue(`items.${index}.stock`, "Error"));
+            }
+
             return true;
           }
         }
@@ -360,10 +378,19 @@ export const useStockAdjustment = (id?: string | null) => {
         if (details.unitCategory) {
           loadCategoryUnits(details.unitCategory);
         }
+
+        const branchIdStr = getValues("branch");
+        if (branchIdStr && details.productId) {
+          productService.getClosingStock(details.productId, Number(branchIdStr))
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+        }
+
         return true;
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
+      setValue(`items.${index}.stock`, "Error");
     }
     return false;
   }, [setValue, loadCategoryUnits, formatAmount]);
@@ -388,6 +415,13 @@ export const useStockAdjustment = (id?: string | null) => {
       const result = await stockAdjustmentApi.getUnitCost(Number(productId), Number(unitId));
       if (result.cost !== undefined && result.cost !== null) {
         setValue(`items.${index}.cost`, formatAmount(result.cost));
+      }
+
+      const branchIdStr = getValues("branch");
+      if (branchIdStr && productId) {
+        productService.getClosingStock(Number(productId), Number(branchIdStr))
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
       }
     } catch (error) {
       console.error("Failed to fetch unit cost", error);

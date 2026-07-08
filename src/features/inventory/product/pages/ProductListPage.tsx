@@ -4,9 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBarcodeScanner } from "../../../pos/terminal/hooks/useBarcodeScanner";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
-import { PageShell, SearchBar, Button } from "../../../../components/common";
+import { PageShell, ListHeader } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
-import { Plus } from "lucide-react";
 import ProductListCard from "../components/ProductListCard";
 import { useProductList } from "../hooks/useProductList";
 import type { ProductListItem } from "../types";
@@ -83,26 +82,14 @@ const ProductListPage = () => {
 
   return (
     <PageShell title="Product Master">
-      <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-        <div className="flex gap-4 items-end flex-1">
-          <div className="flex-1 max-w-sm">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Search products..."
-              autoFocus
-            />
-          </div>
-        </div>
-        {canAdd && (
-          <Button
-            onClick={() => navigate("/dashboard/products/add")}
-            icon={<Plus size={18} />}
-          >
-            Add Product
-          </Button>
-        )}
-      </div>
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search products..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={() => navigate("/dashboard/products/add")}
+      />
 
       <ProductListCard
         records={filteredProducts}

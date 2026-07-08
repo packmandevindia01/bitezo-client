@@ -79,9 +79,9 @@ export const useInternalStockTransfer = (id?: string) => {
       ]);
       const unitsRes = productMaster?.unit || [];
       return {
-        fromBranches: fromBranchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })),
+        fromBranches: fromBranchRes.map((b: any) => ({ label: b.branchName || b.name, value: String(b.branchId ?? b.id) })),
         products: prodRes,
-        productOptions: prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) })),
+        productOptions: prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId ?? p.id) })),
         units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) })),
       };
     },
@@ -100,9 +100,9 @@ export const useInternalStockTransfer = (id?: string) => {
         internalStockTransferApi.getRefNumber(branchId).catch(() => "")
       ]);
       return {
-        employees: empRes.map((e: any) => ({ label: e.empName, value: String(e.empId) })),
-        toBranches: toBranchRes.map((b: any) => ({ label: b.branchName, value: String(b.branchId) })),
-        refNo: String(refRes || "")
+        employees: (empRes || []).map((e: any) => ({ label: e.empName || e.employeeName || e.name, value: String(e.empId ?? e.employeeId ?? e.id) })),
+        toBranches: (toBranchRes || []).map((b: any) => ({ label: b.branchName || b.name, value: String(b.branchId ?? b.id) })),
+        refNo: String(refRes || ""),
       };
     },
     enabled: !!watchedBranch,
@@ -195,6 +195,7 @@ export const useInternalStockTransfer = (id?: string) => {
       setValue(`items.${index}.cost`, "0");
       
       try {
+        setValue(`items.${index}.stock`, "...");
         const costData = await internalStockTransferApi.getProductCostData(code);
         if (costData) {
           setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
@@ -205,8 +206,16 @@ export const useInternalStockTransfer = (id?: string) => {
             loadCategoryUnits(costData.unitCategory);
           }
         }
+        
+        const branchIdStr = getValues("fromBranch");
+        if (branchIdStr && productIdStr) {
+          productService.getClosingStock(Number(productIdStr), Number(branchIdStr))
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+        }
       } catch (err) {
         console.error("Failed to load product details", err);
+        setValue(`items.${index}.stock`, "Error");
       }
     }
   };
@@ -221,6 +230,13 @@ export const useInternalStockTransfer = (id?: string) => {
       const cost = await internalStockTransferApi.getUnitCost(Number(productId), Number(unitId));
       if (cost !== undefined && cost !== null) {
         setValue(`items.${index}.cost`, formatAmount(cost));
+      }
+      
+      const branchIdStr = getValues("fromBranch");
+      if (branchIdStr && productId) {
+        productService.getClosingStock(Number(productId), Number(branchIdStr))
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
       }
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
@@ -252,6 +268,7 @@ export const useInternalStockTransfer = (id?: string) => {
         employeeId: parseInt(data.salesman || "", 10) || 0,
         netAmount,
         narration: "",
+        createdAt: new Date().toISOString(),
         details: validItems.map(item => ({
           productId: parseInt(item.product, 10) || 0,
           unitId: item.unitId || parseInt(item.unit || "1", 10) || 1,
@@ -261,6 +278,8 @@ export const useInternalStockTransfer = (id?: string) => {
           baseQty: toNumber(item.qty)
         }))
       };
+
+      console.log("Internal Stock Transfer Payload:", JSON.stringify(payload, null, 2));
 
       if (id) {
         await internalStockTransferApi.updateTransfer(Number(id), payload);

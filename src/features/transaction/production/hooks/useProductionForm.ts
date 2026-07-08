@@ -246,6 +246,8 @@ export const useProductionForm = (initialTransId?: number) => {
     if (!barcode) return;
 
     try {
+      setValue(`items.${index}.stock`, "...");
+
       const costData = await productionApi.getProductCostData(barcode);
       if (costData) {
         setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
@@ -256,14 +258,26 @@ export const useProductionForm = (initialTransId?: number) => {
         if (costData.unitCategory) {
           loadCategoryUnits(costData.unitCategory);
         }
+
+        const branchIdStr = getValues("branchId");
+        if (branchIdStr) {
+          const branchId = Number(branchIdStr);
+          productService.getClosingStock(Number(productId), branchId)
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+        }
       }
     } catch (err) {
       console.error("Failed to fetch product details", err);
+      setValue(`items.${index}.stock`, "Error");
     }
   };
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
+      setValue(`items.${index}.stock`, "...");
+      setValue(`items.${index}.avgCost`, "...");
+
       let details = await productionApi.getProductCostData(barcode).catch(() => null);
       if (!details) {
         const nameResults = await productionApi.getRawMaterialProductListByName(barcode).catch(() => []);
@@ -280,6 +294,14 @@ export const useProductionForm = (initialTransId?: number) => {
             setValue(`items.${index}.productId`, first.productId);
             setValue(`items.${index}.productName`, first.productName);
             setValue(`items.${index}.code`, first.code || "");
+            
+            const branchIdStr = getValues("branchId");
+            if (branchIdStr && first.productId) {
+              const branchId = Number(branchIdStr);
+              productService.getClosingStock(first.productId, branchId)
+                .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+                .catch(() => setValue(`items.${index}.stock`, "Error"));
+            }
             return true;
           }
         }
@@ -301,13 +323,24 @@ export const useProductionForm = (initialTransId?: number) => {
         if (details.unitCategory) {
           loadCategoryUnits(details.unitCategory);
         }
+
+        const branchIdStr = getValues("branchId");
+        if (branchIdStr && details.productId) {
+          const branchId = Number(branchIdStr);
+          productService.getClosingStock(details.productId, branchId)
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+        }
         return true;
+      } else {
+        setValue(`items.${index}.stock`, "Error");
       }
     } catch (e) {
       console.error("Production barcode lookup failed", e);
+      setValue(`items.${index}.stock`, "Error");
     }
     return false;
-  }, [setValue, loadCategoryUnits, decimalPart]);
+  }, [setValue, loadCategoryUnits, decimalPart, getValues]);
 
   const getRowOptions = useCallback((index: number) => {
     const stored = (watchedItems[index] as any);
@@ -330,6 +363,7 @@ export const useProductionForm = (initialTransId?: number) => {
       if (result && result.cost !== undefined && result.cost !== null) {
         setValue(`items.${index}.cost`, Number(result.cost).toFixed(decimalPart));
       }
+
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
     }

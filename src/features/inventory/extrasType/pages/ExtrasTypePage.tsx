@@ -5,7 +5,7 @@ import {
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
 } from "../../../../components/common";
 import ExtrasTypeForm from "../components/ExtrasTypeForm";
 import { useExtrasTypeManager } from "../hooks/useExtrasTypeManager";
@@ -40,14 +40,18 @@ const ExtrasTypePage = () => {
   return (
     <PageShell
       title="Extras Type" >
-      <RecordTableCard
-        title="Saved Extras Type List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search extras type..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+      <RecordTableCard
+        title="Saved Extras Type List"
         rowKey="typeId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Extras Type" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
         columns={[
           { header: "#", accessor: "typeId" },

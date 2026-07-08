@@ -77,7 +77,7 @@ const PaymentVoucherListPage = () => {
           </div>
         </div>
         <Button onClick={() => navigate("/dashboard/payment-voucher/new")} icon={<Plus size={18} />}>
-          Add Payment
+          Add New
         </Button>
       </div>
 

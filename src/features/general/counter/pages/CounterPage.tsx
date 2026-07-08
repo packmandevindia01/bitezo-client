@@ -1,6 +1,6 @@
 import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import CounterModal from "../components/CounterModal";
 import { useCounterManager } from "../hooks/useCounterManager";
 import type { CounterRecord } from "../types";
@@ -34,15 +34,19 @@ const CounterPage = () => {
 
   return (
     <PageShell title="Counter Master">
-      <RecordTableCard
-        title="Saved Counter List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search counters..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
+      <RecordTableCard
+        title="Saved Counter List"
         rowKey="counterId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Counter" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
-        autoFocusSearch
         loading={loading}
         columns={[
           { header: "S No", accessor: "sNo" },

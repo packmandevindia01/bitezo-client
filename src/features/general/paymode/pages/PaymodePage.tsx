@@ -1,6 +1,6 @@
 import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import PaymodeModal from "../components/PaymodeModal";
 import { usePaymodeManager } from "../hooks/usePaymodeManager";
 import type { PaymodeRecord } from "../types";
@@ -36,15 +36,19 @@ const PaymodePage = () => {
 
   return (
     <PageShell title="Paymode Master">
-      <RecordTableCard
-        title="Saved Paymode List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search paymodes..."
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+        autoFocusSearch
+      />
+
+      <RecordTableCard
+        title="Saved Paymode List"
         rowKey="paymodeId"
         data={filteredRecords}
-        actionLabel={canAdd ? "+ Add Paymode" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
-        autoFocusSearch
         loading={loading}
         columns={[
           { header: "S No", accessor: "sNo" },

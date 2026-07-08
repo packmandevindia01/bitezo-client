@@ -207,4 +207,16 @@ export const productService = {
       axiosInstance.get<ApiResponse<{ productId: number; productName: string }[]>>(url, { params: { productName } })
     );
   },
+
+  /** GET /api/product/closing-stock/{productId}/{branchId} */
+  getClosingStock(productId: number, branchId: number): Promise<{ stock: string }> {
+    const url = `${BASE}/closing-stock/${productId}/${branchId}`;
+    return unwrap(axiosInstance.get<ApiResponse<{ stock: string }>>(url));
+  },
+
+  /** GET /api/product/average-cost/{productId}/{unitId}/{branchId} */
+  getAverageCost(productId: number, unitId: number, branchId: number): Promise<{ avgCost: number }> {
+    const url = `${BASE}/average-cost/${productId}/${unitId}/${branchId}`;
+    return unwrap(axiosInstance.get<ApiResponse<{ avgCost: number }>>(url));
+  },
 } as const;

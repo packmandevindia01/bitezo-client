@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, Modal, PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import GroupForm from "../components/GroupForm";
 import { useGroupManager } from "../hooks/useGroupManager";
 import type { GroupRecord } from "../types";
@@ -43,6 +43,15 @@ const GroupPage = () => {
 
   return (
     <PageShell title="Group Master">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search groups..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
       {/* List-level error (fetch failure) */}
       {listError && (
         <div className="mb-4 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -66,13 +75,9 @@ const GroupPage = () => {
 
       <RecordTableCard
         title="Saved Group List"
-        search={search}
-        onSearchChange={setSearch}
         rowKey="grpId"
         data={filteredGroups}
         loading={listLoading}
-        actionLabel={canAdd ? "+ Add Group" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
         columns={[
           { header: "#", accessor: "sNo" },
           { header: "Code", accessor: "code" },

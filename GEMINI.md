@@ -280,18 +280,20 @@ This is a cloud-based POS with a backoffice. These rules apply across the entire
 ### 6. Master Data Pages (Backoffice) — Uniform Header Pattern
 - Every master data page (Category, Product, Customer, Supplier, etc.) follows this pattern:
   1. `PageShell` as the outer wrapper
-  2. A dedicated uniform header section (`<div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">`) containing a `SearchBar` on the left and the "+ Add" `Button` on the far right. Do NOT pass search or add actions into the `RecordTableCard` props.
+  2. `ListHeader` for the uniform search and "Add New" button layout. Do NOT pass search or add actions into the `RecordTableCard` props.
   3. `RecordTableCard` for the data list
   4. `Modal` + form for Add/Edit (unless it's a complex multi-tab form like Product Master)
   5. `ConfirmDialog` for delete confirmation
 - **Layout Pattern**:
   ```tsx
-  <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-    <div className="flex gap-4 items-end flex-1">
-      <div className="flex-1 max-w-sm"><SearchBar ... /></div>
-    </div>
-    <Button icon={<Plus size={18} />}>+ Add Record</Button>
-  </div>
+  <ListHeader 
+    search={search}
+    onSearchChange={setSearch}
+    searchPlaceholder="Search categories..."
+    canAdd={canAdd}
+    onAdd={openCreateModal}
+    autoFocusSearch
+  />
   ```
 ### 6a. Transaction List Pages (Vouchers, Invoices, Returns) — Filter Header Pattern
 - Transaction list pages that include date filters (`From Date`, `To Date`) MUST organize their search and filter controls in a dedicated header section ABOVE the `RecordTableCard`, rather than putting them inside the card's `extraActions` or `search` props.

@@ -1,6 +1,4 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx-js-style";
+
 import { formatAmount } from "../../../../utils/currency";
 import type { ProductWisePurchaseData, ProductWiseTotalData } from "../types";
 
@@ -14,11 +12,13 @@ const formatHeaderDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-export const exportProductWisePurchaseReportPDF = (
+export const exportProductWisePurchaseReportPDF = async (
   purchaseData: ProductWisePurchaseData[],
   _totalData: ProductWiseTotalData | null,
   filters: any
 ) => {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF("l", "mm", "a4");
   
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
@@ -118,11 +118,12 @@ export const exportProductWisePurchaseReportPDF = (
   doc.save(`Product_Wise_Purchase_Report_${filters.fromDate}_to_${filters.toDate}.pdf`);
 };
 
-export const exportProductWisePurchaseReportExcel = (
+export const exportProductWisePurchaseReportExcel = async (
   purchaseData: ProductWisePurchaseData[],
   _totalData: ProductWiseTotalData | null,
   filters: any
 ) => {
+  const XLSX = await import("xlsx-js-style");
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
   const companyAddress = localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21";
 

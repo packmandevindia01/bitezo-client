@@ -8,7 +8,7 @@ import { useToast } from "../../../app/providers/useToast";
 import { formatPhone } from "../utils/formatters";
 import type { CompanyFormData } from "../types";
 
-import { isValidPhoneNumber } from "libphonenumber-js";
+import { isValidPhoneNumber } from "libphonenumber-js/min";
 
 const companySchema = z.object({
   custName: z.string().min(1, "Company name is required"),

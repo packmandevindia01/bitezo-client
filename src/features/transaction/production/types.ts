@@ -9,6 +9,8 @@ export const productionItemSchema = z.object({
   unitId: z.number().optional(),
   unit: z.string().optional(),
   unitCategory: z.string().optional(),
+  stock: z.string().optional(),
+  avgCost: z.union([z.string(), z.number()]).optional(),
   qty: z.string().min(1, "Qty required"),
   cost: z.string().min(1, "Cost required"),
   amount: z.number().optional(),

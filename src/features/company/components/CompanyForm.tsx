@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Save, RotateCcw } from "lucide-react";
-import type { CountryCode } from "libphonenumber-js";
+import type { CountryCode } from "libphonenumber-js/min";
 import { Button, FormInput, Loader, SelectInput } from "../../../components/common";
 import { useToast } from "../../../app/providers/useToast";
 import { isRequired, isValidEmail, isValidMobile } from "../../../lib/validators";

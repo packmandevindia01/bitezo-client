@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { RecordTableCard } from "../../../../components/common";
+import { RecordTableCard, ListHeader } from "../../../../components/common";
 import type { BranchRecord } from "../types";
 
 interface Props {
@@ -9,19 +9,26 @@ interface Props {
   onAdd?: () => void;
   onEdit?: (record: BranchRecord) => void;
   onDelete?: (record: BranchRecord) => void;
+  loading?: boolean;
 }
 
-const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit, onDelete }: Props) => {
+const BranchTable = ({ branches, loading, search, onSearchChange, onAdd, onEdit, onDelete }: Props) => {
   return (
-    <RecordTableCard
-      title=""
-      search={search}
-      onSearchChange={onSearchChange}
-      rowKey="id"
-      data={branches}
-      actionLabel={onAdd ? "+ Add Branch" : undefined}
-      onAction={onAdd}
-      columns={[
+    <>
+      <ListHeader
+        search={search}
+        onSearchChange={onSearchChange}
+        searchPlaceholder="Search branches..."
+        autoFocusSearch
+        canAdd={!!onAdd}
+        onAdd={onAdd}
+      />
+      <RecordTableCard
+        title=""
+        loading={loading}
+        rowKey="id"
+        data={branches}
+        columns={[
         { header: "#", accessor: "id", render: (_, index) => index + 1 },
         { header: "Branch Name", accessor: "branchName" },
         {
@@ -53,7 +60,8 @@ const BranchTable = ({ branches, search, onSearchChange, onAdd, onEdit, onDelete
           ),
         },
       ]}
-    />
+      />
+    </>
   );
 };
 

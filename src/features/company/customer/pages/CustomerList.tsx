@@ -7,6 +7,7 @@ import {
   PageShell,
   RecordTableCard,
   StatusBadge,
+  ListHeader,
 } from "../../../../components/common";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -41,6 +42,15 @@ const CustomerList = () => {
 
   return (
     <PageShell title="Customer Master">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search customers..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Loader text="Loading customers..." />
@@ -48,11 +58,6 @@ const CustomerList = () => {
       ) : (
         <RecordTableCard
           title="Saved Customer List"
-          search={search}
-          onSearchChange={setSearch}
-          actionLabel={canAdd ? "+ Add Customer" : undefined}
-          onAction={canAdd ? openCreateModal : undefined}
-          autoFocusSearch
           rowKey="id"
           data={customers}
           columns={[

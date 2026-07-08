@@ -78,7 +78,7 @@ const BomListPage = () => {
           </div>
         </div>
         <Button onClick={() => navigate("/dashboard/bom")} icon={<Plus size={18} />}>
-          + New BOM
+          Add New
         </Button>
       </div>
 
@@ -93,7 +93,7 @@ const BomListPage = () => {
             { header: "Branch", accessor: "branchName" },
             { header: "Product", accessor: "productName" },
             { header: "Unit", accessor: "unitName" },
-            { header: "Qty", accessor: "qty" },
+            { header: "Qty", accessor: "qty", align: "right" },
             {
               header: "Actions",
               accessor: "transId",

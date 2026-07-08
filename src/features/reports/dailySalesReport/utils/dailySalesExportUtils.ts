@@ -1,6 +1,4 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx-js-style";
+
 import { formatAmount } from "../../../../utils/currency";
 
 const formatHeaderDate = (dateStr: string) => {
@@ -13,11 +11,13 @@ const formatHeaderDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-export const exportDailySalesReportPDF = (
+export const exportDailySalesReportPDF = async (
   columns: string[],
   rows: Record<string, string | number>[],
   filters: any
 ) => {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF("p", "mm", "a4");
   
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
@@ -98,11 +98,12 @@ export const exportDailySalesReportPDF = (
   doc.save("daily_sales_report.pdf");
 };
 
-export const exportDailySalesReportExcel = (
+export const exportDailySalesReportExcel = async (
   columns: string[],
   rows: Record<string, string | number>[],
   filters: any
 ) => {
+  const XLSX = await import("xlsx-js-style");
   const companyName = localStorage.getItem("companyName") || "FEKRA advertising";
   const dateStr = `Daily Sales Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`;
 

@@ -204,7 +204,7 @@ const PayInOutPage: React.FC = () => {
               setIsFormModalOpen(true);
             }}
           >
-            + Add Transaction
+            Add New
           </Button>
         </div>
 

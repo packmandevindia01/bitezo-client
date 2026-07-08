@@ -514,6 +514,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     const opt = productOptions.find(o => o.value === productId);
     if (!opt || !opt.barcode) return;
     try {
+      setValue(`items.${index}.stock`, "...");
+      setValue(`items.${index}.avgCost`, "...");
+
       const details = await purchaseReturnApi.getProductCostData(opt.barcode);
       const currentQty = getValues(`items.${index}.qty`);
       setValue(`items.${index}.unitCategory`, details.unitCategory || "");
@@ -527,8 +530,23 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       if (details.unitCategory) {
         loadCategoryUnits(details.unitCategory);
       }
+
+      const branchIdStr = methods.getValues("branch");
+      if (branchIdStr && details.productId) {
+        const branchId = Number(branchIdStr);
+        productService.getClosingStock(details.productId, branchId)
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
+
+        productService.getAverageCost(details.productId, details.baseUnitId, branchId)
+          .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
+          .catch(() => setValue(`items.${index}.avgCost`, "Error"));
+      }
+
     } catch (error) {
       console.error("Failed to load product details", error);
+      setValue(`items.${index}.stock`, "Error");
+      setValue(`items.${index}.avgCost`, "Error");
     }
   };
 
@@ -538,17 +556,31 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     const productId = methods.getValues(`items.${index}.product`);
     if (!productId || !unitId) return;
     try {
+      setValue(`items.${index}.avgCost`, "...");
       const result = await purchaseReturnApi.getUnitCost(Number(productId), Number(unitId));
       if (result.cost !== undefined && result.cost !== null) {
         setValue(`items.${index}.price`, formatAmount(result.cost));
       }
+
+      const branchIdStr = methods.getValues("branch");
+      if (branchIdStr) {
+        const branchId = Number(branchIdStr);
+        productService.getAverageCost(Number(productId), Number(unitId), branchId)
+          .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
+          .catch(() => setValue(`items.${index}.avgCost`, "Error"));
+      }
+
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
+      setValue(`items.${index}.avgCost`, "Error");
     }
   }, [methods, setValue, formatAmount]);
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
+      setValue(`items.${index}.stock`, "...");
+      setValue(`items.${index}.avgCost`, "...");
+
       const details = await purchaseReturnApi.getProductCostData(barcode).catch(() => null);
       if (details) {
         setProductOptions(prev => {
@@ -569,13 +601,31 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         if (details.unitCategory) {
           loadCategoryUnits(details.unitCategory);
         }
+
+        const branchIdStr = methods.getValues("branch");
+        if (branchIdStr && details.productId) {
+          const branchId = Number(branchIdStr);
+          productService.getClosingStock(details.productId, branchId)
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+
+          productService.getAverageCost(details.productId, details.baseUnitId, branchId)
+            .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
+            .catch(() => setValue(`items.${index}.avgCost`, "Error"));
+        }
+
         return true;
+      } else {
+        setValue(`items.${index}.stock`, "Error");
+        setValue(`items.${index}.avgCost`, "Error");
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
+      setValue(`items.${index}.stock`, "Error");
+      setValue(`items.${index}.avgCost`, "Error");
     }
     return false;
-  }, [setValue, getValues, loadCategoryUnits]);
+  }, [setValue, getValues, loadCategoryUnits, methods]);
 
   const handleReset = () => {
     reset(initialForm);

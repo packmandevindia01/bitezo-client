@@ -6,6 +6,8 @@ export const purchaseInvoiceItemSchema = z.object({
   code: z.string().optional(),
   unit: z.string().optional(),
   unitCategory: z.string().optional(),
+  stock: z.string().optional(),
+  avgCost: z.union([z.string(), z.number()]).optional(),
   qty: z.string().refine(val => Number(val) > 0, "Qty > 0").default("1"),
   foc: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
   price: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),

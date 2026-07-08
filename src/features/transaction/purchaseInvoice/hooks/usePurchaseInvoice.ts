@@ -210,6 +210,9 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const handleProductSelect = async (index: number, _val: string, barcode: string) => {
     if (!barcode) return;
     try {
+      setValue(`items.${index}.stock`, "...");
+      setValue(`items.${index}.avgCost`, "...");
+      
       const details = await purchaseInvoiceApi.getProductCostData(barcode);
       setValue(`items.${index}.unitCategory`, details.unitCategory || "");
       setValue(`items.${index}.unit`, details.baseUnitId.toString());
@@ -220,8 +223,24 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       if (details.unitCategory) {
         loadCategoryUnits(details.unitCategory);
       }
+
+      // Async fetch for stock and average cost
+      const branchIdStr = methods.getValues("branch");
+      if (branchIdStr && details.productId) {
+        const branchId = Number(branchIdStr);
+        productService.getClosingStock(details.productId, branchId)
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
+
+        productService.getAverageCost(details.productId, details.baseUnitId, branchId)
+          .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
+          .catch(() => setValue(`items.${index}.avgCost`, "Error"));
+      }
+
     } catch (error) {
       console.error("Failed to load product details", error);
+      setValue(`items.${index}.stock`, "Error");
+      setValue(`items.${index}.avgCost`, "Error");
     }
   };
 
@@ -231,17 +250,31 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     const productId = methods.getValues(`items.${index}.product`);
     if (!productId || !unitId) return;
     try {
+      setValue(`items.${index}.avgCost`, "...");
       const result = await purchaseInvoiceApi.getUnitCost(Number(productId), Number(unitId));
       if (result.cost !== undefined && result.cost !== null) {
         setValue(`items.${index}.price`, formatAmount(result.cost));
       }
+
+      const branchIdStr = methods.getValues("branch");
+      if (branchIdStr) {
+        const branchId = Number(branchIdStr);
+        productService.getAverageCost(Number(productId), Number(unitId), branchId)
+          .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
+          .catch(() => setValue(`items.${index}.avgCost`, "Error"));
+      }
+
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
+      setValue(`items.${index}.avgCost`, "Error");
     }
   }, [methods, setValue, formatAmount]);
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
+      setValue(`items.${index}.stock`, "...");
+      setValue(`items.${index}.avgCost`, "...");
+
       const details = await purchaseInvoiceApi.getProductCostData(barcode).catch(() => null);
       if (details) {
         setProductOptions(prev => {
@@ -259,13 +292,31 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         if (details.unitCategory) {
           loadCategoryUnits(details.unitCategory);
         }
+
+        const branchIdStr = methods.getValues("branch");
+        if (branchIdStr && details.productId) {
+          const branchId = Number(branchIdStr);
+          productService.getClosingStock(details.productId, branchId)
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+
+          productService.getAverageCost(details.productId, details.baseUnitId, branchId)
+            .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
+            .catch(() => setValue(`items.${index}.avgCost`, "Error"));
+        }
+
         return true;
+      } else {
+        setValue(`items.${index}.stock`, "Error");
+        setValue(`items.${index}.avgCost`, "Error");
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
+      setValue(`items.${index}.stock`, "Error");
+      setValue(`items.${index}.avgCost`, "Error");
     }
     return false;
-  }, [setValue]);
+  }, [setValue, methods]);
 
   useEffect(() => {
     const fetchMasterData = async () => {

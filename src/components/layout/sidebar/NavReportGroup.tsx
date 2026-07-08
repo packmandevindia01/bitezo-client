@@ -18,6 +18,16 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
 
   return (
     <SidebarDropdown icon={<BarChart3 size={18} />} label="Reports">
+      {/* We use "Sales Report" permission as a fallback for the Summary since there's no "Summary Report" permission explicitly mentioned */}
+      {hasPermission("Sales Report", "View") && (
+        <SidebarDropdown icon={<BarChart3 size={14} />} label="Summary" nested={true}>
+          <div onClick={() => handleItemClick("/dashboard/reports/all-transaction")} className={itemClassName}>
+            <BarChart3 size={13} className="shrink-0" />
+            <span>All Transaction Report</span>
+          </div>
+        </SidebarDropdown>
+      )}
+
       {hasPermission("Sales Report", "View") && (
         <SidebarDropdown icon={<TrendingUp size={14} />} label="Sales Report" nested={true}>
           <div onClick={() => handleItemClick("/dashboard/reports/sales")} className={itemClassName}>

@@ -233,8 +233,9 @@ const ProductionPage = () => {
                     <tr className="border-b border-gray-200 bg-gray-50/80">
                       {[
                         { name: "SL", width: "w-[5%]" },
-                        { name: "Raw Material / Ingredient", width: "w-[35%]" },
-                        { name: "Code", width: "w-[10%]" },
+                        { name: "Raw Material / Ingredient", width: "w-[25%]" },
+                        { name: "Code", width: "w-[8%]" },
+                        { name: "Stock", width: "w-[8%]" },
                         { name: "Unit", width: "w-[12%]" },
                         { name: "Qty", width: "w-[10%]" },
                         { name: "Cost", width: "w-[10%]" },
@@ -312,6 +313,7 @@ const ProductionPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 text-center">{itemWatch.code || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 font-mono text-center">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 relative">
                             <Controller
                               name={`items.${index}.unit`}

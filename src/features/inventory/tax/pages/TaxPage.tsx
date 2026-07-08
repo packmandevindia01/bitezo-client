@@ -1,5 +1,5 @@
 import { AlertCircle, Pencil, Trash2, X } from "lucide-react";
-import { ConfirmDialog, Modal, PageShell, RecordTableCard } from "../../../../components/common";
+import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import TaxForm from "../components/TaxForm";
 import { useTaxManager } from "../hooks/useTaxManager";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -42,6 +42,15 @@ const TaxPage = () => {
 
   return (
     <PageShell title="Tax Master">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search taxes..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+
       {/* Error banner */}
       {(listError || mutationError) && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -59,14 +68,9 @@ const TaxPage = () => {
 
       <RecordTableCard
         title="Saved Tax List"
-        search={search}
-        onSearchChange={setSearch}
         rowKey="id"
         data={filteredTaxes}
         loading={listLoading}
-        actionLabel={canAdd ? "+ Add Tax" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
-        autoFocusSearch
         columns={[
           { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },

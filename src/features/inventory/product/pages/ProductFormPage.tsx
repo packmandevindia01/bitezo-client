@@ -24,7 +24,8 @@ const ProductFormPage = () => {
     imagePreview,
     setImageFile,
     saveMutation,
-    deleteMutation
+    deleteMutation,
+    currentBranchId
   } = useProductForm(id ? parseInt(id) : undefined);
 
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -87,6 +88,7 @@ const ProductFormPage = () => {
                 branches={branches}
                 subCategories={subCategories}
                 onImageSelect={setImageFile}
+                currentBranchId={currentBranchId}
               />
             </div>
           )}

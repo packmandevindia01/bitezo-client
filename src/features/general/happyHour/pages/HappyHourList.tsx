@@ -5,6 +5,7 @@ import {
   Modal,
   PageShell,
   RecordTableCard,
+  ListHeader,
 } from "../../../../components/common";
 import { useHappyHourList } from "../hooks/useHappyHourList";
 
@@ -13,7 +14,6 @@ const HappyHourList = () => {
   const {
     filteredList, loading, deleting,
     deleteCandidate, search,
-    fromDate, setFromDate, toDate, setToDate,
     setSearch, setDeleteCandidate,
     handleDelete,
   } = useHappyHourList();
@@ -28,6 +28,15 @@ const HappyHourList = () => {
 
   return (
     <PageShell title="Happy Hours Management">
+      <ListHeader
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search promotions..."
+        autoFocusSearch
+        canAdd={true}
+        onAdd={handleCreate}
+      />
+
       {loading ? (
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Loader text="Loading Happy Hours..." />
@@ -35,29 +44,8 @@ const HappyHourList = () => {
       ) : (
         <RecordTableCard
           title="Active Promotions"
-          search={search}
-          onSearchChange={setSearch}
           rowKey="promotionId"
           data={filteredList}
-          actionLabel="+ Add New"
-          onAction={handleCreate}
-          extraActions={
-            <div className="flex items-center gap-2">
-                <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 outline-none focus:border-pos-primary transition-all"
-                />
-                <span className="text-gray-400">to</span>
-                <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 outline-none focus:border-pos-primary transition-all"
-                />
-            </div>
-          }
           columns={[
             { header: "Promotion", accessor: "promotionName" },
             { 

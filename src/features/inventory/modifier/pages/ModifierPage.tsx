@@ -5,7 +5,7 @@ import {
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard,
+  RecordTableCard, ListHeader,
 } from "../../../../components/common";
 import ModifierMasterForm from "../components/ModifierMasterForm";
 import { useModifierManager } from "../hooks/useModifierManager";
@@ -45,16 +45,19 @@ const ModifierPage = () => {
   return (
     <PageShell
       title="Modifier Master">
-      <RecordTableCard
-        title="Saved Modifier List"
+      <ListHeader
         search={search}
         onSearchChange={setSearch}
+        searchPlaceholder="Search modifiers..."
+        autoFocusSearch
+        canAdd={canAdd}
+        onAdd={openCreateModal}
+      />
+      <RecordTableCard
+        title="Saved Modifier List"
         rowKey="id"
         data={filteredModifiers}
-        actionLabel={canAdd ? "+ Add Modifier" : undefined}
-        onAction={canAdd ? openCreateModal : undefined}
         loading={loading}
-        autoFocusSearch
         columns={[
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabic" },

@@ -8,6 +8,7 @@ export const stockAdjustmentItemSchema = z.object({
   unit: z.string().optional(),
   unitId: z.number().optional(),
   unitCategory: z.string().optional(),
+  stock: z.string().optional(),
   qty: z.string().refine(val => Number(val) > 0, "Qty > 0").default("1"),
   cost: z.string().refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
   type: z.string().min(1, "Type is required"),
