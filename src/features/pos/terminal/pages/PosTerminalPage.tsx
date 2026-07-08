@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useEvent } from "../../../../hooks/useEvent";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
@@ -6,41 +6,21 @@ import PosTopNav from "../components/layout/PosTopNav";
 import PosCategoryRail from "../components/menu/PosCategoryRail";
 import PosGroupTabs from "../components/layout/PosGroupTabs";
 import { PosCartPanel } from "../components/cart/PosCartPanel";
-
 import PosProductGrid from "../components/menu/PosProductGrid";
 import { usePosTerminal } from "../hooks/usePosTerminal";
+import { usePosModals } from "../hooks/usePosModals";
+import { usePosCheckoutFlow } from "../hooks/usePosCheckoutFlow";
+import { usePosDiscountFlow } from "../hooks/usePosDiscountFlow";
+import { usePosVoidFlow } from "../hooks/usePosVoidFlow";
+import { PosActionButtons } from "../components/layout/PosActionButtons";
+import { PosTerminalModals } from "../components/modals/PosTerminalModals";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
-import { salesInvoiceApi } from "../../services/salesInvoiceApi";
-import { PosDiscountChoiceModal } from "../components/modals/cart/PosDiscountChoiceModal";
-import { PosDiscountKeypadModal } from "../components/modals/cart/PosDiscountKeypadModal";
-import { PosPriceKeypadModal } from "../components/modals/cart/PosPriceKeypadModal";
-import { PosQtyKeypadModal } from "../components/modals/cart/PosQtyKeypadModal";
 import { clearAllItemDiscounts, setCustomDeliveryCharge } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
-import { PosDeliveryChargeModal } from "../components/modals/payment/PosDeliveryChargeModal";
-import { formatCurrency } from "../../../../utils/formatters";
 import type { PosProduct, PosAlternative } from "../../types";
-import { ConfirmDialog } from "../../../../components/common";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
 import { menuApi } from "../../services/menuApi";
-import { PosMoreModal } from "../components/modals/system/PosMoreModal";
-import { PosReportModal } from "../components/modals/system/PosReportModal";
-import { PosSettledModal } from "../components/modals/system/PosSettledModal";
-import { PosCashTenderModal } from "../components/modals/payment/PosCashTenderModal";
-import { PosMultiPayModal } from "../components/modals/payment/PosMultiPayModal";
-import { PosCustomerModal } from "../../customer/components/PosCustomerModal";
-import { PosExtrasModifierModal } from "../components/modals/product/PosExtrasModifierModal";
-import { PosDeliveryModal } from "../../customer/components/PosDeliveryModal";
-import { PosDriveThroughModal } from "../../customer/components/PosDriveThroughModal";
-import { PosRecallModal } from "../components/modals/order/PosRecallModal";
-import { PosVoidModal } from "../components/modals/order/PosVoidModal";
-import { EmployeePasswordModal } from "../components/modals/system/EmployeePasswordModal";
-import LockItemModal from "../../lockItem/components/LockItemModal";
-import { PosProviderModal } from "../components/modals/providers/PosProviderModal";
-import { PosProviderOrderModal } from "../components/modals/providers/PosProviderOrderModal";
-import { PosCombineModal } from "../components/modals/order/PosCombineModal";
-import { PosSplitModal } from "../components/modals/order/PosSplitModal";
 import { useCashierLog } from "../../cashier";
 import type { MenuProvider } from "../../types";
 import { useToast } from "../../../../app/providers/useToast";
@@ -53,168 +33,61 @@ export const PosTerminalPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isMoreModalOpen, setIsMoreModalOpen] = useState(false);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
-  const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
-
-  const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
-  const [returnToRecallOnCancel, setReturnToRecallOnCancel] = useState(false);
-  const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
-  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
-  const [isCombineOpen, setIsCombineOpen] = useState(false);
-  const [isLockItemModalOpen, setIsLockItemModalOpen] = useState(false);
-  const [selectedProductToLock, setSelectedProductToLock] = useState<string | undefined>(undefined);
-  const [isSplitOpen, setIsSplitOpen] = useState(false);
-  const [isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen] = useState(false);
-  const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
-  const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
-  const { status, isLoading } = useCashierLog();
-  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const modals = usePosModals();
   const { showToast } = useToast();
   const { authorizationModalKey, authorizationModalProps, requestAuthorization } = useEmployeeAuthorization();
   const { decimalPart } = useCurrency();
+  const { status, isLoading } = useCashierLog();
 
-  // Alternative selection state
+  const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
+  const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<PosProduct | null>(null);
   const [alternatives, setAlternatives] = useState<PosAlternative[]>([]);
   const [fetchingAlts, setFetchingAlts] = useState(false);
-
-  // Row selection state
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
-  // Discount Flow States
-  const [discountStep, setDiscountStep] = useState<'none' | 'choice' | 'value'>('none');
-  const [discountType, setDiscountType] = useState<'bill' | 'item'>('bill');
-  const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
-  const [billDiscountConfirmState, setBillDiscountConfirmState] = useState<{
-    isOpen: boolean;
-    value: number;
-    mode: 'percentage' | 'amount';
-  }>({ isOpen: false, value: 0, mode: 'percentage' });
-
-  // Price Flow States
-  const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
-
-  // Quantity Flow States
-  const [isQtyModalOpen, setIsQtyModalOpen] = useState(false);
-
-  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
-  const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
   const [selectedTender, setSelectedTender] = useState<string>("");
-  const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
-  const [isSettledModalOpen, setIsSettledModalOpen] = useState(false);
-  const [isSettledAuthOpen, setIsSettledAuthOpen] = useState(false);
-
-  // Extras & Modifiers Flow States
   const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
-
-  // Void Confirmation Modal State
-  const [voidConfirmState, setVoidConfirmState] = useState<{
-    isOpen: boolean;
-    uniqueId: string;
-    productName: string;
-    onConfirmed: () => void;
-  }>({
-    isOpen: false,
-    uniqueId: "",
-    productName: "",
-    onConfirmed: () => {},
-  });
 
   useEffect(() => {
     const state = location.state as { openMoreModal?: boolean; openCashModal?: boolean };
-    
     if (state?.openMoreModal) {
-      setIsMoreModalOpen(true);
+      modals.setIsMoreModalOpen(true);
       window.history.replaceState({}, document.title);
     }
-    
     if (state?.openCashModal) {
-      setIsCashModalOpen(true);
+      modals.setIsCashModalOpen(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, modals]);
 
-
-
-  // Keep POS config loaded in background
-  const {
-    groups,
-    categories,
-    subCategories,
-    activeGroupId,
-    activeCategoryId,
-    activeSubCategoryId,
-    cartDetails,
-    itemCount,
-    search,
-    subtotal,
-    discount,
-    tax,
-    charges,
-    total,
-    totalExtras,
-    baseSubtotal,
-    orderTypes,
-    selectedOrderTypeId,
-    setSelectedOrderType,
-    visibleProducts,
-    setGroup,
-    setCategory,
-    setSubCategory,
-    setSearch,
-    addProduct,
-    addProductBySku,
-    clearCart,
-    decrementItem,
-    incrementItem,
-    removeItem,
-    setBillDiscount,
-    setItemDiscount,
-    updateItemPrice,
-    updateItemQty,
-    setItemCustomizations,
-    orderLoading,
-    submitOrder,
-    setChange,
-    editingOrderId,
-    addVoidProduct,
-    addVoidModifier,
-    getDirectSettleOrderPayload,
-    refreshLockedProducts,
-    tenderOptions,
-  } = usePosTerminal();
+  const terminal = usePosTerminal();
 
   useEffect(() => {
-    if (tenderOptions.length > 0 && !selectedTender) {
-      setSelectedTender(tenderOptions[0].id);
+    if (terminal.tenderOptions.length > 0 && !selectedTender) {
+      setSelectedTender(terminal.tenderOptions[0].id);
     }
-  }, [tenderOptions, selectedTender]);
+  }, [terminal.tenderOptions, selectedTender]);
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
   const { productCache } = useAppSelector((state) => state.pos);
-
   const isSettling = useAppSelector((state) => state.pos.isSettling);
   const deliveryCharge = useAppSelector(selectDeliveryCharge);
   const selectedOrderTypeName = useAppSelector((state) => state.pos.selectedOrderTypeName);
-  const isDelivery = selectedOrderTypeId === 4 || (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
+  const isDelivery = terminal.selectedOrderTypeId === 4 || (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
   const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
   const isCartModified = useAppSelector((state) => state.pos.isCartModified);
   const editingSaleId = useAppSelector((state) => state.pos.editingSaleId);
 
-  const activeCategory = categories.find(c => c.id === activeCategoryId);
-  const activeSubCategory = subCategories.find(s => s.subCategoryId === activeSubCategoryId);
-  const currentItem = selectedKey ? cartDetails.find((item) => item.uniqueId === selectedKey) : null;
-
-  const settleShouldPrintRef = useRef(false);
+  const activeCategory = terminal.categories.find(c => c.id === terminal.activeCategoryId);
+  const activeSubCategory = terminal.subCategories.find(s => s.subCategoryId === terminal.activeSubCategoryId);
+  const currentSelectedItem = useMemo(() => {
+    if (!selectedKey) return null;
+    return terminal.cartDetails.find((item) => item.uniqueId === selectedKey);
+  }, [selectedKey, terminal.cartDetails]);
 
   const readStoredPosConfig = (): RuntimePosConfig | null => {
     const savedConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
     if (!savedConfig) return null;
-  
     try {
       const parsed = JSON.parse(savedConfig) as { configs?: RuntimePosConfig };
       return parsed.configs ?? null;
@@ -229,424 +102,227 @@ export const PosTerminalPage = () => {
     if (storedConfig?.defaultEmployee !== undefined && storedConfig.employeeId !== undefined) {
       return storedConfig;
     }
-
     const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
     if (!branchId) return storedConfig;
-
     const response = await posConfigApi.getPosConfig(branchId);
     if (response.isSuccess && response.data) {
       localStorage.setItem(POS_CONFIGS_STORAGE_KEY, JSON.stringify(response.data));
       return response.data.configs;
     }
-
     return storedConfig;
   };
 
-  // Reset alternatives and selectedProduct when activeGroupId, activeCategoryId, activeSubCategoryId, or search changes
   useEffect(() => {
     setAlternatives([]);
     setSelectedProduct(null);
-  }, [activeGroupId, activeCategoryId, activeSubCategoryId, search]);
+  }, [terminal.activeGroupId, terminal.activeCategoryId, terminal.activeSubCategoryId, terminal.search]);
 
   const resetTerminalState = () => {
-    clearCart();
+    terminal.clearCart();
     setSelectedKey(null);
     setSelectedProduct(null);
     setAlternatives([]);
-    if (groups && groups.length > 0) {
-      setGroup(groups[0].groupId);
+    if (terminal.groups && terminal.groups.length > 0) {
+      terminal.setGroup(terminal.groups[0].groupId);
     }
-    setSearch("");
+    terminal.setSearch("");
   };
 
   const handleClearCart = () => {
-    clearAllPosCache(); // wipe all product/alt caches so next load gets fresh data from API
+    clearAllPosCache();
     resetTerminalState();
     setActiveProvider(null);
   };
 
-  const handleRemoveItem = (uniqueId: string) => {
-    const item = cartDetails.find((i) => i.uniqueId === uniqueId);
-    if (!item) return;
+  const voidFlow = usePosVoidFlow({
+    cartDetails: terminal.cartDetails,
+    editingOrderId: terminal.editingOrderId,
+    requestAuthorization,
+    addVoidProduct: terminal.addVoidProduct,
+    addVoidModifier: terminal.addVoidModifier,
+    removeItem: terminal.removeItem,
+    decrementItem: terminal.decrementItem,
+    selectedKey,
+    setSelectedKey,
+    showToast,
+    decimalPart,
+  });
 
-    if (editingOrderId && item.isExisting) {
-      requestAuthorization({
-        actionLabel: "Void Item",
-        onAuthorized: () => {
-          setVoidConfirmState({
-            isOpen: true,
-            uniqueId,
-            productName: item.product?.name || `Product #${item.productId}`,
-            onConfirmed: () => {
-              const unitId = item.product?.unitId || 1;
-              const mapId = item.mapId || 0;
-              addVoidProduct({
-                productId: item.productId,
-                productName: item.product?.name || `Product #${item.productId}`,
-                unitId,
-                qty: item.quantity,
-                amount: Number(((item.price || 0) * item.quantity).toFixed(decimalPart)),
-                mapId,
-              });
+  const checkoutFlow = usePosCheckoutFlow({
+    status,
+    cartDetails: terminal.cartDetails,
+    activeProvider,
+    editingOrderId: terminal.editingOrderId,
+    editingSaleId,
+    isCartModified,
+    subtotal: terminal.subtotal,
+    totalDiscountAmount: terminal.discount,
+    totalServiceCharge: 0,
+    totalVat: terminal.tax,
+    total: terminal.total,
+    deliveryCharge,
+    tenderOptions: terminal.tenderOptions,
+    decimalPart,
+    submitOrder: terminal.submitOrder,
+    getDirectSettleOrderPayload: terminal.getDirectSettleOrderPayload,
+    requestAuthorization,
+    showToast,
+    handleClearCart,
+    setIsCashModalOpen: modals.setIsCashModalOpen,
+    setIsMultiPayModalOpen: modals.setIsMultiPayModalOpen,
+    setSelectedKey,
+    setSelectedProduct,
+    setAlternatives,
+    setActiveProvider,
+    setChange: terminal.setChange,
+    getRuntimePosConfig,
+  });
 
-              // Add modifiers/extras to voidModifiers
-              const allModifiers = [
-                ...(item.extras || []),
-                ...(item.modifiers || [])
-              ];
+  const discountFlow = usePosDiscountFlow({
+    cartDetails: terminal.cartDetails,
+    subtotal: terminal.subtotal,
+    billDiscountValue,
+    itemCount: terminal.itemCount,
+    selectedKey,
+    setBillDiscount: terminal.setBillDiscount,
+    setItemDiscount: terminal.setItemDiscount,
+    showToast,
+  });
 
-              allModifiers.forEach((mod) => {
-                const modPrice = (mod as any).price || 0;
-                addVoidModifier({
-                  mapId,
-                  modifierId: mod.id,
-                  qty: mod.qty,
-                  amount: Number((modPrice * mod.qty).toFixed(decimalPart)),
-                  typeId: (mod as any).typeId || 1
-                });
-              });
+  const handleApplyPrice = (val: string) => {
+    const num = parseFloat(val);
+    if (!isNaN(num) && selectedKey) {
+      if (num === 0) {
+        showToast("Price cannot be zero. Use Item Complimentary.", "error");
+        return;
+      }
+      terminal.updateItemPrice(selectedKey, num);
+      modals.setIsPriceModalOpen(false);
+    }
+  };
 
-              removeItem(uniqueId);
-              if (selectedKey === uniqueId) {
-                setSelectedKey(null);
-              }
-              showToast(`Voided ${item.product?.name || `Product #${item.productId}`}`, "success");
-            }
-          });
-        },
-      });
-    } else {
-      removeItem(uniqueId);
-      if (selectedKey === uniqueId) {
+  const handlePriceModalClose = () => {
+    modals.setIsPriceModalOpen(false);
+    if (selectedKey) {
+      const currentItem = terminal.cartDetails.find((item) => item.uniqueId === selectedKey);
+      if (currentItem && (currentItem.price === 0 || currentItem.price === undefined) && !(currentItem.discountType === 'percentage' && currentItem.discountValue === 100)) {
+        terminal.removeItem(selectedKey);
         setSelectedKey(null);
       }
     }
   };
 
-  const handleDecrementItem = (uniqueId: string) => {
-    const item = cartDetails.find((i) => i.uniqueId === uniqueId);
-    if (!item) return;
+  const handleItemComplimentary = () => {
+    if (!selectedKey) {
+      showToast("Please select an item first", "error");
+      return;
+    }
+    terminal.setItemDiscount(selectedKey, 100, 'percentage');
+    showToast("Item marked as complimentary", "success");
+  };
 
-    if (editingOrderId && item.isExisting) {
-      if (item.quantity === 1) {
-        handleRemoveItem(uniqueId);
-        return;
-      }
+  const handleBillComplimentary = () => {
+    if (terminal.cartDetails.length === 0) {
+      showToast("Cart is empty", "error");
+      return;
+    }
+    terminal.setBillDiscount(100, 'percentage');
+    showToast("Bill marked as complimentary", "success");
+  };
 
-      requestAuthorization({
-        actionLabel: "Void Item",
-        onAuthorized: () => {
-          const unitId = item.product?.unitId || 1;
-          const mapId = item.mapId || 0;
-          
-          addVoidProduct({
-            productId: item.productId,
-            productName: item.product?.name || `Product #${item.productId}`,
-            unitId,
-            qty: 1,
-            amount: Number((item.price || 0).toFixed(decimalPart)),
-            mapId,
+  const handleApplyQty = (value: string) => {
+    const numValue = parseInt(value, 10);
+    if (isNaN(numValue) || numValue < 1) return;
+
+    if (selectedKey) {
+      const item = terminal.cartDetails.find((i) => i.uniqueId === selectedKey);
+      if (item && terminal.editingOrderId && item.isExisting) {
+        if (numValue < item.quantity) {
+          requestAuthorization({
+            actionLabel: "Void Item Qty",
+            onAuthorized: () => {
+              const diff = item.quantity - numValue;
+              const unitId = item.product?.unitId || 1;
+              const mapId = item.mapId || 0;
+              
+              terminal.addVoidProduct({
+                productId: item.productId,
+                productName: item.product?.name || `Product #${item.productId}`,
+                unitId,
+                qty: diff,
+                amount: Number(((item.price || 0) * diff).toFixed(decimalPart)),
+                mapId,
+              });
+
+              terminal.updateItemQty(selectedKey, numValue);
+              showToast(`Reduced quantity for ${item.product?.name || `Product #${item.productId}`} by ${diff}`, "success");
+            },
           });
+          modals.setIsQtyModalOpen(false);
+          return;
+        }
+      }
+      terminal.updateItemQty(selectedKey, numValue);
+    }
+    modals.setIsQtyModalOpen(false);
+  };
 
-          decrementItem(uniqueId);
-          showToast(`Decremented quantity for ${item.product?.name || `Product #${item.productId}`}`, "success");
-        },
-      });
+  const initialSelections = useMemo(() => {
+    if (!currentSelectedItem) return [];
+    return extrasModifierType === 'extras'
+      ? (currentSelectedItem.extras || [])
+      : (currentSelectedItem.modifiers || []);
+  }, [currentSelectedItem, extrasModifierType]);
+
+  const openPriceModal = () => {
+    if (!selectedKey) return;
+    modals.setIsPriceModalOpen(true);
+  };
+
+  const openQtyModal = () => {
+    if (!selectedKey) return;
+    modals.setIsQtyModalOpen(true);
+  };
+
+  const stableSetCategory = useEvent((id: string) => {
+    const parsedId = parseInt(id, 10);
+    if (parsedId !== terminal.activeCategoryId) {
+      terminal.setCategory(parsedId);
     } else {
-      decrementItem(uniqueId);
-    }
-  };
-
-  // Handle Order Submission
-  const submitOrderForEmployee = async (employeeId: number, shouldPrint: boolean = true) => {
-    if (!status) return;
-    const orderId = await submitOrder({
-      dayId: status.dayId,
-      shiftId: status.shiftId,
-      userId: status.userId,
-      employeeId,
-      providerId: activeProvider?.provider.providerId,
-      providerOrderNo: activeProvider?.orderNo,
-    }, shouldPrint);
-    if (orderId) {
-      setSelectedKey(null);
-      setSelectedProduct(null);
+      terminal.setSubCategory(null);
       setAlternatives([]);
-      setActiveProvider(null);
-      setIsCashModalOpen(false);
-      setIsMultiPayModalOpen(false);
+      setSelectedProduct(null);
     }
-  };
+  });
 
-  // Handle Settlement Completion (Actual Flow - DIRECT SETTLE)
-  const submitSettlementForEmployee = async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
-    if (!status) return;
-    
-    const orderPayload = getDirectSettleOrderPayload({
-      employeeId,
-      providerOrderNo: activeProvider?.orderNo,
-    });
+  const stableOnLongPress = useEvent((id: number) => {
+    modals.setSelectedProductToLock(String(id));
+    modals.setIsLockItemModalOpen(true);
+  });
 
-    const isOrderEdited = !editingOrderId || isCartModified;
-
-    try {
-      const salesPayload: any = {
-        seriesId: 1,
-        prefix: "",
-        customerId: orderPayload.customerId,
-        paymodeId: payments.length > 1 ? 3 : (payments.length > 0 ? payments[0].paymodeId : 1),
-        employeeId: orderPayload.employeeId,
-        dayId: status.dayId,
-        shiftId: status.shiftId,
-        orderTypeId: orderPayload.orderTypeId,
-        androidStatus: false,
-        saleId: editingSaleId || 0,
-        orderId: orderPayload.orderId,
-        orderMaster: {
-          isOrderEdited,
-          sectionId: orderPayload.sectionId,
-          tableId: orderPayload.tableId,
-          guestNo: orderPayload.guestNo,
-          vehicleCustomerName: orderPayload.vehicleCustomerName,
-          vehicleNo: orderPayload.vehicleNo,
-          addressId: orderPayload.addressId,
-          missedCall: orderPayload.missedCall,
-          contactNo: orderPayload.contactNo,
-          note: orderPayload.note,
-          change: orderPayload.change,
-          isComing: orderPayload.isComing,
-          comingTime: orderPayload.comingTime,
-          providerNo: orderPayload.providerNo,
-        },
-        combinedOrderIds: orderPayload.combinedOrderIds,
-        modifiers: orderPayload.modifiers,
-        voidProducts: orderPayload.voidProducts,
-        voidModifiers: orderPayload.voidModifiers,
-        voucherDate: new Date().toISOString(),
-        discAmount: orderPayload.discAmount,
-        discPer: orderPayload.discPer,
-        serviceCharge: orderPayload.serviceCharge,
-        levy: orderPayload.levy,
-        vatExclAmount: orderPayload.vatExclAmount,
-        vatAmount: orderPayload.vatAmount,
-        netAmount: orderPayload.netAmount,
-        deliveryCharge: orderPayload.deliveryCharge,
-        createdAt: new Date().toISOString(),
-        details: orderPayload.details.map((d: any) => ({
-          productId: d.productId,
-          unitId: d.unitId,
-          vatId: d.vatId,
-          qty: d.qty,
-          price: d.price,
-          discPer: d.discPer,
-          discAmount: d.discAmount,
-          serviceCharge: d.serviceCharge,
-          levy: d.levy,
-          vatAmount: d.vatAmount,
-          netAmount: d.netAmount,
-          baseQty: d.baseQty,
-          mapId: d.mapId,
-          complimentaryStatus: d.complimentaryStatus || false
-        })),
-        paymodes: payments
-      };
-
-      let success = false;
-      let newSaleId: number | null = null;
-      if (editingSaleId) {
-        success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
-      } else {
-        newSaleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
-        success = !!newSaleId;
-      }
-
-      if (success) {
-        setIsCashModalOpen(false);
-        setIsMultiPayModalOpen(false);
-        
-        // Prepare print payload from frontend state
-        const finalSaleId = newSaleId || editingSaleId || 0;
-        const now = new Date();
-        const paymentNames: Record<number, string> = { 1: "Cash", 2: "Card", 3: "Credit" };
-        const orderTypesMap: Record<number, string> = {
-          1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU", 4: "DELIVERY", 5: "PROVIDERS", 6: "COMING"
-        };
-        const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || "DINE IN";
-        
-        const printPayloadObj = {
-          mappedItems: cartDetails,
-          printData: {
-            orderNo: finalSaleId.toString(),
-            ticketNo: finalSaleId.toString(),
-            waiter: String(employeeId),
-            counter: "Main",
-            section: orderPayload.sectionId ? String(orderPayload.sectionId) : mappedOrderType,
-            table: orderPayload.tableId ? String(orderPayload.tableId) : "",
-            orderType: mappedOrderType,
-            date: now.toLocaleDateString('en-GB'),
-            time: now.toLocaleTimeString('en-US'),
-            customerName: orderPayload.vehicleCustomerName || "",
-            vehicleNo: orderPayload.vehicleNo || "",
-            contactNo: orderPayload.contactNo || "",
-            flatNo: orderPayload.addressId ? "" : "", // we might not have detailed address flatNo in local state if it's just addressId, but we can try
-            subTotal: orderPayload.vatExclAmount,
-            deliveryCharge: orderPayload.deliveryCharge || 0,
-            serviceCharge: orderPayload.serviceCharge || 0,
-            levy: orderPayload.levy || 0,
-            vatAmount: orderPayload.vatAmount || 0,
-            netAmount: orderPayload.netAmount || 0,
-            enableVat: (readStoredPosConfig() as any)?.enableVat === true,
-            payments: payments.map(p => ({ name: paymentNames[p.paymodeId] || "Payment", amount: p.amount })),
-            changeAmount: Number(orderPayload.change) || 0,
-            isSettlement: true
-          }
-        };
-
-        setSettledPrintPayload(printPayloadObj);
-        finalizeSettlement(settleShouldPrintRef.current, printPayloadObj);
-      } else {
-        throw new Error("Invalid sales response");
-      }
-    } catch (err: any) {
-      showToast(err.message || "Failed to save sales invoice", "error");
-    }
-  };
-
-  const finalizeSettlement = async (shouldPrint: boolean, payloadToPrint?: any) => {
-    const payload = payloadToPrint || settledPrintPayload;
-    if (shouldPrint && payload) {
-      showToast("Printing receipt...", "info");
-      try {
-        const { printerSettingsApi } = await import("../../services/printerSettingsApi");
-        const { printHtmlReceipt } = await import("../../services/qzService");
-        const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
-        
-        let targetPrinter: string | undefined;
-        try {
-          const printerSettingsResponse = await printerSettingsApi.getGeneral();
-          targetPrinter = printerSettingsResponse?.data?.billPrinter;
-        } catch {}
-
-        // Determine enableVat dynamically based on configs
-        const getVatStatus = (): boolean => {
-          try {
-            const saved = localStorage.getItem('posConfigs');
-            const full = saved ? JSON.parse(saved) : {};
-            return full?.configs?.VatStatus === true;
-          } catch {
-            return false;
-          }
-        };
-        const enableVat = getVatStatus();
-        payload.printData.enableVat = enableVat;
-
-        const html = generateGuestPrintHtml(payload.mappedItems, payload.printData);
-        await printHtmlReceipt(html, targetPrinter);
-      } catch (printErr: any) {
-        console.error("Settled print failed:", printErr);
-        showToast("Order settled, but printing failed", "warning");
-      }
-    }
-    showToast("Sales saved successfully", "success");
-    handleClearCart();
-    setSettledPrintPayload(null);
-  };
-
-  // Handle Completing Settlement for Cash or Multi-pay
-  const handleCompleteSettlement = async (payments: { paymodeId: number, amount: number }[], changeAmount: number) => {
-    setChange(changeAmount.toFixed(decimalPart));
-
-    if (!status) return;
-
-    let config: RuntimePosConfig | null = null;
-    try {
-      config = await getRuntimePosConfig();
-    } catch {
-      showToast("Unable to load POS configuration", "error");
-      return;
-    }
-
-    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
-    const defaultEmployeeId = Number(config?.employeeId ?? 0);
-
-    if (defaultEmployeeEnabled) {
-      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
-        showToast("Default employee is not configured", "error");
-        return;
-      }
-
-      submitSettlementForEmployee(defaultEmployeeId, payments);
-      return;
-    }
-
-    requestAuthorization({
-      actionLabel: "Settlement",
-      onAuthorized: (employeeId) => submitSettlementForEmployee(employeeId, payments),
-    });
-  };
-
-  // Handle Card or Credit Settlement
-  const handleCardCreditSettlement = async () => {
-    setChange("");
-
-    if (!status) return;
-
-    let config: RuntimePosConfig | null = null;
-    try {
-      config = await getRuntimePosConfig();
-    } catch {
-      showToast("Unable to load POS configuration", "error");
-      return;
-    }
-
-    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
-    const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const payments = [{ paymodeId: Number(selectedTender), amount: total }];
-
-    if (defaultEmployeeEnabled) {
-      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
-        showToast("Default employee is not configured", "error");
-        return;
-      }
-
-      submitSettlementForEmployee(defaultEmployeeId, payments);
-      return;
-    }
-
-    requestAuthorization({
-      actionLabel: "Settlement",
-      onAuthorized: (employeeId) => submitSettlementForEmployee(employeeId, payments),
-    });
-  };
-
-  // Handle Order Settlement
   const handleSettle = (shouldPrint: boolean) => {
-    if (itemCount === 0) {
+    if (terminal.itemCount === 0) {
       showToast("Cart is empty", "warning");
       return;
     }
     
-    settleShouldPrintRef.current = shouldPrint;
-    
-    const selectedMode = tenderOptions.find(t => t.id === selectedTender)?.label?.toLowerCase() || '';
+    checkoutFlow.settleShouldPrintRef.current = shouldPrint;
+    const selectedMode = terminal.tenderOptions.find(t => t.id === selectedTender)?.label?.toLowerCase() || '';
     
     if (selectedMode.includes("cash")) {
-      setIsCashModalOpen(true);
+      modals.setIsCashModalOpen(true);
     } else if (selectedMode.includes("multi")) {
-      setIsMultiPayModalOpen(true);
+      modals.setIsMultiPayModalOpen(true);
     } else {
-      // For Card or Credit, handle card/credit settlement (dummy flow)
-      handleCardCreditSettlement();
+      checkoutFlow.handleCardCreditSettlement();
     }
   };
 
-  // Handle Order Submission
   const handleOrder = async (shouldPrint: boolean) => {
-    if (itemCount === 0) {
+    if (terminal.itemCount === 0) {
       showToast("Cart is empty", "warning");
       return;
     }
-
     if (!status) return;
 
     let config: RuntimePosConfig | null = null;
@@ -665,24 +341,25 @@ export const PosTerminalPage = () => {
         showToast("Default employee is not configured", "error");
         return;
       }
-
-      await submitOrderForEmployee(defaultEmployeeId, shouldPrint);
+      await checkoutFlow.submitOrderForEmployee(defaultEmployeeId, shouldPrint);
       return;
     }
 
     requestAuthorization({
       actionLabel: "Order",
-      onAuthorized: (empId) => submitOrderForEmployee(empId, shouldPrint),
+      onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
     });
   };
 
-  // Handle product click - check for alternatives
+  const stableHandleOrder = useEvent((print: boolean) => handleOrder(print));
+  const stableHandleSettle = useEvent((print: boolean) => handleSettle(print));
+
   const handleProductSelect = async (productId: number) => {
-    const product = visibleProducts.find(p => p.id === productId);
+    const product = terminal.visibleProducts.find(p => p.id === productId);
     if (!product) return;
 
     if (!product.hasAlternatives) {
-      const safeOrderTypeId = selectedOrderTypeId || 1;
+      const safeOrderTypeId = terminal.selectedOrderTypeId || 1;
       const cacheKey = `${productId}-${safeOrderTypeId}`;
       let cachedData = productDataCache[cacheKey];
 
@@ -719,16 +396,15 @@ export const PosTerminalPage = () => {
         }
       }
 
-      const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
+      const newKey = terminal.addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
       setSelectedKey(newKey);
       if (targetPrice === 0) {
-        setIsPriceModalOpen(true);
+        modals.setIsPriceModalOpen(true);
       }
       return;
     }
 
-    // It has alternatives, fetch them
-    const safeOrderTypeId = selectedOrderTypeId || 1;
+    const safeOrderTypeId = terminal.selectedOrderTypeId || 1;
     const altsCacheKey = `${productId}-${safeOrderTypeId}`;
     const cachedAlts = alternativesCache[altsCacheKey];
 
@@ -744,7 +420,6 @@ export const PosTerminalPage = () => {
           setAlternatives(alts);
           setSelectedProduct(product);
         } else {
-          // Fallback if backend lied about hasAlternatives
           let isIncl = product.isIncl;
           let targetPrice = product.price ?? 0;
           let promoPrice: number | undefined = undefined;
@@ -778,10 +453,10 @@ export const PosTerminalPage = () => {
             }
           }
 
-          const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
+          const newKey = terminal.addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
           setSelectedKey(newKey);
           if (targetPrice === 0) {
-            setIsPriceModalOpen(true);
+            modals.setIsPriceModalOpen(true);
           }
         }
       } catch {
@@ -818,8 +493,11 @@ export const PosTerminalPage = () => {
           }
         }
 
-        const newKey = addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
+        const newKey = terminal.addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
         setSelectedKey(newKey);
+        if (targetPrice === 0) {
+          modals.setIsPriceModalOpen(true);
+        }
       } finally {
         setFetchingAlts(false);
       }
@@ -843,7 +521,7 @@ export const PosTerminalPage = () => {
         }
       }
 
-      const newKey = addProduct(
+      const newKey = terminal.addProduct(
         selectedProduct.id,
         variant.altName,
         variant.price,
@@ -853,7 +531,7 @@ export const PosTerminalPage = () => {
       );
       setSelectedKey(newKey);
       if (variant.price === 0) {
-        setIsPriceModalOpen(true);
+        modals.setIsPriceModalOpen(true);
       }
     }
   };
@@ -863,11 +541,10 @@ export const PosTerminalPage = () => {
       setAlternatives([]);
       setSelectedProduct(null);
     } else {
-      setSubCategory(null);
+      terminal.setSubCategory(null);
     }
   };
 
-  // 1. Hardware Barcode Scanner Integration
   useBarcodeScanner(async (barcode) => {
     const cachedProducts = Object.values(productCache || {});
     const product = cachedProducts.find((p) => p.sku?.toLowerCase() === barcode.toLowerCase());
@@ -875,7 +552,7 @@ export const PosTerminalPage = () => {
     if (!product) return;
 
     if (product.hasAlternatives) {
-      const safeOrderTypeId = selectedOrderTypeId || 1;
+      const safeOrderTypeId = terminal.selectedOrderTypeId || 1;
       const altsCacheKey = `${product.id}-${safeOrderTypeId}`;
       const cachedAlts = alternativesCache[altsCacheKey];
 
@@ -898,207 +575,19 @@ export const PosTerminalPage = () => {
         }
       }
     } else {
-      const newKey = await addProductBySku(barcode, selectedOrderTypeId || 1);
+      const newKey = await terminal.addProductBySku(barcode, terminal.selectedOrderTypeId || 1);
       if (newKey) {
         setSelectedKey(newKey);
       }
     }
   });
 
-  // 2. Keyboard Hotkeys
   usePosShortcuts({
     onClearCart: handleClearCart,
     onHoldTicket: () => {},
     onCheckout: () => {}
   });
 
-  const handleApplyDiscount = (value: string) => {
-    const numValue = parseFloat(value);
-    const finalValue = isNaN(numValue) ? 0 : numValue;
-
-    const itemTotalDiscount = cartDetails.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
-    const remainingSubtotal = Math.max(0, subtotal - itemTotalDiscount);
-
-    if (discountType === 'bill') {
-      let proposedBillDiscount = 0;
-      if (discountMode === 'percentage') {
-        if (finalValue > 100) {
-          showToast("Discount percentage cannot exceed 100%", "error");
-          return;
-        }
-        proposedBillDiscount = (subtotal * finalValue) / 100;
-      } else {
-        proposedBillDiscount = finalValue;
-      }
-
-      if (proposedBillDiscount > remainingSubtotal) {
-        const limitMsg = discountMode === 'percentage'
-          ? `Discount percentage would exceed the remaining bill subtotal (${formatCurrency(remainingSubtotal)})`
-          : `Discount amount cannot exceed the remaining bill subtotal (${formatCurrency(remainingSubtotal)})`;
-        showToast(limitMsg, "error");
-        return;
-      }
-      
-      if (itemTotalDiscount > 0) {
-        setBillDiscountConfirmState({ isOpen: true, value: finalValue, mode: discountMode });
-        setDiscountStep('none');
-        return;
-      }
-      setBillDiscount(finalValue, discountMode);
-    } else if (selectedKey) {
-      const currentItem = cartDetails.find((item) => item.uniqueId === selectedKey);
-      if (currentItem) {
-        if (discountMode === 'percentage') {
-          if (finalValue > 100) {
-            showToast("Discount percentage cannot exceed 100%", "error");
-            return;
-          }
-        } else {
-          if (finalValue > currentItem.amount) {
-            showToast(`Discount amount cannot exceed the item amount (${formatCurrency(currentItem.amount)})`, "error");
-            return;
-          }
-        }
-      }
-      setItemDiscount(selectedKey, finalValue, discountMode);
-    }
-    setDiscountStep('none');
-  };
-
-  const handleApplyPrice = (val: string) => {
-    const num = parseFloat(val);
-    if (!isNaN(num) && selectedKey) {
-      if (num === 0) {
-        showToast("Price cannot be zero. Use Item Complimentary.", "error");
-        return;
-      }
-      updateItemPrice(selectedKey, num);
-      setIsPriceModalOpen(false);
-    }
-  };
-
-  const handlePriceModalClose = () => {
-    setIsPriceModalOpen(false);
-    if (selectedKey) {
-      const currentItem = cartDetails.find((item) => item.uniqueId === selectedKey);
-      if (currentItem && (currentItem.price === 0 || currentItem.price === undefined) && !(currentItem.discountType === 'percentage' && currentItem.discountValue === 100)) {
-        removeItem(selectedKey);
-        setSelectedKey(null);
-      }
-    }
-  };
-
-  const handleItemComplimentary = () => {
-    if (!selectedKey) {
-      showToast("Please select an item first", "error");
-      return;
-    }
-    setItemDiscount(selectedKey, 100, 'percentage');
-    showToast("Item marked as complimentary", "success");
-  };
-
-  const handleBillComplimentary = () => {
-    if (cartDetails.length === 0) {
-      showToast("Cart is empty", "error");
-      return;
-    }
-    setBillDiscount(100, 'percentage');
-    showToast("Bill marked as complimentary", "success");
-  };
-
-  const handleApplyQty = (value: string) => {
-    const numValue = parseInt(value, 10);
-    if (isNaN(numValue) || numValue < 1) return;
-
-    if (selectedKey) {
-      const item = cartDetails.find((i) => i.uniqueId === selectedKey);
-      if (item && editingOrderId && item.isExisting) {
-        if (numValue < item.quantity) {
-          requestAuthorization({
-            actionLabel: "Void Item Qty",
-            onAuthorized: () => {
-              const diff = item.quantity - numValue;
-              const unitId = item.product?.unitId || 1;
-              const mapId = item.mapId || 0;
-              
-              addVoidProduct({
-                productId: item.productId,
-                productName: item.product?.name || `Product #${item.productId}`,
-                unitId,
-                qty: diff,
-                amount: Number(((item.price || 0) * diff).toFixed(decimalPart)),
-                mapId,
-              });
-
-              updateItemQty(selectedKey, numValue);
-              showToast(`Reduced quantity for ${item.product?.name || `Product #${item.productId}`} by ${diff}`, "success");
-            },
-          });
-          setIsQtyModalOpen(false);
-          return;
-        }
-      }
-      updateItemQty(selectedKey, numValue);
-    }
-    setIsQtyModalOpen(false);
-  };
-
-  const currentSelectedItem = useMemo(() => {
-    if (!selectedKey) return null;
-    return cartDetails.find((item) => item.uniqueId === selectedKey);
-  }, [selectedKey, cartDetails]);
-
-  const initialSelections = useMemo(() => {
-    if (!currentSelectedItem) return [];
-    return extrasModifierType === 'extras'
-      ? (currentSelectedItem.extras || [])
-      : (currentSelectedItem.modifiers || []);
-  }, [currentSelectedItem, extrasModifierType]);
-
-  const openPriceModal = () => {
-    if (!selectedKey) return;
-    setIsPriceModalOpen(true);
-  };
-
-  const openQtyModal = () => {
-    if (!selectedKey) return;
-    setIsQtyModalOpen(true);
-  };
-
-  const openDiscountChoice = () => {
-    if (itemCount === 0) return;
-    setDiscountStep('choice');
-  };
-
-  const openDiscountInput = (type: 'bill' | 'item') => {
-    if (type === 'item' && billDiscountValue > 0) {
-        showToast("Cannot apply item discounts while a bill discount is active", "warning");
-        return;
-    }
-    setDiscountType(type);
-    setDiscountStep('value');
-  };
-
-  const stableSetCategory = useEvent((id: string) => {
-    const parsedId = parseInt(id, 10);
-    if (parsedId !== activeCategoryId) {
-      setCategory(parsedId);
-    } else {
-      setSubCategory(null);
-      setAlternatives([]);
-      setSelectedProduct(null);
-    }
-  });
-
-  const stableOnLongPress = useEvent((id: number) => {
-    setSelectedProductToLock(String(id));
-    setIsLockItemModalOpen(true);
-  });
-
-  const stableHandleOrder = useEvent((print: boolean) => handleOrder(print));
-  const stableHandleSettle = useEvent((print: boolean) => handleSettle(print));
-
-  // Loading state
   if (isLoading && !status) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[#fcf9fb]">
@@ -1117,481 +606,222 @@ export const PosTerminalPage = () => {
   return (
     <div className="flex h-dvh flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
       <PosTopNav 
-        onDelivery={() => setIsDeliveryModalOpen(true)}
-        onDriveThrough={() => setIsDriveThroughModalOpen(true)}
-        onProvider={() => setIsProviderModalOpen(true)}
+        onDelivery={() => modals.setIsDeliveryModalOpen(true)}
+        onDriveThrough={() => modals.setIsDriveThroughModalOpen(true)}
+        onProvider={() => modals.setIsProviderModalOpen(true)}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
-            setIsLogoutConfirmOpen(true);
+            modals.setIsLogoutConfirmOpen(true);
           } else {
             navigate("/cashier/out");
           }
         }}
         status={status}
-        orderTypes={orderTypes}
-        selectedOrderTypeId={selectedOrderTypeId}
-        onSelectOrderType={(type) => setSelectedOrderType(type.orderTypeId, type.orderType)}
+        orderTypes={terminal.orderTypes}
+        selectedOrderTypeId={terminal.selectedOrderTypeId}
+        onSelectOrderType={(type) => terminal.setSelectedOrderType(type.orderTypeId, type.orderType)}
         activeProvider={activeProvider}
       />
       
       <div className="flex-1 flex overflow-hidden">
-        
-        {/* Left Side: Tabs + Categories + Grid */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          
           <div className="flex flex-col md:flex-row md:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-3 lg:pl-4 xl:pl-6 pr-3">
             <div className="shrink-0">
-          <PosGroupTabs 
-            groups={groups} 
-            activeGroupId={activeGroupId} 
-            onSelect={(id) => {
-              if (id !== activeGroupId) {
-                setGroup(id);
-              }
-            }} 
-          />
-        </div>
-        
-        <div className="flex-1 flex items-center justify-end py-2 md:py-1">
-          <div className="relative w-full max-w-xs group">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              autoFocus={window.innerWidth >= 768}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-10 text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-1 focus:ring-[#f37021]/20 transition-all outline-none"
-            />
-          </div>
-        </div>
-      </div>
-
-      {fetchingAlts && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
-            <p className="text-xs font-bold text-[#49293e] uppercase tracking-widest">
-              Fetching Variations...
-            </p>
-          </div>
-        </div>
-      )}
-
-      <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]">
-        {/* Left Column: Categories */}
-        <PosCategoryRail
-          categories={categories}
-          activeCategoryId={activeCategoryId ? activeCategoryId.toString() : ""}
-          onSelect={stableSetCategory}
-        />
-
-        {/* Middle Column: Grid */}
-        <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb] relative">
-          <div className="flex-1 flex flex-col overflow-hidden relative">
-            <ErrorBoundary name="Product Grid">
-              <PosProductGrid
-                products={visibleProducts}
-                subCategories={subCategories}
-                alternatives={alternatives}
-                activeSubCategoryId={activeSubCategoryId}
-                onSelectSubCategory={setSubCategory}
-                onBack={handleGridBack}
-                onAdd={handleProductSelect}
-                onSelectAlt={handleAltSelect}
-                onLongPress={stableOnLongPress}
-                categoryName={activeCategory?.name}
-                subCategoryName={activeSubCategory?.subCategoryName}
-                selectedProduct={selectedProduct}
+              <PosGroupTabs 
+                groups={terminal.groups} 
+                activeGroupId={terminal.activeGroupId} 
+                onSelect={(id) => {
+                  if (id !== terminal.activeGroupId) {
+                    terminal.setGroup(id);
+                  }
+                }} 
               />
-            </ErrorBoundary>
+            </div>
+            
+            <div className="flex-1 flex items-center justify-end py-2 md:py-1">
+              <div className="relative w-full max-w-xs group">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  autoFocus={window.innerWidth >= 768}
+                  value={terminal.search}
+                  onChange={(e) => terminal.setSearch(e.target.value)}
+                  placeholder="Search by name..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-10 text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-1 focus:ring-[#f37021]/20 transition-all outline-none"
+                />
+              </div>
+            </div>
+          </div>
 
-            {/* Mobile Floating Cart Button */}
-            {!isCartOpen && (
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="xl:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                  <path d="M3 6h18" />
-                  <path d="M16 10a4 4 0 0 1-8 0" />
-                </svg>
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#fcf9fb]">
-                    {itemCount}
-                  </span>
+          {fetchingAlts && (
+            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
+                <p className="text-xs font-bold text-[#49293e] uppercase tracking-widest">
+                  Fetching Variations...
+                </p>
+              </div>
+            </div>
+          )}
+
+          <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]">
+            <PosCategoryRail
+              categories={terminal.categories}
+              activeCategoryId={terminal.activeCategoryId ? terminal.activeCategoryId.toString() : ""}
+              onSelect={stableSetCategory}
+            />
+
+            <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb] relative">
+              <div className="flex-1 flex flex-col overflow-hidden relative">
+                <ErrorBoundary name="Product Grid">
+                  <PosProductGrid
+                    products={terminal.visibleProducts}
+                    subCategories={terminal.subCategories}
+                    alternatives={alternatives}
+                    activeSubCategoryId={terminal.activeSubCategoryId}
+                    onSelectSubCategory={terminal.setSubCategory}
+                    onBack={handleGridBack}
+                    onAdd={handleProductSelect}
+                    onSelectAlt={handleAltSelect}
+                    onLongPress={stableOnLongPress}
+                    categoryName={activeCategory?.name}
+                    subCategoryName={activeSubCategory?.subCategoryName}
+                    selectedProduct={selectedProduct}
+                  />
+                </ErrorBoundary>
+
+                {!modals.isCartOpen && (
+                  <button
+                    onClick={() => modals.setIsCartOpen(true)}
+                    className="xl:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                      <path d="M3 6h18" />
+                      <path d="M16 10a4 4 0 0 1-8 0" />
+                    </svg>
+                    {terminal.itemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#fcf9fb]">
+                        {terminal.itemCount}
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
-          </div>
+              </div>
 
-          {/* Action Button Bar */}
-          <div className="grid grid-cols-7 gap-1 lg:gap-1.5 p-1 sm:p-1.5 lg:p-2 bg-white border-t border-slate-100 shrink-0">
-            <button
-              onClick={handleClearCart}
-              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
-              tabIndex={-1}
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => setIsCustomerModalOpen(true)}
-              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
-              tabIndex={-1}
-            >
-              Customer
-            </button>
-            <button className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5">
-              Waiter
-            </button>
-            <button
-              onClick={() => setIsSplitOpen(true)}
-              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 px-0.5"
-              disabled={!editingOrderId}
-            >
-              Split
-            </button>
-            <button
-              onClick={() => setIsCombineOpen(true)}
-              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 px-0.5"
-              disabled={!editingOrderId}
-            >
-              Combine
-            </button>
-            <button
-              onClick={() => {
-                requestAuthorization({
-                  actionLabel: "Recall",
-                  onAuthorized: () => setIsRecallModalOpen(true),
-                });
-              }}
-              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
-            >
-              Recall
-            </button>
-            <button
-              onClick={() => setIsMoreModalOpen(true)}
-              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
-            >
-              More
-            </button>
-          </div>
-          </div>
-        </main>
+              <PosActionButtons 
+                onClearCart={handleClearCart}
+                onCustomer={() => modals.setIsCustomerModalOpen(true)}
+                onWaiter={() => {}}
+                onSplit={() => modals.setIsSplitOpen(true)}
+                onCombine={() => modals.setIsCombineOpen(true)}
+                onRecall={() => {
+                  requestAuthorization({
+                    actionLabel: "Recall",
+                    onAuthorized: () => modals.setIsRecallModalOpen(true),
+                  });
+                }}
+                onMore={() => modals.setIsMoreModalOpen(true)}
+                isOrderEditing={!!terminal.editingOrderId}
+              />
+            </div>
+          </main>
+        </div>
+
+        <PosCartPanel
+          isCartOpen={modals.isCartOpen}
+          setIsCartOpen={modals.setIsCartOpen}
+          selectedKey={selectedKey}
+          cartDetails={terminal.cartDetails}
+          subtotal={terminal.subtotal}
+          discount={terminal.discount}
+          tax={terminal.tax}
+          charges={terminal.charges}
+          total={terminal.total}
+          totalExtras={terminal.totalExtras}
+          baseSubtotal={terminal.baseSubtotal}
+          deliveryCharge={deliveryCharge}
+          isDelivery={isDelivery}
+          isSettling={isSettling}
+          setSelectedKey={setSelectedKey}
+          incrementItem={terminal.incrementItem}
+          handleDecrementItem={voidFlow.handleDecrementItem}
+          handleRemoveItem={voidFlow.handleRemoveItem}
+          setExtrasModifierType={setExtrasModifierType}
+          showToast={showToast}
+          openQtyModal={openQtyModal}
+          handleOrder={stableHandleOrder}
+          handleSettle={stableHandleSettle}
+          orderLoading={terminal.orderLoading}
+          isSettledEdit={isSettledEdit}
+          selectedTender={selectedTender}
+          setSelectedTender={setSelectedTender}
+          setIsMultiPayModalOpen={modals.setIsMultiPayModalOpen}
+          setIsCashModalOpen={modals.setIsCashModalOpen}
+          setIsDeliveryChargeModalOpen={modals.setIsDeliveryChargeModalOpen}
+          tenderOptions={terminal.tenderOptions}
+          onPrice={openPriceModal}
+          onDiscount={discountFlow.openDiscountChoice}
+          onVoidOrder={() => modals.setIsVoidModalOpen(true)}
+          onMessage={() => alert("Message/Note functionality to be implemented")}
+          onCom={handleItemComplimentary}
+        />
       </div>
 
-      <PosCartPanel
-        isCartOpen={isCartOpen}
-        setIsCartOpen={setIsCartOpen}
+      <PosTerminalModals 
+        modals={modals}
+        dispatch={dispatch}
+        navigate={navigate}
+        showToast={showToast}
+        authorizationModalKey={authorizationModalKey}
+        authorizationModalProps={authorizationModalProps}
+        cartDetails={terminal.cartDetails}
         selectedKey={selectedKey}
-        cartDetails={cartDetails}
-        subtotal={subtotal}
-        discount={discount}
-        tax={tax}
-        charges={charges}
-        total={total}
-        totalExtras={totalExtras}
-        baseSubtotal={baseSubtotal}
-        deliveryCharge={deliveryCharge}
-        isDelivery={isDelivery}
-        isSettling={isSettling}
         setSelectedKey={setSelectedKey}
-        incrementItem={incrementItem}
-        handleDecrementItem={handleDecrementItem}
-        handleRemoveItem={handleRemoveItem}
-        setExtrasModifierType={setExtrasModifierType}
-        showToast={showToast}
-        openQtyModal={openQtyModal}
-        handleOrder={stableHandleOrder}
-        handleSettle={stableHandleSettle}
-        orderLoading={orderLoading}
-        isSettledEdit={isSettledEdit}
-        selectedTender={selectedTender}
-        setSelectedTender={setSelectedTender}
-        setIsMultiPayModalOpen={setIsMultiPayModalOpen}
-        setIsCashModalOpen={setIsCashModalOpen}
-        setIsDeliveryChargeModalOpen={setIsDeliveryChargeModalOpen}
-        tenderOptions={tenderOptions}
-        onPrice={openPriceModal}
-        onDiscount={openDiscountChoice}
-        onVoidOrder={() => setIsVoidModalOpen(true)}
-        onMessage={() => alert("Message/Note functionality to be implemented")}
-        onCom={handleItemComplimentary}
-      />
-    </div>
-
-      {/* Discount Choice Modal - Clean & Modern */}
-      <PosDiscountChoiceModal
-        isOpen={discountStep === 'choice'}
-        onClose={() => setDiscountStep('none')}
+        currentItem={currentSelectedItem}
+        currentSelectedItem={currentSelectedItem}
+        subtotal={terminal.subtotal}
+        total={terminal.total}
+        deliveryCharge={deliveryCharge}
         billDiscountValue={billDiscountValue}
-        selectedKey={selectedKey}
-        openDiscountInput={openDiscountInput}
-        showToast={showToast}
-      />
-
-      {/* Modern POS Discount Keypad - Elegant & Standard */}
-      <PosDiscountKeypadModal
-        isOpen={discountStep === 'value'}
-        onClose={() => setDiscountStep('none')}
-        discountType={discountType}
-        discountMode={discountMode}
-        setDiscountMode={setDiscountMode}
-        subtotal={subtotal}
-        currentItem={currentItem}
-        handleApplyDiscount={handleApplyDiscount}
-      />
-
-      {/* Modern POS Price Override Modal */}
-      <PosPriceKeypadModal
-        isOpen={isPriceModalOpen}
-        onClose={handlePriceModalClose}
-        currentSelectedItem={currentSelectedItem}
-        handleApplyPrice={handleApplyPrice}
-      />
-
-      {/* Modern POS Qty Override Modal */}
-      <PosQtyKeypadModal
-        isOpen={isQtyModalOpen}
-        onClose={() => setIsQtyModalOpen(false)}
-        currentSelectedItem={currentSelectedItem}
-        handleApplyQty={handleApplyQty}
-      />
-
-      {/* Extras & Modifiers Modal */}
-      <PosExtrasModifierModal
-        isOpen={extrasModifierType !== 'none'}
-        onClose={() => setExtrasModifierType('none')}
-        type={extrasModifierType === 'extras' ? 'extras' : 'modifiers'}
-        cartItems={cartDetails}
-        selectedKey={selectedKey}
-        onSelectRow={setSelectedKey}
+        openDiscountInput={discountFlow.openDiscountInput}
+        handleApplyDiscount={discountFlow.handleApplyDiscount}
+        handlePriceModalClose={handlePriceModalClose}
+        handleApplyPrice={handleApplyPrice as any}
+        handleApplyQty={handleApplyQty as any}
+        setItemCustomizations={terminal.setItemCustomizations}
+        handleItemComplimentary={handleItemComplimentary}
+        handleBillComplimentary={handleBillComplimentary}
+        handleClearCart={handleClearCart}
+        handleCompleteSettlement={checkoutFlow.handleCompleteSettlement}
+        resetTerminalState={resetTerminalState}
+        setActiveProvider={setActiveProvider}
+        refreshLockedProducts={terminal.refreshLockedProducts}
+        discountStep={discountFlow.discountStep}
+        setDiscountStep={discountFlow.setDiscountStep}
+        discountType={discountFlow.discountType}
+        discountMode={discountFlow.discountMode}
+        setDiscountMode={discountFlow.setDiscountMode}
+        extrasModifierType={extrasModifierType}
+        setExtrasModifierType={setExtrasModifierType}
         initialSelections={initialSelections}
-        onDone={(selections) => {
-          if (!selectedKey) return;
-
-          if (extrasModifierType === 'extras') {
-            setItemCustomizations(selectedKey, selections, currentSelectedItem?.modifiers);
-          } else {
-            setItemCustomizations(selectedKey, currentSelectedItem?.extras, selections);
-          }
-          setExtrasModifierType('none');
-        }}
+        voidConfirmState={voidFlow.voidConfirmState}
+        setVoidConfirmState={voidFlow.setVoidConfirmState}
+        billDiscountConfirmState={discountFlow.billDiscountConfirmState}
+        setBillDiscountConfirmState={discountFlow.setBillDiscountConfirmState}
+        setBillDiscount={terminal.setBillDiscount}
+        clearAllItemDiscounts={() => dispatch(clearAllItemDiscounts())}
+        setCustomDeliveryCharge={(val) => dispatch(setCustomDeliveryCharge(val))}
+        editingOrderId={terminal.editingOrderId}
+        selectedProviderForOrder={selectedProviderForOrder}
+        setSelectedProviderForOrder={setSelectedProviderForOrder}
+        orderLoading={terminal.orderLoading}
+        tenderOptions={terminal.tenderOptions}
       />
-
-      <PosMoreModal 
-        isOpen={isMoreModalOpen} 
-        onClose={() => setIsMoreModalOpen(false)} 
-        onCashierOut={() => {
-          setIsMoreModalOpen(false);
-          navigate("/cashier/out");
-        }}
-        onCustomerMaster={() => setIsCustomerModalOpen(true)}
-        onItemComplimentary={handleItemComplimentary}
-        onBillComplimentary={handleBillComplimentary}
-        onSettledOrders={() => setIsSettledAuthOpen(true)}
-        onReport={() => setIsReportModalOpen(true)}
-      />
-
-      <PosReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-      />
-
-      <PosCustomerModal
-        isOpen={isCustomerModalOpen}
-        onClose={() => setIsCustomerModalOpen(false)}
-      />
-      
-      <PosDeliveryModal
-        isOpen={isDeliveryModalOpen}
-        onClose={() => setIsDeliveryModalOpen(false)}
-      />
-
-      <PosDeliveryChargeModal
-        isOpen={isDeliveryChargeModalOpen}
-        onClose={() => setIsDeliveryChargeModalOpen(false)}
-        currentCharge={deliveryCharge}
-        onSelect={(charge) => dispatch(setCustomDeliveryCharge(charge))}
-      />
-
-      <PosDriveThroughModal
-        isOpen={isDriveThroughModalOpen}
-        onClose={() => setIsDriveThroughModalOpen(false)}
-      />
-
-      <PosRecallModal
-        isOpen={isRecallModalOpen}
-        onClose={() => setIsRecallModalOpen(false)}
-        onSettleSuccess={() => {
-          // Do not close the recall modal here so it stays in the background
-          setReturnToRecallOnCancel(true);
-          setIsMultiPayModalOpen(true);
-        }}
-      />
-
-      <PosSettledModal
-        isOpen={isSettledModalOpen}
-        onClose={() => setIsSettledModalOpen(false)}
-        onEditSuccess={() => setIsSettledModalOpen(false)}
-      />
-
-      <PosVoidModal 
-        isOpen={isVoidModalOpen}
-        onClose={() => setIsVoidModalOpen(false)}
-      />
-
-      <PosCombineModal
-        isOpen={isCombineOpen}
-        onClose={() => setIsCombineOpen(false)}
-      />
-
-      <PosSplitModal
-        isOpen={isSplitOpen}
-        onClose={() => setIsSplitOpen(false)}
-        orderId={editingOrderId || 0}
-        onSuccess={() => {
-          setIsSplitOpen(false);
-          handleClearCart();
-        }}
-      />
-
-      <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />
-
-      <ConfirmDialog
-        isOpen={isLogoutConfirmOpen}
-        onCancel={() => setIsLogoutConfirmOpen(false)}
-        onConfirm={() => navigate("/cashier/out")}
-        title="Confirm Exit"
-        message="Are you sure you want to exit the terminal? Your current session is still active."
-        confirmLabel="Logout"
-      />
-
-      <ConfirmDialog
-        isOpen={voidConfirmState.isOpen}
-        onCancel={() => setVoidConfirmState(prev => ({ ...prev, isOpen: false }))}
-        onConfirm={() => {
-          voidConfirmState.onConfirmed();
-          setVoidConfirmState(prev => ({ ...prev, isOpen: false }));
-        }}
-        title="Confirm Void"
-        message={`Are you sure you want to void "${voidConfirmState.productName}"?`}
-        confirmLabel="Void"
-        confirmVariant="danger"
-      />
-
-      <ConfirmDialog
-        isOpen={billDiscountConfirmState.isOpen}
-        title="Override Item Discounts?"
-        message="Applying a bill-level discount will remove all existing item-level discounts. Do you want to proceed?"
-        onConfirm={() => {
-          dispatch(clearAllItemDiscounts());
-          setBillDiscount(billDiscountConfirmState.value, billDiscountConfirmState.mode);
-          setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' });
-        }}
-        onCancel={() => setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' })}
-        confirmLabel="Override"
-        confirmVariant="danger"
-      />
-
-      <PosProviderModal 
-        isOpen={isProviderModalOpen} 
-        onClose={() => setIsProviderModalOpen(false)} 
-        onSelect={(provider) => {
-          setIsProviderModalOpen(false);
-          setSelectedProviderForOrder(provider);
-        }} 
-        onClear={() => {
-          setActiveProvider(null);
-        }}
-      />
-
-      <PosCashTenderModal
-        isOpen={isCashModalOpen}
-        onClose={() => setIsCashModalOpen(false)}
-        totalDue={total}
-        onSubmit={(_, changeAmount) => {
-          setIsCashModalOpen(false);
-          const cashPaymodeId = tenderOptions.find(t => t.label.toLowerCase().includes('cash'))?.id || tenderOptions[0]?.id;
-          handleCompleteSettlement([{ paymodeId: Number(cashPaymodeId), amount: total }], changeAmount);
-        }}
-        loading={orderLoading}
-      />
-
-      <PosMultiPayModal
-        isOpen={isMultiPayModalOpen}
-        onClose={() => {
-          setIsMultiPayModalOpen(false);
-          if (returnToRecallOnCancel) {
-            handleClearCart();
-            // Recall modal is already open in background, so we just return to it
-            setReturnToRecallOnCancel(false);
-          }
-        }}
-        totalDue={total}
-        onSubmit={(payments, changeAmount) => {
-          setIsMultiPayModalOpen(false);
-          if (returnToRecallOnCancel) {
-            // Settlement successful, so we close the background recall modal
-            setIsRecallModalOpen(false);
-            setReturnToRecallOnCancel(false);
-          }
-          const mappedPayments = payments.map(p => {
-            const matchedTender = tenderOptions.find(t => t.label.toLowerCase().includes(p.mode.toLowerCase()));
-            const id = matchedTender ? Number(matchedTender.id) : (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3);
-            return {
-              paymodeId: id,
-              amount: p.amount
-            };
-          });
-          handleCompleteSettlement(mappedPayments, changeAmount);
-        }}
-        loading={orderLoading}
-      />
-
-      <PosProviderOrderModal
-        isOpen={!!selectedProviderForOrder}
-        onClose={() => setSelectedProviderForOrder(null)}
-        provider={selectedProviderForOrder}
-        onSubmit={(orderNo) => {
-          if (selectedProviderForOrder) {
-            resetTerminalState();
-            setActiveProvider({ provider: selectedProviderForOrder, orderNo });
-            showToast(`${selectedProviderForOrder.providerName} order #${orderNo} started`, 'success');
-          }
-          setSelectedProviderForOrder(null);
-        }}
-      />
-
-      <EmployeePasswordModal
-        isOpen={isSettledAuthOpen}
-        onClose={() => setIsSettledAuthOpen(false)}
-        loading={false}
-        error={null}
-        onSubmit={(_password) => {
-          // Here we should actually validate the password if needed,
-          // but for now we just open the modal.
-          setIsSettledAuthOpen(false);
-          setIsSettledModalOpen(true);
-        }}
-      />
-
-      <LockItemModal 
-        isOpen={isLockItemModalOpen} 
-        onClose={() => {
-          setIsLockItemModalOpen(false);
-          setSelectedProductToLock(undefined);
-          refreshLockedProducts();
-        }}
-        initialProductId={selectedProductToLock}
-        onSuccess={() => refreshLockedProducts()}
-      />
-
     </div>
   );
 };

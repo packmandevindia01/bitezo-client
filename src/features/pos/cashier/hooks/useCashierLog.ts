@@ -1,47 +1,33 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   cashierLogService,
-  type CashierInStatus,
   type CashierStatusResponse,
 } from "../services/cashierLogService";
 
 export const useCashierLog = () => {
-  const [statusResponse, setStatusResponse] = useState<CashierStatusResponse | null>(null);
-  const [status, setStatus] = useState<CashierInStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+  const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
 
-  const checkStatus = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
-      const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
+  const { data, isLoading, error, refetch } = useQuery<CashierStatusResponse, Error>({
+    queryKey: ["cashierStatus", branchId, counterId],
+    queryFn: () => cashierLogService.checkStatus(branchId, counterId),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  });
 
-      const response = await cashierLogService.checkStatus(branchId, counterId);
-      setStatusResponse(response);
-      setStatus(response.cashierInStatus); // ← pull out the nested status
-    } catch (err: any) {
-      setError(err.message || "Failed to check cashier status");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void checkStatus();
-  }, [checkStatus]);
+  const status = data?.cashierInStatus ?? null;
+  const errorMsg = error ? (error.message || "Failed to check cashier status") : null;
 
   // Convenience derived values
   const isSessionOpen =
     status !== null && !status.isDayClosed && !status.isShiftClosed;
 
   return {
-    statusResponse,   // full response with tokens, company, user
+    statusResponse: data ?? null,   // full response with tokens, company, user
     status,           // just the cashierInStatus nested object
     isLoading,
-    error,
+    error: errorMsg,
     isSessionOpen,
-    refreshStatus: checkStatus,
+    refreshStatus: refetch,
   };
 };

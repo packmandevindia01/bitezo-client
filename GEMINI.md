@@ -736,3 +736,11 @@ Whenever we complete a feature, the AI MUST provide a summary answering these 6 
    - "What JavaScript/React concepts does this code use?"
    - "Is there a closure happening here? Where?"
    - "Where is 'this' keyword behavior relevant in this code?"
+
+---
+
+## 28. POS Terminal Architecture & Performance (Phase 5 Standard)
+- **No God Components:** The main POS Terminal page (`PosTerminalPage.tsx`) must remain a thin, elegant visual shell. All business logic, cart manipulation, modal state management, and data fetching MUST be extracted into custom domain hooks (e.g., `usePosCart`, `usePosModals`, `usePosDiscountFlow`).
+- **Lazy Loaded Modals:** Complex transaction modals (Split, Combine, Void, Modifiers) that are not immediately visible on first paint MUST be lazy-loaded (`React.lazy`) and wrapped in `<Suspense>`. This massively reduces the initial JS bundle size and improves rendering speed.
+- **React Query Deduplication:** Shared data hooks (like `useCashierLog`) that are called by multiple components simultaneously (Page, Guards, Modals, Hooks) MUST use `@tanstack/react-query` (`useQuery`). This ensures that 8 simultaneous hook calls are automatically deduplicated into **1 single network request**, caching the result instantly across the app to prevent UI freezing.
+- **Touch Target Optimization (Tab View):** The POS is often operated on tablets. Interactive icon buttons (especially modal close 'X' buttons) MUST have adequate touch padding (`p-2`), proper type attributes (`type="button"`), and stop event propagation (`e.stopPropagation()`) to guarantee touch reliability and prevent click-bleed.

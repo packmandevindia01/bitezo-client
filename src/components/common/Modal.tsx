@@ -96,10 +96,16 @@ useEffect(() => {
             <div className="flex items-center gap-2">
               {showClose && (
                 <button
-                  onClick={onClose}
-                  className="p-1 rounded hover:bg-gray-100 transition"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
+                  className="p-2 -mr-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  title="Close"
+                  aria-label="Close modal"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
               )}
             </div>
