@@ -149,10 +149,10 @@ const LockItemPage: React.FC = () => {
         
         {/* Form Section */}
         <div className="bg-white p-4 lg:p-6 rounded-2xl border border-slate-200 shadow-sm shrink-0">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-6 items-start">
+          <div className="flex flex-col md:flex-row gap-6 items-start">
             
             {/* Product Column */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-[200px] w-full">
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">
                 Select Product
               </label>
@@ -167,7 +167,7 @@ const LockItemPage: React.FC = () => {
             </div>
             
             {/* Lock Until Column */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-[250px] w-full">
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">
                 Lock Until
               </label>
@@ -220,8 +220,8 @@ const LockItemPage: React.FC = () => {
             </div>
 
             {/* Action Column */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-transparent ml-1">
+            <div className="flex flex-col gap-1.5 shrink-0 w-full md:w-auto">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-transparent ml-1 hidden md:block">
                 Action
               </label>
               <Button 

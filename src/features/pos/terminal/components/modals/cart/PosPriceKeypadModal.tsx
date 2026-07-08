@@ -31,7 +31,7 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
       onClose={onClose}
       noPadding
       showClose={false}
-      className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
+      className="w-[90vw] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
     >
       <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
         <h2 className="text-sm font-black uppercase tracking-[0.2em]">Manual Price</h2>
@@ -40,7 +40,7 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
         </button>
       </div>
 
-      <div className="bg-[#f8fafc] p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[85vh] overflow-y-auto">
+      <div className="bg-[#f8fafc] p-4 sm:p-5 space-y-4 sm:space-y-5 max-h-[85vh] overflow-y-auto scrollbar-hide">
         <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
           <div className="w-full flex justify-between items-center mb-1">
@@ -50,6 +50,7 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
           <input
             type="text"
             autoFocus
+            inputMode="none"
             value={internalValue}
             onChange={(e) => {
               const val = e.target.value;

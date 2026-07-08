@@ -186,10 +186,10 @@ export const PosMoreAddressModal = ({
 
       {/* Content */}
       <div className="flex-1 flex flex-col justify-between bg-white overflow-hidden min-h-0">
-        {/* Left/Right Split Layout */}
-        <div className={`${isCompactViewport ? "p-1.5 gap-1.5" : "p-2 lg:p-2.5 gap-2 lg:gap-2.5"} pb-1 grid grid-cols-12 shrink-0 items-stretch`}>
-          {/* Left Column: Form Fields (Col span 7) */}
-          <div className={`col-span-7 flex flex-col gap-y-1.5 bg-[#f8f9fa] border border-slate-100 rounded-xl overflow-y-auto ${isCompactViewport ? "p-1.5" : "p-2 lg:p-2.5"}`}>
+        {/* Responsive Flex/Grid Layout */}
+        <div className={`${isCompactViewport ? "p-2 gap-3" : "p-3 lg:p-4 gap-4"} flex-1 overflow-y-auto flex flex-col md:grid md:grid-cols-12 md:items-stretch`}>
+          {/* Left Column: Form Fields (Col span 7 on md+) */}
+          <div className={`md:col-span-7 flex flex-col gap-y-3 bg-[#f8f9fa] border border-slate-100 rounded-xl ${isCompactViewport ? "p-2" : "p-3 lg:p-4"}`}>
             {/* Form row 1: Mobile, Phone, Customer Name */}
             <div className="grid grid-cols-4 gap-1.5 lg:gap-2">
               <div className="col-span-1">
@@ -232,7 +232,7 @@ export const PosMoreAddressModal = ({
             </div>
 
             {/* Form row 2: Flat, Building, Road, Block, Area */}
-            <div className="grid grid-cols-5 gap-1.5 lg:gap-2 shrink-0">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 lg:gap-3 shrink-0">
               <div className="col-span-1">
                 <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Flat No</span>
                 <FormInput
@@ -327,8 +327,8 @@ export const PosMoreAddressModal = ({
             </div>
           </div>
 
-          {/* Right Column: Address History Table (Col span 5 - scrollable and compact height) */}
-          <div className={`col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col shrink-0 h-full`}>
+          {/* Right Column: Address History Table (Col span 5 on md+) */}
+          <div className={`md:col-span-5 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm flex flex-col shrink-0 min-h-[250px] md:h-full`}>
             <div className="bg-slate-50 px-2.5 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0">
               <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Address History</span>
               <span className="bg-[#49293e] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">

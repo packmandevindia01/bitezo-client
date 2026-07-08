@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../../../../app/hooks";
 import {
@@ -7,6 +7,8 @@ import {
   Truck,
   Car,
   Users,
+  Maximize,
+  Minimize
 } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import type { PosOrderType, MenuProvider } from "../../../types";
@@ -62,6 +64,28 @@ const PosTopNav = ({
   const { editingOrderId, selectedOrderTypeName, selectedTableNo } = useAppSelector(state => state.pos);
   const visibleOrderTypes = orderTypes.length > 0 ? orderTypes : fallbackOrderTypes;
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   const handleLogoutClick = () => {
     // If Day or Shift is still OPEN, give a reminder
     if (status && (!status.isDayClosed || !status.isShiftClosed)) {
@@ -85,7 +109,7 @@ const PosTopNav = ({
 
 
 
-        <div className="hidden sm:flex gap-1 ml-1 lg:ml-2 min-w-0 overflow-x-auto no-scrollbar pb-1 -mb-1">
+        <div className="flex gap-1 ml-1 lg:ml-2 min-w-0 overflow-x-auto no-scrollbar pb-1 -mb-1">
           {visibleOrderTypes.map((type) => {
             const Icon = getOrderTypeIcon(type.orderType);
             const label = formatOrderTypeLabel(type.orderType);
@@ -109,7 +133,7 @@ const PosTopNav = ({
               }}
             >
               <Icon size={13} className="xl:w-3.5 xl:h-3.5" />
-              <span className="hidden sm:inline whitespace-nowrap">{label}</span>
+              <span className="inline whitespace-nowrap">{label}</span>
             </PosActionButton>
           )})}
           <PosActionButton
@@ -118,7 +142,7 @@ const PosTopNav = ({
             onClick={onProvider}
           >
             <Users size={13} className="xl:w-3.5 xl:h-3.5" />
-            <span className="hidden sm:inline uppercase whitespace-nowrap">
+            <span className="inline uppercase whitespace-nowrap">
               {activeProvider ? activeProvider.provider.providerName : "Provider"}
             </span>
           </PosActionButton>
@@ -128,7 +152,7 @@ const PosTopNav = ({
 
       <div className="flex items-center gap-1 lg:gap-1.5 shrink-0">
 
-        <div className="flex flex-col text-[11px] font-semibold mr-6 lg:mr-8 text-right leading-[1.2]">
+        <div className="hidden lg:flex flex-col text-[11px] font-semibold mr-6 lg:mr-8 text-right leading-[1.2]">
           <div className="flex gap-2 justify-end text-slate-800">
             <span>Order : {editingOrderId || activeProvider?.orderNo || "New"}</span>
             <span>Ticket : {editingOrderId || activeProvider?.orderNo || "New"}</span>
@@ -138,6 +162,16 @@ const PosTopNav = ({
             <span>Table : {selectedTableNo || "-"}</span>
           </div>
         </div>
+
+        <PosActionButton
+          accent="gray"
+          noPadding
+          className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md text-slate-600 mr-1"
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+          {isFullscreen ? <Minimize size={18} strokeWidth={2.5} /> : <Maximize size={18} strokeWidth={2.5} />}
+        </PosActionButton>
 
         <PosActionButton
           accent="red"

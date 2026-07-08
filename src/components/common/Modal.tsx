@@ -12,6 +12,7 @@ interface ModalProps {
   className?: string;
   noPadding?: boolean;
   noScroll?: boolean;
+  hideScrollbar?: boolean;
 }
 
 const Modal = ({
@@ -25,6 +26,7 @@ const Modal = ({
   className = "",
   noPadding = false,
   noScroll = false,
+  hideScrollbar = false,
 }: ModalProps) => {
 
   // 🔥 ESC + Scroll lock
@@ -56,7 +58,7 @@ useEffect(() => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-3 py-3 sm:px-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -105,7 +107,7 @@ useEffect(() => {
         )}
 
         {/* CONTENT */}
-        <div className={`flex-1 min-h-0 flex flex-col ${noScroll ? "overflow-hidden" : "overflow-y-auto"} text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
+        <div className={`flex-1 min-h-0 flex flex-col ${noScroll ? "overflow-hidden" : "overflow-y-auto"} ${hideScrollbar ? "scrollbar-hide" : ""} text-sm md:text-base ${noPadding ? "" : "pr-1"}`}>
           {children}
         </div>
 

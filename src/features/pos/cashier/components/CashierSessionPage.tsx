@@ -8,6 +8,7 @@ import type { DenominationItem } from "../../../general/denomination/types";
 import { useToast } from "../../../../app/providers/useToast";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { generateEndReportHtml } from "../../utils/endReportTemplate";
+import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 
 interface Props {
   onSessionReady: () => void;
@@ -47,6 +48,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
 
   const [entryMode, setEntryMode] = useState<"DENOM" | "MANUAL">("DENOM");
   const [manualAmount, setManualAmount] = useState<string>("");
+  const [showKeyboard, setShowKeyboard] = useState(true);
 
   const mode: Mode | null = useMemo(() => {
     if (!cashierStatus) return null;
@@ -426,8 +428,9 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                                 ref={i === 0 ? firstDenoRef : null}
                                 value={count === 0 ? "" : count}
                                 onChange={e => handleCountChange(d.id!, e.target.value)}
-                                onFocus={e => e.target.select()}
+                                onFocus={e => { e.target.select(); setShowKeyboard(true); }}
                                 style={S.input}
+                                inputMode="none"
                               />
                             </td>
                             <td style={{ ...S.td, textAlign: "right" }}>
@@ -456,8 +459,9 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                       value={manualAmount} 
                       onChange={e => setManualAmount(e.target.value)} 
                       onBlur={() => setManualAmount(prev => prev ? Number(prev).toFixed(decimalPart) : "")}
-                      onFocus={e => e.target.select()}
+                      onFocus={e => { e.target.select(); setShowKeyboard(true); }}
                       style={{ ...S.input, fontSize: 36, padding: "24px", height: "auto", maxWidth: 400, margin: "0 auto", textAlign: "center", borderRadius: 20 }}
+                      inputMode="none"
                     />
                     <p style={{ marginTop: 20, fontSize: 13, color: "#94a3b8", maxWidth: 500, margin: "20px auto 0", lineHeight: 1.6 }}>Entering the amount manually will bypass the denomination breakdown for this session.</p>
                   </div>
@@ -491,6 +495,13 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
                 </button>
               </div>
             </div>
+
+            {/* Touch Keyboard Section */}
+            {showKeyboard && (
+              <div style={{ flexShrink: 0, width: "100%", background: "#f8f9fa", borderTop: "1px solid #e2e8f0", padding: "12px", zIndex: 50 }}>
+                <TouchKeyboard onClose={() => setShowKeyboard(false)} />
+              </div>
+            )}
           </div>
         </div>
 

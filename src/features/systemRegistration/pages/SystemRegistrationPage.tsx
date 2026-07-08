@@ -23,7 +23,7 @@ const SystemRegistrationPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10">
-      <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-7xl gap-4 md:gap-6 lg:gap-8 md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[400px_minmax(0,1fr)]">
         {/* Onboarding Sidebar */}
         <RegistrationSidebar />
 

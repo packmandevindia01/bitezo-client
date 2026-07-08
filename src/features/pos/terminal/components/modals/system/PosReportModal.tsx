@@ -180,6 +180,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
               value={asOnDate}
               onChange={(e: any) => setAsOnDate(e.target.value)}
               inputClassName="w-40 h-[42px]"
+              inputMode="none"
             />
             <Button
               onClick={fetchLogs}
@@ -218,20 +219,20 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         {/* Table Area */}
         <div className="border border-slate-200 rounded-xl overflow-hidden bg-white min-h-[300px] flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-center border-collapse">
               <thead className="bg-[#49293e] text-white">
                 <tr>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b border-r border-[#49293e]/20">Start Date</th>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b border-r border-[#49293e]/20">End Date</th>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b border-r border-[#49293e]/20">Status</th>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b border-r border-[#49293e]/20">Day ID</th>
+                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Start Date</th>
+                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">End Date</th>
+                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Status</th>
+                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Day ID</th>
                   {activeTab === 'SHIFT_END' && (
                     <>
-                      <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b border-r border-[#49293e]/20">Shift ID</th>
-                      <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b border-r border-[#49293e]/20">Counter</th>
+                      <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Shift ID</th>
+                      <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Counter</th>
                     </>
                   )}
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider border-b">Branch</th>
+                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b">Branch</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

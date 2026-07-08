@@ -86,7 +86,7 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
       {/* Mobile/Tablet Backdrop Overlay */}
       {isCartOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden transition-opacity" 
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm xl:hidden transition-opacity" 
           onClick={() => setIsCartOpen(false)}
         />
       )}
@@ -94,7 +94,7 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
       {/* Right Column: Order Panel */}
       <div className={`
         fixed inset-y-0 right-0 z-50 w-[85%] max-w-[460px] transform transition-transform duration-300 ease-in-out bg-white shadow-2xl
-        lg:static lg:w-[420px] xl:w-[480px] lg:translate-x-0 lg:shadow-none lg:z-auto lg:h-full lg:overflow-hidden
+        xl:static xl:w-[450px] xl:translate-x-0 xl:shadow-none xl:z-auto xl:h-full xl:overflow-hidden
         ${isCartOpen ? "translate-x-0" : "translate-x-full"}
       `}>
         <ErrorBoundary name="Order Panel">

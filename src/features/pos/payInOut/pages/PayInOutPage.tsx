@@ -5,9 +5,10 @@ import {
   ArrowUpRight, 
   ArrowLeft,
   Trash2,
-  Pencil
+  Pencil,
+  Plus
 } from 'lucide-react';
-import { ConfirmDialog, RecordTableCard } from '../../../../components/common';
+import { ConfirmDialog, RecordTableCard, SearchBar, Button } from '../../../../components/common';
 import { type PayInOutItem } from '../services/payInOutService';
 import { useToast } from '../../../../app/providers/useToast';
 import { useCurrency } from '../../../../hooks/useCurrency';
@@ -153,51 +154,65 @@ const PayInOutPage: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full overflow-hidden flex flex-col">
+        
+        {/* Filter Header (Rule 6a) */}
+        <div className="flex flex-col xl:flex-row gap-4 mb-4 justify-between items-end shrink-0">
+          <div className="flex flex-wrap gap-3 items-end flex-1">
+            <div className="w-full sm:w-40">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">From Date</label>
+              <input
+                type="date"
+                value={searchFromDate}
+                onChange={(e) => setSearchFromDate(e.target.value)}
+                className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
+              />
+            </div>
+            <div className="w-full sm:w-40">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">To Date</label>
+              <input
+                type="date"
+                value={searchToDate}
+                onChange={(e) => setSearchToDate(e.target.value)}
+                className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
+              />
+            </div>
+            <div className="w-full sm:w-40">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Type</label>
+              <select
+                value={searchInOut}
+                onChange={(e) => setSearchInOut(e.target.value as any)}
+                className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all cursor-pointer"
+              >
+                <option value="ALL">All Types</option>
+                <option value="IN">IN (Pay In)</option>
+                <option value="OUT">OUT (Pay Out)</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-[200px] max-w-sm">
+              <SearchBar 
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search pay in / out..."
+              />
+            </div>
+          </div>
+          
+          <Button 
+            icon={<Plus size={18} />}
+            onClick={() => {
+              setEditingId(null);
+              setIsFormModalOpen(true);
+            }}
+          >
+            + Add Transaction
+          </Button>
+        </div>
+
         <RecordTableCard
-          title="Pay In / Out"
-          search={searchQuery}
-          onSearchChange={setSearchQuery}
+          title="Pay In / Out Transactions"
           rowKey="transId"
           data={filteredItems}
           loading={isLoading}
-          actionLabel="+ Add Transaction"
-          onAction={() => {
-            setEditingId(null);
-            setIsFormModalOpen(true);
-          }}
-          extraActions={
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 whitespace-nowrap">From</span>
-                <input
-                  type="date"
-                  value={searchFromDate}
-                  onChange={(e) => setSearchFromDate(e.target.value)}
-                  className="h-10.5 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 whitespace-nowrap">To</span>
-                <input
-                  type="date"
-                  value={searchToDate}
-                  onChange={(e) => setSearchToDate(e.target.value)}
-                  className="h-10.5 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
-                />
-              </div>
-              <div className="w-40">
-                <select
-                  value={searchInOut}
-                  onChange={(e) => setSearchInOut(e.target.value as any)}
-                  className="w-full h-10.5 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all cursor-pointer"
-                >
-                  <option value="ALL">All Types</option>
-                  <option value="IN">IN (Pay In)</option>
-                  <option value="OUT">OUT (Pay Out)</option>
-                </select>
-              </div>
-            </div>
-          }
           columns={[
             {
               header: "Type",

@@ -60,14 +60,23 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Customer Master"
-      className="!max-w-[95vw] w-[95vw] !max-h-[95vh] h-[95vh] bg-slate-50 flex flex-col"
+      noScroll
+      noPadding
+      className="!max-w-[95vw] w-[95vw] !max-h-[95vh] h-[95vh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
       <FormProvider {...methods}>
-        <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 h-full min-h-0">
-          {/* Action Bar (Top) */}
-          <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm mb-4 shrink-0">
-            <div>
+        <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 h-full min-h-0 bg-slate-50">
+          
+          {/* Header - Premium Maroon */}
+          <div className="flex items-center justify-between bg-[#49293e] px-4 py-3 text-white shrink-0 border-b border-white/10 relative flex-wrap gap-4 shadow-md z-20">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+              </div>
+              <h2 className="text-sm font-black tracking-[0.2em] uppercase whitespace-nowrap">Customer Master</h2>
+            </div>
+            
+            <div className="flex items-center gap-3 ml-auto">
               <button 
                 type="button"
                 onClick={() => {
@@ -76,19 +85,20 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   setShowKeyboard(newVal);
                   setTimeout(() => firstInputRef.current?.focus(), 50);
                 }}
-                className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-wider px-2 py-1.5 rounded-lg border transition-all ${
+                className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all border ${
                   isKeyboardEnabled 
-                    ? "text-[#49293e] bg-[#49293e]/5 border-[#49293e]/20 hover:bg-[#49293e]/10" 
-                    : "text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100"
+                    ? "text-[#49293e] bg-white border-white hover:bg-slate-100 shadow-sm" 
+                    : "text-white/70 bg-white/10 border-white/20 hover:bg-white/20"
                 }`}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <path d="M11 19a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9Z"/>
                 </svg>
-                {isKeyboardEnabled ? "Keyboard: Touch" : "Keyboard: Physical"}
+                {isKeyboardEnabled ? "Touch Keyboard" : "Physical Keyboard"}
               </button>
-            </div>
-            <div className="flex gap-3">
+
+              <div className="w-px h-6 bg-white/20 mx-1"></div>
+
               <Button 
                 variant="secondary" 
                 onClick={(e) => {
@@ -98,9 +108,11 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 }} 
                 disabled={loading} 
                 isAction
-                icon={<Plus size={20} />}
+                icon={<Plus size={18} />}
                 tabIndex={-1}
-              />
+              >
+                New
+              </Button>
               <Button 
                 variant="danger" 
                 onClick={(e) => {
@@ -109,23 +121,45 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 }} 
                 disabled={loading || !customerId} 
                 isAction
-                icon={<Trash2 size={20} />}
+                icon={<Trash2 size={18} />}
                 tabIndex={13}
-              />
+              >
+                Delete
+              </Button>
               <Button 
                 type="submit"
                 loading={loading} 
                 isAction
-                icon={<Save size={20} />}
+                icon={<Save size={18} />}
                 tabIndex={12}
-              />
+              >
+                Save
+              </Button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors ml-1"
+                tabIndex={-1}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
             </div>
           </div>
 
           {/* Form Section */}
-          <div className="flex-1 overflow-y-auto p-2 md:p-6 bg-white rounded-xl shadow-inner border border-slate-100">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-              <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 hide-scrollbar relative z-10">
+            <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Primary Details Card */}
+              <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-6 pb-3 border-b border-slate-100">
+                  <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">Primary Details</h3>
+                </div>
+                
+                <div className="space-y-4">
                 <FormInput
                   label="Customer Code"
                   {...register("customerCode")}
@@ -179,7 +213,6 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 />
                 <FormInput
                   label="Email"
-                  type="email"
                   {...register("email")}
                   error={errors.email?.message}
                   onFocus={handleInputFocus}
@@ -188,8 +221,18 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   tabIndex={9}
                 />
               </div>
-
-              <div className="space-y-4">
+              </div>
+              
+              {/* Address & Billing Card */}
+              <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200/60">
+                <div className="flex items-center gap-2 mb-6 pb-3 border-b border-slate-100">
+                  <div className="w-6 h-6 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  </div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">Address & Billing</h3>
+                </div>
+                
+                <div className="space-y-4">
                 <div className="flex flex-col gap-1 w-full mb-1 relative">
                   <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0">
                     Address
@@ -283,13 +326,14 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   inputMode="none"
                   tabIndex={11}
                 />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Keyboard Section - Participates in layout to allow scrolling to covered inputs */}
+          {/* Keyboard Section */}
           {showKeyboard && (
-            <div className="bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-10 p-2 md:p-3 shrink-0">
+            <div className="shrink-0 w-full bg-[#f8f9fa] mt-auto border-t border-slate-100 p-2 md:p-3">
               <TouchKeyboard
                 onClose={() => setShowKeyboard(false)}
               />

@@ -164,10 +164,10 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose, initialP
             {/* Subtle background decoration */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#49293e]/[0.03] to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
             
-            <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.5fr_auto] gap-6 sm:gap-8 items-start relative z-10">
+            <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-start relative z-10">
               
               {/* Product Column */}
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5 flex-1 min-w-[200px] w-full">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1 flex items-center gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#49293e] shadow-[0_0_8px_rgba(73,41,62,0.4)]" />
                   Select Product
@@ -185,7 +185,7 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose, initialP
               </div>
 
               {/* Lock Until Column */}
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5 flex-[1.5] min-w-[250px] w-full">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1 flex items-center gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.4)] animate-pulse" />
                   Lock Until
@@ -242,7 +242,7 @@ const LockItemModal: React.FC<LockItemModalProps> = ({ isOpen, onClose, initialP
               </div>
 
               {/* Action Column */}
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5 shrink-0 w-full md:w-auto">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-transparent ml-1 select-none hidden md:block">
                   Action
                 </label>

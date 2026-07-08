@@ -54,37 +54,37 @@ const PosCategoryRailComponent = ({
               type="button"
               onClick={() => onSelect(category.id.toString())}
               className={`
-                relative flex items-center gap-2 md:flex-col md:items-center md:p-1 md:py-1.5 md:px-0.5
-                rounded-xl px-3 py-1.5 text-left transition-all duration-300 
+                relative flex items-center gap-1.5 sm:gap-2 md:flex-col md:items-center md:p-1 md:py-1.5 md:px-0.5
+                rounded-xl px-2 py-1 sm:px-3 sm:py-1.5 text-left transition-all duration-300 
                 active:scale-[0.98] group shrink-0
                 ${
                   isActive
                     ? "bg-[#49293e] text-white shadow-lg shadow-[#49293e]/20 z-10"
                     : "bg-white text-slate-700 border border-slate-200/60 shadow-sm hover:border-[#49293e]/30"
                 }
-                min-w-[120px] md:min-w-0 md:w-full
+                min-w-[85px] sm:min-w-[100px] md:min-w-0 md:w-full
               `}
             >
               {category.imageUrl ? (
                 <img 
                   src={category.imageUrl} 
                   alt={category.name} 
-                  className="w-8 h-8 md:w-7 md:h-7 rounded-lg object-cover shrink-0" 
+                  className="w-6 h-6 sm:w-8 sm:h-8 md:w-7 md:h-7 rounded-lg object-cover shrink-0" 
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <div className={`w-8 h-8 md:w-7 md:h-7 rounded-lg shrink-0 flex items-center justify-center text-xs md:text-[10px] font-black uppercase ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-7 md:h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] md:text-[10px] font-black uppercase ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>
                   {category.name.substring(0, 2)}
                 </div>
               )}
               <div className="flex flex-col min-w-0 md:items-center w-full">
-                <p className={`text-xs md:text-[8px] xl:text-[9.5px] font-black tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
+                <p className={`text-[9px] sm:text-[10px] md:text-[8px] xl:text-[9.5px] font-black tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
                   {category.name}
                 </p>
                 {category.arabicName && (
-                  <p className={`text-[10px] md:text-[7.5px] xl:text-[8.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/80" : "text-slate-400"}`}>
+                  <p className={`text-[8px] sm:text-[9px] md:text-[7.5px] xl:text-[8.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/80" : "text-slate-400"}`}>
                     {category.arabicName}
                   </p>
                 )}

@@ -198,7 +198,7 @@ const CashierInPage = () => {
       </div>
 
       {/* Right Column: Login Area */}
-      <div className="flex-1 bg-slate-50 flex flex-col items-center justify-center p-3 sm:p-6 lg:p-8 xl:p-16 relative overflow-y-auto md:overflow-hidden">
+      <div className="flex-1 bg-slate-50 flex flex-col items-center justify-center p-3 sm:p-6 lg:p-8 xl:p-16 relative overflow-y-auto w-full">
         <div className="w-full max-w-sm flex flex-col items-center gap-2 sm:gap-4 xl:gap-8 my-auto z-10">
           {/* Heading - Now centered and lowered */}
           <div className="text-center w-full mb-2 xl:mb-4">

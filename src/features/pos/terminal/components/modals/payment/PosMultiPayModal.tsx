@@ -134,16 +134,19 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
           <div className="w-full flex items-center relative">
             <input
               ref={inputRef}
-              type="number"
-              step="any"
-              min={0}
+              type="text"
+              inputMode="none"
               value={value}
               onChange={e => {
                 setShouldOverwrite(false);
-                const val = e.target.value;
+                // Allow only numbers and decimals
+                const val = e.target.value.replace(/[^0-9.]/g, '');
+                // Prevent multiple decimals
+                if ((val.match(/\./g) || []).length > 1) return;
+                
                 if (val === '' || parseFloat(val) >= 0) setValue(val);
               }}
-              className="w-full text-right text-4xl font-black text-slate-800 bg-transparent outline-none font-sans tracking-tight [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none placeholder:text-slate-300"
+              className="w-full text-right text-4xl font-black text-slate-800 bg-transparent outline-none font-sans tracking-tight placeholder:text-slate-300"
               placeholder="0.000"
             />
             {value && (

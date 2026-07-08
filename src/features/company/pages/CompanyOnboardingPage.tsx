@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Mail, Monitor, LayoutGrid, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button, FormInput, SelectInput } from "../../../components/common";
+import { Button, FormInput, SearchableSelect } from "../../../components/common";
 import OtpInput from "../../auth/components/OtpInput";
 import { useToast } from "../../../app/providers/useToast";
 import CompanyForm from "../components/CompanyForm";
@@ -432,7 +432,7 @@ const CompanyOnboardingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-slate-100 px-4 py-6 pb-48 sm:py-10 sm:pb-48" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
         {/* ── Sidebar ── */}
         <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#49293e] via-[#5c3450] to-[#7b556c] p-6 text-white shadow-lg sm:p-8">
@@ -445,7 +445,7 @@ const CompanyOnboardingPage = () => {
             and opens the company setup form if needed.
           </p>
 
-          <div className="mt-8 space-y-4">
+          <div className="mt-8 hidden space-y-4 md:block">
             {steps.map(({ Icon, step, label }) => (
               <div
                 key={step}
@@ -670,7 +670,7 @@ const CompanyOnboardingPage = () => {
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <SelectInput
+                <SearchableSelect
                   label="Branch"
                   required
                   value={posBranchId}
@@ -681,9 +681,8 @@ const CompanyOnboardingPage = () => {
                     label: branch.name,
                     value: String(branch.id),
                   }))}
-                  onChange={(e) => {
-                    const branchId = e.target.value;
-                    setPosBranchId(branchId);
+                  onChange={(val) => {
+                    setPosBranchId(val);
                     setPosCounterId("");
                     setPosCounters([]);
                     setPosSeriesId("");
@@ -691,11 +690,13 @@ const CompanyOnboardingPage = () => {
                     setPosTerminalId("");
                     setPosTerminals([]);
                     setPosSetupErrors((current) => ({ ...current, branchId: "", counterId: "", seriesId: "", terminalId: "" }));
-                    void loadPosCounters(branchId);
+                    void loadPosCounters(val);
                   }}
+                  clearable={false}
+                  forcePlacement="bottom"
                 />
 
-                <SelectInput
+                <SearchableSelect
                   label="Counter"
                   required
                   value={posCounterId}
@@ -712,13 +713,15 @@ const CompanyOnboardingPage = () => {
                     label: counter.name,
                     value: String(counter.id),
                   }))}
-                  onChange={(e) => {
-                    setPosCounterId(e.target.value);
+                  onChange={(val) => {
+                    setPosCounterId(val);
                     setPosSetupErrors((current) => ({ ...current, counterId: "" }));
                   }}
+                  clearable={false}
+                  forcePlacement="bottom"
                 />
 
-                <SelectInput
+                <SearchableSelect
                   label="Series"
                   required
                   value={posSeriesId}
@@ -735,13 +738,15 @@ const CompanyOnboardingPage = () => {
                     label: series.name,
                     value: String(series.id),
                   }))}
-                  onChange={(e) => {
-                    setPosSeriesId(e.target.value);
+                  onChange={(val) => {
+                    setPosSeriesId(val);
                     setPosSetupErrors((current) => ({ ...current, seriesId: "" }));
                   }}
+                  clearable={false}
+                  forcePlacement="bottom"
                 />
 
-                <SelectInput
+                <SearchableSelect
                   label="Terminal"
                   required
                   value={posTerminalId}
@@ -758,10 +763,12 @@ const CompanyOnboardingPage = () => {
                     label: terminal.name,
                     value: String(terminal.id),
                   }))}
-                  onChange={(e) => {
-                    setPosTerminalId(e.target.value);
+                  onChange={(val) => {
+                    setPosTerminalId(val);
                     setPosSetupErrors((current) => ({ ...current, terminalId: "" }));
                   }}
+                  clearable={false}
+                  forcePlacement="bottom"
                 />
               </div>
 

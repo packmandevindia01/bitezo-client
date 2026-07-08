@@ -117,7 +117,7 @@ const PosProductGrid = ({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 130, // Approx height of card + gap
+    estimateSize: () => 115, // Approx height of card + gap
     overscan: 2,
   });
 
@@ -198,19 +198,19 @@ const PosProductGrid = ({
                         <button
                           key={sub.subCategoryId}
                           onClick={() => onSelectSubCategory(sub.subCategoryId)}
-                          className="flex flex-col items-center justify-center gap-1 lg:gap-2 h-[110px] xl:h-[120px] rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20"
+                          className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 lg:gap-2 h-[80px] sm:h-[110px] xl:h-[120px] rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20"
                         >
-                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 mt-1">
                             {sub.imageUrl ? (
                               <img src={sub.imageUrl} alt={sub.subCategoryName} className="w-full h-full object-cover" />
                             ) : (
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 w-4 h-4 sm:w-6 sm:h-6">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                               </svg>
                             )}
                           </div>
-                          <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1">{sub.subCategoryName}</h3>
-                          <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest text-center line-clamp-2 break-words px-1">{sub.arabicName || "ITEMS"}</p>
+                          <h3 className="text-[10px] sm:text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1 leading-tight">{sub.subCategoryName}</h3>
+                          <p className="text-[8px] sm:text-[10px] font-medium text-slate-400 mt-0 sm:mt-0.5 uppercase tracking-widest text-center line-clamp-1 break-words px-1">{sub.arabicName || "ITEMS"}</p>
                         </button>
                       );
                     } else if (showAlternatives) {
@@ -226,10 +226,10 @@ const PosProductGrid = ({
                             group relative flex flex-col justify-between
                             rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
                             transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-                            h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+                            h-[95px] md:h-[105px] xl:h-[115px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                           "
                         >
-                          <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                          <div className="relative w-full h-[55%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
                             <span className="text-sm font-black text-slate-300 uppercase select-none">
                               {alt.altName.substring(0, 2)}
                             </span>
@@ -255,18 +255,17 @@ const PosProductGrid = ({
                             </div>
                           )}
 
-                          <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
-                            <div className="w-full">
-                              <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
+                          <div className="w-full h-[45%] flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
+                            <div className="w-full flex flex-col items-center justify-center text-center">
+                              <h3 className="text-[10px] lg:text-[11px] font-extrabold text-[#49293e] leading-[1.1] line-clamp-2 uppercase tracking-tight break-words">
                                 {alt.altName}
                               </h3>
                               {alt.altArabic && (
-                                <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
+                                <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-1 mt-0.5 break-words">
                                   {alt.altArabic}
                                 </p>
                               )}
                             </div>
-
                           </div>
                         </button>
                       );

@@ -1139,7 +1139,7 @@ export const PosTerminalPage = () => {
         {/* Left Side: Tabs + Categories + Grid */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           
-          <div className="flex flex-col lg:flex-row lg:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-3 lg:pl-4 xl:pl-6 pr-3">
+          <div className="flex flex-col md:flex-row md:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-3 lg:pl-4 xl:pl-6 pr-3">
             <div className="shrink-0">
           <PosGroupTabs 
             groups={groups} 
@@ -1152,7 +1152,7 @@ export const PosTerminalPage = () => {
           />
         </div>
         
-        <div className="flex-1 flex items-center justify-end py-2 lg:py-1">
+        <div className="flex-1 flex items-center justify-end py-2 md:py-1">
           <div className="relative w-full max-w-xs group">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1161,7 +1161,7 @@ export const PosTerminalPage = () => {
             </div>
             <input
               type="text"
-              autoFocus
+              autoFocus={window.innerWidth >= 768}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name..."
@@ -1214,7 +1214,7 @@ export const PosTerminalPage = () => {
             {!isCartOpen && (
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="lg:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
+                className="xl:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
@@ -1231,34 +1231,34 @@ export const PosTerminalPage = () => {
           </div>
 
           {/* Action Button Bar */}
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1.5 p-1.5 sm:p-2 bg-white border-t border-slate-100 shrink-0">
+          <div className="grid grid-cols-7 gap-1 lg:gap-1.5 p-1 sm:p-1.5 lg:p-2 bg-white border-t border-slate-100 shrink-0">
             <button
               onClick={handleClearCart}
-              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
+              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
               tabIndex={-1}
             >
               Clear
             </button>
             <button
               onClick={() => setIsCustomerModalOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
+              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
               tabIndex={-1}
             >
               Customer
             </button>
-            <button className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm">
+            <button className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5">
               Waiter
             </button>
             <button
               onClick={() => setIsSplitOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 px-0.5"
               disabled={!editingOrderId}
             >
               Split
             </button>
             <button
               onClick={() => setIsCombineOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 px-0.5"
               disabled={!editingOrderId}
             >
               Combine
@@ -1270,13 +1270,13 @@ export const PosTerminalPage = () => {
                   onAuthorized: () => setIsRecallModalOpen(true),
                 });
               }}
-              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
+              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
             >
               Recall
             </button>
             <button
               onClick={() => setIsMoreModalOpen(true)}
-              className="h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm"
+              className="h-8 md:h-9 lg:h-10 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
             >
               More
             </button>
@@ -1321,7 +1321,7 @@ export const PosTerminalPage = () => {
         onDiscount={openDiscountChoice}
         onVoidOrder={() => setIsVoidModalOpen(true)}
         onMessage={() => alert("Message/Note functionality to be implemented")}
-        onCom={() => alert("COM functionality to be implemented")}
+        onCom={handleItemComplimentary}
       />
     </div>
 

@@ -270,6 +270,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
       isOpen={isOpen}
       onClose={onClose}
       noPadding
+      noScroll
       className="!max-w-full w-screen !max-h-full h-full !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
       {/* Header - Premium Maroon */}
@@ -310,11 +311,11 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
 
       {/* Content Area */}
       <div className="flex-1 flex flex-col justify-between bg-white overflow-hidden min-h-0">
-        {/* Form Fields - NO scroll, compact, fits screen */}
-        <div className={`shrink-0 min-h-0 ${isCompactViewport ? "p-1.5 gap-y-1" : "p-3 gap-y-2"} flex flex-col`}>
+        {/* Form Fields - Scrollable for smaller viewports */}
+        <div className={`flex-1 overflow-y-auto ${isCompactViewport ? "p-3 gap-y-3" : "p-4 gap-y-5"} flex flex-col`}>
           
           {/* Row 1: Primary Identity & Round Search Icon */}
-          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
+          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-3" : "gap-4"} items-end shrink-0`}>
             <div className="col-span-3">
               <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Mobile No</span>
               <FormInput
@@ -359,7 +360,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           </div>
 
           {/* Row 2: Address Grid (5 Fields - explicitly mapped for precise Enter progression) */}
-          <div className={`grid grid-cols-5 ${isCompactViewport ? "gap-2" : "gap-3"} shrink-0`}>
+          <div className={`grid grid-cols-2 md:grid-cols-5 ${isCompactViewport ? "gap-3" : "gap-4"} shrink-0`}>
             <div>
               <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Flat No</span>
               <FormInput
@@ -433,7 +434,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           </div>
 
           {/* Row 3: Notes & Quick Actions */}
-          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
+          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-3" : "gap-4"} items-end shrink-0`}>
             <div className="col-span-4">
               <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Notes</span>
               <FormInput 
@@ -484,7 +485,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           </div>
 
           {/* Row 4: Keep Changes, Currency, Logs */}
-          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-2" : "gap-3"} items-end shrink-0`}>
+          <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-3" : "gap-4"} items-end shrink-0`}>
             <div className="col-span-4">
               <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Keep Changes</span>
               <FormInput 

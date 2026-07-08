@@ -593,18 +593,18 @@ export const TouchKeyboard = ({
               const isShiftOn = key === "Shift" && (isCaps || isCapsLock);
 
               // Grid sizing configurations for standard POS layouts
-              let flexClass = "flex-1";
+              let flexValue = 1;
               if (currentLayout !== "numeric") {
-                if (key === "Shift" || key === "Back" || key === "Back Space" || key === "Clear") flexClass = "flex-[1.4]";
-                if (key === "Space") flexClass = "flex-[4.5]";
-                if (key === "Back Space") flexClass = "flex-[3]";
-                if (key === "Enter") flexClass = "flex-[2.5]";
-                if (key === "Close") flexClass = "flex-[1]";
-                if (key === "123" || key === "ABC" || key === "Symbols") flexClass = "flex-[1.5]";
+                if (key === "Shift" || key === "Back" || key === "Back Space" || key === "Clear") flexValue = 1.4;
+                if (key === "Space") flexValue = 4.5;
+                if (key === "Back Space") flexValue = 3.5;
+                if (key === "Enter") flexValue = 2.5;
+                if (key === "Close") flexValue = 1.5;
+                if (key === "123" || key === "ABC" || key === "Symbols") flexValue = 1.5;
               } else {
                 // Numeric layout adjustments
-                if (key === "Back" || key === "Back Space" || key === "Clear" || key === "Enter") flexClass = "flex-[1.1]";
-                if (key === "Close" || key === "ABC") flexClass = "flex-[1.1]";
+                if (key === "Back" || key === "Back Space" || key === "Clear" || key === "Enter") flexValue = 1.2;
+                if (key === "Close" || key === "ABC") flexValue = 1.2;
               }
 
               // Height class matching standard touch billing counter ergonomic preferences
@@ -664,8 +664,8 @@ export const TouchKeyboard = ({
                   onPointerUp={() => handleKeyTouchEnd(key)}
                   onPointerLeave={() => handleKeyTouchEnd(key)}
                   className={`
-                    ${flexClass} ${hClass}
-                    min-w-0 select-none
+                    ${hClass}
+                    flex-1 min-w-0 select-none
                     flex items-center justify-center
                     rounded-xl border
                     ${bgClass} ${textClass}
@@ -680,6 +680,7 @@ export const TouchKeyboard = ({
                   style={{
                     WebkitTapHighlightColor: "transparent",
                     touchAction: "none",
+                    flex: flexValue
                   }}
                 >
                   {key === "Back" || key === "Back Space" ? (

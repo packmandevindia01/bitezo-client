@@ -52,10 +52,10 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
         group relative flex flex-col justify-between
         rounded-xl border border-slate-200 bg-white text-left overflow-hidden
         transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-        h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+        h-[95px] md:h-[105px] xl:h-[115px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
       "
     >
-      <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+      <div className="relative w-full h-[55%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
         {(product.imageUrl && !imageError) ? (
           <img 
             src={product.imageUrl} 
@@ -68,7 +68,6 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
             {product.name.substring(0, 2)}
           </span>
         )}
-
       </div>
 
       {/* Price Badge Overlay - Moved outside overflow-hidden container */}
@@ -92,21 +91,17 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
         </div>
       )}
 
-      <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
-        <div className="w-full">
-          <div className="flex flex-col">
-            <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
-              {product.name}
-            </h3>
-            {product.arabicName && (
-              <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
-                {product.arabicName}
-              </p>
-            )}
-          </div>
+      <div className="w-full h-[45%] flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
+        <div className="w-full flex flex-col items-center justify-center text-center">
+          <h3 className="text-[10px] lg:text-[11px] font-extrabold text-[#49293e] leading-[1.1] line-clamp-2 uppercase tracking-tight break-words">
+            {product.name}
+          </h3>
+          {product.arabicName && (
+            <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-1 mt-0.5 break-words">
+              {product.arabicName}
+            </p>
+          )}
         </div>
-
-
       </div>
 
       {/* Lock Overlay - Moved to cover whole card */}

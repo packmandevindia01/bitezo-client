@@ -74,13 +74,14 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
       onClose={onClose}
       size="sm"
       noPadding
+      hideScrollbar
       showClose={false}
       className="w-full max-w-[95vw] md:max-w-sm overflow-hidden rounded-3xl"
     >
       {/* Header */}
-      <div className="bg-[#49293e] px-6 py-5 text-white text-center">
-        <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-3">
-          <Users size={24} className="text-white" />
+      <div className="bg-[#49293e] px-6 py-4 text-white text-center">
+        <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-2">
+          <Users size={20} className="text-white" />
         </div>
         {/* §15 ERP Typography: h1 heading */}
         <h2 className="text-sm font-black uppercase tracking-[0.2em]">Number of Guests</h2>
@@ -91,8 +92,8 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
       </div>
 
       {/* Display */}
-      <div className="px-6 pt-5 pb-3 bg-white">
-        <div className="flex items-center justify-between bg-slate-50 rounded-2xl px-5 py-3 border-2 border-slate-100">
+      <div className="px-6 pt-4 pb-2 bg-white">
+        <div className="flex items-center justify-between bg-slate-50 rounded-2xl px-5 py-2.5 border-2 border-slate-100">
           {/* §15 ERP label: text-[10px] font-bold uppercase tracking-widest text-slate-600 */}
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
             Guests
@@ -105,15 +106,15 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
       </div>
 
       {/* Numpad — §2 Tab navigation: tabIndex on each key */}
-      <div className="px-6 pb-3 bg-white">
+      <div className="px-6 pb-2 bg-white">
         <div className="grid grid-cols-3 gap-2">
           {NUMPAD_KEYS.map((key, i) => (
             <button
               key={key}
               tabIndex={i + 1}
               onClick={() => handleKey(key)}
-              // §15 touch target: min 44px (h-14 = 56px ✓)
-              className="h-14 rounded-2xl bg-slate-50 border-2 border-slate-100 text-[#49293e] text-lg font-black
+              // §15 touch target: min 44px (h-12 = 48px ✓)
+              className="h-12 sm:h-14 rounded-2xl bg-slate-50 border-2 border-slate-100 text-[#49293e] text-lg font-black
                 hover:bg-[#49293e] hover:text-white hover:border-[#49293e]
                 focus:outline-none focus:ring-2 focus:ring-[#49293e]/40
                 active:scale-95 transition-all duration-150"
@@ -126,7 +127,7 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
             tabIndex={NUMPAD_KEYS.length + 1}
             onClick={handleBackspace}
             aria-label="Backspace"
-            className="h-14 rounded-2xl bg-red-50 border-2 border-red-100 text-red-500
+            className="h-12 sm:h-14 rounded-2xl bg-red-50 border-2 border-red-100 text-red-500
               hover:bg-red-500 hover:text-white hover:border-red-500
               focus:outline-none focus:ring-2 focus:ring-red-400/40
               active:scale-95 transition-all duration-150 flex items-center justify-center"
@@ -137,11 +138,11 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
       </div>
 
       {/* Actions — §2 Tab: Cancel is tabIndex={-1} (destructive reset, §2 EXCEPTION), Confirm is primary */}
-      <div className="px-6 pb-6 bg-white grid grid-cols-2 gap-3">
+      <div className="px-6 pb-5 bg-white grid grid-cols-2 gap-3">
         <button
           tabIndex={-1}           // §2: "Clear/Reset/Cancel" buttons use tabIndex={-1}
           onClick={onClose}
-          className="h-12 rounded-2xl bg-slate-100 text-slate-500 font-black text-sm uppercase tracking-widest
+          className="h-11 sm:h-12 rounded-2xl bg-slate-100 text-slate-500 font-black text-sm uppercase tracking-widest
             hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-300
             active:scale-95 transition-all"
         >
@@ -152,7 +153,7 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
           tabIndex={NUMPAD_KEYS.length + 2} // last in Tab order — primary action (§2)
           onClick={handleConfirm}
           disabled={guestCount < 1}
-          className="h-12 rounded-2xl bg-[#49293e] text-white font-black text-sm uppercase tracking-widest
+          className="h-11 sm:h-12 rounded-2xl bg-[#49293e] text-white font-black text-sm uppercase tracking-widest
             hover:bg-[#5c3450] focus:outline-none focus:ring-2 focus:ring-[#49293e]/50
             active:scale-95 transition-all
             disabled:opacity-40 disabled:cursor-not-allowed

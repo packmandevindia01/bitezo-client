@@ -11,6 +11,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      devOptions: {
+        enabled: true
+      },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024 // 10 MiB
@@ -32,6 +35,17 @@ export default defineConfig({
             src: 'favicon-32.png',
             sizes: '32x32',
             type: 'image/png'
+          },
+          {
+            src: 'bitezo-logo-hq-original.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'bitezo-logo-hq-original.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
