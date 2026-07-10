@@ -15,7 +15,7 @@ const getPaymodeSchema = (existingRecords: PaymodeRecord[], editingId: number | 
     code: z.string()
       .min(1, "Paymode code is required")
       .max(10, "Code must not exceed 10 characters")
-      .regex(/^[A-Z0-9]+$/, "Code must contain only uppercase letters and numbers (no spaces)")
+      .regex(/^[0-9]+$/, "Code must contain only numbers")
       .refine((val) => {
         // Uniqueness check
         const isDuplicate = existingRecords.some(
@@ -147,7 +147,7 @@ export const usePaymodeManager = () => {
         code: String(p.code),
         paymodeName: p.paymodeName,
         isActive: p.isActive,
-        counterIds: detail.counter.map((c) => c.counterId),
+        counterIds: (detail.counter || []).map((c: any) => c.counterId),
       });
 
       setOpen(true);
@@ -181,10 +181,11 @@ export const usePaymodeManager = () => {
   };
 
   const filteredRecords = useMemo(() => {
+    let result = records.slice().reverse();
     const query = search.trim().toLowerCase();
-    if (!query) return records;
+    if (!query) return result;
 
-    return records.filter((item) =>
+    return result.filter((item) =>
       [String(item.paymodeId), item.paymodeName, String(item.code)].some((value) =>
         value.toLowerCase().includes(query)
       )

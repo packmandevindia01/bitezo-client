@@ -85,6 +85,8 @@ const ProductionPage = () => {
   useEffect(() => { setTimeout(() => { document.getElementById("prod-branch")?.focus(); }, 200); }, []);
 
   const watchedItems = watch("items") || [];
+  const [activeRowIndex, setActiveRowIndex] = useState<number>(0);
+  const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
 
   if (isLoadingInitialData) {
     return (
@@ -233,9 +235,8 @@ const ProductionPage = () => {
                     <tr className="border-b border-gray-200 bg-gray-50/80">
                       {[
                         { name: "SL", width: "w-[5%]" },
-                        { name: "Raw Material / Ingredient", width: "w-[25%]" },
+                        { name: "Raw Material / Ingredient", width: "w-[33%]" },
                         { name: "Code", width: "w-[8%]" },
-                        { name: "Stock", width: "w-[8%]" },
                         { name: "Unit", width: "w-[12%]" },
                         { name: "Qty", width: "w-[10%]" },
                         { name: "Cost", width: "w-[10%]" },
@@ -257,7 +258,7 @@ const ProductionPage = () => {
                       const rowOptions = getRowOptions(index);
 
                       return (
-                        <tr key={item.id} className="transition-colors hover:bg-[#49293e]/5">
+                        <tr key={item.id} onFocusCapture={() => setActiveRowIndex(index)} className="transition-colors hover:bg-[#49293e]/5">
                           <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 bg-gray-50/30">{index + 1}</td>
                           <td className="p-0.5 border-r border-gray-100 bg-white">
                             <Controller
@@ -313,7 +314,6 @@ const ProductionPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 text-center">{itemWatch.code || "-"}</td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 font-mono text-center">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 relative">
                             <Controller
                               name={`items.${index}.unit`}
@@ -380,7 +380,12 @@ const ProductionPage = () => {
             <div className="mt-3 flex justify-end">
               <div className="flex items-center gap-6 rounded-xl border border-gray-200 bg-white px-5 h-[52px] shadow-sm">
                 <div className="flex items-center gap-3">
-                  <label htmlFor="prod-otherCharge" className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Other Charge :</label>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Stock :</p>
+                    <p className="text-sm font-bold text-gray-700 font-mono pr-2">{activeItem.stock || "0.000"}</p>
+                  </div>
+                  <div className="h-6 w-px bg-gray-200"></div>
+                  <label htmlFor="prod-otherCharge" className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5 pl-1">Other Charge :</label>
                   <input
                     id="prod-otherCharge"
                     type="number"

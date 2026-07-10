@@ -31,6 +31,7 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/reports/purchase-return": "Purchase Return Report",
     "/dashboard/reports/product-transaction-log": "Product Transaction Log Report",
     "/dashboard/reports/daily-sales": "Daily Sales Report",
+    "/dashboard/reports/monthly-sales": "Monthly Sales Report",
     "/dashboard/reports/all-transaction": "All Transaction Report",
     "/dashboard/users": "Users",
     "/dashboard/user-roles": "User Roles",

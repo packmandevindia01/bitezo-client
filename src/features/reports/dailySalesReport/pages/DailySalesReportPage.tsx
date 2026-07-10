@@ -115,19 +115,17 @@ export const DailySalesReportPage = () => {
             </div>
 
             {/* 2. Location */}
-            <div className="pt-3 xl:pt-0 xl:px-4 flex flex-col gap-2 shrink-0 justify-start">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0 font-bold uppercase tracking-wider">Location</span>
-                <div className="w-52">
-                  <SearchableSelect
-                    id="dsr-branch"
-                    options={branchOptions}
-                    value={filters.branchId}
-                    onChange={filters.setBranchId}
-                    placeholder="Select branch"
-                    autoFocus={true}
-                  />
-                </div>
+            <div className="pt-3 xl:pt-0 xl:px-4 flex gap-3 items-center shrink-0">
+              <div className="flex flex-col gap-0.5 w-52">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Location</span>
+                <SearchableSelect
+                  id="dsr-branch"
+                  options={branchOptions}
+                  value={filters.branchId}
+                  onChange={filters.setBranchId}
+                  placeholder="Select branch"
+                  autoFocus={true}
+                />
               </div>
             </div>
           </div>
@@ -221,22 +219,22 @@ export const DailySalesReportPage = () => {
 
           <div className="flex items-center gap-3">
             <Button
-              onClick={() => setIsPreviewOpen(true)}
-              variant="secondary"
               size="sm"
               icon={<Printer size={15} />}
+              onClick={() => setIsPreviewOpen(true)}
               disabled={report.isLoading || report.rows.length === 0}
             >
               Print Preview
             </Button>
-            <button
+            <Button
+              size="sm"
               onClick={handleExportExcel}
               disabled={report.isLoading || report.rows.length === 0}
-              className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg font-bold border !bg-green-600 !border-green-600 hover:!bg-green-700 !text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              icon={<Download size={15} />}
+              className="!bg-green-600 !border-green-600 hover:!bg-green-700 !text-white"
             >
-              <Download size={15} />
-              Export XLS
-            </button>
+              XLS
+            </Button>
           </div>
         </div>
       </div>

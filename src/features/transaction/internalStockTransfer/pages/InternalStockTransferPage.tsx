@@ -41,6 +41,8 @@ const InternalStockTransferPage = () => {
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [activeRowIndex, setActiveRowIndex] = useState<number>(0);
+  const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
 
   // Dynamic search state
   const [productOptions, setProductOptions] = useState<any[]>(masterData.productOptions || []);
@@ -259,7 +261,7 @@ const InternalStockTransferPage = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Stock", "Unit", "Qty", "Cost", "Amount", ""].map(
+                      {["SL", "Product", "Code", "Unit", "Qty", "Cost", "Amount", ""].map(
                         (col, i) => (
                           <th key={i} className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ${col === "Qty" || col === "Cost" || col === "Amount" ? "text-right" : ""}`}>
                             {col}
@@ -276,7 +278,7 @@ const InternalStockTransferPage = () => {
                       const lineAmount = qty * cost;
 
                       return (
-                        <tr key={item.id} className="hover:bg-[#49293e]/5 transition-colors">
+                        <tr key={item.id} onFocusCapture={() => setActiveRowIndex(index)} className="hover:bg-[#49293e]/5 transition-colors">
                           <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 w-10">{index + 1}</td>
                           <td className="p-0 border-r border-gray-100 min-w-[200px] max-w-sm">
                             <Controller
@@ -357,7 +359,6 @@ const InternalStockTransferPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 font-mono text-center">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 w-24 relative">
                             <Controller
                               name={`items.${index}.unit`}
@@ -453,9 +454,15 @@ const InternalStockTransferPage = () => {
           {/* ── Compact Action Footer ── */}
           <div className="border-t border-gray-200 bg-gray-50/50 p-3 rounded-b-2xl shrink-0 flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-              <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
-                <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(grandTotal)}</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Stock</span>
+                  <span className="text-sm font-bold text-gray-700 font-mono">{activeItem.stock || "0.000"}</span>
+                </div>
+                <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
+                  <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(grandTotal)}</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">

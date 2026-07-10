@@ -93,6 +93,8 @@ const PurchaseInvoiceFormPage = () => {
   const productSelectedRef = useRef(false);
 
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [activeRowIndex, setActiveRowIndex] = useState<number>(0);
+  const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
 
   // Show confirm dialog before saving
   const onSaveClick = () => {
@@ -291,7 +293,7 @@ const PurchaseInvoiceFormPage = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Stock", "Unit", "Qty", "FOC", "Avg Cost", "Price", "Amount", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
+                      {["SL", "Product", "Code", "Unit", "Qty", "FOC", "Price", "Amount", "Disc Amt", "VAT(%)", "VAT Amt", "Net Amount", ""].map(
                         (col, i) => (
                           <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                             {col}
@@ -305,7 +307,7 @@ const PurchaseInvoiceFormPage = () => {
                       const itemWatch = watchedItems[index] || {};
                       const lineTotals = calculateLine(itemWatch as any, grossTotal, Number(watchedDiscAmount) || 0);
                       return (
-                        <tr key={field.id} className="hover:bg-blue-50/30 transition-colors group">
+                        <tr key={field.id} onFocusCapture={() => setActiveRowIndex(index)} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
                           <td className="p-0.5 border-r border-gray-100 min-w-[200px] bg-white">
                             <Controller
@@ -364,7 +366,6 @@ const PurchaseInvoiceFormPage = () => {
                             />
                           </td>
                           <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 min-w-[80px]">{itemWatch.code || "-"}</td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 min-w-[80px] font-mono">{itemWatch.stock || "-"}</td>
                           <td className="p-0 border-r border-gray-100 w-24 relative">
                             <Controller
                               name={`items.${index}.unit`}
@@ -389,7 +390,6 @@ const PurchaseInvoiceFormPage = () => {
                           <td className="p-0 border-r border-gray-100 w-16">
                             <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
                           </td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50 w-20 text-right font-mono">{typeof itemWatch.avgCost === 'number' ? formatAmount(itemWatch.avgCost) : (itemWatch.avgCost || "-")}</td>
                           <td className="p-0 border-r border-gray-100 w-24">
                             <input
                               {...register(`items.${index}.price`)}
@@ -482,8 +482,20 @@ const PurchaseInvoiceFormPage = () => {
               <div className="w-20">
                 <FormInput id="pi-round-off" label="Round Off" {...register("roundOff")} onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-narration")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
-              <div className="flex-1 min-w-[120px]">
+              <div className="flex-1 min-w-[80px]">
                 <FormInput id="pi-narration" label="Narration" {...register("narration")} onKeyDown={(e) => hk(e, "pi-paymode")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
+              </div>
+              <div className="flex flex-col gap-0.5 w-24 shrink-0">
+                 <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Stock</label>
+                 <div className="h-8 px-2 rounded-md border border-gray-200 bg-white flex items-center text-xs font-mono font-bold text-gray-700">
+                   {activeItem.stock || "0.000"}
+                 </div>
+              </div>
+              <div className="flex flex-col gap-0.5 w-24 shrink-0">
+                 <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Avg Cost</label>
+                 <div className="h-8 px-2 rounded-md border border-gray-200 bg-white flex items-center justify-end text-xs font-mono font-bold text-gray-700">
+                   {formatAmount(activeItem.avgCost || 0)}
+                 </div>
               </div>
               {payments.length > 0 && (
                 <div className="min-w-[120px] max-w-[200px]">

@@ -73,6 +73,15 @@ export const useCounterManager = () => {
       return;
     }
 
+    const isDuplicate = records.some(
+      (record) => record.counterName.toLowerCase() === name.toLowerCase() && record.counterId !== editingId
+    );
+
+    if (isDuplicate) {
+      showToast("A counter with this name already exists. Please choose a unique name.", "error");
+      return;
+    }
+
     try {
       setSaving(true);
       const payload = {

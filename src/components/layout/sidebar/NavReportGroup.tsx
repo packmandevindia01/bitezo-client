@@ -38,6 +38,18 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <TrendingUp size={13} className="shrink-0" />
             <span>Daily Sales Report</span>
           </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/monthly-sales")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Monthly Sales Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/bill-wise-margin")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Bill Wise Margin Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-wise-margin")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Product Wise Margin Report</span>
+          </div>
         </SidebarDropdown>
       )}
 
@@ -67,10 +79,7 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
 
       {hasPermission("Stock Report", "View") && (
         <>
-          <div onClick={() => handleItemClick("/dashboard/reports/stock")} className={itemClassName}>
-            <PackageSearch size={13} className="shrink-0" />
-            <span>Stock Report</span>
-          </div>
+
           <div onClick={() => handleItemClick("/dashboard/reports/product-transaction-log")} className={itemClassName}>
             <PackageSearch size={13} className="shrink-0" />
             <span>Product Transaction Log</span>
