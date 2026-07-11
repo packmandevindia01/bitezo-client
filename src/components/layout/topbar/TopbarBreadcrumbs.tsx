@@ -46,6 +46,7 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/categories": "Categories",
     "/dashboard/sub-categories": "Sub Categories",
     "/dashboard/groups": "Groups",
+    "/dashboard/menu-settings": "Menu Settings",
     "/dashboard/units": "Units",
     "/dashboard/modifiers": "Modifiers",
     "/dashboard/voucher-series": "Voucher Series",

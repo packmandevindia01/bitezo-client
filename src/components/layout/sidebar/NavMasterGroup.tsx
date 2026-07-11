@@ -147,6 +147,13 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
           </div>
         )}
 
+        {hasPermission("Menu Settings", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/menu-settings")} className={itemClassName}>
+            <UtensilsCrossed size={13} className="shrink-0" />
+            <span>Menu Settings</span>
+          </div>
+        )}
+
         {hasPermission("Modifier Type", "View") && (
           <div onClick={() => handleItemClick("/dashboard/modifier-type")} className={itemClassName}>
             <SlidersHorizontal size={13} className="shrink-0" />

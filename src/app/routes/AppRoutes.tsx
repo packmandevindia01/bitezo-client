@@ -38,6 +38,7 @@ const PaymodePage = lazy(() => import("../../features/general/paymode/pages/Paym
 const CounterPage = lazy(() => import("../../features/general/counter/pages/CounterPage"));
 const SectionPage = lazy(() => import("../../features/general/section/pages/SectionPage"));
 const TableMasterPage = lazy(() => import("../../features/general/tableMaster/pages/TableMasterPage"));
+const MenuSettingsPage = lazy(() => import("../../features/general/menuSettings/pages/MenuSettingsPage"));
 const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/PosTerminalPage").then(m => ({ default: m.PosTerminalPage })));
 
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
@@ -167,6 +168,7 @@ const AppRoutes = () => {
                   <Route path="counters" element={<RoleGuard moduleName="Counter Master"><CounterPage /></RoleGuard>} />
                   <Route path="sections" element={<RoleGuard moduleName="Section Master"><SectionPage /></RoleGuard>} />
                   <Route path="tables" element={<RoleGuard moduleName="Table Master"><TableMasterPage /></RoleGuard>} />
+                  <Route path="menu-settings" element={<RoleGuard moduleName="Menu Settings"><MenuSettingsPage /></RoleGuard>} />
                   <Route path="branches" element={<RoleGuard moduleName="Branch Master"><BranchListPage /></RoleGuard>} />
                   <Route path="branches/add" element={<RoleGuard moduleName="Branch Master" action="Add"><BranchFormPage /></RoleGuard>} />
                   <Route path="branches/edit/:id" element={<RoleGuard moduleName="Branch Master" action="Edit"><BranchFormPage /></RoleGuard>} />
