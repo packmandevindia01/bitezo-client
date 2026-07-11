@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Printer, Download } from "lucide-react";
 import { useAllTransactionReport } from "../hooks/useAllTransactionReport";
@@ -32,6 +32,35 @@ const AllTransactionReportPage = () => {
 
   const totalAmount = useMemo(() => {
     return (reportData || []).reduce((acc, row) => acc + (Number(row.amount) || 0), 0);
+  }, [reportData]);
+
+  const groupedData = useMemo(() => {
+    if (!reportData || reportData.length === 0) return [];
+    
+    const groups: { voucher: string; items: any[]; total: number }[] = [];
+    const balances: { voucher: string; items: any[]; total: number } = { voucher: "Balance", items: [], total: 0 };
+    
+    reportData.forEach((row) => {
+      const v = row.voucher || "Unknown";
+      if (v.toLowerCase().includes("balance")) {
+        balances.items.push(row);
+        balances.total += Number(row.amount) || 0;
+      } else {
+        let existing = groups.find(g => g.voucher === v);
+        if (!existing) {
+          existing = { voucher: v, items: [], total: 0 };
+          groups.push(existing);
+        }
+        existing.items.push(row);
+        existing.total += Number(row.amount) || 0;
+      }
+    });
+
+    if (balances.items.length > 0) {
+      groups.push(balances);
+    }
+
+    return groups;
   }, [reportData]);
 
   const handleExportPDF = () => {
@@ -129,9 +158,8 @@ const AllTransactionReportPage = () => {
               <thead className="sticky top-0 z-10 bg-gray-100 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
                 <tr>
                   <th className="px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 w-[10%] text-center">SNo</th>
-                  <th className="px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 w-[30%] text-left">Voucher</th>
-                  <th className="px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 w-[40%] text-left">Particular</th>
-                  <th className="px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide w-[20%] text-right">Amount</th>
+                  <th className="px-4 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 w-[60%] text-left">Particular</th>
+                  <th className="px-4 py-2 font-semibold text-gray-700 text-[11px] tracking-wide w-[30%] text-right">Amount</th>
                 </tr>
               </thead>
 
@@ -140,39 +168,47 @@ const AllTransactionReportPage = () => {
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       <td className="px-2 py-2 border-r border-gray-100"><div className="h-3 bg-gray-100 rounded" /></td>
-                      <td className="px-2 py-2 border-r border-gray-100"><div className="h-3 bg-gray-100 rounded" /></td>
-                      <td className="px-2 py-2 border-r border-gray-100"><div className="h-3 bg-gray-100 rounded" /></td>
-                      <td className="px-2 py-2"><div className="h-3 bg-gray-100 rounded" /></td>
+                      <td className="px-4 py-2 border-r border-gray-100"><div className="h-3 bg-gray-100 rounded" /></td>
+                      <td className="px-4 py-2"><div className="h-3 bg-gray-100 rounded" /></td>
                     </tr>
                   ))
                 ) : (reportData || []).length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-20 text-gray-400 text-sm">
+                    <td colSpan={3} className="text-center py-20 text-gray-400 text-sm">
                       No records found. Adjust filters.
                     </td>
                   </tr>
                 ) : (
-                  (reportData || []).map((row, idx) => (
-                    <tr key={idx} className={`hover:bg-[#49293e]/5 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}>
-                      <td className="px-2 py-2 text-center text-gray-500 border-r border-gray-100">{idx + 1}</td>
-                      <td className="px-2 py-2 text-left font-medium text-gray-800 border-r border-gray-100">{row.voucher || "-"}</td>
-                      <td className="px-2 py-2 text-left text-gray-700 border-r border-gray-100">{row.particular || "-"}</td>
-                      <td className="px-2 py-2 text-right tabular-nums text-[#49293e] font-semibold">{formatAmount(Number(row.amount))}</td>
-                    </tr>
-                  ))
+                  groupedData.map((group, gIdx) => {
+                    const isBalance = group.voucher.toLowerCase().includes("balance");
+                    return (
+                      <Fragment key={gIdx}>
+                        {isBalance && (
+                          <tr>
+                            <td colSpan={3} className="border-t border-dashed border-gray-400 py-0.5" />
+                          </tr>
+                        )}
+                        {group.items.map((row, iIdx) => (
+                          <tr key={`${gIdx}-${iIdx}`} className={`hover:bg-[#49293e]/5 transition-colors bg-white`}>
+                            <td className="px-2 py-2 text-center text-gray-700 border-r border-gray-100 font-medium">
+                              {iIdx === 0 && !isBalance ? gIdx + 1 : ""}
+                            </td>
+                            <td className="px-4 py-2 text-left text-gray-700 border-r border-gray-100">{row.particular || "-"}</td>
+                            <td className="px-4 py-2 text-right tabular-nums text-[#49293e] font-semibold">{formatAmount(Number(row.amount))}</td>
+                          </tr>
+                        ))}
+                        {!isBalance && (
+                          <tr className="bg-[#49293e]/10">
+                            <td className="px-2 py-2 border-r border-gray-100" />
+                            <td className="px-4 py-2 text-center font-bold text-[#49293e] border-r border-gray-100">Total {group.voucher}</td>
+                            <td className="px-4 py-2 text-right font-bold tabular-nums text-[#49293e]">{formatAmount(group.total)}</td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
                 )}
               </tbody>
-
-              {!(isLoading) && (reportData || []).length > 0 && (
-                <tfoot className="sticky bottom-0 z-10 bg-gray-100 border-t-2 border-t-[#49293e]/20 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
-                  <tr>
-                    <td className="border-r border-gray-200" />
-                    <td className="border-r border-gray-200" />
-                    <td className="px-2 py-2 text-right font-bold text-gray-900 border-r border-gray-200 uppercase text-[10px]">Total</td>
-                    <td className="px-2 py-2 text-right font-bold tabular-nums text-[#49293e] text-[13px]">{formatAmount(totalAmount)}</td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
         </div>
