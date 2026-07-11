@@ -30,35 +30,35 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
       {/* Financial Breakdown */}
       <div className="flex gap-4 border-b border-slate-200/60 pb-1.5">
         <div className="flex-1 space-y-0.5">
-          <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+          <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Sub Total</span>
             <span>{formatAmount(subtotal)}</span>
           </div>
           {discount > 0 && (
-            <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+            <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
               <span>Discount</span>
               <span>{formatAmount(discount)}</span>
             </div>
           )}
           {charges > 0 && (
-            <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+            <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
               <span>Charges</span>
               <span>{formatAmount(charges)}</span>
             </div>
           )}
         </div>
         <div className="flex-1 space-y-0.5 border-l border-slate-200/50 pl-4">
-          <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+          <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Net Value</span>
             <span>{formatAmount(subtotal - discount + charges)}</span>
           </div>
           {(isDelivery || deliveryCharge > 0) && (
             <div
               onDoubleClick={onDeliveryChargeDoubleClick}
-              className={`flex justify-between items-center text-[9px] font-bold leading-tight group
+              className={`flex justify-between items-center text-[11px] font-extrabold leading-tight group
                 ${onDeliveryChargeDoubleClick
                   ? 'text-[#49293e] cursor-pointer select-none rounded px-1 -mx-1 hover:bg-[#49293e]/8 active:bg-[#49293e]/15 transition-colors'
-                  : 'text-slate-500'
+                  : 'text-slate-600'
                 }
               `}
               title="Double-click to change delivery zone"
@@ -75,7 +75,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
               <span>{formatAmount(deliveryCharge)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 leading-tight">
+          <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>VAT</span>
             <span>{formatAmount(tax)}</span>
           </div>

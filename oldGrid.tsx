@@ -1,6 +1,6 @@
-import React, { useRef, useMemo, useState, useEffect, useCallback } from "react";
+﻿import React, { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../../types";
 import { PosProductCard } from "./PosProductCard";
 import { useCurrency } from "../../../../../hooks/useCurrency";
@@ -117,7 +117,7 @@ const PosProductGrid = ({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 115, // Approx height of card + gap
+    estimateSize: () => 130, // Approx height of card + gap
     overscan: 2,
   });
 
@@ -128,14 +128,30 @@ const PosProductGrid = ({
     }
   }, [showAlternatives]);
 
-
+  const scrollProducts = (direction: 'up' | 'down') => {
+    if (scrollRef.current) {
+      const scrollAmount = scrollRef.current.clientHeight * 0.8;
+      scrollRef.current.scrollBy({
+        top: direction === 'up' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   return (
     <section className="relative flex-1 bg-transparent overflow-hidden flex flex-col">
-      {/* Breadcrumb Bar */}
-      {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && breadcrumbs.length > 0 && (
-        <div className="w-full h-8 flex justify-end items-center px-4 shrink-0 bg-transparent border-b border-slate-200/50">
-          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-white/50 px-2 py-1 rounded-md shadow-sm">
+      {/* Scroll Up Button - Desktop only (breadcrumb overlaid on right) */}
+      <button
+        type="button"
+        onClick={() => scrollProducts("up")}
+        className="hidden lg:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-b border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0 relative"
+        aria-label="Scroll Up Products"
+      >
+        <ChevronUp size={18} strokeWidth={2.5} />
+
+        {/* Breadcrumb overlaid on right side of the scroll-up bar */}
+        {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && breadcrumbs.length > 0 && (
+          <div className="absolute right-3 flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest pointer-events-none">
             {breadcrumbs.map((crumb, idx) => (
               <div key={crumb} className="flex items-center gap-1.5">
                 <span className={idx === breadcrumbs.length - 1 ? "text-[#49293e] font-black" : ""}>
@@ -145,12 +161,12 @@ const PosProductGrid = ({
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </button>
 
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-scroll overflow-x-hidden p-1 lg:p-2 scroll-smooth scrollbar-wide"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-1 lg:p-2 scroll-smooth hide-scrollbar"
       >
         {allItems.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm font-bold uppercase tracking-widest">
@@ -182,19 +198,19 @@ const PosProductGrid = ({
                         <button
                           key={sub.subCategoryId}
                           onClick={() => onSelectSubCategory(sub.subCategoryId)}
-                          className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 lg:gap-2 h-[80px] sm:h-[110px] xl:h-[120px] rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20"
+                          className="flex flex-col items-center justify-center gap-1 lg:gap-2 h-[110px] xl:h-[120px] rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20"
                         >
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 mt-1">
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
                             {sub.imageUrl ? (
                               <img src={sub.imageUrl} alt={sub.subCategoryName} className="w-full h-full object-cover" />
                             ) : (
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 w-4 h-4 sm:w-6 sm:h-6">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                               </svg>
                             )}
                           </div>
-                          <h3 className="text-[10px] sm:text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1 leading-tight">{sub.subCategoryName}</h3>
-                          <p className="text-[8px] sm:text-[10px] font-medium text-slate-400 mt-0 sm:mt-0.5 uppercase tracking-widest text-center line-clamp-1 break-words px-1">{sub.arabicName || "ITEMS"}</p>
+                          <h3 className="text-sm font-bold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1">{sub.subCategoryName}</h3>
+                          <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-widest text-center line-clamp-2 break-words px-1">{sub.arabicName || "ITEMS"}</p>
                         </button>
                       );
                     } else if (showAlternatives) {
@@ -210,10 +226,10 @@ const PosProductGrid = ({
                             group relative flex flex-col justify-between
                             rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
                             transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-                            h-[95px] md:h-[105px] xl:h-[115px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+                            h-[110px] xl:h-[120px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                           "
                         >
-                          <div className="relative w-full h-[55%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                          <div className="relative w-full h-[50px] xl:h-[55px] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
                             <span className="text-sm font-black text-slate-300 uppercase select-none">
                               {alt.altName.substring(0, 2)}
                             </span>
@@ -239,17 +255,18 @@ const PosProductGrid = ({
                             </div>
                           )}
 
-                          <div className="w-full h-[45%] flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
-                            <div className="w-full flex flex-col items-center justify-center text-center">
-                              <h3 className="text-[10px] lg:text-[11px] font-extrabold text-[#49293e] leading-[1.1] line-clamp-2 uppercase tracking-tight break-words">
+                          <div className="w-full flex-1 flex flex-col justify-start min-h-0 px-2 py-1.5 overflow-hidden">
+                            <div className="w-full">
+                              <h3 className="text-[9px] lg:text-[10px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
                                 {alt.altName}
                               </h3>
                               {alt.altArabic && (
-                                <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-1 mt-0.5 break-words">
+                                <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 leading-[1.2] line-clamp-2 mt-0.5 break-words">
                                   {alt.altArabic}
                                 </p>
                               )}
                             </div>
+
                           </div>
                         </button>
                       );
@@ -274,7 +291,15 @@ const PosProductGrid = ({
         )}
       </div>
 
-
+      {/* Scroll Down Button - Desktop only */}
+      <button
+        type="button"
+        onClick={() => scrollProducts("down")}
+        className="hidden lg:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-t border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0"
+        aria-label="Scroll Down Products"
+      >
+        <ChevronDown size={18} strokeWidth={2.5} />
+      </button>
     </section>
   );
 };

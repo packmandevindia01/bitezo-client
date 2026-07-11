@@ -17,6 +17,12 @@ export const getEmployees = async (): Promise<EmployeeListResponse[]> => {
   return res.data.data ?? [];
 };
 
+export const getEmployeeNames = async (branchId?: number): Promise<{empId: number, empName: string}[]> => {
+  const url = branchId ? `/employee/list-name?branchId=${branchId}` : "/employee/list-name";
+  const res = await axiosInstance.get(url);
+  return res.data.data ?? [];
+};
+
 // ── Single ────────────────────────────────────────────────────────────────────
 export const getEmployeeById = async (
   empId: number

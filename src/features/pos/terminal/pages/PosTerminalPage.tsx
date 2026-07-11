@@ -52,11 +52,11 @@ export const PosTerminalPage = () => {
     const state = location.state as { openMoreModal?: boolean; openCashModal?: boolean };
     if (state?.openMoreModal) {
       modals.setIsMoreModalOpen(true);
-      window.history.replaceState({}, document.title);
+      navigate(location.pathname, { replace: true, state: {} });
     }
     if (state?.openCashModal) {
       modals.setIsCashModalOpen(true);
-      window.history.replaceState({}, document.title);
+      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, modals]);
 
@@ -590,7 +590,7 @@ export const PosTerminalPage = () => {
 
   if (isLoading && !status) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#fcf9fb]">
+      <div className="flex h-dvh items-center justify-center bg-[#ebe6e8]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
           <p className="text-sm font-bold text-[#49293e] uppercase tracking-widest">Checking Cashier Status...</p>
@@ -604,7 +604,7 @@ export const PosTerminalPage = () => {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-[#fcf9fb] font-sans text-slate-900 overflow-hidden relative">
+    <div className="flex h-dvh flex-col bg-[#ebe6e8] font-sans text-slate-900 overflow-hidden relative">
       <PosTopNav 
         onDelivery={() => modals.setIsDeliveryModalOpen(true)}
         onDriveThrough={() => modals.setIsDriveThroughModalOpen(true)}
@@ -675,7 +675,7 @@ export const PosTerminalPage = () => {
               onSelect={stableSetCategory}
             />
 
-            <div className="flex flex-col flex-1 overflow-hidden bg-[#fcf9fb] relative">
+            <div className="flex flex-col flex-1 overflow-hidden bg-[#ebe6e8] relative">
               <div className="flex-1 flex flex-col overflow-hidden relative">
                 <ErrorBoundary name="Product Grid">
                   <PosProductGrid

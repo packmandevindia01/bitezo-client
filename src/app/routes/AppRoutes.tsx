@@ -79,6 +79,7 @@ const HappyHourFormPage = lazy(() => import("../../features/general/happyHour/pa
 const ProviderSettingsFormPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsFormPage"));
 const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockItemPage"));
 const PosMorePage = lazy(() => import("../../features/pos/terminal/pages/PosMorePage"));
+const PosConfigurationPage = lazy(() => import("../../features/pos/terminal/pages/PosConfigurationPage"));
 const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages/DineInSelectionPage"));
 const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
 const SalesReportPage = lazy(() => import("../../features/reports/salesReport/pages/SalesReportPage"));
@@ -153,6 +154,7 @@ const AppRoutes = () => {
                   <Route path="pos" element={<RoleGuard moduleName="Sales Invoice"><PosTerminalPage /></RoleGuard>} />
                   <Route path="pos/lock-item" element={<RoleGuard moduleName="Sales Invoice"><LockItemPage /></RoleGuard>} />
                   <Route path="pos/more" element={<RoleGuard moduleName="Sales Invoice"><PosMorePage /></RoleGuard>} />
+                  <Route path="pos/configuration" element={<RoleGuard moduleName="Sales Invoice"><PosConfigurationPage /></RoleGuard>} />
                   <Route path="pos/dine-in" element={<RoleGuard moduleName="Sales Invoice"><DineInSelectionPage /></RoleGuard>} />
                 </Route>
 

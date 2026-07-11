@@ -26,12 +26,12 @@ const PosCategoryRailComponent = ({
   };
 
   return (
-    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-b-0 bg-[#fcf9fb] overflow-hidden shrink-0">
+    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-b-0 md:border-r-2 md:border-[#49293e]/70 bg-white shadow-[12px_0_40px_-4px_rgba(73,41,62,0.2),2px_0_8px_-2px_rgba(73,41,62,0.1)] overflow-hidden shrink-0 z-10 relative">
       {/* Scroll Up Button - Desktop only */}
       <button
         type="button"
         onClick={() => scroll("up")}
-        className="hidden md:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-b border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0"
+        className="hidden md:flex items-center justify-center w-full h-8 bg-[#002b5c] border-b border-[#001f44] text-white transition-all duration-300 shrink-0 shadow-[0_2px_4px_rgba(0,43,92,0.15)] hover:bg-[#003b80] hover:shadow-[0_4px_12px_rgba(0,43,92,0.4)] hover:-translate-y-[2px] active:scale-95 active:translate-y-0 z-20 relative"
         aria-label="Scroll Up Categories"
       >
         <ChevronUp size={18} strokeWidth={2.5} />
@@ -59,10 +59,10 @@ const PosCategoryRailComponent = ({
                 active:scale-[0.98] group shrink-0
                 ${
                   isActive
-                    ? "bg-[#49293e] text-white shadow-lg shadow-[#49293e]/20 z-10"
-                    : "bg-white text-slate-700 border border-slate-200/60 shadow-sm hover:border-[#49293e]/30"
+                    ? "bg-gradient-to-b from-white to-[#f4f7f1] text-[#49293e] shadow-[0_0_0_4px_rgba(154,188,130,0.2),0_6px_16px_rgba(154,188,130,0.25),inset_0_2px_4px_rgba(0,0,0,0.04)] border-2 border-[#9abc82] translate-y-[3px] z-10"
+                    : "bg-[#49293e] text-white border-2 border-[#3a2132] shadow-[0_5px_0_0_#2d1a27,0_8px_10px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:border-[#3a2132] hover:shadow-[0_6px_0_0_#2d1a27,0_12px_14px_rgba(0,0,0,0.3),inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:-translate-y-[1px]"
                 }
-                min-w-[85px] sm:min-w-[100px] md:min-w-0 md:w-full
+                min-w-[85px] sm:min-w-[100px] md:min-w-0 md:w-full mb-1.5
               `}
             >
               {category.imageUrl ? (
@@ -75,16 +75,16 @@ const PosCategoryRailComponent = ({
                   }}
                 />
               ) : (
-                <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-7 md:h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] md:text-[10px] font-black uppercase ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-7 md:h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] md:text-[10px] font-black uppercase ${isActive ? "bg-slate-100 text-slate-400" : "bg-white/20 text-white"}`}>
                   {category.name.substring(0, 2)}
                 </div>
               )}
               <div className="flex flex-col min-w-0 md:items-center w-full">
-                <p className={`text-[9px] sm:text-[10px] md:text-[8px] xl:text-[9.5px] font-black tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
+                <p className={`text-[9px] sm:text-[10px] md:text-[8px] xl:text-[9.5px] font-black tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-[#49293e]" : "text-white"}`}>
                   {category.name}
                 </p>
                 {category.arabicName && (
-                  <p className={`text-[8px] sm:text-[9px] md:text-[7.5px] xl:text-[8.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/80" : "text-slate-400"}`}>
+                  <p className={`text-[8px] sm:text-[9px] md:text-[7.5px] xl:text-[8.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-slate-400" : "text-white/80"}`}>
                     {category.arabicName}
                   </p>
                 )}
@@ -98,7 +98,7 @@ const PosCategoryRailComponent = ({
       <button
         type="button"
         onClick={() => scroll("down")}
-        className="hidden md:flex items-center justify-center w-full h-8 bg-white hover:bg-slate-50 border-t border-slate-100 text-[#49293e] hover:text-[#3a2132] active:scale-95 transition-all duration-200 shrink-0"
+        className="hidden md:flex items-center justify-center w-full h-8 bg-[#002b5c] border-t border-[#001f44] text-white transition-all duration-300 shrink-0 shadow-[0_-2px_4px_rgba(0,43,92,0.15)] hover:bg-[#003b80] hover:shadow-[0_-4px_12px_rgba(0,43,92,0.4)] hover:translate-y-[2px] active:scale-95 active:translate-y-0 z-20 relative"
         aria-label="Scroll Down Categories"
       >
         <ChevronDown size={18} strokeWidth={2.5} />

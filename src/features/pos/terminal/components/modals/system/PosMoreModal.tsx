@@ -47,7 +47,7 @@ const CASHIER_ITEMS = [
 
 const SYSTEM_ITEMS = [
   { label: 'BACK OFFICE', icon: Monitor, action: 'backoffice' },
-  { label: 'CONFIGURATION', icon: Settings },
+  { label: 'CONFIGURATION', icon: Settings, action: 'configuration' },
   { label: 'REPORT', icon: BarChart, action: 'report' },
   { label: 'PRINTER', icon: Printer, action: 'printer' },
   { label: 'LOCK PRODUCTS', icon: Lock, action: 'lock' },
@@ -114,6 +114,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
     if (item.action === 'printer') {
       onClose();
       navigate('/pos/more');
+      return;
+    }
+    if (item.action === 'configuration') {
+      onClose();
+      navigate('/pos/configuration');
       return;
     }
     if (item.action === 'lock') {

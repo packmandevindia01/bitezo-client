@@ -79,21 +79,21 @@
     scrollbar-width: auto;
   }
   .scrollbar-wide::-webkit-scrollbar {
-    width: 16px;
+    width: 40px;
   }
   .scrollbar-wide::-webkit-scrollbar-track {
-    background: #e2dbe0;
-    border-radius: 12px;
-    margin: 4px 0;
-    border: 3px solid transparent;
-    background-clip: padding-box;
+    background-color: transparent;
+    border-radius: 99px;
+    border: 2px solid #49293e;
+    margin-top: 4px;
+    margin-bottom: 4px;
   }
   .scrollbar-wide::-webkit-scrollbar-thumb {
     background-color: #49293e;
-    border-radius: 12px;
-    border: 3px solid transparent;
+    border-radius: 99px;
+    border: 6px solid transparent;
     background-clip: padding-box;
-    min-height: 40px;
+    min-height: 60px;
   }
   .scrollbar-wide::-webkit-scrollbar-thumb:hover {
     background-color: #6c3e5c;
@@ -101,22 +101,26 @@
   .scrollbar-wide::-webkit-scrollbar-thumb:active {
     background-color: #3a2132;
   }
-  
-  /* Scrollbar Buttons (Up/Down Arrows) */
+
+  /* Massive Scrollbar Buttons (Up/Down Arrows) */
   .scrollbar-wide::-webkit-scrollbar-button:single-button {
     display: block;
-    height: 16px;
+    height: 48px;
     background-color: #49293e;
     background-position: center;
     background-repeat: no-repeat;
-    background-size: 10px;
-    border-radius: 4px;
+    background-size: 20px;
+    background-clip: padding-box;
   }
   .scrollbar-wide::-webkit-scrollbar-button:single-button:vertical:decrement {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>');
+    border-radius: 99px 99px 0 0;
+    border-top: 12px solid transparent;
   }
   .scrollbar-wide::-webkit-scrollbar-button:single-button:vertical:increment {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+    border-radius: 0 0 99px 99px;
+    border-bottom: 12px solid transparent;
   }
   .scrollbar-wide::-webkit-scrollbar-button:single-button:hover {
     background-color: #6c3e5c;
