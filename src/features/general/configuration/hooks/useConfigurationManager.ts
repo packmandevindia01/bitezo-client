@@ -61,7 +61,7 @@ export const useConfigurationManager = () => {
       try {
         const [productTypesRes, vatsRes] = await Promise.all([
           axiosInstance.get("/product/list-product-type-name").catch(() => ({ data: { data: [] } })),
-          axiosInstance.get("/vat/vat-listname").catch(() => ({ data: { data: [] } }))
+          axiosInstance.get("/vat/vat-list").catch(() => ({ data: { data: [] } }))
         ]);
 
         if (!active) return;
