@@ -23,7 +23,7 @@ const PaymentAgainstVoucherListPage = () => {
   
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const { records, isLoading, branches, searchBranchId, setSearchBranchId } = usePaymentAgainstVoucherList(fromDate, toDate);
+  const { records, isLoading, branches, searchBranchId, setSearchBranchId, isBranchLocked } = usePaymentAgainstVoucherList(fromDate, toDate);
 
   const sortedRecords = [...records].sort((a: any, b: any) => b.transId - a.transId);
 
@@ -117,6 +117,7 @@ const PaymentAgainstVoucherListPage = () => {
               value={String(searchBranchId)}
               onChange={(e) => setSearchBranchId(Number(e.target.value))}
               options={branches.map((b: any) => ({ label: b.branchName, value: String(b.id) }))}
+              disabled={isBranchLocked}
             />
           </div>
         </div>

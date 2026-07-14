@@ -22,7 +22,7 @@ export interface ConfigurationState {
   kotArabic: boolean;
   billArabic: boolean;
   kotPrintSettle: boolean;
-  billCopies: number;
+  billCopies: number | string;
   packagerPrint: boolean;
   kotPrint: boolean;
   masterKot: boolean;

@@ -9,12 +9,14 @@ import { branchApi } from "../../../inventory/branches/services/branchApi";
 import type { BranchRecord } from "../../../inventory/branches/types";
 import { useToast } from "../../../../app/providers/useToast";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => void) => {
   const { showToast } = useToast();
   const { decimalPart } = useCurrency();
   const queryClient = useQueryClient();
-  const defaultBranchId = Number(localStorage.getItem("systemBranchId")) || 0;
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const defaultBranchId = initialBranchId ? Number(initialBranchId) : 0;
   const [searchBranchId, setSearchBranchId] = useState<number>(defaultBranchId);
 
   const form = useForm<ReceiptVoucherForm>({
@@ -263,5 +265,6 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
     isLoadingData,
     isMultiPayOpen,
     setIsMultiPayOpen,
+    isBranchLocked,
   };
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { INITIAL_CONFIG } from "../../../general/configuration/constants";
 import type { ConfigurationState, DeliveryCharge } from "../../../general/configuration/types";
 import { useToast } from "../../../../app/providers/useToast";
-import { employeeService } from "../../../general/employee/services/employeeService";
+import { getEmployeeNames } from "../../../general/employee/services/employeeService";
 import { posConfigApi } from "../../services/posConfigApi";
 import type { PosConfigResponseData, PosConfigUpdatePayload } from "../../services/posConfigApi";
 
@@ -45,10 +45,9 @@ const mapApiToState = (data: PosConfigResponseData): ConfigurationState => {
     levy: configs.levy || 0,
     defaultDeliveryCharge: configs.deliveryCharge || 0,
     defaultEmployee: configs.defaultEmployee === "Enable",
-    employeeId: String(configs.employeeId || 0),
+    employeeId: configs.employeeId ? String(configs.employeeId) : "",
     groupInMenu: configs.showGroup === "Enable",
     providerOwnMenuStatus: configs.providerOwnStatus ?? true,
-    enableVat: configs.VatStatus ?? true,
 
     dayEnd: {
       category: configs.categoryDayend === "Enable",
@@ -119,7 +118,6 @@ const mapStateToApi = (state: ConfigurationState, branchId: number): PosConfigUp
     employeeId: Number(state.employeeId) || 0,
     showGroup: state.groupInMenu ? "Enable" : "Disable",
     providerOwnStatus: state.providerOwnMenuStatus,
-    VatStatus: state.enableVat,
 
     deliveryCharges: state.multiDeliveryCharges.map(d => ({
       chargeName: d.name,
@@ -141,11 +139,11 @@ export const usePosConfiguration = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const branchId = Number(localStorage.getItem("branchId")) || 0;
+        const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
         
         // Fetch employees and pos config concurrently
         const [employees, posConfigRes] = await Promise.all([
-          employeeService.getEmployees().catch(() => []),
+          getEmployeeNames(branchId).catch((e) => { console.error(e); return []; }),
           posConfigApi.getPosConfig(branchId).catch(() => null)
         ]);
 
@@ -215,7 +213,7 @@ export const usePosConfiguration = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const branchId = Number(localStorage.getItem("branchId")) || 0;
+      const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
       const payload = mapStateToApi(form, branchId);
       
       const res = await posConfigApi.updatePosConfig(payload);

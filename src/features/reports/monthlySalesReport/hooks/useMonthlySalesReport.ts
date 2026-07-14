@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { getMonthlySalesReport } from "../services/monthlySalesReportApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { getDecimalPart } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useMonthlySalesReport = () => {
-  const [branchId, setBranchId] = useState<string>("0"); // Default to All
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const [branchId, setBranchId] = useState<string>(initialBranchId || "1"); // Default to All
 
   const currentYear = new Date().getFullYear();
   
@@ -47,10 +49,12 @@ export const useMonthlySalesReport = () => {
   });
 
   const handleReset = useCallback(() => {
-    setBranchId("0");
+    if (!isBranchLocked) {
+      setBranchId("1");
+    }
     setFromPeriod(`${currentYear}-01`);
     setToPeriod(`${currentYear}-12`);
-  }, [currentYear]);
+  }, [currentYear, isBranchLocked]);
 
   const filters = useMemo(
     () => ({
@@ -60,8 +64,9 @@ export const useMonthlySalesReport = () => {
       setFromPeriod,
       toPeriod,
       setToPeriod,
+      isBranchLocked,
     }),
-    [branchId, fromPeriod, toPeriod]
+    [branchId, fromPeriod, toPeriod, isBranchLocked]
   );
 
   return {

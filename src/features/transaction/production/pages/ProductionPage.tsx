@@ -20,6 +20,7 @@ const ProductionPage = () => {
     items,
     append,
     remove,
+    update,
     totals,
     isLoadingInitialData,
     isSaving,
@@ -36,7 +37,8 @@ const ProductionPage = () => {
     loadBom,
     isBomLoading,
     onSubmit,
-    masterData
+    masterData,
+    isBranchLocked
   } = useProductionForm(id ? parseInt(id, 10) : undefined);
 
   const { watch, setValue, control, register } = form;
@@ -136,6 +138,7 @@ const ProductionPage = () => {
                       }, 100);
                     }}
                     onKeyDown={(e) => hk(e, "prod-employee")}
+                    disabled={!!id || isBranchLocked}
                     placeholder="Select branch"
                   />
                 )}
@@ -341,10 +344,15 @@ const ProductionPage = () => {
                             <button
                               type="button"
                               tabIndex={-1}
-                              onClick={() => items.length > 1 && remove(index)}
-                              className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
-                              disabled={items.length <= 1}
-                              title="Remove item"
+                              onClick={() => {
+                                if (items.length > 1) {
+                                  remove(index);
+                                } else {
+                                  update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" } as any);
+                                }
+                              }}
+                              className="p-1.5 rounded-md transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
+                              title={items.length > 1 ? "Remove item" : "Clear item"}
                             >
                               <Trash2 size={14} />
                             </button>

@@ -19,15 +19,10 @@ const MonthlySalesReportPage = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const branchOptions = useMemo(() => {
-    return [
-      { label: "All", value: "0" },
-      ...branches
-        .filter((b: any) => b.branchName.toLowerCase() !== "all" && String(b.id) !== "0")
-        .map((b: any) => ({
-          label: b.branchName,
-          value: String(b.id)
-        }))
-    ];
+    return branches.map((b: any) => ({
+      label: b.branchName,
+      value: String(b.id)
+    }));
   }, [branches]);
 
   const columns = reportData?.columns || [];
@@ -92,6 +87,7 @@ const MonthlySalesReportPage = () => {
                   value={filters.branchId} 
                   onChange={filters.setBranchId} 
                   placeholder="All" 
+                  disabled={filters.isBranchLocked}
                 />
               </div>
             </div>

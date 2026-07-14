@@ -18,6 +18,7 @@ import { usePaymentAgainstVoucherForm } from "../hooks/usePaymentAgainstVoucherF
 import { paymentAgainstVoucherApi } from "../services/paymentAgainstVoucherApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectActiveBranchId } from "../../../auth/store/authSlice";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 const PaymentAgainstVoucherPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +26,9 @@ const PaymentAgainstVoucherPage = () => {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
   const { showToast } = useToast();
-  const branchId = useAppSelector(selectActiveBranchId) || 0;
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const fallbackBranch = useAppSelector(selectActiveBranchId) || 0;
+  const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
 
   const { 
     form, 
@@ -556,7 +559,7 @@ const PaymentAgainstVoucherPage = () => {
         onSelect={handleMultiSelect}
         partyName={selectedAccountName}
         fetchInvoices={(fromDate, toDate) => 
-          paymentAgainstVoucherApi.getPendingInvoicesDetails(branchId, selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
+          paymentAgainstVoucherApi.getPendingInvoicesDetails(Number(branchId), selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
         }
         type="PAYMENT"
       />

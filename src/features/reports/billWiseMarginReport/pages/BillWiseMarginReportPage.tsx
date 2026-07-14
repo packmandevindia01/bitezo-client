@@ -60,6 +60,7 @@ const BillWiseMarginReportPage = () => {
                   options={options.branchOptions} 
                   value={filters.branchId} 
                   onChange={filters.setBranchId} 
+                  disabled={filters.isBranchLocked}
                   placeholder="All" 
                 />
               </div>

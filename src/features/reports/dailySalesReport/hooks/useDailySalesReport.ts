@@ -4,9 +4,11 @@ import { getBranchList, getDailySalesReport } from "../services/dailySalesReport
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, DailySalesReportData } from "../types";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useDailySalesReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
+  const { isBranchLocked, initialBranchId } = useBranchScope();
 
   // Filter states
   const [fromDate, setFromDate] = useState<string>(() => {
@@ -17,13 +19,7 @@ export const useDailySalesReport = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    return activeBranchId || "1";
-  });
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
 
   // Master data queries
   const { data: branches = [] as BranchOption[], isLoading: branchesLoading } = useQuery({
@@ -73,6 +69,7 @@ export const useDailySalesReport = () => {
       branchId,
       setBranchId,
       resetFilters,
+      isBranchLocked,
     },
     masterData: {
       branches,

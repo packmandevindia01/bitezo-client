@@ -11,9 +11,10 @@ import type { ProductionForm, ProductionPayload } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
-
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 export const useProductionForm = (initialTransId?: number) => {
   const { decimalPart } = useCurrency();
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -58,7 +59,7 @@ export const useProductionForm = (initialTransId?: number) => {
   const { control, setValue, getValues, handleSubmit, reset } = form;
 
   // 2. Initialize Field Array for Raw Materials grid
-  const { fields: items, append, remove } = useFieldArray({
+  const { fields: items, append, remove, update } = useFieldArray({
     control,
     name: "items",
   });
@@ -122,6 +123,16 @@ export const useProductionForm = (initialTransId?: number) => {
       return bl.map((b: any) => ({ label: b.branchName, value: String(b.branchId) }));
     }
   });
+
+  useEffect(() => {
+    if (!initialTransId && branches.length > 0 && !watchedBranchId) {
+      if (isBranchLocked) {
+        setValue("branchId", initialBranchId);
+      } else {
+        setValue("branchId", branches[0].value);
+      }
+    }
+  }, [branches, initialTransId, isBranchLocked, initialBranchId, watchedBranchId, setValue]);
 
   // Dependent Query: Employees (requires branchId)
   const { data: employees = [] } = useQuery({
@@ -495,6 +506,7 @@ export const useProductionForm = (initialTransId?: number) => {
     items,
     append,
     remove,
+    update,
     totals,
     isLoadingInitialData,
     isSaving: saveMutation.isPending,
@@ -513,5 +525,6 @@ export const useProductionForm = (initialTransId?: number) => {
     isBomLoading,
     onSubmit,
     masterData: { units: allUnits },
+    isBranchLocked,
   };
 };

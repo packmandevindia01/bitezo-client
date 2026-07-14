@@ -15,19 +15,14 @@ import {
 
 const AllTransactionReportPage = () => {
   const navigate = useNavigate();
-  const { filters, branches, reportData, isLoading, handleReset } = useAllTransactionReport();
+  const { filters, branches, reportData, isLoading, handleReset, isBranchLocked } = useAllTransactionReport();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const branchOptions = useMemo(() => {
-    return [
-      { label: "All", value: "0" },
-      ...branches
-        .filter(b => b.branchName.toLowerCase() !== "all" && String(b.id) !== "0")
-        .map(b => ({
-          label: b.branchName,
-          value: String(b.id)
-        }))
-    ];
+    return branches.map(b => ({
+      label: b.branchName,
+      value: String(b.id)
+    }));
   }, [branches]);
 
   const totalAmount = useMemo(() => {
@@ -110,6 +105,7 @@ const AllTransactionReportPage = () => {
                     value={filters.branchId} 
                     onChange={filters.setBranchId} 
                     placeholder="All" 
+                    disabled={isBranchLocked}
                   />
                 </div>
               </div>

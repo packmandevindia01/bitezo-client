@@ -110,6 +110,16 @@ export const orderApi = {
     return unwrap<MenuOrderResponse>(
       axiosInstance.post("/order-split", payload)
     );
+  },
+
+  /**
+   * Updates driver for a recall order.
+   * PUT /api/order/recall/{orderId}/driver?driverId={driverId}
+   */
+  updateRecallDriver: async (orderId: number, driverId: number): Promise<{ isSuccess: boolean; message: string }> => {
+    return unwrap<{ isSuccess: boolean; message: string }>(
+      axiosInstance.put(`/order/recall/${orderId}/driver`, {}, { params: { driverId } })
+    );
   }
 };
 

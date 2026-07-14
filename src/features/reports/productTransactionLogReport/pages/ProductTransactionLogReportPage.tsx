@@ -110,7 +110,7 @@ export const ProductTransactionLogReportPage = () => {
                 <FormInput label="To Date" type="date" value={filters.toDate} onChange={(e) => filters.setToDate(e.target.value)} />
               </div>
               <div className="w-44">
-                <SearchableSelect label="Branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} placeholder="Select Branch" />
+                <SearchableSelect label="Branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} disabled={filters.isBranchLocked} placeholder="Select Branch" />
               </div>
               <div className="w-44">
                 <SearchableSelect label="Transaction Type" options={transactionTypeOptions} value={filters.transactionType} onChange={filters.setTransactionType} placeholder="Select Type" />

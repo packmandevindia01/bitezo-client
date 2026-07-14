@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, LayoutGrid, Printer, DollarSign, CalendarDays, Save 
+  ChevronLeft, LayoutGrid, Printer, DollarSign, CalendarDays, Save, Keyboard 
 } from 'lucide-react';
 import { Button } from '../../../../components/common';
+import { TouchKeyboard } from '../../../../components/common/TouchKeyboard';
 import { usePosConfiguration } from '../hooks/usePosConfiguration';
 import PosSettingsTab from '../../../general/configuration/components/PosSettingsTab';
 import PrintingTab from '../../../general/configuration/components/PrintingTab';
@@ -15,6 +16,7 @@ type PosConfigTab = "pos" | "printing" | "charges" | "dayend";
 export const PosConfigurationPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<PosConfigTab>("pos");
+  const [showKeyboard, setShowKeyboard] = useState(false);
 
   const { 
     form, 
@@ -42,7 +44,7 @@ export const PosConfigurationPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcf9fb] flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen h-screen overflow-hidden bg-[#fcf9fb] flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
@@ -87,8 +89,18 @@ export const PosConfigurationPage: React.FC = () => {
           ))}
         </div>
 
-        <div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowKeyboard(!showKeyboard)}
+            className={`p-2 rounded-lg border transition-all ${
+              showKeyboard ? "bg-[#49293e] text-white border-[#49293e]" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+            }`}
+            title="Toggle Virtual Keyboard"
+          >
+            <Keyboard size={18} />
+          </button>
           <Button 
+            id="btn-save-pos-config"
             onClick={handleSave} 
             disabled={saving} 
             isAction
@@ -101,14 +113,22 @@ export const PosConfigurationPage: React.FC = () => {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-hidden p-4 md:p-6">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
         <div className="max-w-7xl mx-auto h-full w-full relative">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 min-h-[500px]">
             {activeTab === "pos" && (
-              <PosSettingsTab form={form} employeeOptions={employeeOptions} onChange={setField} />
+              <PosSettingsTab 
+                form={form} 
+                employeeOptions={employeeOptions} 
+                onChange={setField} 
+              />
             )}
             {activeTab === "printing" && (
-              <PrintingTab form={form} onChange={setField} />
+              <PrintingTab 
+                form={form} 
+                onChange={setField} 
+                onInputFocus={() => setShowKeyboard(true)}
+              />
             )}
             {activeTab === "charges" && (
               <ChargesTab 
@@ -116,14 +136,24 @@ export const PosConfigurationPage: React.FC = () => {
                 onChange={setField} 
                 onAddDelivery={addDeliveryCharge} 
                 onRemoveDelivery={removeDeliveryCharge} 
+                onInputFocus={() => setShowKeyboard(true)}
               />
             )}
             {activeTab === "dayend" && (
-              <DayEndTab form={form} onChange={setDayEndField} />
+              <DayEndTab 
+                form={form} 
+                onChange={setDayEndField} 
+              />
             )}
           </div>
         </div>
       </main>
+
+      {showKeyboard && (
+        <div className="shrink-0 w-full bg-[#f8f9fa] mt-auto border-t border-slate-200 p-2 md:p-3 animate-in slide-in-from-bottom-2">
+          <TouchKeyboard onClose={() => setShowKeyboard(false)} />
+        </div>
+      )}
     </div>
   );
 };

@@ -1,17 +1,13 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { BranchOption, CustomerOption, SeriesOption } from "../types";
 import { getBillWiseMarginReport, getBranchList, getCustomerList, getSeriesList } from "../services/billWiseMarginReportApi";
 import { getDecimalPart } from "../../../../utils/currency";
 
 export const useBillWiseMarginReport = () => {
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    return activeBranchId || "0";
-  });
+  const { initialBranchId, isBranchLocked } = useBranchScope();
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [seriesId, setSeriesId] = useState<string>("0");
   const [customerId, setCustomerId] = useState<string>("0");
   
@@ -31,10 +27,7 @@ export const useBillWiseMarginReport = () => {
   const branches = data as BranchOption[];
 
   const branchOptions = useMemo(() => {
-    const opts = branches
-      .filter((b) => b.branchName && b.branchName.toLowerCase() !== "all")
-      .map((b) => ({ value: String(b.branchId), label: b.branchName }));
-    return [{ value: "0", label: "All" }, ...opts];
+    return branches.map((b) => ({ value: String(b.branchId), label: b.branchName }));
   }, [branches]);
 
   // Fetch customers for dropdown
@@ -96,22 +89,18 @@ export const useBillWiseMarginReport = () => {
   }, [reportQuery.data]);
 
   const handleReset = useCallback(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-
-    setBranchId(activeBranchId || "0");
+    setBranchId(initialBranchId);
     setSeriesId("0");
     setCustomerId("0");
     setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
     setToDate(todayStr);
-  }, [today, todayStr]);
+  }, [today, todayStr, initialBranchId]);
 
   return {
     filters: {
       branchId,
       setBranchId,
+      isBranchLocked,
       seriesId,
       setSeriesId,
       customerId,

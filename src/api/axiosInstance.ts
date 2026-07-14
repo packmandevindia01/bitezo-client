@@ -43,7 +43,8 @@ axiosInstance.interceptors.request.use((config) => {
                               normalizedUrl.includes("/category/category-image") ||
                               normalizedUrl.includes("/product/product-image") ||
                               normalizedUrl.includes("/provider") ||
-                              normalizedUrl.includes("/lock-product");
+                              normalizedUrl.includes("/lock-product") ||
+                              normalizedUrl.includes("/employee/list-name");
 
 
   // 3. Cleanup: Remove headers that can cause 500s on strict backends

@@ -9,9 +9,10 @@ interface Props {
   onChange: <K extends keyof ConfigurationState>(key: K, value: ConfigurationState[K]) => void;
   onAddDelivery: (name: string, charge: number) => void;
   onRemoveDelivery: (id: string) => void;
+  onInputFocus?: () => void;
 }
 
-const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) => {
+const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFocus }: Props) => {
   const { formatAmount } = useCurrency();
   const [newName, setNewName] = useState("");
   const [newCharge, setNewCharge] = useState("");
@@ -36,6 +37,10 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
             inputClassName="text-right"
             value={String(form.serviceCharge)}
             onChange={(e) => onChange("serviceCharge", parseFloat(e.target.value) || 0)}
+            onFocus={(e) => {
+              onInputFocus?.();
+              setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+            }}
           />
           <FormInput
             id="conf-charge-levy"
@@ -44,6 +49,10 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
             inputClassName="text-right"
             value={String(form.levy)}
             onChange={(e) => onChange("levy", parseFloat(e.target.value) || 0)}
+            onFocus={(e) => {
+              onInputFocus?.();
+              setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+            }}
           />
           <FormInput
             id="conf-charge-default-delivery"
@@ -52,6 +61,10 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
             inputClassName="text-right"
             value={String(form.defaultDeliveryCharge)}
             onChange={(e) => onChange("defaultDeliveryCharge", parseFloat(e.target.value) || 0)}
+            onFocus={(e) => {
+              onInputFocus?.();
+              setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+            }}
           />
         </div>
       </div>
@@ -68,6 +81,10 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
               placeholder="e.g. Zone 1, Remote..."
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onFocus={(e) => {
+                onInputFocus?.();
+                setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+              }}
             />
             <FormInput
               id="conf-charge-amount"
@@ -77,6 +94,10 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery }: Props) 
               placeholder="0.00"
               value={newCharge}
               onChange={(e) => setNewCharge(e.target.value)}
+              onFocus={(e) => {
+                onInputFocus?.();
+                setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+              }}
             />
             <div className="pb-1">
               <Button onClick={handleAdd} className="h-10.5 whitespace-nowrap px-6" icon={<Plus size={18} />}>

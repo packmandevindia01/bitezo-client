@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, SupplierOption, ProductOption, ProductWisePurchaseReportParams } from "../types";
@@ -22,13 +23,8 @@ export const useProductWisePurchaseReport = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    return activeBranchId || "1";
-  });
+  const { initialBranchId, isBranchLocked } = useBranchScope();
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [productId, setProductId] = useState<string>("0");
   const [supplierId, setSupplierId] = useState<string>("0");
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,15 +102,9 @@ export const useProductWisePurchaseReport = () => {
     const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
     const defaultTo = today.toISOString().split("T")[0];
     
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    const defaultBranch = activeBranchId || "1";
-
     setFromDate(defaultFrom);
     setToDate(defaultTo);
-    setBranchId(defaultBranch);
+    setBranchId(initialBranchId);
     setProductId("0");
     setSupplierId("0");
     setSearchTerm("");
@@ -128,6 +118,7 @@ export const useProductWisePurchaseReport = () => {
       setToDate,
       branchId,
       setBranchId,
+      isBranchLocked,
       productId,
       setProductId,
       supplierId,

@@ -26,6 +26,7 @@ const ReceiptVoucherFormPage = () => {
     cancelMutation,
     isMultiPayOpen,
     setIsMultiPayOpen,
+    isBranchLocked,
   } = useReceiptVoucher(Number(id) || undefined, () => navigate("/dashboard/receipt-voucher"));
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -181,7 +182,7 @@ const ReceiptVoucherFormPage = () => {
               options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "rv-date")}
               tabIndex={2}
-              disabled={!canSave}
+              disabled={!canSave || isBranchLocked}
             />
 
             <SearchableSelect

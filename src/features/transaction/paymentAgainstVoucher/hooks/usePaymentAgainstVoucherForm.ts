@@ -7,10 +7,13 @@ import { paymentAgainstVoucherSchema } from "../schema/paymentAgainstVoucherSche
 import type { PaymentAgainstVoucherFormData } from "../schema/paymentAgainstVoucherSchema";
 import { useAppSelector } from "../../../../app/hooks";
 import { getDecimalPart } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const usePaymentAgainstVoucherForm = (transId?: number) => {
   const auth = useAppSelector((state: any) => state.auth);
-  const branchId = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
+  const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
   // Use user's employeeId from state if available, else fallback to 1
   const employeeId = auth?.employeeId || 1;
 
@@ -158,5 +161,6 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
     isLoading: isLoadingMaster || isLoadingExisting || isLoadingAccounts,
     isSaving: saveMutation.isPending,
     saveMutation,
+    isBranchLocked,
   };
 };

@@ -286,6 +286,7 @@ export interface MenuOrderRequest {
   providerOrderNo?: string;
   providerNo?: string;
   deliveryCharge?: number;
+  driverId?: number;
 }
 
 export interface MenuOrderUpdateRequest {
@@ -320,6 +321,7 @@ export interface MenuOrderUpdateRequest {
   voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   combinedOrderIds: number[];
   deliveryCharge?: number;
+  driverId?: number;
 }
 
 export interface SplitOrderData {

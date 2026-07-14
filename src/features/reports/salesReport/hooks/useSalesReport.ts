@@ -4,9 +4,11 @@ import { getSalesReport, getBranchList, getPaymodeList, getCustomerList, getSeri
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, PaymodeOption, CustomerOption } from "../types";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useSalesReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
+  const { isBranchLocked, initialBranchId } = useBranchScope();
 
   // Filter states
   const [fromDate, setFromDate] = useState<string>(() => {
@@ -18,13 +20,7 @@ export const useSalesReport = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    return activeBranchId || "1";
-  });
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [customerId, setCustomerId] = useState<string>("0");
   const [paymodeId, setPaymodeId] = useState<string>("0");
   const [seriesId, setSeriesId] = useState<string>("0");
@@ -145,6 +141,7 @@ export const useSalesReport = () => {
       searchTerm,
       setSearchTerm,
       resetFilters,
+      isBranchLocked,
     },
     masterData: {
       branches,

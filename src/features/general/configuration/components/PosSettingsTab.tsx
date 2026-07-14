@@ -184,6 +184,7 @@ const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
             label="Provider Own Menu Status" 
             checked={form.providerOwnMenuStatus} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("providerOwnMenuStatus", e.target.checked)} 
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "btn-save-pos-config")}
           />
         </div>
       </div>

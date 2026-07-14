@@ -50,7 +50,6 @@ export interface RuntimePosConfig {
   employeeId?: number;
   showGroup?: string;
   providerOwnStatus?: boolean;
-  VatStatus?: boolean;
 }
 
 export interface PosConfigResponseData {

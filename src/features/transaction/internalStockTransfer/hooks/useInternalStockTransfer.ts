@@ -3,6 +3,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { productService } from "../../../inventory/product/services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
@@ -31,6 +32,7 @@ export const initialTransferForm: InternalStockTransferForm = {
 };
 
 export const useInternalStockTransfer = (id?: string) => {
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -60,7 +62,7 @@ export const useInternalStockTransfer = (id?: string) => {
 
   const { control, reset, setValue, getValues, watch } = methods;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: items, append, remove, update } = useFieldArray({
     control,
     name: "items",
   });
@@ -170,9 +172,13 @@ export const useInternalStockTransfer = (id?: string) => {
   // Auto-set first branch and RefNo for new records
   useEffect(() => {
     if (!id && branchesData?.fromBranches && branchesData.fromBranches.length > 0 && !getValues("fromBranch")) {
-      setValue("fromBranch", branchesData.fromBranches[0].value);
+      if (isBranchLocked && initialBranchId) {
+        setValue("fromBranch", String(initialBranchId));
+      } else {
+        setValue("fromBranch", branchesData.fromBranches[0].value);
+      }
     }
-  }, [branchesData, id, setValue, getValues]);
+  }, [branchesData, id, setValue, getValues, isBranchLocked, initialBranchId]);
 
   useEffect(() => {
     if (!id && branchSpecificData?.refNo && !getValues("refNo")) {
@@ -241,7 +247,7 @@ export const useInternalStockTransfer = (id?: string) => {
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
     }
-  }, [setValue, getValues, formatAmount]);
+  }, [setValue, getValues]);
 
   const handleReset = () => {
     reset(initialTransferForm);
@@ -279,8 +285,6 @@ export const useInternalStockTransfer = (id?: string) => {
         }))
       };
 
-      console.log("Internal Stock Transfer Payload:", JSON.stringify(payload, null, 2));
-
       if (id) {
         await internalStockTransferApi.updateTransfer(Number(id), payload);
         showToast("Stock transfer updated successfully", "success");
@@ -317,9 +321,10 @@ export const useInternalStockTransfer = (id?: string) => {
 
   return {
     methods,
-    fields,
+    fields: items,
     append,
     remove,
+    update,
     masterData,
     loadingMaster: loadingMaster || loadingBranchSpecific || loadingRecord,
     saving,
@@ -332,5 +337,6 @@ export const useInternalStockTransfer = (id?: string) => {
     isPrintModalOpen,
     setIsPrintModalOpen,
     categoryUnits,
+    isBranchLocked,
   };
 };

@@ -10,7 +10,7 @@ import type { PurchaseReturnMasterData } from "../services/purchaseReturnApi";
 import { productService } from "../../../inventory/product/services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
-
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -39,6 +39,7 @@ export const calculateLine = (item: PurchaseReturnLineItem, decimals: number = 3
 
 export const usePurchaseReturn = (invoiceId?: string) => {
   const { showToast } = useToast();
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const { formatAmount, decimalPart } = useCurrency();
   const [masterData, setMasterData] = useState<PurchaseReturnMasterData | null>(null);
   const [loadingMaster, setLoadingMaster] = useState(true);
@@ -102,7 +103,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const { control, setValue, reset, getValues } = methods;
 
-  const { fields: items, append, remove, replace: replaceItems } = useFieldArray({
+  const { fields: items, append, remove, replace: replaceItems, update } = useFieldArray({
     control,
     name: "items",
   });
@@ -216,8 +217,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
              if (data.series.length > 0) {
                 setValue("series", data.series[0].seriesId.toString());
              }
-             if (data.branches.length > 0) {
-                setValue("branch", data.branches[0].branchId.toString());
+             if (isBranchLocked) {
+               setValue("branch", initialBranchId);
+             } else if (data.branches.length > 0) {
+               setValue("branch", data.branches[0].branchId.toString());
              }
           }
         }
@@ -763,6 +766,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     items,
     append,
     remove,
+    update,
     setPayments,
     categoryUnits,
     watchedItems,
@@ -804,5 +808,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     handleUnitChange,
     saving,
     purchaseId,
+    isBranchLocked,
   };
 };

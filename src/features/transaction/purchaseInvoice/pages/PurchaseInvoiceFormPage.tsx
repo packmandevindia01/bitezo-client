@@ -26,6 +26,8 @@ const PurchaseInvoiceFormPage = () => {
     items,
     append,
     remove,
+    update,
+    isBranchLocked,
     watchedItems,
     payments,
     totals,
@@ -208,7 +210,10 @@ const PurchaseInvoiceFormPage = () => {
     };
   }, [watchedItems, payments, supplierOptions, productOptions, totals, getValues]);
 
-  const seriesOptions = masterData?.series.map(s => ({ label: s.seriesName, value: s.seriesId.toString() })) || [];
+  const watchedBranchId = methods.watch("branch");
+  const seriesOptions = masterData?.series
+    .filter(s => s.branchId.toString() === watchedBranchId)
+    .map(s => ({ label: s.seriesName, value: s.seriesId.toString() })) || [];
   const branchOptions = masterData?.branches.map(b => ({ label: b.branchName, value: b.branchId.toString() })) || [];
   const salesmanOptions = masterData?.salesman.map(s => ({ label: s.employeeName, value: s.employeeId.toString() })) || [];
 
@@ -278,7 +283,7 @@ const PurchaseInvoiceFormPage = () => {
                 </button>
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
@@ -426,10 +431,16 @@ const PurchaseInvoiceFormPage = () => {
                             <button
                               type="button"
                               tabIndex={-1}
-                              onClick={() => items.length > 1 && remove(index)}
-                              className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
-                              disabled={!canSave || items.length <= 1}
-                              title="Remove item"
+                              onClick={() => {
+                                if (items.length > 1) {
+                                  remove(index);
+                                } else {
+                                  update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" } as any);
+                                }
+                              }}
+                              className="p-1.5 rounded-md transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
+                              disabled={!canSave}
+                              title={items.length > 1 ? "Remove item" : "Clear item"}
                             >
                               <Trash2 size={14} />
                             </button>

@@ -65,6 +65,7 @@ const ProductionListPage = () => {
               options={branches} 
               value={filters.branchId} 
               onChange={(e) => handleFilterChange("branchId", e.target.value)} 
+              disabled={filters.isBranchLocked}
             />
           </div>
           <div className="flex-1 max-w-sm">

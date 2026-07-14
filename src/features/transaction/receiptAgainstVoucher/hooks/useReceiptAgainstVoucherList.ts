@@ -1,19 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { receiptAgainstVoucherApi } from "../services/receiptAgainstVoucherApi";
-import { useAppSelector } from "../../../../app/hooks";
-import { selectActiveBranchId } from "../../../auth/store/authSlice";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useReceiptAgainstVoucherList = (fromDate?: string, toDate?: string) => {
-  const globalBranchId = useAppSelector(selectActiveBranchId) || Number(localStorage.getItem("branchId")) || 0;
-  const [searchBranchId, setSearchBranchId] = useState<number>(globalBranchId);
-
-  useEffect(() => {
-    if (globalBranchId > 0 && searchBranchId === 0) {
-      setSearchBranchId(globalBranchId);
-    }
-  }, [globalBranchId]);
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const [searchBranchId, setSearchBranchId] = useState<number>(Number(initialBranchId));
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches"],
@@ -33,5 +26,6 @@ export const useReceiptAgainstVoucherList = (fromDate?: string, toDate?: string)
     branches,
     searchBranchId,
     setSearchBranchId,
+    isBranchLocked,
   };
 };

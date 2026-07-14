@@ -62,8 +62,7 @@ const InternalStockTransferListPage = lazy(() => import("../../features/transact
 const StockAdjustmentTypePage = lazy(() => import("../../features/inventory/stockAdjustmentType/pages/StockAdjustmentTypePage"));
 const ConfigurationPage = lazy(() => import("../../features/general/configuration/pages/ConfigurationPage"));
 const BackofficeConfigurationPage = lazy(() => import("../../features/general/configuration/pages/BackofficeConfigurationPage"));
-const ProviderListPage = lazy(() => import("../../features/general/provider/pages/ProviderListPage"));
-const ProviderFormPage = lazy(() => import("../../features/general/provider/pages/ProviderFormPage"));
+const ProviderPage = lazy(() => import("../../features/general/provider/pages/ProviderPage"));
 const ProviderSettingsPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsList"));
 const SupplierList = lazy(() => import("../../features/general/supplier/pages/SupplierList"));
 const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherPage"));
@@ -174,9 +173,7 @@ const AppRoutes = () => {
                   <Route path="branches" element={<RoleGuard moduleName="Branch Master"><BranchListPage /></RoleGuard>} />
                   <Route path="branches/add" element={<RoleGuard moduleName="Branch Master" action="Add"><BranchFormPage /></RoleGuard>} />
                   <Route path="branches/edit/:id" element={<RoleGuard moduleName="Branch Master" action="Edit"><BranchFormPage /></RoleGuard>} />
-                  <Route path="providers" element={<RoleGuard moduleName="Provider Master"><ProviderListPage /></RoleGuard>} />
-                  <Route path="providers/new" element={<RoleGuard moduleName="Provider Master" action="Add"><ProviderFormPage /></RoleGuard>} />
-                  <Route path="providers/edit/:id" element={<RoleGuard moduleName="Provider Master" action="Edit"><ProviderFormPage /></RoleGuard>} />
+                  <Route path="providers" element={<RoleGuard moduleName="Provider Master"><ProviderPage /></RoleGuard>} />
                   <Route path="suppliers" element={<RoleGuard moduleName="Supplier Master"><SupplierList /></RoleGuard>} />
                   <Route path="categories" element={<RoleGuard moduleName="Category Master"><CategoryPage /></RoleGuard>} />
                   <Route path="sub-categories" element={<RoleGuard moduleName="Sub Category Master"><SubCategoryPage /></RoleGuard>} />

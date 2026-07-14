@@ -7,10 +7,13 @@ import { receiptAgainstVoucherSchema } from "../schema/receiptAgainstVoucherSche
 import type { ReceiptAgainstVoucherFormData } from "../schema/receiptAgainstVoucherSchema";
 import { useAppSelector } from "../../../../app/hooks";
 import { getDecimalPart } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () => void) => {
   const auth = useAppSelector((state: any) => state.auth);
-  const branchId = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
+  const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
   const employeeId = auth?.employeeId || 1;
 
   const form = useForm<ReceiptAgainstVoucherFormData>({
@@ -154,6 +157,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
     isLoading: isLoadingMaster || isLoadingAccounts || (!!transId && isLoadingExisting),
     isSaving: saveMutation.isPending,
     saveMutation,
-    deleteMutation
+    deleteMutation,
+    isBranchLocked,
   };
 };

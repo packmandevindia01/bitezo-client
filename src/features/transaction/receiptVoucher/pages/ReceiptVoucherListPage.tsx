@@ -18,7 +18,8 @@ const ReceiptVoucherListPage = () => {
     setFromDate,
     toDate,
     setToDate,
-    cancelMutation
+    cancelMutation,
+    isBranchLocked
   } = useReceiptVoucher();
 
   const [cancelModal, setCancelModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
@@ -73,6 +74,7 @@ const ReceiptVoucherListPage = () => {
               value={String(searchBranchId)}
               onChange={(e) => setSearchBranchId(Number(e.target.value))}
               options={searchBranchList.map(b => ({ label: b.branchName, value: String(b.branchId) }))}
+              disabled={isBranchLocked}
             />
           </div>
         </div>

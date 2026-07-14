@@ -16,15 +16,11 @@ import {
   getSubCategoryList 
 } from "../services/productWiseMarginReportApi";
 import { getDecimalPart } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useProductWiseMarginReport = () => {
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    return activeBranchId || "0";
-  });
+  const { initialBranchId, isBranchLocked } = useBranchScope();
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
   
   const [productId, setProductId] = useState<string>("0");
   const [groupId, setGroupId] = useState<string>("0");
@@ -47,10 +43,7 @@ export const useProductWiseMarginReport = () => {
   const branches = bData as BranchOption[];
 
   const branchOptions = useMemo(() => {
-    const opts = branches
-      .filter((b) => b.branchName && b.branchName.toLowerCase() !== "all")
-      .map((b) => ({ value: String(b.branchId), label: b.branchName }));
-    return [{ value: "0", label: "All" }, ...opts];
+    return branches.map((b) => ({ value: String(b.branchId), label: b.branchName }));
   }, [branches]);
 
   // Fetch products
@@ -144,23 +137,18 @@ export const useProductWiseMarginReport = () => {
   }, [reportQuery.data]);
 
   const handleReset = useCallback(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-
-    setBranchId(activeBranchId || "0");
+    setBranchId(initialBranchId);
     setProductId("0");
     setGroupId("0");
     setCategoryId("0");
     setSubcategoryId("0");
     setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
     setToDate(todayStr);
-  }, [today, todayStr]);
+  }, [today, todayStr, initialBranchId]);
 
   return {
     filters: {
-      branchId, setBranchId,
+      branchId, setBranchId, isBranchLocked,
       productId, setProductId,
       groupId, setGroupId,
       categoryId, setCategoryId,

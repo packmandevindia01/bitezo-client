@@ -10,6 +10,7 @@ import { stockAdjustmentSchema } from "../types";
 import type { StockAdjustmentForm, StockAdjustmentLineItem, StockAdjustmentPayload } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
 import { generateUUID } from "../../../../utils/uuid";
 
@@ -27,6 +28,7 @@ export const calculateLine = (item: StockAdjustmentLineItem) => {
 
 export const useStockAdjustment = (id?: string | null) => {
   const { formatAmount } = useCurrency();
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const { showToast } = useToast();
 
   const [saving, setSaving] = useState(false);
@@ -74,7 +76,7 @@ export const useStockAdjustment = (id?: string | null) => {
 
   const { control, setValue, reset, getValues } = methods;
 
-  const { fields: items, append, remove } = useFieldArray({
+  const { fields: items, append, remove, update } = useFieldArray({
     control,
     name: "items",
   });
@@ -227,9 +229,13 @@ export const useStockAdjustment = (id?: string | null) => {
   // Pre-select first branch when branches finish loading (Add Mode)
   useEffect(() => {
     if (!id && branches.length > 0 && !getValues("branch")) {
-      setValue("branch", branches[0].value);
+      if (isBranchLocked && initialBranchId) {
+        setValue("branch", String(initialBranchId));
+      } else {
+        setValue("branch", branches[0].value);
+      }
     }
-  }, [branches, id, setValue, getValues]);
+  }, [branches, id, setValue, getValues, isBranchLocked, initialBranchId]);
 
   // Set refNo and salesman when branch details finish loading (Add Mode)
   useEffect(() => {
@@ -493,6 +499,7 @@ export const useStockAdjustment = (id?: string | null) => {
     items,
     append,
     remove,
+    update,
     watchedItems,
     totals,
     handleReset,
@@ -510,5 +517,6 @@ export const useStockAdjustment = (id?: string | null) => {
     saving,
     categoryUnits,
     getRowOptions,
+    isBranchLocked,
   };
 };

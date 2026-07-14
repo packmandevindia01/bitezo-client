@@ -125,6 +125,7 @@ export const DailySalesReportPage = () => {
                   onChange={filters.setBranchId}
                   placeholder="Select branch"
                   autoFocus={true}
+                  disabled={filters.isBranchLocked}
                 />
               </div>
             </div>

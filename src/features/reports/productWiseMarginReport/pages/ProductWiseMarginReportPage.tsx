@@ -53,7 +53,8 @@ const ProductWiseMarginReportPage = () => {
                   id="pwm-branch" 
                   options={options.branchOptions} 
                   value={filters.branchId} 
-                  onChange={filters.setBranchId} 
+                  onChange={filters.setBranchId}
+                  disabled={filters.isBranchLocked}
                   placeholder="All" 
                 />
               </div>

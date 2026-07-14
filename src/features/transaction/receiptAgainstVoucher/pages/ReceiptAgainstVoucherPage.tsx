@@ -18,6 +18,7 @@ import { useReceiptAgainstVoucherForm } from "../hooks/useReceiptAgainstVoucherF
 import { receiptAgainstVoucherApi } from "../services/receiptAgainstVoucherApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectActiveBranchId } from "../../../auth/store/authSlice";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 const ReceiptAgainstVoucherPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +26,9 @@ const ReceiptAgainstVoucherPage = () => {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
   const { showToast } = useToast();
-  const branchId = useAppSelector(selectActiveBranchId) || 0;
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  const fallbackBranch = useAppSelector(selectActiveBranchId) || 0;
+  const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
 
   const { 
     form, 
@@ -556,7 +559,7 @@ const ReceiptAgainstVoucherPage = () => {
         onSelect={handleMultiSelect}
         partyName={selectedAccountName}
         fetchInvoices={(fromDate, toDate) => 
-          receiptAgainstVoucherApi.getPendingInvoicesDetails(branchId, selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
+          receiptAgainstVoucherApi.getPendingInvoicesDetails(Number(branchId), selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
         }
         type="RECEIPT"
       />

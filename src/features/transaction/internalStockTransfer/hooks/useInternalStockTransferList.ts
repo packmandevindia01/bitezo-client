@@ -2,11 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
 import { getDecimalPart } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useInternalStockTransferList = () => {
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
-    branchId: "",
+    branchId: initialBranchId ? String(initialBranchId) : "",
+    isBranchLocked,
     fromDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split("T")[0],
     toDate: new Date().toISOString().split("T")[0],
   });

@@ -24,6 +24,7 @@ const PurchaseReturnFormPage = () => {
     items,
     append,
     remove,
+    update,
     watchedItems,
     payments,
     totals,
@@ -60,6 +61,7 @@ const PurchaseReturnFormPage = () => {
     grossTotal,
     watchedDiscAmount,
     categoryUnits,
+    isBranchLocked,
   } = usePurchaseReturn(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -188,7 +190,10 @@ const PurchaseReturnFormPage = () => {
     };
   }, [watchedItems, payments, supplierOptions, productOptions, totals, getValues]);
 
-  const seriesOptions = masterData?.series.map(s => ({ label: s.seriesName, value: s.seriesId.toString() })) || [];
+  const watchedBranchId = methods.watch("branch");
+  const seriesOptions = masterData?.series
+    .filter(s => s.branchId.toString() === watchedBranchId)
+    .map(s => ({ label: s.seriesName, value: s.seriesId.toString() })) || [];
   const branchOptions = masterData?.branches.map(b => ({ label: b.branchName, value: b.branchId.toString() })) || [];
   const salesmanOptions = masterData?.salesman.map(s => ({ label: s.employeeName, value: s.employeeId.toString() })) || [];
 
@@ -254,7 +259,7 @@ const PurchaseReturnFormPage = () => {
                 )} />
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               
               <Controller name="invoiceNo" control={control} render={({ field }) => (
@@ -420,10 +425,16 @@ const PurchaseReturnFormPage = () => {
                              <button
                                type="button"
                                tabIndex={-1}
-                               onClick={() => items.length > 1 && remove(index)}
-                               className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
-                               disabled={!canSave || items.length <= 1}
-                               title="Remove item"
+                               onClick={() => {
+                                 if (items.length > 1) {
+                                   remove(index);
+                                 } else {
+                                   update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" } as any);
+                                 }
+                               }}
+                               className="p-1.5 rounded-md transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
+                               disabled={!canSave}
+                               title={items.length > 1 ? "Remove item" : "Clear item"}
                              >
                                <Trash2 size={14} />
                              </button>

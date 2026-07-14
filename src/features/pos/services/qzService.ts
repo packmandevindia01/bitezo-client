@@ -12,7 +12,9 @@ export const connectQZ = async (): Promise<void> => {
   }
   
   try {
-    await qz.websocket.connect();
+    const printServerIp = localStorage.getItem('printServerIp');
+    const connectOptions = printServerIp ? { host: printServerIp } : undefined;
+    await qz.websocket.connect(connectOptions);
     isConnected = true;
     console.log("[QZ Tray] Connected successfully.");
   } catch (err) {

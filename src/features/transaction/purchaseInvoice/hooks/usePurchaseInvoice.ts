@@ -32,9 +32,13 @@ export const calculateLine = (item: PurchaseInvoiceLineItem, grossTotal: number 
   return { amount, discountAmount, vatAmount, netAmount };
 };
 
+import { useBranchScope } from "../../../../hooks/useBranchScope";
+
 export const usePurchaseInvoice = (invoiceId?: string) => {
   const { showToast } = useToast();
   const { formatAmount, decimalPart } = useCurrency();
+  const { isBranchLocked, initialBranchId } = useBranchScope();
+  
   const [masterData, setMasterData] = useState<PurchaseInvoiceMasterData | null>(null);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
@@ -92,7 +96,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
   const { control, setValue, reset } = methods;
 
-  const { fields: items, append, remove } = useFieldArray({
+  const { fields: items, append, remove, update } = useFieldArray({
     control,
     name: "items",
   });
@@ -338,7 +342,11 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
             setValue("series", data.series[0].seriesId.toString());
           }
           if (data.branches.length > 0) {
-            setValue("branch", data.branches[0].branchId.toString());
+            if (isBranchLocked) {
+              setValue("branch", initialBranchId);
+            } else {
+              setValue("branch", data.branches[0].branchId.toString());
+            }
           }
         }
       } catch (error: any) {
@@ -635,6 +643,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     items,
     append,
     remove,
+    update,
+    isBranchLocked,
     watchedItems,
     payments: watchedPayments,
     watchedDiscAmount,

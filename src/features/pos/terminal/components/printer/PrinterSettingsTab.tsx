@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { SelectInput, Button } from '../../../../../components/common';
+import qz from "qz-tray";
+import { connectQZ } from '../../../services/qzService';
+import { SelectInput, Button, FormInput } from '../../../../../components/common';
 import type { GeneralPrinterSettings } from '../../../types';
 
 interface PrinterSettingsTabProps {
@@ -10,15 +12,29 @@ interface PrinterSettingsTabProps {
 
 export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, onSave, loading }) => {
   const [settings, setSettings] = useState<GeneralPrinterSettings>(data);
+  const [printServerIp, setPrintServerIp] = useState<string>('');
+  const [livePrinters, setLivePrinters] = useState<string[]>([]);
 
   useEffect(() => {
     setSettings(data);
+    setPrintServerIp(localStorage.getItem('printServerIp') || '');
+    
+    // Fetch live installed printers from QZ Tray
+    const loadPrinters = async () => {
+      try {
+        await connectQZ();
+        const foundPrinters = await qz.printers.find();
+        setLivePrinters(foundPrinters);
+      } catch (e) {
+        console.error("[PrinterSettings] Failed to fetch live printers:", e);
+      }
+    };
+    loadPrinters();
   }, [data]);
 
   const printerOptions = [
-    { label: 'pos-80c', value: 'pos-80c' },
-    { label: 'delivery', value: 'delivery' },
     { label: 'No Printer', value: 'No Printer' },
+    ...livePrinters.map(p => ({ label: p, value: p }))
   ];
 
   const countOptions = [
@@ -65,6 +81,31 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, on
           </div>
         </div>
 
+        {/* Network Print Server Section */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+          <h3 className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+            Network Print Server
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+            <div className="flex flex-col gap-1 py-1 px-1">
+              <label className="text-[10px] font-black text-[#49293e]/50 uppercase tracking-[0.15em] ml-1">Print Server IP Address</label>
+              <div className="w-full">
+                <FormInput
+                  id="print-server-ip"
+                  placeholder="e.g. 192.168.1.100 (Leave empty for localhost)"
+                  value={printServerIp}
+                  onChange={(e) => setPrintServerIp(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <div className="flex items-center text-xs text-slate-500 italic px-1 pt-4">
+              * Set this on tablets so they route print jobs to the laptop.
+            </div>
+          </div>
+        </div>
+
         {/* Android Print Section */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
           <h3 className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
@@ -82,7 +123,10 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, on
       <div className="pt-4 border-t border-slate-100 flex justify-start">
         <Button 
           variant="primary" 
-          onClick={() => onSave(settings)}
+          onClick={() => {
+            localStorage.setItem('printServerIp', printServerIp);
+            onSave(settings);
+          }}
           loading={loading}
           className="px-16 uppercase tracking-widest font-black text-[10px]"
         >

@@ -23,6 +23,7 @@ const InternalStockTransferPage = () => {
     fields: items,
     append,
     remove,
+    update,
     masterData,
     loadingMaster,
     saving,
@@ -34,7 +35,8 @@ const InternalStockTransferPage = () => {
     isPrintModalOpen,
     setIsPrintModalOpen,
     categoryUnits,
-    handleUnitChange
+    handleUnitChange,
+    isBranchLocked
   } = useInternalStockTransfer(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -245,7 +247,7 @@ const InternalStockTransferPage = () => {
               <FormInput autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="fromBranch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster} error={errors.fromBranch?.message as string} />
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.fromBranch?.message as string} />
               )} />
               <Controller name="toBranch" control={control} render={({ field }) => (
                 <SearchableSelect className="h-8 !px-2 !text-xs" id="st-toBranch" label="To Branch" value={field.value} options={masterData.toBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-salesman")} disabled={!canSave || loadingMaster} error={errors.toBranch?.message as string} />
@@ -407,10 +409,10 @@ const InternalStockTransferPage = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (items.length === 1) {
-                                  methods.setValue(`items.${index}`, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" });
-                                } else {
+                                if (items.length > 1) {
                                   remove(index);
+                                } else {
+                                  update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" } as any);
                                 }
                               }}
                               disabled={!canSave}

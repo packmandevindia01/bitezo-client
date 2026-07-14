@@ -32,6 +32,7 @@ const StockAdjustmentPage = () => {
     items,
     append,
     remove,
+    update,
     watchedItems,
     totals,
     handleReset,
@@ -49,6 +50,7 @@ const StockAdjustmentPage = () => {
     saving,
     categoryUnits,
     getRowOptions,
+    isBranchLocked,
   } = useStockAdjustment(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -176,7 +178,7 @@ const StockAdjustmentPage = () => {
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster} error={errors.branch?.message as string} />
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
                 <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
@@ -383,10 +385,16 @@ const StockAdjustmentPage = () => {
                             <button
                               type="button"
                               tabIndex={-1}
-                              onClick={() => items.length > 1 && remove(index)}
-                              className={`p-1.5 rounded-md transition-colors ${items.length > 1 ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-200 cursor-not-allowed'}`}
-                              disabled={!canSave || items.length <= 1}
-                              title="Remove item"
+                              onClick={() => {
+                                if (items.length > 1) {
+                                  remove(index);
+                                } else {
+                                  update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0", type: "", effect: "" } as any);
+                                }
+                              }}
+                              className="p-1.5 rounded-md transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
+                              disabled={!canSave}
+                              title={items.length > 1 ? "Remove item" : "Clear item"}
                             >
                               <Trash2 size={14} />
                             </button>

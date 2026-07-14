@@ -61,7 +61,7 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
         {/* Branch Selector */}
         <select
           className={`h-8 md:h-9 text-sm rounded-md border border-gray-300 bg-white px-2 py-1 outline-none ${!canSwitchBranch ? 'cursor-not-allowed bg-gray-50 text-gray-500' : 'focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'}`}
-          value={activeBranchId || ""}
+          value={activeBranchId !== null ? activeBranchId : ""}
           onChange={handleBranchChange}
           disabled={!canSwitchBranch}
           title={!canSwitchBranch ? "You can only view your own branch" : "Switch active branch"}

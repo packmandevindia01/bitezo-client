@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 import {
   getStockRegisterReport,
   getBranchList,
@@ -22,13 +23,8 @@ export const useStockRegisterReport = () => {
     return today.toISOString().split("T")[0];
   });
   
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    return activeBranchId || "1";
-  });
+  const { initialBranchId, isBranchLocked } = useBranchScope();
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
 
   const [groupId, setGroupId] = useState<string>("0");
   const [categoryId, setCategoryId] = useState<string>("0");
@@ -142,14 +138,8 @@ export const useStockRegisterReport = () => {
     const today = new Date();
     const defaultDate = today.toISOString().split("T")[0];
     
-    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode 
-      ? sessionStorage.getItem("backoffice_activeBranchId") 
-      : localStorage.getItem("activeBranchId");
-    const defaultBranch = activeBranchId || "1";
-
     setAsOnDate(defaultDate);
-    setBranchId(defaultBranch);
+    setBranchId(initialBranchId);
     setGroupId("0");
     setCategoryId("0");
     setSubCategoryId("0");
@@ -164,6 +154,7 @@ export const useStockRegisterReport = () => {
       setAsOnDate,
       branchId,
       setBranchId,
+      isBranchLocked,
       groupId,
       setGroupId,
       categoryId,

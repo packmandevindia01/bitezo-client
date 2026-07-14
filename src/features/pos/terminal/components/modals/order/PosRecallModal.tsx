@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import Checkbox from "../../../../../../components/common/Checkbox";
 import { Loader } from "../../../../../../components/common";
-import { Printer, Search, X } from "lucide-react";
+import { Printer, Search, X, Truck } from "lucide-react";
 import { usePosRecall } from "../../../hooks/usePosRecall";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
+import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
 
 
 interface PosRecallModalProps {
@@ -33,6 +34,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
   const [includeDeliveryOut, setIncludeDeliveryOut] = useState(true);
   const [deliveryOutOnly, setDeliveryOutOnly] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedDriverOrderId, setSelectedDriverOrderId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("Order No");
@@ -202,10 +204,28 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
               </div>
             </div>
 
-            {/* Print Button Wrapper */}
-            <div className="w-[100px] shrink-0">
-              <button
-                onClick={(e) => {
+            {/* Action Buttons Wrapper */}
+            <div className="flex shrink-0">
+              {order.details.toLowerCase().includes("(delivery)") && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDriverOrderId(order.orderId);
+                  }}
+                  className={`
+                    w-[90px] h-full flex flex-col items-center justify-center gap-1 transition-all bg-gray-200 hover:bg-gray-300 text-gray-700
+                  `}
+                >
+                  <Truck size={18} strokeWidth={2.5} />
+                  <div className="font-black text-[10px] uppercase tracking-widest">
+                    Driver
+                  </div>
+                </button>
+              )}
+              {/* Print Button Wrapper */}
+              <div className="w-[100px] shrink-0">
+                <button
+                  onClick={(e) => {
                   e.stopPropagation();
                   handlePrint(order.orderId);
                 }}
@@ -221,6 +241,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
                   Print
                 </div>
               </button>
+            </div>
             </div>
           </div>
         ))}
@@ -251,6 +272,22 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         onSettleSuccess={(amount) => {
           onSettleSuccess?.(amount);
           // DO NOT close the details modal here so it stays in the background during payment
+        }}
+      />
+      
+      <PosDriverSelectionModal
+        isOpen={selectedDriverOrderId !== null}
+        onClose={() => setSelectedDriverOrderId(null)}
+        orderId={selectedDriverOrderId}
+        onSuccess={() => {
+          setSelectedDriverOrderId(null);
+          void fetchOrders({
+            OrderTypeId: ORDER_TYPES.find(t => t.id === activeTab)?.value || 0,
+            SearchValue: search,
+            SearchStatus: searchStatus,
+            DeliveryOutStatus: includeDeliveryOut,
+            DeliveryOutOnlyStatus: deliveryOutOnly
+          });
         }}
       />
     </Modal>

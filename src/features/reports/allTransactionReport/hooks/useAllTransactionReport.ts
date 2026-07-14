@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { allTransactionReportApi } from "../services/allTransactionReportApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { getDecimalPart } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useAllTransactionReport = () => {
   // Setup default dates (start of month to today)
@@ -11,9 +12,10 @@ export const useAllTransactionReport = () => {
   const defaultFromDate = startOfMonth.toISOString().split("T")[0];
   const defaultToDate = today.toISOString().split("T")[0];
 
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const [fromDate, setFromDate] = useState(defaultFromDate);
   const [toDate, setToDate] = useState(defaultToDate);
-  const [branchId, setBranchId] = useState("0");
+  const [branchId, setBranchId] = useState(initialBranchId || "1");
 
   const decimalPart = getDecimalPart();
 
@@ -40,7 +42,9 @@ export const useAllTransactionReport = () => {
   const handleReset = () => {
     setFromDate(defaultFromDate);
     setToDate(defaultToDate);
-    setBranchId("0");
+    if (!isBranchLocked) {
+      setBranchId("1");
+    }
   };
 
   return {
@@ -56,5 +60,6 @@ export const useAllTransactionReport = () => {
     reportData,
     isLoading: isLoading || isFetching,
     handleReset,
+    isBranchLocked,
   };
 };

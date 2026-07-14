@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 import {
   getBranchList,
   getProductList,
@@ -21,16 +22,8 @@ export const useProductTransactionLogReport = () => {
   const [toDate, setToDate] = useState<string>(() =>
     new Date().toISOString().split("T")[0]
   );
-  const [branchId, setBranchId] = useState<string>(() => {
-    const isBackoffice =
-      sessionStorage.getItem("tempSystemType") === "backoffice" ||
-      localStorage.getItem("systemType") === "backoffice";
-    return (
-      (isBackoffice
-        ? sessionStorage.getItem("backoffice_activeBranchId")
-        : localStorage.getItem("activeBranchId")) || "1"
-    );
-  });
+  const { initialBranchId, isBranchLocked } = useBranchScope();
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [productId, setProductId] = useState<string>("");
   const [transactionType, setTransactionType] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -112,14 +105,7 @@ export const useProductTransactionLogReport = () => {
     const today = new Date();
     setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
     setToDate(today.toISOString().split("T")[0]);
-    const isBackoffice =
-      sessionStorage.getItem("tempSystemType") === "backoffice" ||
-      localStorage.getItem("systemType") === "backoffice";
-    setBranchId(
-      (isBackoffice
-        ? sessionStorage.getItem("backoffice_activeBranchId")
-        : localStorage.getItem("activeBranchId")) || "1"
-    );
+    setBranchId(initialBranchId);
     setProductId("");
     setTransactionType("All");
     setSearchTerm("");
@@ -129,7 +115,7 @@ export const useProductTransactionLogReport = () => {
     filters: {
       fromDate, setFromDate,
       toDate, setToDate,
-      branchId, setBranchId,
+      branchId, setBranchId, isBranchLocked,
       productId, setProductId,
       transactionType, setTransactionType,
       searchTerm, setSearchTerm,

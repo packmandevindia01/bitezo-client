@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useStockAdjustmentList = () => {
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const [filters, setFilters] = useState({
-    branchId: "",
+    branchId: initialBranchId ? String(initialBranchId) : "",
+    isBranchLocked,
     fromDate: new Date(new Date().setDate(1)).toISOString().split("T")[0], 
     toDate: new Date().toISOString().split("T")[0],
   });

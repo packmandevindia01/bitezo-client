@@ -1,5 +1,4 @@
 import type { PosCartItem } from "../types";
-
 export const executeKotRouting = async (
   items: PosCartItem[], 
   basePrintOptions: any, 

@@ -23,6 +23,14 @@ export const getEmployeeNames = async (branchId?: number): Promise<{empId: numbe
   return res.data.data ?? [];
 };
 
+export const getDrivers = async (branchId: number): Promise<{driverId: number, driverName: string}[]> => {
+  const res = await axiosInstance.get(`/employee/${branchId}/drivers`);
+  const data = res.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.data)) return data.data;
+  return [];
+};
+
 // ── Single ────────────────────────────────────────────────────────────────────
 export const getEmployeeById = async (
   empId: number
@@ -72,10 +80,12 @@ export const validateEmployeePassword = async (
 
 export const employeeService = {
   getEmployees,
+  getEmployeeNames,
   getEmployeeById,
   createEmployee,
   updateEmployee,
   deleteEmployee,
   getBranches,
   validateEmployeePassword,
+  getDrivers,
 } as const;

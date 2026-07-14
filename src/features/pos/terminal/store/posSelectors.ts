@@ -127,11 +127,8 @@ export const selectTotalLevy = createSelector(
 );
 
 export const selectTax = createSelector(
-  [selectCartDetails, selectPosState],
-  (details, pos) => {
-    const config = getBillingConfig(pos.selectedOrderTypeName);
-    if (config.vatType === 'Inclusive') return 0;
-    
+  [selectCartDetails],
+  (details) => {
     return details.reduce((sum, item) => sum + item.vatAmount, 0);
   }
 );

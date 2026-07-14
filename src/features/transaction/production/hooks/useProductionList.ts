@@ -3,10 +3,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { productionApi } from "../services/productionApi";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useProductionList = () => {
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const [filters, setFilters] = useState({
-    branchId: "",
+    branchId: initialBranchId ? String(initialBranchId) : "",
+    isBranchLocked,
     productId: ""
   });
 

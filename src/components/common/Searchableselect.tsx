@@ -80,11 +80,11 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
 
   // Auto focus logic
   useEffect(() => {
-    if (autoFocus && triggerRef.current) {
+    if (autoFocus && triggerRef.current && !disabled) {
       triggerRef.current.focus();
       setOpen(true);
     }
-  }, [autoFocus]);
+  }, [autoFocus, disabled]);
 
   // Derive selected label from value - robust comparison. Fallback to value if not found (supports custom values)
   const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? value;
@@ -364,9 +364,8 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
           rounded-md border px-3 text-sm outline-none transition md:px-4
           ${className.includes('h-') ? '' : 'h-10.5'}
           ${className}
-          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
-          ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50" : ""}
-          ${open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"}
+          ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50 border-gray-300" : (error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white")}
+          ${!disabled && open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : (!disabled ? "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20" : "")}
         `}
       >
         {/* Displayed value or placeholder */}

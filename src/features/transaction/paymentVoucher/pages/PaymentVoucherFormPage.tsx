@@ -26,6 +26,7 @@ const PaymentVoucherFormPage = () => {
     cancelMutation,
     isMultiPayOpen,
     setIsMultiPayOpen,
+    isBranchLocked,
   } = usePaymentVoucher(Number(id) || undefined, () => navigate("/dashboard/payment-voucher"));
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -180,7 +181,7 @@ const PaymentVoucherFormPage = () => {
               options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "pv-date")}
               tabIndex={2}
-              disabled={!canSave}
+              disabled={!canSave || isBranchLocked}
             />
 
             <SearchableSelect

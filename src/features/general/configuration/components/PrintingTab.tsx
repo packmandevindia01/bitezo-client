@@ -5,9 +5,10 @@ import { Checkbox, SelectInput, FormInput } from "../../../../components/common"
 interface Props {
   form: ConfigurationState;
   onChange: <K extends keyof ConfigurationState>(key: K, value: ConfigurationState[K]) => void;
+  onInputFocus?: () => void;
 }
 
-const PrintingTab = ({ form, onChange }: Props) => {
+const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -121,7 +122,17 @@ const PrintingTab = ({ form, onChange }: Props) => {
             type="number"
             inputClassName="text-right"
             value={String(form.billCopies)}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("billCopies", parseInt(e.target.value) || 1)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              const val = e.target.value;
+              onChange("billCopies", val === "" ? "" : (parseInt(val) || ""));
+            }}
+            onFocus={(e) => {
+              e.target.select();
+              onInputFocus?.();
+              setTimeout(() => {
+                e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 150);
+            }}
             onKeyDown={(e) => handleKeyDown(e, "conf-print-callerid")}
           />
           
@@ -133,6 +144,12 @@ const PrintingTab = ({ form, onChange }: Props) => {
                 label="Caller ID Port"
                 value={form.callerIdPort}
                 onChange={(e) => onChange("callerIdPort", e.target.value)}
+                onFocus={(e) => {
+                  onInputFocus?.();
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 150);
+                }}
                 onKeyDown={(e) => handleKeyDown(e, "conf-print-display")}
               />
               <FormInput
@@ -140,6 +157,12 @@ const PrintingTab = ({ form, onChange }: Props) => {
                 label="Display Port"
                 value={form.displayPort}
                 onChange={(e) => onChange("displayPort", e.target.value)}
+                onFocus={(e) => {
+                  onInputFocus?.();
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 150);
+                }}
               />
             </div>
           </div>

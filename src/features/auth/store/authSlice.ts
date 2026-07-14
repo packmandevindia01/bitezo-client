@@ -21,6 +21,11 @@ export interface AuthState {
 
 const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
 
+const getActiveBranchId = () => {
+  const val = isBackoffice ? sessionStorage.getItem("backoffice_activeBranchId") : localStorage.getItem("activeBranchId");
+  return val !== null ? Number(val) : null;
+};
+
 const initialState: AuthState = {
   // Manual re-hydration from localStorage or sessionStorage to persist state across refreshes
   isAuthenticated: isBackoffice ? !!sessionStorage.getItem("backoffice_accessToken") : !!localStorage.getItem("accessToken"),
@@ -31,7 +36,7 @@ const initialState: AuthState = {
   userName: isBackoffice ? sessionStorage.getItem("backoffice_userName") : localStorage.getItem("userName"),
   isMaster: isBackoffice ? sessionStorage.getItem("backoffice_isMaster") === "true" : localStorage.getItem("isMaster") === "true",
   branchId: isBackoffice ? Number(sessionStorage.getItem("backoffice_branchId")) || null : Number(localStorage.getItem("branchId")) || null,
-  activeBranchId: isBackoffice ? Number(sessionStorage.getItem("backoffice_activeBranchId")) || null : Number(localStorage.getItem("activeBranchId")) || null,
+  activeBranchId: getActiveBranchId(),
   userRoles: isBackoffice
     ? (sessionStorage.getItem("backoffice_userRoles") ? JSON.parse(sessionStorage.getItem("backoffice_userRoles")!) : [])
     : (localStorage.getItem("userRoles") ? JSON.parse(localStorage.getItem("userRoles")!) : []),

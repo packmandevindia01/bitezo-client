@@ -18,7 +18,8 @@ const PaymentVoucherListPage = () => {
     setFromDate,
     toDate,
     setToDate,
-    cancelMutation
+    cancelMutation,
+    isBranchLocked
   } = usePaymentVoucher();
 
   const [cancelModal, setCancelModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
@@ -73,6 +74,7 @@ const PaymentVoucherListPage = () => {
               value={String(searchBranchId)}
               onChange={(e) => setSearchBranchId(Number(e.target.value))}
               options={searchBranchList.map(b => ({ label: b.branchName, value: String(b.branchId) }))}
+              disabled={isBranchLocked}
             />
           </div>
         </div>
