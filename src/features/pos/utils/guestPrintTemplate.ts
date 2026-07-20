@@ -123,11 +123,13 @@ export const generateGuestPrintHtml = (
         <style>
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 13px;
+            font-size: 14px;
             color: #000;
             margin: 0;
             padding: 0;
-            width: 100%;
+            width: 576px;
+            max-width: 576px;
+            background-color: #ffffff;
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }

@@ -1,4 +1,11 @@
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import qz from "qz-tray";
+import html2canvas from "html2canvas";
+
+export interface BitezoPrinterPlugin {
+  printImage(options: { base64: string, type: string, address: string, port?: number }): Promise<void>;
+}
+const BitezoPrinter = registerPlugin<BitezoPrinterPlugin>('BitezoPrinter');
 
 let isConnected = false;
 
@@ -28,6 +35,57 @@ export const connectQZ = async (): Promise<void> => {
  * If printerName is omitted or not found, it falls back to the default printer.
  */
 export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
+  // 1. Check if we are running as a Native App on a tablet
+  if (Capacitor.isNativePlatform()) {
+    console.log("[Mobile App] Routing print job to Native Plugin...");
+    try {
+      // Create a hidden iframe to isolate CSS so html2canvas doesn't crash on Tailwind's oklch variables
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '576px';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (!iframeDoc) throw new Error("Could not access iframe document");
+
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
+
+      // Wait for images inside the iframe to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const canvas = await html2canvas(iframeDoc.body, { scale: 1, logging: false });
+      const base64 = canvas.toDataURL('image/png');
+      document.body.removeChild(iframe);
+
+      // We will pull the configured Native printer from local storage
+      const nativePrinterType = localStorage.getItem('nativePrinterType') || 'tcp'; // 'tcp' or 'bluetooth'
+      const nativePrinterAddress = localStorage.getItem('nativePrinterAddress'); // IP or MAC Address
+
+      if (!nativePrinterAddress) {
+        throw new Error("No native printer configured. Please go to Printer Settings.");
+      }
+
+      await BitezoPrinter.printImage({
+        base64: base64,
+        type: nativePrinterType,
+        address: nativePrinterAddress,
+        port: 9100
+      });
+      console.log("[Mobile App] Successfully sent image to Native Printer!");
+    } catch (err) {
+      console.error("[Mobile App] Native Print failed:", err);
+      throw err;
+    }
+    return;
+  }
+  
+  // 2. Fallback to existing Web Browser Logic for desktop cashiers
+  console.log("[Web Browser] Routing print job to QZ Tray...");
   await connectQZ();
 
   let targetPrinter: string | null = null;

@@ -114,12 +114,15 @@ export const usePosCheckoutFlow = ({
 
         const html = generateGuestPrintHtml(payload.mappedItems, payload.printData);
         await printHtmlReceipt(html, targetPrinter);
+        showToast("Sales saved successfully", "success");
       } catch (printErr: any) {
         console.error("Settled print failed:", printErr);
+        alert("PRINTING ERROR: " + (printErr.message || printErr));
         showToast("Order settled, but printing failed", "warning");
       }
+    } else {
+        showToast("Sales saved successfully", "success");
     }
-    showToast("Sales saved successfully", "success");
     handleClearCart();
     setSettledPrintPayload(null);
   });
