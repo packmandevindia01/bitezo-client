@@ -20,8 +20,8 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
   
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
 
-  // Only Admin (branchId === 1 or isMaster) can switch branches
-  const canSwitchBranch = isMaster || userBranchId === 1;
+  // Admin (branchId === 1 or isMaster) or users with no specific branch assigned can select a branch
+  const canSwitchBranch = isMaster || userBranchId === 1 || !userBranchId;
 
   useEffect(() => {
     branchApi.fetchBranchNames(true)

@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Trash2, GripVertical } from "lucide-react";
-import type { TableRecord } from "../types";
+import type { TableRecord } from "../schemas";
 
 interface SortableTableCardProps {
   id: string | number;
@@ -55,14 +55,14 @@ const SortableTableCard = ({
         }`}
         disabled={loading}
       >
-        <span className="text-xl font-black">{table.tableName}</span>
+        <span className="text-xl font-black w-full px-2 truncate text-center">{table.tableName}</span>
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-bold uppercase tracking-widest ${
             selectedId === table.tableId ? "text-white/70" : "text-gray-400"
           }`}>
             {table.chairs} Chairs
           </span>
-          <div className={`h-2 w-2 rounded-full shadow-sm ${
+          <div className={`h-2 w-2 rounded-full shadow-sm shrink-0 ${
             table.isActive ? "bg-green-400 ring-2 ring-green-100" : "bg-red-400 ring-2 ring-red-100"
           }`} />
         </div>

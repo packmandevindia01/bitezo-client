@@ -1,5 +1,5 @@
 // ─── Public surface of this module ──────────────────────────────────────
 
 export { default } from './pages/CategoryPage';
-export { categoryService } from './services/categoryService';
+export { categoryApi } from './api';
 export type * from './types';

@@ -7,7 +7,7 @@ import type { ProductFormData } from "../schema/productSchema";
 import { productService } from "../services/productService";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
-import { subCategoryService } from "../../subcategory/services/subCategoryService";
+import { subCategoryApi } from "../../subcategory/api";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -82,7 +82,7 @@ export const useProductForm = (productId?: number) => {
     queryFn: async () => {
       const catId = parseInt(selectedCategoryId);
       if (!catId) return [];
-      const subs = await subCategoryService.getSubCategories(undefined, undefined, catId);
+      const subs = await subCategoryApi.getSubCategories(undefined, undefined, catId);
       return subs.map(s => ({ id: s.id, name: s.name }));
     },
     enabled: !!selectedCategoryId
@@ -309,3 +309,6 @@ export const useProductForm = (productId?: number) => {
     currentBranchId
   };
 };
+
+
+

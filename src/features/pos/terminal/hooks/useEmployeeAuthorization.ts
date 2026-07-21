@@ -4,6 +4,7 @@ import { employeeService } from "../../../general/employee/services/employeeServ
 
 interface EmployeeAuthorizationOptions {
   actionLabel: string;
+  permissionId?: number;
   onAuthorized: (employeeId: number) => Promise<void> | void;
 }
 
@@ -12,11 +13,13 @@ export const useEmployeeAuthorization = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdminOverride, setIsAdminOverride] = useState(false);
   const [pendingAuthorization, setPendingAuthorization] = useState<EmployeeAuthorizationOptions | null>(null);
 
   const requestAuthorization = (options: EmployeeAuthorizationOptions) => {
     setPendingAuthorization(options);
     setError(null);
+    setIsAdminOverride(false);
     setIsOpen(true);
   };
 
@@ -24,6 +27,7 @@ export const useEmployeeAuthorization = () => {
     if (loading) return;
     setIsOpen(false);
     setError(null);
+    setIsAdminOverride(false);
     setPendingAuthorization(null);
   };
 
@@ -38,32 +42,36 @@ export const useEmployeeAuthorization = () => {
     const authAction = pendingAuthorization; // capture before clearing state
 
     try {
-      const response = await employeeService.validateEmployeePassword(password);
+      const response = await employeeService.validateEmployeePassword(password, pendingAuthorization.permissionId);
       const employeeId = response.data?.employeeId ?? 0;
       const hasPrivilege = Boolean(response.data?.hasPrivilege);
 
       if (employeeId <= 0) {
-        setError("Invalid Employee Password");
-        showToast("Invalid Employee Password", "error");
+        setError(isAdminOverride ? "Invalid Admin Password" : "Invalid Employee Password");
+        showToast(isAdminOverride ? "Invalid Admin Password" : "Invalid Employee Password", "error");
         return;
       }
 
       if (!hasPrivilege) {
-        const message = `Employee has no privilege for ${authAction.actionLabel}`;
+        // If they don't have privilege, we trigger Admin Override mode!
+        setIsAdminOverride(true);
+        const message = `No privilege for ${authAction.actionLabel}. Enter Authorized Admin Password.`;
         setError(message);
         showToast(message, "error");
-        return;
+        return; // Return early, leaving the modal open for the admin to type their password
       }
 
-      // Password OK — mark authorized and close the modal
+      // Password OK and has privilege — mark authorized and close the modal
       authorized = true;
       verifiedEmployeeId = employeeId;
       setIsOpen(false);
+      setIsAdminOverride(false);
       setPendingAuthorization(null);
     } catch {
       // Only password validation errors reach here
-      setError("Invalid Employee Password");
-      showToast("Invalid Employee Password", "error");
+      const errorMsg = isAdminOverride ? "Invalid Admin Password" : "Invalid Employee Password";
+      setError(errorMsg);
+      showToast(errorMsg, "error");
     } finally {
       setLoading(false);
     }
@@ -82,6 +90,7 @@ export const useEmployeeAuthorization = () => {
       isOpen,
       loading,
       error,
+      isAdminOverride,
       onClose: closeAuthorization,
       onSubmit: validatePassword,
     },

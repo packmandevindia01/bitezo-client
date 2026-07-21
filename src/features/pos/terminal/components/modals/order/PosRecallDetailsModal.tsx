@@ -8,6 +8,8 @@ import { useAppDispatch } from "../../../../../../app/hooks";
 import { loadRecalledOrder } from "../../../store/posSlice";
 import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { generateKotHtml } from "../../../../utils/kotTemplate";
+import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 
@@ -157,9 +159,71 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     });
   }, [order?.modifiersData]);
 
-  const handlePrintKOT = () => {
-    if (!orderId) return;
-    showToast(`Printing KOT for Order #${orderId}...`, "success");
+  const handlePrintKOT = async () => {
+    if (!orderId || !order) return;
+    try {
+      showToast(`Preparing KOT for Order #${orderId}...`, "info");
+      
+      const master = order.masterData || order;
+      const details = order.detailsData || order.details || [];
+      
+      const orderTypeMap: Record<number, string> = {
+        1: "DineIn", 2: "TakeOut", 3: "DriveThru",
+        4: "Delivery", 5: "Providers", 6: "Coming"
+      };
+      const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+      
+      const mappedItems = details.map((d: any) => {
+        const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
+        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+        }));
+        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+        }));
+        
+        let lineBase = (d.price || 0) * (d.qty || 1);
+        extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+        
+        return {
+          productId: d.productId || d.itemId || 0,
+          categoryId: d.categoryId || 0,
+          quantity: d.qty || 1,
+          price: d.price || 0,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          extras,
+          modifiers,
+          lineTotal: lineBase
+        };
+      });
+
+      const basePrintOptions = {
+        orderNo: master.orderNo ?? String(orderId),
+        ticketNo: master.ticketNo ?? "1",
+        waiter: master.employeeName ?? "Waiter",
+        counter: "Main",
+        section: master.sectionName || "DINE IN",
+        table: master.tableNo || "",
+        orderType: orderTypeName,
+        vehicleNo: master.vehicleNo || "",
+        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || ""
+      };
+
+      await executeKotRouting(
+        mappedItems as any,
+        basePrintOptions,
+        master.sectionId || 0,
+        printerSettingsApi,
+        printHtmlReceipt,
+        generateKotHtml,
+        false
+      );
+      
+      showToast("KOT sent to printers successfully!", "success");
+    } catch (err) {
+      console.error("Print KOT Error:", err);
+      showToast("Printing KOT failed", "error");
+    }
   };
 
   const handlePrintGuest = async () => {

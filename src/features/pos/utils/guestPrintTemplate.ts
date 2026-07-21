@@ -125,9 +125,9 @@ export const generateGuestPrintHtml = (
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 14px;
             color: #000;
-            margin: 0;
+            margin: 0 auto;
             padding: 0;
-            width: 576px;
+            width: 100%;
             max-width: 576px;
             background-color: #ffffff;
           }

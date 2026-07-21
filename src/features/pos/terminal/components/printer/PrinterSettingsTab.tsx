@@ -113,32 +113,7 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, on
           </div>
         </div>
 
-        {/* Network Print Server Section (Hidden on Tablet since it has Native Printing) */}
-        {!Capacitor.isNativePlatform() && (
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-            <h3 className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-              Network Print Server
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-              <div className="flex flex-col gap-1 py-1 px-1">
-                <label className="text-[10px] font-black text-[#49293e]/50 uppercase tracking-[0.15em] ml-1">Print Server IP Address</label>
-                <div className="w-full">
-                  <FormInput
-                    id="print-server-ip"
-                    placeholder="e.g. 192.168.1.100 (Leave empty for localhost)"
-                    value={printServerIp}
-                    onChange={(e) => setPrintServerIp(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center text-xs text-slate-500 italic px-1 pt-4">
-                * Set this on secondary computers so they route print jobs to the main Cashier PC.
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Native Tablet Print Section */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mt-4">

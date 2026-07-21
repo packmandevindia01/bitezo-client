@@ -353,7 +353,9 @@ export const usePosCartActions = () => {
                     counter: "Main",
                     section: selectedSectionId ? String(selectedSectionId) : "Main",
                     table: selectedTableId ? String(selectedTableId) : "T1",
-                    orderType: orderTypeStr
+                    orderType: orderTypeStr,
+                    vehicleNo: vehicleNo || localStorage.getItem("driveThruVehicleNo") || "",
+                    customerName: vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
                   };
     
                   const reorderItems = cartDetails
@@ -559,7 +561,9 @@ export const usePosCartActions = () => {
                counter: "Main",
                section: selectedSectionId ? String(selectedSectionId) : "Main",
                table: selectedTableId ? String(selectedTableId) : "T1",
-               orderType: orderTypeStr
+               orderType: orderTypeStr,
+               vehicleNo: vehicleNo || localStorage.getItem("driveThruVehicleNo") || "",
+               customerName: vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
             };
             
             await executeKotRouting(

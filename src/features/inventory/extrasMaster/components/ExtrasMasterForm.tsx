@@ -1,23 +1,18 @@
 import { useState, useMemo } from "react";
-import { Building2, LayoutGrid, ListTree } from "lucide-react";
+import { LayoutGrid, ListTree, Building2 } from "lucide-react";
+import type { UseFormReturn } from "react-hook-form";
+
 import { SearchBar } from "../../../../components/common";
-import type { ExtrasMasterForm as ExtrasMasterFormType } from "../types";
+import type { ExtrasMasterForm as ExtrasMasterFormType } from "../schemas";
 import type { CategoryListItem } from "../../category/types";
 import ExtrasBasicFields from "./form/ExtrasBasicFields";
 
 interface ExtrasMasterFormProps {
-  form: ExtrasMasterFormType;
+  form: UseFormReturn<ExtrasMasterFormType>;
   saving: boolean;
   loading: boolean;
   branches: { id: number; name: string }[];
   categories: CategoryListItem[];
-
-  onChange: <K extends keyof ExtrasMasterFormType>(
-    key: K,
-    value: ExtrasMasterFormType[K]
-  ) => void;
-  onToggleBranch: (branchId: number) => void;
-  onToggleCategory: (categoryId: number) => void;
 }
 
 const ExtrasMasterForm = ({
@@ -26,10 +21,6 @@ const ExtrasMasterForm = ({
   loading,
   branches,
   categories,
-
-  onChange,
-  onToggleBranch,
-  onToggleCategory,
 }: ExtrasMasterFormProps) => {
   const [activeTab, setActiveTab] = useState<"general" | "categories" | "branches">("general");
   const [categorySearch, setCategorySearch] = useState("");
@@ -47,6 +38,23 @@ const ExtrasMasterForm = ({
     return branches.filter(b => b.name.toLowerCase().includes(lower));
   }, [branches, branchSearch]);
 
+  const onToggleCategory = (categoryId: number) => {
+    const current = form.getValues("categoryIds") || [];
+    if (current.includes(categoryId)) {
+      form.setValue("categoryIds", current.filter((id) => id !== categoryId), { shouldValidate: true });
+    } else {
+      form.setValue("categoryIds", [...current, categoryId], { shouldValidate: true });
+    }
+  };
+
+  const onToggleBranch = (branchId: number) => {
+    const current = form.getValues("branchIds") || [];
+    if (current.includes(branchId)) {
+      form.setValue("branchIds", current.filter((id) => id !== branchId), { shouldValidate: true });
+    } else {
+      form.setValue("branchIds", [...current, branchId], { shouldValidate: true });
+    }
+  };
 
   if (loading) {
     return (
@@ -100,13 +108,14 @@ const ExtrasMasterForm = ({
         </div>
       </div>
 
+      {form.formState.errors.branchIds && activeTab !== "branches" && (
+        <p className="text-red-500 text-sm">{form.formState.errors.branchIds.message}</p>
+      )}
+
       <div className="flex-1 min-h-[350px]">
         {activeTab === "general" && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <ExtrasBasicFields 
-              form={form}
-              onChange={onChange}
-            />
+            <ExtrasBasicFields form={form} />
           </div>
         )}
 
@@ -128,7 +137,7 @@ const ExtrasMasterForm = ({
                 <p className="text-[10px] text-gray-400">No categories found.</p>
               ) : (
                 filteredCategories.map((cat) => {
-                  const active = form.categoryIds.includes(cat.id);
+                  const active = form.watch("categoryIds")?.includes(cat.id);
                   return (
                     <div key={cat.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
                       <span className="text-sm font-medium text-gray-700">{cat.name}</span>
@@ -171,7 +180,7 @@ const ExtrasMasterForm = ({
                 <p className="text-[10px] text-gray-400">No branches found.</p>
               ) : (
                 filteredBranches.map((branch) => {
-                  const active = form.branchIds.includes(branch.id);
+                  const active = form.watch("branchIds")?.includes(branch.id);
                   return (
                     <div key={branch.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
                       <span className="text-sm font-medium text-gray-700">{branch.name}</span>

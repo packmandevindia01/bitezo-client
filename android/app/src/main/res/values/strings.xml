@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">bitezo-admin</string>
-    <string name="title_activity_main">bitezo-admin</string>
+    <string name="app_name">BITEZO</string>
+    <string name="title_activity_main">BITEZO</string>
     <string name="package_name">com.bitezo.admin</string>
     <string name="custom_url_scheme">com.bitezo.admin</string>
 </resources>

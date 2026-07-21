@@ -75,7 +75,11 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
       }
 
       if (directPrint) {
-        const defaultPrinter = localStorage.getItem('posPrinter') || undefined;
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
         const { printHtmlReceipt } = await import('../../../../services/qzService');
         await printHtmlReceipt(html, defaultPrinter);
         showToast('Printing report...', 'success');

@@ -18,6 +18,7 @@ const CompanyOnboardingPage = lazy(() => import("../../features/company/pages/Co
 const DashboardPage = lazy(() => import("../../features/dashboard/pages/DashboardPage"));
 const UserList = lazy(() => import("../../features/general/user/pages/UserList"));
 const UserRolePage = lazy(() => import("../../features/general/userRole/pages/UserRolePage"));
+const EmployeeRolePage = lazy(() => import("../../features/general/employeeRole/pages/EmployeeRolePage"));
 const CompanyPage = lazy(() => import("../../features/company/pages/CompanyPage"));
 const CustomerList = lazy(() => import("../../features/company/customer/pages/CustomerList"));
 const EmployeePage = lazy(() => import("../../features/general/employee/pages/EmployeePage"));
@@ -162,6 +163,7 @@ const AppRoutes = () => {
                   <Route index element={<DashboardPage />} />
                   <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
                   <Route path="user-roles" element={<RoleGuard moduleName="User Master"><UserRolePage /></RoleGuard>} />
+                  <Route path="employee-roles" element={<RoleGuard moduleName="Employee Master"><EmployeeRolePage /></RoleGuard>} />
                   <Route path="company" element={<RoleGuard moduleName="Customer Master"><CompanyPage /></RoleGuard>} />
                   <Route path="customers" element={<RoleGuard moduleName="Customer Master"><CustomerList /></RoleGuard>} />
                   <Route path="employees" element={<RoleGuard moduleName="Employee Master"><EmployeePage /></RoleGuard>} />

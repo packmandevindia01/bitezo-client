@@ -243,39 +243,41 @@ const UserRoleModal = ({
                                 const allSelected = moduleIds.length > 0 && moduleIds.every((id) => form.permissionIds.includes(id));
 
                                 return (
-                                  <tr key={module} className="hover:bg-[#49293e]/5 transition-colors">
-                                    <td className="whitespace-nowrap border-l-[3px] border-l-[#49293e] pl-6 pr-3 py-1 font-medium text-gray-700 text-xs">
-                                      {module}
-                                    </td>
-                                    {ACTION_ORDER.map((action) => {
-                                      const permission = modulePermissions.find((item) => item.action === action);
+                                  <Fragment key={module}>
+                                    <tr className="hover:bg-[#49293e]/5 transition-colors">
+                                      <td className="whitespace-nowrap border-l-[3px] border-l-[#49293e] pl-6 pr-3 py-1 font-medium text-gray-700 text-xs">
+                                        {module}
+                                      </td>
+                                      {ACTION_ORDER.map((action) => {
+                                        const permission = modulePermissions.find((item) => item.action === action);
 
-                                      return (
-                                        <td key={action} className="px-2 py-1 text-center">
-                                          {permission ? (
-                                            <div className="flex justify-center">
-                                              <Checkbox
-                                                checked={form.permissionIds.includes(permission.permissionId)}
-                                                onChange={() => onTogglePermission(permission.permissionId)}
-                                                id={`permission-${permission.permissionId}`}
-                                              />
-                                            </div>
-                                          ) : (
-                                            <span className="text-gray-300">-</span>
-                                          )}
-                                        </td>
-                                      );
-                                    })}
-                                    <td className="px-2 py-1 text-center bg-gray-50/30">
-                                      <div className="flex justify-center">
-                                        <Checkbox
-                                          checked={allSelected}
-                                          onChange={(e) => onToggleModule(module, e.target.checked)}
-                                          id={`module-${module.replace(/\s+/g, "-").toLowerCase()}`}
-                                        />
-                                      </div>
-                                    </td>
-                                  </tr>
+                                        return (
+                                          <td key={action} className="px-2 py-1 text-center">
+                                            {permission ? (
+                                              <div className="flex justify-center">
+                                                <Checkbox
+                                                  checked={form.permissionIds.includes(permission.permissionId)}
+                                                  onChange={() => onTogglePermission(permission.permissionId)}
+                                                  id={`permission-${permission.permissionId}`}
+                                                />
+                                              </div>
+                                            ) : (
+                                              <span className="text-gray-300">-</span>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                      <td className="px-2 py-1 text-center bg-gray-50/30">
+                                        <div className="flex justify-center">
+                                          <Checkbox
+                                            checked={allSelected}
+                                            onChange={(e) => onToggleModule(module, e.target.checked)}
+                                            id={`module-${module.replace(/\s+/g, "-").toLowerCase()}`}
+                                          />
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  </Fragment>
                                 );
                               })}
                             </Fragment>

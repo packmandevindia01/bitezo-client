@@ -28,6 +28,7 @@ interface PosMoreModalProps {
   onBillComplimentary: () => void;
   onSettledOrders: () => void;
   onReport: () => void;
+  requestAuthorization: (options: any) => void;
 }
 
 const ORDER_ITEMS = [
@@ -104,7 +105,8 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
   onItemComplimentary,
   onBillComplimentary,
   onSettledOrders,
-  onReport
+  onReport,
+  requestAuthorization
 }) => {
   const navigate = useNavigate();
 
@@ -112,18 +114,36 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
 
   const handleItemClick = (item: { action?: string; label: string }) => {
     if (item.action === 'printer') {
-      onClose();
-      navigate('/pos/more');
+      requestAuthorization({
+        actionLabel: "Printer",
+        permissionId: 25,
+        onAuthorized: () => {
+          onClose();
+          navigate('/pos/more');
+        }
+      });
       return;
     }
     if (item.action === 'configuration') {
-      onClose();
-      navigate('/pos/configuration');
+      requestAuthorization({
+        actionLabel: "Configuration",
+        permissionId: 24,
+        onAuthorized: () => {
+          onClose();
+          navigate('/pos/configuration');
+        }
+      });
       return;
     }
     if (item.action === 'lock') {
-      onClose();
-      navigate('/pos/lock-item');
+      requestAuthorization({
+        actionLabel: "Lock Products",
+        permissionId: 18,
+        onAuthorized: () => {
+          onClose();
+          navigate('/pos/lock-item');
+        }
+      });
       return;
     }
     if (item.action === 'setMenuDineIn') {
@@ -132,13 +152,25 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'payInOut') {
-      onClose();
-      navigate('/pos/pay-in-out');
+      requestAuthorization({
+        actionLabel: "Pay In Out",
+        permissionId: 22,
+        onAuthorized: () => {
+          onClose();
+          navigate('/pos/pay-in-out');
+        }
+      });
       return;
     }
     if (item.action === 'backoffice') {
-      onClose();
-      window.open('/?system=backoffice', '_blank');
+      requestAuthorization({
+        actionLabel: "Backoffice",
+        permissionId: 27,
+        onAuthorized: () => {
+          onClose();
+          window.open('/?system=backoffice', '_blank');
+        }
+      });
       return;
     }
     if (item.action === 'cashierOut') {

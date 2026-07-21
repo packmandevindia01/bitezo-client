@@ -7,26 +7,16 @@ import {
   Modal,
 } from "../../../../components/common";
 import SearchableSelect from "../../../../components/common/Searchableselect";
-
-interface SubCategoryFormState {
-  code: string;
-  name: string;
-  arabicName: string;
-  categoryId: number | "";
-  isActive: boolean;
-  image: string;
-}
+import type { UseFormReturn } from "react-hook-form";
+import type { SubCategoryForm } from "../schemas";
 
 interface Props {
   isOpen: boolean;
   editingId: number | null;
-  form: SubCategoryFormState;
-  errors: Partial<Record<keyof SubCategoryFormState, string>>;
+  form: UseFormReturn<SubCategoryForm>;
   categoryOptions: { label: string; value: number }[];
   saving: boolean;
   onClose: () => void;
-  onImageSelect: (file: File | null) => void;
-  onChange: (patch: Partial<SubCategoryFormState>) => void;
   onClear: () => void;
   onSave: () => void;
   onDelete?: () => void;
@@ -36,22 +26,35 @@ const SubCategoryModal = ({
   isOpen,
   editingId,
   form,
-  errors,
   categoryOptions,
   saving,
   onClose,
-  onImageSelect,
-  onChange,
   onClear,
   onSave,
   onDelete,
 }: Props) => {
+  const { register, watch, setValue, formState: { errors } } = form;
+
+  const image = watch("image");
+  const isActive = watch("isActive");
+  const categoryId = watch("categoryId");
+
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextFieldId) {
         document.getElementById(nextFieldId)?.focus();
       }
+    }
+  };
+
+  const onImageSelect = (file: File | null) => {
+    setValue("imageFile", file, { shouldDirty: true });
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setValue("image", url);
+    } else {
+      setValue("image", undefined);
     }
   };
 
@@ -64,7 +67,7 @@ const SubCategoryModal = ({
     >
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="shrink-0">
-          <ImageUploadPanel preview={form.image} onSelect={onImageSelect} />
+          <ImageUploadPanel preview={image} onSelect={onImageSelect} />
         </div>
 
         <div className="flex-1">
@@ -73,11 +76,11 @@ const SubCategoryModal = ({
               id="subcat-code"
               label="Code"
               required
-              value={form.code}
-              onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+              {...register("code")}
+              onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, ''), { shouldValidate: true, shouldDirty: true })}
               onKeyDown={(e) => handleKeyDown(e, "subcat-name")}
               placeholder="Enter code"
-              error={errors.code}
+              error={errors.code?.message}
               autoFocus
             />
 
@@ -85,21 +88,20 @@ const SubCategoryModal = ({
               id="subcat-name"
               label="Name"
               required
-              value={form.name}
-              onChange={(e) => onChange({ name: e.target.value })}
+              {...register("name")}
               onKeyDown={(e) => handleKeyDown(e, "subcat-arabic")}
               placeholder="Enter name"
-              error={errors.name}
+              error={errors.name?.message}
             />
 
             <FormInput
               id="subcat-arabic"
               label="Arabic Name"
-              value={form.arabicName}
-              onChange={(e) => onChange({ arabicName: e.target.value })}
+              {...register("arabicName")}
               onKeyDown={(e) => handleKeyDown(e, "subcat-category")}
-              placeholder="أدخل اسم الفئة الفرعية"
-              error={errors.arabicName}
+              placeholder="Enter arabic name"
+              error={errors.arabicName?.message}
+              dir="rtl"
             />
 
             <SearchableSelect
@@ -107,17 +109,17 @@ const SubCategoryModal = ({
               label="Category"
               required
               options={categoryOptions.map(opt => ({ label: opt.label, value: String(opt.value) }))}
-              value={String(form.categoryId)}
-              onChange={(v) => onChange({ categoryId: Number(v) })}
+              value={categoryId !== "" ? String(categoryId) : ""}
+              onChange={(v) => setValue("categoryId", Number(v), { shouldValidate: true, shouldDirty: true })}
               placeholder="Select category"
-              error={errors.categoryId}
+              error={errors.categoryId?.message}
             />
 
             <div className="md:col-span-2 flex items-center pt-1">
               <Checkbox
                 label="Active Status"
-                checked={form.isActive}
-                onChange={(e) => onChange({ isActive: e.target.checked })}
+                checked={isActive}
+                onChange={(e) => setValue("isActive", e.target.checked, { shouldDirty: true })}
               />
             </div>
           </div>
@@ -161,3 +163,4 @@ const SubCategoryModal = ({
 };
 
 export default SubCategoryModal;
+

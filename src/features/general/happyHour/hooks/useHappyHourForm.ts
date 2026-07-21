@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { subCategoryService } from "../../../inventory/subcategory/services/subCategoryService";
+import { subCategoryApi } from "../../../inventory/subcategory/api";
 import {
   loadMasterData,
   loadProducts,
@@ -153,7 +153,7 @@ export const useHappyHourForm = (
     void (async () => {
       try {
         setLoadingSubs(true);
-        const data = await subCategoryService.getSubCategories(
+        const data = await subCategoryApi.getSubCategories(
           undefined, undefined, Number(selectedCategory)
         );
         setSubCategories(data);
@@ -558,3 +558,6 @@ export const useHappyHourForm = (
     setSelectedBranch: (val: string) => { setSelectedBranch(val); if (errors.selectedBranch) setErrors(prev => ({ ...prev, selectedBranch: "" })); },
   };
 };
+
+
+

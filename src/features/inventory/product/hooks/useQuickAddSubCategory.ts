@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { createSubCategory } from "../../subcategory/services/subCategoryService";
+import { subCategoryApi } from "../../subcategory/api";
 import { useToast } from "../../../../app/providers/useToast";
 
 const schema = z.object({
@@ -44,7 +44,7 @@ export const useQuickAddSubCategory = (
 
   const mutation = useMutation({
     mutationFn: (data: QuickAddSubCategoryFormData) =>
-      createSubCategory({
+      subCategoryApi.createSubCategory({
         code: data.code,
         name: data.name,
         arabicName: data.arabicName ?? "",
@@ -75,3 +75,6 @@ export const useQuickAddSubCategory = (
 
   return { form, handleSubmit, handleClear, isSaving: mutation.isPending };
 };
+
+
+

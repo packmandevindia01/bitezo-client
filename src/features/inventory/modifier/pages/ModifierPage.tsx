@@ -1,50 +1,143 @@
+import { useState, useEffect } from "react";
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Button,
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard, ListHeader,
+  RecordTableCard, 
+  ListHeader,
 } from "../../../../components/common";
 import ModifierMasterForm from "../components/ModifierMasterForm";
-import { useModifierManager } from "../hooks/useModifierManager";
-import type { ModifierRecord } from "../types";
-
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
+import type { RootState } from "../../../../app/store";
+import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { useQuery } from "@tanstack/react-query";
+import { categoryApi } from "../../category";
+
+import { 
+  useModifiers, 
+  useModifierDetail, 
+  useCreateModifier, 
+  useUpdateModifier, 
+  useDeleteModifier 
+} from "../hooks/useModifierQueries";
+import { modifierFormSchema, type ModifierForm as ModifierFormType, type ModifierRecord } from "../schemas";
 
 const ModifierPage = () => {
   const { hasPermission } = usePermissions();
-  const {
-    form,
-    loading,
-    saving,
-    open,
-    search,
-    editingId,
-    filteredModifiers,
-    branches,
-    categories,
-    setSearch,
-    setField,
-    toggleBranch,
-    toggleCategory,
-    resetForm,
-    closeModal,
-    openCreateModal,
-    handleSave,
-    handleEdit,
-    handleDelete,
-  } = useModifierManager();
-  const [deleteRecord, setDeleteRecord] = React.useState<ModifierRecord | null>(null);
+  
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteRecord, setDeleteRecord] = useState<ModifierRecord | null>(null);
 
   const canAdd = hasPermission("Modifier Master", "Add");
   const canEdit = hasPermission("Modifier Master", "Edit");
   const canDelete = hasPermission("Modifier Master", "Delete");
 
+  const dispatch = useAppDispatch();
+  const { branches } = useAppSelector((state: RootState) => state.masterData);
+
+  useEffect(() => {
+    if (branches.length === 0) {
+      dispatch(fetchGlobalMasterData());
+    }
+  }, [dispatch, branches.length]);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => categoryApi.getCategories(),
+  });
+
+  const { data: records = [], isLoading } = useModifiers(search || undefined);
+  const { data: detailRecord, isLoading: isDetailLoading } = useModifierDetail(editingId || undefined);
+
+  const createMutation = useCreateModifier();
+  const updateMutation = useUpdateModifier();
+  const deleteMutation = useDeleteModifier();
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const form = useForm<ModifierFormType>({
+    resolver: zodResolver(modifierFormSchema) as any,
+    defaultValues: {
+      name: "",
+      arabic: "",
+      typeId: 0,
+      color: "#cccccc",
+      branchIds: [],
+      categoryIds: [],
+    },
+  });
+
+  useEffect(() => {
+    if (editingId && detailRecord) {
+      const mod = detailRecord.modifier?.[0];
+      const branchIds = (detailRecord.branchIds || []).map((b) => b.id);
+      const categoryIds = (detailRecord.categoryIds || []).map((c) => c.id);
+      
+      if (mod) {
+        form.reset({
+          name: mod.name || "",
+          arabic: mod.arabic || "",
+          typeId: mod.typeId || 0,
+          color: mod.color || "#cccccc",
+          branchIds: branchIds,
+          categoryIds: categoryIds,
+        });
+      }
+    }
+  }, [editingId, detailRecord, form]);
+
+  const closeModal = () => {
+    setOpen(false);
+    setEditingId(null);
+    form.reset({
+      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+    });
+  };
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    form.reset({
+      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+    });
+    setOpen(true);
+  };
+
+  const handleEdit = (record: ModifierRecord) => {
+    setEditingId(record.id);
+    setOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (deleteRecord) {
+      deleteMutation.mutate(deleteRecord.id, {
+        onSuccess: () => setDeleteRecord(null),
+      });
+    }
+  };
+
+  const onSubmit = (data: ModifierFormType) => {
+    if (editingId) {
+      updateMutation.mutate(
+        { id: editingId, data },
+        { onSuccess: closeModal }
+      );
+    } else {
+      createMutation.mutate(
+        data,
+        { onSuccess: closeModal }
+      );
+    }
+  };
+
   return (
-    <PageShell
-      title="Modifier Master">
+    <PageShell title="Modifier Master">
       <ListHeader
         search={search}
         onSearchChange={setSearch}
@@ -56,37 +149,11 @@ const ModifierPage = () => {
       <RecordTableCard
         title="Saved Modifier List"
         rowKey="id"
-        data={filteredModifiers}
-        loading={loading}
+        data={records}
+        loading={isLoading}
         columns={[
+          { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },
-          { header: "Arabic", accessor: "arabic" },
-
-          {
-            header: "Color",
-            accessor: "color",
-            render: (row) => (
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-block h-4 w-4 rounded-full border border-gray-300"
-                  style={{ backgroundColor: row.color || "#cccccc" }}
-                />
-                <span className="text-xs">{row.color || "None"}</span>
-              </div>
-            ),
-          },
-          { 
-            header: "Branches", 
-            accessor: "branchIds",
-            render: (row) => {
-               const count = (row.branchIds || []).length;
-               return (
-                 <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-                   {count} {count === 1 ? "branch" : "branches"}
-                 </span>
-               );
-            }
-          },
           {
             header: "Actions",
             accessor: "id",
@@ -127,8 +194,10 @@ const ModifierPage = () => {
           <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
-              onClick={resetForm} 
-              disabled={saving} 
+              onClick={() => form.reset({
+                name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+              })} 
+              disabled={isSaving || isDetailLoading} 
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
@@ -136,8 +205,9 @@ const ModifierPage = () => {
               Clear
             </Button>
             <Button 
-              onClick={handleSave} 
-              loading={saving}
+              onClick={form.handleSubmit(onSubmit as any)} 
+              loading={isSaving}
+              disabled={isDetailLoading}
               isAction
               icon={<Save size={18} />}
             >
@@ -147,13 +217,13 @@ const ModifierPage = () => {
               <Button
                 variant="danger"
                 onClick={() => {
-                  const record = filteredModifiers.find(r => r.id === editingId);
+                  const record = records.find(r => r.id === editingId);
                   if (record) {
                     setDeleteRecord(record);
                     closeModal();
                   }
                 }}
-                disabled={saving}
+                disabled={isSaving || isDetailLoading}
                 isAction
                 icon={<Trash2 size={18} />}
               >
@@ -165,24 +235,17 @@ const ModifierPage = () => {
       >
         <ModifierMasterForm
           form={form}
-          loading={loading && Boolean(editingId)}
+          loading={isDetailLoading}
+          saving={isSaving}
           branches={branches}
           categories={categories}
-          onChange={setField}
-          onToggleBranch={toggleBranch}
-          onToggleCategory={toggleCategory}
         />
       </Modal>
 
       <ConfirmDialog
         isOpen={deleteRecord !== null}
         onCancel={() => setDeleteRecord(null)}
-        onConfirm={() => {
-          if (deleteRecord) {
-            handleDelete(deleteRecord);
-            setDeleteRecord(null);
-          }
-        }}
+        onConfirm={handleDelete}
         message="Are you sure you want to delete this modifier? This action cannot be undone."
       />
     </PageShell>

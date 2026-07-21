@@ -35,6 +35,7 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/reports/all-transaction": "All Transaction Report",
     "/dashboard/users": "Users",
     "/dashboard/user-roles": "User Roles",
+    "/dashboard/employee-roles": "Employee Roles",
     "/dashboard/customers": "Customers",
     "/dashboard/customers/new": "New Customer",
     "/dashboard/employees": "Employees",

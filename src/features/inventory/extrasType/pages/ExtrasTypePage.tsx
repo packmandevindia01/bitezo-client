@@ -1,45 +1,108 @@
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import React from "react";
+
 import {
   Button,
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard, ListHeader,
+  RecordTableCard,
+  ListHeader,
 } from "../../../../components/common";
-import ExtrasTypeForm from "../components/ExtrasTypeForm";
-import { useExtrasTypeManager } from "../hooks/useExtrasTypeManager";
-import type { ExtrasTypeRecord } from "../types";
+import ExtrasTypeFormComponent from "../components/ExtrasTypeForm";
 import { usePermissions } from "../../../../hooks/usePermissions";
+
+import { extrasTypeFormSchema, type ExtrasTypeForm as ExtrasTypeFormType, type ExtrasTypeRecord } from "../schemas";
+import { 
+  useExtrasTypes, 
+  useExtrasTypeDetail,
+  useCreateExtrasType,
+  useUpdateExtrasType,
+  useDeleteExtrasType
+} from "../hooks/useExtrasTypeQueries";
 
 const ExtrasTypePage = () => {
   const { hasPermission } = usePermissions();
-  const {
-    form,
-    loading,
-    saving,
-    open,
-    search,
-    editingId,
-    filteredRecords,
-    setSearch,
-    setField,
-    resetForm,
-    closeModal,
-    openCreateModal,
-    handleSave,
-    handleEdit,
-    handleDelete,
-  } = useExtrasTypeManager();
-  const [deleteRecord, setDeleteRecord] = React.useState<ExtrasTypeRecord | null>(null);
+  
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteRecord, setDeleteRecord] = useState<ExtrasTypeRecord | null>(null);
 
   const canAdd = hasPermission("Extras Type", "Add");
   const canEdit = hasPermission("Extras Type", "Edit");
   const canDelete = hasPermission("Extras Type", "Delete");
 
+  const { data: records = [], isLoading } = useExtrasTypes(search || undefined);
+  const { data: detailRecord, isLoading: isDetailLoading } = useExtrasTypeDetail(editingId || undefined);
+
+  const createMutation = useCreateExtrasType();
+  const updateMutation = useUpdateExtrasType();
+  const deleteMutation = useDeleteExtrasType();
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const form = useForm<ExtrasTypeFormType>({
+    resolver: zodResolver(extrasTypeFormSchema),
+    defaultValues: {
+      name: "",
+      arabicName: "",
+    },
+  });
+
+  // Populate form when editing and detail is loaded
+  useEffect(() => {
+    if (editingId && detailRecord) {
+      form.reset({
+        name: detailRecord.name || "",
+        arabicName: detailRecord.arabicName || "",
+      });
+    }
+  }, [editingId, detailRecord, form]);
+
+  const closeModal = () => {
+    setOpen(false);
+    setEditingId(null);
+    form.reset({ name: "", arabicName: "" });
+  };
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    form.reset({ name: "", arabicName: "" });
+    setOpen(true);
+  };
+
+  const handleEdit = (record: ExtrasTypeRecord) => {
+    setEditingId(record.typeId);
+    setOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (deleteRecord) {
+      deleteMutation.mutate(deleteRecord.typeId, {
+        onSuccess: () => setDeleteRecord(null),
+      });
+    }
+  };
+
+  const onSubmit = (data: ExtrasTypeFormType) => {
+    if (editingId) {
+      updateMutation.mutate(
+        { typeId: editingId, data },
+        { onSuccess: closeModal }
+      );
+    } else {
+      createMutation.mutate(
+        data,
+        { onSuccess: closeModal }
+      );
+    }
+  };
+
   return (
-    <PageShell
-      title="Extras Type" >
+    <PageShell title="Extras Type">
       <ListHeader
         search={search}
         onSearchChange={setSearch}
@@ -51,12 +114,11 @@ const ExtrasTypePage = () => {
       <RecordTableCard
         title="Saved Extras Type List"
         rowKey="typeId"
-        data={filteredRecords}
-        loading={loading}
+        data={records}
+        loading={isLoading}
         columns={[
           { header: "#", accessor: "typeId" },
           { header: "Name", accessor: "name" },
-          { header: "Arabic", accessor: "arabicName" },
           {
             header: "Actions",
             accessor: "typeId",
@@ -88,26 +150,27 @@ const ExtrasTypePage = () => {
         ]}
       />
 
-      <Modal 
-        isOpen={open} 
-        onClose={closeModal} 
+      <Modal
+        isOpen={open}
+        onClose={closeModal}
         title={editingId ? "Edit Extras Type" : "Add Extras Type"}
         size="lg"
         footer={
           <div className="flex gap-3">
-            <Button 
-              variant="secondary" 
-              onClick={resetForm} 
-              disabled={saving} 
+            <Button
+              variant="secondary"
+              onClick={() => form.reset({ name: "", arabicName: "" })}
+              disabled={isSaving || isDetailLoading}
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
             >
               Clear
             </Button>
-            <Button 
-              onClick={handleSave} 
-              loading={saving}
+            <Button
+              onClick={form.handleSubmit(onSubmit)}
+              loading={isSaving}
+              disabled={isDetailLoading}
               isAction
               icon={<Save size={18} />}
             >
@@ -117,13 +180,13 @@ const ExtrasTypePage = () => {
               <Button
                 variant="danger"
                 onClick={() => {
-                  const record = filteredRecords.find(r => r.typeId === editingId);
+                  const record = records.find(r => r.typeId === editingId);
                   if (record) {
                     setDeleteRecord(record);
                     closeModal();
                   }
                 }}
-                disabled={saving}
+                disabled={isSaving || isDetailLoading}
                 isAction
                 icon={<Trash2 size={18} />}
               >
@@ -133,26 +196,17 @@ const ExtrasTypePage = () => {
           </div>
         }
       >
-        <ExtrasTypeForm
-          form={form}
-          onChange={setField}
-        />
+        <ExtrasTypeFormComponent form={form} />
       </Modal>
 
       <ConfirmDialog
         isOpen={deleteRecord !== null}
         onCancel={() => setDeleteRecord(null)}
-        onConfirm={() => {
-          if (deleteRecord) {
-            handleDelete(deleteRecord);
-            setDeleteRecord(null);
-          }
-        }}
-        message="Are you sure you want to delete this extras type?"
+        onConfirm={handleDelete}
+        message={`Are you sure you want to delete extras type "${deleteRecord?.name}"?`}
       />
     </PageShell>
   );
 };
 
 export default ExtrasTypePage;
-

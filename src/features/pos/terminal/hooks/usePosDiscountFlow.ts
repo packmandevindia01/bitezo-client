@@ -10,6 +10,7 @@ interface UsePosDiscountFlowProps {
   setBillDiscount: (value: number, mode: 'percentage' | 'amount') => void;
   setItemDiscount: (id: string, value: number, mode: 'percentage' | 'amount') => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  requestAuthorization: (options: any) => void;
 }
 
 export const usePosDiscountFlow = ({
@@ -21,6 +22,7 @@ export const usePosDiscountFlow = ({
   setBillDiscount,
   setItemDiscount,
   showToast,
+  requestAuthorization,
 }: UsePosDiscountFlowProps) => {
   const [discountStep, setDiscountStep] = useState<'none' | 'choice' | 'value'>('none');
   const [discountType, setDiscountType] = useState<'bill' | 'item'>('bill');
@@ -41,8 +43,15 @@ export const usePosDiscountFlow = ({
       showToast("Cannot apply item discounts while a bill discount is active", "warning");
       return;
     }
-    setDiscountType(type);
-    setDiscountStep('value');
+    
+    requestAuthorization({
+      actionLabel: type === 'bill' ? "Bill Discount" : "Product Discount",
+      permissionId: type === 'bill' ? 10 : 11,
+      onAuthorized: () => {
+        setDiscountType(type);
+        setDiscountStep('value');
+      }
+    });
   });
 
   const handleApplyDiscount = useEvent((value: string) => {

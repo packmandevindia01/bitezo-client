@@ -6,6 +6,7 @@ interface EmployeePasswordModalProps {
   isOpen: boolean;
   loading: boolean;
   error: string | null;
+  isAdminOverride?: boolean;
   onClose: () => void;
   onSubmit: (password: string) => void;
 }
@@ -16,6 +17,7 @@ export const EmployeePasswordModal = ({
   isOpen,
   loading,
   error,
+  isAdminOverride,
   onClose,
   onSubmit,
 }: EmployeePasswordModalProps) => {
@@ -54,8 +56,8 @@ export const EmployeePasswordModal = ({
       showClose={false}
       className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
     >
-      <div className="bg-[#49293e] text-white py-3 px-4 flex justify-between items-center shrink-0">
-        <h2 className="text-sm font-black uppercase tracking-[0.2em]">Employee Code</h2>
+      <div className={`${isAdminOverride ? 'bg-[#ff9500]' : 'bg-[#49293e]'} text-white py-3 px-4 flex justify-between items-center shrink-0 transition-colors`}>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em]">{isAdminOverride ? "Authorized Password" : "Employee Code"}</h2>
         <button onClick={onClose} className="opacity-60 hover:opacity-100 disabled:opacity-30" disabled={loading} tabIndex={-1}>
           <XCircle size={20} />
         </button>
@@ -63,8 +65,10 @@ export const EmployeePasswordModal = ({
 
       <div className="bg-[#f8fafc] p-4 space-y-3">
         <div className="bg-[#1e293b] p-4 rounded-2xl shadow-xl flex flex-col items-end relative overflow-hidden shrink-0">
-          <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Enter employee password</span>
+          <div className={`absolute top-0 left-0 w-1 h-full ${isAdminOverride ? 'bg-red-500' : 'bg-[#ff9500]'}`} />
+          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+            {isAdminOverride ? "Enter authorized admin password" : "Enter employee password"}
+          </span>
           <div className="w-full min-h-[48px] text-right text-4xl font-black text-white font-mono tracking-normal leading-none flex items-center justify-end">
             {password ? "*".repeat(password.length) : ""}
           </div>

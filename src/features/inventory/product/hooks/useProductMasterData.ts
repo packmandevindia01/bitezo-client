@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
-import { subCategoryService } from "../../subcategory/services/subCategoryService";
+import { subCategoryApi } from "../../subcategory/api";
 import { useToast } from "../../../../app/providers/useToast";
 import type { MasterItem } from "../types";
 
@@ -27,7 +27,7 @@ export const useProductMasterData = (categoryId: string) => {
     }
 
     setLoadingSubs(true);
-    subCategoryService
+    subCategoryApi
       .getSubCategories(undefined, undefined, catId)
       .then((subs) => setSubCategories(subs.map((s) => ({ id: s.id, name: s.name }))))
       .catch(() => showToast("Failed to load sub categories.", "error"))
@@ -41,3 +41,7 @@ export const useProductMasterData = (categoryId: string) => {
     loadingSubs,
   };
 };
+
+
+
+

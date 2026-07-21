@@ -1,5 +1,9 @@
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import React from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+
 import {
   Button,
   ConfirmDialog,
@@ -8,47 +12,149 @@ import {
   RecordTableCard, ListHeader,
 } from "../../../../components/common";
 import ExtrasMasterForm from "../components/ExtrasMasterForm";
-import { useExtrasMasterManager } from "../hooks/useExtrasMasterManager";
-import type { ExtrasMasterRecord } from "../types";
-import { formatCurrency } from "../../../../utils/formatters";
-import { useAppSelector } from "../../../../app/hooks";
-import { selectDecimalPart } from "../../../auth/store/authSlice";
+import type { ExtrasMasterRecord } from "../schemas";
+import { extrasMasterFormSchema, type ExtrasMasterForm as ExtrasMasterFormType } from "../schemas";
+import { 
+  useExtrasMaster, 
+  useExtrasMasterDetail,
+  useCreateExtrasMaster,
+  useUpdateExtrasMaster,
+  useDeleteExtrasMaster
+} from "../hooks/useExtrasMasterQueries";
+
+import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
+import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { categoryApi } from "../../category";
+
 
 const ExtrasMasterPage = () => {
-  const decimalPart = useAppSelector(selectDecimalPart);
+
   const { hasPermission } = usePermissions();
-  const {
-    form,
-    loading,
-    saving,
-    open,
-    search,
-    editingId,
-    filteredRecords,
-    branches,
-    extrasTypes,
-    categories,
-    setSearch,
-    setField,
-    toggleBranch,
-    toggleCategory,
-    resetForm,
-    closeModal,
-    openCreateModal,
-    handleSave,
-    handleEdit,
-    handleDelete,
-  } = useExtrasMasterManager();
-  const [deleteRecord, setDeleteRecord] = React.useState<ExtrasMasterRecord | null>(null);
+  
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteRecord, setDeleteRecord] = useState<ExtrasMasterRecord | null>(null);
 
   const canAdd = hasPermission("Extras Master", "Add");
   const canEdit = hasPermission("Extras Master", "Edit");
   const canDelete = hasPermission("Extras Master", "Delete");
 
+  const dispatch = useAppDispatch();
+  const { branches } = useAppSelector((state) => state.masterData);
+
+  useEffect(() => {
+    if (branches.length === 0) {
+      dispatch(fetchGlobalMasterData());
+    }
+  }, [dispatch, branches.length]);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories-list"],
+    queryFn: () => categoryApi.getCategories(),
+  });
+
+  const { data: records = [], isLoading } = useExtrasMaster(search || undefined);
+  const { data: detailRecord, isLoading: isDetailLoading } = useExtrasMasterDetail(editingId || undefined);
+
+
+  const createMutation = useCreateExtrasMaster();
+  const updateMutation = useUpdateExtrasMaster();
+  const deleteMutation = useDeleteExtrasMaster();
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const form = useForm<ExtrasMasterFormType>({
+    resolver: zodResolver(extrasMasterFormSchema) as any,
+    defaultValues: {
+      name: "",
+      arabic: "",
+      typeId: 0,
+      price: 0,
+      color: "#cccccc",
+      branchIds: [],
+      categoryIds: [],
+    },
+  });
+
+  useEffect(() => {
+    if (editingId && detailRecord) {
+      const mod = detailRecord.modifier?.[0];
+      const branchIds = (detailRecord.branchIds || []).map((b) => b.id);
+      const categoryIds = (detailRecord.categoryIds || []).map((c) => c.id);
+      
+      if (mod) {
+        form.reset({
+          name: mod.name || "",
+          arabic: mod.arabic || "",
+          typeId: mod.typeId || 0,
+          price: mod.price || 0,
+          color: mod.color || "#cccccc",
+          branchIds: branchIds,
+          categoryIds: categoryIds,
+        });
+      }
+    }
+  }, [editingId, detailRecord, form]);
+
+  const closeModal = () => {
+    setOpen(false);
+    setEditingId(null);
+    form.reset({
+      name: "",
+      arabic: "",
+      typeId: 0,
+      price: 0,
+      color: "#cccccc",
+      branchIds: [],
+      categoryIds: [],
+    });
+  };
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    form.reset({
+      name: "",
+      arabic: "",
+      typeId: 0,
+      price: 0,
+      color: "#cccccc",
+      branchIds: [],
+      categoryIds: [],
+    });
+    setOpen(true);
+  };
+
+  const handleEdit = (record: ExtrasMasterRecord) => {
+    setEditingId(record.id);
+    setOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (deleteRecord) {
+      deleteMutation.mutate(deleteRecord.id, {
+        onSuccess: () => setDeleteRecord(null),
+      });
+    }
+  };
+
+  const onSubmit = (data: ExtrasMasterFormType) => {
+    if (editingId) {
+      updateMutation.mutate(
+        { id: editingId, data },
+        { onSuccess: closeModal }
+      );
+    } else {
+      createMutation.mutate(
+        data,
+        { onSuccess: closeModal }
+      );
+    }
+  };
+
   return (
-    <PageShell
-      title="Extras Master" >
+    <PageShell title="Extras Master">
       <ListHeader
         search={search}
         onSearchChange={setSearch}
@@ -60,50 +166,11 @@ const ExtrasMasterPage = () => {
       <RecordTableCard
         title="Saved Extras List"
         rowKey="id"
-        data={filteredRecords}
-        loading={loading}
+        data={records}
+        loading={isLoading}
         columns={[
+          { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },
-          { header: "Arabic", accessor: "arabic" },
-          { 
-            header: "Price", 
-            accessor: "price",
-            render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
-          },
-          { 
-            header: "Type", 
-            accessor: "typeId",
-            render: (row) => {
-              const typeId = String(row.typeId || (row as any).type_id || "");
-              const type = extrasTypes.find(t => String(t.typeId || (t as any).id) === typeId);
-              return <span>{type?.name || typeId || "N/A"}</span>;
-            }
-          },
-          {
-            header: "Color",
-            accessor: "color",
-            render: (row) => (
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-block h-4 w-4 rounded-full border border-gray-300"
-                  style={{ backgroundColor: row.color || "#cccccc" }}
-                />
-                <span className="text-xs">{row.color || "None"}</span>
-              </div>
-            ),
-          },
-          { 
-            header: "Branches", 
-            accessor: "branchIds",
-            render: (row) => {
-               const count = (row.branchIds || []).length;
-               return (
-                 <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-                   {count} {count === 1 ? "branch" : "branches"}
-                 </span>
-               );
-            }
-          },
           {
             header: "Actions",
             accessor: "id",
@@ -144,8 +211,10 @@ const ExtrasMasterPage = () => {
           <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
-              onClick={resetForm} 
-              disabled={saving} 
+              onClick={() => form.reset({
+                name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [], categoryIds: []
+              })} 
+              disabled={isSaving || isDetailLoading} 
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
@@ -153,8 +222,9 @@ const ExtrasMasterPage = () => {
               Clear
             </Button>
             <Button 
-              onClick={handleSave} 
-              loading={saving}
+              onClick={form.handleSubmit(onSubmit as any)} 
+              loading={isSaving}
+              disabled={isDetailLoading}
               isAction
               icon={<Save size={18} />}
             >
@@ -164,13 +234,13 @@ const ExtrasMasterPage = () => {
               <Button
                 variant="danger"
                 onClick={() => {
-                  const record = filteredRecords.find(r => r.id === editingId);
+                  const record = records.find(r => r.id === editingId);
                   if (record) {
                     setDeleteRecord(record);
                     closeModal();
                   }
                 }}
-                disabled={saving}
+                disabled={isSaving || isDetailLoading}
                 isAction
                 icon={<Trash2 size={18} />}
               >
@@ -182,26 +252,18 @@ const ExtrasMasterPage = () => {
       >
         <ExtrasMasterForm
           form={form}
-          saving={saving}
-          loading={loading && Boolean(editingId)}
+          saving={isSaving}
+          loading={isDetailLoading}
           branches={branches}
           categories={categories}
-          onChange={setField}
-          onToggleBranch={toggleBranch}
-          onToggleCategory={toggleCategory}
         />
       </Modal>
 
       <ConfirmDialog
         isOpen={deleteRecord !== null}
         onCancel={() => setDeleteRecord(null)}
-        onConfirm={() => {
-          if (deleteRecord) {
-            handleDelete(deleteRecord);
-            setDeleteRecord(null);
-          }
-        }}
-        message="Are you sure you want to delete this extras record?"
+        onConfirm={handleDelete}
+        message={`Are you sure you want to delete "${deleteRecord?.name}"?`}
       />
     </PageShell>
   );

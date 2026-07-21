@@ -82,6 +82,7 @@ export type EmployeeForm = z.infer<typeof employeeSchema>;
 
 export interface ValidateEmployeePasswordRequest {
   password: string;
+  permissionId?: number;
 }
 
 export interface ValidateEmployeePasswordData {

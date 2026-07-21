@@ -11,6 +11,8 @@ import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
+import { useEmployeeAuthorization } from "../../../hooks/useEmployeeAuthorization";
+import { EmployeePasswordModal } from "./EmployeePasswordModal";
 
 const getPriceView = (): string => {
   try {
@@ -37,6 +39,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 }) => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
+  const { authorizationModalKey, authorizationModalProps, requestAuthorization } = useEmployeeAuthorization();
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<any>(null);
   const { products } = usePosProducts();
@@ -301,7 +304,11 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       cancelLabel: "No",
       onConfirm: () => {
         setConfirmAction(prev => ({ ...prev, isOpen: false }));
-        handleEditOrder();
+        requestAuthorization({
+          actionLabel: "Edit Settled order",
+          permissionId: 21, // Edit Settled order
+          onAuthorized: () => handleEditOrder(),
+        });
       }
     });
   };
@@ -452,6 +459,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           </div>
         </Modal>
       )}
+
+      <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />
     </Modal>
   );
 };

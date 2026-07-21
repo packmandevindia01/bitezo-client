@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { createCategory } from "../../category/services/categoryService";
+import { categoryApi } from "../../category";
 import { useToast } from "../../../../app/providers/useToast";
 
 const schema = z.object({
@@ -25,7 +25,7 @@ export const useQuickAddCategory = (onCreated: (id: string, name: string) => voi
 
   const mutation = useMutation({
     mutationFn: (data: QuickAddCategoryFormData) =>
-      createCategory({
+      categoryApi.createCategory({
         code: data.code,
         name: data.name,
         arabic: data.arabicName ?? "",

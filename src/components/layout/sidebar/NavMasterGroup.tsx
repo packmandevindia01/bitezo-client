@@ -61,6 +61,13 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
           </div>
         )}
 
+        {hasPermission("Employee Master", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/employee-roles")} className={itemClassName}>
+            <ShieldCheck size={13} className="shrink-0" />
+            <span>Employee Roles</span>
+          </div>
+        )}
+
         {hasPermission("Customer Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/company")} className={itemClassName}>
             <Building2 size={13} className="shrink-0" />

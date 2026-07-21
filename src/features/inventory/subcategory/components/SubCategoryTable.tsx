@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { RecordTableCard, ListHeader } from "../../../../components/common";
+import { RecordTableCard, ListHeader, StatusBadge } from "../../../../components/common";
 import type { SubCategoryListItem } from "../types";
 
 interface Props {
@@ -39,16 +39,16 @@ const SubCategoryTable = ({
         columns={[
         { header: "Code", accessor: "code" },
         { header: "Sub Category", accessor: "name" },
-        {
-          header: "Arabic",
-          accessor: "arabicName",
-          render: (row) => row.arabicName || "-",
-        },
         { header: "Category", accessor: "categoryName" },
         {
           header: "Status",
           accessor: "isActive",
-          render: (row) => (row.isActive ? "Active" : "Inactive"),
+          render: (row) => (
+            <StatusBadge 
+              status={row.isActive ? "active" : "inactive"} 
+              label={row.isActive ? "Active" : "Inactive"} 
+            />
+          ),
         },
         {
           header: "Actions",

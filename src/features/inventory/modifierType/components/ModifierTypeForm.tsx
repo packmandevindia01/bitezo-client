@@ -1,38 +1,58 @@
+import type { UseFormReturn } from "react-hook-form";
 import { FormInput } from "../../../../components/common";
-import type { ModifierTypeForm as ModifierTypeFormType } from "../types";
+import type { ModifierTypeForm as ModifierTypeFormType } from "../schemas";
 
 interface ModifierTypeFormProps {
-  form: ModifierTypeFormType;
-  onChange: <K extends keyof ModifierTypeFormType>(
-    key: K,
-    value: ModifierTypeFormType[K]
-  ) => void;
+  form: UseFormReturn<ModifierTypeFormType>;
 }
 
-const ModifierTypeForm = ({
-  form,
-  onChange,
-}: ModifierTypeFormProps) => {
-  return (
-    <>
-      <div className="flex flex-col gap-3">
-        <FormInput
-          label="Name"
-          required
-          value={form.name}
-          onChange={(e) => onChange("name", e.target.value)}
-          autoFocus
-        />
+const ModifierTypeForm = ({ form }: ModifierTypeFormProps) => {
+  const { register, formState: { errors } } = form;
 
-        <FormInput
-          label="Arabic"
-          value={form.arabicName}
-          onChange={(e) => onChange("arabicName", e.target.value)}
-        />
-      </div>
-    </>
+  const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextId) {
+        document.getElementById(nextId)?.focus();
+      }
+    }
+  };
+
+  return (
+    <div className="grid gap-x-4 gap-y-3 md:grid-cols-2">
+      <FormInput
+        id="modtype-name"
+        label="Name"
+        required
+        placeholder="e.g. Extra Cheese"
+        error={errors.name?.message}
+        {...register("name")}
+        onKeyDown={(e) => handleEnter(e, "modtype-arabic")}
+        autoFocus
+      />
+      
+      <FormInput
+        id="modtype-arabic"
+        label="Arabic Name"
+        placeholder="أدخل الاسم بالعربي"
+        error={errors.arabicName?.message}
+        {...register("arabicName")}
+        onKeyDown={(e) => handleEnter(e, "modtype-price")}
+      />
+
+      <FormInput
+        id="modtype-price"
+        label="Price"
+        type="number"
+        min={0}
+        step={0.01}
+        required
+        placeholder="0.00"
+        error={errors.price?.message}
+        {...register("price")}
+      />
+    </div>
   );
 };
 
 export default ModifierTypeForm;
-

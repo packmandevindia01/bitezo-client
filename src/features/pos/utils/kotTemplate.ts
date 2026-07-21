@@ -12,6 +12,8 @@ export interface KotPrintData {
   time?: string;
   headerTitle?: string;
   isMaster?: boolean;
+  vehicleNo?: string;
+  customerName?: string;
 }
 
 export const generateKotHtml = (
@@ -24,6 +26,7 @@ export const generateKotHtml = (
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
 
   const orderTypeStr = (data.orderType || "DINE IN").toUpperCase();
+  const isDineIn = data.orderType?.toLowerCase().includes("dine");
 
   let itemsHtml = "";
   cartDetails.forEach((item) => {
@@ -157,13 +160,17 @@ export const generateKotHtml = (
               <td>Waiter : <span style="font-weight: normal">${data.waiter}</span></td>
               <td>Terminal : <span style="font-weight: normal">${data.counter}</span></td>
             </tr>
+            ${isDineIn ? `
             <tr>
               <td></td>
               <td>Section : <span style="font-weight: normal">${data.section}</span></td>
             </tr>
+            ` : ''}
           </table>
           
-          <div class="text-center" style="font-size: 24px; font-weight: bold; margin: 15px 0;">Table : ${data.table}</div>
+          ${isDineIn ? `<div class="text-center" style="font-size: 24px; font-weight: bold; margin: 15px 0;">Table : ${data.table}</div>` : ''}
+          ${data.vehicleNo ? `<div class="text-center" style="font-size: 20px; font-weight: bold; margin: 10px 0;">Vehicle No : ${data.vehicleNo}</div>` : ''}
+          ${data.customerName ? `<div class="text-center" style="font-size: 18px; font-weight: bold; margin: 5px 0;">Customer : ${data.customerName}</div>` : ''}
           
           <hr />
           <div class="text-center" style="font-size: 24px; font-weight: bold; margin: 10px 0;">***${data.headerTitle || "KOT"}***</div>
@@ -206,10 +213,18 @@ export const generateKotHtml = (
             <td>Waiter : <span style="font-weight: normal">${data.waiter}</span></td>
             <td>Counter : <span style="font-weight: normal">${data.counter}</span></td>
           </tr>
+          ${isDineIn ? `
           <tr>
             <td>Section : <span style="font-weight: normal">${data.section}</span></td>
             <td>Table : <span style="font-weight: normal">${data.table}</span></td>
           </tr>
+          ` : ''}
+          ${data.vehicleNo || data.customerName ? `
+          <tr>
+            <td>${data.vehicleNo ? `Vehicle : <span style="font-weight: normal">${data.vehicleNo}</span>` : ''}</td>
+            <td>${data.customerName ? `Customer : <span style="font-weight: normal">${data.customerName}</span>` : ''}</td>
+          </tr>
+          ` : ''}
         </table>
         
         <table style="width: 100%; margin-top: 15px; font-size: 16px;">

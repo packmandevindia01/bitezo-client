@@ -13,7 +13,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Loader2 } from "lucide-react";
-import type { TableRecord } from "../types";
+import type { TableRecord } from "../schemas";
 import SortableTableCard from "./SortableTableCard";
 import SortableEmptySlot from "./SortableEmptySlot";
 

@@ -1,45 +1,111 @@
-import React from "react";
+import { useState, useEffect } from "react";
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Button,
   ConfirmDialog,
   Modal,
   PageShell,
-  RecordTableCard, ListHeader,
+  RecordTableCard, 
+  ListHeader,
 } from "../../../../components/common";
+import { formatCurrency } from "../../../../utils/formatters";
 import ModifierTypeForm from "../components/ModifierTypeForm";
-import { useModifierTypeManager } from "../hooks/useModifierTypeManager";
-import type { ModifierTypeRecord } from "../types";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectDecimalPart } from "../../../auth/store/authSlice";
+import { 
+  useModifierTypes, 
+  useModifierTypeDetail, 
+  useCreateModifierType, 
+  useUpdateModifierType, 
+  useDeleteModifierType 
+} from "../hooks/useModifierTypeQueries";
+import { modifierTypeFormSchema, type ModifierTypeForm as ModifierTypeFormType, type ModifierTypeRecord } from "../schemas";
 import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ModifierTypePage = () => {
   const { hasPermission } = usePermissions();
-  const {
-    form,
-    loading,
-    saving,
-    open,
-    search,
-    editingId,
-    filteredRecords,
-    setSearch,
-    setField,
-    resetForm,
-    closeModal,
-    openCreateModal,
-    handleSave,
-    handleEdit,
-    handleDelete,
-  } = useModifierTypeManager();
-  const [deleteRecord, setDeleteRecord] = React.useState<ModifierTypeRecord | null>(null);
+  const decimalPart = useAppSelector(selectDecimalPart);
+
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteRecord, setDeleteRecord] = useState<ModifierTypeRecord | null>(null);
 
   const canAdd = hasPermission("Modifier Type", "Add");
   const canEdit = hasPermission("Modifier Type", "Edit");
   const canDelete = hasPermission("Modifier Type", "Delete");
 
+  const { data: records = [], isLoading } = useModifierTypes(search || undefined);
+  const { data: detailRecord, isLoading: isDetailLoading } = useModifierTypeDetail(editingId || undefined);
+
+  const createMutation = useCreateModifierType();
+  const updateMutation = useUpdateModifierType();
+  const deleteMutation = useDeleteModifierType();
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const form = useForm<ModifierTypeFormType>({
+    resolver: zodResolver(modifierTypeFormSchema) as any,
+    defaultValues: {
+      name: "",
+      arabicName: "",
+      price: 0,
+    },
+  });
+
+  useEffect(() => {
+    if (editingId && detailRecord) {
+      form.reset({
+        name: detailRecord.name || "",
+        arabicName: detailRecord.arabicName || "",
+        price: detailRecord.price || 0,
+      });
+    }
+  }, [editingId, detailRecord, form]);
+
+  const closeModal = () => {
+    setOpen(false);
+    setEditingId(null);
+    form.reset({ name: "", arabicName: "", price: 0 });
+  };
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    form.reset({ name: "", arabicName: "", price: 0 });
+    setOpen(true);
+  };
+
+  const handleEdit = (record: ModifierTypeRecord) => {
+    setEditingId(record.typeId);
+    setOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (deleteRecord) {
+      deleteMutation.mutate(deleteRecord.typeId, {
+        onSuccess: () => setDeleteRecord(null),
+      });
+    }
+  };
+
+  const onSubmit = (data: ModifierTypeFormType) => {
+    if (editingId) {
+      updateMutation.mutate(
+        { id: editingId, data },
+        { onSuccess: closeModal }
+      );
+    } else {
+      createMutation.mutate(
+        data,
+        { onSuccess: closeModal }
+      );
+    }
+  };
+
   return (
-    <PageShell
-      title="Modifier Type">
+    <PageShell title="Modifier Type">
       <ListHeader
         search={search}
         onSearchChange={setSearch}
@@ -51,12 +117,17 @@ const ModifierTypePage = () => {
       <RecordTableCard
         title="Saved Modifier Type List"
         rowKey="typeId"
-        data={filteredRecords}
-        loading={loading}
+        data={records}
+        loading={isLoading}
         columns={[
-          { header: "#", accessor: "typeId" },
+          { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabicName" },
+          { 
+            header: "Price", 
+            accessor: "price",
+            render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
+          },
           {
             header: "Actions",
             accessor: "typeId",
@@ -94,11 +165,11 @@ const ModifierTypePage = () => {
         title={editingId ? "Edit Modifier Type" : "Add Modifier Type"}
         size="lg"
         footer={
-          <div className="flex gap-3">
+          <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
-              onClick={resetForm} 
-              disabled={saving} 
+              onClick={() => form.reset({ name: "", arabicName: "", price: 0 })} 
+              disabled={isSaving || isDetailLoading} 
               tabIndex={-1}
               isAction
               icon={<RotateCcw size={18} />}
@@ -106,8 +177,9 @@ const ModifierTypePage = () => {
               Clear
             </Button>
             <Button 
-              onClick={handleSave} 
-              loading={saving}
+              onClick={form.handleSubmit(onSubmit as any)} 
+              loading={isSaving}
+              disabled={isDetailLoading}
               isAction
               icon={<Save size={18} />}
             >
@@ -117,13 +189,13 @@ const ModifierTypePage = () => {
               <Button
                 variant="danger"
                 onClick={() => {
-                  const record = filteredRecords.find(r => r.typeId === editingId);
+                  const record = records.find(r => r.typeId === editingId);
                   if (record) {
                     setDeleteRecord(record);
                     closeModal();
                   }
                 }}
-                disabled={saving}
+                disabled={isSaving || isDetailLoading}
                 isAction
                 icon={<Trash2 size={18} />}
               >
@@ -133,26 +205,17 @@ const ModifierTypePage = () => {
           </div>
         }
       >
-        <ModifierTypeForm
-          form={form}
-          onChange={setField}
-        />
+        <ModifierTypeForm form={form} />
       </Modal>
 
       <ConfirmDialog
         isOpen={deleteRecord !== null}
         onCancel={() => setDeleteRecord(null)}
-        onConfirm={() => {
-          if (deleteRecord) {
-            handleDelete(deleteRecord);
-            setDeleteRecord(null);
-          }
-        }}
-        message="Are you sure you want to delete this modifier type?"
+        onConfirm={handleDelete}
+        message={`Are you sure you want to delete "${deleteRecord?.name}"?`}
       />
     </PageShell>
   );
 };
 
 export default ModifierTypePage;
-

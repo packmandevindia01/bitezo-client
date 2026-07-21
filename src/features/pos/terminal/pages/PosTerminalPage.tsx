@@ -187,6 +187,7 @@ export const PosTerminalPage = () => {
     setBillDiscount: terminal.setBillDiscount,
     setItemDiscount: terminal.setItemDiscount,
     showToast,
+    requestAuthorization,
   });
 
   const handleApplyPrice = (val: string) => {
@@ -214,20 +215,32 @@ export const PosTerminalPage = () => {
 
   const handleItemComplimentary = () => {
     if (!selectedKey) {
-      showToast("Please select an item first", "error");
+      showToast("Select an item first", "warning");
       return;
     }
-    terminal.setItemDiscount(selectedKey, 100, 'percentage');
-    showToast("Item marked as complimentary", "success");
+    requestAuthorization({
+      actionLabel: "Item Complimentary",
+      permissionId: 13, // Product complementary
+      onAuthorized: () => {
+        terminal.setItemDiscount(selectedKey, 100, 'percentage');
+        showToast("Item marked as complimentary", "success");
+      }
+    });
   };
 
   const handleBillComplimentary = () => {
     if (terminal.cartDetails.length === 0) {
-      showToast("Cart is empty", "error");
+      showToast("Cart is empty", "warning");
       return;
     }
-    terminal.setBillDiscount(100, 'percentage');
-    showToast("Bill marked as complimentary", "success");
+    requestAuthorization({
+      actionLabel: "Bill Complimentary",
+      permissionId: 12, // Bill complementary
+      onAuthorized: () => {
+        terminal.setBillDiscount(100, 'percentage');
+        showToast("Bill marked as complimentary", "success");
+      }
+    });
   };
 
   const handleApplyQty = (value: string) => {
@@ -240,6 +253,7 @@ export const PosTerminalPage = () => {
         if (numValue < item.quantity) {
           requestAuthorization({
             actionLabel: "Void Item Qty",
+            permissionId: 8, // Product Void
             onAuthorized: () => {
               const diff = item.quantity - numValue;
               const unitId = item.product?.unitId || 1;
@@ -276,7 +290,11 @@ export const PosTerminalPage = () => {
 
   const openPriceModal = () => {
     if (!selectedKey) return;
-    modals.setIsPriceModalOpen(true);
+    requestAuthorization({
+      actionLabel: "Price Change",
+      permissionId: 9, // Price Change
+      onAuthorized: () => modals.setIsPriceModalOpen(true),
+    });
   };
 
   const openQtyModal = () => {
@@ -296,8 +314,14 @@ export const PosTerminalPage = () => {
   });
 
   const stableOnLongPress = useEvent((id: number) => {
-    modals.setSelectedProductToLock(String(id));
-    modals.setIsLockItemModalOpen(true);
+    requestAuthorization({
+      actionLabel: "Lock Products",
+      permissionId: 18, // Lock Products
+      onAuthorized: () => {
+        modals.setSelectedProductToLock(String(id));
+        modals.setIsLockItemModalOpen(true);
+      }
+    });
   });
 
   const handleSettle = (shouldPrint: boolean) => {
@@ -345,8 +369,19 @@ export const PosTerminalPage = () => {
       return;
     }
 
+    const getOrderPermissionId = (type: string) => {
+      const t = type.toLowerCase();
+      if (t.includes('dine')) return 1;
+      if (t.includes('take')) return 2;
+      if (t.includes('drive')) return 3;
+      if (t.includes('deliver')) return 4;
+      if (t.includes('provider')) return 5;
+      return 1;
+    };
+
     requestAuthorization({
       actionLabel: "Order",
+      permissionId: getOrderPermissionId(selectedOrderTypeName || 'Dine In'),
       onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
     });
   };
@@ -608,7 +643,13 @@ export const PosTerminalPage = () => {
       <PosTopNav 
         onDelivery={() => modals.setIsDeliveryModalOpen(true)}
         onDriveThrough={() => modals.setIsDriveThroughModalOpen(true)}
-        onProvider={() => modals.setIsProviderModalOpen(true)}
+        onProvider={() => {
+          requestAuthorization({
+            actionLabel: "Provider",
+            permissionId: 5, // Provider
+            onAuthorized: () => modals.setIsProviderModalOpen(true),
+          });
+        }}
         onCashierOut={() => {
           if (status && (!status.isDayClosed || !status.isShiftClosed)) {
             modals.setIsLogoutConfirmOpen(true);
@@ -722,6 +763,7 @@ export const PosTerminalPage = () => {
                 onRecall={() => {
                   requestAuthorization({
                     actionLabel: "Recall",
+                    permissionId: 6, // Recall
                     onAuthorized: () => modals.setIsRecallModalOpen(true),
                   });
                 }}
@@ -766,7 +808,13 @@ export const PosTerminalPage = () => {
           tenderOptions={terminal.tenderOptions}
           onPrice={openPriceModal}
           onDiscount={discountFlow.openDiscountChoice}
-          onVoidOrder={() => modals.setIsVoidModalOpen(true)}
+          onVoidOrder={() => {
+            requestAuthorization({
+              actionLabel: "Order Void",
+              permissionId: 17, // Order Void
+              onAuthorized: () => modals.setIsVoidModalOpen(true),
+            });
+          }}
           onMessage={() => alert("Message/Note functionality to be implemented")}
           onCom={handleItemComplimentary}
         />
@@ -779,6 +827,7 @@ export const PosTerminalPage = () => {
         showToast={showToast}
         authorizationModalKey={authorizationModalKey}
         authorizationModalProps={authorizationModalProps}
+        requestAuthorization={requestAuthorization}
         cartDetails={terminal.cartDetails}
         selectedKey={selectedKey}
         setSelectedKey={setSelectedKey}

@@ -44,7 +44,7 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       iframe.style.position = 'absolute';
       iframe.style.top = '-9999px';
       iframe.style.left = '-9999px';
-      iframe.style.width = '576px';
+      iframe.style.width = '288px';
       iframe.style.border = 'none';
       document.body.appendChild(iframe);
 
@@ -58,7 +58,16 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       // Wait for images inside the iframe to load
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const canvas = await html2canvas(iframeDoc.body, { scale: 1, logging: false });
+      // Size iframe perfectly to the content to avoid printing endless white space, but add a 40px padding buffer to prevent clipping
+      const contentHeight = (iframeDoc.body.scrollHeight || iframeDoc.documentElement.scrollHeight) + 40;
+      iframe.style.height = `${contentHeight}px`;
+
+      const canvas = await html2canvas(iframeDoc.body, { 
+        scale: 2,
+        windowWidth: 288,
+        windowHeight: contentHeight,
+        logging: false 
+      });
       const base64 = canvas.toDataURL('image/png');
       document.body.removeChild(iframe);
 

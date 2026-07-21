@@ -41,6 +41,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
   const manualInputRef = useRef<HTMLInputElement>(null);
 
   const [printState, setPrintState] = useState<{ type: "SHIFT" | "DAY"; step: number; dayId: number; shiftId: number } | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const step = 1 / Math.pow(10, decimalPart);
 
@@ -231,15 +232,22 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
   const handlePrintStep = async (shouldPrint: boolean) => {
     if (!printState) return;
 
+    setIsPrinting(true);
     if (printState.step === 1) {
       if (shouldPrint) {
         try {
           const data = await cashierLogService.getShiftEndReport(printState.dayId, printState.shiftId);
           const html = generateEndReportHtml(data, 'SHIFTEND');
           const { printHtmlReceipt } = await import("../../services/qzService");
-          const defaultPrinter = localStorage.getItem("posPrinter") || undefined;
+          let defaultPrinter: string | undefined = undefined;
+          try {
+            const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+            defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+          } catch(e){}
           await printHtmlReceipt(html, defaultPrinter);
           showToast("Printing Shift End...", "success");
+          // Add a delay to allow QZ Tray headless browser to spool before socket disconnects
+          await new Promise(res => setTimeout(res, 3000));
         } catch (e: any) {
           showToast(e.message || "Failed to print Shift End", "error");
         }
@@ -256,15 +264,22 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
           const data = await cashierLogService.getDayEndReport(printState.dayId);
           const html = generateEndReportHtml(data, 'DAYEND');
           const { printHtmlReceipt } = await import("../../services/qzService");
-          const defaultPrinter = localStorage.getItem("posPrinter") || undefined;
+          let defaultPrinter: string | undefined = undefined;
+          try {
+            const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+            defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+          } catch(e){}
           await printHtmlReceipt(html, defaultPrinter);
           showToast("Printing Day End...", "success");
+          // Add a delay to allow QZ Tray headless browser to spool before socket disconnects
+          await new Promise(res => setTimeout(res, 3000));
         } catch (e: any) {
           showToast(e.message || "Failed to print Day End", "error");
         }
       }
       finishLogout("Business Day Closed Successfully. Logging out...");
     }
+    setIsPrinting(false);
   };
 
   if (statusLoading) {
@@ -514,6 +529,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         cancelLabel="Skip"
         onConfirm={() => handlePrintStep(true)}
         onCancel={() => handlePrintStep(false)}
+        loading={isPrinting}
       />
       <ConfirmDialog
         isOpen={printState?.step === 2 && printState?.type === 'DAY'}
@@ -523,6 +539,7 @@ const CashierSessionPage: React.FC<Props> = ({ onSessionReady, onSkip, initialSt
         cancelLabel="Skip"
         onConfirm={() => handlePrintStep(true)}
         onCancel={() => handlePrintStep(false)}
+        loading={isPrinting}
       />
     </div>
   );

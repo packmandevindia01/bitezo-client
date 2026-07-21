@@ -72,9 +72,10 @@ export const getEmployeeRoles = async (): Promise<EmployeeRoleOption[]> => {
 };
 
 export const validateEmployeePassword = async (
-  password: string
+  password: string,
+  permissionId?: number
 ): Promise<ValidateEmployeePasswordResponse> => {
-  const res = await axiosInstance.post("/employee/validate-password", { password });
+  const res = await axiosInstance.post("/employee/validate-password", { password, permissionId });
   return res.data;
 };
 

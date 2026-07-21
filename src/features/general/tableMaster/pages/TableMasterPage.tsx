@@ -1,111 +1,224 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AlertCircle } from "lucide-react";
 import { 
   ConfirmDialog, 
   PageShell,
   Modal
 } from "../../../../components/common";
-import { useTableManager } from "../hooks/useTableManager";
-import type { TableRecord } from "../types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { tableMasterFormSchema, type TableMasterForm as TableMasterFormType, type TableRecord } from "../schemas";
+import {
+  useTableMaster,
+  useCreateTableMaster,
+  useUpdateTableMaster,
+  useDeleteTableMaster,
+  useReorderTables
+} from "../hooks/useTableMasterQueries";
 import TableSectionSelector from "../components/TableSectionSelector";
 import TableCardGrid from "../components/TableCardGrid";
-import TableFormSection from "../components/TableFormSection";
+import TableMasterForm from "../components/TableMasterForm";
+import { useQuery } from "@tanstack/react-query";
+import { sectionService } from "../../section/services/sectionService";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useToast } from "../../../../app/providers/useToast";
 
 const TableMasterPage = () => {
   const { hasPermission } = usePermissions();
-  const {
-    form,
-    sections,
-    loading,
-    error,
-    open,
-    mode,
-    selectedId,
-    selectedSectionId,
-    visibleTables,
-    setField,
-    resetForm,
-    handleSave,
-    handleEdit,
-    handleDelete,
-    handleSectionChange,
-    setCreateMode,
-    handleReorder,
-  } = useTableManager();
-
-  const [deleteRecord, setDeleteRecord] = useState<TableRecord | null>(null);
+  const { showToast } = useToast();
+  const { data: tableSections = [], isLoading: isSectionsLoading } = useQuery({
+    queryKey: ["tableSections"],
+    queryFn: () => sectionService.list(),
+  });
 
   const canAdd = hasPermission("Table Master", "Add");
   const canEdit = hasPermission("Table Master", "Edit");
   const canDelete = hasPermission("Table Master", "Delete");
 
-  const handleOpenAdd = () => {
-    if (canAdd) setCreateMode();
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"create" | "edit">("create");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [deleteRecord, setDeleteRecord] = useState<TableRecord | null>(null);
+
+  // Set default section
+  useEffect(() => {
+    if (tableSections.length > 0 && selectedSectionId === null) {
+      setSelectedSectionId(tableSections[0].sectionId);
+    }
+  }, [tableSections, selectedSectionId]);
+
+  const { data: tables = [], isLoading: isTablesLoading, error: fetchError } = useTableMaster(selectedSectionId || undefined);
+
+  const createMutation = useCreateTableMaster();
+  const updateMutation = useUpdateTableMaster();
+  const deleteMutation = useDeleteTableMaster();
+  const reorderMutation = useReorderTables();
+  
+  const form = useForm<TableMasterFormType>({
+    resolver: zodResolver(tableMasterFormSchema) as any,
+    defaultValues: {
+      sectionId: selectedSectionId || 1,
+      tableName: "",
+      chairs: 1,
+      isActive: true,
+      position: 1,
+    }
+  });
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const sortedTables = useMemo(() => {
+    return [...tables].sort((a, b) => (a.position || 0) - (b.position || 0));
+  }, [tables]);
+
+  const handleOpenAdd = (position?: number) => {
+    if (!canAdd) return;
+    if (tableSections.length === 0) {
+      showToast("Please create a Table Section first before adding tables.", "warning");
+      return;
+    }
+    setMode("create");
+    setSelectedId(null);
+    form.reset({
+      sectionId: selectedSectionId || 1,
+      tableName: "",
+      chairs: 1,
+      isActive: true,
+      position: position || (tables.length > 0 ? Math.max(...tables.map(t => t.position || 0)) + 1 : 1),
+    });
+    setOpen(true);
+  };
+
+  const handleEdit = (record: TableRecord) => {
+    if (!canEdit) return;
+    setMode("edit");
+    setSelectedId(record.tableId);
+    form.reset({
+      sectionId: selectedSectionId || 1,
+      tableName: record.tableName,
+      chairs: record.chairs || 1,
+      isActive: record.isActive,
+      position: record.position || 0,
+    });
+    setOpen(true);
+  };
+
+  const handleSave = form.handleSubmit((data) => {
+    if (mode === "create") {
+      createMutation.mutate(data, {
+        onSuccess: () => {
+          setOpen(false);
+          setSelectedId(null);
+        }
+      });
+    } else if (selectedId) {
+      updateMutation.mutate({ id: selectedId, data }, {
+        onSuccess: () => {
+          setOpen(false);
+          setSelectedId(null);
+        }
+      });
+    }
+  });
+
+  const handleClear = () => {
+    // Only clear the form values, do not close the modal
+    form.reset({
+      sectionId: selectedSectionId || 1,
+      tableName: "",
+      chairs: 1,
+      isActive: true,
+      position: form.getValues("position") || 1
+    });
   };
 
   const handleConfirmDelete = () => {
-    if (deleteRecord && canDelete) {
-      handleDelete(deleteRecord);
-      setDeleteRecord(null);
+    if (deleteRecord && canDelete && selectedSectionId) {
+      deleteMutation.mutate({ id: deleteRecord.tableId, sectionId: selectedSectionId }, {
+        onSuccess: () => {
+          setDeleteRecord(null);
+          setOpen(false);
+        }
+      });
     }
+  };
+
+  const handleReorder = (newTables: TableRecord[]) => {
+    if (!canEdit || !selectedSectionId) return;
+    
+    // Find only tables whose positions have actually changed
+    const changedTables = newTables.filter((table, index) => {
+      return table.position !== index + 1;
+    }).map((table, index) => ({ ...table, position: index + 1 }));
+
+    if (changedTables.length > 0) {
+      reorderMutation.mutate({ sectionId: selectedSectionId, changedTables });
+    }
+  };
+
+  const handleCloseModal = () => {
+    setOpen(false);
+    setSelectedId(null);
   };
 
   return (
     <PageShell title="Table Master">
-      <div className="rounded-3xl bg-white px-4 py-6 shadow-sm ring-1 ring-gray-100 md:px-6 md:py-6">
-        <div className="space-y-6">
-          {/* Error Display */}
-          {error && (
-            <div className="flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm text-red-600 border-2 border-red-100 animate-in fade-in zoom-in duration-200">
-              <AlertCircle size={20} />
-              <span className="font-bold">{error}</span>
-            </div>
-          )}
+      <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-10">
+        
+        {fetchError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 animate-in fade-in">
+            <AlertCircle size={20} />
+            <p className="font-bold text-sm">Failed to load tables. Please try again.</p>
+          </div>
+        )}
 
+        <div className="flex flex-col gap-6">
           <TableSectionSelector 
-            sections={sections}
+            sections={tableSections}
             selectedSectionId={selectedSectionId}
-            loading={loading}
-            onSectionChange={handleSectionChange}
-            onAdd={canAdd ? handleOpenAdd : undefined}
+            loading={isTablesLoading || isSectionsLoading}
+            onSectionChange={(val) => setSelectedSectionId(Number(val))}
+            onAdd={canAdd ? () => handleOpenAdd() : undefined}
           />
 
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex-1">
             <TableCardGrid 
-              tables={visibleTables}
+              tables={sortedTables}
               selectedId={selectedId}
-              loading={loading}
+              loading={isTablesLoading}
               onEdit={canEdit ? handleEdit : undefined}
               onDeleteRequest={canDelete ? setDeleteRecord : undefined}
               onReorder={canEdit ? handleReorder : undefined}
-              onEmptySlotClick={canAdd ? (pos) => setCreateMode(pos) : undefined}
+              onEmptySlotClick={canAdd ? (pos) => handleOpenAdd(pos) : undefined}
             />
           </div>
-
-          <Modal isOpen={open} onClose={() => resetForm(String(selectedSectionId))} noPadding size="lg">
-            <TableFormSection 
-              form={form}
-              mode={mode}
-              loading={loading}
-              onSetField={setField}
-              onReset={() => resetForm(String(selectedSectionId))}
-              onSave={handleSave}
-              onDeleteRequest={(mode === "edit" && canDelete) ? () => {
-                const record = visibleTables.find(t => t.tableId === selectedId);
-                if (record) setDeleteRecord(record);
-              } : undefined}
-            />
-          </Modal>
         </div>
-      </div>
 
-      <ConfirmDialog
-        isOpen={deleteRecord !== null}
-        onCancel={() => setDeleteRecord(null)}
-        onConfirm={handleConfirmDelete}
-        message={`Are you sure you want to delete table "${deleteRecord?.tableName}"?`}
-      />
+        <Modal isOpen={open} onClose={handleCloseModal} noPadding size="lg">
+          <TableMasterForm 
+            form={form}
+            mode={mode}
+            loading={isSaving}
+            onClear={handleClear}
+            onSave={handleSave}
+            onDeleteRequest={(mode === "edit" && canDelete) ? () => {
+              const record = tables.find(t => t.tableId === selectedId);
+              if (record) setDeleteRecord(record);
+            } : undefined}
+          />
+        </Modal>
+
+        <ConfirmDialog
+          isOpen={!!deleteRecord}
+          onCancel={() => setDeleteRecord(null)}
+          onConfirm={handleConfirmDelete}
+          title="Delete Table"
+          message={`Are you sure you want to delete table "${deleteRecord?.tableName}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+        />
+      </div>
     </PageShell>
   );
 };

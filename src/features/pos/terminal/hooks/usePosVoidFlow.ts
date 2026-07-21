@@ -47,6 +47,7 @@ export const usePosVoidFlow = ({
     if (editingOrderId && item.isExisting) {
       requestAuthorization({
         actionLabel: "Void Item",
+        permissionId: 8, // Product Void
         onAuthorized: () => {
           setVoidConfirmState({
             isOpen: true,
@@ -110,6 +111,7 @@ export const usePosVoidFlow = ({
 
       requestAuthorization({
         actionLabel: "Void Item",
+        permissionId: 8, // Product Void
         onAuthorized: () => {
           const unitId = item.product?.unitId || 1;
           const mapId = item.mapId || 0;

@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
+import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader, StatusBadge } from "../../../../components/common";
 import GroupForm from "../components/GroupForm";
 import { useGroupManager } from "../hooks/useGroupManager";
 import type { GroupRecord } from "../types";
@@ -82,7 +82,16 @@ const GroupPage = () => {
           { header: "#", accessor: "sNo" },
           { header: "Code", accessor: "code" },
           { header: "Name", accessor: "name" },
-          { header: "Status", accessor: "isActive" },
+          { 
+            header: "Status", 
+            accessor: "isActive",
+            render: (row: GroupRecord) => (
+              <StatusBadge 
+                status={row.isActive ? "active" : "inactive"} 
+                label={row.isActive ? "Active" : "Inactive"} 
+              />
+            ),
+          },
           {
             header: "Actions",
             accessor: "grpId",

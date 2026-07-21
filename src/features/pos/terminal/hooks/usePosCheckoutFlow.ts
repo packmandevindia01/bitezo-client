@@ -282,6 +282,7 @@ export const usePosCheckoutFlow = ({
 
     requestAuthorization({
       actionLabel: "Settlement",
+      permissionId: 19, // Settle
       onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
     });
   });
@@ -314,6 +315,7 @@ export const usePosCheckoutFlow = ({
 
     requestAuthorization({
       actionLabel: "Settlement",
+      permissionId: 19, // Settle
       onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
     });
   });

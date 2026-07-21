@@ -46,23 +46,37 @@ public class BitezoPrinterPlugin extends Plugin {
 
                     EscPosPrinter printer = null;
 
-                    if (type.equals("tcp")) {
-                        TcpConnection tcpConnection = new TcpConnection(address, port, 15000);
-                        printer = new EscPosPrinter(tcpConnection, 203, 72f, 48);
-                        String hexImage = PrinterTextParserImg.bitmapToHexadecimalString(printer, bitmap);
-                        printer.printFormattedTextAndCut("[C]<img>" + hexImage + "</img>");
-                        try { Thread.sleep(1000); } catch (Exception ignore) {}
-                        printer.disconnectPrinter();
-                    } else if (type.equals("bluetooth")) {
-                        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-                        if (adapter == null || !adapter.isEnabled()) {
-                            call.reject("Bluetooth is not enabled");
-                            return;
+                    if (type.equals("tcp") || type.equals("bluetooth")) {
+                        if (type.equals("tcp")) {
+                            TcpConnection tcpConnection = new TcpConnection(address, port, 15000);
+                            printer = new EscPosPrinter(tcpConnection, 203, 72f, 48);
+                        } else {
+                            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                            if (adapter == null || !adapter.isEnabled()) {
+                                call.reject("Bluetooth is not enabled");
+                                return;
+                            }
+                            BluetoothDevice device = adapter.getRemoteDevice(address);
+                            printer = new EscPosPrinter(new BluetoothConnection(device), 203, 72f, 48);
                         }
-                        BluetoothDevice device = adapter.getRemoteDevice(address);
-                        printer = new EscPosPrinter(new BluetoothConnection(device), 203, 72f, 48);
-                        String hexImage = PrinterTextParserImg.bitmapToHexadecimalString(printer, bitmap);
-                        printer.printFormattedTextAndCut("[C]<img>" + hexImage + "</img>");
+
+                        int chunkHeight = 255;
+                        int bmpWidth = bitmap.getWidth();
+                        int bmpHeight = bitmap.getHeight();
+                        
+                        for (int y = 0; y < bmpHeight; y += chunkHeight) {
+                            int currentHeight = Math.min(chunkHeight, bmpHeight - y);
+                            Bitmap chunk = Bitmap.createBitmap(bitmap, 0, y, bmpWidth, currentHeight);
+                            String hexImage = PrinterTextParserImg.bitmapToHexadecimalString(printer, chunk);
+                            printer.printFormattedText("[C]<img>" + hexImage + "</img>\n");
+                            try { Thread.sleep(250); } catch (Exception ignore) {}
+                        }
+                        
+                        printer.printFormattedTextAndCut("");
+
+                        if (type.equals("tcp")) {
+                            try { Thread.sleep(1000); } catch (Exception ignore) {}
+                        }
                         printer.disconnectPrinter();
                     } else {
                         call.reject("Invalid connection type");

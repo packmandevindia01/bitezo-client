@@ -1,22 +1,22 @@
-import { FormInput } from "../../../../../components/common";
-import type { ExtrasMasterForm as ExtrasMasterFormType } from "../../types";
-
+import { Controller, type UseFormReturn } from "react-hook-form";
+import { FormInput, SearchableSelect } from "../../../../../components/common";
+import type { ExtrasMasterForm } from "../../schemas";
+import { useExtrasTypes } from "../../../extrasType/hooks/useExtrasTypeQueries";
 
 interface ExtrasBasicFieldsProps {
-  form: ExtrasMasterFormType;
-
-  onChange: <K extends keyof ExtrasMasterFormType>(
-    key: K,
-    value: ExtrasMasterFormType[K]
-  ) => void;
-  onKeyDown?: (e: React.KeyboardEvent, nextId?: string) => void;
+  form: UseFormReturn<ExtrasMasterForm>;
 }
 
-const ExtrasBasicFields = ({ form, onChange, onKeyDown }: ExtrasBasicFieldsProps) => {
+const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
+  const { register, control, formState: { errors } } = form;
+  const { data: extrasTypes = [], isLoading: isLoadingTypes } = useExtrasTypes();
 
   const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
-    if (onKeyDown) {
-      onKeyDown(e, nextId);
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextId) {
+        document.getElementById(nextId)?.focus();
+      }
     }
   };
 
@@ -27,8 +27,8 @@ const ExtrasBasicFields = ({ form, onChange, onKeyDown }: ExtrasBasicFieldsProps
         label="Name"
         required
         placeholder="e.g. Extra Mayo"
-        value={form.name}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("name", e.target.value)}
+        error={errors.name?.message}
+        {...register("name")}
         onKeyDown={(e) => handleEnter(e, "ext-arabic")}
         autoFocus
       />
@@ -36,24 +36,63 @@ const ExtrasBasicFields = ({ form, onChange, onKeyDown }: ExtrasBasicFieldsProps
       <FormInput
         id="ext-arabic"
         label="Arabic"
-        placeholder="الاسم بالعربي"
-        value={form.arabic}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("arabic", e.target.value)}
+        placeholder="أدخل الاسم بالعربي"
+        error={errors.arabic?.message}
+        {...register("arabic")}
         onKeyDown={(e) => handleEnter(e, "ext-type")}
       />
 
+      <Controller
+        control={control}
+        name="typeId"
+        render={({ field }) => (
+          <SearchableSelect
+            id="ext-type"
+            label="Type"
+            required
+            placeholder={isLoadingTypes ? "Loading types..." : "Select type"}
+            error={errors.typeId?.message}
+            options={extrasTypes.map((t) => ({ label: t.name, value: t.typeId.toString() }))}
+            value={field.value ? field.value.toString() : ""}
+            onChange={(val) => {
+              field.onChange(Number(val));
+              // Focus next field
+              document.getElementById("ext-price")?.focus();
+            }}
+            onKeyDown={(e) => handleEnter(e, "ext-price")}
+          />
+        )}
+      />
 
+      <FormInput
+        id="ext-price"
+        label="Price"
+        type="number"
+        min={0}
+        step={0.01}
+        required
+        placeholder="0.00"
+        error={errors.price?.message}
+        {...register("price")}
+        onKeyDown={(e) => handleEnter(e, "ext-color")}
+      />
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Display Color</label>
         <div className="flex h-10.5 items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 transition-colors focus-within:border-[#49293e] focus-within:ring-1 focus-within:ring-[#49293e]/10">
           <input
+            id="ext-color"
             type="color"
-            value={form.color}
-            onChange={(e) => onChange("color", e.target.value)}
+            {...register("color")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                // Optionally save or nothing
+              }
+            }}
             className="h-7 w-10 cursor-pointer rounded border-none bg-transparent p-0"
           />
-          <span className="text-xs font-mono uppercase text-gray-500">{form.color}</span>
+          <span className="text-xs font-mono uppercase text-gray-500">{form.watch("color")}</span>
         </div>
       </div>
     </div>

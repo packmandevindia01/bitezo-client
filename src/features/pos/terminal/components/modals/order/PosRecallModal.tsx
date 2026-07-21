@@ -8,6 +8,10 @@ import { useToast } from "../../../../../../app/providers/useToast";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
 import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
+import { orderApi } from "../../../../services/orderApi";
+import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { printHtmlReceipt } from "../../../../services/qzService";
+import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 
 
 interface PosRecallModalProps {
@@ -53,8 +57,128 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
     }
   }, [isOpen, activeTab, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
 
-  const handlePrint = (transId: number) => {
-    showToast(`Printing Order #${transId}...`, "success");
+  const handlePrint = async (transId: number) => {
+    try {
+      showToast(`Fetching Order #${transId} for printing...`, "info");
+      
+      const orderRes = await orderApi.getOrderDetails(transId);
+      if (!orderRes || !orderRes.isSuccess || !orderRes.data) {
+        showToast(`Failed to load order #${transId} for printing`, "error");
+        return;
+      }
+      const order = orderRes.data;
+      
+      const master = order.masterData || order;
+      const details = order.detailsData || order.details || [];
+      
+      const orderTypeMap: Record<number, string> = {
+        1: "DineIn", 2: "TakeOut", 3: "DriveThru",
+        4: "Delivery", 5: "Providers", 6: "Coming"
+      };
+      const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+
+      const voucherDateStr = master.voucherDate ?? master.orderDate ?? master.createdAt;
+      let date: string | undefined;
+      let time: string | undefined;
+      
+      if (voucherDateStr) {
+        try {
+          const d = new Date(voucherDateStr);
+          if (!isNaN(d.getTime())) {
+            date = d.toLocaleDateString('en-GB');
+            time = d.toLocaleTimeString('en-US');
+          } else if (/am|pm/i.test(voucherDateStr)) {
+            const today = new Date();
+            date = today.toLocaleDateString('en-GB');
+            time = voucherDateStr;
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Deduplicate modifiersData mapped in order
+      const rawModifiers = order?.modifiersData || [];
+      const seen = new Set<string>();
+      const orderModifiersData = rawModifiers.filter((m: any) => {
+        const key = `${m.mapId}-${m.modifierId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      let calculatedSubTotal = 0;
+      const mappedItems = details.map((d: any) => {
+        const itemMods = orderModifiersData.filter((m: any) => m.mapId === d.mapId);
+        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+        }));
+        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+        }));
+        
+        let lineBase = (d.price || 0) * (d.qty || 1);
+        extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+        calculatedSubTotal += lineBase;
+        
+        return {
+          productId: d.productId || d.itemId || 0,
+          quantity: d.qty || 1,
+          price: d.price || 0,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          extras,
+          modifiers,
+          lineTotal: lineBase
+        };
+      });
+
+      const getVatStatus = (): boolean => {
+        try {
+          const saved = localStorage.getItem('posConfigs');
+          const full = saved ? JSON.parse(saved) : {};
+          return full?.configs?.VatStatus === true;
+        } catch {
+          return false;
+        }
+      };
+      const enableVat = getVatStatus();
+
+      const printData = {
+        orderNo: master.orderNo ?? String(transId),
+        ticketNo: master.ticketNo ?? "1",
+        waiter: master.employeeName ?? "Waiter",
+        counter: "Main",
+        section: master.sectionName || "DINE IN",
+        table: master.tableNo || "",
+        orderType: orderTypeName,
+        date, time,
+        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
+        vehicleNo: master.vehicleNo,
+        contactNo: master.mobileNo || master.contactNo,
+        flatNo: master.flatNo,
+        buildingNo: master.buildingNo,
+        blockNo: master.blockNo,
+        roadNo: master.roadNo,
+        area: master.area,
+        providerNo: master.providerNo,
+        subTotal: calculatedSubTotal,
+        serviceCharge: master.serviceCharge || 0,
+        levy: master.levyAmt || master.levy || 0,
+        vatAmount: master.vatAmount || 0,
+        netAmount: master.netAmount || 0,
+        deliveryCharge: master.deliveryCharge || 0,
+        enableVat
+      };
+
+      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      
+      const settingsRes = await printerSettingsApi.getGeneral();
+      const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+      
+      await printHtmlReceipt(htmlContent, billPrinter);
+      showToast("Guest receipt sent to printer!", "success");
+    } catch (err) {
+      console.error("Print Error:", err);
+      showToast("Printing failed", "error");
+    }
   };
 
   const handleApplySearch = (value: string, status: string) => {

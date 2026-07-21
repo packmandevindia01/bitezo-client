@@ -46,6 +46,7 @@ interface PosTerminalModalsProps {
   // Auth
   authorizationModalKey: string;
   authorizationModalProps: any;
+  requestAuthorization: (options: any) => void;
   
   // Cart & Pricing
   cartDetails: any[];
@@ -165,8 +166,21 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         onCustomerMaster={() => modals.setIsCustomerModalOpen(true)}
         onItemComplimentary={props.handleItemComplimentary}
         onBillComplimentary={props.handleBillComplimentary}
-        onSettledOrders={() => modals.setIsSettledAuthOpen(true)}
-        onReport={() => modals.setIsReportModalOpen(true)}
+        onSettledOrders={() => {
+          props.requestAuthorization({
+            actionLabel: "Settled order",
+            permissionId: 20, // Settled order
+            onAuthorized: () => modals.setIsSettledModalOpen(true),
+          });
+        }}
+        onReport={() => {
+          props.requestAuthorization({
+            actionLabel: "Report",
+            permissionId: 26, // Report
+            onAuthorized: () => modals.setIsReportModalOpen(true),
+          });
+        }}
+        requestAuthorization={props.requestAuthorization}
       />
       <PosDeliveryChargeModal
         isOpen={modals.isDeliveryChargeModalOpen}
@@ -227,16 +241,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         }}
       />
       <EmployeePasswordModal key={props.authorizationModalKey} {...props.authorizationModalProps} />
-      <EmployeePasswordModal
-        isOpen={modals.isSettledAuthOpen}
-        onClose={() => modals.setIsSettledAuthOpen(false)}
-        loading={false}
-        error={null}
-        onSubmit={(_password) => {
-          modals.setIsSettledAuthOpen(false);
-          modals.setIsSettledModalOpen(true);
-        }}
-      />
+
       <ConfirmDialog
         isOpen={modals.isLogoutConfirmOpen}
         onCancel={() => modals.setIsLogoutConfirmOpen(false)}

@@ -1,27 +1,26 @@
 import { useState } from "react";
 import { Building2, Save, RotateCcw, Trash2, LayoutGrid, ListTree } from "lucide-react";
 import { Button, Checkbox, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
-import type { BranchOption, CategoryFormState } from "../types";
+import type { BranchOption } from "../types";
 import type { GroupListItem } from "../../group/types";
+import type { UseFormReturn } from "react-hook-form";
+import type { CategoryForm } from "../schemas";
+import SearchBar from "../../../../components/common/SearchBar";
 
 interface Props {
   isOpen: boolean;
   editingId: number | null;
-  form: CategoryFormState;
+  form: UseFormReturn<CategoryForm>;
   saving: boolean;
   branchOptions: BranchOption[];
   groups: GroupListItem[];
   onClose: () => void;
-  onImageSelect: (file: File | null) => void;
-  onChange: (patch: Partial<CategoryFormState>) => void;
-  onToggleBranch: (branchId: number) => void;
-  onToggleGroup: (groupId: number) => void;
   onClear: () => void;
   onSave: () => void;
   onDelete?: () => void;
 }
 
-export const CategoryModal = ({
+const CategoryModal = ({
   isOpen,
   editingId,
   form,
@@ -29,15 +28,20 @@ export const CategoryModal = ({
   branchOptions,
   groups,
   onClose,
-  onImageSelect,
-  onChange,
-  onToggleBranch,
-  onToggleGroup,
   onClear,
   onSave,
   onDelete,
 }: Props) => {
   const [activeTab, setActiveTab] = useState<"general" | "groups" | "branches">("general");
+  const [searchGroup, setSearchGroup] = useState("");
+  const [searchBranch, setSearchBranch] = useState("");
+
+  const { register, watch, setValue, formState: { errors } } = form;
+
+  const image = watch("image");
+  const branchAllocations = watch("branchAllocations") || [];
+  const groupIds = watch("groupIds") || [];
+  const isActive = watch("isActive");
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
@@ -47,6 +51,36 @@ export const CategoryModal = ({
       }
     }
   };
+
+  const onToggleGroup = (groupId: number) => {
+    if (groupIds.includes(groupId)) {
+      setValue("groupIds", groupIds.filter((id) => id !== groupId), { shouldValidate: true, shouldDirty: true });
+    } else {
+      setValue("groupIds", [...groupIds, groupId], { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
+  const onToggleBranch = (branchId: number) => {
+    const isAllocated = branchAllocations.some((b) => b.branchId === branchId);
+    if (isAllocated) {
+      setValue("branchAllocations", branchAllocations.filter((b) => b.branchId !== branchId), { shouldValidate: true, shouldDirty: true });
+    } else {
+      setValue("branchAllocations", [...branchAllocations, { branchId, colorCode: "red" }], { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
+  const onImageSelect = (file: File | null) => {
+    setValue("imageFile", file, { shouldDirty: true });
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setValue("image", url);
+    } else {
+      setValue("image", undefined);
+    }
+  };
+
+  const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(searchGroup.toLowerCase()));
+  const filteredBranches = branchOptions.filter(b => b.name.toLowerCase().includes(searchBranch.toLowerCase()));
 
   return (
     <Modal
@@ -134,7 +168,7 @@ export const CategoryModal = ({
           {activeTab === "general" && (
             <div className="flex flex-col gap-6 lg:flex-row">
               <div className="shrink-0">
-                <ImageUploadPanel preview={form.image} onSelect={onImageSelect} />
+                <ImageUploadPanel preview={image} onSelect={onImageSelect} />
               </div>
 
               <div className="flex-1">
@@ -142,8 +176,9 @@ export const CategoryModal = ({
                   <FormInput
                     id="cat-code"
                     label="Code"
-                    value={form.code}
-                    onChange={(e) => onChange({ code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+                    error={errors.code?.message}
+                    {...register("code")}
+                    onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, ''), { shouldValidate: true, shouldDirty: true })}
                     onKeyDown={(e) => handleKeyDown(e, "cat-name")}
                     placeholder="Enter code"
                     required
@@ -153,8 +188,8 @@ export const CategoryModal = ({
                   <FormInput
                     id="cat-name"
                     label="Name"
-                    value={form.name}
-                    onChange={(e) => onChange({ name: e.target.value })}
+                    error={errors.name?.message}
+                    {...register("name")}
                     onKeyDown={(e) => handleKeyDown(e, "cat-arabic")}
                     placeholder="Enter name"
                     required
@@ -163,17 +198,18 @@ export const CategoryModal = ({
                   <FormInput
                     id="cat-arabic"
                     label="Arabic Name"
-                    value={form.arabic}
-                    onChange={(e) => onChange({ arabic: e.target.value })}
-                    placeholder="أدخل اسم الفئة"
+                    error={errors.arabic?.message}
+                    {...register("arabic")}
+                    placeholder="Enter arabic name"
+                    dir="rtl"
                   />
                 </div>
 
                 <div className="mt-4 flex items-center gap-4">
                   <Checkbox
                     label="Active Status"
-                    checked={form.isActive}
-                    onChange={(e) => onChange({ isActive: e.target.checked })}
+                    checked={isActive}
+                    onChange={(e) => setValue("isActive", e.target.checked, { shouldDirty: true })}
                   />
                 </div>
               </div>
@@ -182,13 +218,22 @@ export const CategoryModal = ({
 
           {activeTab === "groups" && (
             <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4 flex flex-col h-[350px]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60 shrink-0">Group Allocation</p>
-              <div className="mt-4 flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-2">
-                {groups.length === 0 ? (
+              <div className="flex items-center justify-between shrink-0 mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Group Allocation</p>
+                <div className="w-64">
+                  <SearchBar 
+                    value={searchGroup}
+                    onChange={setSearchGroup}
+                    placeholder="Search groups..."
+                  />
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-2">
+                {filteredGroups.length === 0 ? (
                   <p className="text-[10px] text-gray-400">No groups available.</p>
                 ) : (
-                  groups.map((group) => {
-                    const active = form.groupIds.includes(group.grpId);
+                  filteredGroups.map((group) => {
+                    const active = groupIds.includes(group.grpId);
                     return (
                       <div key={group.grpId} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
                         <span className="text-sm font-medium text-gray-700">{group.name}</span>
@@ -214,13 +259,22 @@ export const CategoryModal = ({
 
           {activeTab === "branches" && (
             <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4 flex flex-col h-[350px]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60 shrink-0">Branch Allocation</p>
-              <div className="mt-4 flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-2">
-                {branchOptions.length === 0 ? (
+              <div className="flex items-center justify-between shrink-0 mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation</p>
+                <div className="w-64">
+                  <SearchBar 
+                    value={searchBranch}
+                    onChange={setSearchBranch}
+                    placeholder="Search branches..."
+                  />
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-2">
+                {filteredBranches.length === 0 ? (
                   <p className="text-[10px] text-gray-400">No branches available.</p>
                 ) : (
-                  branchOptions.map((branch) => {
-                    const allocation = form.branchAllocations.find((b) => b.branchId === branch.id);
+                  filteredBranches.map((branch) => {
+                    const allocation = branchAllocations.find((b) => b.branchId === branch.id);
                     const active = !!allocation;
                     return (
                       <div key={branch.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
