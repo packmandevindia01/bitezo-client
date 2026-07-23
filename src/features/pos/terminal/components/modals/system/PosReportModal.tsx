@@ -68,10 +68,10 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
       let html = '';
       if (activeTab === 'DAY_END') {
         const reportData = await cashierLogService.getDayEndReport(selectedDayId!);
-        html = generateEndReportHtml(reportData, 'DAYEND', !directPrint);
+        html = await generateEndReportHtml(reportData, 'DAYEND', !directPrint);
       } else {
         const reportData = await cashierLogService.getShiftEndReport(selectedDayId!, selectedShiftId!);
-        html = generateEndReportHtml(reportData, 'SHIFTEND', !directPrint);
+        html = await generateEndReportHtml(reportData, 'SHIFTEND', !directPrint);
       }
 
       if (directPrint) {

@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import OtpForm from "../components/OtpForm";
+import { AutoScaleWrapper } from "../../../components/common";
 
 const VerifyOtpPage = () => {
   const navigate = useNavigate();
@@ -14,8 +15,8 @@ const VerifyOtpPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-
-      <div className="w-full max-w-md bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-300">
+      <AutoScaleWrapper className="w-full max-w-md flex flex-col justify-center items-center">
+        <div className="w-full bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-300">
 
         <h2 className="text-xl md:text-2xl font-bold text-center mb-6 text-[#49293e]">
           Verify OTP
@@ -30,7 +31,8 @@ const VerifyOtpPage = () => {
 
         <OtpForm onSubmit={handleVerifyOtp} />
 
-      </div>
+        </div>
+      </AutoScaleWrapper>
     </div>
   );
 };

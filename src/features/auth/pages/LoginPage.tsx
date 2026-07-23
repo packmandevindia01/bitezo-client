@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import LoginForm from "../components/LoginForm";
+import { AutoScaleWrapper } from "../../../components/common";
 
 const LoginPage = () => {
   const location = useLocation();
@@ -25,7 +26,8 @@ const LoginPage = () => {
 
       {/* RIGHT SIDE (FORM) */}
       <div className="flex items-center justify-center bg-white px-4 py-8">
-        <div className="w-full max-w-md">
+        <AutoScaleWrapper className="w-full max-w-md flex flex-col justify-center items-center">
+          <div className="w-full">
           {onboardingState?.message && (
             <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
               {onboardingState.message}
@@ -37,7 +39,8 @@ const LoginPage = () => {
             </div>
           )}
           <LoginForm />
-        </div>
+          </div>
+        </AutoScaleWrapper>
       </div>
 
     </div>

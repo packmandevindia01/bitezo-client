@@ -47,6 +47,11 @@ export const bomApi = {
     return unwrap(response.data);
   },
 
+  getProductCostDataById: async (productId: number) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number; unitCategory: string }>>(`/product/${productId}/productid-data`);
+    return unwrap(response.data);
+  },
+
   getUnitListByName: async (unitCategory: string) => {
     const response = await axiosInstance.get<ApiResponse<any[]>>(`${BASE_URL}/unit-list-name`, { params: { unitCategory } });
     return unwrap(response.data);

@@ -19,7 +19,8 @@ export const useBom = (initialTransId?: number) => {
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
     setCategoryUnits(prev => {
-      if (prev[unitCategory]) return prev;
+      if (prev[unitCategory] !== undefined) return prev;
+      
       bomApi.getUnitListByName(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
@@ -28,7 +29,8 @@ export const useBom = (initialTransId?: number) => {
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
       });
-      return prev;
+      
+      return { ...prev, [unitCategory]: [] };
     });
   }, []);
 
@@ -177,7 +179,6 @@ export const useBom = (initialTransId?: number) => {
     const prod = finishedProducts.find(p => p.value === productId);
     if (!prod) return;
 
-    setValue("finishedProductCode", prod.code);
     const branchIdVal = getValues("branchId");
     if (!branchIdVal) {
       showToast("Please select a Branch first to load unit.", "warning");
@@ -185,13 +186,16 @@ export const useBom = (initialTransId?: number) => {
     }
 
     try {
-      const costData = await bomApi.getProductCostData(prod.code);
-      const unitsResp = await bomApi.getUnitListByName(costData.unitCategory);
+      const unitData = await bomApi.getProductUnitData(Number(branchIdVal), prod.code);
+      
+      setValue("finishedProductCode", prod.code || "-");
+      
+      const unitsResp = await bomApi.getUnitListByName(unitData.unitCategory);
       const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
       setFinishedProductUnits(unitOptions);
 
-      setValue("finishedProductUnit", String(costData.baseUnitId));
-      const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
+      setValue("finishedProductUnit", String(unitData.unitId));
+      const unitName = unitsResp.find((u: any) => u.unitId === unitData.unitId)?.name || unitData.unitCategory;
       setValue("finishedProductUnitName", unitName);
     } catch (err) {
       showToast("Failed to fetch product unit data", "error");
@@ -201,17 +205,20 @@ export const useBom = (initialTransId?: number) => {
   const handleGridProductSelect = async (index: number, productId: string, barcode: string) => {
     setValue(`items.${index}.product`, productId);
     setValue(`items.${index}.productId`, Number(productId));
-    if (!barcode) return;
+
+    const branchIdVal = getValues("branchId");
+    if (!branchIdVal || !barcode) return;
 
     try {
-      const costData = await bomApi.getProductCostData(barcode);
-      if (costData) {
-        setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
-        setValue(`items.${index}.unitId`, costData.baseUnitId);
-        setValue(`items.${index}.unit`, String(costData.baseUnitId));
+      const unitData = await bomApi.getProductUnitData(Number(branchIdVal), barcode);
+      if (unitData) {
+        setValue(`items.${index}.code`, barcode || "-");
+        setValue(`items.${index}.unitCategory`, unitData.unitCategory || "");
+        setValue(`items.${index}.unitId`, unitData.unitId);
+        setValue(`items.${index}.unit`, String(unitData.unitId));
         
-        if (costData.unitCategory) {
-          loadCategoryUnits(costData.unitCategory);
+        if (unitData.unitCategory) {
+          loadCategoryUnits(unitData.unitCategory);
         }
       }
     } catch (err) {
@@ -323,10 +330,26 @@ export const useBom = (initialTransId?: number) => {
   const onSubmit = handleSubmit((data) => {
     saveMutation.mutate(data);
   }, (errors) => {
-    const firstError = Object.values(errors)[0];
-    if (firstError?.message) {
-      showToast(firstError.message as string, "error");
-    }
+    console.error("Validation errors:", errors);
+    const getFirstErrorMsg = (errObj: any): string | undefined => {
+      if (!errObj) return undefined;
+      if (typeof errObj.message === "string" && errObj.message.trim() !== "") return errObj.message;
+      if (Array.isArray(errObj)) {
+        for (const err of errObj) {
+          const msg = getFirstErrorMsg(err);
+          if (msg) return msg;
+        }
+      } else if (typeof errObj === "object") {
+        for (const key in errObj) {
+          const msg = getFirstErrorMsg(errObj[key]);
+          if (msg) return msg;
+        }
+      }
+      return undefined;
+    };
+
+    const msg = getFirstErrorMsg(errors);
+    showToast(msg || "Please fill all required fields correctly.", "error");
   });
 
   return {

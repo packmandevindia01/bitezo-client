@@ -80,7 +80,7 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
             <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">Category</label>
             <div className="flex-1">
               <SearchableSelect
-                autoFocus
+                autoFocus={window.innerWidth > 1024}
                 options={categoryOptions}
                 value={form.categoryId}
                 onChange={(val) => setForm({ ...form, categoryId: val })}

@@ -22,6 +22,7 @@ const BomPage = () => {
     saving,
     branches,
     finishedProducts,
+    finishedProductUnits,
     categoryUnits,
     handleFinishedProductSelect,
     handleGridProductSelect,
@@ -97,7 +98,7 @@ const BomPage = () => {
           {/* Close Button in top right */}
           <button
             type="button"
-            onClick={() => navigate("/general/boms")}
+            onClick={() => navigate("/dashboard/boms")}
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >
@@ -115,7 +116,9 @@ const BomPage = () => {
                 onChange={(e) => setValue("bomName", e.target.value)}
                 disabled={!canSave}
                 onKeyDown={(e) => hk(e, "bom-branch")}
+                maxLength={100}
                 autoFocus
+                required
               />
               <Controller
                 name="branchId"
@@ -129,6 +132,7 @@ const BomPage = () => {
                     value={field.value}
                     onChange={(val) => setValue("branchId", val)}
                     disabled={!canSave}
+                    required
                   />
                 )}
               />
@@ -142,8 +146,19 @@ const BomPage = () => {
                     className="h-8 !px-2 !text-xs"
                     options={finishedProducts}
                     value={field.value}
-                    onChange={(val) => handleFinishedProductSelect(val)}
+                    onChange={(val) => {
+                      if (val) {
+                        handleFinishedProductSelect(val);
+                      } else {
+                        setValue("finishedProduct", "");
+                        setValue("finishedProductCode", "");
+                        setValue("finishedProductUnit", "");
+                        setValue("finishedProductUnitName", "");
+                        setValue("finishedProductQty", "");
+                      }
+                    }}
                     disabled={!canSave}
+                    required
                   />
                 )}
               />
@@ -157,13 +172,25 @@ const BomPage = () => {
                 required 
                 readOnly={true} 
               />
-              <FormInput 
-                id="bom-finUnit" 
-                label="Unit" 
-                inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed" 
-                value={watch("finishedProductUnitName") || ""} 
-                onChange={(e) => setValue("finishedProductUnitName", e.target.value)} 
-                readOnly={true} 
+              <Controller
+                name="finishedProductUnit"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect 
+                    id="bom-finUnit"
+                    label="Unit" 
+                    className="h-8 !px-2 !text-xs"
+                    options={finishedProductUnits}
+                    value={field.value}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      const opt = finishedProductUnits.find(u => u.value === val);
+                      setValue("finishedProductUnitName", opt?.label || "");
+                    }}
+                    disabled={!canSave || finishedProductUnits.length === 0}
+                    required
+                  />
+                )}
               />
               <FormInput 
                 id="bom-finQty" 
@@ -173,6 +200,7 @@ const BomPage = () => {
                 value={watch("finishedProductQty")} 
                 onChange={(e) => setValue("finishedProductQty", e.target.value)} 
                 onKeyDown={(e) => hk(e, "product-select-0")} 
+                maxLength={10}
                 required 
                 readOnly={!canSave} 
               />
@@ -221,11 +249,20 @@ const BomPage = () => {
                                     onChange={(val) => {
                                       productSelectedRef.current = true;
                                       selectField.onChange(val);
-                                      const opt = rowOptions.find(o => o.value === val) as any;
-                                      if (opt) {
-                                        setValue(`items.${index}.productName`, opt.label);
-                                        setValue(`items.${index}.code`, opt.code || "");
-                                        handleGridProductSelect(index, val, opt.code || "");
+                                      if (val) {
+                                        const opt = rowOptions.find(o => o.value === val) as any;
+                                        if (opt) {
+                                          setValue(`items.${index}.productName`, opt.label);
+                                          setValue(`items.${index}.code`, opt.code || "");
+                                          handleGridProductSelect(index, val, opt.code || "");
+                                        }
+                                      } else {
+                                        setValue(`items.${index}.productName`, "");
+                                        setValue(`items.${index}.code`, "");
+                                        setValue(`items.${index}.unitId`, undefined);
+                                        setValue(`items.${index}.unit`, "");
+                                        setValue(`items.${index}.unitCategory`, "");
+                                        setValue(`items.${index}.qty`, "");
                                       }
                                       setTimeout(() => {
                                         const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
@@ -285,6 +322,7 @@ const BomPage = () => {
                               type="number"
                               min="0"
                               step="any"
+                              maxLength={10}
                               onFocus={(e) => e.target.select()}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -358,6 +396,7 @@ const BomPage = () => {
                     setShowClearConfirm(true);
                   } else {
                     form.reset();
+                    setTimeout(() => document.getElementById("bom-name")?.focus(), 100);
                   }
                 }}
                 tabIndex={-1}
@@ -410,6 +449,7 @@ const BomPage = () => {
         onConfirm={() => {
           form.reset();
           setShowClearConfirm(false);
+          setTimeout(() => document.getElementById("bom-name")?.focus(), 100);
         }}
         onCancel={() => setShowClearConfirm(false)}
       />

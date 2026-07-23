@@ -197,9 +197,9 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
     };
   }, [open]);
 
-  // Focus input when dropdown opens and input mounts
+  // Focus input when dropdown opens and input mounts (only on non-touch/large screens)
   useEffect(() => {
-    if (open && inputElement) {
+    if (open && inputElement && window.innerWidth > 1024) {
       const timer = setTimeout(() => {
         inputElement.focus();
       }, 10); // small delay ensures browser paints portal

@@ -19,6 +19,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingData, setPendingData] = useState<any>(null);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   
   const firstInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,10 +42,20 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
     if (isOpen) {
       resetForm();
       setIsKeyboardEnabled(true);
-      setShowKeyboard(true);
-      setTimeout(() => firstInputRef.current?.focus(), 100);
+      if (window.innerWidth > 1024) {
+        setTimeout(() => firstInputRef.current?.focus(), 100);
+      }
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const updateViewportMode = () => {
+      setIsCompactViewport(window.innerWidth < 1200 || window.innerHeight < 820);
+    };
+    updateViewportMode();
+    window.addEventListener("resize", updateViewportMode);
+    return () => window.removeEventListener("resize", updateViewportMode);
+  }, []);
 
   const handleInputFocus = () => {
     if (isKeyboardEnabled) {
@@ -333,10 +344,14 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
 
           {/* Keyboard Section */}
           {showKeyboard && (
-            <div className="shrink-0 w-full bg-[#f8f9fa] mt-auto border-t border-slate-100 p-2 md:p-3">
-              <TouchKeyboard
-                onClose={() => setShowKeyboard(false)}
-              />
+            <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-1 pb-1" : "px-3 lg:px-4 pb-2"} border-t border-slate-100`}>
+              <div className={`w-full ${isCompactViewport ? "max-w-[900px]" : "max-w-[1000px]"} mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl ${isCompactViewport ? "p-1" : "p-2 lg:p-2.5"}`}>
+                <TouchKeyboard
+                  onClose={() => setShowKeyboard(false)}
+                  size={isCompactViewport ? "md" : "lg"}
+                  embedded={true}
+                />
+              </div>
             </div>
           )}
         </form>

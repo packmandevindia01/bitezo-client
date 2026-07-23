@@ -288,7 +288,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       });
       printData.subTotal = calculatedSubTotal;
 
-      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
       const settingsRes = await printerSettingsApi.getGeneral();
       const billPrinter = settingsRes.data?.billPrinter || "No Printer";
       

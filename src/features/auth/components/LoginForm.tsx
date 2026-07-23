@@ -117,7 +117,7 @@ const LoginForm = () => {
         placeholder="Username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        autoFocus
+        autoFocus={window.innerWidth > 1024}
       />
 
       <FormInput

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2 } from "lucide-react";
+import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2, X } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, AutocompleteInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -8,13 +8,14 @@ import { usePurchaseReturn, calculateLine } from "../hooks/usePurchaseReturn";
 import { BackofficeMultiPayModal } from "../../../transaction/shared/components/BackofficeMultiPayModal";
 import { PurchasePrintPreviewModal } from "../../shared/components/PurchasePrintPreviewModal";
 import type { PurchasePrintData } from "../../shared/components/PurchasePrintTemplate";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 
 const PurchaseReturnFormPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const { formatAmount, decimalPart } = useCurrency();
   const { showToast } = useToast();
@@ -240,20 +241,30 @@ const PurchaseReturnFormPage = () => {
           </div>
         )}
 
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+          {/* Close Button in top right */}
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/purchase-return")}
+            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
+            title="Close"
+            tabIndex={-1}
+          >
+            <X size={18} />
+          </button>
 
           {/* ── Static Header Fields ── */}
-          <div className="p-2 md:p-3 pb-0">
+          <div className="p-2 md:p-3 pb-0 pr-10">
 
-            {/* ── Header Fields ── Extemely dense padding to save space */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-[1fr_0.7fr_1fr_2fr_0.9fr_0.7fr_1fr_0.7fr_0.9fr] gap-x-2 gap-y-1.5 mb-2">
+            {/* ── Header Fields ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 mb-2 items-end">
               <Controller name="series" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               
-              <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1">
+              <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2">
                 <Controller name="supplier" control={control} render={({ field }) => (
                   <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
                 )} />
@@ -268,19 +279,31 @@ const PurchaseReturnFormPage = () => {
                   inputClassName="!h-8 !px-2 !text-xs"
                   id="pr-invoiceNo"
                   label="Inv No"
+                  maxLength={50}
                   value={field.value}
                   options={invoiceOptions}
                   onSearch={handleInvoiceSearch}
                   loading={searchingInvoices}
                   onChange={field.onChange}
                   onSelectOption={(val, label) => handleInvoiceSelect(val, label)}
-                  onKeyDown={(e) => hk(e, "pr-invoiceDate")}
-                  disabled={!canSave || !watchedBranch || !watchedSupplier}
+                  onKeyDown={(e) => hk(e, "pr-refNo")}
+                  disabled={!canSave || !watchedBranch || !watchedSupplier || (!!id && purchaseId > 0)}
                 />
               )} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-invoiceDate" label="Inv Date" type="date" {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pr-refNo")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
               
-              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pr-refNo" label="Ref No" {...register("refNo")} onKeyDown={(e) => hk(e, "pr-salesman")} readOnly={!canSave} error={errors.refNo?.message as string} />
+              <Controller name="refNo" control={control} render={({ field }) => (
+                <FormInput
+                  id="pr-refNo"
+                  label="Ref No"
+                  value={field.value}
+                  maxLength={50}
+                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => hk(e, "pr-salesman")}
+                  inputClassName="!h-8 !text-xs !px-2"
+                  readOnly={!canSave}
+                  error={errors.refNo?.message as string}
+                />
+              )} />
               <Controller name="salesman" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
@@ -331,17 +354,30 @@ const PurchaseReturnFormPage = () => {
                                         if (opt) {
                                           methods.setValue(`items.${index}.code`, opt.code || "");
                                           handleProductSelect(index, val, opt.code || "");
+                                        } else {
+                                          methods.setValue(`items.${index}.code`, "");
+                                          methods.setValue(`items.${index}.unit`, "");
+                                          methods.setValue(`items.${index}.unitCategory`, "");
+                                          methods.setValue(`items.${index}.stock`, "0.000");
+                                          methods.setValue(`items.${index}.avgCost`, "0.000");
+                                          methods.setValue(`items.${index}.qty`, "1");
+                                          methods.setValue(`items.${index}.foc`, "0");
+                                          methods.setValue(`items.${index}.price`, "0.000");
+                                          methods.setValue(`items.${index}.vatId`, "0");
+                                          methods.setValue(`items.${index}.vatPercent`, "0");
+                                          methods.setValue(`items.${index}.discPercent`, "0");
                                         }
-                                        // Focus the Qty field of this row after product selection
                                         setTimeout(() => {
-                                          const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                          qtyInputs[0]?.focus();
+                                          document.getElementById(`unit-select-${index}`)?.focus();
                                         }, 100);
                                       }}
                                       onKeyDown={async (e) => {
                                         if (e.key === "Enter") {
                                           if (productSelectedRef.current) {
                                             productSelectedRef.current = false;
+                                            setTimeout(() => {
+                                              document.getElementById(`unit-select-${index}`)?.focus();
+                                            }, 100);
                                             return;
                                           }
                                           const rawValue = e.currentTarget.value;
@@ -350,8 +386,7 @@ const PurchaseReturnFormPage = () => {
                                             const success = await handleBarcodeScan(index, rawValue.trim());
                                             if (success) {
                                               setTimeout(() => {
-                                                const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                                qtyInputs[0]?.focus();
+                                                document.getElementById(`unit-select-${index}`)?.focus();
                                               }, 100);
                                             }
                                             return;
@@ -373,10 +408,23 @@ const PurchaseReturnFormPage = () => {
                               control={control}
                               render={({ field: selectField }) => (
                                 <SearchableSelect
+                                  id={`unit-select-${index}`}
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : ((masterData as any)?.units || [])}
-                                  onChange={(val) => handleUnitChange(index, val)}
+                                  options={(() => {
+                                    const baseOpts = (itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : ((masterData as any)?.units || []);
+                                    if (itemWatch.unit && itemWatch.unitName && !baseOpts.some((o: any) => o.value === itemWatch.unit)) {
+                                      return [...baseOpts, { label: itemWatch.unitName, value: itemWatch.unit }];
+                                    }
+                                    return baseOpts;
+                                  })()}
+                                  onChange={(val) => {
+                                    handleUnitChange(index, val);
+                                    setTimeout(() => {
+                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                      qtyInputs[0]?.focus();
+                                    }, 100);
+                                  }}
                                   disabled={!canSave || purchaseId > 0}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
@@ -488,7 +536,7 @@ const PurchaseReturnFormPage = () => {
                 <FormInput id="pr-round-off" label="Round Off" {...register("roundOff")} onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-narration")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="flex-1 min-w-[80px]">
-                <FormInput id="pr-narration" label="Narration" {...register("narration")} onKeyDown={(e) => hk(e, "pr-paymode")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pr-narration" label="Narration" {...register("narration")} maxLength={200} onKeyDown={(e) => hk(e, "pr-paymode")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="flex flex-col gap-0.5 w-24 shrink-0">
                  <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Stock</label>

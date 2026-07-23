@@ -123,6 +123,27 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
+  getProductCostDataById: async (productId: number) => {
+    const response = await axiosInstance.get<{
+      data: {
+        productId: number;
+        productCode: string;
+        productName: string;
+        baseUnitId: number;
+        cost: number;
+        altUnitId: number;
+        vatId: number;
+        vatName: string;
+        vatValue: number;
+        unitCategory: string;
+      };
+      isSuccess: boolean;
+      message: string;
+    }>(`/product/${productId}/productid-data`);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
   getUnitCost: async (productId: number, unitId: number) => {
     const response = await axiosInstance.get<{
       data: { cost: number };

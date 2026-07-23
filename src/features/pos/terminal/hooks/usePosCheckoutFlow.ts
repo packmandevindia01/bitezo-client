@@ -112,7 +112,7 @@ export const usePosCheckoutFlow = ({
         const enableVat = getVatStatus();
         payload.printData.enableVat = enableVat;
 
-        const html = generateGuestPrintHtml(payload.mappedItems, payload.printData);
+        const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
         await printHtmlReceipt(html, targetPrinter);
         showToast("Sales saved successfully", "success");
       } catch (printErr: any) {

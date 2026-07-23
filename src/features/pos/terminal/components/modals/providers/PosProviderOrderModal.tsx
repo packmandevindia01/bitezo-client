@@ -41,7 +41,7 @@ export const PosProviderOrderModal = ({ isOpen, onClose, provider, onSubmit }: P
               value={orderNo}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderNo(e.target.value)}
               placeholder="e.g. 12345 or ORD-99"
-              autoFocus
+              autoFocus={window.innerWidth > 1024}
               inputMode="text"
               inputClassName="text-xl font-bold tracking-widest uppercase"
               onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {

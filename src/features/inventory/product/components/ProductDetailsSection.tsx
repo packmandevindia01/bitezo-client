@@ -18,6 +18,7 @@ interface ProductDetailsSectionProps {
   form: UseFormReturn<ProductFormData>;
   masterData: ProductMasterData | null;
   subCatOptions: { label: string; value: string }[];
+  branchOptions: { label: string; value: string }[];
 }
 
 // Small reusable (+) button aligned to a select
@@ -36,18 +37,32 @@ export const ProductDetailsSection = ({
   form,
   masterData,
   subCatOptions,
+  branchOptions,
 }: ProductDetailsSectionProps) => {
   const { register, watch, setValue, formState: { errors } } = form;
   const decimalPart = useAppSelector(selectDecimalPart);
 
-  const categoryOptions = masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [];
-  const groupOptions = masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [];
-  const unitOptions = masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [];
-  const vatOptions = masterData?.vat?.map(v => ({
+  const ensureOption = (options: { label: string; value: string }[], currentVal: string, name: string) => {
+    if (currentVal && !options.some(o => o.value === currentVal)) {
+      return [...options, { label: `Invalid ${name} (${currentVal})`, value: currentVal }];
+    }
+    return options;
+  };
+
+  const categoryOptions = ensureOption(masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [], watch("categoryId") || "", "Category");
+  const groupOptions = ensureOption(masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [], watch("groupId") || "", "Group");
+  const unitOptions = ensureOption(masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [], watch("unitId") || "", "Unit");
+  const vatOptionsRaw = masterData?.vat?.map(v => ({
     label: v.name.includes(String(v.value)) ? v.name : `${v.name} (${v.value}%)`,
     value: String(v.id)
   })) ?? [];
-  const typeOptions = masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions;
+  const pVatOptions = ensureOption(vatOptionsRaw, watch("pVatId") || "", "VAT");
+  const sVatOptions = ensureOption(vatOptionsRaw, watch("sVatId") || "", "VAT");
+  
+  const typeOptions = ensureOption(masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions, watch("typeId") || "", "Type");
+  const branchOptionsSafe = ensureOption(branchOptions, watch("branchId") || "", "Branch");
+  const subCatOptionsSafe = ensureOption(subCatOptions, watch("subCatId") || "", "Sub-Category");
+
   const colorValue = /^#[0-9a-fA-F]{6}$/.test(watch("colorCode") || "") ? watch("colorCode") : "#49293e";
 
   // Quick-add modal state
@@ -61,6 +76,17 @@ export const ProductDetailsSection = ({
   return (
     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
       <div className="grid gap-x-3 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
+        <SearchableSelect
+          id="prod-branch"
+          label="Branch"
+          options={branchOptionsSafe}
+          value={watch("branchId")}
+          placeholder="Select branch"
+          onChange={(v) => setValue("branchId", v, { shouldValidate: true })}
+          required
+          onKeyDown={(e) => handleKeyDown(e, "prod-name")}
+          error={errors.branchId?.message as string}
+        />
         <FormInput
           id="prod-name"
           label="Product Name"
@@ -163,7 +189,7 @@ export const ProductDetailsSection = ({
             <SearchableSelect
               id="prod-subcat"
               label="Sub Category"
-              options={subCatOptions}
+              options={subCatOptionsSafe}
               value={watch("subCatId")}
               placeholder={"Select sub category"}
               onChange={(v) => setValue("subCatId", v, { shouldValidate: true })}
@@ -226,7 +252,7 @@ export const ProductDetailsSection = ({
         <SearchableSelect
           id="prod-p-vat"
           label="Purchase VAT"
-          options={vatOptions}
+          options={pVatOptions}
           value={watch("pVatId")}
           placeholder="Select purchase VAT"
           onChange={(v) => setValue("pVatId", v, { shouldValidate: true })}
@@ -273,7 +299,7 @@ export const ProductDetailsSection = ({
         <SearchableSelect
           id="prod-s-vat"
           label="Sales VAT"
-          options={vatOptions}
+          options={sVatOptions}
           value={watch("sVatId")}
           placeholder="Select sales VAT"
           onChange={(v) => setValue("sVatId", v, { shouldValidate: true })}

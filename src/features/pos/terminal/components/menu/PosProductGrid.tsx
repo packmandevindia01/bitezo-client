@@ -102,7 +102,7 @@ const PosProductGrid = ({
   }, [categoryName, subCategoryName, showAlternatives, selectedProduct]);
   const allItems = useMemo(() => {
     if (showAlternatives) return alternatives;
-    if (showSubCategories) return subCategories;
+    if (showSubCategories) return [...subCategories, ...products];
     return products;
   }, [showAlternatives, showSubCategories, alternatives, subCategories, products]);
 
@@ -176,11 +176,11 @@ const PosProductGrid = ({
                   style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                 >
                   {rows[virtualRow.index].map((item: any) => {
-                    if (showSubCategories) {
+                    if (showSubCategories && 'subCategoryId' in item) {
                       const sub = item as MenuSubCategory;
                       return (
                         <button
-                          key={sub.subCategoryId}
+                          key={`sub-${sub.subCategoryId}`}
                           onClick={() => onSelectSubCategory(sub.subCategoryId)}
                           className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 lg:gap-2 h-[80px] sm:h-[110px] xl:h-[120px] rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20"
                         >
@@ -257,7 +257,7 @@ const PosProductGrid = ({
                       const product = item as PosProduct;
                       return (
                         <PosProductCard 
-                          key={product.id} 
+                          key={`prod-${product.id}`} 
                           product={product} 
                           onAdd={stableOnAdd} 
                           onLongPress={stableOnLongPress}

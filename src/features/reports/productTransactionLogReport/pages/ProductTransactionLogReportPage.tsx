@@ -47,14 +47,21 @@ export const ProductTransactionLogReportPage = () => {
     [masterData.branches]
   );
 
-  const productOptions = useMemo(
-    () =>
-      masterData.products.map((p) => ({
-        label: p.code ? `[${p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-      })),
-    [masterData.products]
-  );
+  const productOptions = useMemo(() => {
+    const opts = masterData.products.map((p) => ({
+      label: p.code ? `[${p.code}] ${p.productName}` : p.productName,
+      value: String(p.productId),
+    }));
+    
+    // Inject fallback option from URL if we have one and it's not in the list
+    if (filters.productId && masterData.initialProductName && !opts.find((o) => o.value === filters.productId)) {
+      opts.unshift({
+        label: masterData.initialProductName,
+        value: filters.productId
+      });
+    }
+    return opts;
+  }, [masterData.products, filters.productId, masterData.initialProductName]);
 
   const transactionTypeOptions = useMemo(() => [
     { label: "All", value: "All" },

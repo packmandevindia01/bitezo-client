@@ -37,19 +37,7 @@ const ModifierTypeForm = ({ form }: ModifierTypeFormProps) => {
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabicName?.message}
         {...register("arabicName")}
-        onKeyDown={(e) => handleEnter(e, "modtype-price")}
-      />
-
-      <FormInput
-        id="modtype-price"
-        label="Price"
-        type="number"
-        min={0}
-        step={0.01}
-        required
-        placeholder="0.00"
-        error={errors.price?.message}
-        {...register("price")}
+        onKeyDown={(e) => handleEnter(e)}
       />
     </div>
   );

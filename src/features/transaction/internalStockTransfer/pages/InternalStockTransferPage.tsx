@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
 import PageShell from "../../../../components/common/PageShell";
 import Button from "../../../../components/common/Button";
@@ -7,7 +7,7 @@ import FormInput from "../../../../components/common/FormInput";
 import SearchableSelect from "../../../../components/common/Searchableselect";
 import SearchableCombobox from "../../../../components/common/SearchableCombobox";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
-import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert } from "lucide-react";
+import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
 import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
 import { formatAmount } from "../../../../utils/currency";
@@ -17,6 +17,7 @@ import { generateUUID } from "../../../../utils/uuid";
 
 const InternalStockTransferPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const {
     methods,
@@ -225,8 +226,7 @@ const InternalStockTransferPage = () => {
         }
       },
       (errors) => {
-        console.error("Validation failed:", JSON.stringify(errors, null, 2));
-        alert(`Validation failed:\n${JSON.stringify(errors, null, 2)}`);
+        console.error("Validation failed:", errors);
       }
     )();
   };
@@ -236,7 +236,18 @@ const InternalStockTransferPage = () => {
   return (
     <PageShell title={id ? "Edit Stock Transfer" : "Create Stock Transfer"}>
       <FormProvider {...methods}>
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+          
+          {/* Close Button in top right */}
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/internal-stock-transfers")}
+            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
+            title="Close"
+            tabIndex={-1}
+          >
+            <X size={18} />
+          </button>
 
           {/* ── Scrollable Body ── */}
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
@@ -244,16 +255,16 @@ const InternalStockTransferPage = () => {
             {/* ── Header Fields ── Extremely dense padding to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-2 gap-y-1.5 mb-2">
               <FormInput inputClassName="!h-8 !px-2 !text-xs font-mono font-bold bg-gray-50 cursor-not-allowed" id="st-refNo" label="Ref No" type="text" {...register("refNo")} readOnly />
-              <FormInput autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
+              <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="fromBranch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.fromBranch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.fromBranch?.message as string} />
               )} />
               <Controller name="toBranch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-toBranch" label="To Branch" value={field.value} options={masterData.toBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-salesman")} disabled={!canSave || loadingMaster} error={errors.toBranch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-toBranch" label="To Branch" value={field.value} options={masterData.toBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-salesman")} disabled={!canSave || loadingMaster} error={errors.toBranch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="st-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
 
@@ -307,6 +318,14 @@ const InternalStockTransferPage = () => {
                                           methods.setValue(`items.${index}.code`, opt["code"] || "");
                                           methods.setValue(`items.${index}.productName`, opt.label);
                                           handleProductSelect(index, val);
+                                        } else {
+                                          methods.setValue(`items.${index}.code`, "");
+                                          methods.setValue(`items.${index}.productName`, "");
+                                          methods.setValue(`items.${index}.unit`, "");
+                                          methods.setValue(`items.${index}.unitCategory`, "");
+                                          methods.setValue(`items.${index}.stock`, "0.000");
+                                          methods.setValue(`items.${index}.qty`, "1");
+                                          methods.setValue(`items.${index}.cost`, "0");
                                         }
                                         setTimeout(() => {
                                           const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);

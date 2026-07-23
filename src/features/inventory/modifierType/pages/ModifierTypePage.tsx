@@ -10,10 +10,7 @@ import {
   RecordTableCard, 
   ListHeader,
 } from "../../../../components/common";
-import { formatCurrency } from "../../../../utils/formatters";
 import ModifierTypeForm from "../components/ModifierTypeForm";
-import { useAppSelector } from "../../../../app/hooks";
-import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { 
   useModifierTypes, 
   useModifierTypeDetail, 
@@ -26,7 +23,6 @@ import { usePermissions } from "../../../../hooks/usePermissions";
 
 const ModifierTypePage = () => {
   const { hasPermission } = usePermissions();
-  const decimalPart = useAppSelector(selectDecimalPart);
 
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -123,11 +119,6 @@ const ModifierTypePage = () => {
           { header: "#", accessor: "sNo" },
           { header: "Name", accessor: "name" },
           { header: "Arabic", accessor: "arabicName" },
-          { 
-            header: "Price", 
-            accessor: "price",
-            render: (row) => <span>{formatCurrency(row.price || 0, decimalPart)}</span>
-          },
           {
             header: "Actions",
             accessor: "typeId",

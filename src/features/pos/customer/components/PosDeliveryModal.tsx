@@ -326,7 +326,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
                 ref={mobileRef}
                 onKeyDown={(e) => handleEnterKey(e, nameRef)}
                 inputMode="none"
-                autoFocus
+                autoFocus={window.innerWidth > 1024}
                 className="!mb-0"
                 inputClassName={isCompactViewport ? "!h-8 border-slate-200" : "!h-9 border-slate-200"}
               />

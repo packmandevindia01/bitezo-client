@@ -282,6 +282,13 @@ const ProductionPage = () => {
                                         setValue(`items.${index}.productName`, opt.label);
                                         setValue(`items.${index}.code`, opt.code || "");
                                         handleGridProductSelect(index, val, opt.code || "");
+                                      } else {
+                                        setValue(`items.${index}.productName`, "");
+                                        setValue(`items.${index}.code`, "");
+                                        setValue(`items.${index}.unit`, "");
+                                        setValue(`items.${index}.unitCategory`, "");
+                                        setValue(`items.${index}.qty`, "1");
+                                        setValue(`items.${index}.cost`, "0");
                                       }
                                       setTimeout(() => {
                                         const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);

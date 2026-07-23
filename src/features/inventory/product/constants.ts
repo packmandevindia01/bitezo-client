@@ -12,6 +12,7 @@ export const emptyForm: ProductFormData = {
   arabicName: "",
   categoryId: "",
   subCatId: "",
+  branchId: "",
   groupId: "",
   typeId: "1",
   unitId: "",

@@ -1,6 +1,7 @@
 import { useSystemRegistration } from "../hooks/useSystemRegistration";
 import RegistrationSidebar from "../components/RegistrationSidebar";
 import RegistrationForm from "../components/RegistrationForm";
+import { AutoScaleWrapper } from "../../../components/common";
 
 const SystemRegistrationPage = () => {
   const {
@@ -22,8 +23,8 @@ const SystemRegistrationPage = () => {
   } = useSystemRegistration();
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-6 sm:py-10">
-      <div className="mx-auto grid max-w-7xl gap-4 md:gap-6 lg:gap-8 md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[400px_minmax(0,1fr)]">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 py-6 sm:py-10">
+      <AutoScaleWrapper className="mx-auto grid w-full max-w-7xl gap-4 md:gap-6 lg:gap-8 md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[400px_minmax(0,1fr)]">
         {/* Onboarding Sidebar */}
         <RegistrationSidebar />
 
@@ -45,7 +46,7 @@ const SystemRegistrationPage = () => {
           onFieldChange={handleFieldChange}
           onSubmit={handleSubmit}
         />
-      </div>
+      </AutoScaleWrapper>
     </div>
   );
 };

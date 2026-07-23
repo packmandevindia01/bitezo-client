@@ -305,7 +305,12 @@ const StockRegisterReportPage = () => {
                   groupedProductData.map((row: any, idx: number) => (
                     <tr
                       key={row.productId ?? idx}
-                      className={`hover:bg-[#49293e]/5 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}
+                      onDoubleClick={() => {
+                        if (row.productId) {
+                          navigate(`/dashboard/reports/product-transaction-log?product=${row.productId}&productName=${encodeURIComponent(row.productName || "")}`);
+                        }
+                      }}
+                      className={`hover:bg-[#49293e]/5 transition-colors cursor-pointer ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}
                     >
                       {/* SL */}
                       <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{idx + 1}</td>

@@ -12,6 +12,7 @@ interface TouchKeyboardProps {
   embedded?: boolean;
   hideCloseKey?: boolean;
   onEnter?: () => void;
+  disableLayoutSwitch?: boolean;
 }
 
 export const TouchKeyboard = ({
@@ -24,6 +25,7 @@ export const TouchKeyboard = ({
   embedded = false,
   hideCloseKey = false,
   onEnter,
+  disableLayoutSwitch = false,
 }: TouchKeyboardProps) => {
   const [currentLayout, setCurrentLayout] = useState<"qwerty" | "numeric" | "symbols">(
     initialLayout || "qwerty"
@@ -104,10 +106,12 @@ export const TouchKeyboard = ({
           inputMode === "tel" ||
           /\b(no|mobile|phone|road|block|flat|building|qty|quantity|price|cost|amount|vat|disc|discount|rate|total|balance)\b/i.test(name);
 
-        if (isNumField) {
-          setCurrentLayout("numeric");
-        } else {
-          setCurrentLayout("qwerty");
+        if (!disableLayoutSwitch) {
+          if (isNumField) {
+            setCurrentLayout("numeric");
+          } else {
+            setCurrentLayout("qwerty");
+          }
         }
       }
     };
@@ -185,7 +189,7 @@ export const TouchKeyboard = ({
     ["7", "8", "9", "Back Space"],
     ["4", "5", "6", "Clear"],
     ["1", "2", "3", "Enter"],
-    ["0", ".", "ABC", "Close"],
+    ["0", ".", disableLayoutSwitch ? "00" : "ABC", "Close"],
   ];
 
   // Note: handleFocusNextInput is now imported from src/utils/keyboard.ts to ensure consistent behavior across inputs and dropdowns.
@@ -394,17 +398,17 @@ export const TouchKeyboard = ({
     }
 
     if (key === "123") {
-      setCurrentLayout("numeric");
+      if (!disableLayoutSwitch) setCurrentLayout("numeric");
       return;
     }
 
     if (key === "ABC") {
-      setCurrentLayout("qwerty");
+      if (!disableLayoutSwitch) setCurrentLayout("qwerty");
       return;
     }
 
     if (key === "Symbols") {
-      setCurrentLayout("symbols");
+      if (!disableLayoutSwitch) setCurrentLayout("symbols");
       return;
     }
 

@@ -26,8 +26,6 @@ export const getBranchList = async (): Promise<BranchOption[]> => {
 };
 
 export const getProductList = async (): Promise<ProductOption[]> => {
-  const response = await axiosInstance.get("/product/list-name", {
-    params: { productName: "" },
-  });
+  const response = await axiosInstance.get("/product/list-name");
   return unwrap<ProductOption[]>(response);
 };

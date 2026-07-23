@@ -92,8 +92,9 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Cash Settlement" size="md">
-      <form onSubmit={handleSubmit} className="space-y-2.5 py-1">
-        {/* Top Summary */}
+      <form onSubmit={handleSubmit} className="space-y-4 py-1">
+        <div>
+          {/* Top Summary */}
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
             <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Total Due</span>
@@ -167,7 +168,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
               type="button"
               onClick={() => handleKeyPress(key)}
               className={`
-                h-10 rounded-xl text-base font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                h-14 rounded-xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
                 ${key === 'Back'
                   ? 'bg-slate-100 text-slate-700 border-slate-300'
                   : 'bg-white text-slate-700 hover:bg-slate-50'}
@@ -185,21 +186,23 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
               key={amt}
               type="button"
               onClick={() => setQuickAmount(amt)}
-              className="h-9 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 shadow-sm"
+              className="h-12 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 shadow-sm"
             >
               {amt}
             </button>
           ))}
         </div>
 
+        </div>
+
         {/* Actions */}
-        <div className="flex gap-2 pt-2.5 border-t border-slate-100">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1 h-10">
+        <div className="flex gap-3 pt-3 mt-4 border-t border-slate-100">
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1 h-14">
             Cancel
           </Button>
           <Button
             type="submit"
-            className="flex-1 bg-pos-green hover:bg-pos-green-dark text-white font-bold h-10 uppercase tracking-widest shadow-premium disabled:opacity-50"
+            className="flex-1 bg-pos-green hover:bg-pos-green-dark text-white font-bold h-14 text-lg uppercase tracking-widest shadow-premium disabled:opacity-50"
             disabled={!isSufficient || loading}
             loading={loading}
           >

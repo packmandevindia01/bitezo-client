@@ -20,6 +20,16 @@ export const useProductForm = (productId?: number) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>();
 
+  // Global Master Data (branches, etc.)
+  const dispatch = useAppDispatch();
+  const { masterData: globalMasterData, branches } = useAppSelector((state: any) => state.masterData);
+
+  let currentBranchId = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId"));
+  if (!currentBranchId || Number(currentBranchId) === 0) {
+    currentBranchId = branches && branches.length > 0 ? branches[0].id : 1;
+  }
+  currentBranchId = Number(currentBranchId);
+
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -29,6 +39,7 @@ export const useProductForm = (productId?: number) => {
       arabicName: "",
       categoryId: "",
       subCatId: "",
+      branchId: String(currentBranchId),
       groupId: "",
       typeId: "",
       unitId: "",
@@ -52,16 +63,6 @@ export const useProductForm = (productId?: number) => {
     control: form.control,
     name: "altProducts"
   });
-
-  // Global Master Data (branches, etc.)
-  const dispatch = useAppDispatch();
-  const { masterData: globalMasterData, branches } = useAppSelector((state: any) => state.masterData);
-
-  let currentBranchId = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId"));
-  if (!currentBranchId || Number(currentBranchId) === 0) {
-    currentBranchId = branches && branches.length > 0 ? branches[0].id : 1;
-  }
-  currentBranchId = Number(currentBranchId);
 
   useEffect(() => {
     if (!globalMasterData || branches.length === 0) {
@@ -144,7 +145,8 @@ export const useProductForm = (productId?: number) => {
         name: p.name,
         arabicName: p.arabicName || "",
         categoryId: String(p.categoryId),
-        subCatId: String(p.subCatId),
+        subCatId: p.subCatId ? String(p.subCatId) : "",
+        branchId: String(p.branchId || currentBranchId),
         groupId: String(p.groupId),
         typeId: String(p.typeId),
         unitId: String(p.unitId),
@@ -195,7 +197,7 @@ export const useProductForm = (productId?: number) => {
           .catch(err => console.error("Failed to preload existing image file", err));
       }
     }
-  }, [existingData, form]);
+  }, [existingData, form, currentBranchId]);
 
   // Save Mutation
   const saveMutation = useMutation({
@@ -214,7 +216,7 @@ export const useProductForm = (productId?: number) => {
         cost: Number(data.cost),
         price: Number(data.price),
         barcode: data.barcode,
-        branchId: currentBranchId,
+        branchId: Number(data.branchId),
         isActive: data.isActive,
         priceIsIncl: data.priceIsIncl,
         colorCode: data.colorCode,

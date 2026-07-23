@@ -80,7 +80,7 @@ export const SectionWisePrinterTab: React.FC<SectionWisePrinterTabProps> = ({
             <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">Section</label>
             <div className="flex-1">
               <SelectInput
-                autoFocus
+                autoFocus={window.innerWidth > 1024}
                 noMargin
                 options={sectionOptions}
                 value={form.sectionId}

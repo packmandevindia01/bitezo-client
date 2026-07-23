@@ -63,20 +63,20 @@ export const EmployeePasswordModal = ({
         </button>
       </div>
 
-      <div className="bg-[#f8fafc] p-4 space-y-3">
-        <div className="bg-[#1e293b] p-4 rounded-2xl shadow-xl flex flex-col items-end relative overflow-hidden shrink-0">
+      <div className="bg-[#f8fafc] p-4 space-y-4">
+        <div className="bg-[#1e293b] p-3 rounded-2xl shadow-xl flex flex-col items-end relative overflow-hidden shrink-0">
           <div className={`absolute top-0 left-0 w-1 h-full ${isAdminOverride ? 'bg-red-500' : 'bg-[#ff9500]'}`} />
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
             {isAdminOverride ? "Enter authorized admin password" : "Enter employee password"}
           </span>
-          <div className="w-full min-h-[48px] text-right text-4xl font-black text-white font-mono tracking-normal leading-none flex items-center justify-end">
+          <div className="w-full min-h-[40px] text-right text-3xl font-black text-white font-mono tracking-normal leading-none flex items-center justify-end">
             {password ? "*".repeat(password.length) : ""}
           </div>
         </div>
 
-        <div className="min-h-[32px] flex items-center shrink-0">
+        <div className="min-h-[28px] flex items-center shrink-0">
           {error ? (
-            <div className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-[10px] font-black uppercase tracking-wider text-red-600">
+            <div className="w-full rounded-xl border border-red-200 bg-red-50 px-2 py-1.5 text-center text-[9px] font-black uppercase tracking-wider text-red-600">
               {error}
             </div>
           ) : null}
@@ -89,7 +89,7 @@ export const EmployeePasswordModal = ({
               onClick={() => handleKeyPress(key)}
               disabled={loading}
               className={`
-                h-12 rounded-xl text-lg font-black transition-all active:scale-90 shadow-sm border border-slate-400 disabled:opacity-50
+                h-14 rounded-xl text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400 disabled:opacity-50
                 ${key === "Clear"
                   ? "bg-red-50 text-red-600 border-red-400"
                   : key === "Back"
@@ -97,16 +97,16 @@ export const EmployeePasswordModal = ({
                     : "bg-white text-slate-700 hover:bg-slate-50"}
               `}
             >
-              {key === "Back" ? <Delete className="mx-auto" size={22} /> : key}
+              {key === "Back" ? <Delete className="mx-auto" size={24} /> : key}
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-1 shrink-0">
+        <div className="grid grid-cols-2 gap-3 pt-2 shrink-0">
           <button
             onClick={onClose}
             disabled={loading}
-            className="h-12 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl active:scale-95 transition-all disabled:opacity-50"
+            className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all disabled:opacity-50"
             tabIndex={-1}
           >
             Cancel
@@ -114,13 +114,13 @@ export const EmployeePasswordModal = ({
           <button
             onClick={handleSubmit}
             disabled={!password || loading}
-            className="h-12 bg-[#ff9500] text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
               <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <Check size={18} strokeWidth={3} />
+                <Check size={20} strokeWidth={3} />
                 Submit
               </>
             )}

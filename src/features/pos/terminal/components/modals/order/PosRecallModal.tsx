@@ -168,7 +168,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         enableVat
       };
 
-      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
       
       const settingsRes = await printerSettingsApi.getGeneral();
       const billPrinter = settingsRes.data?.billPrinter || "No Printer";
@@ -201,7 +201,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       size="2xl"
       noPadding
       noScroll
-      className="bg-[#f8f9fa] border-none shadow-2xl"
+      className="bg-[#f8f9fa] border-none shadow-2xl h-[95vh] max-h-[900px] flex flex-col"
     >
       {/* HEADER SECTION */}
       <div className="flex flex-col shrink-0">
@@ -276,7 +276,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       </div>
 
       {/* ORDERS LIST SECTION */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative min-h-[400px]">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative">
         {loading && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
             <Loader text="Retrieving Orders..." />

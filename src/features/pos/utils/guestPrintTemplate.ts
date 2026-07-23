@@ -1,4 +1,6 @@
 import type { PosCartItem } from "../types";
+import { branchApi } from "../../inventory/branches/services/branchApi";
+import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -31,13 +33,43 @@ export interface GuestPrintData {
   isSettlement?: boolean;
 }
 
-export const generateGuestPrintHtml = (
+export const generateGuestPrintHtml = async (
   cartDetails: PosCartItem[],
   data: GuestPrintData
-): string => {
+): Promise<string> => {
   const now = new Date();
   const dateStr = data.date || now.toLocaleDateString('en-GB'); // DD/MM/YYYY
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
+
+  let customHeadersHtml = "";
+  try {
+    const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+    const branchIdStr = isBackoffice
+      ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+      : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+    
+    let branchId = 1;
+    if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+      branchId = Number(branchIdStr);
+    }
+    const branch = await branchApi.fetchBranchById(branchId);
+    
+    if (branch && branch.lines) {
+      const headers = branch.lines.filter(l => l.section === 'header' && l.value);
+      if (headers.length > 0) {
+        customHeadersHtml = headers.map(l => {
+          const styleObj = getLineStyle(l) as any;
+          const styleStr = Object.entries(styleObj).map(([k, v]) => {
+            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+            return `${kebab}:${v}`;
+          }).join(";");
+          return `<div style="${styleStr}">${l.value}</div>`;
+        }).join("");
+      }
+    }
+  } catch (e) {
+    console.error("Failed to fetch branch for headers", e);
+  }
 
   const isTakeOut = data.orderType?.toLowerCase().includes("take");
   const isDriveThru = data.orderType?.toLowerCase().includes("drive");
@@ -164,17 +196,23 @@ export const generateGuestPrintHtml = (
         </style>
       </head>
       <body>
-        <div class="text-center font-bold" style="font-size: 16px;">GOLD RESTAURANT</div>
-        <div class="text-center" style="margin-bottom: 10px;">
-          <div>Tea World</div>
-          <div>Building:65,Road:2003,Block:320</div>
-          <div>HOORA</div>
-          <div>CR NO:48622-16</div>
-          ${data.enableVat ? '<div>VAT NO:220003229000002</div>' : ''}
-          <div>Tel:17311999,Tel:17311999</div>
-        </div>
-
-        <div class="text-center header-title">${headerTitle}</div>
+          ${customHeadersHtml ? `
+            <div style="text-align: center; margin-bottom: 10px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+              ${customHeadersHtml}
+            </div>
+          ` : `
+          <div class="text-center font-bold" style="font-size: 16px;">GOLD RESTAURANT</div>
+          <div class="text-center" style="margin-bottom: 10px;">
+            <div>Tea World</div>
+            <div>Building:65,Road:2003,Block:320</div>
+            <div>HOORA</div>
+            <div>CR NO:48622-16</div>
+            ${data.enableVat ? '<div>VAT NO:220003229000002</div>' : ''}
+            <div>Tel:17311999,Tel:17311999</div>
+          </div>
+          `}
+  
+          <div class="text-center header-title">${headerTitle}</div>
         
         <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
 

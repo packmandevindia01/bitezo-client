@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useEvent } from "../../../../hooks/useEvent";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
@@ -369,19 +370,10 @@ export const PosTerminalPage = () => {
       return;
     }
 
-    const getOrderPermissionId = (type: string) => {
-      const t = type.toLowerCase();
-      if (t.includes('dine')) return 1;
-      if (t.includes('take')) return 2;
-      if (t.includes('drive')) return 3;
-      if (t.includes('deliver')) return 4;
-      if (t.includes('provider')) return 5;
-      return 1;
-    };
+
 
     requestAuthorization({
       actionLabel: "Order",
-      permissionId: getOrderPermissionId(selectedOrderTypeName || 'Dine In'),
       onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
     });
   };
@@ -688,7 +680,7 @@ export const PosTerminalPage = () => {
                 </div>
                 <input
                   type="text"
-                  autoFocus={window.innerWidth >= 768}
+                  autoFocus={window.innerWidth >= 768 && !Capacitor.isNativePlatform()}
                   value={terminal.search}
                   onChange={(e) => terminal.setSearch(e.target.value)}
                   placeholder="Search by name..."

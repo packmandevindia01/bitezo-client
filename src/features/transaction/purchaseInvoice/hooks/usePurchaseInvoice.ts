@@ -3,7 +3,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { createEmptyPurchaseInvoiceForm } from "../constants";
-import { purchaseInvoiceSchema } from "../types";
+import { getPurchaseInvoiceSchema } from "../types";
 import type { PurchaseInvoiceForm, PurchaseInvoiceLineItem } from "../types";
 import { productService } from "../../../inventory/product/services/productService";
 import { purchaseInvoiceApi } from "../services/purchaseInvoiceApi";
@@ -89,8 +89,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     return empty;
   }, [formatAmount]);
 
+  const schema = useMemo(() => getPurchaseInvoiceSchema(decimalPart), [decimalPart]);
+
   const methods = useForm<any>({
-    resolver: zodResolver(purchaseInvoiceSchema),
+    resolver: zodResolver(schema),
     defaultValues: initialForm,
   });
 
@@ -146,18 +148,30 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     };
   }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems, grossTotal]);
 
-  // Paymode list from master data — show all available paymodes as provided by the API.
-  // MultiPay (detected by name) is handled specially in the UI (opens the modal).
-  // BackofficeMultiPayModal has its own filter to exclude Credit/MultiPay from split options.
-  const paymodeList = useMemo(() => {
-    if (!masterData?.paymodes) return [];
-    return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
-  }, [masterData]);
+    // Paymode list from master data — show all available paymodes as provided by the API.
+    // MultiPay (detected by name) is handled specially in the UI (opens the modal).
+    // BackofficeMultiPayModal has its own filter to exclude Credit/MultiPay from split options.
+    const paymodeList = useMemo(() => {
+      if (!masterData?.paymodes) return [];
+      return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
+    }, [masterData]);
+  
+    const multiPayId = useMemo(() => {
+      const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
+      return multi ? multi.paymodeId : 0;
+    }, [paymodeList]);
 
-  const multiPayId = useMemo(() => {
-    const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
-    return multi ? multi.paymodeId : 0;
-  }, [paymodeList]);
+    // Auto-sync single payment amount when grand total changes
+    useEffect(() => {
+      const currentPayments = methods.getValues("payments");
+      if (currentPayments.length === 1 && selectedPaymodeId > 0 && selectedPaymodeId !== multiPayId) {
+        const currentAmount = Number(currentPayments[0].amount);
+        const newAmount = Number(totals.grandTotal.toFixed(decimalPart));
+        if (currentAmount !== newAmount) {
+          methods.setValue("payments.0.amount", newAmount.toFixed(decimalPart));
+        }
+      }
+    }, [totals.grandTotal, selectedPaymodeId, multiPayId, decimalPart, methods]);
 
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
@@ -212,17 +226,30 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   }, []);
 
   const handleProductSelect = async (index: number, _val: string, barcode: string) => {
-    if (!barcode) return;
+    if (!_val && !barcode) return;
     try {
       setValue(`items.${index}.stock`, "...");
       setValue(`items.${index}.avgCost`, "...");
       
-      const details = await purchaseInvoiceApi.getProductCostData(barcode);
+      let details;
+      const branchId = Number(methods.getValues("branch")) || 0;
+      
+      if (barcode) {
+         details = await purchaseInvoiceApi.getProductCostData(branchId, barcode).catch(() => null);
+      }
+
+      if (!details && _val) {
+        details = await purchaseInvoiceApi.getProductCostDataById(Number(_val)).catch(() => null);
+      }
+      
+      if (!details) {
+         throw new Error("Could not fetch product cost data");
+      }
       setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-      setValue(`items.${index}.unit`, details.baseUnitId.toString());
+      setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
       setValue(`items.${index}.price`, formatAmount(details.cost));
       setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
-      setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+      setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
       
       if (details.unitCategory) {
         loadCategoryUnits(details.unitCategory);
@@ -234,7 +261,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         const branchId = Number(branchIdStr);
         productService.getClosingStock(details.productId, branchId)
           .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
+          .catch((err) => {
+            console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
+            setValue(`items.${index}.stock`, "Error");
+          });
 
         productService.getAverageCost(details.productId, details.baseUnitId, branchId)
           .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
@@ -243,8 +273,17 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
     } catch (error) {
       console.error("Failed to load product details", error);
-      setValue(`items.${index}.stock`, "Error");
       setValue(`items.${index}.avgCost`, "Error");
+      // Try to fetch stock anyway if we have _val
+      const branchIdStr = methods.getValues("branch");
+      if (branchIdStr && _val) {
+        const branchId = Number(branchIdStr);
+        productService.getClosingStock(Number(_val), branchId)
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
+      } else {
+        setValue(`items.${index}.stock`, "Error");
+      }
     }
   };
 
@@ -279,7 +318,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       setValue(`items.${index}.stock`, "...");
       setValue(`items.${index}.avgCost`, "...");
 
-      const details = await purchaseInvoiceApi.getProductCostData(barcode).catch(() => null);
+      const branchId = Number(methods.getValues("branch")) || 0;
+      const details = await purchaseInvoiceApi.getProductCostData(branchId, barcode).catch(() => null);
       if (details) {
         setProductOptions(prev => {
           if (prev.find(o => o.value === String(details.productId))) return prev;
@@ -288,10 +328,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         setValue(`items.${index}.product`, String(details.productId));
         setValue(`items.${index}.code`, details.productCode || "");
         setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-        setValue(`items.${index}.unit`, details.baseUnitId.toString());
+        setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
         setValue(`items.${index}.price`, formatAmount(details.cost));
         setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
-        setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+        setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
         
         if (details.unitCategory) {
           loadCategoryUnits(details.unitCategory);
@@ -302,7 +342,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
           const branchId = Number(branchIdStr);
           productService.getClosingStock(details.productId, branchId)
             .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-            .catch(() => setValue(`items.${index}.stock`, "Error"));
+            .catch((err) => {
+              console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
+              setValue(`items.${index}.stock`, "Error");
+            });
 
           productService.getAverageCost(details.productId, details.baseUnitId, branchId)
             .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
@@ -311,8 +354,17 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
         return true;
       } else {
-        setValue(`items.${index}.stock`, "Error");
         setValue(`items.${index}.avgCost`, "Error");
+        // Try to fetch stock anyway if we know the product from options
+        const branchIdStr = methods.getValues("branch");
+        const opt = productOptions.find(o => o.code === barcode || o.barcode === barcode);
+        if (branchIdStr && opt) {
+          productService.getClosingStock(Number(opt.value), Number(branchIdStr))
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+        } else {
+          setValue(`items.${index}.stock`, "Error");
+        }
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
@@ -359,27 +411,28 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     fetchMasterData();
   }, [setValue]);
 
-  // Dynamically fetch and set the next purchase number when series changes
-  useEffect(() => {
-    if (!invoiceId && watchedSeries) {
-      const fetchPurchaseNumber = async () => {
-        try {
-          const res = await purchaseInvoiceApi.getPurchaseNumber(Number(watchedSeries));
-          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
-          const prefix = selectedSeries ? selectedSeries.prefix : "";
-          setValue("purchaseNo", `${prefix}${res.purchaseNo}`);
-        } catch (error) {
-          console.error("Failed to load next purchase number", error);
-          // Fallback to startNo if API fails
-          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
-          if (selectedSeries) {
-            setValue("purchaseNo", `${selectedSeries.prefix}${selectedSeries.startNo}`);
-          }
+  const fetchPurchaseNumber = useCallback(async (seriesId: string) => {
+      try {
+        const res = await purchaseInvoiceApi.getPurchaseNumber(Number(seriesId));
+        const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === seriesId);
+        const prefix = selectedSeries ? selectedSeries.prefix : "";
+        setValue("purchaseNo", `${prefix}${res.purchaseNo}`);
+      } catch (error) {
+        console.error("Failed to load next purchase number", error);
+        // Fallback to startNo if API fails
+        const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === seriesId);
+        if (selectedSeries) {
+          setValue("purchaseNo", `${selectedSeries.prefix}${selectedSeries.startNo}`);
         }
-      };
-      fetchPurchaseNumber();
-    }
-  }, [invoiceId, watchedSeries, masterData, setValue]);
+      }
+    }, [masterData, setValue]);
+
+    // Dynamically fetch and set the next purchase number when series changes
+    useEffect(() => {
+      if (!invoiceId && watchedSeries) {
+        fetchPurchaseNumber(watchedSeries);
+      }
+    }, [invoiceId, watchedSeries, fetchPurchaseNumber]);
 
   const loadInvoiceData = async (id: string) => {
     try {
@@ -393,6 +446,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         product: d.productId?.toString() || "",
         code: d.productId?.toString() || "",
         unit: d.unitId?.toString() || "",
+        unitName: d.unitName || "",
         qty: d.qty?.toString() || "1",
         foc: d.foc?.toString() || "0",
         price: d.price?.toString() || "0",
@@ -504,7 +558,16 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   }, [invoiceId]);
 
   const handleReset = () => {
-    reset(initialForm);
+    const branchToSet = isBranchLocked ? initialBranchId : (masterData?.branches?.[0]?.branchId?.toString() || "");
+    const seriesToSet = masterData?.series?.[0]?.seriesId?.toString() || "";
+    reset({
+      ...initialForm,
+      branch: branchToSet,
+      series: seriesToSet,
+    });
+    if (seriesToSet) {
+      fetchPurchaseNumber(seriesToSet);
+    }
     setShowClearConfirm(false);
     setSelectedPaymodeId(0);
   };

@@ -40,7 +40,7 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
         </button>
       </div>
 
-      <div className="bg-[#f8fafc] p-4 sm:p-5 space-y-4 sm:space-y-5 max-h-[85vh] overflow-y-auto scrollbar-hide">
+      <div className="bg-[#f8fafc] p-4 sm:p-5 space-y-4 sm:space-y-5">
         <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
           <div className="w-full flex justify-between items-center mb-1">
@@ -91,7 +91,7 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
                   }
                 }}
                 className={`
-                  h-10 sm:h-12 md:h-14 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
+                  h-14 rounded-xl sm:rounded-2xl text-xl sm:text-2xl font-black transition-all active:scale-90 shadow-sm border border-slate-400
                   ${btn === 'Clear'
                     ? "bg-red-50 text-red-600 border-red-400"
                     : btn === 'Back'
@@ -109,14 +109,14 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
         <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
           <button
             onClick={onClose}
-            className="h-12 sm:h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-[10px] tracking-widest rounded-xl sm:rounded-2xl active:scale-95 transition-all"
+            className="h-14 bg-white text-slate-500 border border-slate-200 font-black uppercase text-xs tracking-widest rounded-xl sm:rounded-2xl active:scale-95 transition-all"
             tabIndex={-1}
           >
             Cancel
           </button>
           <button
             onClick={() => handleApplyPrice(internalValue)}
-            className="h-12 sm:h-14 bg-[#49293e] text-white font-black uppercase text-[10px] sm:text-xs tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(73,41,62,0.3)] hover:bg-[#3a2132] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className="h-14 bg-[#49293e] text-white font-black uppercase text-xs sm:text-sm tracking-widest rounded-xl sm:rounded-2xl shadow-[0_4px_15px_rgba(73,41,62,0.3)] hover:bg-[#3a2132] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <Check size={16} strokeWidth={3} />
             Update Price

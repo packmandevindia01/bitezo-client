@@ -75,19 +75,19 @@ export const executeKotRouting = async (
 
     // Dispatch routed jobs
     for (const [printerName, groupedItems] of printerGroups.entries()) {
-      const kotHtml = generateKotHtml(groupedItems, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
+      const kotHtml = await generateKotHtml(groupedItems, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
       await printHtmlReceipt(kotHtml, printerName).catch((err: any) => console.error(`[Print Error: ${printerName}]`, err));
     }
 
     // Master KOT
     if (generalPrinter && generalPrinter.masterKOT && generalPrinter.masterKOT !== "No Printer") {
-       const masterHtml = generateKotHtml(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT", isMaster: true });
+       const masterHtml = await generateKotHtml(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT", isMaster: true });
        await printHtmlReceipt(masterHtml, generalPrinter.masterKOT).catch((err: any) => console.error("[Print Error: Master]", err));
     }
     
   } else {
     // Legacy fallback if API fails
-    const kotHtml = generateKotHtml(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
+    const kotHtml = await generateKotHtml(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
     await printHtmlReceipt(kotHtml, undefined).catch((err: any) => console.error("[Print Error: Legacy]", err));
   }
 };

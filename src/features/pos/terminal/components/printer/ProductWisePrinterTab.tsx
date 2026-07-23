@@ -79,7 +79,7 @@ export const ProductWisePrinterTab: React.FC<ProductWisePrinterTabProps> = ({
             <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">Product</label>
             <div className="flex-1">
               <SearchableSelect
-                autoFocus
+                autoFocus={window.innerWidth > 1024}
                 options={productOptions}
                 value={form.productId}
                 onChange={(val) => setForm({ ...form, productId: val })}

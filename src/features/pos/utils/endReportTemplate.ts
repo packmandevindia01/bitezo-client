@@ -1,6 +1,8 @@
 import type { EndReportData } from '../cashier/services/cashierLogService';
+import { branchApi } from "../../inventory/branches/services/branchApi";
+import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 
-export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND', isPdf: boolean = false): string => {
+export const generateEndReportHtml = async (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND', isPdf: boolean = false): Promise<string> => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
   const fmt = (val: number | undefined | null) => Number(val || 0).toFixed(decimalPart);
   
@@ -24,6 +26,36 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
     }
   };
 
+  let customHeadersHtml = "";
+  try {
+    const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+    const branchIdStr = isBackoffice
+      ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+      : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+    
+    let branchId = 1;
+    if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+      branchId = Number(branchIdStr);
+    }
+    const branch = await branchApi.fetchBranchById(branchId);
+    
+    if (branch && branch.lines) {
+      const headers = branch.lines.filter(l => l.section === 'dayEndHeader' && l.value);
+      if (headers.length > 0) {
+        customHeadersHtml = headers.map(l => {
+          const styleObj = getLineStyle(l) as any;
+          const styleStr = Object.entries(styleObj).map(([k, v]) => {
+            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+            return `${kebab}:${v}`;
+          }).join(";");
+          return `<div style="${styleStr}">${l.value}</div>`;
+        }).join("");
+      }
+    }
+  } catch (e) {
+    console.error("Failed to fetch branch for headers", e);
+  }
+
   const h = data.header || {};
   const gs = data.generalSummary || {} as any;
   const cf = data.cashFlow || {} as any;
@@ -35,7 +67,14 @@ export const generateEndReportHtml = (data: EndReportData, reportType: 'DAYEND' 
   };
 
   // Build the Header
-  const headerHtml = `
+  const headerHtml = customHeadersHtml ? `
+    <div style="text-align: center; margin-bottom: 10px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+      ${customHeadersHtml}
+      <div style="font-size: 16px; margin-top: 10px; font-weight: bold; text-transform: uppercase;">
+        ${reportType === 'DAYEND' ? 'DAYEND REPORT' : 'SHIFTEND REPORT'}
+      </div>
+    </div>
+  ` : `
     <div class="text-center font-bold">
       <div style="font-size: 18px;">${h.dayEndHeader1 && h.dayEndHeader1.toLowerCase() !== 'string' ? h.dayEndHeader1 : ''}</div>
       ${renderHeader(h.dayEndHeader2)}

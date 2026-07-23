@@ -35,7 +35,8 @@ const EmailForm = ({ onSubmit }: Props) => {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         error={error}
-        autoFocus
+        autoFocus={window.innerWidth > 1024}
+        placeholder="Enter your email"
       />
 
       <Button onClick={handleSubmit} className="w-full">

@@ -3,7 +3,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { createEmptyPurchaseReturnForm } from "../constants";
-import { purchaseReturnSchema } from "../types";
+import { getPurchaseReturnSchema } from "../types";
 import type { PurchaseReturnLineItem } from "../types";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
 import type { PurchaseReturnMasterData } from "../services/purchaseReturnApi";
@@ -96,8 +96,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     return empty;
   }, [formatAmount]);
 
+  const schema = useMemo(() => getPurchaseReturnSchema(decimalPart), [decimalPart]);
+
   const methods = useForm<any>({
-    resolver: zodResolver(purchaseReturnSchema),
+    resolver: zodResolver(schema),
     defaultValues: initialForm,
   });
 
@@ -177,15 +179,27 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     };
   }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems, decimalPart, grossTotal]);
 
-  const paymodeList = useMemo(() => {
-    if (!masterData?.paymodes) return [];
-    return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
-  }, [masterData]);
+    const paymodeList = useMemo(() => {
+      if (!masterData?.paymodes) return [];
+      return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
+    }, [masterData]);
+  
+    const multiPayId = useMemo(() => {
+      const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
+      return multi ? multi.paymodeId : 0;
+    }, [paymodeList]);
 
-  const multiPayId = useMemo(() => {
-    const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
-    return multi ? multi.paymodeId : 0;
-  }, [paymodeList]);
+    // Auto-sync single payment amount when grand total changes
+    useEffect(() => {
+      const currentPayments = methods.getValues("payments");
+      if (currentPayments.length === 1 && selectedPaymodeId > 0 && selectedPaymodeId !== multiPayId) {
+        const currentAmount = Number(currentPayments[0].amount);
+        const newAmount = Number(totals.grandTotal.toFixed(decimalPart));
+        if (currentAmount !== newAmount) {
+          methods.setValue("payments.0.amount", newAmount.toFixed(decimalPart));
+        }
+      }
+    }, [totals.grandTotal, selectedPaymodeId, multiPayId, decimalPart, methods]);
 
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
@@ -234,27 +248,28 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     fetchMasterData();
   }, [invoiceId, setValue]);
 
-  // Dynamically fetch next purchase return number when series changes
-  useEffect(() => {
-    if (!invoiceId && watchedSeries) {
-      const fetchPurchaseReturnNumber = async () => {
-        try {
-          const res = await purchaseReturnApi.getPurchaseReturnNumber(Number(watchedSeries));
-          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
-          const prefix = selectedSeries ? selectedSeries.prefix : "";
-          setValue("purchaseNo", `${prefix}${res.purchaseReturnNo}`);
-        } catch (error) {
-          console.error("Failed to load next purchase return number", error);
-          // Fallback to startNo if API fails or seriesId has DB errors (like seriesId=3)
-          const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === watchedSeries);
-          if (selectedSeries) {
-            setValue("purchaseNo", `${selectedSeries.prefix}${selectedSeries.startNo}`);
-          }
+    const fetchPurchaseReturnNumber = useCallback(async (seriesId: string) => {
+      try {
+        const res = await purchaseReturnApi.getPurchaseReturnNumber(Number(seriesId));
+        const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === seriesId);
+        const prefix = selectedSeries ? selectedSeries.prefix : "";
+        setValue("purchaseNo", `${prefix}${res.purchaseReturnNo}`);
+      } catch (error) {
+        console.error("Failed to load next purchase return number", error);
+        // Fallback to startNo if API fails or seriesId has DB errors (like seriesId=3)
+        const selectedSeries = masterData?.series.find(s => s.seriesId.toString() === seriesId);
+        if (selectedSeries) {
+          setValue("purchaseNo", `${selectedSeries.prefix}${selectedSeries.startNo}`);
         }
-      };
-      fetchPurchaseReturnNumber();
-    }
-  }, [invoiceId, watchedSeries, masterData, setValue]);
+      }
+    }, [masterData, setValue]);
+
+    // Dynamically fetch next purchase return number when series changes
+    useEffect(() => {
+      if (!invoiceId && watchedSeries) {
+        fetchPurchaseReturnNumber(watchedSeries);
+      }
+    }, [invoiceId, watchedSeries, fetchPurchaseReturnNumber]);
 
   const loadInvoiceData = async (id: string) => {
     try {
@@ -262,6 +277,22 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       const res = await purchaseReturnApi.getPurchaseReturnById(id);
       const master = res.masterData;
       setPurchaseId(master.purchaseId || 0);
+
+      // Always fetch full invoice details if purchaseId exists to guarantee Invoice No and Date are fully populated
+      if (master.purchaseId > 0) {
+        try {
+          const invRes = await purchaseReturnApi.getPurchaseInvoiceData(master.purchaseId.toString());
+          if (invRes && invRes.masterData) {
+            master.purchaseInvoiceNo = invRes.masterData.purchaseNo || invRes.masterData.invoiceNo || master.purchaseInvoiceNo || "";
+          }
+        } catch (error) {
+          console.error("Failed to fetch original invoice data for edit mode", error);
+        }
+      }
+
+      const invText = master.purchaseInvoiceNo || master.invoiceNo || "";
+      setLoadedInvoiceText(invText);
+
       const rootPaymodeId = res.masterData.paymodeId || 1;
       
       const formPayload: any = {
@@ -273,7 +304,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         purchaseNo: master.purchaseReturnNo || "",
         invoiceNo: master.purchaseInvoiceNo || master.invoiceNo || "",
         purchaseDate: master.purchaseReturnDate ? master.purchaseReturnDate.split("T")[0] : "",
-        invoiceDate: master.purchaseInvoiceDate ? master.purchaseInvoiceDate.split("T")[0] : (master.invoiceDate ? master.invoiceDate.split("T")[0] : ""),
         refNo: master.refNo || "",
         narration: master.narration || "",
         discAmount: master.discAmount?.toString() || "0",
@@ -294,6 +324,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         product: d.productId?.toString() || "",
         code: d.productId?.toString() || "",
         unit: d.unitId?.toString() || "",
+        unitName: d.unitName || "",
         qty: d.qty?.toString() || "1",
         foc: d.foc?.toString() || "0",
         price: d.price?.toString() || "0",
@@ -463,15 +494,15 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       if (res && res.masterData) {
         setPurchaseId(res.masterData.purchaseId || parseInt(purchaseIdStr) || 0);
         setLoadedInvoiceText(invoiceNoText);
-        setValue("invoiceDate", res.masterData.invoiceDate ? res.masterData.invoiceDate.split("T")[0] : getValues("invoiceDate"));
         setValue("refNo", res.masterData.refNo || getValues("refNo"));
       }
       if (res && res.detailsData) {
-        const mappedItems = res.detailsData.map((d: any) => ({
+        const mappedItems = (res.detailsData || []).map((d: any) => ({
           id: generateUUID(),
           product: d.productId?.toString() || "",
           code: d.productId?.toString() || "",
           unit: d.unitId?.toString() || "",
+          unitName: d.unitName || "",
           qty: d.qty?.toString() || "1",
           foc: d.foc?.toString() || "0",
           price: d.price?.toString() || "0",
@@ -523,10 +554,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       const details = await purchaseReturnApi.getProductCostData(opt.barcode);
       const currentQty = getValues(`items.${index}.qty`);
       setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-      setValue(`items.${index}.unit`, details.baseUnitId.toString());
+      setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
       setValue(`items.${index}.price`, formatAmount(details.cost));
       setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
-      setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+      setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
       if (currentQty === "0" || currentQty === "") {
          setValue(`items.${index}.qty`, "1");
       }
@@ -539,7 +570,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         const branchId = Number(branchIdStr);
         productService.getClosingStock(details.productId, branchId)
           .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
+          .catch((err) => {
+            console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
+            setValue(`items.${index}.stock`, "Error");
+          });
 
         productService.getAverageCost(details.productId, details.baseUnitId, branchId)
           .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
@@ -548,8 +582,17 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
     } catch (error) {
       console.error("Failed to load product details", error);
-      setValue(`items.${index}.stock`, "Error");
       setValue(`items.${index}.avgCost`, "Error");
+      // Try to fetch stock anyway if we have _val
+      const branchIdStr = methods.getValues("branch");
+      if (branchIdStr && productId) {
+        const branchId = Number(branchIdStr);
+        productService.getClosingStock(Number(productId), branchId)
+          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .catch(() => setValue(`items.${index}.stock`, "Error"));
+      } else {
+        setValue(`items.${index}.stock`, "Error");
+      }
     }
   };
 
@@ -593,10 +636,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         setValue(`items.${index}.product`, String(details.productId));
         setValue(`items.${index}.code`, details.productCode || "");
         setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-        setValue(`items.${index}.unit`, details.baseUnitId.toString());
+        setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
         setValue(`items.${index}.price`, formatAmount(details.cost));
         setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
-        setValue(`items.${index}.vatPercent`, details.vatValue.toString());
+        setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
         const currentQty = getValues(`items.${index}.qty`);
         if (currentQty === "0" || currentQty === "") {
            setValue(`items.${index}.qty`, "1");
@@ -610,7 +653,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           const branchId = Number(branchIdStr);
           productService.getClosingStock(details.productId, branchId)
             .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-            .catch(() => setValue(`items.${index}.stock`, "Error"));
+            .catch((err) => {
+              console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
+              setValue(`items.${index}.stock`, "Error");
+            });
 
           productService.getAverageCost(details.productId, details.baseUnitId, branchId)
             .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
@@ -619,8 +665,17 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
         return true;
       } else {
-        setValue(`items.${index}.stock`, "Error");
         setValue(`items.${index}.avgCost`, "Error");
+        // Try to fetch stock anyway if we know the product from options
+        const branchIdStr = methods.getValues("branch");
+        const opt = productOptions.find(o => o.code === barcode || o.barcode === barcode);
+        if (branchIdStr && opt) {
+          productService.getClosingStock(Number(opt.value), Number(branchIdStr))
+            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .catch(() => setValue(`items.${index}.stock`, "Error"));
+        } else {
+          setValue(`items.${index}.stock`, "Error");
+        }
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
@@ -631,7 +686,16 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   }, [setValue, getValues, loadCategoryUnits, methods]);
 
   const handleReset = () => {
-    reset(initialForm);
+    const branchToSet = isBranchLocked ? initialBranchId : ((masterData as any)?.branches?.[0]?.branchId?.toString() || "");
+    const seriesToSet = (masterData as any)?.series?.[0]?.seriesId?.toString() || "";
+    reset({
+      ...initialForm,
+      branch: branchToSet,
+      series: seriesToSet,
+    });
+    if (seriesToSet) {
+      fetchPurchaseReturnNumber(seriesToSet);
+    }
     setShowClearConfirm(false);
     setSelectedPaymodeId(0);
   };
@@ -690,6 +754,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         shiftId: 0,
         purchaseReturnDate: new Date(data.purchaseDate).toISOString(),
         purchaseId: purchaseId || 0,
+        purchaseInvoiceNo: data.invoiceNo || "",
+        invoiceNo: data.invoiceNo || "",
         refNo: data.refNo || "",
         narration: data.narration || "",
         discAmount: toNumber(data.discAmount),

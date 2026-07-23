@@ -329,7 +329,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         enableVat
       };
 
-      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
       
       try {
         const settingsRes = await printerSettingsApi.getGeneral();

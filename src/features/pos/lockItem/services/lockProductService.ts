@@ -5,11 +5,10 @@ import type { LockedProduct, LockProductPayload } from "../types";
 const BASE = "/lock-product";
 
 export const lockProductService = {
-  /** GET /api/lock-product/lock-product-list */
   async list(productName?: string): Promise<LockedProduct[]> {
     const { data } = await axiosInstance.get<ApiResponse<LockedProduct[]>>(
       `${BASE}/lock-product-list`,
-      { params: { productName } }
+      { params: { productName, _t: Date.now() } }
     );
     return data.data || [];
   },

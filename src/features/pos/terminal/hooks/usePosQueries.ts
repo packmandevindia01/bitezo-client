@@ -8,15 +8,16 @@ import { menuApi } from '../../services/menuApi';
 // removes Server State from Redux in accordance with the Golden Architecture Rule.
 // 
 // Configuration:
-// - staleTime: Infinity -> Data is fetched exactly once per POS session (mimics old cache).
-// - gcTime: 24h -> Prevents garbage collection during a cashier's shift.
-// - refetchOnWindowFocus: false -> Prevents aggressive refetching when switching browser tabs.
+// - staleTime: 1m -> Data is allowed to be stale after 1 minute.
+// - refetchOnWindowFocus: true -> Auto syncs if manager changed something in another tab.
+// - refetchInterval: 1m -> Auto-polls the backend for new products/categories every minute.
 // ============================================================================
 
 const CACHE_CONFIG = {
-  staleTime: Infinity,
+  staleTime: 60 * 1000, // 1 minute (so it doesn't refetch on every render, but can be stale)
   gcTime: 24 * 60 * 60 * 1000, 
-  refetchOnWindowFocus: false,
+  refetchOnWindowFocus: true, // Auto-refresh when switching back to the app from another tab
+  refetchInterval: 60 * 1000, // Auto-poll in the background every 1 minute
 };
 
 export const POS_QUERY_KEYS = {

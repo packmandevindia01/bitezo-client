@@ -51,9 +51,9 @@ export const useInternalStockTransferList = () => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
-      (record.refNo && record.refNo.toLowerCase().includes(term)) ||
-      (record.fromBranch && record.fromBranch.toLowerCase().includes(term)) ||
-      (record.toBranch && record.toBranch.toLowerCase().includes(term))
+      (record.refNo && String(record.refNo).toLowerCase().includes(term)) ||
+      (record.fromBranch && String(record.fromBranch).toLowerCase().includes(term)) ||
+      (record.toBranch && String(record.toBranch).toLowerCase().includes(term))
     );
   });
 

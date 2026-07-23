@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import EmailForm from "../components/EmailForm";
+import { AutoScaleWrapper } from "../../../components/common";
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -11,8 +12,8 @@ const ForgotPasswordPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-
-      <div className="w-full max-w-md bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-300">
+      <AutoScaleWrapper className="w-full max-w-md flex flex-col justify-center items-center">
+        <div className="w-full bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-300">
 
         <h2 className="text-xl md:text-2xl font-bold text-center mb-6 text-[#49293e]">
           Forgot Password
@@ -20,7 +21,8 @@ const ForgotPasswordPage = () => {
 
         <EmailForm onSubmit={handleEmailSubmit} />
 
-      </div>
+        </div>
+      </AutoScaleWrapper>
     </div>
   );
 };

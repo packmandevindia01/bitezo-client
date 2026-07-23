@@ -3,7 +3,7 @@ import { z } from "zod";
 export const modifierTypeFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   arabicName: z.string().optional(),
-  price: z.coerce.number().min(0, "Price must be a positive number"),
+  price: z.coerce.number().min(0, "Price must be a positive number").optional().default(0),
 });
 
 export type ModifierTypeForm = z.infer<typeof modifierTypeFormSchema>;

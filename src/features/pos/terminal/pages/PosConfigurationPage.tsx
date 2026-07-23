@@ -17,6 +17,7 @@ export const PosConfigurationPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<PosConfigTab>("pos");
   const [showKeyboard, setShowKeyboard] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
 
   const { 
     form, 
@@ -32,6 +33,15 @@ export const PosConfigurationPage: React.FC = () => {
   const handleBack = () => {
     navigate('/pos', { state: { openMoreModal: true } });
   };
+
+  React.useEffect(() => {
+    const updateViewportMode = () => {
+      setIsCompactViewport(window.innerWidth < 1200 || window.innerHeight < 820);
+    };
+    updateViewportMode();
+    window.addEventListener("resize", updateViewportMode);
+    return () => window.removeEventListener("resize", updateViewportMode);
+  }, []);
 
   const getSubtitle = () => {
     switch (activeTab) {
@@ -150,8 +160,14 @@ export const PosConfigurationPage: React.FC = () => {
       </main>
 
       {showKeyboard && (
-        <div className="shrink-0 w-full bg-[#f8f9fa] mt-auto border-t border-slate-200 p-2 md:p-3 animate-in slide-in-from-bottom-2">
-          <TouchKeyboard onClose={() => setShowKeyboard(false)} />
+        <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-1 pb-1" : "px-3 lg:px-4 pb-2"} border-t border-slate-200 animate-in slide-in-from-bottom-2`}>
+          <div className={`w-full ${isCompactViewport ? "max-w-[900px]" : "max-w-[1000px]"} mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl ${isCompactViewport ? "p-1" : "p-2 lg:p-2.5"}`}>
+            <TouchKeyboard 
+              onClose={() => setShowKeyboard(false)} 
+              size={isCompactViewport ? "md" : "lg"}
+              embedded={true}
+            />
+          </div>
         </div>
       )}
     </div>

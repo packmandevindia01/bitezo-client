@@ -38,8 +38,9 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
   const { decimalPart } = useCurrency();
   const { data: voucherNumberStr } = usePayInOutVoucherNumber(isOpen && !initialData);
 
-  const [isKeyboardEnabled, setIsKeyboardEnabled] = useState(true);
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [isKeyboardEnabled, setIsKeyboardEnabled] = useState(window.innerWidth >= 768);
+  const [showKeyboard, setShowKeyboard] = useState(window.innerWidth >= 768);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
 
 
   const {
@@ -84,6 +85,20 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
     }
   }, [isOpen, initialData, reset, paymodes, voucherNumberStr, decimalPart]);
 
+  useEffect(() => {
+    const updateViewportMode = () => {
+      const mobile = window.innerWidth < 768;
+      setIsCompactViewport(window.innerWidth < 1200 || window.innerHeight < 820);
+      if (mobile && isKeyboardEnabled) {
+        setIsKeyboardEnabled(false);
+        setShowKeyboard(false);
+      }
+    };
+    updateViewportMode();
+    window.addEventListener("resize", updateViewportMode);
+    return () => window.removeEventListener("resize", updateViewportMode);
+  }, [isKeyboardEnabled]);
+
   const handleClear = () => {
     reset({
       type: 'IN',
@@ -95,9 +110,15 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
     });
   };
 
-  const handleInputFocus = () => {
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
     if (isKeyboardEnabled) {
       setShowKeyboard(true);
+      // Ensure the element is scrolled into view after the keyboard pops up
+      setTimeout(() => {
+        if (e.target && e.target instanceof Element) {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
     }
   };
 
@@ -139,7 +160,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <path d="M11 19a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9Z"/>
               </svg>
-              {isKeyboardEnabled ? "Touch Keyboard" : "Physical Keyboard"}
+              {isKeyboardEnabled ? "Touch Keyboard" : "Native Keyboard"}
             </button>
 
             <div className="w-px h-6 bg-white/20 mx-1"></div>
@@ -220,7 +241,8 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           {...register('date')}
           hideLabel
           error={errors.date?.message}
-          inputMode="none"
+          inputMode={isKeyboardEnabled ? "none" : undefined}
+          readOnly={isKeyboardEnabled}
         />
 
         {/* DESCRIPTION */}
@@ -234,7 +256,8 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           error={errors.description?.message}
           onFocus={handleInputFocus}
           onClick={handleInputFocus}
-          inputMode="none"
+          inputMode={isKeyboardEnabled ? "none" : undefined}
+          readOnly={isKeyboardEnabled}
         />
 
         {/* AMOUNT */}
@@ -251,7 +274,8 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           error={errors.amount?.message}
           onFocus={handleInputFocus}
           onClick={handleInputFocus}
-          inputMode="none"
+          inputMode={isKeyboardEnabled ? "none" : undefined}
+          readOnly={isKeyboardEnabled}
         />
 
         {/* PAYMODE */}
@@ -270,10 +294,14 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
         
         {/* Keyboard Section */}
         {showKeyboard && (
-          <div className="shrink-0 w-full bg-[#f8f9fa] mt-auto border-t border-slate-100 p-2 md:p-3">
-            <TouchKeyboard
-              onClose={() => setShowKeyboard(false)}
-            />
+          <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-1 pb-1" : "px-3 lg:px-4 pb-2"} border-t border-slate-100`}>
+            <div className={`w-full ${isCompactViewport ? "max-w-[900px]" : "max-w-[1000px]"} mx-auto bg-gradient-to-b from-[#faf8f9] to-[#f3edf0] border border-slate-300 shadow-[0_15px_40px_rgba(73,41,62,0.08)] rounded-2xl ${isCompactViewport ? "p-1" : "p-2 lg:p-2.5"}`}>
+              <TouchKeyboard
+                onClose={() => setShowKeyboard(false)}
+                size={isCompactViewport ? "md" : "lg"}
+                embedded={true}
+              />
+            </div>
           </div>
         )}
       </form>

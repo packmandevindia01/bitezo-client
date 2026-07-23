@@ -21,7 +21,7 @@ export const InternalStockTransferFormSchema = z.object({
   date: z.string().min(1, "Date is required"),
   fromBranch: z.string().min(1, "From Branch is required"),
   toBranch: z.string().min(1, "To Branch is required"),
-  salesman: z.string().optional(),
+  salesman: z.string().min(1, "Salesman is required"),
   items: z.array(InternalStockTransferItemSchema),
 });
 

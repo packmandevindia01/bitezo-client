@@ -281,7 +281,8 @@ const LockItemPage: React.FC = () => {
                 <p className="text-xs font-medium text-slate-400 mt-2">Add a product to the lock list to restrict sales</p>
               </div>
             ) : (
-              <table className="w-full border-collapse text-left bg-white">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] border-collapse text-left bg-white">
                 <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10">
                   <tr>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">S.No</th>
@@ -304,7 +305,7 @@ const LockItemPage: React.FC = () => {
                         {formatDateTime(item.lockUntil)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
                           <button 
                             onClick={() => handleEdit(item)}
                             className="p-2 rounded-xl text-slate-400 hover:bg-[#49293e]/10 hover:text-[#49293e] transition-all"
@@ -325,6 +326,7 @@ const LockItemPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

@@ -76,7 +76,7 @@ export const OrderTypeWisePrinterTab: React.FC<OrderTypeWisePrinterTabProps> = (
             <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">Order Type</label>
             <div className="flex-1">
               <SelectInput
-                autoFocus
+                autoFocus={window.innerWidth > 1024}
                 noMargin
                 options={orderTypeOptions}
                 value={form.orderType}

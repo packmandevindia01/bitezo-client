@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Save, RotateCcw, Trash2, Plus, Printer } from "lucide-react";
+import { Save, RotateCcw, Trash2, Plus, Printer, X } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import StockAdjustmentPrintModal from "../components/StockAdjustmentPrintModal";
 import type { StockAdjustmentLineItem } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useStockAdjustment } from "../hooks/useStockAdjustment";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
+import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 
 const toNumber = (val: any) => {
@@ -18,7 +19,9 @@ const toNumber = (val: any) => {
 const StockAdjustmentPage = () => {
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
+  const navigate = useNavigate();
   const { formatAmount } = useCurrency();
+  const { showToast } = useToast();
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -131,23 +134,64 @@ const StockAdjustmentPage = () => {
     }
   };
 
+  const getFirstError = (obj: any): string | null => {
+    if (!obj) return null;
+    if (obj.message) return obj.message;
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const msg = getFirstError(item);
+        if (msg) return msg;
+      }
+    } else if (typeof obj === "object") {
+      for (const key of Object.keys(obj)) {
+        const msg = getFirstError(obj[key]);
+        if (msg) return msg;
+      }
+    }
+    return null;
+  };
+
   const onSaveClick = () => {
     const currentItems = getValues("items") || [];
     const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
     if (validItems.length === 0) {
-      methods.setError("items", { message: "Please add at least one product." });
+      showToast("Please add at least one product.", "warning");
       return;
     }
-    setShowSaveConfirm(true);
+    if (validItems.length !== currentItems.length) {
+      methods.setValue("items", validItems);
+    }
+    
+    // Trigger validation before showing confirm dialog
+    methods.handleSubmit(
+      () => {
+        setShowSaveConfirm(true);
+      },
+      (errs) => {
+        console.error("Validation failed:", errs);
+        const firstErrorKey = Object.keys(errs)[0];
+        if (firstErrorKey) {
+          const errMsg = getFirstError((errs as any)[firstErrorKey]) || `Please fill required fields (${firstErrorKey}).`;
+          showToast(errMsg, "error");
+          
+          setTimeout(() => {
+            const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
+            if (el) {
+              el.focus();
+            } else {
+              const elId = document.getElementById(`sa-${firstErrorKey}`);
+              if (elId) elId.focus();
+            }
+          }, 100);
+        } else {
+          showToast("Please fill all required fields.", "error");
+        }
+      }
+    )();
   };
 
   const doSave = async () => {
     setShowSaveConfirm(false);
-    const currentItems = getValues("items") || [];
-    const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
-    if (validItems.length !== currentItems.length) {
-      methods.setValue("items", validItems);
-    }
     methods.handleSubmit(async (data) => {
       const success = await onSubmit(data);
       if (success) {
@@ -167,7 +211,18 @@ const StockAdjustmentPage = () => {
           </div>
         )}
 
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
+          
+          {/* Close Button in top right */}
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/stock-adjustment")}
+            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
+            title="Close"
+            tabIndex={-1}
+          >
+            <X size={18} />
+          </button>
 
           {/* ── Scrollable Body ── */}
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
@@ -178,10 +233,10 @@ const StockAdjustmentPage = () => {
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked || !!id} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
 
@@ -238,33 +293,52 @@ const StockAdjustmentPage = () => {
                                           methods.setValue(`items.${index}.productName`, opt.label);
                                           methods.setValue(`items.${index}.code`, opt["code"] || "");
                                           handleProductSelect(index, val, opt["barcode"] || opt["code"] || "");
+                                        } else {
+                                          methods.setValue(`items.${index}.productName`, "");
+                                          methods.setValue(`items.${index}.code`, "");
+                                          methods.setValue(`items.${index}.unit`, "");
+                                          methods.setValue(`items.${index}.unitCategory`, "");
+                                          methods.setValue(`items.${index}.stock`, "");
+                                          methods.setValue(`items.${index}.qty`, "1");
+                                          methods.setValue(`items.${index}.cost`, "0");
+                                          methods.setValue(`items.${index}.type`, "");
                                         }
                                       setTimeout(() => {
-                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                        qtyInputs[0]?.focus();
+                                        document.getElementById(`unit-select-${index}`)?.focus();
                                       }, 100);
                                     }}
                                     onKeyDown={async (e) => {
                                       if (e.key === "Enter") {
                                         if (productSelectedRef.current) {
                                           productSelectedRef.current = false;
+                                          setTimeout(() => {
+                                            document.getElementById(`unit-select-${index}`)?.focus();
+                                          }, 100);
                                           return;
                                         }
                                         const rawValue = e.currentTarget.value;
+                                        const formProduct = methods.getValues(`items.${index}.product`);
                                         // Avoid treating formatted labels (e.g. "[3] CHICKEN") as barcodes
                                         if (rawValue && rawValue.trim().length > 0 && !rawValue.includes("[")) {
                                           e.preventDefault();
                                           const success = await handleBarcodeScan(index, rawValue.trim());
                                           if (success) {
                                             setTimeout(() => {
-                                              const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                              qtyInputs[0]?.focus();
+                                              document.getElementById(`unit-select-${index}`)?.focus();
                                             }, 100);
                                           }
                                           return;
                                         }
-                                        if (items.length > 1) remove(index);
-                                        setTimeout(() => document.getElementById("sa-save-btn")?.focus(), 50);
+                                        
+                                        if (!formProduct || formProduct.trim() === "") {
+                                          if (items.length > 1) remove(index);
+                                          setTimeout(() => document.getElementById("sa-save-btn")?.focus(), 50);
+                                        } else {
+                                          e.preventDefault();
+                                          setTimeout(() => {
+                                            document.getElementById(`unit-select-${index}`)?.focus();
+                                          }, 100);
+                                        }
                                       }
                                     }}
                                     disabled={!canSave}
@@ -285,7 +359,20 @@ const StockAdjustmentPage = () => {
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
-                                  onChange={(val) => handleUnitChange(index, val)}
+                                  onChange={(val) => {
+                                    handleUnitChange(index, val);
+                                    setTimeout(() => {
+                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                      qtyInputs[0]?.focus();
+                                    }, 100);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                      qtyInputs[0]?.focus();
+                                    }
+                                  }}
                                   disabled={!canSave}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
@@ -331,6 +418,24 @@ const StockAdjustmentPage = () => {
                                         append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: "0", type: "", effect: "" }, { shouldFocus: false });
                                         setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
                                       }, 60);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const rawType = (masterData as any).typesRaw?.find((t: any) => String(t.typeId) === String(selectField.value));
+                                      const isEditable = rawType && (rawType.effect === "All" || rawType.effect === "all" || rawType.effect === "*");
+                                      if (isEditable) {
+                                        document.getElementById(`effect-select-${index}`)?.focus();
+                                      } else {
+                                        const rowProduct = methods.getValues(`items.${index}.product`);
+                                        if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                          append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: "0", type: "", effect: "" }, { shouldFocus: false });
+                                          setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 100);
+                                        } else {
+                                          handleGridNav(e, index);
+                                        }
+                                      }
                                     }
                                   }}
                                   disabled={!canSave}
@@ -439,7 +544,13 @@ const StockAdjustmentPage = () => {
               </div>
 
               <div className="flex items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">
-                <Button type="button" variant="secondary" onClick={handleClearClick} tabIndex={-1} isAction icon={<Plus size={16} />}>
+                <Button type="button" variant="secondary" onClick={() => {
+                  if (id) {
+                    navigate("/dashboard/stock-adjustment");
+                  } else {
+                    handleClearClick();
+                  }
+                }} tabIndex={-1} isAction icon={<Plus size={16} />}>
                   New
                 </Button>
                 <Button id="sa-save-btn" type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
@@ -470,7 +581,10 @@ const StockAdjustmentPage = () => {
           title="Clear Form"
           message="Are you sure you want to clear the form? All unsaved data will be lost."
           confirmLabel="Clear"
-          onConfirm={handleReset}
+          onConfirm={() => {
+            handleReset();
+            setShowClearConfirm(false);
+          }}
           onCancel={() => setShowClearConfirm(false)}
         />
 

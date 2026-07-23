@@ -132,6 +132,7 @@ const ProductMasterForm = ({
               form={form}
               masterData={masterData}
               subCatOptions={subCatOptions}
+              branchOptions={branchOptions}
             />
           </div>
           <div className="w-full lg:w-72 shrink-0">

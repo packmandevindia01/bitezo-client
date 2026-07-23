@@ -203,11 +203,11 @@ export const PosExtrasModifierModal = ({
         </div>
 
         {/* Body */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
           {/* Cart Item Rail */}
-          <div className="w-14 sm:w-16 shrink-0 bg-[#49293e] flex flex-col items-center py-4 gap-2.5 overflow-y-auto">
-            <span className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">Cart</span>
+          <div className="w-full md:w-16 h-14 md:h-auto shrink-0 bg-[#49293e] flex md:flex-col items-center py-2 md:py-4 px-3 md:px-0 gap-2 md:gap-2.5 overflow-x-auto md:overflow-y-auto">
+            <span className="hidden md:block text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">Cart</span>
             {cartItems.map((item, index) => {
               const key = item.uniqueId;
               const isActive = key === selectedKey;
@@ -228,11 +228,11 @@ export const PosExtrasModifierModal = ({
           </div>
 
           {/* Category/Type Rail */}
-          <div className="w-28 lg:w-44 shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
-            <div className="px-3 py-2.5 border-b border-slate-100 bg-slate-50">
+          <div className="w-full md:w-44 shrink-0 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col overflow-hidden">
+            <div className="hidden md:block px-3 py-2.5 border-b border-slate-100 bg-slate-50">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Category</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+            <div className="flex md:flex-col flex-1 overflow-x-auto md:overflow-y-auto p-2 gap-2 md:space-y-1.5">
               {types.length === 0 ? (
                 <div className="flex items-center justify-center h-20 opacity-30">
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">No Types</span>
@@ -242,7 +242,7 @@ export const PosExtrasModifierModal = ({
                   <button
                     key={t.typeId || index}
                     onClick={() => setActiveTypeId(t.typeId)}
-                    className={`w-full py-3 px-2.5 text-[10px] font-black uppercase rounded-lg transition-all text-center leading-tight ${
+                    className={`shrink-0 whitespace-nowrap md:whitespace-normal md:w-full h-10 md:h-auto px-4 md:py-3 md:px-2.5 text-[10px] font-black uppercase rounded-lg transition-all text-center leading-tight ${
                       activeTypeId === t.typeId 
                         ? "bg-[#49293e] text-white shadow-md shadow-[#49293e]/20" 
                         : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -256,7 +256,7 @@ export const PosExtrasModifierModal = ({
           </div>
 
           {/* Item Grid */}
-          <div className="flex-1 min-w-0 overflow-y-auto bg-[#f8f9fb] p-3 lg:p-4">
+          <div className="flex-1 min-w-0 overflow-y-auto bg-[#f8f9fb] p-3 md:p-4">
             {loading ? (
               <div className="flex h-full items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
@@ -274,14 +274,14 @@ export const PosExtrasModifierModal = ({
                 </div>
               </div>
             ) : (
-              <div className="grid gap-2 lg:gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              <div className="grid gap-2 md:gap-2.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {items.map((item, index) => {
                   const isSelected = selectedItems.find(si => si.id === item.id && si.typeId === activeTypeId);
                   return (
                     <button
                       key={item.id || index}
                       onClick={() => handleItemToggle(item)}
-                      className={`relative h-[90px] lg:h-[100px] rounded-xl text-[11px] font-black uppercase tracking-wide transition-all flex flex-col items-center justify-center text-center leading-tight px-2 border-2 active:scale-95 ${
+                      className={`relative h-[90px] md:h-[100px] rounded-xl text-[11px] font-black uppercase tracking-wide transition-all flex flex-col items-center justify-center text-center leading-tight px-2 border-2 active:scale-95 ${
                         isSelected 
                           ? "bg-[#49293e] border-[#49293e] text-white shadow-lg shadow-[#49293e]/20" 
                           : "bg-white border-slate-200 text-[#49293e] hover:border-[#49293e]/30 hover:shadow-md shadow-sm"
@@ -315,7 +315,7 @@ export const PosExtrasModifierModal = ({
           </div>
 
           {/* Right Summary Panel */}
-          <div className="w-56 lg:w-72 shrink-0 bg-white border-l border-slate-200 flex flex-col overflow-hidden">
+          <div className="w-full md:w-72 h-[40vh] md:h-auto shrink-0 bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col overflow-hidden">
             
             {/* Action Bar */}
             <div className="grid grid-cols-3 gap-1 p-2 bg-slate-50 border-b border-slate-200 shrink-0">

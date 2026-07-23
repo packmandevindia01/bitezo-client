@@ -5,7 +5,6 @@ export const createEmptyPurchaseReturnForm = (): any => ({
   purchaseDate: new Date().toISOString().split("T")[0],
   invoiceNo: "",
   refNo: "",
-  invoiceDate: new Date().toISOString().split("T")[0],
   supplier: "",
   branch: "",
   salesman: "",

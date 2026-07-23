@@ -96,6 +96,7 @@ const InternalStockTransferListPage = () => {
           rowKey="transId"
           loading={loading}
           columns={[
+            { header: "SL NO", accessor: "transId", render: (_, index) => index + 1 },
             { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString() },
             { header: "Ref No", accessor: "refNo" },
             { header: "From Branch", accessor: "fromBranch" },

@@ -85,6 +85,9 @@ export const usePosProducts = () => {
 
   useEffect(() => {
     fetchLockedProducts();
+    // Auto-poll locks every 15 seconds so changes from backoffice sync quickly
+    const interval = setInterval(fetchLockedProducts, 15000);
+    return () => clearInterval(interval);
   }, [fetchLockedProducts]);
 
   const visibleProducts = useMemo(() => {

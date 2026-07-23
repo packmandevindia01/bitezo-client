@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import {
   getBranchList,
@@ -14,6 +15,7 @@ import type {
 } from "../types";
 
 export const useProductTransactionLogReport = () => {
+  const [searchParams] = useSearchParams();
   // ── Filter states ────────────────────────────────────────────────────────────
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
@@ -24,7 +26,8 @@ export const useProductTransactionLogReport = () => {
   );
   const { initialBranchId, isBranchLocked } = useBranchScope();
   const [branchId, setBranchId] = useState<string>(initialBranchId);
-  const [productId, setProductId] = useState<string>("");
+  const [productId, setProductId] = useState<string>(searchParams.get("product") || "");
+  const initialProductName = searchParams.get("productName") || "";
   const [transactionType, setTransactionType] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -121,7 +124,7 @@ export const useProductTransactionLogReport = () => {
       searchTerm, setSearchTerm,
       resetFilters,
     },
-    masterData: { branches, branchesLoading, products, productsLoading },
+    masterData: { branches, branchesLoading, products, productsLoading, initialProductName },
     report: {
       logData: filteredLogData,
       totalData,

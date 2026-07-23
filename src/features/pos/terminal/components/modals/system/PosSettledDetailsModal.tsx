@@ -282,7 +282,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         enableVat
       };
 
-      const htmlContent = generateGuestPrintHtml(mappedItems as any, printData);
+      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
       const settingsRes = await printerSettingsApi.getGeneral();
       const billPrinter = settingsRes.data?.billPrinter || "No Printer";
       

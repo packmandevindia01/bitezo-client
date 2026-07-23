@@ -478,7 +478,7 @@ const CompanyOnboardingPage = () => {
                 <FormInput
                   label="Registration ID"
                   required
-                  autoFocus
+                  autoFocus={window.innerWidth > 1024}
                   value={formState.regId}
                   onChange={(e) => {
                     setField("regId", e.target.value);

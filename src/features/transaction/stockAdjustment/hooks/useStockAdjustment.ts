@@ -148,7 +148,7 @@ export const useStockAdjustment = (id?: string | null) => {
   });
 
   // 4. React Query: Load existing record (Edit Mode)
-  const { isLoading: loadingRecord } = useQuery({
+  const { data: recordData, isLoading: loadingRecord } = useQuery({
     queryKey: ["stockAdjustmentRecord", id],
     queryFn: async () => {
       if (!id) return null;
@@ -202,8 +202,6 @@ export const useStockAdjustment = (id?: string | null) => {
         formPayload.items = [];
       }
 
-      reset(formPayload);
-
       // Pre-populate product options for existing items
       const productIds = Array.from(new Set(details.map((i: any) => i.productId)));
       const options: SearchableOption[] = [];
@@ -220,11 +218,21 @@ export const useStockAdjustment = (id?: string | null) => {
           });
         }
       }
-      setProductOptions(options);
-      return responseData;
+      return { rawData: responseData, formPayload, productOptions: options };
     },
     enabled: !!id,
   });
+
+  // Apply fetched record data to form
+  useEffect(() => {
+    if (id && recordData) {
+      reset(recordData.formPayload);
+      setProductOptions(recordData.productOptions);
+    } else if (!id) {
+      reset(initialForm);
+      setProductOptions([]);
+    }
+  }, [id, recordData, reset, initialForm]);
 
   // Pre-select first branch when branches finish loading (Add Mode)
   useEffect(() => {
@@ -249,6 +257,22 @@ export const useStockAdjustment = (id?: string | null) => {
 
   // Combined loading state
   const loadingMaster = loadingBranches || loadingTypes || loadingBranchDetails || loadingRecord;
+
+  // Merge branch employees with the saved record's salesman if not present (e.g. branch closed)
+  const employees = useMemo(() => {
+    const list = [...branchData.employees];
+    if (id && recordData) {
+      const master = (recordData.rawData as any).masterData || recordData.rawData;
+      const empId = String(master.employeeId || "");
+      if (empId && !list.find(e => e.value === empId)) {
+        list.push({
+          label: master.employeeName || master.empName || master.salesmanName || `[${empId}] Unknown`,
+          value: empId
+        });
+      }
+    }
+    return list;
+  }, [branchData.employees, id, recordData]);
 
   // Build per-row options: always include the stored product label so the
   // combobox can display the name even before/after a barcode scan
@@ -434,9 +458,24 @@ export const useStockAdjustment = (id?: string | null) => {
     }
   }, [setValue, getValues, formatAmount]);
 
-  const handleReset = () => {
-    reset(initialForm);
-  };
+  const handleReset = useCallback(() => {
+    if (id && recordData) {
+      reset(recordData.formPayload);
+      setProductOptions(recordData.productOptions);
+    } else {
+      const resetForm = { ...initialForm };
+      if (isBranchLocked && initialBranchId) {
+        resetForm.branch = String(initialBranchId);
+      } else if (branches.length > 0) {
+        resetForm.branch = branches[0].value;
+      }
+      if (branchData.refNo) resetForm.refNo = branchData.refNo;
+      if (branchData.employees.length > 0) resetForm.salesman = branchData.employees[0].value;
+      
+      reset(resetForm);
+      setProductOptions([]);
+    }
+  }, [id, recordData, reset, initialForm, isBranchLocked, initialBranchId, branches, branchData]);
 
   // Submit / Save handler
   const onSubmit = async (data: StockAdjustmentForm): Promise<boolean> => {
@@ -504,7 +543,7 @@ export const useStockAdjustment = (id?: string | null) => {
     totals,
     handleReset,
     onSubmit,
-    masterData: { branches, employees: branchData.employees, types: typesData.options, typesRaw: typesData.raw, units: typesData.units || [] },
+    masterData: { branches, employees, types: typesData.options, typesRaw: typesData.raw, units: typesData.units || [] },
     loadingMaster,
     masterError: null, // React Query handles separate error states or transparent fallback
     productOptions,

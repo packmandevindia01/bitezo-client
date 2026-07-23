@@ -42,8 +42,8 @@ const StockAdjustmentListPage = () => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
-      (row.refNo || "").toLowerCase().includes(term) ||
-      (row.branch || "").toLowerCase().includes(term)
+      String(row.refNo || "").toLowerCase().includes(term) ||
+      String(row.branch || "").toLowerCase().includes(term)
     );
   });
 
@@ -111,6 +111,7 @@ const StockAdjustmentListPage = () => {
           rowKey="transId"
           loading={loading}
           columns={[
+            { header: "Sl No", accessor: "sl" as any, render: (_, index) => (index !== undefined ? index + 1 : "-") },
             { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString() },
             { header: "Ref No", accessor: "refNo" },
             { header: "Branch", accessor: "branch" },

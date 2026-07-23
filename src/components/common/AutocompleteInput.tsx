@@ -23,6 +23,7 @@ interface Props {
   tabIndex?: number;
   className?: string;
   inputClassName?: string;
+  maxLength?: number;
 }
 
 export const AutocompleteInput = ({
@@ -41,6 +42,7 @@ export const AutocompleteInput = ({
   tabIndex,
   className = "",
   inputClassName = "",
+  maxLength,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -136,6 +138,7 @@ export const AutocompleteInput = ({
           autoFocus={autoFocus}
           tabIndex={tabIndex}
           autoComplete="off"
+          maxLength={maxLength}
           inputClassName={inputClassName}
           rightIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} />}
         />

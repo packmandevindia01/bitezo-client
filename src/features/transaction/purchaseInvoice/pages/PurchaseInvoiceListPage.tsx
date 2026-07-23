@@ -22,7 +22,8 @@ interface PurchaseInvoiceRow {
   purchaseNo: string;
   invoiceNo: string;
   purchaseDate: string;
-  supplierName: string;
+  supplierName?: string;
+  supplier?: string;
   netAmount: number;
   isCancelled: boolean;
 }
@@ -81,7 +82,8 @@ const PurchaseInvoiceListPage = () => {
       return (
         inv.purchaseNo?.toLowerCase().includes(term) ||
         inv.invoiceNo?.toLowerCase().includes(term) ||
-        inv.supplierName?.toLowerCase().includes(term)
+        inv.supplierName?.toLowerCase().includes(term) ||
+        inv.supplier?.toLowerCase().includes(term)
       );
     })
     .sort((a, b) => {
@@ -103,6 +105,7 @@ const PurchaseInvoiceListPage = () => {
       accessor: "purchaseDate" as keyof PurchaseInvoiceRow,
       render: (row: PurchaseInvoiceRow) => row.purchaseDate ? new Date(row.purchaseDate).toLocaleDateString("en-GB") : "-"
     },
+    { header: "Supplier", accessor: "supplier" as keyof PurchaseInvoiceRow, render: (row: PurchaseInvoiceRow) => row.supplier || row.supplierName || "-" },
     { 
       header: "Amount", 
       accessor: "netAmount" as keyof PurchaseInvoiceRow,

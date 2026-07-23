@@ -52,7 +52,7 @@ export const useEmployeeAuthorization = () => {
         return;
       }
 
-      if (!hasPrivilege) {
+      if (pendingAuthorization.permissionId && !hasPrivilege) {
         // If they don't have privilege, we trigger Admin Override mode!
         setIsAdminOverride(true);
         const message = `No privilege for ${authAction.actionLabel}. Enter Authorized Admin Password.`;

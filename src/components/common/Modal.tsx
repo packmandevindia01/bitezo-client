@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -46,6 +46,43 @@ useEffect(() => {
   };
 }, [isOpen, onClose]);
 
+  // 🔥 Auto-Scale Logic (Industry Standard Zero-Scroll Method)
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const checkScale = () => {
+      if (!modalRef.current) return;
+      // We want to fit it comfortably inside 95% of the screen height
+      const targetMaxHeight = window.innerHeight * 0.95;
+      const actualHeight = modalRef.current.scrollHeight;
+
+      if (actualHeight > targetMaxHeight) {
+        // Zoom out smoothly!
+        setScale(targetMaxHeight / actualHeight);
+      } else {
+        // Don't zoom in (scale > 1) if it's already small enough
+        setScale(1);
+      }
+    };
+
+    checkScale();
+    
+    // Listen for window resizes
+    window.addEventListener("resize", checkScale);
+    
+    // Listen for inner content size changes
+    const observer = new ResizeObserver(checkScale);
+    if (modalRef.current) observer.observe(modalRef.current);
+
+    return () => {
+      window.removeEventListener("resize", checkScale);
+      observer.disconnect();
+    };
+  }, [isOpen, children]);
+
   if (!isOpen) return null;
 
   const sizes = {
@@ -71,9 +108,11 @@ useEffect(() => {
 
       {/* Modal Box */}
       <div
+        ref={modalRef}
+        style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
         className={`
           relative flex flex-col w-full ${sizes[size]}
-          max-h-[90vh] rounded-xl bg-white shadow-lg z-10
+          rounded-xl bg-white shadow-lg z-10
           animate-[fadeIn_0.2s_ease-in-out]
           ${noPadding ? "p-0" : "p-4 sm:p-6"}
           ${className}

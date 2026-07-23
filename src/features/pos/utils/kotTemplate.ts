@@ -1,4 +1,6 @@
 import type { PosCartItem } from "../types";
+import { branchApi } from "../../inventory/branches/services/branchApi";
+import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 
 export interface KotPrintData {
   orderNo: string;
@@ -16,14 +18,44 @@ export interface KotPrintData {
   customerName?: string;
 }
 
-export const generateKotHtml = (
+export const generateKotHtml = async (
   cartDetails: PosCartItem[], 
   data: KotPrintData
-): string => {
+): Promise<string> => {
   // Use current date/time as fallback
   const now = new Date();
   const dateStr = data.date || now.toLocaleDateString('en-GB'); // DD/MM/YYYY
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
+
+  let customHeadersHtml = "";
+  try {
+    const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+    const branchIdStr = isBackoffice
+      ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+      : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+    
+    let branchId = 1;
+    if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+      branchId = Number(branchIdStr);
+    }
+    const branch = await branchApi.fetchBranchById(branchId);
+    
+    if (branch && branch.lines) {
+      const headers = branch.lines.filter(l => l.section === 'header' && l.value);
+      if (headers.length > 0) {
+        customHeadersHtml = headers.map(l => {
+          const styleObj = getLineStyle(l) as any;
+          const styleStr = Object.entries(styleObj).map(([k, v]) => {
+            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+            return `${kebab}:${v}`;
+          }).join(";");
+          return `<div style="${styleStr}">${l.value}</div>`;
+        }).join("");
+      }
+    }
+  } catch (e) {
+    console.error("Failed to fetch branch for headers", e);
+  }
 
   const orderTypeStr = (data.orderType || "DINE IN").toUpperCase();
   const isDineIn = data.orderType?.toLowerCase().includes("dine");
@@ -144,6 +176,11 @@ export const generateKotHtml = (
       <html>
         ${headStyle}
         <body>
+          ${customHeadersHtml ? `
+            <div style="text-align: center; margin-bottom: 10px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+              ${customHeadersHtml}
+            </div>
+          ` : ''}
           <table style="width: 100%; font-size: 22px; font-weight: bold; margin-bottom: 15px;">
             <tr>
               <td style="text-align: left;">Order &nbsp; #${data.orderNo}</td>
@@ -201,6 +238,11 @@ export const generateKotHtml = (
     <html>
       ${headStyle}
       <body>
+        ${customHeadersHtml ? `
+            <div style="text-align: center; margin-bottom: 10px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+              ${customHeadersHtml}
+            </div>
+          ` : ''}
         <div class="text-center" style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">${orderTypeStr}</div>
         <div class="text-center" style="font-size: 24px; font-weight: bold; margin-bottom: 15px; letter-spacing: 1px;">***${data.headerTitle || "KOT"}***</div>
         

@@ -22,7 +22,7 @@ export const stockAdjustmentSchema = z.object({
   refNo: z.string().min(1, "Ref No is required"),
   date: z.string().min(1, "Date is required"),
   branch: z.string().min(1, "Branch is required"),
-  salesman: z.string().optional(),
+  salesman: z.string().min(1, "Salesman is required"),
   items: z.array(stockAdjustmentItemSchema),
 });
 
