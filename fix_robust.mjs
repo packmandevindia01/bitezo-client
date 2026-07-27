@@ -102,6 +102,6 @@ allFiles.forEach(filePath => {
 
     if (changed) {
         fs.writeFileSync(filePath, content, 'utf8');
-        console.log(`Fixed ${filePath}`);
+       
     }
 });

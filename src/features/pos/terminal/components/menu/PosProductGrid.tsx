@@ -137,7 +137,7 @@ const PosProductGrid = ({
         <div className="w-full h-8 flex justify-end items-center px-4 shrink-0 bg-transparent border-b border-slate-200/50">
           <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-white/50 px-2 py-1 rounded-md shadow-sm">
             {breadcrumbs.map((crumb, idx) => (
-              <div key={crumb} className="flex items-center gap-1.5">
+              <div key={`${crumb}-${idx}`} className="flex items-center gap-1.5">
                 <span className={idx === breadcrumbs.length - 1 ? "text-[#49293e] font-black" : ""}>
                   {crumb}
                 </span>
@@ -200,10 +200,14 @@ const PosProductGrid = ({
                     } else if (showAlternatives) {
                       const alt = item as PosAlternative;
                       const isFirstAlt = alternatives.indexOf(alt) === 0;
+                      
+                      // Create a robust unique key from alternative properties
+                      const uniqueAltKey = `alt-${alt.altName}-${alt.unitId}-${alt.price}`;
+                      
                       return (
                         <button
                           type="button"
-                          key={alt.altName}
+                          key={uniqueAltKey}
                           ref={isFirstAlt ? firstAltRef : undefined}
                           onClick={() => onSelectAlt?.(alt)}
                           className="

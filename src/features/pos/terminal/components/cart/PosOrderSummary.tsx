@@ -130,14 +130,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
           <button
             onClick={() => onSettle && onSettle(false)}
             disabled={orderLoading || isSettling || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-pos-green text-white font-bold text-[10px] uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-[#2b9e5a] text-white font-bold text-[10px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle
           </button>
           <button
             onClick={() => onSettle && onSettle(true)}
             disabled={orderLoading || isSettling || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-pos-green text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-green-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-[#2b9e5a] text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Settle & <br />Print
           </button>
@@ -146,14 +146,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
           <button
             onClick={() => onOrder && onOrder(false)}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-pos-orange text-white font-bold text-[10px] uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-[#2e70e0] text-white font-bold text-[10px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={() => onOrder && onOrder(true)}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-pos-orange text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-pos-orange-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 lg:h-12 rounded-xl bg-[#2e70e0] text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {orderLoading ? "Wait..." : "Order & Print"}
           </button>

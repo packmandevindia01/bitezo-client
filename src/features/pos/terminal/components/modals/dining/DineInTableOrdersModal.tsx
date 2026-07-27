@@ -443,6 +443,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       <GuestCountModal
         isOpen={showGuestCount}
         tableName={table?.tableName ?? ''}
+        tableCapacity={table?.capacity ?? 0}
         onConfirm={handleNewGuestConfirm}
         onClose={() => setShowGuestCount(false)}
       />

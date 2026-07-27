@@ -28,12 +28,12 @@ export interface CustomerResponse {
 
 export const customerSchema = z.object({
   id: z.number().optional(),
-  customerCode: z.string().optional(),
+  customerCode: z.string().min(1, "Customer code is required").trim(),
   customerName: z.string().min(1, "Customer name is required").trim(),
   arabicName: z.string().optional().default(""),
-  mobileNo: z.string().min(1, "Mobile number is required").trim(),
-  telNo: z.string().optional().default(""),
-  email: z.string().optional().default(""),
+  mobileNo: z.string().min(1, "Mobile number is required").regex(/^[\d\s+\-()]*$/, "Invalid mobile number").trim(),
+  telNo: z.string().regex(/^[\d\s+\-()]*$/, "Invalid telephone number").optional().or(z.literal("")).default(""),
+  email: z.string().email("Invalid email format").optional().or(z.literal("")).default(""),
   address: z.string().optional().default(""),
   area: z.string().optional().default(""),
   flatNo: z.string().optional().default(""),

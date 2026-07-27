@@ -282,6 +282,7 @@ export const DineInSelectionPage: React.FC = () => {
       <GuestCountModal
         isOpen={guestTable !== null}
         tableName={guestTable?.tableName ?? ''}
+        tableCapacity={guestTable?.capacity ?? 0}
         onConfirm={handleGuestConfirm}
         onClose={() => setGuestTable(null)}
       />

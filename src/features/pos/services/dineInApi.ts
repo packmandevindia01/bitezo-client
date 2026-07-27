@@ -10,6 +10,7 @@ interface RawDineInTable {
   orderDate: string;
   employeeName: string | null;
   isUsed: boolean;
+  chairs?: number;
 }
 
 export const dineInApi = {
@@ -35,7 +36,7 @@ export const dineInApi = {
         // derived
         status: t.isUsed ? 'occupied' : 'available',
         position: t.positionNo > 0 ? t.positionNo : idx + 1,
-        capacity: 0,   // endpoint doesn't return seat count
+        capacity: t.chairs ?? 0,
       }));
       return { ...data, data: mapped } as ApiResponse<DineInTable[]>;
     }

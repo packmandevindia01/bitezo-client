@@ -34,11 +34,19 @@ export const usePosDiscountFlow = ({
   }>({ isOpen: false, value: 0, mode: 'percentage' });
 
   const openDiscountChoice = useEvent(() => {
-    if (itemCount === 0) return;
+    if (itemCount === 0) {
+      showToast("Please add an item to the cart first", "warning");
+      return;
+    }
     setDiscountStep('choice');
   });
 
   const openDiscountInput = useEvent((type: 'bill' | 'item') => {
+    if (type === 'item' && !selectedKey) {
+      showToast("Please select an item in the cart first", "warning");
+      return;
+    }
+    
     if (type === 'item' && billDiscountValue > 0) {
       showToast("Cannot apply item discounts while a bill discount is active", "warning");
       return;

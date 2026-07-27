@@ -283,7 +283,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         try {
           const invRes = await purchaseReturnApi.getPurchaseInvoiceData(master.purchaseId.toString());
           if (invRes && invRes.masterData) {
-            master.purchaseInvoiceNo = invRes.masterData.purchaseNo || invRes.masterData.invoiceNo || master.purchaseInvoiceNo || "";
+            master.purchaseInvoiceNo = invRes.masterData.invoiceNo || invRes.masterData.purchaseNo || master.purchaseInvoiceNo || "";
           }
         } catch (error) {
           console.error("Failed to fetch original invoice data for edit mode", error);
@@ -422,7 +422,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   useEffect(() => {
     if (!watchedBranch) return;
     setSearchingProducts(true);
-    purchaseReturnApi.searchProductsByName(Number(watchedBranch), "")
+    purchaseReturnApi.searchProductsByName(Number(watchedBranch), "", purchaseId)
       .then(results => {
         const mapped = results.map((r) => ({
           label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
@@ -551,7 +551,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setValue(`items.${index}.stock`, "...");
       setValue(`items.${index}.avgCost`, "...");
 
-      const details = await purchaseReturnApi.getProductCostData(opt.barcode);
+      const details = await purchaseReturnApi.getProductCostData(opt.barcode, purchaseId);
       const currentQty = getValues(`items.${index}.qty`);
       setValue(`items.${index}.unitCategory`, details.unitCategory || "");
       setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
@@ -627,7 +627,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setValue(`items.${index}.stock`, "...");
       setValue(`items.${index}.avgCost`, "...");
 
-      const details = await purchaseReturnApi.getProductCostData(barcode).catch(() => null);
+      const details = await purchaseReturnApi.getProductCostData(barcode, purchaseId).catch(() => null);
       if (details) {
         setProductOptions(prev => {
           if (prev.find(o => o.value === String(details.productId))) return prev;
@@ -742,6 +742,43 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
 
     setSaving(true);
+    
+    // Balance validation for Invoice Returns
+    if (purchaseId > 0) {
+      for (const item of validItems) {
+        const unitCurrentValue = (() => {
+          for (const units of Object.values(categoryUnits)) {
+            const found = units.find(u => u.value === item.unit);
+            if (found) return found.currentValue;
+          }
+          return 1;
+        })();
+        const baseQty = toNumber(item.qty) * unitCurrentValue;
+        const productId = parseInt(item.product) || 0;
+        
+        try {
+          let balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, productId);
+          let balance = 0;
+          if (typeof balanceData === "object" && balanceData !== null) {
+            balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);
+          } else {
+            balance = Number(balanceData) || 0;
+          }
+          
+          if (baseQty > balance) {
+            const prodName = productOptions.find(p => p.value === item.product)?.label || item.product;
+            showToast(`Validation Failed: Maximum returnable quantity for ${prodName} is ${balance}`, "error");
+            setSaving(false);
+            return false;
+          }
+        } catch (e: any) {
+          showToast(e.message || `Failed to validate balance for product`, "error");
+          setSaving(false);
+          return false;
+        }
+      }
+    }
+
     try {
       const payload: any = {
         seriesId: parseInt(data.series) || 0,
@@ -785,11 +822,11 @@ export const usePurchaseReturn = (invoiceId?: string) => {
             discAmount: l.discountAmount,
             vatAmount: l.vatAmount,
             netAmount: l.netAmount,
-            baseQty: (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue,
+            baseQty: toNumber(item.qty) * unitCurrentValue,
           };
         }),
         paymodes: (() => {
-          if (watchedPayments.length <= 1) return [];
+          if (watchedPayments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return undefined;
           // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
           const map = new Map<number, number>();
           for (const p of watchedPayments as any[]) {

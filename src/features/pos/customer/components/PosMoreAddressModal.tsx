@@ -3,6 +3,7 @@ import { Modal, FormInput, Button } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { X, Plus, RotateCcw, CheckCircle2 } from "lucide-react";
 import { useDelivery } from "../hooks/useDelivery";
+import { useToast } from "../../../../app/providers/useToast";
 import type { DeliveryAddress } from "../types/delivery";
 
 interface PosMoreAddressModalProps {
@@ -21,6 +22,7 @@ export const PosMoreAddressModal = ({
   onSelectAddress,
 }: PosMoreAddressModalProps) => {
   const { loading, addressList, fetchAllAddressesByMobile, saveAddress } = useDelivery();
+  const { showToast } = useToast();
   // High-density sequential focus refs for smooth cashier navigation
   const phoneRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -100,9 +102,24 @@ export const PosMoreAddressModal = ({
 
   // Instantly selects on single tap, removing the need for selectedId state and side effects
 
+  const handleFieldChange = (field: keyof typeof form, val: string) => {
+    if (field === "phoneNo") {
+      if (!/^[0-9]*$/.test(val)) return;
+      if (val.length > 15) return;
+    } else if (field === "customerName") {
+      if (!/^[a-zA-Z\s'-]*$/.test(val)) return;
+      if (val.length > 50) return;
+    } else if (["flatNo", "buildingNo", "roadNo", "blockNo", "area"].includes(field as string)) {
+      if (!/^[a-zA-Z0-9\s,#-]*$/.test(val)) return;
+      if (val.length > 30) return;
+    }
+    setForm(prev => ({ ...prev, [field]: val }));
+  };
+
   const handleInput = (val: string) => {
     if (!activeField) return;
-    setForm((prev) => ({ ...prev, [activeField]: prev[activeField] + val }));
+    const currentVal = form[activeField] as string;
+    handleFieldChange(activeField, currentVal + val);
   };
 
   const handleBackspace = () => {
@@ -117,6 +134,10 @@ export const PosMoreAddressModal = ({
 
   const handleSave = async () => {
     if (!form.mobileNo) return;
+    if (!form.customerName.trim()) {
+      showToast("Customer Name is required", "error");
+      return;
+    }
     const responseData = await saveAddress({
       mobileNo: form.mobileNo,
       flatNo: form.flatNo,
@@ -206,7 +227,7 @@ export const PosMoreAddressModal = ({
                 <FormInput
                   ref={phoneRef}
                   value={form.phoneNo}
-                  onChange={(e) => setForm({ ...form, phoneNo: e.target.value })}
+                  onChange={(e) => handleFieldChange("phoneNo", e.target.value)}
                   onFocus={() => setActiveField("phoneNo")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, nameRef)}
@@ -216,11 +237,13 @@ export const PosMoreAddressModal = ({
                 />
               </div>
               <div className="col-span-2">
-                <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Customer Name</span>
+                <span className="text-[9px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">
+                  Customer Name <span className="text-red-500 ml-0.5 text-sm">*</span>
+                </span>
                 <FormInput
                   ref={nameRef}
                   value={form.customerName}
-                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                  onChange={(e) => handleFieldChange("customerName", e.target.value)}
                   onFocus={() => setActiveField("customerName")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, flatRef)}
@@ -238,7 +261,7 @@ export const PosMoreAddressModal = ({
                 <FormInput
                   ref={flatRef}
                   value={form.flatNo}
-                  onChange={(e) => setForm({ ...form, flatNo: e.target.value })}
+                  onChange={(e) => handleFieldChange("flatNo", e.target.value)}
                   onFocus={() => setActiveField("flatNo")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, buildingRef)}
@@ -252,7 +275,7 @@ export const PosMoreAddressModal = ({
                 <FormInput
                   ref={buildingRef}
                   value={form.buildingNo}
-                  onChange={(e) => setForm({ ...form, buildingNo: e.target.value })}
+                  onChange={(e) => handleFieldChange("buildingNo", e.target.value)}
                   onFocus={() => setActiveField("buildingNo")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, roadRef)}
@@ -266,7 +289,7 @@ export const PosMoreAddressModal = ({
                 <FormInput
                   ref={roadRef}
                   value={form.roadNo}
-                  onChange={(e) => setForm({ ...form, roadNo: e.target.value })}
+                  onChange={(e) => handleFieldChange("roadNo", e.target.value)}
                   onFocus={() => setActiveField("roadNo")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, blockRef)}
@@ -280,7 +303,7 @@ export const PosMoreAddressModal = ({
                 <FormInput
                   ref={blockRef}
                   value={form.blockNo}
-                  onChange={(e) => setForm({ ...form, blockNo: e.target.value })}
+                  onChange={(e) => handleFieldChange("blockNo", e.target.value)}
                   onFocus={() => setActiveField("blockNo")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, areaRef)}
@@ -294,7 +317,7 @@ export const PosMoreAddressModal = ({
                 <FormInput
                   ref={areaRef}
                   value={form.area}
-                  onChange={(e) => setForm({ ...form, area: e.target.value })}
+                  onChange={(e) => handleFieldChange("area", e.target.value)}
                   onFocus={() => setActiveField("area")}
                   onClick={() => setShowKeyboard(true)}
                   onKeyDown={(e) => handleEnterKey(e, "save")}

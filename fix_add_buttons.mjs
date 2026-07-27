@@ -118,6 +118,6 @@ filesToFix.forEach((relPath) => {
 
   if (changed) {
       fs.writeFileSync(filePath, content, 'utf8');
-      console.log(`Fixed ${relPath}`);
+      
   }
 });

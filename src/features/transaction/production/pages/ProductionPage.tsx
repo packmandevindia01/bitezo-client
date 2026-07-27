@@ -125,7 +125,7 @@ const ProductionPage = () => {
                 render={({ field }) => (
                   <SearchableSelect
                     id="prod-branch"
-                    label="Branch *"
+                    label="Branch"
                     className="h-8 !px-2 !text-xs"
                     required
                     options={branches}
@@ -149,7 +149,7 @@ const ProductionPage = () => {
                 render={({ field }) => (
                   <SearchableSelect
                     id="prod-employee"
-                    label="Employee *"
+                    label="Employee"
                     className="h-8 !px-2 !text-xs"
                     required
                     options={employees}
@@ -177,7 +177,7 @@ const ProductionPage = () => {
                 render={({ field }) => (
                   <SearchableSelect
                     id="prod-finProduct"
-                    label="Finished Product *"
+                    label="Finished Product"
                     className="h-8 !px-2 !text-xs"
                     options={finishedProducts}
                     value={field.value}
@@ -207,7 +207,7 @@ const ProductionPage = () => {
                 render={({ field }) => (
                   <SearchableSelect
                     id="prod-finUnit"
-                    label="Unit *"
+                    label="Unit"
                     className="h-8 !px-2 !text-xs"
                     required
                     options={finishedProductUnits}
@@ -227,7 +227,7 @@ const ProductionPage = () => {
                   />
                 )}
               />
-              <FormInput id="prod-finQty" label="Output Qty *" inputClassName="!h-8 !px-2 !text-xs text-right" value={watch("finishedProductQty")} onChange={(e) => setValue("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "product-select-0")} required />
+              <FormInput id="prod-finQty" label="Output Qty" inputClassName="!h-8 !px-2 !text-xs text-right" value={watch("finishedProductQty")} onChange={(e) => setValue("finishedProductQty", e.target.value)} onKeyDown={(e) => hk(e, "product-select-0")} required />
             </div>
 
             {/* ── Inline Editable Ingredients Table ── */}

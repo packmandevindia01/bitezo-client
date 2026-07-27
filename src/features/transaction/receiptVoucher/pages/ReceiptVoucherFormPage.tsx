@@ -88,22 +88,23 @@ const ReceiptVoucherFormPage = () => {
           {/* Column 1 */}
           <div className="flex flex-col gap-4">
             <SearchableSelect
-              id="rv-series"
-              label="SERIES"
+              id="rv-branch"
+              label="BRANCH"
               autoFocus
-              value={String(watch("seriesId") || "")}
-              onChange={(val) => setValue("seriesId", Number(val))}
-              placeholder="Select Series"
-              options={seriesList.map(s => ({ label: s.seriesName, value: String(s.seriesId) }))}
-              onKeyDown={(e) => handleKeyDown(e as any, "rv-branch")}
+              value={String(watch("branchId") || "")}
+              onChange={(val) => setValue("branchId", Number(val))}
+              placeholder="Select Branch"
+              options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
+              onKeyDown={(e) => handleKeyDown(e as any, "rv-series")}
               tabIndex={1}
-              disabled={!canSave}
+              disabled={!canSave || isBranchLocked}
             />
             
             <FormInput
               id="rv-date"
               label="DATE"
               type="date"
+              max={new Date().toISOString().split("T")[0]}
               value={watch("voucherDate")}
               onChange={(e) => setValue("voucherDate", e.target.value)}
               onKeyDown={(e) => handleKeyDown(e, "rv-employee")}
@@ -174,15 +175,15 @@ const ReceiptVoucherFormPage = () => {
           {/* Column 2 */}
           <div className="flex flex-col gap-4">
             <SearchableSelect
-              id="rv-branch"
-              label="BRANCH"
-              value={String(watch("branchId") || "")}
-              onChange={(val) => setValue("branchId", Number(val))}
-              placeholder="Select Branch"
-              options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
+              id="rv-series"
+              label="SERIES"
+              value={String(watch("seriesId") || "")}
+              onChange={(val) => setValue("seriesId", Number(val))}
+              placeholder="Select Series"
+              options={seriesList.map(s => ({ label: s.seriesName, value: String(s.seriesId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "rv-date")}
               tabIndex={2}
-              disabled={!canSave || isBranchLocked}
+              disabled={!canSave}
             />
 
             <SearchableSelect
@@ -307,6 +308,8 @@ const ReceiptVoucherFormPage = () => {
 
       <BackofficeMultiPayModal
         isOpen={isMultiPayOpen}
+        paymodes={paymodeList}
+        initialPayments={watch("paymodes")}
         onClose={() => setIsMultiPayOpen(false)}
         totalDue={Number(watch("amount") || 0)}
         onSubmit={(payments) => {

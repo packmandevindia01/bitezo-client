@@ -43,6 +43,6 @@ filesToUpdate.forEach(file => {
 
   if (changed) {
     fs.writeFileSync(file, content);
-    console.log('Updated ' + file);
+    
   }
 });

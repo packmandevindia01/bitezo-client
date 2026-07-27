@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { deliveryApi } from "../services/deliveryApi";
+import { customerApi } from "../services/customerApi";
 import type { DeliveryAddress, SaveDeliveryAddressRequest } from "../types/delivery";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -29,6 +30,27 @@ export const useDelivery = () => {
           return addresses;
         }
       }
+      
+      // Fallback: Check if the number belongs to a registered customer to auto-fill their name
+      try {
+        const custRes = await customerApi.getCustomers();
+        if (custRes && custRes.data) {
+          const matchingCust = custRes.data.find(c => c.mobileNo === mobileNo || c.telNo === mobileNo);
+          if (matchingCust && matchingCust.customerName) {
+            const fallbackAddr: DeliveryAddress = {
+              mobileNo: mobileNo,
+              customerName: matchingCust.customerName,
+              flatNo: "", buildingNo: "", roadNo: "", blockNo: "", area: "", note: ""
+            };
+            setAddressList([fallbackAddr]);
+            setAddress(fallbackAddr);
+            return [fallbackAddr];
+          }
+        }
+      } catch (fallbackError) {
+        // Ignore fallback errors
+      }
+
       setAddressList([]);
       setAddress(null);
       return [];

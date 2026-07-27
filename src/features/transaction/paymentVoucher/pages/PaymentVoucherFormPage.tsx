@@ -91,22 +91,23 @@ const PaymentVoucherFormPage = () => {
           {/* Column 1 */}
           <div className="flex flex-col gap-4">
             <SearchableSelect
-              id="pv-series"
-              label="SERIES"
+              id="pv-branch"
+              label="BRANCH"
               autoFocus
-              value={String(watch("seriesId") || "")}
-              onChange={(val) => setValue("seriesId", Number(val))}
-              placeholder="Select Series"
-              options={seriesList.map(s => ({ label: s.seriesName, value: String(s.seriesId) }))}
-              onKeyDown={(e) => handleKeyDown(e as any, "pv-branch")}
+              value={String(watch("branchId") || "")}
+              onChange={(val) => setValue("branchId", Number(val))}
+              placeholder="Select Branch"
+              options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
+              onKeyDown={(e) => handleKeyDown(e as any, "pv-series")}
               tabIndex={1}
-              disabled={!canSave}
+              disabled={!canSave || isBranchLocked}
             />
             
             <FormInput
               id="pv-date"
               label="DATE"
               type="date"
+              max={new Date().toISOString().split("T")[0]}
               value={watch("voucherDate")}
               onChange={(e) => setValue("voucherDate", e.target.value)}
               onKeyDown={(e) => handleKeyDown(e, "pv-employee")}
@@ -141,47 +142,52 @@ const PaymentVoucherFormPage = () => {
               disabled={!canSave}
             />
 
-            <SearchableSelect
-              key={paymodeSelectKey}
-              id="pv-paymode"
-              label="PAYMODE"
-              value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
-              onChange={(val) => {
-                const selectedId = Number(val);
-                const selectedPaymode = paymodeList.find(p => p.paymodeId === selectedId);
-                const isMultiPay = selectedPaymode?.paymodeName?.toLowerCase().includes("multi") || selectedId === 3;
-                if (isMultiPay) {
-                  // Save current selection so we can restore it if the user cancels
-                  previousPaymodeId.current = watch("paymodeId") || 0;
-                  if (watch("amount") && canSave) {
-                    setIsMultiPayOpen(true);
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <SearchableSelect
+                  key={paymodeSelectKey}
+                  id="pv-paymode"
+                  label="PAYMODE"
+                  value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
+                  onChange={(val) => setValue("paymodeId", Number(val))}
+                  placeholder="Select Paymode"
+                  options={
+                    watch("paymodeId") === 3 
+                      ? [...paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) })), { label: "MULTI-PAY (SPLIT)", value: "3" }]
+                      : paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))
                   }
-                } else {
-                  // Normal selection — commit immediately and clear any prior multipay data
-                  setValue("paymodeId", selectedId);
-                  setValue("paymodes", undefined);
-                }
-              }}
-              placeholder="Select Paymode"
-              options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
-              onKeyDown={(e) => handleKeyDown(e as any, "pv-narration")}
-              tabIndex={9}
-              disabled={!canSave || watch("paymodeId") === 3}
-            />
+                  onKeyDown={(e) => handleKeyDown(e as any, "pv-narration")}
+                  tabIndex={9}
+                  disabled={!canSave || watch("paymodeId") === 3}
+                />
+              </div>
+              <div className="flex items-end pb-[2px]">
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20 text-xs font-bold" 
+                  onClick={() => setIsMultiPayOpen(true)}
+                  disabled={!canSave || !watch("amount")}
+                  tabIndex={-1}
+                >
+                  MULTI
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Column 2 */}
           <div className="flex flex-col gap-4">
             <SearchableSelect
-              id="pv-branch"
-              label="BRANCH"
-              value={String(watch("branchId") || "")}
-              onChange={(val) => setValue("branchId", Number(val))}
-              placeholder="Select Branch"
-              options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
+              id="pv-series"
+              label="SERIES"
+              value={String(watch("seriesId") || "")}
+              onChange={(val) => setValue("seriesId", Number(val))}
+              placeholder="Select Series"
+              options={seriesList.map(s => ({ label: s.seriesName, value: String(s.seriesId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "pv-date")}
               tabIndex={2}
-              disabled={!canSave || isBranchLocked}
+              disabled={!canSave}
             />
 
             <SearchableSelect
@@ -299,6 +305,7 @@ const PaymentVoucherFormPage = () => {
       <BackofficeMultiPayModal
         isOpen={isMultiPayOpen}
         paymodes={paymodeList}
+        initialPayments={watch("paymodes")}
         onClose={() => {
           // User cancelled — restore the previous paymode selection exactly as it was.
           // Bump the key to force SearchableSelect to re-mount with the restored value,

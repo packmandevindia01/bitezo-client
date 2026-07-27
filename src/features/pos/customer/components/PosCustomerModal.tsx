@@ -64,8 +64,8 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
   };
 
   const step = Math.pow(10, -getDecimalPart()).toString();
-
-  const { ref: nameFormRef, ...nameRegister } = register("customerName");
+  
+  const { ref: codeFormRef, ...codeRegister } = register("customerCode");
 
   return (
     <Modal
@@ -76,7 +76,24 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
       className="!max-w-[95vw] w-[95vw] !max-h-[95vh] h-[95vh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
       <FormProvider {...methods}>
-        <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 h-full min-h-0 bg-slate-50">
+        <form 
+          onSubmit={handleFormSubmit} 
+          className="flex flex-col flex-1 h-full min-h-0 bg-slate-50"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const target = e.target as HTMLElement;
+              
+              if (target.tagName !== "BUTTON") {
+                // Allow Shift+Enter for new lines in textarea
+                if (target.tagName === "TEXTAREA" && e.shiftKey) {
+                  return;
+                }
+                e.preventDefault();
+                handleFocusNextInput(target);
+              }
+            }
+          }}
+        >
           
           {/* Header - Premium Maroon */}
           <div className="flex items-center justify-between bg-[#49293e] px-4 py-3 text-white shrink-0 border-b border-white/10 relative flex-wrap gap-4 shadow-md z-20">
@@ -120,7 +137,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 disabled={loading} 
                 isAction
                 icon={<Plus size={18} />}
-                tabIndex={-1}
+                tabIndex={13}
               >
                 New
               </Button>
@@ -133,7 +150,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 disabled={loading || !customerId} 
                 isAction
                 icon={<Trash2 size={18} />}
-                tabIndex={13}
+                tabIndex={14}
               >
                 Delete
               </Button>
@@ -142,7 +159,8 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 loading={loading} 
                 isAction
                 icon={<Save size={18} />}
-                tabIndex={12}
+                tabIndex={15}
+                className="!bg-green-600 hover:!bg-green-700 !border-green-600"
               >
                 Save
               </Button>
@@ -150,7 +168,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 type="button"
                 onClick={onClose}
                 className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors ml-1"
-                tabIndex={-1}
+                tabIndex={16}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
@@ -173,25 +191,28 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 <div className="space-y-4">
                 <FormInput
                   label="Customer Code"
-                  {...register("customerCode")}
-                  placeholder="AUTO"
-                  readOnly
+                  required
+                  {...codeRegister}
+                  ref={(el) => {
+                    codeFormRef(el);
+                    (firstInputRef as any).current = el;
+                  }}
+                  error={errors.customerCode?.message}
+                  onFocus={handleInputFocus}
+                  onClick={handleInputFocus}
+                  placeholder="Enter Code"
                   inputMode="none"
-                  tabIndex={-1}
+                  tabIndex={1}
                 />
                 <FormInput
                   label="Customer Name"
                   required
-                  {...nameRegister}
-                  ref={(el) => {
-                    nameFormRef(el);
-                    (firstInputRef as any).current = el;
-                  }}
+                  {...register("customerName")}
                   error={errors.customerName?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={1}
+                  tabIndex={2}
                 />
                 <FormInput
                   label="Arabic Name"
@@ -211,7 +232,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={5}
+                  tabIndex={4}
                 />
                 <FormInput
                   label="Tel No"
@@ -220,7 +241,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={7}
+                  tabIndex={5}
                 />
                 <FormInput
                   label="Email"
@@ -229,7 +250,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={9}
+                  tabIndex={6}
                 />
               </div>
               </div>
@@ -262,7 +283,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                     } focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20`}
                     placeholder="Enter full address"
                     inputMode="none"
-                    tabIndex={2}
+                    tabIndex={7}
                   />
                 </div>
 
@@ -273,7 +294,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={4}
+                  tabIndex={8}
                 />
                 <FormInput
                   label="Identity No"
@@ -282,7 +303,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={6}
+                  tabIndex={9}
                 />
                 <FormInput
                   label="TRN No"
@@ -291,14 +312,14 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputMode="none"
-                  tabIndex={8}
+                  tabIndex={10}
                 />
                 <SelectInput
                   label="Branch"
                   placeholder="Select Branch..."
                   {...register("branch")}
                   error={errors.branch?.message}
-                  tabIndex={10}
+                  tabIndex={11}
                   onFocus={(e) => {
                     try {
                       e.target.showPicker();
@@ -335,7 +356,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onClick={handleInputFocus}
                   inputClassName="text-right"
                   inputMode="none"
-                  tabIndex={11}
+                  tabIndex={12}
                 />
                 </div>
               </div>

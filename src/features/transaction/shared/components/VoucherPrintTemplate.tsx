@@ -29,10 +29,100 @@ export interface VoucherPrintData {
 
 interface VoucherPrintTemplateProps {
   data: Partial<VoucherPrintData>;
+  paperSize?: "A4" | "80mm";
 }
 
-export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data }) => {
+export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data, paperSize = "A4" }) => {
   const isReceipt = data.voucherType === "RECEIPT";
+
+  if (paperSize === "80mm") {
+    return (
+      <div id="print-template" className="w-[300px] bg-white text-black font-sans mx-auto text-xs px-4 py-2">
+        {/* 80mm Header */}
+        <div className="text-center mb-3">
+          <h1 className="text-xl font-bold uppercase tracking-wide leading-tight mb-1">{data.companyName || "AL ASRIYA ADVANCED TRADING LLC"}</h1>
+          <p className="text-[11px] text-gray-800">{data.companyAddress || "SULTANATE OF OMAN"}</p>
+          <p className="text-[11px] text-gray-800">M: {data.companyMobile || "94661313"} | P: {data.companyPhone || ""}</p>
+        </div>
+
+        <div className="text-center mb-4 border-y border-black border-dashed py-1">
+          <h2 className="font-extrabold uppercase tracking-widest text-sm">{isReceipt ? "Receipt" : "Payment Voucher"}</h2>
+        </div>
+
+        <div className="mb-3 text-[11px]">
+          <div className="flex justify-between"><span className="font-semibold text-gray-600">Voucher No:</span> <span className="font-bold">{data.voucherNo}</span></div>
+          <div className="flex justify-between"><span className="font-semibold text-gray-600">Date:</span> <span className="font-bold">{data.date}</span></div>
+          <div className="flex justify-between"><span className="font-semibold text-gray-600">Type:</span> <span className="font-bold">{data.paymentType || (isReceipt ? "CASH RECEIPT" : "CASH PAYMENT")}</span></div>
+        </div>
+
+        <div className="border-t border-black border-dashed py-3 mb-2">
+          <div className="mb-3">
+            <div className="text-gray-600 mb-0.5 font-semibold text-[11px]">{isReceipt || data.voucherType === "PAYMENT AGAINST" ? "Received from:" : "Paid to:"}</div>
+            <div className="font-bold text-sm uppercase">{data.partyName}</div>
+          </div>
+          <div className="flex justify-between items-center font-bold text-lg mt-3 bg-gray-50 py-1 rounded">
+            <span>Amount:</span>
+            <span>{getCurrencySymbol()} {formatAmount(data.amount || 0)}</span>
+          </div>
+          <div className="mt-2 text-[11px] leading-tight italic text-gray-700">
+            {data.amountInWords}
+          </div>
+          {data.narration && (
+            <div className="mt-3 text-[11px] break-all">
+              <span className="font-semibold text-gray-600">Narration:</span> {data.narration}
+            </div>
+          )}
+        </div>
+
+        {data.receiptDetails && data.receiptDetails.length > 0 && (
+          <div className="mt-3 border-t border-black border-dashed pt-2">
+            <div className="text-center mb-2 font-bold uppercase text-[11px] tracking-wider">Invoice Details</div>
+            <table className="w-full text-left text-[10px] mb-2 border-collapse">
+              <thead>
+                <tr className="border-b border-gray-300">
+                  <th className="py-1 font-semibold text-gray-600">Inv#</th>
+                  <th className="py-1 font-semibold text-gray-600">Date</th>
+                  <th className="py-1 text-right font-semibold text-gray-600">Rcvd</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.receiptDetails.map((detail, idx) => (
+                  <tr key={idx} className="border-b border-gray-100 last:border-0">
+                    <td className="py-1.5">{detail.invoiceNo}</td>
+                    <td className="py-1.5">{detail.invoiceDate}</td>
+                    <td className="py-1.5 text-right font-bold">{formatAmount(detail.receivedAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <div className="border-t border-black border-dashed pt-2 mt-1 space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="font-semibold text-gray-600">Total:</span>
+                <span className="font-bold">{formatAmount(data.amount || 0)}</span>
+              </div>
+              {!!data.discount && (
+                <div className="flex justify-between text-[11px]">
+                  <span className="font-semibold text-gray-600">Discount:</span>
+                  <span className="font-bold">{formatAmount(data.discount)}</span>
+                </div>
+              )}
+              {!!data.discount && (
+                <div className="flex justify-between font-bold text-sm pt-1 mt-1 border-t border-gray-300">
+                  <span>Net:</span>
+                  <span>{formatAmount(data.netAmount ?? (data.amount || 0) - (data.discount || 0))}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="text-center mt-6 pt-3 border-t border-black border-dashed text-[11px] font-semibold text-gray-600">
+          <p>*** Thank You ***</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="print-template" className="w-full bg-white text-black p-8 font-sans mx-auto" style={{ maxWidth: '800px' }}>
@@ -60,40 +150,47 @@ export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data
         <div>
           <div className="flex mb-1">
             <span className="w-24">Voucher No</span>
-            <span>: &nbsp; {data.voucherNo}</span>
+            <span className="mr-2">:</span>
+            <span>{data.voucherNo}</span>
           </div>
           <div className="flex">
             <span className="w-24">Date</span>
-            <span>: &nbsp; {data.date}</span>
+            <span className="mr-2">:</span>
+            <span>{data.date}</span>
           </div>
         </div>
         <div className="flex">
           <span className="w-16">TYPE</span>
-          <span>: &nbsp; {data.paymentType || (isReceipt ? "CASH RECEIPT" : "CASH PAYMENT")}</span>
+          <span className="mr-2">:</span>
+          <span>{data.paymentType || (isReceipt ? "CASH RECEIPT" : "CASH PAYMENT")}</span>
         </div>
       </div>
 
       {/* MAIN BODY SECTION (Inside dotted border) */}
       <div className="border border-dashed border-black p-4 text-sm relative min-h-[160px]">
-        <div className="flex justify-between mb-4">
-          <div className="flex flex-1">
+        <div className="mb-4">
+          <div className="flex mb-2">
             <span className="w-32">{isReceipt || data.voucherType === "PAYMENT AGAINST" ? "Received from" : "Paid to"}</span>
-            <span className="flex-1">: &nbsp; {data.partyName}</span>
+            <span className="mr-2">:</span>
+            <span className="flex-1">{data.partyName}</span>
           </div>
-          <div className="flex items-center ml-4">
-            <span className="w-20">Amount</span>
-            <span className="font-bold">: &nbsp; {getCurrencySymbol()} {formatAmount(data.amount || 0)}</span>
+          <div className="flex">
+            <span className="w-32">Amount</span>
+            <span className="mr-2">:</span>
+            <span className="font-bold flex-1">{getCurrencySymbol()} {formatAmount(data.amount || 0)}</span>
           </div>
         </div>
         
         <div className="flex mb-8">
           <span className="w-32">In Words</span>
-          <span className="flex-1">: &nbsp; {data.amountInWords}</span>
+          <span className="mr-2">:</span>
+          <span className="flex-1">{data.amountInWords}</span>
         </div>
 
         <div className="flex mb-2">
-          <span className="w-32">Narration</span>
-          <span className="flex-1">: &nbsp; {data.narration || "-"}</span>
+          <span className="w-32 flex-shrink-0">Narration</span>
+          <span className="mr-2">:</span>
+          <span className="flex-1 break-all">{data.narration || "-"}</span>
         </div>
       </div>
 

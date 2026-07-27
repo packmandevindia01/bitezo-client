@@ -10,7 +10,16 @@ export const lockProductService = {
       `${BASE}/lock-product-list`,
       { params: { productName, _t: Date.now() } }
     );
-    return data.data || [];
+    const items = data.data || [];
+    const now = new Date();
+    
+    return items.filter(item => {
+      if (!item.lockUntil) return false;
+      const dateStr = (item.lockUntil.includes('Z') || item.lockUntil.includes('+')) 
+        ? item.lockUntil 
+        : item.lockUntil + 'Z';
+      return new Date(dateStr) > now;
+    });
   },
 
   /** GET /api/lock-product/product-list-name */

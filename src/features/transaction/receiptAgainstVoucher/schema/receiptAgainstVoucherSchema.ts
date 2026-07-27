@@ -19,10 +19,15 @@ export const receiptAgainstVoucherSchema = z.object({
   accountId: z.number().min(1, "Account/Customer is required"),
   paymodeId: z.number().min(1, "Paymode is required"),
   employeeId: z.number().min(1, "Salesman is required"),
-  voucherDate: z.string().min(1, "Voucher Date is required"),
+  voucherDate: z.string().min(1, "Voucher Date is required").refine((date) => {
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return selectedDate <= today;
+  }, { message: "Future dates are not allowed" }),
   discount: z.number().min(0).default(0),
   refNo: z.string().optional().default(""),
-  narration: z.string().optional().default(""),
+  narration: z.string().max(200, "Narration cannot exceed 200 characters").optional().default(""),
   details: z.array(receiptAgainstDetailSchema).min(1, "Select at least one invoice to receive against"),
   paymodes: z.array(z.object({
     paymodeId: z.number(),

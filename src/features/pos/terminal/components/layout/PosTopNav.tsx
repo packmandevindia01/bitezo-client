@@ -152,14 +152,16 @@ const PosTopNav = ({
 
       <div className="flex items-center gap-1 lg:gap-1.5 shrink-0">
 
-        <div className="hidden lg:flex flex-col text-[11px] font-semibold mr-6 lg:mr-8 text-right leading-[1.2]">
-          <div className="flex gap-2 justify-end text-slate-800">
-            <span>Order : {editingOrderId || activeProvider?.orderNo || "New"}</span>
-            <span>Ticket : {editingOrderId || activeProvider?.orderNo || "New"}</span>
+        <div className="hidden lg:flex flex-col text-right mr-4 lg:mr-6 leading-tight justify-center">
+          <div className="flex gap-3 justify-end text-slate-900 font-bold text-sm">
+            <span><span className="text-slate-500 font-semibold mr-1">Order:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
+            <span className="text-slate-300">|</span>
+            <span><span className="text-slate-500 font-semibold mr-1">Ticket:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
           </div>
-          <div className="flex gap-2 justify-end text-slate-500">
-            <span>Section : {selectedOrderTypeName || "-"}</span>
-            <span>Table : {selectedTableNo || "-"}</span>
+          <div className="flex gap-3 justify-end text-slate-700 font-semibold text-[12px] mt-0.5">
+            <span><span className="text-slate-400 font-medium mr-1">Section:</span>{selectedOrderTypeName || "-"}</span>
+            <span className="text-slate-300">|</span>
+            <span><span className="text-slate-400 font-medium mr-1">Table:</span>{selectedTableNo || "-"}</span>
           </div>
         </div>
 

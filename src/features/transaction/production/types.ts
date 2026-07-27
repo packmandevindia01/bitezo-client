@@ -25,6 +25,7 @@ export const productionSchema = z.object({
   
   finishedProduct: z.string().min(1, "Finished Product is required"),
   finishedProductCode: z.string().optional(),
+  finishedProductName: z.string().optional(),
   finishedProductUnit: z.string().min(1, "Unit is required"),
   finishedProductUnitName: z.string().optional(),
   finishedProductQty: z.string().min(1, "Output Qty is required").refine((val) => !isNaN(Number(val)) && Number(val) > 0, "Invalid Qty"),

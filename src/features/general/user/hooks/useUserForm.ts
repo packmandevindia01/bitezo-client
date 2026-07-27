@@ -60,11 +60,14 @@ export const useUserForm = ({ initialData, onSuccess }: UseUserFormProps) => {
       if (onSuccess) onSuccess();
     },
     onError: (err: any) => {
-      showToast(err.message || "Failed to save user", "error");
+      const msg = err.response?.data?.message || err.response?.data?.title || err.message || "Failed to save user";
+      showToast(msg, "error");
     },
   });
 
-  const handleSubmit = form.handleSubmit((data) => saveMutation.mutateAsync(data as any));
+  const handleSubmit = form.handleSubmit((data) => {
+    saveMutation.mutate(data as any);
+  });
 
   return {
     form,

@@ -208,6 +208,11 @@ export const ProductDetailsSection = ({
           inputClassName="text-right"
           {...register("cost")}
           onFocus={(e) => e.target.select()}
+          onInput={(e) => {
+            if (e.currentTarget.value.length > 15) {
+              e.currentTarget.value = e.currentTarget.value.slice(0, 15);
+            }
+          }}
           onKeyDown={(e) => handleKeyDown(e, "prod-price-incl")}
           required
           error={errors.cost?.message as string}
@@ -244,6 +249,11 @@ export const ProductDetailsSection = ({
             inputClassName="text-right"
             {...register("price")}
             onFocus={(e) => e.target.select()}
+            onInput={(e) => {
+              if (e.currentTarget.value.length > 15) {
+                e.currentTarget.value = e.currentTarget.value.slice(0, 15);
+              }
+            }}
             onKeyDown={(e) => handleKeyDown(e, "prod-p-vat")}
             required
             error={errors.price?.message as string}

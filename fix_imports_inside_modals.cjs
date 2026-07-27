@@ -50,4 +50,4 @@ function processDirectory(dir) {
 }
 
 processDirectory(modalsDir);
-console.log('Fixed imports inside modals.');
+

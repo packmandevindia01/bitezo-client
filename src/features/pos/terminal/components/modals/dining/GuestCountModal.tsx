@@ -2,9 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, Delete } from 'lucide-react';
 import Modal from '../../../../../../components/common/Modal';
 
+import { useToast } from '../../../../../../app/providers/useToast';
+
 interface GuestCountModalProps {
   isOpen: boolean;
   tableName: string;
+  tableCapacity?: number;
   onConfirm: (guestCount: number) => void;
   onClose: () => void;
 }
@@ -14,11 +17,13 @@ const NUMPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '00'];
 export const GuestCountModal: React.FC<GuestCountModalProps> = ({
   isOpen,
   tableName,
+  tableCapacity = 0,
   onConfirm,
   onClose,
 }) => {
   const [input, setInput] = useState('');
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const { showToast } = useToast();
 
   // Reset + focus confirm button when modal opens (autofocus rule §1)
   useEffect(() => {
@@ -46,8 +51,14 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
   const handleConfirm = useCallback(() => {
     const val = parseInt(input, 10);
     if (!val || val < 1) return;
+    
+    if (tableCapacity > 0 && val > tableCapacity) {
+      showToast(`Cannot exceed table capacity (${tableCapacity} guests).`, 'error');
+      return;
+    }
+    
     onConfirm(val);
-  }, [input, onConfirm]);
+  }, [input, onConfirm, tableCapacity, showToast]);
 
   // Physical keyboard support (digits, Backspace, Enter) — §1 POS keyboard rule
   // Note: Escape is already handled by the parent Modal component

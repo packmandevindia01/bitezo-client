@@ -27,11 +27,15 @@ const PaymentAgainstVoucherListPage = () => {
 
   const sortedRecords = [...records].sort((a: any, b: any) => b.transId - a.transId);
 
-  const filteredRecords = sortedRecords.filter((item: any) => 
-      item.voucherNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.account.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRecords = sortedRecords.filter((item: any) => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      String(item.voucherNo || "").toLowerCase().includes(searchLower) ||
+      String(item.account || "").toLowerCase().includes(searchLower) ||
+      String(item.code || "").toLowerCase().includes(searchLower)
+    );
+  });
 
   const deleteMutation = useMutation({
     mutationFn: paymentAgainstVoucherApi.cancelPaymentAgainstVoucher,

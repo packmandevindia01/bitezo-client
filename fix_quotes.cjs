@@ -21,4 +21,4 @@ function processDirectory(dir) {
 }
 
 processDirectory(modalsDir);
-console.log('Fixed quotes inside modals.');
+

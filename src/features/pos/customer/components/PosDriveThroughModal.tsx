@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Modal, FormInput, Button } from "../../../../components/common";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { Save, RotateCcw } from "lucide-react";
+import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import {
   setOrderTypeByName,
@@ -16,6 +17,7 @@ interface PosDriveThroughModalProps {
 
 export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalProps) => {
   const dispatch = useAppDispatch();
+  const { showToast } = useToast();
   const { vehicleNo: savedVehicleNo, vehicleCustomerName: savedVehicleCustomerName } = useAppSelector((state) => state.pos);
   const [form, setForm] = useState({
     vehicleNo: "",
@@ -42,7 +44,18 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
 
   const handleInput = (val: string) => {
     if (!activeField) return;
-    setForm({ ...form, [activeField]: form[activeField] + val });
+    const currentVal = form[activeField];
+    const newVal = currentVal + val;
+
+    if (activeField === "vehicleNo") {
+      if (newVal.length > 20) return;
+      if (!/^[a-zA-Z0-9\s-]*$/.test(newVal)) return;
+    } else if (activeField === "customerName") {
+      if (newVal.length > 50) return;
+      if (!/^[a-zA-Z\s'-]*$/.test(newVal)) return;
+    }
+
+    setForm({ ...form, [activeField]: newVal });
   };
 
   const handleBackspace = () => {
@@ -74,6 +87,11 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
   };
 
   const handleSave = () => {
+    if (!form.vehicleNo.trim() || !form.customerName.trim()) {
+      showToast("Both Vehicle No and Customer Name are required", "error");
+      return;
+    }
+
     dispatch(setOrderTypeByName("DriveThru"));
     dispatch(setVehicleNo(form.vehicleNo));
     dispatch(setVehicleCustomerName(form.customerName));
@@ -113,21 +131,35 @@ export const PosDriveThroughModal = ({ isOpen, onClose }: PosDriveThroughModalPr
             <FormInput
               label="Vehicle No"
               value={form.vehicleNo}
-              onChange={(e) => setForm({ ...form, vehicleNo: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length <= 20 && /^[a-zA-Z0-9\s-]*$/.test(val)) {
+                  setForm({ ...form, vehicleNo: val });
+                }
+              }}
               onFocus={() => handleFieldFocus("vehicleNo")}
               onClick={() => handleFieldClick("vehicleNo")}
               ref={firstInputRef}
               inputMode="none"
+              maxLength={20}
+              required
             />
           </div>
           <div className="w-full md:w-1/2">
             <FormInput
               label="Customer Name"
               value={form.customerName}
-              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length <= 50 && /^[a-zA-Z\s'-]*$/.test(val)) {
+                  setForm({ ...form, customerName: val });
+                }
+              }}
               onFocus={() => handleFieldFocus("customerName")}
               onClick={() => handleFieldClick("customerName")}
               inputMode="none"
+              maxLength={50}
+              required
             />
           </div>
         </div>

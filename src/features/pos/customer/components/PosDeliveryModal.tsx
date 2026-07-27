@@ -15,6 +15,7 @@ import {
   setIsComing,
   setChange
 } from "../../terminal/store/posSlice";
+import { useToast } from "../../../../app/providers/useToast";
 
 interface PosDeliveryModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface PosDeliveryModalProps {
 
 export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => {
   const { loading, fetchAddressByMobile, saveAddress } = useDelivery();
+  const { showToast } = useToast();
   const dispatch = useAppDispatch();
   const [isMoreAddressOpen, setIsMoreAddressOpen] = useState(false);
   const [currentAddressId, setCurrentAddressId] = useState<number | null>(null);
@@ -160,10 +162,30 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
     lookupMobile();
   }, [form.mobileNo, fetchAddressByMobile]);
 
+  const handleFieldChange = (field: keyof typeof form, val: string) => {
+    if (field === "mobileNo" || field === "callBack") {
+      if (!/^[0-9]*$/.test(val)) return;
+      if (val.length > 15) return;
+    } else if (field === "customerName") {
+      if (!/^[a-zA-Z\s'-]*$/.test(val)) return;
+      if (val.length > 50) return;
+    } else if (["flatNo", "buildingNo", "roadNo", "blockNo", "area"].includes(field as string)) {
+      if (!/^[a-zA-Z0-9\s,#-]*$/.test(val)) return;
+      if (val.length > 30) return;
+    } else if (field === "note") {
+      if (val.length > 100) return;
+    } else if (field === "keepChanges") {
+      if (!/^[0-9.]*$/.test(val)) return;
+      if (val.length > 10) return;
+    }
+    setForm(prev => ({ ...prev, [field]: val }));
+  };
+
   const handleInput = (val: string) => {
     if (!activeField) return;
     if (typeof form[activeField] === "string") {
-      setForm({ ...form, [activeField]: (form[activeField] as string) + val });
+      const currentVal = form[activeField] as string;
+      handleFieldChange(activeField, currentVal + val);
     }
   };
 
@@ -195,7 +217,10 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
   };
 
   const handleSave = async () => {
-    if (!form.mobileNo) return;
+    if (!form.mobileNo.trim() || !form.customerName.trim()) {
+      showToast("Both Mobile No and Customer Name are required", "error");
+      return;
+    }
     
     // Check if the current form matches the last loaded/saved address exactly
     const isUnchanged = lastLoadedAddressRef.current &&
@@ -317,10 +342,12 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
           {/* Row 1: Primary Identity & Round Search Icon */}
           <div className={`grid grid-cols-12 ${isCompactViewport ? "gap-3" : "gap-4"} items-end shrink-0`}>
             <div className="col-span-3">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Mobile No</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">
+                Mobile No <span className="text-red-500 ml-0.5 text-sm">*</span>
+              </span>
               <FormInput
                 value={form.mobileNo}
-                onChange={(e) => setForm({ ...form, mobileNo: e.target.value })}
+                onChange={(e) => handleFieldChange("mobileNo", e.target.value)}
                 onFocus={() => handleFieldFocus("mobileNo")}
                 onClick={() => setShowKeyboard(true)}
                 ref={mobileRef}
@@ -332,11 +359,13 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               />
             </div>
             <div className="col-span-5">
-              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">Customer Name</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase ml-1 block mb-0.5">
+                Customer Name <span className="text-red-500 ml-0.5 text-sm">*</span>
+              </span>
               <FormInput
                 ref={nameRef}
                 value={form.customerName}
-                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                onChange={(e) => handleFieldChange("customerName", e.target.value)}
                 onFocus={() => handleFieldFocus("customerName")}
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, flatRef)}
@@ -366,7 +395,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput
                 ref={flatRef}
                 value={form.flatNo}
-                onChange={(e) => setForm({ ...form, flatNo: e.target.value })}
+                onChange={(e) => handleFieldChange("flatNo", e.target.value)}
                 onFocus={() => handleFieldFocus("flatNo")}
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, buildingRef)}
@@ -380,7 +409,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput
                 ref={buildingRef}
                 value={form.buildingNo}
-                onChange={(e) => setForm({ ...form, buildingNo: e.target.value })}
+                onChange={(e) => handleFieldChange("buildingNo", e.target.value)}
                 onFocus={() => handleFieldFocus("buildingNo")}
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, roadRef)}
@@ -394,7 +423,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput
                 ref={roadRef}
                 value={form.roadNo}
-                onChange={(e) => setForm({ ...form, roadNo: e.target.value })}
+                onChange={(e) => handleFieldChange("roadNo", e.target.value)}
                 onFocus={() => handleFieldFocus("roadNo")}
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, blockRef)}
@@ -408,7 +437,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput
                 ref={blockRef}
                 value={form.blockNo}
-                onChange={(e) => setForm({ ...form, blockNo: e.target.value })}
+                onChange={(e) => handleFieldChange("blockNo", e.target.value)}
                 onFocus={() => handleFieldFocus("blockNo")}
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, areaRef)}
@@ -422,7 +451,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput
                 ref={areaRef}
                 value={form.area}
-                onChange={(e) => setForm({ ...form, area: e.target.value })}
+                onChange={(e) => handleFieldChange("area", e.target.value)}
                 onFocus={() => handleFieldFocus("area")}
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, noteRef)}
@@ -440,7 +469,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput 
                 ref={noteRef}
                 value={form.note} 
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                onChange={(e) => handleFieldChange("note", e.target.value)}
                 onFocus={() => handleFieldFocus("note")} 
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, callBackRef)}
@@ -454,7 +483,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput 
                 ref={callBackRef}
                 value={form.callBack} 
-                onChange={(e) => setForm({ ...form, callBack: e.target.value })}
+                onChange={(e) => handleFieldChange("callBack", e.target.value)}
                 onFocus={() => handleFieldFocus("callBack")} 
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, keepChangesRef)}
@@ -491,7 +520,7 @@ export const PosDeliveryModal = ({ isOpen, onClose }: PosDeliveryModalProps) => 
               <FormInput 
                 ref={keepChangesRef}
                 value={form.keepChanges} 
-                onChange={(e) => setForm({ ...form, keepChanges: e.target.value })}
+                onChange={(e) => handleFieldChange("keepChanges", e.target.value)}
                 onFocus={() => handleFieldFocus("keepChanges")} 
                 onClick={() => setShowKeyboard(true)}
                 onKeyDown={(e) => handleEnterKey(e, "save")}

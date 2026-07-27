@@ -64,7 +64,8 @@ export const usePosCartActions = () => {
     price?: number, 
     isIncl?: boolean,
     discountValue?: number,
-    discountType?: 'percentage' | 'amount'
+    discountType?: 'percentage' | 'amount',
+    unitId?: number
   ) => {
     const targetPrice = price ?? 0;
     
@@ -87,11 +88,11 @@ export const usePosCartActions = () => {
     );
 
     if (existing) {
-      dispatch(addToCart({ uniqueId: existing.uniqueId, productId, variantName, price: targetPrice, isIncl, discountValue, discountType }));
+      dispatch(addToCart({ uniqueId: existing.uniqueId, productId, variantName, price: targetPrice, isIncl, discountValue, discountType, unitId }));
       return existing.uniqueId;
     } else {
       const uniqueId = `${productId}-${variantName || 'main'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      dispatch(addToCart({ uniqueId, productId, variantName, price: targetPrice, isIncl, discountValue, discountType }));
+      dispatch(addToCart({ uniqueId, productId, variantName, price: targetPrice, isIncl, discountValue, discountType, unitId }));
       return uniqueId;
     }
   };
@@ -193,7 +194,7 @@ export const usePosCartActions = () => {
 
     return {
       orderId: editingOrderId || 0,
-      customerId: selectedCustomerId,
+      customerId: selectedCustomerId || 0,
       employeeId: session.employeeId ?? session.userId ?? 1,
       discAmount: Number(discount.toFixed(getDecimalPart())),
       discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
@@ -215,13 +216,13 @@ export const usePosCartActions = () => {
       vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
         ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
         : "",
-      addressId: selectedAddressId,
+      addressId: selectedAddressId || 0,
       missedCall,
       contactNo,
       note,
       change,
       isComing,
-      comingTime,
+      comingTime: comingTime || new Date().toISOString(),
       providerNo: session.providerOrderNo || "",
       details: cartDetails.map((item, index) => {
         const mapId = item.mapId || (Math.max(0, ...cartDetails.map(i => i.mapId || 0), ...voidProducts.map(v => v.mapId || 0)) + index + 1);
@@ -249,9 +250,9 @@ export const usePosCartActions = () => {
 
         return {
           productId: item.productId || item.product?.id,
-          unitId: item.product?.unitId || 1,
+          unitId: item.unitId || item.product?.unitId || 1,
           qty: item.quantity,
-          price: Number(item.product.price.toFixed(getDecimalPart())),
+          price: Number((item.price ?? item.product?.price ?? 0).toFixed(getDecimalPart())),
           discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(getDecimalPart())) : 0,
           discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(getDecimalPart())) : 0,
           serviceCharge: Number(mainSc.toFixed(getDecimalPart())),
@@ -317,6 +318,18 @@ export const usePosCartActions = () => {
     if (isDineIn && !editingOrderId && !session.providerId && (!selectedSectionId || selectedSectionId <= 0 || !selectedTableId || selectedTableId <= 0)) {
       showToast("Please select a Dine In Section / Table before placing the order.", "warning");
       return;
+    }
+
+    const isDelivery = selectedOrderTypeId === 4 || normalizedTypeName.includes("delivery");
+    if (isDelivery) {
+      if (!selectedCustomerId || selectedCustomerId <= 0) {
+        showToast("Please select a customer for Delivery orders.", "warning");
+        return;
+      }
+      if (!selectedAddressId || selectedAddressId <= 0) {
+        showToast("Please select a delivery address.", "warning");
+        return;
+      }
     }
 
     setOrderLoading(true);
@@ -440,7 +453,7 @@ export const usePosCartActions = () => {
       const deliveryChargeVal = getDeliveryChargeValue();
       const payload: MenuOrderRequest = {
         voucherDate: new Date().toISOString(),
-        customerId: selectedCustomerId,
+        customerId: selectedCustomerId || 0,
         employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
@@ -457,13 +470,13 @@ export const usePosCartActions = () => {
         sectionId: isDineIn ? selectedSectionId : 0,
         tableId: isDineIn ? selectedTableId : 0,
         guestNo,
-        addressId: selectedAddressId,
+        addressId: selectedAddressId || 0,
         missedCall,
         contactNo,
         note,
         change,
         isComing,
-        comingTime,
+        comingTime: comingTime || new Date().toISOString(),
         details: cartDetails.map((item, index) => {
           const mapId = index + 1;
           
@@ -492,9 +505,9 @@ export const usePosCartActions = () => {
 
           return {
             productId: item.productId,
-            unitId: item.product.unitId || 1,
+            unitId: item.unitId || item.product.unitId || 1,
             qty: item.quantity,
-            price: Number((item.product.price || 0).toFixed(getDecimalPart())),
+            price: Number((item.price ?? item.product?.price ?? 0).toFixed(getDecimalPart())),
             discPer: item.discountType === 'percentage' ? Number((item.discountValue || 0).toFixed(getDecimalPart())) : 0,
             discAmount: item.discountType === 'amount' ? Number((item.discountValue || 0).toFixed(getDecimalPart())) : 0,
             serviceCharge: Number(mainSc.toFixed(getDecimalPart())),
@@ -594,19 +607,22 @@ export const usePosCartActions = () => {
       const responseData = err?.response?.data;
       console.error("[ORDER ERROR]", JSON.stringify(responseData, null, 2));
 
-      let msg = responseData?.message;
-      if (!msg && responseData?.errors) {
+      let msg = responseData?.message || "";
+      
+      if (responseData?.errors) {
         try {
           const fieldErrors = Object.entries(responseData.errors).map(([field, val]) => {
             if (Array.isArray(val)) return `${field}: ${val.join(", ")}`;
             if (typeof val === "string") return `${field}: ${val}`;
             return `${field}: ${JSON.stringify(val)}`;
           });
-          msg = fieldErrors.join(" | ");
+          const detailedErrors = fieldErrors.join(" | ");
+          msg = msg ? `${msg} - Details: ${detailedErrors}` : detailedErrors;
         } catch {
-          msg = responseData?.title;
+          if (!msg) msg = responseData?.title || "Validation errors occurred";
         }
       }
+      
       msg = msg || responseData?.title || err?.message || "Order submission failed";
       setOrderError(msg);
       showToast(msg, "error");

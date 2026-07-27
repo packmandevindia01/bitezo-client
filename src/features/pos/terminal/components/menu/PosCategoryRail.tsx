@@ -26,16 +26,17 @@ const PosCategoryRailComponent = ({
   };
 
   return (
-    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-b-0 md:border-r-2 md:border-[#49293e]/70 bg-white shadow-[12px_0_40px_-4px_rgba(73,41,62,0.2),2px_0_8px_-2px_rgba(73,41,62,0.1)] overflow-hidden shrink-0 z-10 relative">
-      {/* Scroll Up Button - Desktop only */}
-      <button
-        type="button"
-        onClick={() => scroll("up")}
-        className="hidden md:flex items-center justify-center w-full h-8 bg-[#002b5c] border-b border-[#001f44] text-white transition-all duration-300 shrink-0 shadow-[0_2px_4px_rgba(0,43,92,0.15)] hover:bg-[#003b80] hover:shadow-[0_4px_12px_rgba(0,43,92,0.4)] hover:-translate-y-[2px] active:scale-95 active:translate-y-0 z-20 relative"
-        aria-label="Scroll Up Categories"
-      >
-        <ChevronUp size={18} strokeWidth={2.5} />
-      </button>
+    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-b-0 md:border-r border-slate-200 bg-[#f8fafc] md:bg-white shadow-sm overflow-hidden shrink-0 z-10 relative">
+      <div className="hidden md:flex justify-center w-full bg-[#f8fafc] md:bg-white py-1.5 z-20 relative border-b border-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
+        <button
+          type="button"
+          onClick={() => scroll("up")}
+          className="flex items-center justify-center w-[85%] max-w-[120px] h-8 bg-slate-50 border border-slate-200 rounded-lg text-[#49293e] shadow-sm hover:bg-[#49293e] hover:text-white hover:border-[#49293e] hover:shadow-md transition-all duration-300 active:scale-95"
+          aria-label="Scroll Up Categories"
+        >
+          <ChevronUp size={20} strokeWidth={3} />
+        </button>
+      </div>
 
       {/* Categories Grid Container */}
       <aside 
@@ -59,32 +60,32 @@ const PosCategoryRailComponent = ({
                 active:scale-[0.98] group shrink-0
                 ${
                   isActive
-                    ? "bg-gradient-to-b from-white to-[#f4f7f1] text-[#49293e] shadow-[0_0_0_4px_rgba(154,188,130,0.2),0_6px_16px_rgba(154,188,130,0.25),inset_0_2px_4px_rgba(0,0,0,0.04)] border-2 border-[#9abc82] translate-y-[3px] z-10"
-                    : "bg-[#49293e] text-white border-2 border-[#3a2132] shadow-[0_5px_0_0_#2d1a27,0_8px_10px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:border-[#3a2132] hover:shadow-[0_6px_0_0_#2d1a27,0_12px_14px_rgba(0,0,0,0.3),inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:-translate-y-[1px]"
+                    ? "bg-gradient-to-br from-[#49293e] to-[#603551] text-white shadow-[0_6px_16px_rgba(73,41,62,0.4)] ring-2 ring-offset-2 ring-[#49293e]/50 border border-[#49293e] translate-y-[-2px] z-10"
+                    : "bg-gradient-to-b from-white to-slate-50 text-[#49293e] border border-slate-200/80 shadow-sm hover:border-[#49293e]/40 hover:shadow-[0_8px_16px_rgba(73,41,62,0.12)] hover:-translate-y-[3px]"
                 }
-                min-w-[85px] sm:min-w-[100px] md:min-w-0 md:w-full mb-1.5
+                min-w-[95px] sm:min-w-[110px] md:min-w-0 md:w-full mb-1.5
               `}
             >
               {category.imageUrl ? (
                 <img 
                   src={category.imageUrl} 
                   alt={category.name} 
-                  className="w-6 h-6 sm:w-8 sm:h-8 md:w-7 md:h-7 rounded-lg object-cover shrink-0" 
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-9 md:h-9 rounded-full object-cover shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm border border-slate-100" 
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-7 md:h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] md:text-[10px] font-black uppercase ${isActive ? "bg-slate-100 text-slate-400" : "bg-white/20 text-white"}`}>
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-9 md:h-9 rounded-full shrink-0 flex items-center justify-center text-[11px] md:text-[12px] font-black uppercase shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md ${isActive ? "bg-white text-[#49293e]" : "bg-white border border-slate-200 group-hover:border-[#49293e]/30 text-[#49293e]"}`}>
                   {category.name.substring(0, 2)}
                 </div>
               )}
               <div className="flex flex-col min-w-0 md:items-center w-full">
-                <p className={`text-[9px] sm:text-[10px] md:text-[8px] xl:text-[9.5px] font-black tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-[#49293e]" : "text-white"}`}>
+                <p className={`text-[11px] sm:text-[12px] md:text-[10px] lg:text-[11px] xl:text-[12px] font-extrabold tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
                   {category.name}
                 </p>
                 {category.arabicName && (
-                  <p className={`text-[8px] sm:text-[9px] md:text-[7.5px] xl:text-[8.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-slate-400" : "text-white/80"}`}>
+                  <p className={`text-[10px] sm:text-[11px] md:text-[9.5px] xl:text-[10.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/90" : "text-slate-500"}`}>
                     {category.arabicName}
                   </p>
                 )}
@@ -94,15 +95,16 @@ const PosCategoryRailComponent = ({
         })}
       </aside>
 
-      {/* Scroll Down Button - Desktop only */}
-      <button
-        type="button"
-        onClick={() => scroll("down")}
-        className="hidden md:flex items-center justify-center w-full h-8 bg-[#002b5c] border-t border-[#001f44] text-white transition-all duration-300 shrink-0 shadow-[0_-2px_4px_rgba(0,43,92,0.15)] hover:bg-[#003b80] hover:shadow-[0_-4px_12px_rgba(0,43,92,0.4)] hover:translate-y-[2px] active:scale-95 active:translate-y-0 z-20 relative"
-        aria-label="Scroll Down Categories"
-      >
-        <ChevronDown size={18} strokeWidth={2.5} />
-      </button>
+      <div className="hidden md:flex justify-center w-full bg-[#f8fafc] md:bg-white py-1.5 z-20 relative border-t border-slate-100 shadow-[0_-2px_6px_rgba(0,0,0,0.02)]">
+        <button
+          type="button"
+          onClick={() => scroll("down")}
+          className="flex items-center justify-center w-[85%] max-w-[120px] h-8 bg-slate-50 border border-slate-200 rounded-lg text-[#49293e] shadow-sm hover:bg-[#49293e] hover:text-white hover:border-[#49293e] hover:shadow-md transition-all duration-300 active:scale-95"
+          aria-label="Scroll Down Categories"
+        >
+          <ChevronDown size={20} strokeWidth={3} />
+        </button>
+      </div>
     </div>
   );
 };

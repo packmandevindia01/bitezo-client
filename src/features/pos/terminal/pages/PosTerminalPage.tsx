@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useEvent } from "../../../../hooks/useEvent";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
@@ -48,6 +48,9 @@ export const PosTerminalPage = () => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedTender, setSelectedTender] = useState<string>("");
   const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
+  
+  // Ref to debounce rapid double-clicks on zero price items
+  const zeroPriceLockRef = useRef<number>(0);
 
   useEffect(() => {
     const state = location.state as { openMoreModal?: boolean; openCashModal?: boolean };
@@ -332,6 +335,12 @@ export const PosTerminalPage = () => {
     }
     
     checkoutFlow.settleShouldPrintRef.current = shouldPrint;
+  
+    if (!selectedTender) {
+      showToast("Please select a payment method", "warning");
+      return;
+    }
+
     const selectedMode = terminal.tenderOptions.find(t => t.id === selectedTender)?.label?.toLowerCase() || '';
     
     if (selectedMode.includes("cash")) {
@@ -339,7 +348,7 @@ export const PosTerminalPage = () => {
     } else if (selectedMode.includes("multi")) {
       modals.setIsMultiPayModalOpen(true);
     } else {
-      checkoutFlow.handleCardCreditSettlement();
+      checkoutFlow.handleCardCreditSettlement(Number(selectedTender));
     }
   };
 
@@ -384,6 +393,15 @@ export const PosTerminalPage = () => {
   const handleProductSelect = async (productId: number) => {
     const product = terminal.visibleProducts.find(p => p.id === productId);
     if (!product) return;
+
+    // Prevent double clicking on zero price items which skips manual price entry
+    if (product.price === 0) {
+      const now = Date.now();
+      if (now - zeroPriceLockRef.current < 1000) {
+        return; // Ignore rapid double clicks for open price items
+      }
+      zeroPriceLockRef.current = now;
+    }
 
     if (!product.hasAlternatives) {
       const safeOrderTypeId = terminal.selectedOrderTypeId || 1;
@@ -532,6 +550,15 @@ export const PosTerminalPage = () => {
   };
 
   const handleAltSelect = (variant: PosAlternative) => {
+    // Prevent double clicking on zero price items which skips manual price entry
+    if (variant.price === 0) {
+      const now = Date.now();
+      if (now - zeroPriceLockRef.current < 1000) {
+        return; // Ignore rapid double clicks for open price variants
+      }
+      zeroPriceLockRef.current = now;
+    }
+
     if (selectedProduct) {
       let discountValue: number | undefined = undefined;
       let discountType: 'percentage' | 'amount' | undefined = undefined;
@@ -554,7 +581,8 @@ export const PosTerminalPage = () => {
         variant.price,
         isIncl,
         discountValue,
-        discountType
+        discountType,
+        variant.unitId
       );
       setSelectedKey(newKey);
       if (variant.price === 0) {
@@ -708,7 +736,7 @@ export const PosTerminalPage = () => {
               onSelect={stableSetCategory}
             />
 
-            <div className="flex flex-col flex-1 overflow-hidden bg-[#ebe6e8] relative">
+            <div className="flex flex-col flex-1 overflow-hidden bg-[#f4f5f7] relative">
               <div className="flex-1 flex flex-col overflow-hidden relative">
                 <ErrorBoundary name="Product Grid">
                   <PosProductGrid

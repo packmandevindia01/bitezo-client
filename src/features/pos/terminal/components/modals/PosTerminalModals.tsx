@@ -188,45 +188,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         currentCharge={props.deliveryCharge}
         onSelect={(charge) => props.dispatch(props.setCustomDeliveryCharge(charge))}
       />
-      <PosCashTenderModal
-        isOpen={modals.isCashModalOpen}
-        onClose={() => modals.setIsCashModalOpen(false)}
-        totalDue={props.total}
-        onSubmit={(_, changeAmount) => {
-          modals.setIsCashModalOpen(false);
-          const cashPaymodeId = props.tenderOptions.find(t => t.label.toLowerCase().includes('cash'))?.id || props.tenderOptions[0]?.id;
-          props.handleCompleteSettlement([{ paymodeId: Number(cashPaymodeId), amount: props.total }], changeAmount);
-        }}
-        loading={props.orderLoading}
-      />
-      <PosMultiPayModal
-        isOpen={modals.isMultiPayModalOpen}
-        onClose={() => {
-          modals.setIsMultiPayModalOpen(false);
-          if (modals.returnToRecallOnCancel) {
-            props.handleClearCart();
-            modals.setReturnToRecallOnCancel(false);
-          }
-        }}
-        totalDue={props.total}
-        onSubmit={(payments, changeAmount) => {
-          modals.setIsMultiPayModalOpen(false);
-          if (modals.returnToRecallOnCancel) {
-            modals.setIsRecallModalOpen(false);
-            modals.setReturnToRecallOnCancel(false);
-          }
-          const mappedPayments = payments.map((p: any) => {
-            const matchedTender = props.tenderOptions.find(t => t.label.toLowerCase().includes(p.mode.toLowerCase()));
-            const id = matchedTender ? Number(matchedTender.id) : (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3);
-            return {
-              paymodeId: id,
-              amount: p.amount
-            };
-          });
-          props.handleCompleteSettlement(mappedPayments, changeAmount);
-        }}
-        loading={props.orderLoading}
-      />
+
       <PosProviderOrderModal
         isOpen={!!props.selectedProviderForOrder}
         onClose={() => props.setSelectedProviderForOrder(null)}
@@ -344,6 +306,45 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
             onSuccess={() => props.refreshLockedProducts()}
           />
         )}
+        <PosCashTenderModal
+          isOpen={modals.isCashModalOpen}
+          onClose={() => modals.setIsCashModalOpen(false)}
+          totalDue={props.total}
+          onSubmit={(_, changeAmount) => {
+            modals.setIsCashModalOpen(false);
+            const cashPaymodeId = props.tenderOptions.find(t => t.label.toLowerCase().includes('cash'))?.id || props.tenderOptions[0]?.id;
+            props.handleCompleteSettlement([{ paymodeId: Number(cashPaymodeId), amount: props.total }], changeAmount);
+          }}
+          loading={props.orderLoading}
+        />
+        <PosMultiPayModal
+          isOpen={modals.isMultiPayModalOpen}
+          onClose={() => {
+            modals.setIsMultiPayModalOpen(false);
+            if (modals.returnToRecallOnCancel) {
+              props.handleClearCart();
+              modals.setReturnToRecallOnCancel(false);
+            }
+          }}
+          totalDue={props.total}
+          onSubmit={(payments, changeAmount) => {
+            modals.setIsMultiPayModalOpen(false);
+            if (modals.returnToRecallOnCancel) {
+              modals.setIsRecallModalOpen(false);
+              modals.setReturnToRecallOnCancel(false);
+            }
+            const mappedPayments = payments.map((p: any) => {
+              const matchedTender = props.tenderOptions.find(t => t.label.toLowerCase().includes(p.mode.toLowerCase()));
+              const id = matchedTender ? Number(matchedTender.id) : (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3);
+              return {
+                paymodeId: id,
+                amount: p.amount
+              };
+            });
+            props.handleCompleteSettlement(mappedPayments, changeAmount);
+          }}
+          loading={props.orderLoading}
+        />
       </Suspense>
     </>
   );

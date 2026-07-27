@@ -100,7 +100,33 @@ const ProductFormPage = () => {
             type="button"
             variant="secondary"
             onClick={() => {
-              form.reset();
+              const currentBarcode = form.getValues("barcode");
+              const dec = parseInt(localStorage.getItem("decimalPart") || "3", 10);
+              form.reset({
+                productId: id ? Number(id) : undefined,
+                code: "",
+                name: "",
+                arabicName: "",
+                categoryId: "",
+                subCatId: "",
+                branchId: String(currentBranchId),
+                groupId: "",
+                typeId: "",
+                unitId: "",
+                pVatId: "",
+                sVatId: "",
+                cost: (0).toFixed(dec),
+                price: (0).toFixed(dec),
+                barcode: currentBarcode,
+                colorCode: "#49293e",
+                isActive: true,
+                priceIsIncl: false,
+                fileName: "",
+                fileUrl: "",
+                filePath: "",
+                altProducts: [],
+                productColors: []
+              });
               setImageFile(null);
             }}
             disabled={isSaving || isDeleting || isLoading}

@@ -17,6 +17,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   const queryClient = useQueryClient();
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const defaultBranchId = initialBranchId ? Number(initialBranchId) : 0;
+  const formDefaultBranchId = isBranchLocked ? defaultBranchId : 0;
   const [searchBranchId, setSearchBranchId] = useState<number>(defaultBranchId);
 
   const form = useForm<PaymentVoucherForm>({
@@ -29,7 +30,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
       accountId: 0,
       accountName: "",
       paymodeId: 0,
-      branchId: defaultBranchId,
+      branchId: formDefaultBranchId,
       employeeId: 0,
       refNo: "",
       amount: Number(0).toFixed(decimalPart),
@@ -125,6 +126,10 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
         refNo: d.refNo || "",
         amount: Number(d.amount).toFixed(decimalPart),
         narration: d.narration || "",
+        paymodes: paymentData.paymodesData?.map((p: any) => ({
+          paymodeId: p.paymodeId,
+          amount: p.amount
+        })) || undefined,
       });
     }
   }, [paymentData, reset, decimalPart, defaultBranchId]);
@@ -146,8 +151,11 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
         refNo: data.refNo,
         narration: data.narration,
         createdAt: new Date().toISOString(),
-        paymodes: data.paymodes || [{ paymodeId: Number(data.paymodeId), amount: Number(data.amount) }],
       };
+      
+      if (Number(data.paymodeId) === 3 && data.paymodes) {
+        payload.paymodes = data.paymodes;
+      }
       
       if (transId) {
         const updatePayload = {
@@ -161,8 +169,11 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
           refNo: data.refNo || "",
           narration: data.narration || "",
           updatedAt: new Date().toISOString(),
-          paymodes: data.paymodes || [{ paymodeId: Number(data.paymodeId), amount: Number(data.amount) }],
         };
+        
+        if (Number(data.paymodeId) === 3 && data.paymodes) {
+          (updatePayload as any).paymodes = data.paymodes;
+        }
         await paymentVoucherApi.updatePayment(transId, updatePayload as any);
       } else {
         await paymentVoucherApi.createPayment(payload);
@@ -184,6 +195,19 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
 
   const onSubmit = handleSubmit(
     (data) => {
+      const selectedPaymode = paymodeList.find(p => p.paymodeId === Number(data.paymodeId));
+      const isMultiPay = selectedPaymode?.paymodeName?.toLowerCase().includes("multi") || Number(data.paymodeId) === 3;
+      
+      if (isMultiPay) {
+        const totalMultiPay = data.paymodes?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+        const mainAmount = Number(data.amount) || 0;
+        
+        if (Math.abs(totalMultiPay - mainAmount) > 0.001) {
+          showToast(`Total Multi Pay amount (${totalMultiPay.toFixed(decimalPart)}) must match the voucher amount (${mainAmount.toFixed(decimalPart)})`, "error");
+          return;
+        }
+      }
+
       saveMutation.mutate(data);
     },
     (errors) => {
@@ -216,7 +240,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
       accountId: 0,
       accountName: "",
       paymodeId: 0,
-      branchId: defaultBranchId,
+      branchId: formDefaultBranchId,
       employeeId: 0,
       refNo: "",
       amount: Number(0).toFixed(decimalPart),

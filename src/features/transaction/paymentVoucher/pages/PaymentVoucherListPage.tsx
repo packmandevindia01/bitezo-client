@@ -31,9 +31,23 @@ const PaymentVoucherListPage = () => {
     }
   };
 
-  const filteredData = paymentVouchers.filter(item => 
-    Object.values(item).some(val => String(val).toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredData = paymentVouchers
+    .filter(item => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      return (
+        String(item.voucherNo || "").toLowerCase().includes(searchLower) ||
+        String(item.code || "").toLowerCase().includes(searchLower) ||
+        String(item.account || "").toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.voucherDate || 0).getTime();
+      const dateB = new Date(b.voucherDate || 0).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+
+      return String(b.voucherNo || "").localeCompare(String(a.voucherNo || ""), undefined, { numeric: true, sensitivity: 'base' });
+    });
 
   return (
     <PageShell title="Payment Voucher">

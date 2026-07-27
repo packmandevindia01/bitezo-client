@@ -425,7 +425,7 @@ const PurchaseReturnFormPage = () => {
                                       qtyInputs[0]?.focus();
                                     }, 100);
                                   }}
-                                  disabled={!canSave || purchaseId > 0}
+                                  disabled={!canSave || (getValues("invoiceNo") ? true : false)}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />
@@ -433,10 +433,10 @@ const PurchaseReturnFormPage = () => {
                             />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-20">
-                            <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave || purchaseId > 0} />
+                            <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-16">
-                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave || purchaseId > 0} />
+                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-24">
                             <input

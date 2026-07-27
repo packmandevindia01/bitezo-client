@@ -65,4 +65,4 @@ for (const [folder, files] of Object.entries(categories)) {
   }
 }
 
-console.log('Modals moved and imports updated successfully!');
+

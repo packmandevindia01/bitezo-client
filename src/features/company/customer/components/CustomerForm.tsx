@@ -3,6 +3,8 @@ import { Button, Checkbox, FormInput, SelectInput } from "../../../../components
 import type { Customer } from "../types";
 import { useCustomerForm } from "../hooks/useCustomerForm";
 import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
+import { useQuery } from "@tanstack/react-query";
+import { branchApi } from "../../../inventory/branches/services/branchApi";
 
 interface Props {
   initialData?: Customer | null;
@@ -30,6 +32,15 @@ const CustomerForm = ({
   const { register, watch, setValue, formState: { errors } } = form;
   const handleKeyDown = useEnterKeyNavigation();
 
+  const { data: branchesData } = useQuery({
+    queryKey: ["branchNames"],
+    queryFn: () => branchApi.fetchBranchNames(true),
+  });
+
+  const branchOptions = branchesData
+    ? branchesData.map(b => ({ label: b.branchName, value: String(b.id) }))
+    : [{ label: "Loading...", value: "" }];
+
   const handleClear = () => {
     form.reset();
     if (onClear) onClear();
@@ -38,14 +49,16 @@ const CustomerForm = ({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-2 py-2 px-1">
-        {/* Customer Code - Read Only */}
+        {/* Customer Code */}
         <FormInput
           id="cust-code"
           label="Customer Code"
-          placeholder="AUTO"
-          readOnly
-          tabIndex={-1}
+          required
+          placeholder="Enter customer code"
+          autoFocus
           {...register("customerCode")}
+          error={(errors.customerCode as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-name")}
         />
 
         {/* Customer Name */}
@@ -53,7 +66,6 @@ const CustomerForm = ({
           id="cust-name"
           label="Customer Name"
           required
-          autoFocus
           placeholder="Enter customer name"
           {...register("customerName")}
           error={(errors.customerName as any)?.message}
@@ -199,7 +211,7 @@ const CustomerForm = ({
           id="cust-branch"
           label="Branch"
           placeholder="Select Branch..."
-          options={[{ label: "Main Branch", value: "main" }]}
+          options={branchOptions}
           {...register("branch")}
           error={(errors.branch as any)?.message}
           onKeyDown={(e) => handleKeyDown(e, "cust-balance")}

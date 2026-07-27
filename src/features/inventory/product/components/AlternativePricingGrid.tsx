@@ -346,8 +346,11 @@ export const AlternativePricingGrid = ({
                         }}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 4)}
                         onChange={(e) => {
-                          const next = sanitizeAmountInput(e.target.value, decimalPart);
-                          if (next !== null) handleGridChange(rIdx, "price", next);
+                          let next = sanitizeAmountInput(e.target.value, decimalPart);
+                          if (next !== null) {
+                            if (next.length > 15) next = next.slice(0, 15);
+                            handleGridChange(rIdx, "price", next);
+                          }
                         }}
                         onBlur={(e) => {
                           if (e.target.value !== "" && e.target.value !== ".") {

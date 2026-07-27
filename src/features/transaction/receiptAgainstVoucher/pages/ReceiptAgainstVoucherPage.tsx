@@ -272,6 +272,7 @@ const ReceiptAgainstVoucherPage = () => {
                 id="rav-page-date" 
                 label="Date" 
                 type="date" 
+                max={new Date().toISOString().split("T")[0]}
                 {...form.register("voucherDate")}
                 error={form.formState.errors.voucherDate?.message}
               />

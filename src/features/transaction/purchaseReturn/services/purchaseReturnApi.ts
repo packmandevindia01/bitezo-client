@@ -66,7 +66,11 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
-  searchProductsByName: async (branchId: number, productName: string) => {
+  searchProductsByName: async (branchId: number, productName: string, purchaseId?: number) => {
+    const params: any = { branchId, productName };
+    if (purchaseId && purchaseId > 0) {
+      params.purchaseId = purchaseId;
+    }
     const response = await axiosInstance.get<{
       data: {
         productId: number;
@@ -77,7 +81,7 @@ export const purchaseReturnApi = {
       isSuccess: boolean;
       message: string;
     }>("/purchase-return-invoice/product-list-name", {
-      params: { branchId, productName }
+      params
     });
 
     if (!response.data.isSuccess) {
@@ -87,7 +91,10 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
-  searchProductsByBarcode: async (barcode: string) => {
+  searchProductsByBarcode: async (barcode: string, branchId?: number, purchaseId?: number) => {
+    const params: any = { Barcode: barcode };
+    if (branchId) params.branchId = branchId;
+    if (purchaseId && purchaseId > 0) params.purchaseId = purchaseId;
     const response = await axiosInstance.get<{
       data: {
         productId: number;
@@ -96,13 +103,16 @@ export const purchaseReturnApi = {
       isSuccess: boolean;
       message: string;
     }>("/purchase-return-invoice/product-list-barcode", {
-      params: { Barcode: barcode }
+      params
     });
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data.data;
   },
 
-  getProductCostData: async (barcode: string) => {
+  getProductCostData: async (barcode: string, purchaseId?: number) => {
+    const url = (purchaseId && purchaseId > 0) 
+      ? `/purchase-return-invoice/${purchaseId}/purchase-invoice-cost-data/${barcode}`
+      : `/purchase-return-invoice/purchase-cost-data/${barcode}`;
     const response = await axiosInstance.get<{
       data: {
         productId: number;
@@ -118,7 +128,17 @@ export const purchaseReturnApi = {
       };
       isSuccess: boolean;
       message: string;
-    }>(`/purchase-return-invoice/purchase-cost-data/${barcode}`);
+    }>(url);
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
+  },
+
+  getPurchaseInvoiceBalanceQty: async (purchaseId: number, productId: number) => {
+    const response = await axiosInstance.get<{
+      data: number;
+      isSuccess: boolean;
+      message: string;
+    }>(`/purchase-return-invoice/${purchaseId}/purchase-invoice-balance-qty/${productId}`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data.data;
   },

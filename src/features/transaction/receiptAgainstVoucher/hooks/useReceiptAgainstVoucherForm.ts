@@ -137,6 +137,10 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
         amount: data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0)
       };
       
+      if (Number(data.paymodeId) !== 3) {
+        delete (payload as any).paymodes;
+      }
+      
       if (transId) {
         return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(transId, payload as any);
       }

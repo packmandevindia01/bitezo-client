@@ -74,8 +74,8 @@ const TableMasterPage = () => {
 
   const handleOpenAdd = (position?: number) => {
     if (!canAdd) return;
-    if (tableSections.length === 0) {
-      showToast("Please create a Table Section first before adding tables.", "warning");
+    if (tableSections.length === 0 || !selectedSectionId) {
+      showToast("Please create or select a Section before creating a Table.", "warning");
       return;
     }
     setMode("create");

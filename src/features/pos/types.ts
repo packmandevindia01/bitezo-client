@@ -32,6 +32,7 @@ export interface PosCartItem {
   isIncl?: boolean; // true = price already includes VAT, false = price is exclusive (add VAT on top), undefined = follow global config
   discountValue?: number;
   discountType?: 'percentage' | 'amount';
+  unitId?: number;
   extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
   modifiers?: { id: number; name: string; qty: number; typeId: number }[];
   isExisting?: boolean;
@@ -277,7 +278,7 @@ export interface MenuOrderRequest {
   note: string;
   change: string;
   isComing: boolean;
-  comingTime: string;
+  comingTime?: string | null;
   details: MenuOrderDetail[];
   modifiers: MenuOrderModifier[];
   vehicleNo?: string;
@@ -313,7 +314,7 @@ export interface MenuOrderUpdateRequest {
   note: string;
   change: string;
   isComing: boolean;
-  comingTime: string;
+  comingTime?: string | null;
   providerNo: string;
   details: MenuOrderDetail[];
   modifiers: MenuOrderModifier[];
@@ -356,7 +357,7 @@ export interface SplitOrderRequest {
   note: string;
   change: string;
   isComing: boolean;
-  comingTime: string;
+  comingTime?: string | null;
   providerNo: string;
   baseOrder: SplitOrderData;
   newOrders: SplitOrderData[];

@@ -54,6 +54,7 @@ const VOUCHER_PRINT_STYLES = `
 
 export const VoucherPrintPreviewModal = ({ isOpen, onClose, data }: VoucherPrintPreviewModalProps) => {
   const [enrichedData, setEnrichedData] = useState<Partial<VoucherPrintData>>(data);
+  const [paperSize, setPaperSize] = useState<"A4" | "80mm">("A4");
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,7 +101,10 @@ export const VoucherPrintPreviewModal = ({ isOpen, onClose, data }: VoucherPrint
           <title>Print ${enrichedData.voucherType === "RECEIPT" ? "Receipt" : "Payment Voucher"}</title>
           <style>
             @media print {
-              @page { margin: 10mm; size: auto; }
+              @page { 
+                margin: ${paperSize === "80mm" ? "0" : "10mm"}; 
+                size: ${paperSize === "80mm" ? "80mm auto" : "auto"}; 
+              }
             }
             ${VOUCHER_PRINT_STYLES}
           </style>
@@ -151,6 +155,14 @@ export const VoucherPrintPreviewModal = ({ isOpen, onClose, data }: VoucherPrint
             <p className="text-xs text-gray-500">Preview how the voucher will look when printed</p>
           </div>
           <div className="flex items-center gap-3">
+            <select 
+              value={paperSize} 
+              onChange={(e) => setPaperSize(e.target.value as "A4" | "80mm")}
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="A4">A4 (Standard)</option>
+              <option value="80mm">80mm (Thermal)</option>
+            </select>
             <Button variant="secondary" onClick={handlePdfDownload} icon={<Download size={16} />}>
               PDF
             </Button>
@@ -167,7 +179,7 @@ export const VoucherPrintPreviewModal = ({ isOpen, onClose, data }: VoucherPrint
         <div className="flex-1 overflow-y-auto p-8 bg-gray-100 flex justify-center">
           <div className="w-full max-w-3xl shadow-lg bg-white">
             <div ref={containerRef}>
-              <VoucherPrintTemplate data={enrichedData} />
+              <VoucherPrintTemplate data={enrichedData} paperSize={paperSize} />
             </div>
           </div>
         </div>

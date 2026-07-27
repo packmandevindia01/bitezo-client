@@ -103,15 +103,15 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
         accountId: md.accountId,
         paymodeId: md.paymodeId,
         employeeId: md.employeeId,
-        voucherDate: md.voucherDate.split("T")[0],
+        voucherDate: md.voucherDate?.split("T")[0] || "",
         discount: md.discount,
         refNo: md.refNo || "",
         narration: md.narration || "",
-        details: detailsData.map(d => ({
+        details: (detailsData || []).map((d: any) => ({
           invoiceId: d.invoiceId,
           voucherType: d.voucherType,
           invoiceNo: d.invoiceNo,
-          invoiceDate: d.invoiceDate.split("T")[0],
+          invoiceDate: d.invoiceDate?.split("T")[0] || "",
           invoiceAmount: d.invoiceAmount,
           balance: d.invoiceAmount - d.receivedAmount, // Adjust as needed
           amount: Number(d.receivedAmount).toFixed(getDecimalPart())
@@ -135,13 +135,16 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
           voucherType: d.voucherType,
           amount: Number(d.amount) 
         })),
-        paymodes: data.paymodes || [],
         amount: totalAmount,
         dayId: 0,
         shiftId: 0,
         createdAt: transId ? undefined : new Date().toISOString(),
         updatedAt: transId ? new Date().toISOString() : undefined
       };
+
+      if (Number(data.paymodeId) === 3 && data.paymodes) {
+        payload.paymodes = data.paymodes;
+      }
 
       console.log("PAYMENT AGAINST PAYLOAD SENT TO BACKEND:", JSON.stringify(payload, null, 2));
 

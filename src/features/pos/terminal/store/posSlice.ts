@@ -122,7 +122,7 @@ const fallbackOrderTypeByName = (name: string): PosOrderType => {
 const posSlice = createSlice({
   name: 'pos',
   initialState,
-    reducers: {
+  reducers: {
     addToCart: (state, action: PayloadAction<{ 
       uniqueId: string; 
       productId: number; 
@@ -131,10 +131,31 @@ const posSlice = createSlice({
       isIncl?: boolean;
       discountValue?: number;
       discountType?: 'percentage' | 'amount';
+      unitId?: number;
     }>) => {
       state.isCartModified = true;
-      const { uniqueId, productId, variantName, price, isIncl, discountValue, discountType } = action.payload;
-      const existing = state.cartItems.find(item => item.uniqueId === uniqueId);
+      const { uniqueId, productId, variantName, price, isIncl, discountValue, discountType, unitId } = action.payload;
+      
+      const matchVariant = (a?: string, b?: string) => {
+        const getNormalizedVariant = (name?: string) => {
+          const n = (name || '').toLowerCase().trim();
+          if (!n || n === 'main' || n === 'variation') return 'main';
+          return n;
+        };
+        return getNormalizedVariant(a) === getNormalizedVariant(b);
+      };
+
+      const existing = state.cartItems.find(item => item.uniqueId === uniqueId) || 
+        state.cartItems.find(item => 
+          item.productId === productId && 
+          matchVariant(item.variantName, variantName) &&
+          Number(item.price) === Number(price ?? 0) &&
+          item.isIncl === isIncl &&
+          (!item.extras || item.extras.length === 0) &&
+          (!item.modifiers || item.modifiers.length === 0) &&
+          (item.unitId === unitId)
+        );
+
       if (existing) {
         existing.quantity += 1;
         if (discountValue !== undefined) {
@@ -150,7 +171,8 @@ const posSlice = createSlice({
           price: price ?? 0,
           isIncl,
           discountValue,
-          discountType
+          discountType,
+          unitId
         });
       }
     },

@@ -46,7 +46,6 @@ export const usePosCheckoutFlow = ({
   totalVat,
   total,
   deliveryCharge,
-  tenderOptions,
   decimalPart,
   submitOrder,
   getDirectSettleOrderPayload,
@@ -135,15 +134,16 @@ export const usePosCheckoutFlow = ({
       providerOrderNo: activeProvider?.orderNo,
     });
 
-    const isOrderEdited = !editingOrderId || isCartModified;
+    const isOrderEdited = !!editingOrderId && isCartModified;
 
     try {
+      const systemSeriesId = Number(localStorage.getItem("systemSeriesId")) || 1;
       const salesPayload: any = {
-        seriesId: 1,
+        seriesId: systemSeriesId,
         prefix: "",
         customerId: orderPayload.customerId,
-        paymodeId: payments.length > 1 ? 3 : (payments.length > 0 ? payments[0].paymodeId : 1),
-        employeeId: orderPayload.employeeId,
+        paymodeId: payments.length > 0 ? payments[0].paymodeId : 0,
+        employeeId: employeeId,
         dayId: status.dayId,
         shiftId: status.shiftId,
         orderTypeId: orderPayload.orderTypeId,
@@ -161,7 +161,7 @@ export const usePosCheckoutFlow = ({
           missedCall: orderPayload.missedCall,
           contactNo: orderPayload.contactNo,
           note: orderPayload.note,
-          change: orderPayload.change,
+          change: orderPayload.change || "0.00",
           isComing: orderPayload.isComing,
           comingTime: orderPayload.comingTime,
           providerNo: orderPayload.providerNo,
@@ -198,6 +198,8 @@ export const usePosCheckoutFlow = ({
         })),
         paymodes: payments
       };
+
+      console.log("SENDING SALES PAYLOAD:", JSON.stringify(salesPayload, null, 2));
 
       let success = false;
       let newSaleId: number | null = null;
@@ -252,7 +254,9 @@ export const usePosCheckoutFlow = ({
         throw new Error("Invalid sales response");
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to save sales invoice", "error");
+      console.error("Settlement failed", err, err.response?.data);
+      const errorMsg = err.response?.data?.title || err.response?.data?.message || err.message || "Failed to save sales invoice";
+      showToast(errorMsg, "error");
     }
   });
 
@@ -287,7 +291,7 @@ export const usePosCheckoutFlow = ({
     });
   });
 
-  const handleCardCreditSettlement = useEvent(async () => {
+  const handleCardCreditSettlement = useEvent(async (selectedPaymodeId: number) => {
     setChange("");
     if (!status) return;
 
@@ -301,8 +305,7 @@ export const usePosCheckoutFlow = ({
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const cardPaymodeId = tenderOptions.find(t => t.label.toLowerCase().includes('card'))?.id || 2;
-    const payments = [{ paymodeId: Number(cardPaymodeId), amount: total }];
+    const payments = [{ paymodeId: selectedPaymodeId, amount: total }];
 
     if (defaultEmployeeEnabled) {
       if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {

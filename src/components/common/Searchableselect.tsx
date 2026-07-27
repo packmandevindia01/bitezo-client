@@ -452,8 +452,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
                       if (highlightedIndex !== index) setHighlightedIndex(index);
                     }}
                     className={`
-                      cursor-pointer px-3 transition flex items-center
-                      ${className.includes('h-') ? className.match(/h-\d+(\.\d+)?/)?.[0] : 'py-2.5'}
+                      cursor-pointer px-3 py-2 transition flex items-center min-h-[32px]
                       ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}
                       ${index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e]" : "text-gray-700"}
                       ${String(opt.value) === String(value) ? "font-bold underline decoration-[#49293e]/30 underline-offset-4" : ""}

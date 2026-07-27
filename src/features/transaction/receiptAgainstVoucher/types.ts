@@ -72,7 +72,7 @@ export interface ReceiptAgainstPayload {
   createdAt?: string;
   updatedAt?: string;
   details: ReceiptAgainstDetailPayload[];
-  paymodes: ReceiptAgainstPaymodePayload[];
+  paymodes?: ReceiptAgainstPaymodePayload[];
 }
 
 export interface ReceiptAgainstListItem {

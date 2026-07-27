@@ -72,7 +72,7 @@ export interface PaymentAgainstPayload {
   createdAt?: string; // e.g. "2026-06-28T18:48:37.268Z"
   updatedAt?: string; // used for PUT
   details: PaymentAgainstDetailPayload[];
-  paymodes: PaymentAgainstPaymodePayload[];
+  paymodes?: PaymentAgainstPaymodePayload[];
 }
 
 export interface PaymentAgainstListItem {

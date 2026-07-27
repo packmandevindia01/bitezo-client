@@ -69,6 +69,7 @@ export const useProductionForm = (initialTransId?: number) => {
   const watchedOtherCharge = useWatch({ control, name: "otherCharge" });
   const watchedBranchId = useWatch({ control, name: "branchId" });
   const watchedFinishedProductQty = useWatch({ control, name: "finishedProductQty" });
+  const watchedFinishedProduct = useWatch({ control, name: "finishedProduct" });
 
   // 3. Totals Calculation
   const totals = useMemo(() => {
@@ -99,22 +100,30 @@ export const useProductionForm = (initialTransId?: number) => {
     }
   });
 
-  const [rawMaterials, setRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
+  const [scannedRawMaterials, setScannedRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
 
-  useQuery({
+  const { data: rawMaterialsQueryData = [] } = useQuery({
     queryKey: ["rawMaterials"],
     queryFn: async () => {
       const rm = await productionApi.getRawMaterialProductListByName("");
-      const mapped = rm.map((p: any) => ({
+      return rm.map((p: any) => ({
         label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
         value: String(p.productId),
         code: p.barcode || p.code || "",
         barcode: p.barcode || ""
       }));
-      setRawMaterials(mapped);
-      return mapped;
     }
   });
+
+  const rawMaterials = useMemo(() => {
+    const combined = [...rawMaterialsQueryData];
+    scannedRawMaterials.forEach(item => {
+      if (!combined.some(c => c.value === item.value)) {
+        combined.push(item as any);
+      }
+    });
+    return combined;
+  }, [rawMaterialsQueryData, scannedRawMaterials]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches"],
@@ -150,6 +159,20 @@ export const useProductionForm = (initialTransId?: number) => {
     queryFn: () => productionApi.getProductionNumber(Number(watchedBranchId)),
     enabled: !!watchedBranchId && !isNaN(Number(watchedBranchId)) && !initialTransId,
   });
+
+  useEffect(() => {
+    if (initialTransId && watchedFinishedProduct && finishedProducts.length > 0 && finishedProductUnits.length === 0) {
+      const prod = finishedProducts.find((p: any) => String(p.value) === String(watchedFinishedProduct));
+      if (prod && prod.code) {
+        productionApi.getProductCostData(prod.code).then(costData => {
+          productionApi.getUnitListByName(costData.unitCategory).then(unitsResp => {
+            const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+            setFinishedProductUnits(unitOptions);
+          });
+        }).catch(() => {});
+      }
+    }
+  }, [initialTransId, watchedFinishedProduct, finishedProducts, finishedProductUnits.length]);
 
   const { data: allUnits = [] } = useQuery({
     queryKey: ["allUnits"],
@@ -202,10 +225,13 @@ export const useProductionForm = (initialTransId?: number) => {
             unitId: item.unitId,
           });
         }
+        const finishedProdName = master.productName || master.itemName || master.name || "";
+        const finishedProdCode = master.barcode || master.productCode || "";
         reset({
           branchId: String(master.branchId || ""),
           employeeId: String(master.employeeId || ""),
           finishedProduct: String(master.productId || ""),
+          finishedProductName: finishedProdCode ? `[${finishedProdCode}] ${finishedProdName}` : finishedProdName,
           finishedProductUnit: String(master.unitId || ""),
           finishedProductUnitName: master.unitName || String(master.unitId || ""),
           finishedProductQty: String(master.qty || 1),
@@ -223,9 +249,17 @@ export const useProductionForm = (initialTransId?: number) => {
   const handleFinishedProductSelect = async (productId: string) => {
     setValue("finishedProduct", productId);
     const prod = finishedProducts.find(p => p.value === productId);
-    if (!prod) return;
+    if (!prod) {
+      setValue("finishedProductCode", "");
+      setValue("finishedProductName", "");
+      setValue("finishedProductUnit", "");
+      setValue("finishedProductUnitName", "");
+      setFinishedProductUnits([]);
+      return;
+    }
 
     setValue("finishedProductCode", prod.code);
+    setValue("finishedProductName", prod.label);
     if (!prod.code) return;
 
     const branchIdNum = Number(getValues("branchId"));
@@ -253,8 +287,17 @@ export const useProductionForm = (initialTransId?: number) => {
 
   const handleGridProductSelect = async (index: number, productId: string, barcode: string) => {
     setValue(`items.${index}.product`, productId);
-    setValue(`items.${index}.productId`, Number(productId));
-    if (!barcode) return;
+    setValue(`items.${index}.productId`, Number(productId) || undefined);
+    if (!barcode) {
+      setValue(`items.${index}.code`, "");
+      setValue(`items.${index}.productName`, "");
+      setValue(`items.${index}.unitCategory`, "");
+      setValue(`items.${index}.unitId`, undefined as any);
+      setValue(`items.${index}.unit`, "");
+      setValue(`items.${index}.cost`, "0");
+      setValue(`items.${index}.stock`, "0.000");
+      return;
+    }
 
     try {
       setValue(`items.${index}.stock`, "...");
@@ -297,7 +340,7 @@ export const useProductionForm = (initialTransId?: number) => {
           const bcToUse = first.barcode || first.code || barcode;
           details = await productionApi.getProductCostData(bcToUse).catch(() => null);
           if (!details) {
-            setRawMaterials(prev => {
+            setScannedRawMaterials(prev => {
               if (prev.some(o => o.value === String(first.productId))) return prev;
               return [...prev, { label: first.productName, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
             });
@@ -319,7 +362,7 @@ export const useProductionForm = (initialTransId?: number) => {
       }
 
       if (details) {
-        setRawMaterials(prev => {
+        setScannedRawMaterials(prev => {
           if (prev.some(o => o.value === String(details.productId))) return prev;
           return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
         });
@@ -360,7 +403,9 @@ export const useProductionForm = (initialTransId?: number) => {
     if (!storedValue || !storedName) return rawMaterials;
     const alreadyPresent = rawMaterials.some((o: any) => o.value === storedValue);
     if (alreadyPresent) return rawMaterials;
-    return [...rawMaterials, { label: storedName, value: storedValue, code: stored.code || "" }];
+
+    const label = stored.code ? `[${stored.code}] ${storedName}` : storedName;
+    return [...rawMaterials, { label, value: storedValue, code: stored.code || "" }];
   }, [rawMaterials, watchedItems]);
 
   const handleGridUnitChange = async (index: number, unitId: string) => {
@@ -423,6 +468,7 @@ export const useProductionForm = (initialTransId?: number) => {
             newItems.push({
               id: generateUUID(),
               product: String(item.productId),
+              productName: item.productName || item.itemName || item.name || "",
               code: item.barcode || item.code || "",
               unit: String(item.unitId),
               unitCategory,
@@ -491,13 +537,34 @@ export const useProductionForm = (initialTransId?: number) => {
     }
   });
 
+  const getFirstErrorMsg = (errObj: any): string | undefined => {
+    if (!errObj) return undefined;
+    if (typeof errObj === "string") return errObj;
+    if (errObj.message && typeof errObj.message === "string") return errObj.message;
+    if (Array.isArray(errObj)) {
+      for (const item of errObj) {
+        const msg = getFirstErrorMsg(item);
+        if (msg) return msg;
+      }
+    }
+    if (typeof errObj === "object") {
+      for (const key in errObj) {
+        const msg = getFirstErrorMsg(errObj[key]);
+        if (msg) return msg;
+      }
+    }
+    return undefined;
+  };
+
   const onSubmit = handleSubmit((data) => {
     saveMutation.mutate(data);
   }, (errors) => {
     // Show validation errors via toast
-    const firstError = Object.values(errors)[0];
-    if (firstError?.message) {
-      showToast(firstError.message as string, "error");
+    const msg = getFirstErrorMsg(errors);
+    if (msg) {
+      showToast(msg, "error");
+    } else {
+      showToast("Please fill in all required fields properly", "error");
     }
   });
 
