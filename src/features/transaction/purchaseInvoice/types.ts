@@ -34,7 +34,12 @@ export const getPurchaseInvoiceSchema = (decimalPart: number) => {
   return z.object({
     series: z.string().min(1, "Series is required"),
     purchaseNo: z.string().min(1, "Purchase No is required"),
-    purchaseDate: z.string().min(1, "Purchase Date is required"),
+    purchaseDate: z.string().min(1, "Purchase Date is required").refine((date) => {
+      const selectedDate = new Date(date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return selectedDate <= today;
+    }, { message: "Future dates are not allowed" }),
     invoiceNo: z.string()
       .min(1, "Invoice No is required")
       .max(50, "Max 50 characters")
@@ -43,7 +48,12 @@ export const getPurchaseInvoiceSchema = (decimalPart: number) => {
       .max(50, "Max 50 characters")
       .regex(/^[a-zA-Z0-9\s\-_]*$/, "Special characters not allowed")
       .optional(),
-    invoiceDate: z.string().min(1, "Invoice Date is required"),
+    invoiceDate: z.string().min(1, "Invoice Date is required").refine((date) => {
+      const selectedDate = new Date(date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return selectedDate <= today;
+    }, { message: "Future dates are not allowed" }),
     supplier: z.string().min(1, "Supplier is required"),
     branch: z.string().min(1, "Branch is required"),
     salesman: z.string().min(1, "Salesman is required"),

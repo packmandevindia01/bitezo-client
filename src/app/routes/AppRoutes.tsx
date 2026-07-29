@@ -45,7 +45,6 @@ const PosTerminalPage = lazy(() => import("../../features/pos/terminal/pages/Pos
 const TaxPage = lazy(() => import("../../features/inventory/tax/pages/TaxPage"));
 const SystemRegistrationPage = lazy(() => import("../../features/systemRegistration/pages/SystemRegistrationPage"));
 const CashierInPage = lazy(() => import("../../features/pos/cashier/pages/CashierInPage"));
-const CashierOutPage = lazy(() => import("../../features/pos/cashier/pages/CashierOutPage"));
 const PurchaseInvoiceListPage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoiceListPage"));
 const PurchaseInvoiceFormPage = lazy(() => import("../../features/transaction/purchaseInvoice/pages/PurchaseInvoiceFormPage"));
 const PurchaseReturnListPage = lazy(() => import("../../features/transaction/purchaseReturn/pages/PurchaseReturnListPage"));
@@ -148,7 +147,6 @@ const AppRoutes = () => {
 
               <Route element={<ProtectedRoute />}>
                 {/* Cashier shift pages — protected but outside dashboard layout */}
-                <Route path="/cashier/out" element={<CashierOutPage />} />
                 <Route path="/pos/pay-in-out" element={<PayInOutPage />} />
 
                 {/* Main POS Screen - outside dashboard layout, fully standalone */}

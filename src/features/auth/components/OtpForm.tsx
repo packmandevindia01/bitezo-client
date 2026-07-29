@@ -42,7 +42,7 @@ const OtpForm = ({ onSubmit }: Props) => {
     <div className="flex flex-col gap-4">
 
       {/* OTP BOXES */}
-      <OtpInput value={otp} onChange={setOtp} />
+      <OtpInput value={otp} onChange={setOtp} onEnter={handleSubmit} />
 
       {error && (
         <p className="text-red-500 text-sm text-center">{error}</p>

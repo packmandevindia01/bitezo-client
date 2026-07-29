@@ -94,11 +94,11 @@ const AllTransactionReportPage = () => {
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
             
-            {/* Location */}
-            <div className="shrink-0 flex flex-col gap-2 justify-center pr-4">
+            {/* 1. Location */}
+            <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
-                <div className="w-48">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
+                <div className="w-40">
                   <SearchableSelect 
                     id="atr-branch" 
                     options={branchOptions} 
@@ -111,10 +111,10 @@ const AllTransactionReportPage = () => {
               </div>
             </div>
 
-            {/* Dates */}
-            <div className="pt-3 xl:pt-0 xl:pl-3 flex flex-col gap-2 shrink-0 justify-start">
+            {/* 2. Dates */}
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-row items-center gap-4 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">From</span>
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
                 <div className="w-36">
                   <FormInput 
                     id="atr-from-date" 
@@ -125,7 +125,7 @@ const AllTransactionReportPage = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">To</span>
+                <span className="text-[11px] text-gray-500 w-5 text-left shrink-0">To</span>
                 <div className="w-36">
                   <FormInput 
                     id="atr-to-date" 

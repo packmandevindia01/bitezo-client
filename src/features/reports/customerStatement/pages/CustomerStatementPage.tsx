@@ -100,9 +100,9 @@ const CustomerStatementPage = () => {
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
 
             {/* 1. Location */}
-            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-center">
+            <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
                 <div className="w-40">
                   <SearchableSelect id="ss-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} disabled={filters.isBranchLocked} placeholder="All" autoFocus={true} />
                 </div>
@@ -110,9 +110,9 @@ const CustomerStatementPage = () => {
             </div>
 
             {/* 2. Customer */}
-            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-center">
+            <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Customer</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Customer</span>
                 <div className="w-44">
                   <SearchableSelect id="ss-customer" options={customerOptions} value={filters.customerId} onChange={filters.setCustomerId} placeholder="All" />
                 </div>
@@ -120,15 +120,15 @@ const CustomerStatementPage = () => {
             </div>
 
             {/* 3. Dates */}
-            <div className="pt-3 xl:pt-0 xl:pl-3 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-row items-center gap-4 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">From</span>
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
                 <div className="w-36">
                   <FormInput id="ss-from-date" type="date" value={filters.fromDate} onChange={(e) => filters.setFromDate(e.target.value)} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">To</span>
+                <span className="text-[11px] text-gray-500 w-5 text-left shrink-0">To</span>
                 <div className="w-36">
                   <FormInput id="ss-to-date" type="date" value={filters.toDate} onChange={(e) => filters.setToDate(e.target.value)} />
                 </div>

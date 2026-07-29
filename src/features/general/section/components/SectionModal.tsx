@@ -29,6 +29,15 @@ const SectionModal = ({
   onSave,
   onDelete,
 }: Props) => {
+  const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextId) {
+        document.getElementById(nextId)?.focus();
+      }
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -48,6 +57,7 @@ const SectionModal = ({
             Clear
           </Button>
           <Button 
+            id="section-save"
             onClick={onSave} 
             loading={saving}
             isAction
@@ -75,9 +85,11 @@ const SectionModal = ({
           Section Name
         </p>
         <FormInput
+          id="section-name"
           value={form.name}
           onChange={(e) => onChange("name", e.target.value)}
           placeholder="Enter section name"
+          onKeyDown={(e) => handleEnter(e, "section-counter")}
           autoFocus
         />
 
@@ -86,6 +98,7 @@ const SectionModal = ({
           Counter Name
         </p>
         <SelectInput
+          id="section-counter"
           value={form.counterId}
           onChange={(e) => onChange("counterId", e.target.value)}
           options={counters.map((c) => ({
@@ -93,6 +106,7 @@ const SectionModal = ({
             value: String(c.counterId),
           }))}
           placeholder="Select a counter"
+          onKeyDown={(e) => handleEnter(e, "section-save")}
         />
       </div>
     </Modal>

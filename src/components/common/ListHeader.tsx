@@ -11,6 +11,7 @@ interface ListHeaderProps {
   onAdd?: () => void;
   addLabel?: string;
   children?: React.ReactNode;
+  extraActions?: React.ReactNode;
 }
 
 const ListHeader: React.FC<ListHeaderProps> = ({
@@ -22,6 +23,7 @@ const ListHeader: React.FC<ListHeaderProps> = ({
   onAdd,
   addLabel = "Add New",
   children,
+  extraActions,
 }) => {
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
@@ -38,11 +40,14 @@ const ListHeader: React.FC<ListHeaderProps> = ({
           </div>
         )}
       </div>
-      {canAdd && onAdd && (
-        <Button icon={<Plus size={18} />} onClick={onAdd}>
-          {addLabel}
-        </Button>
-      )}
+      <div className="flex items-center gap-3">
+        {extraActions}
+        {canAdd && onAdd && (
+          <Button icon={<Plus size={18} />} onClick={onAdd}>
+            {addLabel}
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

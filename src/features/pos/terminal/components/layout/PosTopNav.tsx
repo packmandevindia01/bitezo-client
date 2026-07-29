@@ -56,7 +56,6 @@ const PosTopNav = ({
   orderTypes = fallbackOrderTypes,
   selectedOrderTypeId,
   onSelectOrderType,
-  status,
   activeProvider
 }: PosTopNavProps) => {
 
@@ -87,29 +86,27 @@ const PosTopNav = ({
   };
 
   const handleLogoutClick = () => {
-    // If Day or Shift is still OPEN, give a reminder
-    if (status && (!status.isDayClosed || !status.isShiftClosed)) {
-      if (onCashierOut) {
-        onCashierOut(); // Open the Close Session dashboard
-      } else {
-        navigate("/cashier/out");
-      }
-    } else {
-      // If everything is closed, go to the final out page/login
-      navigate("/cashier/out");
+    if (onCashierOut) {
+      onCashierOut(); // Open the Close Session modal
     }
   };
 
   return (
-    <nav className="flex items-center justify-between gap-2 lg:gap-3 border-b border-slate-200 bg-white px-3 lg:px-4 py-1 shadow-sm shrink-0">
-      <div className="flex items-center gap-2 lg:gap-3 xl:gap-5 min-w-0">
-        <div className="flex items-center justify-center overflow-hidden w-24 md:w-28 lg:w-30 xl:w-36 h-9 lg:h-10 shrink-0">
-          <img src="/LOGO6.png" alt="Bitezo" className="w-full h-full object-contain" style={{ transform: 'scale(3.2) translateY(1.5px)' }} />
+    <nav className="flex items-center justify-between gap-2 lg:gap-3 border-b border-[#3a2031] bg-[#49293e] pr-3 lg:pr-4 h-[60px] shadow-sm shrink-0 w-full">
+      <div className="flex items-center gap-0 lg:gap-0 xl:gap-0 min-w-0 h-full">
+        
+        {/* Centered logo inside the left column, strictly constrained to avoid cutoff */}
+        <div className="flex items-center justify-center w-[100px] md:w-[160px] lg:w-[180px] xl:w-[200px] h-full shrink-0">
+          <div className="w-[80%] h-[80%] flex items-center justify-center">
+            <img 
+               src="/LOGO6.png" 
+               alt="Bitezo" 
+               className="max-w-full max-h-full object-contain brightness-0 invert" 
+            />
+          </div>
         </div>
 
-
-
-        <div className="flex gap-1 ml-1 lg:ml-2 min-w-0 overflow-x-auto no-scrollbar pb-1 -mb-1">
+        <div className="flex gap-1 ml-2 lg:ml-4 min-w-0 overflow-x-auto no-scrollbar pb-1 -mb-1">
           {visibleOrderTypes.map((type) => {
             const Icon = getOrderTypeIcon(type.orderType);
             const label = formatOrderTypeLabel(type.orderType);
@@ -119,7 +116,7 @@ const PosTopNav = ({
             return (
             <PosActionButton
               key={type.orderTypeId}
-              accent={isActive ? "orange" : "gray"}
+              accent={isActive ? "orange" : "order-inactive"}
               className="h-9 lg:h-10 px-2 rounded-xl text-[10px] shrink-0 shadow-sm flex items-center gap-1"
               onClick={() => {
                 onSelectOrderType?.(type);
@@ -137,7 +134,7 @@ const PosTopNav = ({
             </PosActionButton>
           )})}
           <PosActionButton
-            accent={activeProvider ? "orange" : "gray"}
+            accent={activeProvider ? "orange" : "order-inactive"}
             className="h-9 lg:h-10 px-2 rounded-xl text-[10px] shrink-0 shadow-sm flex items-center gap-1"
             onClick={onProvider}
           >
@@ -153,15 +150,15 @@ const PosTopNav = ({
       <div className="flex items-center gap-1 lg:gap-1.5 shrink-0">
 
         <div className="hidden lg:flex flex-col text-right mr-4 lg:mr-6 leading-tight justify-center">
-          <div className="flex gap-3 justify-end text-slate-900 font-bold text-sm">
-            <span><span className="text-slate-500 font-semibold mr-1">Order:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
-            <span className="text-slate-300">|</span>
-            <span><span className="text-slate-500 font-semibold mr-1">Ticket:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
+          <div className="flex gap-3 justify-end text-white font-bold text-sm">
+            <span><span className="text-white/70 font-semibold mr-1">Order:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
+            <span className="text-white/30">|</span>
+            <span><span className="text-white/70 font-semibold mr-1">Ticket:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
           </div>
-          <div className="flex gap-3 justify-end text-slate-700 font-semibold text-[12px] mt-0.5">
-            <span><span className="text-slate-400 font-medium mr-1">Section:</span>{selectedOrderTypeName || "-"}</span>
-            <span className="text-slate-300">|</span>
-            <span><span className="text-slate-400 font-medium mr-1">Table:</span>{selectedTableNo || "-"}</span>
+          <div className="flex gap-3 justify-end text-white/90 font-semibold text-[12px] mt-0.5">
+            <span><span className="text-white/50 font-medium mr-1">Section:</span>{selectedOrderTypeName || "-"}</span>
+            <span className="text-white/30">|</span>
+            <span><span className="text-white/50 font-medium mr-1">Table:</span>{selectedTableNo || "-"}</span>
           </div>
         </div>
 

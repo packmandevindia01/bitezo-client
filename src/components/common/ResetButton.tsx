@@ -1,5 +1,6 @@
 import React from "react";
 import { RotateCcw } from "lucide-react";
+import Button from "./Button";
 
 interface ResetButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   onReset: () => void;
@@ -12,20 +13,23 @@ const ResetButton = ({
   onReset,
   className = "",
   title = "Reset Filters",
-  size = 18,
+  size = 14,
   ...props
 }: ResetButtonProps) => {
   return (
-    <button
+    <Button
       onClick={onReset}
-      className={`p-1.5 text-[#49293e] hover:bg-[#49293e]/10 rounded-full transition-colors z-30 ${className}`}
+      className={`font-semibold ${className}`}
       title={title}
       type="button"
       tabIndex={-1}
-      {...props}
+      variant="secondary"
+      size="sm"
+      icon={<RotateCcw size={size} className="transition-transform active:rotate-[-45deg] duration-200" />}
+      {...props as any}
     >
-      <RotateCcw size={size} className="transition-transform active:rotate-[-45deg] duration-200" />
-    </button>
+      Reset
+    </Button>
   );
 };
 

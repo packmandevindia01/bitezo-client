@@ -24,6 +24,7 @@ export interface CompanyFormData {
   taxRegNo?: string;
 
   currency: string;
+  country: string;
 // decimals: string;
 
   customerId: string;

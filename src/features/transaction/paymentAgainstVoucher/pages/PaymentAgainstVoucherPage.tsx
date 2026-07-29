@@ -278,7 +278,7 @@ const PaymentAgainstVoucherPage = () => {
               />
               
               <div className="md:col-span-2 flex items-end gap-2">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <SearchableSelect
                     id="pav-page-supplier"
                     label="Supplier"
@@ -446,7 +446,7 @@ const PaymentAgainstVoucherPage = () => {
                   {...form.register("narration")} 
                 />
                 <div className="flex gap-2 items-end">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <SearchableSelect 
                       id="pav-page-paymode" 
                       label="Paymode" 

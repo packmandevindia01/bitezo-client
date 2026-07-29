@@ -161,10 +161,9 @@ export const PosExtrasModifierModal = ({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop – no onClick, close via button only */}
       <div 
         className="fixed inset-0 z-[90] bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" 
-        onClick={onClose}
       />
 
       {/* Sliding Drawer */}

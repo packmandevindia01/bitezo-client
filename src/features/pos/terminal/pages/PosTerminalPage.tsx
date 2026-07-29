@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useEvent } from "../../../../hooks/useEvent";
-import { useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import PosTopNav from "../components/layout/PosTopNav";
 import PosCategoryRail from "../components/menu/PosCategoryRail";
@@ -654,9 +654,13 @@ export const PosTerminalPage = () => {
     );
   }
 
-  if (status && (status.isDayClosed || status.isShiftClosed)) {
-    return <Navigate to="/cashier/out" replace />;
-  }
+  useEffect(() => {
+    if (status && (status.isDayClosed || status.isShiftClosed)) {
+      if (!modals.isCashierSessionOpen) {
+        modals.setIsCashierSessionOpen(true);
+      }
+    }
+  }, [status, modals.isCashierSessionOpen, modals.setIsCashierSessionOpen]);
 
   return (
     <div className="flex h-dvh flex-col bg-[#ebe6e8] font-sans text-slate-900 overflow-hidden relative">
@@ -671,11 +675,7 @@ export const PosTerminalPage = () => {
           });
         }}
         onCashierOut={() => {
-          if (status && (!status.isDayClosed || !status.isShiftClosed)) {
-            modals.setIsLogoutConfirmOpen(true);
-          } else {
-            navigate("/cashier/out");
-          }
+          modals.setIsCashierSessionOpen(true);
         }}
         status={status}
         orderTypes={terminal.orderTypes}

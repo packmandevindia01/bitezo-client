@@ -37,7 +37,7 @@ const ModifierTypeForm = ({ form }: ModifierTypeFormProps) => {
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabicName?.message}
         {...register("arabicName")}
-        onKeyDown={(e) => handleEnter(e)}
+        onKeyDown={(e) => handleEnter(e, "modtype-save")}
       />
     </div>
   );

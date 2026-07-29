@@ -144,6 +144,13 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
             <span>Supplier Master</span>
           </div>
         )}
+
+        {hasPermission("Branch Master", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/branches")} className={itemClassName}>
+            <Store size={13} className="shrink-0" />
+            <span>Branch</span>
+          </div>
+        )}
       </SidebarDropdown>
 
       <SidebarDropdown label="Order" icon={<UtensilsCrossed size={14} />} nested defaultOpen>
@@ -198,12 +205,6 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
       </SidebarDropdown>
 
       <SidebarDropdown label="Inventory" icon={<PackageSearch size={14} />} nested defaultOpen>
-        {hasPermission("Branch Master", "View") && (
-          <div onClick={() => handleItemClick("/dashboard/branches")} className={itemClassName}>
-            <Store size={13} className="shrink-0" />
-            <span>Branch</span>
-          </div>
-        )}
 
         {hasPermission("Category Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/categories")} className={itemClassName}>

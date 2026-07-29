@@ -51,7 +51,7 @@ const SupplierForm = ({
 
 
   return (
-    <form className="flex flex-col w-full min-h-[55vh]" onSubmit={handleSubmit}>
+    <form className="flex flex-col w-full min-h-[55vh]" onSubmit={handleSubmit} noValidate>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 pb-16">
         <FormInput
           id="supplier-code"
@@ -59,6 +59,7 @@ const SupplierForm = ({
           label="Supplier Code"
           required
           autoFocus
+          maxLength={20}
           {...register("code")}
           error={errors.code?.message}
           onKeyDown={(e) => hk(e, "supplier-name")}
@@ -69,6 +70,7 @@ const SupplierForm = ({
           tabIndex={2}
           label="Supplier Name"
           required
+          maxLength={100}
           {...register("name")}
           error={errors.name?.message}
           onKeyDown={(e) => hk(e, "supplier-arabicName")}
@@ -78,6 +80,8 @@ const SupplierForm = ({
           id="supplier-arabicName"
           tabIndex={3}
           label="Arabic Name"
+          maxLength={100}
+          dir="rtl"
           {...register("arabicName")}
           onKeyDown={(e) => hk(e, "supplier-mobileNo")}
         />
@@ -86,7 +90,12 @@ const SupplierForm = ({
           id="supplier-mobileNo"
           tabIndex={4}
           label="Mobile No"
-          {...register("mobileNo")}
+          maxLength={20}
+          {...register("mobileNo", {
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/[^0-9+\-\s()]/g, "");
+            }
+          })}
           onKeyDown={(e) => hk(e, "supplier-telNo")}
         />
 
@@ -94,7 +103,12 @@ const SupplierForm = ({
           id="supplier-telNo"
           tabIndex={5}
           label="Tel No"
-          {...register("telNo")}
+          maxLength={20}
+          {...register("telNo", {
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/[^0-9+\-\s()]/g, "");
+            }
+          })}
           onKeyDown={(e) => hk(e, "supplier-email")}
         />
 
@@ -103,6 +117,7 @@ const SupplierForm = ({
           tabIndex={6}
           label="Email"
           type="email"
+          maxLength={100}
           {...register("email")}
           error={errors.email?.message}
           onKeyDown={(e) => hk(e, "supplier-address")}
@@ -116,6 +131,7 @@ const SupplierForm = ({
             id="supplier-address"
             tabIndex={7}
             {...register("address")}
+            maxLength={500}
             className="w-full text-sm rounded-md border border-gray-300 bg-white px-4 py-2 outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-none h-10.5"
             placeholder="Enter full address"
             onKeyDown={(e) => hk(e, "supplier-area")}
@@ -126,6 +142,7 @@ const SupplierForm = ({
           id="supplier-area"
           tabIndex={8}
           label="Area"
+          maxLength={100}
           {...register("area")}
           onKeyDown={(e) => hk(e, "supplier-identityNo")}
         />
@@ -134,6 +151,7 @@ const SupplierForm = ({
           id="supplier-identityNo"
           tabIndex={9}
           label="Identity No"
+          maxLength={50}
           {...register("identityNo")}
           onKeyDown={(e) => hk(e, "supplier-trnNo")}
         />
@@ -142,6 +160,7 @@ const SupplierForm = ({
           id="supplier-trnNo"
           tabIndex={10}
           label="TRN No"
+          maxLength={50}
           {...register("trnNo")}
           onKeyDown={(e) => hk(e, "supplier-branch")}
         />
@@ -168,6 +187,7 @@ const SupplierForm = ({
           tabIndex={12}
           label="Opening Balance"
           type="number"
+          maxLength={15}
           step={Math.pow(10, -getDecimalPart()).toString()}
           inputClassName="text-right"
           {...register("openingBalance")}

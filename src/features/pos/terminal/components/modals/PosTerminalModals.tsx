@@ -12,6 +12,7 @@ import { PosCashTenderModal } from './payment/PosCashTenderModal';
 import { PosMultiPayModal } from './payment/PosMultiPayModal';
 import { PosProviderOrderModal } from './providers/PosProviderOrderModal';
 import { EmployeePasswordModal } from './system/EmployeePasswordModal';
+import { PosCashierSessionModal } from './system/PosCashierSessionModal';
 
 // Lazy loaded modals
 const PosReportModal = React.lazy(() => import('./system/PosReportModal').then(m => ({ default: m.PosReportModal })));
@@ -161,7 +162,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         onClose={() => modals.setIsMoreModalOpen(false)} 
         onCashierOut={() => {
           modals.setIsMoreModalOpen(false);
-          props.navigate("/cashier/out");
+          modals.setIsCashierSessionOpen(true);
         }}
         onCustomerMaster={() => modals.setIsCustomerModalOpen(true)}
         onItemComplimentary={props.handleItemComplimentary}
@@ -204,14 +205,6 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
       />
       <EmployeePasswordModal key={props.authorizationModalKey} {...props.authorizationModalProps} />
 
-      <ConfirmDialog
-        isOpen={modals.isLogoutConfirmOpen}
-        onCancel={() => modals.setIsLogoutConfirmOpen(false)}
-        onConfirm={() => props.navigate("/cashier/out")}
-        title="Confirm Exit"
-        message="Are you sure you want to exit the terminal? Your current session is still active."
-        confirmLabel="Logout"
-      />
       <ConfirmDialog
         isOpen={props.voidConfirmState.isOpen}
         onCancel={() => props.setVoidConfirmState((prev: any) => ({ ...prev, isOpen: false }))}
@@ -344,6 +337,12 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
             props.handleCompleteSettlement(mappedPayments, changeAmount);
           }}
           loading={props.orderLoading}
+        />
+
+        <PosCashierSessionModal
+          isOpen={props.modals.isCashierSessionOpen}
+          onClose={() => props.modals.closeModal('cashierSession')}
+          onSessionReady={() => window.location.reload()}
         />
       </Suspense>
     </>

@@ -100,7 +100,29 @@ const PurchaseInvoiceFormPage = () => {
   const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
 
   // Show confirm dialog before saving
-  const onSaveClick = () => {
+  const onSaveClick = async () => {
+    const isValid = await methods.trigger();
+    if (!isValid) {
+      const errs = methods.formState.errors;
+      const firstErrorKey = Object.keys(errs)[0];
+      if (firstErrorKey) {
+        const err = (errs as any)[firstErrorKey];
+        showToast((err as any)?.message || `Please fill required fields (${firstErrorKey}).`, "error");
+        setTimeout(() => {
+          const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
+          if (el) {
+            el.focus();
+          } else {
+            const elId = document.getElementById(`pi-${firstErrorKey}`);
+            if (elId) elId.focus();
+          }
+        }, 100);
+      } else {
+        showToast("Please fill all required fields.", "error");
+      }
+      return;
+    }
+
     const currentItems = getValues("items") || [];
     const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
     if (validItems.length === 0) {
@@ -280,12 +302,12 @@ const PurchaseInvoiceFormPage = () => {
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pi-purchaseNo" label="Purchase No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pi-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" max={new Date().toISOString().split("T")[0]} {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               <FormInput required={true} maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceNo" label="Inv No" {...register("invoiceNo")} onKeyDown={(e) => hk(e, "pi-refNo")} readOnly={!canSave} error={errors.invoiceNo?.message as string} />
               <FormInput maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-refNo" label="Ref No" {...register("refNo")} onKeyDown={(e) => hk(e, "pi-invoiceDate")} readOnly={!canSave} error={errors.refNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceDate" label="Inv Date" type="date" {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pi-supplier")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceDate" label="Inv Date" type="date" max={new Date().toISOString().split("T")[0]} {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pi-supplier")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
               <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2 flex items-end gap-1">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <Controller name="supplier" control={control} render={({ field }) => (
                     <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
                   )} />
@@ -579,9 +601,7 @@ const PurchaseInvoiceFormPage = () => {
                       if (isMultiPay) {
                         // Save current selection; commit multiPayId only on modal submit
                         previousPaymodeId.current = selectedPaymodeId;
-                        if (totals.grandTotal > 0) {
-                          if (canSave) setIsMultiPayOpen(true);
-                        } else {
+                        if (totals.grandTotal <= 0) {
                           showToast("Please add items with a price to enable MultiPay settlement", "warning");
                         }
                       } else if (paymode) {

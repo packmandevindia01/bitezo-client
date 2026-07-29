@@ -138,7 +138,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       };
       
       if (Number(data.paymodeId) !== 3) {
-        delete (payload as any).paymodes;
+        (payload as any).paymodes = [];
       }
       
       if (transId) {

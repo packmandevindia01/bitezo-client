@@ -17,7 +17,10 @@ export const customerSchema = z.object({
   identityNo: z.string().optional().default(""),
   trnNo: z.string().optional().default(""),
   branch: z.string().optional().default(""),
-  openingBalance: z.union([z.string(), z.number()]).optional().default("0.000"),
+  openingBalance: z.union([z.string(), z.number()]).optional().default("0.000").refine(val => {
+    const strVal = String(val);
+    return /^-?\d+(\.\d{1,10})?$/.test(strVal) && strVal.length <= 15;
+  }, "Invalid amount (max 15 characters)"),
   isActive: z.boolean().optional().default(true),
 });
 

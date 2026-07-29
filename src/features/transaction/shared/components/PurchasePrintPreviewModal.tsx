@@ -2,10 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import { X, Download, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
-import { PurchasePrintTemplate } from "./PurchasePrintTemplate";
-import type { PurchasePrintData } from "./PurchasePrintTemplate";
+import { PurchasePrintTemplate, type PurchasePrintData } from "./PurchasePrintTemplate";
 import { fetchCompany } from "../../../company/services/companyApi";
 import axiosInstance from "../../../../api/axiosInstance";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { formatAmount } from "../../../../utils/formatters";
+import { numberToWords } from "../../../../utils/numberToWords";
 
 interface PurchasePrintPreviewModalProps {
   isOpen: boolean;
@@ -91,10 +94,8 @@ const openPrintWindow = (html: string, title: string) => {
   <body style="background:#ffffff;color:#000000;font-family:Arial,Helvetica,sans-serif;font-size:12px;">
     ${html}
     <script>
-      window.onload = function() {
-        setTimeout(function() { window.print(); }, 500);
-      };
-    <\\/script>
+      setTimeout(function() { window.print(); }, 500);
+    </script>
   </body>
 </html>`);
   win.document.close();
@@ -154,12 +155,173 @@ export const PurchasePrintPreviewModal = ({
     loadCompanyData();
   }, [isOpen, data]);
 
-  /** Export PDF — opens new window, user selects "Save as PDF" in the print dialog */
+  /** Export PDF — Native jsPDF implementation bypassing html2canvas to avoid oklch crash */
   const handleExportPDF = () => {
-    if (!printRef.current || !mergedData) return;
-    const title = `${mergedData.docTitle} - ${mergedData.purchaseNo || mergedData.voucherNo || ""}`;
-    showToast('Opening print dialog — choose "Save as PDF" to export.', "info");
-    openPrintWindow(printRef.current.innerHTML, title);
+    if (!mergedData) return;
+    showToast("Generating PDF, please wait...", "info");
+    
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const title = `${mergedData.docTitle}_${mergedData.purchaseNo || mergedData.voucherNo || "Export"}.pdf`;
+      const isReturn = mergedData.docTitle.toLowerCase().includes("return");
+      const isWithTax = templateVariant === "With Tax";
+      
+      const currencySymbol = localStorage.getItem("currencySymbol") || "BHD";
+      const decimalPart = parseInt(localStorage.getItem("decimalPart") || "3", 10);
+      
+      let startY = 15;
+      
+      // Header
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(mergedData.companyName, 105, startY, { align: 'center' });
+      startY += 6;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      mergedData.companyAddress.split(',').forEach(line => {
+        doc.text(line.trim(), 105, startY, { align: 'center' });
+        startY += 5;
+      });
+      doc.setFont("helvetica", "bold");
+      doc.text(`TRN No : ${mergedData.companyTrn}`, 105, startY, { align: 'center' });
+      startY += 10;
+      
+      // Title
+      doc.setFontSize(12);
+      doc.text(mergedData.docTitle.toUpperCase(), 105, startY, { align: 'center' });
+      doc.line(15, startY - 4, 195, startY - 4);
+      doc.line(15, startY + 2, 195, startY + 2);
+      startY += 8;
+      
+      // Info section
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      
+      // Left Info
+      doc.text(`Supplier    : ${mergedData.supplierName}`, 15, startY);
+      doc.text(`Address     : ${mergedData.supplierAddress}`, 15, startY + 5);
+      doc.text(`TRN No      : ${mergedData.supplierTrn}`, 15, startY + 10);
+      
+      // Right Info
+      doc.text(`${isReturn ? 'PRT No.' : 'Voucher No'} : ${mergedData.voucherNo}`, 120, startY);
+      doc.text(`${isReturn ? 'Inv No' : 'Purchase No'} : ${mergedData.purchaseNo}`, 120, startY + 5);
+      doc.text(`${isReturn ? 'PRT Dt' : 'Date'}       : ${mergedData.date}`, 120, startY + 10);
+      if (!isReturn) {
+        doc.text(`Paymode      : ${mergedData.paymode}`, 120, startY + 15);
+      }
+      
+      startY += 20;
+      
+      // Table Data Preparation
+      const head = [
+        isReturn ? 'S/N' : 'No.',
+        isReturn ? 'Description/Barcode' : 'Product',
+        'Qty',
+        ...(isReturn ? ['Unit'] : []),
+        'FOC',
+        ...(!isReturn ? ['Unit'] : []),
+        'Price',
+        ...(!isReturn ? ['Discount'] : []),
+        ...(isReturn ? ['Amount', 'Dis Amt'] : []),
+        isReturn ? 'Taxable Amount' : 'Net Value',
+        ...(isWithTax ? [isReturn ? 'VAT 5%' : 'VAT (%)'] : []),
+        ...(isWithTax && !isReturn ? ['VAT Amt'] : []),
+        'Net Amount'
+      ];
+
+      const body = mergedData.items.map((item, idx) => {
+        const row = [
+          (idx + 1).toString(),
+          item.productName,
+          item.qty.toString(),
+          ...(isReturn ? [item.unit] : []),
+          formatAmount(item.foc),
+          ...(!isReturn ? [item.unit] : []),
+          formatAmount(item.price),
+          ...(!isReturn ? [formatAmount(item.discount)] : []),
+          ...(isReturn ? [formatAmount(item.amount), formatAmount(item.discount)] : []),
+          formatAmount(item.netValue),
+          ...(isWithTax ? [isReturn ? formatAmount(item.vatAmt) : `${formatAmount(item.vatPercent)}%`] : []),
+          ...(isWithTax && !isReturn ? [formatAmount(item.vatAmt)] : []),
+          formatAmount(item.netAmount)
+        ];
+        return row;
+      });
+      
+      autoTable(doc, {
+        startY: startY,
+        head: [head],
+        body: body,
+        theme: 'plain',
+        styles: { fontSize: 7, halign: 'center', cellPadding: 1, lineWidth: 0.1, lineColor: 0 },
+        headStyles: { fontStyle: 'bold', lineWidth: 0.1, lineColor: 0 },
+        columnStyles: { 1: { halign: 'left' } },
+        didDrawPage: (data) => {
+          startY = data.cursor ? data.cursor.y : startY;
+        }
+      });
+      
+      startY += 5;
+      
+      // Totals
+      const totalGross = mergedData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+      const totalDiscount = mergedData.items.reduce((sum, item) => sum + ((item.amount || 0) - (item.netValue || 0)), 0);
+      const totalNetValue = mergedData.items.reduce((sum, item) => sum + (item.netValue || 0), 0);
+      const totalVat = mergedData.items.reduce((sum, item) => sum + (item.vatAmt || 0), 0);
+      const totalNetAmount = mergedData.items.reduce((sum, item) => sum + (item.netAmount || 0), 0);
+
+      doc.setFontSize(8);
+      if (isReturn) {
+        doc.text("Total", 80, startY);
+        doc.text(formatAmount(totalGross), 110, startY, { align: 'right' });
+        doc.text(formatAmount(totalDiscount), 125, startY, { align: 'right' });
+        doc.text(formatAmount(totalNetValue), 145, startY, { align: 'right' });
+        if (isWithTax) doc.text(formatAmount(totalVat), 165, startY, { align: 'right' });
+        doc.text(formatAmount(totalNetAmount), 190, startY, { align: 'right' });
+      } else {
+        doc.text("Total", 100, startY);
+        doc.text(formatAmount(totalDiscount), 120, startY, { align: 'right' });
+        doc.text(formatAmount(totalNetValue), 140, startY, { align: 'right' });
+        if (isWithTax) doc.text(formatAmount(totalVat), 170, startY, { align: 'right' });
+        doc.text(formatAmount(totalNetAmount), 190, startY, { align: 'right' });
+      }
+      
+      doc.line(15, startY - 3, 195, startY - 3);
+      doc.line(15, startY + 2, 195, startY + 2);
+      
+      startY += 8;
+      
+      // Bottom Section
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      const wordPrefix = isReturn ? 'Amount In Words: ' : 'Grand Total in words: ';
+      const cName = currencySymbol; 
+      const sName = "FILS"; 
+      doc.text(`${wordPrefix} ${numberToWords(mergedData.totals.grandTotal, cName, sName, decimalPart)}`, 15, startY);
+      
+      // Totals Block Right
+      doc.text(`${isReturn ? 'Total Amount' : 'Total'}`, 140, startY); doc.text(formatAmount(mergedData.totals.total), 190, startY, { align: 'right' }); startY += 4;
+      doc.text(`Discount`, 140, startY); doc.text(formatAmount(mergedData.totals.discount), 190, startY, { align: 'right' }); startY += 4;
+      doc.text(`Net Value`, 140, startY); doc.text(formatAmount(mergedData.totals.total - mergedData.totals.discount), 190, startY, { align: 'right' }); startY += 4;
+      
+      if (isWithTax) {
+        doc.text(`VAT`, 140, startY); doc.text(formatAmount(mergedData.totals.vat), 190, startY, { align: 'right' }); startY += 4;
+      }
+      
+      if (!isReturn) {
+        doc.text(`Adjustment Amount`, 140, startY); doc.text(formatAmount(mergedData.totals.adjustmentAmount), 190, startY, { align: 'right' }); startY += 4;
+        doc.text(`Round Off`, 140, startY); doc.text(formatAmount(mergedData.totals.roundOff), 190, startY, { align: 'right' }); startY += 4;
+      }
+      
+      doc.line(140, startY - 2, 195, startY - 2);
+      doc.text(`${isReturn ? 'Net Amount' : 'Grand Total'}`, 140, startY + 2); doc.text(formatAmount(mergedData.totals.grandTotal), 190, startY + 2, { align: 'right' });
+      
+      doc.save(title);
+      showToast("PDF Downloaded successfully!", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Failed to generate PDF.", "error");
+    }
   };
 
   /** Print — same flow, directly triggers browser print */

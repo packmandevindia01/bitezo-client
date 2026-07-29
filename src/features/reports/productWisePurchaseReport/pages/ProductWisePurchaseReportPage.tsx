@@ -246,15 +246,15 @@ const ProductWisePurchaseReportPage = () => {
             </div>
 
             {/* 2. Location + Supplier */}
-            <div className="pt-3 xl:pt-0 xl:px-5 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:px-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
                 <div className="w-44">
                   <SearchableSelect id="pw-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} disabled={filters.isBranchLocked} placeholder="All" autoFocus={true} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Supplier</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Supplier</span>
                 <div className="w-44">
                   <SearchableSelect id="pw-supplier" options={supplierOptions} value={filters.supplierId} onChange={filters.setSupplierId} placeholder="All" />
                 </div>
@@ -262,9 +262,9 @@ const ProductWisePurchaseReportPage = () => {
             </div>
 
             {/* 3. Product */}
-            <div className="pt-3 xl:pt-0 xl:px-5 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:px-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Product</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Product</span>
                 <div className="w-56">
                   <SearchableSelect id="pw-product" options={productOptions} value={filters.productId} onChange={filters.setProductId} placeholder="All" />
                 </div>
@@ -272,15 +272,15 @@ const ProductWisePurchaseReportPage = () => {
             </div>
 
             {/* 4. Dates */}
-            <div className="pt-3 xl:pt-0 xl:pl-5 flex flex-col gap-2 shrink-0 justify-start">
+            <div className="pt-3 xl:pt-0 xl:px-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">From</span>
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
                 <div className="w-36">
                   <FormInput id="pw-from-date" type="date" value={filters.fromDate} onChange={(e) => filters.setFromDate(e.target.value)} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">To</span>
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">To</span>
                 <div className="w-36">
                   <FormInput id="pw-to-date" type="date" value={filters.toDate} onChange={(e) => filters.setToDate(e.target.value)} />
                 </div>

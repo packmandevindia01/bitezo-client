@@ -77,40 +77,46 @@ const MonthlySalesReportPage = () => {
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
             
-            {/* Location */}
-            <div className="pb-3 xl:pb-0 xl:pr-4 flex gap-3 items-center shrink-0">
-              <div className="flex flex-col gap-0.5 w-48">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Location</span>
-                <SearchableSelect 
-                  id="msr-branch" 
-                  options={branchOptions} 
-                  value={filters.branchId} 
-                  onChange={filters.setBranchId} 
-                  placeholder="All" 
-                  disabled={filters.isBranchLocked}
-                />
+            {/* 1. Location */}
+            <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="msr-branch" 
+                    options={branchOptions} 
+                    value={filters.branchId} 
+                    onChange={filters.setBranchId} 
+                    placeholder="All" 
+                    disabled={filters.isBranchLocked}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Dates (Month Picker) */}
-            <div className="pt-3 xl:pt-0 xl:px-4 flex gap-3 items-center shrink-0">
-              <div className="flex flex-col gap-0.5 w-40">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">From</span>
-                <FormInput 
-                  id="msr-from-date" 
-                  type="month" 
-                  value={filters.fromPeriod} 
-                  onChange={(e) => filters.setFromPeriod(e.target.value)} 
-                />
+            {/* 2. Dates (Month Picker) */}
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-row items-center gap-4 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
+                <div className="w-36">
+                  <FormInput 
+                    id="msr-from-date" 
+                    type="month" 
+                    value={filters.fromPeriod} 
+                    onChange={(e) => filters.setFromPeriod(e.target.value)} 
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5 w-40">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">To</span>
-                <FormInput 
-                  id="msr-to-date" 
-                  type="month" 
-                  value={filters.toPeriod} 
-                  onChange={(e) => filters.setToPeriod(e.target.value)} 
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-5 text-left shrink-0">To</span>
+                <div className="w-36">
+                  <FormInput 
+                    id="msr-to-date" 
+                    type="month" 
+                    value={filters.toPeriod} 
+                    onChange={(e) => filters.setToPeriod(e.target.value)} 
+                  />
+                </div>
               </div>
             </div>
 

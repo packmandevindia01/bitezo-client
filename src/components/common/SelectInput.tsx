@@ -1,4 +1,5 @@
 import React from "react";
+import { handleFocusNextInput } from "../../utils/keyboard";
 
 interface Option {
   label: string;
@@ -73,21 +74,19 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
         onChange={onChange}
         onBlur={onBlur}
         onFocus={onFocus}
-        onKeyDown={onKeyDown}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleFocusNextInput(e.currentTarget);
+          }
+          if (onKeyDown) onKeyDown(e);
+        }}
         disabled={disabled}
         autoFocus={autoFocus}
         tabIndex={tabIndex}
-        className={`
-          w-full px-3 md:px-4 h-10.5
-          text-sm
-          rounded-md border outline-none transition
-          
-          ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
-          ${disabled ? "bg-gray-100 cursor-not-allowed opacity-50" : ""}
-
-          focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20
-          ${className}
-        `}
+        className={`w-full bg-white border border-slate-300 rounded-lg px-3 h-9 text-xs font-semibold text-[#49293e] focus:outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 transition-all shadow-sm ${
+          error ? "border-red-300 bg-red-50" : "hover:border-slate-400"
+        } ${disabled ? "opacity-50 cursor-not-allowed bg-slate-50" : ""} ${className}`}
         {...rest}
       >
         {/* Placeholder */}

@@ -87,7 +87,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
   }, [autoFocus, disabled]);
 
   // Derive selected label from value - robust comparison. Fallback to value if not found (supports custom values)
-  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? value;
+  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? (String(value) === "0" ? "" : value);
 
   // Filtered options based on search query
   const meetsMinQuery = query.trim().length >= minQueryLength;
@@ -361,8 +361,8 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
         onKeyDown={handleTriggerKeyDown}
         className={`
           relative flex w-full cursor-pointer items-center gap-2
-          rounded-md border px-3 text-sm outline-none transition md:px-4
-          ${className.includes('h-') ? '' : 'h-10.5'}
+          rounded-md border px-3 text-xs outline-none transition md:px-3
+          ${className.includes('h-') ? '' : 'h-9'}
           ${className}
           ${disabled ? "cursor-not-allowed bg-gray-100 opacity-50 border-gray-300" : (error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white")}
           ${!disabled && open ? "border-[#49293e] ring-1 ring-[#49293e]/20" : (!disabled ? "hover:border-gray-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20" : "")}
@@ -412,7 +412,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
             ${coords.placement === "bottom" ? "animate-in fade-in zoom-in-95" : "animate-in fade-in slide-in-from-bottom-2"}
           `}>
             {/* Search input */}
-            <div className="border-b border-gray-100 p-2">
+            <div className="border-b border-gray-100 p-1.5">
               <input
                 ref={inputCallbackRef}
                 type="text"
@@ -420,7 +420,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Type to search…"
-                className={`w-full rounded border border-gray-200 px-3 py-1.5 outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}
+                className={`w-full rounded border border-gray-200 px-2 py-1 outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 text-xs`}
               />
             </div>
 
@@ -428,14 +428,14 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
             <ul
               ref={listRef}
               role="listbox"
-              className="max-h-48 overflow-y-auto py-1"
+              className="max-h-40 overflow-y-auto py-1"
             >
               {loading && open ? (
-                <li className={`px-4 py-2 text-gray-400 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}>Loading...</li>
+                <li className="px-3 py-1.5 text-gray-400 text-xs">Loading...</li>
               ) : !meetsMinQuery ? (
-                <li className={`px-4 py-2 text-gray-400 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}>Start typing to search...</li>
+                <li className="px-3 py-1.5 text-gray-400 text-xs">Start typing to search...</li>
               ) : filtered.length === 0 ? (
-                <li className={`px-4 py-2 text-gray-400 ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}`}>No options found</li>
+                <li className="px-3 py-1.5 text-gray-400 text-xs">No options found</li>
               ) : (
                 filtered.map((opt, index) => (
                   <li
@@ -452,8 +452,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
                       if (highlightedIndex !== index) setHighlightedIndex(index);
                     }}
                     className={`
-                      cursor-pointer px-3 py-2 transition flex items-center min-h-[32px]
-                      ${className.includes('text-xs') ? 'text-xs' : 'text-sm'}
+                      cursor-pointer px-3 py-1.5 transition flex items-center min-h-[28px] text-xs
                       ${index === highlightedIndex ? "bg-[#49293e]/10 text-[#49293e]" : "text-gray-700"}
                       ${String(opt.value) === String(value) ? "font-bold underline decoration-[#49293e]/30 underline-offset-4" : ""}
                     `}

@@ -55,37 +55,39 @@ const PosCategoryRailComponent = ({
               type="button"
               onClick={() => onSelect(category.id.toString())}
               className={`
-                relative flex items-center gap-1.5 sm:gap-2 md:flex-col md:items-center md:p-1 md:py-1.5 md:px-0.5
-                rounded-xl px-2 py-1 sm:px-3 sm:py-1.5 text-left transition-all duration-300 
+                relative flex items-center gap-2 md:flex-col md:justify-between overflow-hidden
+                rounded-xl p-1.5 md:p-0 text-left md:text-center transition-all duration-300 
                 active:scale-[0.98] group shrink-0
                 ${
                   isActive
-                    ? "bg-gradient-to-br from-[#49293e] to-[#603551] text-white shadow-[0_6px_16px_rgba(73,41,62,0.4)] ring-2 ring-offset-2 ring-[#49293e]/50 border border-[#49293e] translate-y-[-2px] z-10"
-                    : "bg-gradient-to-b from-white to-slate-50 text-[#49293e] border border-slate-200/80 shadow-sm hover:border-[#49293e]/40 hover:shadow-[0_8px_16px_rgba(73,41,62,0.12)] hover:-translate-y-[3px]"
+                    ? "bg-gradient-to-br from-[#49293e] to-[#603551] shadow-[0_4px_12px_rgba(73,41,62,0.4)] ring-2 ring-offset-2 ring-[#49293e]/50 border-transparent translate-y-[-2px] z-10"
+                    : "bg-white border border-slate-200/80 shadow-sm hover:border-[#49293e]/40 hover:shadow-[0_8px_16px_rgba(73,41,62,0.12)] hover:-translate-y-[2px]"
                 }
-                min-w-[95px] sm:min-w-[110px] md:min-w-0 md:w-full mb-1.5
+                w-auto md:w-full min-w-[100px] md:min-w-0 h-auto md:h-[80px] xl:h-[95px] mb-1.5
               `}
             >
-              {category.imageUrl ? (
-                <img 
-                  src={category.imageUrl} 
-                  alt={category.name} 
-                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-9 md:h-9 rounded-full object-cover shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm border border-slate-100" 
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-9 md:h-9 rounded-full shrink-0 flex items-center justify-center text-[11px] md:text-[12px] font-black uppercase shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md ${isActive ? "bg-white text-[#49293e]" : "bg-white border border-slate-200 group-hover:border-[#49293e]/30 text-[#49293e]"}`}>
-                  {category.name.substring(0, 2)}
-                </div>
-              )}
-              <div className="flex flex-col min-w-0 md:items-center w-full">
-                <p className={`text-[11px] sm:text-[12px] md:text-[10px] lg:text-[11px] xl:text-[12px] font-extrabold tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
+              <div className={`relative w-10 h-10 md:w-full md:h-[55%] shrink-0 overflow-hidden rounded-md md:rounded-none md:border-b flex items-center justify-center ${isActive ? 'bg-white/90 md:border-white/20' : 'bg-slate-50 border-slate-100/50'}`}>
+                {category.imageUrl ? (
+                  <img 
+                    src={category.imageUrl} 
+                    alt={category.name} 
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span className={`text-[12px] md:text-[14px] font-black uppercase select-none ${isActive ? 'text-[#49293e]' : 'text-slate-300'}`}>
+                    {category.name.substring(0, 2)}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col flex-1 min-w-0 md:items-center justify-center w-full md:px-1.5 md:py-1">
+                <p className={`text-[11px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
                   {category.name}
                 </p>
                 {category.arabicName && (
-                  <p className={`text-[10px] sm:text-[11px] md:text-[9.5px] xl:text-[10.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/90" : "text-slate-500"}`}>
+                  <p className={`text-[10px] md:text-[9px] xl:text-[9.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/90" : "text-slate-500"}`}>
                     {category.arabicName}
                   </p>
                 )}

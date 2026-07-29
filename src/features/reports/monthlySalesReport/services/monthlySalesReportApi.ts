@@ -4,6 +4,6 @@ import type { MonthlySalesReportParams, MonthlySalesReportResponse } from "../ty
 export const getMonthlySalesReport = async (
   params: MonthlySalesReportParams
 ): Promise<MonthlySalesReportResponse["data"]> => {
-  const response = await axiosInstance.get<MonthlySalesReportResponse>("/api/reports/monthly-sales-report", { params });
+  const response = await axiosInstance.get<MonthlySalesReportResponse>("/reports/monthly-sales-report", { params });
   return response.data.data;
 };

@@ -250,28 +250,44 @@ const PurchaseReportPage = () => {
             {/* 1. Group-By Filter */}
             <div className="shrink-0 flex flex-col gap-0.5 pr-4 justify-center">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Group By</span>
-              {(["All", "Supplier", "Paymode", "Series"] as GroupByOption[]).map((val) => (
-                <div key={val} className="h-7 flex items-center">
-                  <Checkbox
-                    id={`pr-group-${val}`}
-                    label={GROUP_LABEL[val]}
-                    checked={groupBy === val}
-                    onChange={() => setGroupBy(val)}
-                  />
+              <div className="flex gap-4">
+                <div className="flex flex-col gap-0.5">
+                  {(["All", "Supplier"] as GroupByOption[]).map((val) => (
+                    <div key={val} className="h-7 flex items-center">
+                      <Checkbox
+                        id={`pr-group-${val}`}
+                        label={GROUP_LABEL[val]}
+                        checked={groupBy === val}
+                        onChange={() => setGroupBy(val)}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <div className="flex flex-col gap-0.5">
+                  {(["Paymode", "Series"] as GroupByOption[]).map((val) => (
+                    <div key={val} className="h-7 flex items-center">
+                      <Checkbox
+                        id={`pr-group-${val}`}
+                        label={GROUP_LABEL[val]}
+                        checked={groupBy === val}
+                        onChange={() => setGroupBy(val)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* 2. Location + Series */}
             <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
                 <div className="w-40">
                   <SearchableSelect id="pr-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} disabled={filters.isBranchLocked} placeholder="All" autoFocus={true} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Series</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Series</span>
                 <div className="w-40">
                   <SelectInput id="pr-series" options={seriesOptions} value={filters.seriesId} onChange={(e) => filters.setSeriesId(e.target.value)} />
                 </div>
@@ -281,13 +297,13 @@ const PurchaseReportPage = () => {
             {/* 3. Supplier + Paymode */}
             <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Supplier</span>
-                <div className="w-44">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Supplier</span>
+                <div className="w-64">
                   <SearchableSelect id="pr-supplier" options={supplierOptions} value={filters.supplierId} onChange={filters.setSupplierId} placeholder="All" />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Paymode</span>
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Paymode</span>
                 <div className="w-44">
                   <SelectInput id="pr-paymode" options={paymodeOptions} value={filters.paymodeId} onChange={(e) => filters.setPaymodeId(e.target.value)} />
                 </div>
@@ -297,13 +313,13 @@ const PurchaseReportPage = () => {
             {/* 4. Dates */}
             <div className="pt-3 xl:pt-0 xl:pl-3 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">From</span>
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
                 <div className="w-36">
                   <FormInput id="pr-from-date" type="date" value={filters.fromDate} onChange={(e) => filters.setFromDate(e.target.value)} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-8 text-right shrink-0">To</span>
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">To</span>
                 <div className="w-36">
                   <FormInput id="pr-to-date" type="date" value={filters.toDate} onChange={(e) => filters.setToDate(e.target.value)} />
                 </div>

@@ -15,9 +15,10 @@ export const paymentVoucherSchema = z.object({
   paymodeId: z.number().min(1, "Paymode is required"),
   branchId: z.number().min(1, "Branch is required"),
   employeeId: z.number().min(1, "Employee is required"),
-  refNo: z.string().optional(),
+  refNo: z.string().max(50, "Reference No cannot exceed 50 characters").optional(),
   amount: z.string()
     .min(1, "Amount is required")
+    .max(15, "Amount cannot exceed 15 characters")
     .refine(val => {
       if (!val || val.trim() === "") return true;
       return Number(val) > 0;

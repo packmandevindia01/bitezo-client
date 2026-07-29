@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 interface PosActionButtonProps {
   children: ReactNode;
   active?: boolean;
-  accent?: "brand" | "neutral" | "warning" | "orange" | "green" | "gray" | "red" | "blue" | "outline";
+  accent?: "brand" | "neutral" | "warning" | "orange" | "green" | "gray" | "red" | "blue" | "outline" | "order-inactive";
   onClick?: () => void;
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -21,6 +21,7 @@ const accentStyles = {
   red: "bg-[#e30613] text-white hover:bg-[#cc0511] shadow-md border-[#b3050f]",
   blue: "bg-[#a6c7e9] text-gray-800 hover:bg-[#8eb6e0] shadow-sm border-[#80a9d4]",
   outline: "bg-white text-slate-600 border-slate-400 hover:bg-slate-50 shadow-sm",
+  "order-inactive": "bg-[rgb(244,245,247)] text-[#f37021] hover:bg-[rgb(235,236,239)] shadow-sm border-[rgb(220,221,224)]",
 };
 
 const activeStyles = {
@@ -33,6 +34,7 @@ const activeStyles = {
   red: "bg-[#b3050f] text-white shadow-inner",
   blue: "bg-[#80a9d4] text-gray-900 shadow-inner",
   outline: "bg-slate-200 text-slate-900 border-slate-500 shadow-inner",
+  "order-inactive": "bg-[rgb(232,233,237)] text-[#e0661a] shadow-inner",
 };
 
 const sizeStyles = {

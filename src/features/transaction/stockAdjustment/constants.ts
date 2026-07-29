@@ -6,5 +6,6 @@ export const createEmptyStockAdjustmentForm = (): StockAdjustmentForm => ({
   date: new Date().toISOString().split("T")[0],
   branch: "",
   salesman: "",
+  narration: "",
   items: [],
 });

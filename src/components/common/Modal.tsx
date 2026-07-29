@@ -29,22 +29,15 @@ const Modal = ({
   hideScrollbar = false,
 }: ModalProps) => {
 
-  // 🔥 ESC + Scroll lock
-useEffect(() => {
-  const handleEsc = (e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  };
-
-  if (isOpen) {
-    window.addEventListener("keydown", handleEsc);
-    document.body.style.overflow = "hidden";
-  }
-
-  return () => {
-    window.removeEventListener("keydown", handleEsc);
-    document.body.style.overflow = "auto";
-  };
-}, [isOpen, onClose]);
+  // Scroll lock only
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isOpen]);
 
   // 🔥 Auto-Scale Logic (Industry Standard Zero-Scroll Method)
   const modalRef = useRef<HTMLDivElement>(null);
@@ -100,10 +93,9 @@ useEffect(() => {
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      {/* Overlay */}
+      {/* Overlay – no onClick, modal only closes via X button */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
       />
 
       {/* Modal Box */}

@@ -117,7 +117,9 @@ const LoginForm = () => {
         placeholder="Username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        autoFocus={window.innerWidth > 1024}
+        inputClassName="text-center"
+        autoFocus
+        tabIndex={1}
       />
 
       <FormInput
@@ -125,16 +127,19 @@ const LoginForm = () => {
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        tabIndex={2}
       />
 
-      <p
+      <button
+        type="button"
         onClick={() => navigate("/forgot-password")}
-        className="mt-2 mb-4 cursor-pointer text-right text-sm text-gray-600 hover:underline"
+        tabIndex={3}
+        className="mt-2 mb-4 block w-full text-right cursor-pointer text-sm text-gray-600 hover:underline bg-transparent border-none outline-none focus:text-[#49293e] focus:underline"
       >
         Forgot Password?
-      </p>
+      </button>
 
-      <Button type="submit" size="lg" fullWidth disabled={loading}>
+      <Button type="submit" size="lg" fullWidth disabled={loading} tabIndex={4}>
         {loading ? "Logging in..." : "Login"}
       </Button>
     </form>

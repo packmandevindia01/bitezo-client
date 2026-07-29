@@ -60,7 +60,7 @@ export const useSectionManager = () => {
     setOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<number | undefined> => {
     const sName = form.name.trim();
     const counterId = Number(form.counterId);
 
@@ -80,16 +80,20 @@ export const useSectionManager = () => {
         counterId: counterId,
       };
 
+      let savedId: number | undefined;
       if (editingId) {
         await sectionService.update(editingId, payload);
         showToast("Section updated successfully", "success");
+        savedId = editingId;
       } else {
-        await sectionService.create(payload);
+        const res = await sectionService.create(payload);
         showToast("Section created successfully", "success");
+        savedId = (res as any).id ?? (res as any).sectionId ?? res;
       }
 
       await fetchData(); // Refresh list
       closeModal();
+      return savedId;
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to save section";
       showToast(msg, "error");

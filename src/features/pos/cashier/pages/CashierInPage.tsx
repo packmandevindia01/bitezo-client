@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { posLoginApi } from "../../../../features/auth/services/authApi";
 import { cashierLogService } from "../services/cashierLogService";
@@ -13,6 +13,25 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
   const handleNumClick = (num: string) => onChange(value + num);
   const handleClear = () => onChange("");
   const handleDelete = () => onChange(value.slice(0, -1));
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (loading) return;
+      if (e.key >= "0" && e.key <= "9") {
+        if (value.length < 6) {
+          onChange(value + e.key);
+        }
+      } else if (e.key === "Backspace") {
+        onChange(value.slice(0, -1));
+      } else if (e.key === "Enter") {
+        if (value.length > 0) {
+          onSubmit();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [value, loading, onChange, onSubmit]);
 
   const buttons = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Del"];
 
@@ -165,7 +184,7 @@ const CashierInPage = () => {
             navigate("/pos", { replace: true });
           } else {
             localStorage.removeItem("activeShift");
-            navigate("/cashier/out", { replace: true });
+            navigate("/pos", { replace: true });
           }
         } catch (err) {
           console.error("Post-login status check failed:", err);

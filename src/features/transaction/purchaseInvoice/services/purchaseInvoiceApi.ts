@@ -1,5 +1,39 @@
 import axiosInstance from "../../../../api/axiosInstance";
 
+async function unwrap<T>(promise: Promise<{ data: any }>): Promise<T> {
+  try {
+    const { data: envelope } = await promise;
+    if (!envelope.isSuccess) {
+      const firstError = envelope.errors?.[0] as any;
+      const msg = (typeof firstError === 'object' ? firstError.message : firstError) 
+                  ?? envelope.message 
+                  ?? "An unexpected error occurred.";
+      throw new Error(msg);
+    }
+    return envelope.data;
+  } catch (error: any) {
+    const responseData = error.response?.data;
+    if (responseData) {
+      const envelope = responseData;
+      if (envelope.errors && typeof envelope.errors === 'object') {
+        if (!Array.isArray(envelope.errors)) {
+          const firstKey = Object.keys(envelope.errors)[0];
+          const firstErr = envelope.errors[firstKey];
+          const msg = Array.isArray(firstErr) ? firstErr[0] : firstErr;
+          throw new Error(`${firstKey}: ${msg}`);
+        } else {
+          const firstErr = envelope.errors[0];
+          const msg = typeof firstErr === 'object' ? (firstErr.message || firstErr.code) : firstErr;
+          throw new Error(msg);
+        }
+      }
+      throw new Error(envelope.message || "Bad Request");
+    }
+    throw error;
+  }
+}
+
+
 export interface PurchaseInvoiceMasterData {
   series: {
     seriesId: number;
@@ -175,13 +209,7 @@ export const purchaseInvoiceApi = {
   },
 
   savePurchaseInvoice: async (payload: any) => {
-    const response = await axiosInstance.post<{
-      data: { id: number };
-      isSuccess: boolean;
-      message: string;
-    }>("/purchase-invoice", payload);
-    if (!response.data.isSuccess) throw new Error(response.data.message);
-    return response.data;
+    return unwrap(axiosInstance.post("/purchase-invoice", payload));
   },
 
   getPurchaseInvoiceList: async (params: any) => {
@@ -205,13 +233,7 @@ export const purchaseInvoiceApi = {
   },
 
   updatePurchaseInvoice: async (purchaseId: string | number, payload: any) => {
-    const response = await axiosInstance.put<{
-      data: any;
-      isSuccess: boolean;
-      message: string;
-    }>(`/purchase-invoice/${purchaseId}`, payload);
-    if (!response.data.isSuccess) throw new Error(response.data.message);
-    return response.data;
+    return unwrap(axiosInstance.put(`/purchase-invoice/${purchaseId}`, payload));
   },
 
   cancelPurchaseInvoice: async (purchaseId: string | number) => {

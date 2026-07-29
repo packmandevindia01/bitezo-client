@@ -1,13 +1,17 @@
+import { useState } from "react";
 import { Controller, type UseFormReturn } from "react-hook-form";
 import { FormInput, SearchableSelect } from "../../../../../components/common";
+import { Plus } from "lucide-react";
 import type { ExtrasMasterForm } from "../../schemas";
 import { useExtrasTypes } from "../../../extrasType/hooks/useExtrasTypeQueries";
+import { ExtrasTypeQuickAddModal } from "../../../extrasType/components/ExtrasTypeQuickAddModal";
 
 interface ExtrasBasicFieldsProps {
   form: UseFormReturn<ExtrasMasterForm>;
 }
 
 const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const { register, control, formState: { errors } } = form;
   const { data: extrasTypes = [], isLoading: isLoadingTypes } = useExtrasTypes();
 
@@ -46,21 +50,33 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
         control={control}
         name="typeId"
         render={({ field }) => (
-          <SearchableSelect
-            id="ext-type"
-            label="Type"
-            required
-            placeholder={isLoadingTypes ? "Loading types..." : "Select type"}
-            error={errors.typeId?.message}
-            options={extrasTypes.map((t) => ({ label: t.name, value: t.typeId.toString() }))}
-            value={field.value ? field.value.toString() : ""}
-            onChange={(val) => {
-              field.onChange(Number(val));
-              // Focus next field
-              document.getElementById("ext-price")?.focus();
-            }}
-            onKeyDown={(e) => handleEnter(e, "ext-price")}
-          />
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <SearchableSelect
+                id="ext-type"
+                label="Type"
+                required
+                placeholder={isLoadingTypes ? "Loading types..." : "Select type"}
+                error={errors.typeId?.message}
+                options={extrasTypes.map((t) => ({ label: t.name, value: t.typeId.toString() }))}
+                value={field.value ? field.value.toString() : ""}
+                onChange={(val) => {
+                  field.onChange(Number(val));
+                  // Focus next field
+                  document.getElementById("ext-price")?.focus();
+                }}
+                onKeyDown={(e) => handleEnter(e, "ext-price")}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsTypeModalOpen(true)}
+              disabled={isLoadingTypes}
+              className="h-[42px] w-[42px] flex-shrink-0 flex items-center justify-center bg-[#49293e] hover:bg-[#3d2234] text-white rounded-[10px] transition-colors mb-0.5"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
         )}
       />
 
@@ -95,6 +111,14 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
           <span className="text-xs font-mono uppercase text-gray-500">{form.watch("color")}</span>
         </div>
       </div>
+
+      <ExtrasTypeQuickAddModal 
+        isOpen={isTypeModalOpen} 
+        onClose={() => setIsTypeModalOpen(false)} 
+        onSuccess={(id) => {
+          form.setValue("typeId", id, { shouldValidate: true, shouldDirty: true });
+        }}
+      />
     </div>
   );
 };

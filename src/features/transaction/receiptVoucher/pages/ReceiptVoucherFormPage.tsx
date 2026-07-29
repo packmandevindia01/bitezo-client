@@ -75,7 +75,7 @@ const ReceiptVoucherFormPage = () => {
 
   return (
     <PageShell title={isEditMode ? (isCancelled ? "View Receipt Voucher" : "Edit Receipt Voucher") : "Add Receipt Voucher"}>
-      <div className="w-full max-w-5xl mx-auto py-4 bg-white border border-gray-200 rounded-2xl shadow-sm p-6 relative">
+      <div className="w-full max-w-5xl mx-auto pt-14 pb-6 px-6 bg-white border border-gray-200 rounded-2xl shadow-sm relative">
         <button 
           onClick={() => navigate("/dashboard/receipt-voucher")}
           className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
@@ -147,14 +147,10 @@ const ReceiptVoucherFormPage = () => {
                   value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
                   onChange={(val) => setValue("paymodeId", Number(val))}
                   placeholder="Select Paymode"
-                  options={
-                    watch("paymodeId") === 3 
-                      ? [...paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) })), { label: "MULTI-PAY (SPLIT)", value: "3" }]
-                      : paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))
-                  }
+                  options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
                   onKeyDown={(e) => handleKeyDown(e as any, "rv-narration")}
                   tabIndex={9}
-                  disabled={!canSave || watch("paymodeId") === 3}
+                  disabled={!canSave}
                 />
               </div>
               <div className="flex items-end pb-[2px]">

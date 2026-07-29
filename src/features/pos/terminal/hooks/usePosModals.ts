@@ -23,6 +23,7 @@ export const usePosModals = () => {
   const [isMultiPayModalOpen, setIsMultiPayModalOpen] = useState(false);
   const [isSettledModalOpen, setIsSettledModalOpen] = useState(false);
   const [isSettledAuthOpen, setIsSettledAuthOpen] = useState(false);
+  const [isCashierSessionOpen, setIsCashierSessionOpen] = useState(false);
 
   const openModal = useCallback((modalName: string) => {
     switch (modalName) {
@@ -46,6 +47,7 @@ export const usePosModals = () => {
       case 'multiPay': setIsMultiPayModalOpen(true); break;
       case 'settled': setIsSettledModalOpen(true); break;
       case 'settledAuth': setIsSettledAuthOpen(true); break;
+      case 'cashierSession': setIsCashierSessionOpen(true); break;
     }
   }, []);
 
@@ -71,6 +73,7 @@ export const usePosModals = () => {
       case 'multiPay': setIsMultiPayModalOpen(false); break;
       case 'settled': setIsSettledModalOpen(false); break;
       case 'settledAuth': setIsSettledAuthOpen(false); break;
+      case 'cashierSession': setIsCashierSessionOpen(false); break;
     }
   }, []);
 
@@ -97,6 +100,7 @@ export const usePosModals = () => {
     isMultiPayModalOpen, setIsMultiPayModalOpen,
     isSettledModalOpen, setIsSettledModalOpen,
     isSettledAuthOpen, setIsSettledAuthOpen,
+    isCashierSessionOpen, setIsCashierSessionOpen,
     openModal,
     closeModal,
   };

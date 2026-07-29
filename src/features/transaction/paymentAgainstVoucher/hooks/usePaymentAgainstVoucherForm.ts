@@ -144,6 +144,8 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
 
       if (Number(data.paymodeId) === 3 && data.paymodes) {
         payload.paymodes = data.paymodes;
+      } else {
+        payload.paymodes = [];
       }
 
       console.log("PAYMENT AGAINST PAYLOAD SENT TO BACKEND:", JSON.stringify(payload, null, 2));

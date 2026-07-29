@@ -69,8 +69,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   // 2. Master Data (Series, Employees/Salesman, Paymodes) based on Selected Form Branch
   const { data: masterData } = useQuery({
     queryKey: ["receiptMaster", currentFormBranchId],
-    queryFn: () => receiptVoucherApi.getLoadMaster(currentFormBranchId),
-    enabled: !!currentFormBranchId,
+    queryFn: () => receiptVoucherApi.getLoadMaster(currentFormBranchId || 0),
   });
 
   // Derived lists
@@ -155,6 +154,8 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
       
       if (Number(data.paymodeId) === 3 && data.paymodes) {
         payload.paymodes = data.paymodes;
+      } else {
+        payload.paymodes = [];
       }
       
       if (transId) {
@@ -173,6 +174,8 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
         
         if (Number(data.paymodeId) === 3 && data.paymodes) {
           (updatePayload as any).paymodes = data.paymodes;
+        } else {
+          (updatePayload as any).paymodes = [];
         }
         await receiptVoucherApi.updateReceipt(transId, updatePayload as any);
       } else {

@@ -29,7 +29,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     name: data.custName,
     mobNo: data.custMob,
     telNo: data.custMob2 || "",
-    country: 1,
+    country: data.country ? parseLookupId(data.country, "Country") : 1,
     block: data.block || "",
     area: data.area || "",
     road: data.road || "",

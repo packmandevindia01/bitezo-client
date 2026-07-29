@@ -28,6 +28,7 @@ export const initialTransferForm: InternalStockTransferForm = {
   fromBranch: "",
   toBranch: "",
   salesman: "",
+  narration: "",
   items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }],
 };
 

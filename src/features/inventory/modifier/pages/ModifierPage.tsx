@@ -145,6 +145,7 @@ const ModifierPage = () => {
         autoFocusSearch
         canAdd={canAdd}
         onAdd={openCreateModal}
+        addLabel="Add Modifier"
       />
       <RecordTableCard
         title="Saved Modifier List"

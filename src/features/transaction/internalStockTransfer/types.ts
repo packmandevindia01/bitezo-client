@@ -18,10 +18,16 @@ export type InternalStockTransferLineItem = z.infer<typeof InternalStockTransfer
 
 export const InternalStockTransferFormSchema = z.object({
   refNo: z.string().optional(),
-  date: z.string().min(1, "Date is required"),
+  date: z.string().min(1, "Date is required").refine((date) => {
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return selectedDate <= today;
+  }, { message: "Future dates are not allowed" }),
   fromBranch: z.string().min(1, "From Branch is required"),
   toBranch: z.string().min(1, "To Branch is required"),
   salesman: z.string().min(1, "Salesman is required"),
+  narration: z.string().max(200, "Max 200 characters").optional(),
   items: z.array(InternalStockTransferItemSchema),
 });
 

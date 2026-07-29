@@ -1,5 +1,6 @@
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
@@ -162,6 +163,7 @@ const ExtrasMasterPage = () => {
         autoFocusSearch
         canAdd={canAdd}
         onAdd={openCreateModal}
+        addLabel="Add Extras"
       />
       <RecordTableCard
         title="Saved Extras List"

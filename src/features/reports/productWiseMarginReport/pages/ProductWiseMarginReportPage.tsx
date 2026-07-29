@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../../../../components/common/PageShell";
-import Searchableselect from "../../../../components/common/Searchableselect";
+import { SearchableSelect, ReportDataGrid } from "../../../../components/common";
 import FormInput from "../../../../components/common/FormInput";
 import Button from "../../../../components/common/Button";
 import ResetButton from "../../../../components/common/ResetButton";
@@ -25,7 +25,7 @@ const ProductWiseMarginReportPage = () => {
 
   return (
     <PageShell title="Product Wise Margin Report">
-      <div className="flex flex-col h-full bg-slate-50 p-4 gap-4">
+      <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
         
         {/* ── Top Header Bar ─────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
@@ -43,162 +43,134 @@ const ProductWiseMarginReportPage = () => {
             className="absolute bottom-3 right-3"
           />
 
-          <div className="px-4 py-3 flex flex-col gap-3">
-            
-            {/* Top Row: Master Data Filters */}
-            <div className="flex flex-wrap gap-4 items-center pr-8">
-              <div className="flex flex-col gap-0.5 w-48 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Location</span>
-                <Searchableselect 
-                  id="pwm-branch" 
-                  options={options.branchOptions} 
-                  value={filters.branchId} 
-                  onChange={filters.setBranchId}
-                  disabled={filters.isBranchLocked}
-                  placeholder="All" 
-                />
+          <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
+            {/* 1. Location + Product */}
+            <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="pwm-branch" 
+                    options={options.branchOptions} 
+                    value={filters.branchId} 
+                    onChange={filters.setBranchId}
+                    disabled={filters.isBranchLocked}
+                    placeholder="All" 
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5 w-56 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Product</span>
-                <Searchableselect 
-                  id="pwm-product" 
-                  options={options.productOptions} 
-                  value={filters.productId} 
-                  onChange={filters.setProductId} 
-                  placeholder="All" 
-                />
-              </div>
-              <div className="flex flex-col gap-0.5 w-44 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Group</span>
-                <Searchableselect 
-                  id="pwm-group" 
-                  options={options.groupOptions} 
-                  value={filters.groupId} 
-                  onChange={filters.setGroupId} 
-                  placeholder="All" 
-                />
-              </div>
-              <div className="flex flex-col gap-0.5 w-44 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Category</span>
-                <Searchableselect 
-                  id="pwm-category" 
-                  options={options.categoryOptions} 
-                  value={filters.categoryId} 
-                  onChange={filters.setCategoryId} 
-                  placeholder="All" 
-                />
-              </div>
-              <div className="flex flex-col gap-0.5 w-44 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sub Category</span>
-                <Searchableselect 
-                  id="pwm-subcategory" 
-                  options={options.subcategoryOptions} 
-                  value={filters.subcategoryId} 
-                  onChange={filters.setSubcategoryId} 
-                  placeholder="All" 
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Product</span>
+                <div className="w-56">
+                  <SearchableSelect 
+                    id="pwm-product" 
+                    options={options.productOptions} 
+                    value={filters.productId} 
+                    onChange={filters.setProductId} 
+                    placeholder="All" 
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Bottom Row: Dates */}
-            <div className="pt-3 border-t border-gray-100 flex gap-4 items-center">
-              <div className="flex flex-col gap-0.5 w-40 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">From Date</span>
-                <FormInput 
-                  id="pwm-from-date" 
-                  type="date" 
-                  value={filters.fromDate} 
-                  onChange={(e) => filters.setFromDate(e.target.value)} 
-                />
+            {/* 2. Group, Category, Sub Category */}
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Group</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="pwm-group" 
+                    options={options.groupOptions} 
+                    value={filters.groupId} 
+                    onChange={filters.setGroupId} 
+                    placeholder="All" 
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5 w-40 shrink-0">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">To Date</span>
-                <FormInput 
-                  id="pwm-to-date" 
-                  type="date" 
-                  value={filters.toDate} 
-                  onChange={(e) => filters.setToDate(e.target.value)} 
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Category</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="pwm-category" 
+                    options={options.categoryOptions} 
+                    value={filters.categoryId} 
+                    onChange={filters.setCategoryId} 
+                    placeholder="All" 
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Sub Cat.</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="pwm-subcategory" 
+                    options={options.subcategoryOptions} 
+                    value={filters.subcategoryId} 
+                    onChange={filters.setSubcategoryId} 
+                    placeholder="All" 
+                  />
+                </div>
               </div>
             </div>
 
+            {/* 3. Dates */}
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
+                <div className="w-36">
+                  <FormInput 
+                    id="pwm-from-date" 
+                    type="date" 
+                    value={filters.fromDate} 
+                    onChange={(e) => filters.setFromDate(e.target.value)} 
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">To</span>
+                <div className="w-36">
+                  <FormInput 
+                    id="pwm-to-date" 
+                    type="date" 
+                    value={filters.toDate} 
+                    onChange={(e) => filters.setToDate(e.target.value)} 
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* ── Data Grid Section ───────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden relative">
-          
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/70 z-20 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#49293e]" />
-            </div>
-          )}
-
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-              <table className="w-full min-w-[900px] text-xs border-collapse table-fixed">
-                <thead className="sticky top-0 z-10 bg-gray-100 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
-                  <tr>
-                    <th className="w-16 px-2 py-2 text-center font-bold text-gray-600 border-r border-gray-200">SNo</th>
-                    <th className="w-32 px-2 py-2 text-center font-bold text-gray-600 border-r border-gray-200">Product Code</th>
-                    <th className="w-48 px-2 py-2 text-left font-bold text-gray-600 border-r border-gray-200">Product Name</th>
-                    <th className="w-32 px-2 py-2 text-center font-bold text-gray-600 border-r border-gray-200">Group</th>
-                    <th className="w-32 px-2 py-2 text-center font-bold text-gray-600 border-r border-gray-200">Category</th>
-                    <th className="w-32 px-2 py-2 text-center font-bold text-gray-600 border-r border-gray-200">Sub Category</th>
-                    <th className="w-32 px-2 py-2 text-right font-bold text-gray-600 border-r border-gray-200">Net Value</th>
-                    <th className="w-32 px-2 py-2 text-right font-bold text-gray-600 border-r border-gray-200">Cost</th>
-                    <th className="w-32 px-2 py-2 text-right font-bold text-gray-600 border-r border-gray-200">Margin</th>
-                    <th className="w-32 px-2 py-2 text-right font-bold text-gray-600">Margin %</th>
-                  </tr>
-                </thead>
-                
-                <tbody className="divide-y divide-gray-100">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-[#49293e] border-t-transparent rounded-full animate-spin" />
-                          <span>Loading...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : data.rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
-                        No records found for the selected period
-                      </td>
-                    </tr>
-                  ) : (
-                    data.rows.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-2 py-2 text-center text-gray-700 border-r border-gray-200 border-b">{row.sNo}</td>
-                        <td className="px-2 py-2 text-center text-gray-900 border-r border-gray-200 border-b">{row.productCode}</td>
-                        <td className="px-2 py-2 text-left text-gray-900 border-r border-gray-200 border-b">{row.productName}</td>
-                        <td className="px-2 py-2 text-center text-gray-600 border-r border-gray-200 border-b">{row.group}</td>
-                        <td className="px-2 py-2 text-center text-gray-600 border-r border-gray-200 border-b">{row.category}</td>
-                        <td className="px-2 py-2 text-center text-gray-600 border-r border-gray-200 border-b">{row.subCategory}</td>
-                        <td className="px-2 py-2 text-right text-[#0066cc] font-medium border-r border-gray-200 border-b">{formatAmount(Number(row.netValue))}</td>
-                        <td className="px-2 py-2 text-right text-gray-900 border-r border-gray-200 border-b">{formatAmount(Number(row.cost))}</td>
-                        <td className="px-2 py-2 text-right text-green-600 font-medium border-r border-gray-200 border-b">{formatAmount(Number(row.margin))}</td>
-                        <td className="px-2 py-2 text-right text-[#49293e] font-medium border-b">{formatAmount(Number(row.marginPer))}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-
-                {data.totals && data.rows.length > 0 && (
-                  <tfoot className="sticky bottom-0 bg-gray-100 shadow-[inset_0_1px_0_rgba(0,0,0,0.06)] z-10">
-                    <tr>
-                      <td colSpan={6} className="px-2 py-2 text-center font-bold text-gray-700 border-r border-gray-200">TOTAL</td>
-                      <td className="px-2 py-2 text-right font-bold tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(Number(data.totals.netValue))}</td>
-                      <td className="px-2 py-2 text-right font-bold tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(Number(data.totals.cost))}</td>
-                      <td className="px-2 py-2 text-right font-bold tabular-nums text-green-700 border-r border-gray-200">{formatAmount(Number(data.totals.margin))}</td>
-                      <td className="px-2 py-2 text-right font-bold tabular-nums text-[#49293e]">{formatAmount(Number(data.totals.marginper))}</td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-        </div>
+        <ReportDataGrid
+          columns={[
+            { key: 'sNo', label: 'SNo', align: 'center', className: 'w-16', render: (row) => row.sNo },
+            { key: 'code', label: 'Product Code', align: 'center', className: 'w-32', render: (row) => row.productCode },
+            { key: 'name', label: 'Product Name', align: 'left', className: 'w-48', render: (row) => row.productName },
+            { key: 'group', label: 'Group', align: 'center', className: 'w-32', render: (row) => row.group },
+            { key: 'category', label: 'Category', align: 'center', className: 'w-32', render: (row) => row.category },
+            { key: 'subCategory', label: 'Sub Category', align: 'center', className: 'w-32', render: (row) => row.subCategory },
+            { key: 'netValue', label: 'Net Value', align: 'right', className: 'w-32', render: (row) => <span className="tabular-nums font-medium text-[#0066cc]">{formatAmount(Number(row.netValue))}</span> },
+            { key: 'cost', label: 'Cost', align: 'right', className: 'w-32', render: (row) => <span className="tabular-nums text-gray-900">{formatAmount(Number(row.cost))}</span> },
+            { key: 'margin', label: 'Margin', align: 'right', className: 'w-32', render: (row) => <span className="tabular-nums font-medium text-green-600">{formatAmount(Number(row.margin))}</span> },
+            { key: 'marginPer', label: 'Margin %', align: 'right', className: 'w-32', render: (row) => <span className="tabular-nums font-medium text-[#49293e]">{formatAmount(Number(row.marginPer))}</span> },
+          ]}
+          data={data.rows}
+          isLoading={isLoading}
+          minWidth="min-w-[900px]"
+          emptyMessage="No records found for the selected period"
+          footerRow={
+            data.totals ? (
+              <tr>
+                <td colSpan={6} className="px-2 py-2 text-center text-[11px] font-bold text-gray-700 border-r border-gray-200">TOTAL</td>
+                <td className="px-2 py-2 text-right font-bold tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(Number(data.totals.netValue))}</td>
+                <td className="px-2 py-2 text-right font-bold tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(Number(data.totals.cost))}</td>
+                <td className="px-2 py-2 text-right font-bold tabular-nums text-green-700 border-r border-gray-200">{formatAmount(Number(data.totals.margin))}</td>
+                <td className="px-2 py-2 text-right font-bold tabular-nums text-[#49293e]">{formatAmount(Number(data.totals.marginper))}</td>
+              </tr>
+            ) : null
+          }
+        />
 
         {/* ── Sticky Bottom Actions Bar ───────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2 shrink-0 flex items-center justify-between">

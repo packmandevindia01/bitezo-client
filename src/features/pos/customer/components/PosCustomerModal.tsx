@@ -227,7 +227,11 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                 <FormInput
                   label="Mobile No"
                   required
-                  {...register("mobileNo")}
+                  {...register("mobileNo", {
+                    onChange: (e) => {
+                      e.target.value = e.target.value.replace(/[^0-9+\-\s()]/g, "");
+                    }
+                  })}
                   error={errors.mobileNo?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}

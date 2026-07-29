@@ -78,11 +78,13 @@ const PaymentVoucherFormPage = () => {
 
   return (
     <PageShell title={isEditMode ? (isCancelled ? "View Payment Voucher" : "Edit Payment Voucher") : "Add Payment Voucher"}>
-      <div className="w-full max-w-5xl mx-auto py-4 bg-white border border-gray-200 rounded-2xl shadow-sm p-6 relative">
+      <div className="w-full max-w-5xl mx-auto pt-14 pb-6 px-6 bg-white border border-gray-200 rounded-2xl shadow-sm relative">
         <button 
+          type="button"
           onClick={() => navigate("/dashboard/payment-voucher")}
-          className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
           title="Close"
+          tabIndex={-1}
         >
           <X size={20} />
         </button>
@@ -151,14 +153,10 @@ const PaymentVoucherFormPage = () => {
                   value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
                   onChange={(val) => setValue("paymodeId", Number(val))}
                   placeholder="Select Paymode"
-                  options={
-                    watch("paymodeId") === 3 
-                      ? [...paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) })), { label: "MULTI-PAY (SPLIT)", value: "3" }]
-                      : paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))
-                  }
+                  options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
                   onKeyDown={(e) => handleKeyDown(e as any, "pv-narration")}
                   tabIndex={9}
-                  disabled={!canSave || watch("paymodeId") === 3}
+                  disabled={!canSave}
                 />
               </div>
               <div className="flex items-end pb-[2px]">
@@ -210,6 +208,7 @@ const PaymentVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e, "pv-account")}
               tabIndex={6}
               readOnly={!canSave}
+              maxLength={50}
             />
 
             <FormInput
@@ -220,10 +219,15 @@ const PaymentVoucherFormPage = () => {
               min="0"
               step="0.001"
               value={watchedAmount}
-              onChange={(e) => setValue("amount", e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.length <= 15) {
+                  setValue("amount", e.target.value);
+                }
+              }}
               onKeyDown={(e) => handleKeyDown(e, "pv-paymode")}
               tabIndex={8}
               readOnly={!canSave}
+              maxLength={15}
             />
 
             <FormInput
@@ -234,6 +238,7 @@ const PaymentVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e, "pv-save")}
               tabIndex={10}
               readOnly={!canSave}
+              maxLength={200}
             />
           </div>
         </div>
@@ -250,6 +255,7 @@ const PaymentVoucherFormPage = () => {
               Delete
             </Button>
           )}
+
           <Button
             id="pv-clear"
             type="button"

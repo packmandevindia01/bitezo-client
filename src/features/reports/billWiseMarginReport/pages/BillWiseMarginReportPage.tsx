@@ -51,64 +51,74 @@ const BillWiseMarginReportPage = () => {
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
             
-            {/* Location & Series */}
-            <div className="pb-3 xl:pb-0 xl:pr-4 flex gap-3 items-center shrink-0">
-              <div className="flex flex-col gap-0.5 w-48">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Location</span>
-                <SearchableSelect 
-                  id="bwm-branch" 
-                  options={options.branchOptions} 
-                  value={filters.branchId} 
-                  onChange={filters.setBranchId} 
-                  disabled={filters.isBranchLocked}
-                  placeholder="All" 
-                />
+            {/* 1. Location + Series */}
+            <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="bwm-branch" 
+                    options={options.branchOptions} 
+                    value={filters.branchId} 
+                    onChange={filters.setBranchId} 
+                    disabled={filters.isBranchLocked}
+                    placeholder="All" 
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5 w-48">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Series</span>
-                <SearchableSelect 
-                  id="bwm-series" 
-                  options={options.seriesOptions} 
-                  value={filters.seriesId} 
-                  onChange={filters.setSeriesId} 
-                  placeholder="All" 
-                />
-              </div>
-            </div>
-
-            {/* Dates */}
-            <div className="pt-3 xl:pt-0 xl:px-4 flex gap-3 items-center shrink-0">
-              <div className="flex flex-col gap-0.5 w-40">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">From Date</span>
-                <FormInput 
-                  id="bwm-from-date" 
-                  type="date" 
-                  value={filters.fromDate} 
-                  onChange={(e) => filters.setFromDate(e.target.value)} 
-                />
-              </div>
-              <div className="flex flex-col gap-0.5 w-40">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">To Date</span>
-                <FormInput 
-                  id="bwm-to-date" 
-                  type="date" 
-                  value={filters.toDate} 
-                  onChange={(e) => filters.setToDate(e.target.value)} 
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Series</span>
+                <div className="w-40">
+                  <SearchableSelect 
+                    id="bwm-series" 
+                    options={options.seriesOptions} 
+                    value={filters.seriesId} 
+                    onChange={filters.setSeriesId} 
+                    placeholder="All" 
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Customer */}
-            <div className="pt-3 xl:pt-0 xl:px-4 flex gap-3 items-center shrink-0">
-              <div className="flex flex-col gap-0.5 w-52">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Customer</span>
-                <SearchableSelect 
-                  id="bwm-customer" 
-                  options={options.customerOptions} 
-                  value={filters.customerId} 
-                  onChange={filters.setCustomerId} 
-                  placeholder="All" 
-                />
+            {/* 2. Customer */}
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Customer</span>
+                <div className="w-64">
+                  <SearchableSelect 
+                    id="bwm-customer" 
+                    options={options.customerOptions} 
+                    value={filters.customerId} 
+                    onChange={filters.setCustomerId} 
+                    placeholder="All" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Dates */}
+            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">From</span>
+                <div className="w-36">
+                  <FormInput 
+                    id="bwm-from-date" 
+                    type="date" 
+                    value={filters.fromDate} 
+                    onChange={(e) => filters.setFromDate(e.target.value)} 
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 w-8 text-left shrink-0">To</span>
+                <div className="w-36">
+                  <FormInput 
+                    id="bwm-to-date" 
+                    type="date" 
+                    value={filters.toDate} 
+                    onChange={(e) => filters.setToDate(e.target.value)} 
+                  />
+                </div>
               </div>
             </div>
 

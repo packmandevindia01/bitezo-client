@@ -123,16 +123,29 @@ export const useProductForm = (productId?: number) => {
     }
   }, [imageFile, existingData, productId]);
 
-  // Generate Base Barcode on Mount (if creating new)
+  // Generate Base Barcode & Code on Mount (if creating new)
   useEffect(() => {
     if (!productId) {
       productService.getNextBarcode().then(barcode => {
         if (!form.getValues("barcode")) {
           form.setValue("barcode", barcode, { shouldValidate: true });
         }
-      }).catch(err => console.error("Failed to generate base barcode", err));
+        if (!form.getValues("code")) {
+          form.setValue("code", barcode, { shouldValidate: true });
+        }
+      }).catch(err => console.error("Failed to generate base barcode/code", err));
     }
   }, [productId, form]);
+
+  // Set default unit to 'nos' if available and not set
+  useEffect(() => {
+    if (!productId && masterData?.unit && !form.getValues("unitId")) {
+      const nosUnit = masterData.unit.find(u => u.name.toLowerCase() === 'nos' || u.name.toLowerCase().includes('nos'));
+      if (nosUnit) {
+        form.setValue("unitId", String(nosUnit.id), { shouldValidate: true });
+      }
+    }
+  }, [masterData, productId, form]);
 
   // Load existing data into form
   useEffect(() => {

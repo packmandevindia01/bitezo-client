@@ -1,4 +1,5 @@
 import React, { forwardRef } from "react";
+import { handleFocusNextInput } from "../../utils/keyboard";
 
 interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -6,7 +7,9 @@ interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   error?: string;
+  className?: string;
   inputClassName?: string;
+  wrapperClassName?: string;
   hideLabel?: boolean;
 }
 
@@ -18,6 +21,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   error,
   className = "",
   inputClassName = "",
+  wrapperClassName = "",
   type = "text",
   id,
   name,
@@ -32,7 +36,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   const isNumericField = type === 'number' || (label && /\b(price|cost|amount|qty|quantity|vat|disc|discount|rate|total|net|gross|percentage|%|balance)\b/i.test(label));
 
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full min-w-0 relative">
+    <div className={`flex flex-col gap-1 mb-1 min-w-0 relative ${wrapperClassName || "w-full"}`}>
 
       {/* LABEL */}
       {label && !hideLabel && (
@@ -68,15 +72,19 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
             if (isNumericField && (e.key === '-' || e.key === 'e')) {
               e.preventDefault();
             }
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleFocusNextInput(e.currentTarget);
+            }
             if (props.onKeyDown) props.onKeyDown(e);
           }}
           className={`
-            w-full h-10.5
-            text-sm
+            w-full h-9
+            text-xs
             rounded-md border outline-none transition
             ${icon ? "pl-11" : "pl-4"}
             ${rightIcon ? "pr-10" : "pr-4"}
-            ${isNumericField ? 'text-right' : 'text-left'}
+            ${type === 'password' ? 'text-center' : isNumericField ? 'text-right' : ''}
             
             ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
             ${props.disabled ? "bg-gray-100 cursor-not-allowed" : ""}

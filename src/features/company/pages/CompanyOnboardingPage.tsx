@@ -257,6 +257,10 @@ const CompanyOnboardingPage = () => {
         }))
       );
 
+      if (counters.length === 1) {
+        setPosCounterId(String(counters[0].counterId));
+      }
+
       setPosSeriesList(
         series.map((s) => ({
           id: s.seriesId,
@@ -264,12 +268,20 @@ const CompanyOnboardingPage = () => {
         }))
       );
 
+      if (series.length === 1) {
+        setPosSeriesId(String(series[0].seriesId));
+      }
+
       setPosTerminals(
         terminals.map((t) => ({
           id: t.terminalId,
           name: t.terminalName,
         }))
       );
+
+      if (terminals.length === 1) {
+        setPosTerminalId(String(terminals[0].terminalId));
+      }
     } catch (error) {
       setPosCounters([]);
       setPosSeriesList([]);
@@ -329,7 +341,6 @@ const CompanyOnboardingPage = () => {
         replace: true,
         state: {
           clientDb: clientDb,
-          username: formState.email.trim(),
           message: companyCheck.message || "Device verified. Please log in to your company account."
         }
       }), 1500);
@@ -432,7 +443,7 @@ const CompanyOnboardingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-6 pb-48 sm:py-10 sm:pb-48" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-slate-100 px-4 py-4 sm:py-6" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
         {/* ── Sidebar ── */}
         <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#49293e] via-[#5c3450] to-[#7b556c] p-6 text-white shadow-lg sm:p-8">
@@ -476,6 +487,7 @@ const CompanyOnboardingPage = () => {
 
               <div className="mt-8 grid gap-4 md:grid-cols-2">
                 <FormInput
+                  id="onboarding-regId"
                   label="Registration ID"
                   required
                   autoFocus={window.innerWidth > 1024}
@@ -484,10 +496,18 @@ const CompanyOnboardingPage = () => {
                     setField("regId", e.target.value);
                     setErrors((current) => ({ ...current, regId: "" }));
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      document.getElementById("onboarding-email")?.focus();
+                    }
+                  }}
                   error={errors.regId}
                   disabled={loading}
+                  tabIndex={1}
                 />
                 <FormInput
+                  id="onboarding-email"
                   label="Email Address"
                   type="email"
                   required
@@ -496,8 +516,15 @@ const CompanyOnboardingPage = () => {
                     setField("email", e.target.value);
                     setErrors((current) => ({ ...current, email: "" }));
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSendOtp();
+                    }
+                  }}
                   error={errors.email}
                   disabled={loading}
+                  tabIndex={2}
                 />
               </div>
 
@@ -528,6 +555,7 @@ const CompanyOnboardingPage = () => {
                     setField("otp", value);
                     setErrors((current) => ({ ...current, otp: "" }));
                   }}
+                  onEnter={handleVerifyOtp}
                 />
               </div>
 
@@ -576,9 +604,21 @@ const CompanyOnboardingPage = () => {
                 <button
                   type="button"
                   id="system-type-pos"
+                  autoFocus={true}
                   onClick={() => {
                     setSystemType("pos");
                     localStorage.setItem("systemType", "pos");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setSystemType("backoffice");
+                      localStorage.setItem("systemType", "backoffice");
+                      document.getElementById("system-type-backoffice")?.focus();
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleConfirmSystemType();
+                    }
                   }}
                   className={`relative w-full rounded-2xl border-2 bg-white p-6 text-left transition-all duration-200 hover:shadow-md ${
                     systemType === "pos"
@@ -613,6 +653,17 @@ const CompanyOnboardingPage = () => {
                   onClick={() => {
                     setSystemType("backoffice");
                     localStorage.setItem("systemType", "backoffice");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setSystemType("pos");
+                      localStorage.setItem("systemType", "pos");
+                      document.getElementById("system-type-pos")?.focus();
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleConfirmSystemType();
+                    }
                   }}
                   className={`relative w-full rounded-2xl border-2 bg-white p-6 text-left transition-all duration-200 hover:shadow-md ${
                     systemType === "backoffice"
@@ -671,6 +722,8 @@ const CompanyOnboardingPage = () => {
 
               <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <SearchableSelect
+                  id="onboarding-pos-branch"
+                  tabIndex={1}
                   label="Branch"
                   required
                   value={posBranchId}
@@ -690,13 +743,17 @@ const CompanyOnboardingPage = () => {
                     setPosTerminalId("");
                     setPosTerminals([]);
                     setPosSetupErrors((current) => ({ ...current, branchId: "", counterId: "", seriesId: "", terminalId: "" }));
-                    void loadPosCounters(val);
+                    loadPosCounters(val).then(() => {
+                      setTimeout(() => document.getElementById("onboarding-pos-counter")?.focus(), 100);
+                    });
                   }}
                   clearable={false}
                   forcePlacement="bottom"
                 />
 
                 <SearchableSelect
+                  id="onboarding-pos-counter"
+                  tabIndex={2}
                   label="Counter"
                   required
                   value={posCounterId}
@@ -707,7 +764,7 @@ const CompanyOnboardingPage = () => {
                         ? "Loading counters..."
                         : "Select counter"
                   }
-                  disabled={loadingPosSetup || loadingPosCounters || !posBranchId}
+                  disabled={!posBranchId || loadingPosCounters || loadingPosSetup}
                   error={posSetupErrors.counterId}
                   options={posCounters.map((counter) => ({
                     label: counter.name,
@@ -715,24 +772,29 @@ const CompanyOnboardingPage = () => {
                   }))}
                   onChange={(val) => {
                     setPosCounterId(val);
-                    setPosSetupErrors((current) => ({ ...current, counterId: "" }));
+                    setPosSeriesId("");
+                    setPosTerminalId("");
+                    setPosSetupErrors((current) => ({ ...current, counterId: "", seriesId: "", terminalId: "" }));
+                    setTimeout(() => document.getElementById("onboarding-pos-series")?.focus(), 50);
                   }}
                   clearable={false}
                   forcePlacement="bottom"
                 />
 
                 <SearchableSelect
+                  id="onboarding-pos-series"
+                  tabIndex={3}
                   label="Series"
                   required
                   value={posSeriesId}
                   placeholder={
-                    !posBranchId
-                      ? "Select branch first"
+                    !posCounterId
+                      ? "Select counter first"
                       : loadingPosSeries
                         ? "Loading series..."
                         : "Select series"
                   }
-                  disabled={loadingPosSetup || loadingPosSeries || !posBranchId}
+                  disabled={!posCounterId || loadingPosSeries || loadingPosSetup}
                   error={posSetupErrors.seriesId}
                   options={posSeriesList.map((series) => ({
                     label: series.name,
@@ -740,24 +802,28 @@ const CompanyOnboardingPage = () => {
                   }))}
                   onChange={(val) => {
                     setPosSeriesId(val);
-                    setPosSetupErrors((current) => ({ ...current, seriesId: "" }));
+                    setPosTerminalId("");
+                    setPosSetupErrors((current) => ({ ...current, seriesId: "", terminalId: "" }));
+                    setTimeout(() => document.getElementById("onboarding-pos-terminal")?.focus(), 50);
                   }}
                   clearable={false}
                   forcePlacement="bottom"
                 />
 
                 <SearchableSelect
+                  id="onboarding-pos-terminal"
+                  tabIndex={4}
                   label="Terminal"
                   required
                   value={posTerminalId}
                   placeholder={
-                    !posBranchId
-                      ? "Select branch first"
+                    !posSeriesId
+                      ? "Select series first"
                       : loadingPosTerminals
                         ? "Loading terminals..."
                         : "Select terminal"
                   }
-                  disabled={loadingPosSetup || loadingPosTerminals || !posBranchId}
+                  disabled={!posSeriesId || loadingPosTerminals || loadingPosSetup}
                   error={posSetupErrors.terminalId}
                   options={posTerminals.map((terminal) => ({
                     label: terminal.name,
@@ -766,6 +832,7 @@ const CompanyOnboardingPage = () => {
                   onChange={(val) => {
                     setPosTerminalId(val);
                     setPosSetupErrors((current) => ({ ...current, terminalId: "" }));
+                    setTimeout(() => document.getElementById("btn-save-pos-setup")?.focus(), 50);
                   }}
                   clearable={false}
                   forcePlacement="bottom"
@@ -785,6 +852,7 @@ const CompanyOnboardingPage = () => {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button
+                  id="btn-save-pos-setup"
                   onClick={handleCompletePosSetup}
                   disabled={loadingPosSetup || loadingPosCounters || posCounters.length === 0 || loadingPosTerminals || posTerminals.length === 0}
                   loading={loadingPosSetup || loadingPosCounters || loadingPosTerminals}
@@ -806,7 +874,7 @@ const CompanyOnboardingPage = () => {
           {/* Stage: form (company creation) */}
           {stage === "form" && (
             <div>
-              <div className="mb-8 flex flex-col gap-3 rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-5 flex flex-col gap-3 rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">
                     Company not yet registered
@@ -842,10 +910,7 @@ const CompanyOnboardingPage = () => {
                     navigate("/", {
                       state: {
                         clientDb: clientDatabase,
-                        username: "Admin",
-                        password: "1",
-                        message:
-                          "Company created successfully. Logging you in with default Admin credentials.",
+                        message: "Company created successfully. Please log in to your company account.",
                       },
                     });
                   }

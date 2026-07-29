@@ -89,17 +89,25 @@ const CustomerForm = ({
           label="Mobile No"
           required
           placeholder="Enter mobile number"
-          {...register("mobileNo")}
+          {...register("mobileNo", {
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/[^0-9+\-\s()]/g, "");
+            }
+          })}
           error={(errors.mobileNo as any)?.message}
-          onKeyDown={(e) => handleKeyDown(e, "cust-tel")}
+          onKeyDown={(e) => handleKeyDown(e, "customer-telNo")}
         />
 
         {/* Tel No */}
         <FormInput
-          id="cust-tel"
+          id="customer-telNo"
           label="Tel No"
           placeholder="Enter tel number"
-          {...register("telNo")}
+          {...register("telNo", {
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/[^0-9+\-\s()]/g, "");
+            }
+          })}
           error={(errors.telNo as any)?.message}
           onKeyDown={(e) => handleKeyDown(e, "cust-email")}
         />
@@ -224,6 +232,7 @@ const CustomerForm = ({
           type="number"
           placeholder="0.000"
           inputClassName="text-right"
+          maxLength={15}
           {...register("openingBalance")}
           error={(errors.openingBalance as any)?.message}
           onKeyDown={(e) => handleKeyDown(e, "cust-save-btn")}

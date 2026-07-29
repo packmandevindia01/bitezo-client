@@ -22,11 +22,15 @@ import { useQuery } from "@tanstack/react-query";
 import { sectionService } from "../../section/services/sectionService";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useToast } from "../../../../app/providers/useToast";
+import SectionModal from "../../section/components/SectionModal";
+import { useSectionManager } from "../../section/hooks/useSectionManager";
 
 const TableMasterPage = () => {
   const { hasPermission } = usePermissions();
   const { showToast } = useToast();
-  const { data: tableSections = [], isLoading: isSectionsLoading } = useQuery({
+  const sectionManager = useSectionManager();
+
+  const { data: tableSections = [], isLoading: isSectionsLoading, refetch: refetchSections } = useQuery({
     queryKey: ["tableSections"],
     queryFn: () => sectionService.list(),
   });
@@ -40,6 +44,12 @@ const TableMasterPage = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<TableRecord | null>(null);
+
+  useEffect(() => {
+    if (!sectionManager.open) {
+      refetchSections();
+    }
+  }, [sectionManager.open, refetchSections]);
 
   // Set default section
   useEffect(() => {
@@ -180,6 +190,7 @@ const TableMasterPage = () => {
             loading={isTablesLoading || isSectionsLoading}
             onSectionChange={(val) => setSelectedSectionId(Number(val))}
             onAdd={canAdd ? () => handleOpenAdd() : undefined}
+            onAddSection={hasPermission("Section Master", "Add") ? sectionManager.openCreateModal : undefined}
           />
 
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex-1">
@@ -217,6 +228,24 @@ const TableMasterPage = () => {
           message={`Are you sure you want to delete table "${deleteRecord?.tableName}"? This action cannot be undone.`}
           confirmLabel="Delete"
           cancelLabel="Cancel"
+        />
+
+        <SectionModal
+          isOpen={sectionManager.open}
+          editingId={sectionManager.editingId}
+          form={sectionManager.form}
+          counters={sectionManager.counters}
+          loading={sectionManager.loading}
+          saving={sectionManager.saving}
+          onChange={sectionManager.setField}
+          onClose={sectionManager.closeModal}
+          onClear={sectionManager.resetForm}
+          onSave={async () => {
+            const newId = await sectionManager.handleSave();
+            if (newId) {
+              setSelectedSectionId(newId);
+            }
+          }}
         />
       </div>
     </PageShell>

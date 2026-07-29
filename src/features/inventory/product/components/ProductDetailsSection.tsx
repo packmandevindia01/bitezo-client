@@ -129,7 +129,7 @@ export const ProductDetailsSection = ({
           value={watch("code")}
           maxLength={100}
           onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, '_'), { shouldValidate: true })}
-          onKeyDown={(e) => handleKeyDown(e, "prod-group")}
+          onKeyDown={(e) => handleKeyDown(e, "prod-barcode")}
           required
           error={errors.code?.message as string}
         />
@@ -138,9 +138,7 @@ export const ProductDetailsSection = ({
           label="Barcode"
           {...register("barcode")}
           maxLength={100}
-          readOnly
-          tabIndex={-1}
-          inputClassName="cursor-not-allowed bg-gray-50"
+          onKeyDown={(e) => handleKeyDown(e, "prod-group")}
           error={errors.barcode?.message as string}
         />
 

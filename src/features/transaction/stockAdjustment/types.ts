@@ -20,9 +20,15 @@ export const stockAdjustmentItemSchema = z.object({
 export const stockAdjustmentSchema = z.object({
   series: z.string().optional(),
   refNo: z.string().min(1, "Ref No is required"),
-  date: z.string().min(1, "Date is required"),
+  date: z.string().min(1, "Date is required").refine((date) => {
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return selectedDate <= today;
+  }, { message: "Future dates are not allowed" }),
   branch: z.string().min(1, "Branch is required"),
   salesman: z.string().min(1, "Salesman is required"),
+  narration: z.string().max(200, "Max 200 characters").optional(),
   items: z.array(stockAdjustmentItemSchema),
 });
 

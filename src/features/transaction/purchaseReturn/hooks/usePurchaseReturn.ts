@@ -497,22 +497,54 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         setValue("refNo", res.masterData.refNo || getValues("refNo"));
       }
       if (res && res.detailsData) {
-        const mappedItems = (res.detailsData || []).map((d: any) => ({
-          id: generateUUID(),
-          product: d.productId?.toString() || "",
-          code: d.productId?.toString() || "",
-          unit: d.unitId?.toString() || "",
-          unitName: d.unitName || "",
-          qty: d.qty?.toString() || "1",
-          foc: d.foc?.toString() || "0",
-          price: d.price?.toString() || "0",
-          discPercent: d.discPer?.toString() || "0",
-          vatId: (d.vatId || 0).toString(),
-          vatPercent: (d.vatValue || 0).toString(),
-        }));
-        replaceItems(mappedItems);
+        const currentPurchaseId = res.masterData?.purchaseId || parseInt(purchaseIdStr) || 0;
         
-        const productIds = Array.from(new Set(mappedItems.map((i: any) => i.product)));
+        const itemsWithBalances = await Promise.all((res.detailsData || []).map(async (d: any) => {
+          let balance = Number(d.qty || 1);
+          if (currentPurchaseId > 0 && d.productId) {
+            try {
+              const balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(currentPurchaseId, d.productId);
+              if (typeof balanceData === "object" && balanceData !== null) {
+                balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);
+              } else {
+                balance = Number(balanceData) || 0;
+              }
+            } catch (e) {
+              console.error("Failed to fetch balance for product", d.productId, e);
+            }
+          }
+          
+          return {
+            id: generateUUID(),
+            product: d.productId?.toString() || "",
+            code: d.productId?.toString() || "",
+            unit: d.unitId?.toString() || "",
+            unitName: d.unitName || "",
+            qty: balance.toString(),
+            foc: d.foc?.toString() || "0",
+            price: d.price?.toString() || "0",
+            discPercent: d.discPer?.toString() || "0",
+            vatId: (d.vatId || 0).toString(),
+            vatPercent: (d.vatValue || 0).toString(),
+            _balance: balance
+          };
+        }));
+        
+        const validItems = itemsWithBalances.filter(i => i._balance > 0);
+        
+        if (validItems.length === 0 && res.detailsData && res.detailsData.length > 0) {
+          showToast("This invoice has already been fully returned.", "warning");
+        }
+        
+        // Remove the temporary _balance property
+        const finalItems = validItems.map(i => {
+          const { _balance, ...rest } = i;
+          return rest;
+        });
+
+        replaceItems(finalItems);
+        
+        const productIds = Array.from(new Set(finalItems.map((i: any) => i.product)));
         const options: any[] = [];
         for (const pId of productIds) {
             if (!pId) continue;
@@ -558,8 +590,32 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setValue(`items.${index}.price`, formatAmount(details.cost));
       setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
       setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
-      if (currentQty === "0" || currentQty === "") {
-         setValue(`items.${index}.qty`, "1");
+      if (purchaseId && details.productId) {
+        try {
+          const balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, details.productId);
+          let balance = 0;
+          if (typeof balanceData === "object" && balanceData !== null) {
+            balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);
+          } else {
+            balance = Number(balanceData) || 0;
+          }
+          
+          if (balance <= 0) {
+            showToast(`Cannot return ${opt.label}. It has already been fully returned.`, "error");
+            setValue(`items.${index}.qty`, "0");
+          } else {
+            setValue(`items.${index}.qty`, String(balance));
+          }
+        } catch (err) {
+          console.error("Failed to fetch balance qty", err);
+          if (currentQty === "0" || currentQty === "") {
+            setValue(`items.${index}.qty`, "1");
+          }
+        }
+      } else {
+        if (currentQty === "0" || currentQty === "") {
+          setValue(`items.${index}.qty`, "1");
+        }
       }
       if (details.unitCategory) {
         loadCategoryUnits(details.unitCategory);
@@ -766,8 +822,15 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           }
           
           if (baseQty > balance) {
-            const prodName = productOptions.find(p => p.value === item.product)?.label || item.product;
-            showToast(`Validation Failed: Maximum returnable quantity for ${prodName} is ${balance}`, "error");
+            let prodName = productOptions.find(p => p.value === item.product)?.label || item.product;
+            // Remove the [CODE] prefix if it exists
+            prodName = prodName.replace(/^\[.*?\]\s*/, '');
+            
+            if (balance <= 0) {
+              showToast(`Cannot return ${prodName}. It has already been fully returned.`, "error");
+            } else {
+              showToast(`Cannot return ${prodName}. Only ${balance} left to return.`, "error");
+            }
             setSaving(false);
             return false;
           }
@@ -826,7 +889,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           };
         }),
         paymodes: (() => {
-          if (watchedPayments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return undefined;
+          if (watchedPayments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return [];
           // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
           const map = new Map<number, number>();
           for (const p of watchedPayments as any[]) {

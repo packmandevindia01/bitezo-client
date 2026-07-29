@@ -31,7 +31,7 @@ export const productionSchema = z.object({
   finishedProductQty: z.string().min(1, "Output Qty is required").refine((val) => !isNaN(Number(val)) && Number(val) > 0, "Invalid Qty"),
   
   otherCharge: z.string().optional(),
-  narration: z.string().optional(),
+  narration: z.string().max(200, "Max 200 characters").optional(),
 
   items: z.array(productionItemSchema).min(1, "At least one raw material is required"),
 });

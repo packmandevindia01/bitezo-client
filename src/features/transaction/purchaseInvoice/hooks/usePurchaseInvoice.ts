@@ -661,7 +661,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
           };
         }),
         paymodes: (() => {
-          if (data.payments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return undefined;
+          if (data.payments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return [];
           // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
           const map = new Map<number, number>();
           for (const p of data.payments as any[]) {

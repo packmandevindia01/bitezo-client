@@ -27,3 +27,4 @@ export { default as ResetButton } from "./ResetButton";
 export * from "./MasterDesign";
 export { default as ListHeader } from "./ListHeader";
 export * from "./AutoScaleWrapper";
+export * from "./ReportDataGrid";

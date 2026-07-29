@@ -169,7 +169,7 @@ const StockRegisterReportPage = () => {
       <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
 
         {/* ── Filter Panel ────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-16">
           <button
             onClick={() => navigate("/dashboard")}
             className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
@@ -180,16 +180,15 @@ const StockRegisterReportPage = () => {
 
           <ResetButton
             onReset={handleReset}
-            className="absolute bottom-3 right-3"
+            className="absolute bottom-3 right-3 z-30"
           />
 
-          <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
-
+          <div className="px-2 py-2 flex flex-col xl:flex-row gap-2 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
             {/* 1. Group By Section */}
-            <div className="shrink-0 flex flex-col gap-0.5 pr-4 justify-center">
+            <div className="shrink-0 flex flex-col gap-0.5 pr-2 justify-center">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Group By</span>
               {(["All", "Group", "Category"] as GroupByOption[]).map((val) => (
-                <div key={val} className="h-7 flex items-center">
+                <div key={val} className="h-6 flex items-center">
                   <Checkbox
                     id={`st-group-${val}`}
                     label={GROUP_LABEL[val]}
@@ -201,63 +200,62 @@ const StockRegisterReportPage = () => {
             </div>
 
             {/* 2. Location + As On Date */}
-            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Location</span>
-                <div className="w-40">
+            <div className="pt-2 xl:pt-0 xl:px-2 flex flex-col gap-1.5 shrink-0 justify-center">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
+                <div className="w-32">
                   <SearchableSelect id="st-branch" options={branchOptions} value={filters.branchId} onChange={filters.setBranchId} disabled={filters.isBranchLocked} placeholder="All" autoFocus={true} />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">As On Date</span>
-                <div className="w-40">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">As On Date</span>
+                <div className="w-32">
                   <FormInput id="st-as-on-date" type="date" value={filters.asOnDate} onChange={(e) => filters.setAsOnDate(e.target.value)} />
                 </div>
               </div>
             </div>
 
             {/* 3. Group + Category */}
-            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Group</span>
-                <div className="w-40">
+            <div className="pt-2 xl:pt-0 xl:px-2 flex flex-col gap-1.5 shrink-0 justify-center">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-14 text-left shrink-0">Group</span>
+                <div className="w-32">
                   <SearchableSelect id="st-group-id" options={groupOptions} value={filters.groupId} onChange={filters.setGroupId} placeholder="All" />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Category</span>
-                <div className="w-40">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-14 text-left shrink-0">Category</span>
+                <div className="w-32">
                   <SearchableSelect id="st-category-id" options={categoryOptions} value={filters.categoryId} onChange={filters.setCategoryId} placeholder="All" />
                 </div>
               </div>
             </div>
 
             {/* 4. Sub Category + Product Type */}
-            <div className="pt-3 xl:pt-0 xl:px-3 flex flex-col gap-2 shrink-0 justify-start">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-20 text-right shrink-0">Sub Category</span>
-                <div className="w-40">
+            <div className="pt-2 xl:pt-0 xl:px-2 flex flex-col gap-1.5 shrink-0 justify-center">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-20 text-left shrink-0">Sub Category</span>
+                <div className="w-32">
                   <SelectInput id="st-subcategory-id" options={subcategoryOptions} value={filters.subCategoryId} onChange={(e) => filters.setSubCategoryId(e.target.value)} disabled={filters.categoryId === "0"} />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-20 text-right shrink-0">Product Type</span>
-                <div className="w-40">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-20 text-left shrink-0">Product Type</span>
+                <div className="w-32">
                   <SelectInput id="st-product-type-id" options={productTypeOptions} value={filters.productTypeId} onChange={(e) => filters.setProductTypeId(e.target.value)} />
                 </div>
               </div>
             </div>
 
             {/* 5. Product */}
-            <div className="pt-3 xl:pt-0 xl:pl-3 flex flex-col gap-2 shrink-0 justify-start">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-500 w-14 text-right shrink-0">Product</span>
-                <div className="w-44">
+            <div className="pt-2 xl:pt-0 xl:px-2 flex flex-col gap-1.5 shrink-0 justify-start">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-500 w-14 text-left shrink-0">Product</span>
+                <div className="w-36">
                   <SearchableSelect id="st-product-id" options={productOptions} value={filters.productId} onChange={filters.setProductId} placeholder="All" />
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
