@@ -618,19 +618,6 @@ const PurchaseReturnFormPage = () => {
                     className="!h-9"
                   />
                 </div>
-                {/* Show re-configure button only when multi-pay is active — tabIndex=-1 to keep keyboard flow: paymode → Save */}
-                {selectedPaymodeId === multiPayId && canSave && (
-                  <Button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setIsMultiPayOpen(true)}
-                    disabled={saving}
-                    className="h-9 px-4 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shrink-0 !rounded-md border-0 mt-[20px]"
-                    icon={<CreditCard size={14} />}
-                  >
-                    Edit
-                  </Button>
-                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-4 justify-end flex-1">

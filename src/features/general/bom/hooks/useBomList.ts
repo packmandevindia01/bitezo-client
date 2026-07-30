@@ -25,7 +25,11 @@ export const useBomList = () => {
     queryKey: ["finishedProducts"],
     queryFn: async () => {
       const prodRes = await bomApi.getFinishedProductListByName("");
-      return prodRes.map(p => ({ label: p.productName, value: String(p.productId) }));
+      return prodRes.map(p => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code || ""
+      }));
     }
   });
 

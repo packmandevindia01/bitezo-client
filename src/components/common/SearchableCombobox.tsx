@@ -91,7 +91,7 @@ const SearchableCombobox = ({
     : options;
 
   useEffect(() => {
-    if (onSearch) {
+    if (onSearch && focused) {
       if (query.trim().length < minQueryLength) return;
       
       const timer = setTimeout(() => {
@@ -99,7 +99,7 @@ const SearchableCombobox = ({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [query, onSearch, minQueryLength]);
+  }, [query, onSearch, minQueryLength, focused]);
 
   useEffect(() => {
     setHighlightedIndex(-1);

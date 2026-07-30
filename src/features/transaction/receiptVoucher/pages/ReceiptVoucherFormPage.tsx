@@ -36,7 +36,7 @@ const ReceiptVoucherFormPage = () => {
 
   const canSave = !isCancelled;
 
-  const { watch, setValue } = form;
+  const { watch, setValue, formState: { errors } } = form;
   const watchedAmount = watch("amount");
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
@@ -98,6 +98,7 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e as any, "rv-series")}
               tabIndex={1}
               disabled={!canSave || isBranchLocked}
+              required
             />
             
             <FormInput
@@ -110,6 +111,7 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e, "rv-employee")}
               tabIndex={3}
               readOnly={!canSave}
+              required
             />
 
             <FormInput
@@ -137,6 +139,7 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e as any, "rv-amount")}
               tabIndex={7}
               disabled={!canSave}
+              required
             />
 
             <div className="flex items-end gap-2">
@@ -145,25 +148,18 @@ const ReceiptVoucherFormPage = () => {
                   id="rv-paymode"
                   label="PAYMODE"
                   value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
-                  onChange={(val) => setValue("paymodeId", Number(val))}
+                  onChange={(val) => {
+                    const numVal = Number(val);
+                    setValue("paymodeId", numVal);
+                    if (numVal === 3) setIsMultiPayOpen(true);
+                  }}
                   placeholder="Select Paymode"
                   options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
                   onKeyDown={(e) => handleKeyDown(e as any, "rv-narration")}
                   tabIndex={9}
                   disabled={!canSave}
+                  required={true}
                 />
-              </div>
-              <div className="flex items-end pb-[2px]">
-                <Button 
-                  type="button" 
-                  variant="secondary" 
-                  className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20 text-xs font-bold" 
-                  onClick={() => setIsMultiPayOpen(true)}
-                  disabled={!canSave || !watch("amount")}
-                  tabIndex={-1}
-                >
-                  MULTI
-                </Button>
               </div>
             </div>
           </div>
@@ -180,6 +176,7 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e as any, "rv-date")}
               tabIndex={2}
               disabled={!canSave}
+              required
             />
 
             <SearchableSelect
@@ -192,6 +189,7 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e as any, "rv-no")}
               tabIndex={4}
               disabled={!canSave}
+              required
             />
 
             <FormInput
@@ -202,6 +200,8 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e, "rv-account")}
               tabIndex={6}
               readOnly={!canSave}
+              maxLength={50}
+              error={errors.refNo?.message}
             />
 
             <FormInput
@@ -214,6 +214,9 @@ const ReceiptVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e, "rv-paymode")}
               tabIndex={8}
               readOnly={!canSave}
+              maxLength={12}
+              error={errors.amount?.message}
+              required
             />
 
             <div className="flex flex-col gap-1 mb-1 w-full relative">
@@ -223,6 +226,7 @@ const ReceiptVoucherFormPage = () => {
               <textarea
                 id="rv-narration"
                 value={watch("narration")}
+                maxLength={200}
                 onChange={(e) => setValue("narration", e.target.value)}
                 readOnly={!canSave}
                 tabIndex={10}

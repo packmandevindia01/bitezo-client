@@ -81,8 +81,8 @@ const ReceiptAgainstVoucherPage = () => {
   };
 
   const handleManualAdd = () => {
-    if (!manualItem.voucherType || !manualItem.amount) {
-      showToast("Voucher Type and Amount are required", "error", "Error");
+    if (!manualItem.invoiceId || !manualItem.amount) {
+      showToast("Invoice No and Amount are required", "error", "Error");
       return;
     }
     
@@ -110,6 +110,15 @@ const ReceiptAgainstVoucherPage = () => {
 
   const handleReset = () => {
     form.reset();
+    setManualItem({
+      invoiceId: 0,
+      voucherType: "",
+      invoiceNo: "",
+      invoiceAmount: "",
+      paid: "",
+      balance: "",
+      amount: "",
+    });
     setShowClearConfirm(false);
     setTimeout(() => document.getElementById("rav-page-series")?.focus(), 0);
   };
@@ -247,19 +256,28 @@ const ReceiptAgainstVoucherPage = () => {
           <form id="rav-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full gap-4">
             
             <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 xl:grid-cols-5 flex-none">
-              <SelectInput 
-                id="rav-page-series" 
-                label="Series" 
-                options={masterData?.series?.map((s: any) => ({ value: String(s.seriesId), label: s.seriesName })) || []}
-                value={String(form.watch("seriesId") || "")}
-                {...form.register("seriesId", { 
-                  valueAsNumber: true,
-                  onChange: (e) => form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true }) 
-                })}
-                disabled={!!transId}
-                error={form.formState.errors.seriesId?.message}
-                autoFocus
-              />
+              <div
+                onMouseDownCapture={(e) => {
+                  if (!branchId) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showToast("Please select a Branch first.", "warning", "Warning");
+                  }
+                }}
+              >
+                <SelectInput 
+                  id="rav-page-series" 
+                  label="Series" 
+                  options={masterData?.series?.map((s: any) => ({ value: String(s.seriesId), label: s.seriesName })) || []}
+                  value={String(form.watch("seriesId") || "")}
+                  {...form.register("seriesId", { 
+                    onChange: (e) => form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true }) 
+                  })}
+                  disabled={!!transId}
+                  error={form.formState.errors.seriesId?.message}
+                  autoFocus
+                />
+              </div>
               
               <FormInput 
                 id="rav-page-vchNo" 
@@ -286,8 +304,8 @@ const ReceiptAgainstVoucherPage = () => {
                     value={String(form.watch("accountId") || "")}
                     onChange={(val) => form.setValue("accountId", Number(val), { shouldValidate: true })}
                     disabled={!!transId}
+                    error={form.formState.errors.accountId?.message}
                   />
-                  {form.formState.errors.accountId && <span className="text-red-500 text-xs">{form.formState.errors.accountId.message}</span>}
                 </div>
                 <div className="flex items-end pb-1">
                   <Button 
@@ -454,22 +472,9 @@ const ReceiptAgainstVoucherPage = () => {
                       value={String(form.watch("paymodeId") || "")}
                       onChange={handlePaymodeChange}
                       disabled={!!transId}
+                      error={form.formState.errors.paymodeId?.message}
                     />
-                    {form.formState.errors.paymodeId && <span className="text-red-500 text-xs">{form.formState.errors.paymodeId.message}</span>}
                   </div>
-                  {form.watch("paymodeId") === multiPayId && !transId && (
-                    <div className="flex items-end pb-1">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setIsMultiPaymodeOpen(true)}
-                        className="h-10.5 px-3 text-xs font-bold whitespace-nowrap"
-                        tabIndex={-1}
-                      >
-                        SPLIT
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="flex justify-end mt-2 px-2">

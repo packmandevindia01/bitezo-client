@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,8 +11,10 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import { useNavigate } from "react-router-dom";
 import { generateUUID } from "../../../../utils/uuid";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useRecipeForm = (initialTransId?: number) => {
+  const { isBranchLocked, initialBranchId } = useBranchScope();
   const { decimalPart } = useCurrency();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -42,7 +44,7 @@ export const useRecipeForm = (initialTransId?: number) => {
   const form = useForm<RecipeForm>({
     resolver: zodResolver(recipeSchema),
     defaultValues: {
-      branchId: "",
+      branchId: isBranchLocked ? initialBranchId : "",
       finishedProduct: "",
       finishedProductCode: "",
       finishedProductUnit: "",
@@ -64,6 +66,8 @@ export const useRecipeForm = (initialTransId?: number) => {
   // Watch values for dynamic totals and dependent queries
   const watchedItems = useWatch({ control, name: "items" }) || [];
   const watchedFinishedProductQty = useWatch({ control, name: "finishedProductQty" });
+  const watchedFinishedProduct = useWatch({ control, name: "finishedProduct" });
+  const watchedFinishedProductUnit = useWatch({ control, name: "finishedProductUnit" });
 
   // 3. Totals Calculation
   const totals = useMemo(() => {
@@ -152,72 +156,124 @@ export const useRecipeForm = (initialTransId?: number) => {
     }
   });
 
-  const { isLoading: isLoadingInitialData, isError: isInitialDataError, error: initialDataError } = useQuery({
+  const { data: recipeData, isLoading: isLoadingInitialData, isError: isInitialDataError, error: initialDataError } = useQuery({
     queryKey: ["recipeData", initialTransId],
     queryFn: async () => {
       if (!initialTransId) return null;
       const data = await recipeApi.getRecipeById(initialTransId);
-      const master = data.masterData || {};
-      const details = data.detailsData || [];
-      const excludeOrderData = data.excludeOrder || [];
-      
-      const masterExcludeOrders: number[] = [];
-      const itemExcludeOrdersMap: Record<string, number[]> = {};
-
-      excludeOrderData.forEach((eo: any) => {
-        if (eo.productId === master.productId && eo.unitId === master.unitId) {
-          masterExcludeOrders.push(eo.orderTypeId);
-        } else {
-          const key = `${eo.productId}-${eo.unitId}`;
-          if (!itemExcludeOrdersMap[key]) itemExcludeOrdersMap[key] = [];
-          itemExcludeOrdersMap[key].push(eo.orderTypeId);
-        }
-      });
-      
-      if (details.length > 0) {
-        const mappedItems: any[] = [];
-        for (const item of details) {
-          const barcode = item.barcode || item.code || "";
-          let unitCategory = "";
-          if (barcode) {
-            try {
-              const costData = await recipeApi.getProductCostData(barcode);
-              unitCategory = costData.unitCategory || "";
-              if (unitCategory) {
-                await loadCategoryUnits(unitCategory);
-              }
-            } catch (e) {
-              console.error("Failed to load unit category for detail item", item, e);
-            }
-          }
-          mappedItems.push({
-            id: generateUUID(),
-            product: String(item.productId),
-            productName: item.productName || item.name || item.productCode || "",
-            code: item.barcode || item.code || "",
-            unit: String(item.unitId),
-            unitCategory,
-            qty: String(item.qty || "1"),
-            cost: Number(item.cost || 0).toFixed(decimalPart),
-            productId: item.productId,
-            unitId: item.unitId,
-            excludeOrders: itemExcludeOrdersMap[`${item.productId}-${item.unitId}`] || []
-          });
-        }
-        reset({
-          branchId: String(master.branchId || ""),
-          finishedProduct: String(master.productId || ""),
-          finishedProductUnit: String(master.unitId || ""),
-          finishedProductUnitName: (master as any).unitName || String(master.unitId || ""),
-          finishedProductQty: String(master.qty || 1),
-          items: mappedItems,
-          excludeOrders: masterExcludeOrders
-        });
-      }
       return data;
     },
     enabled: !!initialTransId,
   });
+
+  useEffect(() => {
+    const loadRecipeData = async () => {
+      if (recipeData && initialTransId) {
+        const master = recipeData.masterData || {};
+        const details = recipeData.detailsData || [];
+        const excludeOrderData = recipeData.excludeOrder || [];
+        
+        const masterExcludeOrders: number[] = [];
+        const itemExcludeOrdersMap: Record<string, number[]> = {};
+
+        excludeOrderData.forEach((eo: any) => {
+          if (eo.productId === master.productId && eo.unitId === master.unitId) {
+            masterExcludeOrders.push(eo.orderTypeId);
+          } else {
+            const key = `${eo.productId}-${eo.unitId}`;
+            if (!itemExcludeOrdersMap[key]) itemExcludeOrdersMap[key] = [];
+            itemExcludeOrdersMap[key].push(eo.orderTypeId);
+          }
+        });
+        
+        if (details.length > 0) {
+          const mappedItems: any[] = [];
+          for (const item of details) {
+            const barcode = item.barcode || item.code || item.productCode || "";
+            let unitCategory = "";
+            if (barcode || item.productId) {
+              try {
+                const costData = await recipeApi.getProductCostData(barcode || String(item.productId));
+                unitCategory = costData.unitCategory || "";
+                if (unitCategory) {
+                  await loadCategoryUnits(unitCategory);
+                }
+              } catch (e) {
+                console.error("Failed to load unit category for detail item", item, e);
+              }
+            }
+            mappedItems.push({
+              id: generateUUID(),
+              product: String(item.productId),
+              productName: item.productName || item.name || "",
+              code: barcode,
+              unit: String(item.unitId),
+              unitCategory,
+              qty: String(item.qty || "1"),
+              cost: Number(item.cost || 0).toFixed(decimalPart),
+              productId: item.productId,
+              unitId: item.unitId,
+              excludeOrders: itemExcludeOrdersMap[`${item.productId}-${item.unitId}`] || []
+            });
+          }
+          reset({
+            branchId: String(master.branchId || ""),
+            finishedProduct: String(master.productId || ""),
+            finishedProductCode: master.barcode || master.productCode || master.code || "",
+            finishedProductUnit: String(master.unitId || ""),
+            finishedProductUnitName: (master as any).unitName || String(master.unitId || ""),
+            finishedProductQty: String(master.qty || 1),
+            items: mappedItems,
+            excludeOrders: masterExcludeOrders
+          });
+        }
+      }
+    };
+    
+    loadRecipeData();
+  }, [recipeData, initialTransId, reset]);
+
+  useEffect(() => {
+    if (!initialTransId && !getValues("branchId")) {
+      if (isBranchLocked && initialBranchId) {
+        setValue("branchId", initialBranchId);
+      } else if (branches.length > 0) {
+        setValue("branchId", branches[0].value);
+      }
+    }
+  }, [initialTransId, isBranchLocked, initialBranchId, branches, setValue, getValues]);
+
+  useEffect(() => {
+    const syncEditModeData = async () => {
+      if (initialTransId && watchedFinishedProduct && finishedProducts.length > 0) {
+         const currentCode = getValues("finishedProductCode");
+         const prod = finishedProducts.find(p => p.value === watchedFinishedProduct);
+         if (prod && prod.code && !currentCode) {
+           setValue("finishedProductCode", prod.code);
+         }
+         
+         if (finishedProductUnits.length === 0) {
+           try {
+             const identifier = prod?.code || watchedFinishedProduct;
+             const costData = await recipeApi.getProductCostData(identifier);
+             const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
+             const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+             setFinishedProductUnits(unitOptions);
+             
+             if (watchedFinishedProductUnit) {
+               const foundUnit = unitsResp.find((u: any) => String(u.unitId) === String(watchedFinishedProductUnit));
+               if (foundUnit) {
+                 setValue("finishedProductUnitName", foundUnit.name);
+               }
+             }
+           } catch (e) {
+             console.error("Failed to sync edit mode units", e);
+           }
+         }
+      }
+    };
+    syncEditModeData();
+  }, [initialTransId, watchedFinishedProduct, watchedFinishedProductUnit, finishedProducts, finishedProductUnits.length, setValue, getValues]);
 
   // 5. Actions & Handlers
   const handleFinishedProductSelect = async (productId: string) => {
@@ -225,11 +281,11 @@ export const useRecipeForm = (initialTransId?: number) => {
     const prod = finishedProducts.find(p => p.value === productId);
     if (!prod) return;
 
-    setValue("finishedProductCode", prod.code);
-    if (!prod.code) return;
+    setValue("finishedProductCode", prod.code || "");
+    const identifier = prod.code || productId;
 
     try {
-      const costData = await recipeApi.getProductCostData(prod.code);
+      const costData = await recipeApi.getProductCostData(identifier);
       const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
       
       const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
@@ -247,10 +303,11 @@ export const useRecipeForm = (initialTransId?: number) => {
   const handleGridProductSelect = async (index: number, productId: string, barcode: string) => {
     setValue(`items.${index}.product`, productId);
     setValue(`items.${index}.productId`, Number(productId));
-    if (!barcode) return;
+    setValue(`items.${index}.code`, barcode || "");
+    const identifier = barcode || productId;
 
     try {
-      const costData = await recipeApi.getProductCostData(barcode);
+      const costData = await recipeApi.getProductCostData(identifier);
       if (costData) {
         setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
         setValue(`items.${index}.unitId`, costData.baseUnitId);
@@ -418,14 +475,49 @@ export const useRecipeForm = (initialTransId?: number) => {
   });
 
   const onSubmit = handleSubmit((data) => {
+    const validItems = data.items.filter(item => item.product);
+    if (validItems.length === 0) {
+      showToast("Please select at least one Raw Material.", "warning");
+      return;
+    }
     saveMutation.mutate(data);
   }, (errors) => {
-    // Show validation errors via toast
-    const firstError = Object.values(errors)[0];
-    if (firstError?.message) {
-      showToast(firstError.message as string, "error");
+    // Show validation errors via toast (supporting nested arrays like items)
+    const findFirstError = (obj: any): string | undefined => {
+      if (!obj) return undefined;
+      if (obj.message) return obj.message as string;
+      if (Array.isArray(obj)) {
+        for (const item of obj) {
+          const msg = findFirstError(item);
+          if (msg) return msg;
+        }
+      } else if (typeof obj === "object") {
+        for (const key in obj) {
+          const msg = findFirstError(obj[key]);
+          if (msg) return msg;
+        }
+      }
+      return undefined;
+    };
+    
+    const msg = findFirstError(errors);
+    if (msg) {
+      showToast(msg, "error");
     }
   });
+
+  const handleReset = useCallback(() => {
+    reset({
+      branchId: isBranchLocked ? initialBranchId : "",
+      finishedProduct: "",
+      finishedProductCode: "",
+      finishedProductUnit: "",
+      finishedProductUnitName: "",
+      finishedProductQty: "1",
+      items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }],
+      excludeOrders: [],
+    });
+  }, [reset, isBranchLocked, initialBranchId]);
 
   return {
     form,
@@ -450,7 +542,9 @@ export const useRecipeForm = (initialTransId?: number) => {
     getRowOptions,
     handleRawMaterialSearch,
     searchingRawMaterials,
+    handleReset,
     onSubmit,
-    masterData: { units: allUnits }
+    masterData: { units: allUnits },
+    isBranchLocked
   };
 };

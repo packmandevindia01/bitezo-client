@@ -33,7 +33,11 @@ export const useRecipeList = () => {
     queryKey: ["finishedProducts"],
     queryFn: async () => {
       const fp = await recipeApi.getFinishedProductListByName("");
-      return fp.map((p: any) => ({ label: p.productName, value: String(p.productId) }));
+      return fp.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code || ""
+      }));
     }
   });
 

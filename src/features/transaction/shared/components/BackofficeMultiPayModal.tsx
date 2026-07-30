@@ -120,19 +120,9 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
       return;
     }
 
-    // Validate non-cash overpayment
-    const cashNames = ["cash"];
-    for (const r of activePayments) {
-      if (!cashNames.includes(r.paymodeName.toLowerCase())) {
-        const amt = parseFloat(r.inputValue);
-        const otherTotal = activePayments
-          .filter(x => x.paymodeId !== r.paymodeId)
-          .reduce((sum, x) => sum + parseFloat(x.inputValue), 0);
-        if (Number((otherTotal + amt).toFixed(decimalPart)) > roundedDue) {
-          showToast(`Overpayment is only allowed for Cash. Reduce the amount for "${r.paymodeName}".`, "error");
-          return;
-        }
-      }
+    if (roundedPaid > roundedDue) {
+      showToast("Overpayment is not allowed in this transaction.", "error");
+      return;
     }
 
     onSubmit(
@@ -172,18 +162,18 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
           </div>
           <div className={`rounded-lg px-4 py-2.5 flex items-center justify-between border transition-colors ${
             change > 0
-              ? "bg-emerald-50 border-emerald-300"
+              ? "bg-red-50 border-red-300"
               : remaining > 0
                 ? "bg-amber-50 border-amber-300"
                 : "bg-gray-50 border-gray-200"
           }`}>
             <span className={`text-xs font-semibold uppercase tracking-wide ${
-              change > 0 ? "text-emerald-600" : remaining > 0 ? "text-amber-600" : "text-gray-500"
+              change > 0 ? "text-red-500" : remaining > 0 ? "text-amber-600" : "text-gray-500"
             }`}>
-              {change > 0 ? "Change" : "Balance"}
+              {change > 0 ? "Overpayment" : "Balance"}
             </span>
             <span className={`text-sm font-black tabular-nums ${
-              change > 0 ? "text-emerald-600" : remaining > 0 ? "text-amber-600" : "text-gray-800"
+              change > 0 ? "text-red-500" : remaining > 0 ? "text-amber-600" : "text-gray-800"
             }`}>
               {formatAmount(change > 0 ? change : remaining)}
             </span>

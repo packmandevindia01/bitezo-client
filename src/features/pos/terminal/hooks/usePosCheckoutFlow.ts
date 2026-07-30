@@ -231,19 +231,18 @@ export const usePosCheckoutFlow = ({
             orderType: mappedOrderType,
             date: now.toLocaleDateString('en-GB'),
             time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
-            customer: orderPayload.customerName || "WALK IN",
+            customerName: orderPayload.customerName || "WALK IN",
             payments: payments.map(p => ({
-              method: paymentNames[p.paymodeId] || "Other",
+              name: paymentNames[p.paymodeId] || "Other",
               amount: p.amount
             })),
-            totals: {
-              subtotal: subtotal.toFixed(decimalPart),
-              discountAmount: totalDiscountAmount.toFixed(decimalPart),
-              serviceCharge: totalServiceCharge.toFixed(decimalPart),
-              vatAmount: totalVat.toFixed(decimalPart),
-              deliveryCharge: deliveryCharge.toFixed(decimalPart),
-              netAmount: total.toFixed(decimalPart),
-            },
+            subTotal: subtotal,
+            serviceCharge: totalServiceCharge,
+            levy: 0,
+            vatAmount: totalVat,
+            deliveryCharge: deliveryCharge,
+            netAmount: total,
+            changeAmount: Number(orderPayload.change) || 0,
             isSettlement: true
           }
         };

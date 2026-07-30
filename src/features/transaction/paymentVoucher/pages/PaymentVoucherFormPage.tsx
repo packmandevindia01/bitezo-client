@@ -151,25 +151,17 @@ const PaymentVoucherFormPage = () => {
                   id="pv-paymode"
                   label="PAYMODE"
                   value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
-                  onChange={(val) => setValue("paymodeId", Number(val))}
+                  onChange={(val) => {
+                    const numVal = Number(val);
+                    setValue("paymodeId", numVal);
+                    if (numVal === 3) setIsMultiPayOpen(true);
+                  }}
                   placeholder="Select Paymode"
                   options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
                   onKeyDown={(e) => handleKeyDown(e as any, "pv-narration")}
                   tabIndex={9}
                   disabled={!canSave}
                 />
-              </div>
-              <div className="flex items-end pb-[2px]">
-                <Button 
-                  type="button" 
-                  variant="secondary" 
-                  className="h-10 px-3 bg-[#49293e]/10 text-[#49293e] border-[#49293e]/20 hover:bg-[#49293e]/20 text-xs font-bold" 
-                  onClick={() => setIsMultiPayOpen(true)}
-                  disabled={!canSave || !watch("amount")}
-                  tabIndex={-1}
-                >
-                  MULTI
-                </Button>
               </div>
             </div>
           </div>

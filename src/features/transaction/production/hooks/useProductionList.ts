@@ -25,7 +25,11 @@ export const useProductionList = () => {
     queryKey: ["finishedProducts"],
     queryFn: async () => {
       const prodRes = await productionApi.getFinishedProductListByName("");
-      return prodRes.map((p: any) => ({ label: p.productName, value: String(p.productId) }));
+      return prodRes.map((p: any) => ({
+        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId),
+        code: p.barcode || p.code || ""
+      }));
     }
   });
 

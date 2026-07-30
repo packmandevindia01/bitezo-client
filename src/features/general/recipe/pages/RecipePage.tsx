@@ -38,7 +38,10 @@ const RecipePage = () => {
     handleBarcodeScan,
     getRowOptions,
     onSubmit,
-    masterData
+    masterData,
+    isBranchLocked,
+    handleRawMaterialSearch,
+    handleReset
   } = useRecipeForm(id ? parseInt(id, 10) : undefined);
 
   const { watch, setValue, control, register } = form;
@@ -50,11 +53,16 @@ const RecipePage = () => {
   const canDelete = hasPermission("Recipe Master", "Delete");
   const canSave   = canAdd || canEdit;
 
+  const { isDirty } = form.formState;
+
   const handleClearClick = () => {
-    if (items.length > 0) {
+    const shouldConfirm = isDirty || (!id && items.length > 0 && items[0]?.product !== "");
+    if (shouldConfirm) {
       setShowClearConfirm(true);
+    } else if (id) {
+      navigate("/dashboard/recipe-form");
     } else {
-      form.reset();
+      handleReset();
     }
   };
 
@@ -131,7 +139,7 @@ const RecipePage = () => {
         <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
           <button
             type="button"
-            onClick={() => navigate("/recipes")}
+            onClick={() => navigate("/dashboard/recipes")}
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >
@@ -165,7 +173,6 @@ const RecipePage = () => {
                 value={watch("finishedProductCode") || ""}
                 onChange={(e) => setValue("finishedProductCode", e.target.value)}
                 onKeyDown={(e) => hk(e, "rec-finUnit")}
-                required
                 readOnly={true}
                 tabIndex={2}
               />
@@ -223,7 +230,7 @@ const RecipePage = () => {
                       }, 100);
                     }}
                     required
-                    disabled={!canSave}
+                    disabled={!canSave || isBranchLocked}
                     tabIndex={5}
                     placeholder="Select branch"
                     onKeyDown={(e) => hk(e, "product-select-0")}
@@ -278,6 +285,7 @@ const RecipePage = () => {
                                     className="h-7 !px-2 text-xs"
                                     value={selectField.value}
                                     options={rowOptions}
+                                    onSearch={handleRawMaterialSearch}
                                     onChange={(val) => {
                                       productSelectedRef.current = true;
                                       selectField.onChange(val);
@@ -330,9 +338,9 @@ const RecipePage = () => {
                                 <SearchableSelect
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
+                                  options={itemWatch.product ? ((itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])) : []}
                                   onChange={(val) => handleGridUnitChange(index, val)}
-                                  disabled={!canSave}
+                                  disabled={!canSave || !itemWatch.product}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />
@@ -510,8 +518,12 @@ const RecipePage = () => {
           message="Are you sure you want to clear all data? Any unsaved changes will be lost."
           confirmLabel="Yes, Clear Data"
           onConfirm={() => {
-            form.reset();
             setShowClearConfirm(false);
+            if (id) {
+              navigate("/dashboard/recipe-form");
+            } else {
+              handleReset();
+            }
           }}
           onCancel={() => setShowClearConfirm(false)}
         />

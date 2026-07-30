@@ -12,13 +12,13 @@ export const paymentAgainstDetailSchema = z.object({
 
 export const paymentAgainstVoucherSchema = z.object({
   transId: z.number().optional(),
-  seriesId: z.number().min(1, "Series is required"),
+  seriesId: z.coerce.number({ invalid_type_error: "Series is required" }).min(1, "Series is required"),
   prefix: z.string().optional().default(""),
   vchNo: z.string().optional(), // For UI display purposes
-  branchId: z.number(),
-  accountId: z.number().min(1, "Account/Supplier is required"),
-  paymodeId: z.number().min(1, "Paymode is required"),
-  employeeId: z.number().min(1, "Salesman is required"),
+  branchId: z.coerce.number({ invalid_type_error: "Branch is required" }),
+  accountId: z.coerce.number({ invalid_type_error: "Account/Supplier is required" }).min(1, "Account/Supplier is required"),
+  paymodeId: z.coerce.number({ invalid_type_error: "Paymode is required" }).min(1, "Paymode is required"),
+  employeeId: z.coerce.number({ invalid_type_error: "Salesman is required" }).min(1, "Salesman is required"),
   voucherDate: z.string().min(1, "Voucher Date is required").refine((date) => {
     const selectedDate = new Date(date);
     const today = new Date();

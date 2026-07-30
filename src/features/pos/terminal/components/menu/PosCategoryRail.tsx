@@ -42,7 +42,7 @@ const PosCategoryRailComponent = ({
       <aside 
         ref={scrollContainerRef}
         className="
-          flex gap-2 overflow-auto border-slate-100 p-3 shrink-0 scrollbar-wide flex-1
+          no-scrollbar flex gap-2 overflow-auto border-slate-100 p-3 shrink-0 flex-1
           flex-row w-full md:grid md:grid-cols-2 md:content-start md:p-1 xl:p-1.5 md:gap-1 xl:gap-1.5 md:overflow-y-auto md:overflow-x-hidden
         "
       >

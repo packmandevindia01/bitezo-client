@@ -38,7 +38,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
     },
   });
 
-  const { handleSubmit, reset, watch, setValue } = form;
+  const { handleSubmit, reset, watch, setValue, setError, clearErrors } = form;
   const currentFormBranchId = watch("branchId");
 
   // 1. Fetch All Branches for Dropdowns
@@ -185,6 +185,9 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
     onSuccess: () => {
       showToast(`Receipt Voucher ${transId ? 'updated' : 'saved'} successfully!`, "success");
       queryClient.invalidateQueries({ queryKey: ["receiptVouchers"] });
+      if (transId) {
+        queryClient.invalidateQueries({ queryKey: ["receiptVoucher", transId] });
+      }
       if (onSuccessCallback) {
         onSuccessCallback();
       } else if (!transId) {
@@ -206,17 +209,37 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
         const mainAmount = Number(data.amount) || 0;
         
         if (Math.abs(totalMultiPay - mainAmount) > 0.001) {
-          showToast(`Total Multi Pay amount (${totalMultiPay.toFixed(decimalPart)}) must match the voucher amount (${mainAmount.toFixed(decimalPart)})`, "error");
+          const msg = `Total Multi Pay amount (${totalMultiPay.toFixed(decimalPart)}) must match the voucher amount (${mainAmount.toFixed(decimalPart)})`;
+          setError("amount", { type: "manual", message: msg });
+          showToast(msg, "error");
           return;
+        } else {
+          clearErrors("amount");
         }
       }
 
       saveMutation.mutate(data);
     },
     (errors) => {
-      const firstError = Object.values(errors)[0];
-      if (firstError?.message) {
-        showToast(firstError.message as string, "error");
+      const findFirstError = (obj: any): string | undefined => {
+        if (!obj) return undefined;
+        if (obj.message) return obj.message as string;
+        if (Array.isArray(obj)) {
+          for (const item of obj) {
+            const msg = findFirstError(item);
+            if (msg) return msg;
+          }
+        } else if (typeof obj === "object") {
+          for (const key in obj) {
+            const msg = findFirstError(obj[key]);
+            if (msg) return msg;
+          }
+        }
+        return undefined;
+      };
+      const msg = findFirstError(errors);
+      if (msg) {
+        showToast(msg, "error");
       }
     }
   );
