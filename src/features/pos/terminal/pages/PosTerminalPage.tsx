@@ -341,8 +341,6 @@ export const PosTerminalPage = () => {
       return;
     }
 
-    const selectedMode = terminal.tenderOptions.find(t => t.id === selectedTender)?.label?.toLowerCase() || '';
-    
     if (selectedTender === "3") {
       modals.setIsMultiPayModalOpen(true);
     } else {

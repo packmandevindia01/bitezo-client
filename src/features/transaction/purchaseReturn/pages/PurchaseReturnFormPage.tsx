@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2, X } from "lucide-react";
+import { Printer, Save, RotateCcw, Plus, Trash2, X } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, AutocompleteInput } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";

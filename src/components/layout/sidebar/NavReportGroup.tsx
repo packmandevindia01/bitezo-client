@@ -46,6 +46,14 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <TrendingUp size={13} className="shrink-0" />
             <span>Daily Sales Report</span>
           </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/hourly-sales")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Hourly Sales Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/order-type-sales")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Order Type Sales Report</span>
+          </div>
           <div onClick={() => handleItemClick("/dashboard/reports/monthly-sales")} className={itemClassName}>
             <TrendingUp size={13} className="shrink-0" />
             <span>Monthly Sales Report</span>

@@ -514,18 +514,33 @@ export const usePurchaseReturn = (invoiceId?: string) => {
             }
           }
           
+          const productOpt = productOptions.find((p: any) => p.value === d.productId?.toString());
+          let details: any = null;
+          
+          if (productOpt && productOpt.barcode) {
+             try {
+               details = await purchaseReturnApi.getProductCostData(productOpt.barcode, currentPurchaseId);
+               if (details && details.unitCategory) {
+                 loadCategoryUnits(details.unitCategory);
+               }
+             } catch (e) {
+               console.error("Failed to fetch product details", productOpt.barcode, e);
+             }
+          }
+          
           return {
             id: generateUUID(),
             product: d.productId?.toString() || "",
             code: d.productId?.toString() || "",
-            unit: d.unitId?.toString() || "",
+            unitCategory: details?.unitCategory || "",
+            unit: d.unitId?.toString() || details?.baseUnitId?.toString() || "",
             unitName: d.unitName || "",
             qty: balance.toString(),
             foc: d.foc?.toString() || "0",
-            price: d.price?.toString() || "0",
+            price: d.price?.toString() || details?.cost?.toString() || "0",
             discPercent: d.discPer?.toString() || "0",
-            vatId: (d.vatId || 0).toString(),
-            vatPercent: (d.vatValue || 0).toString(),
+            vatId: (d.vatId || details?.vatId || 0).toString(),
+            vatPercent: (d.vatValue || details?.vatValue || 0).toString(),
             _balance: balance
           };
         }));

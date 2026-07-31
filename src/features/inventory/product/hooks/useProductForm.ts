@@ -10,6 +10,7 @@ import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { subCategoryApi } from "../../subcategory/api";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../../app/providers/useToast";
+import { getConfig } from "../../../../config";
 
 export const useProductForm = (productId?: number) => {
   const navigate = useNavigate();
@@ -104,8 +105,13 @@ export const useProductForm = (productId?: number) => {
         // Normalize backslashes to forward slashes
         path = path.replace(/\\/g, "/");
         // If absolute URL points to backend server, strip it to go through local proxy
-        if (path.startsWith("http://84.255.173.131:8068")) {
-          path = path.replace("http://84.255.173.131:8068", "");
+        try {
+          const apiOrigin = new URL(getConfig().apiBaseUrl, window.location.origin).origin;
+          if (path.startsWith(apiOrigin)) {
+            path = path.replace(apiOrigin, "");
+          }
+        } catch (e) {
+          console.error("Failed to parse apiBaseUrl in image path stripping", e);
         }
         // If already an absolute URL, use it directly. Otherwise prepend base URL.
         const fullUrl = path.startsWith("http://") || path.startsWith("https://")
@@ -193,8 +199,13 @@ export const useProductForm = (productId?: number) => {
       const path = p.filePath;
       if (path && path !== "string") {
         let normalizedPath = path.replace(/\\/g, "/");
-        if (normalizedPath.startsWith("http://84.255.173.131:8068")) {
-          normalizedPath = normalizedPath.replace("http://84.255.173.131:8068", "");
+        try {
+          const apiOrigin = new URL(getConfig().apiBaseUrl, window.location.origin).origin;
+          if (normalizedPath.startsWith(apiOrigin)) {
+            normalizedPath = normalizedPath.replace(apiOrigin, "");
+          }
+        } catch (e) {
+          console.error("Failed to parse apiBaseUrl in image path stripping", e);
         }
         const fullUrl = normalizedPath.startsWith("http")
           ? normalizedPath

@@ -44,6 +44,33 @@ export const useMonthlySalesReport = () => {
         ToYear: toYear,
         Decimals: getDecimalPart(),
       }),
+    select: (data) => {
+      if (!data?.columns || !data?.rows) return data;
+      
+      // If backend already added it, don't duplicate
+      if (data.columns.includes("Total")) return data;
+
+      const newColumns = [...data.columns, "Total"];
+      const newRows = data.rows.map(row => {
+        const rowTotal = data.columns.reduce((sum, col) => {
+          if (col !== "Month") {
+            return sum + (Number(row[col]) || 0);
+          }
+          return sum;
+        }, 0);
+        
+        const result: Record<string, string> = {
+          ...row,
+          Total: String(rowTotal)
+        };
+        return result;
+      });
+      
+      return {
+        columns: newColumns,
+        rows: newRows
+      };
+    },
     enabled: !!fromPeriod && !!toPeriod,
     refetchOnWindowFocus: false,
   });

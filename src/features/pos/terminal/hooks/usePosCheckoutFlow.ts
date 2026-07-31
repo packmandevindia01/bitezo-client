@@ -41,7 +41,6 @@ export const usePosCheckoutFlow = ({
   editingSaleId,
   isCartModified,
   subtotal,
-  totalDiscountAmount,
   totalServiceCharge,
   totalVat,
   total,

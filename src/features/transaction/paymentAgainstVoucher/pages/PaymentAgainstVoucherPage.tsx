@@ -81,8 +81,12 @@ const PaymentAgainstVoucherPage = () => {
   };
 
   const handleManualAdd = () => {
-    if (!manualItem.invoiceId || !manualItem.amount) {
-      showToast("Invoice No and Amount are required", "error", "Error");
+    if (!manualItem.invoiceId) {
+      showToast("Please select a valid Invoice No from the dropdown.", "error", "Validation Error");
+      return;
+    }
+    if (!manualItem.amount || Number(manualItem.amount) === 0) {
+      showToast("Please enter a valid Amount.", "error", "Validation Error");
       return;
     }
     
@@ -109,7 +113,19 @@ const PaymentAgainstVoucherPage = () => {
   };
 
   const handleReset = () => {
-    form.reset();
+    form.reset({
+      ...form.getValues(),
+      accountId: 0,
+      paymodeId: 0,
+      voucherDate: new Date().toISOString().split("T")[0],
+      discount: 0,
+      refNo: "",
+      narration: "",
+      details: [],
+      paymodes: [],
+    });
+    remove(); // Explicitly remove all items from useFieldArray
+    
     setManualItem({
       invoiceId: 0,
       voucherType: "",

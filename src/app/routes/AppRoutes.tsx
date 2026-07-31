@@ -88,6 +88,8 @@ const ProductWisePurchaseReportPage = lazy(() => import("../../features/reports/
 const StockRegisterReportPage = lazy(() => import("../../features/reports/stockRegisterReport/pages/StockRegisterReportPage"));
 const ProductTransactionLogReportPage = lazy(() => import("../../features/reports/productTransactionLogReport/pages/ProductTransactionLogReportPage"));
 const DailySalesReportPage = lazy(() => import("../../features/reports/dailySalesReport/pages/DailySalesReportPage"));
+const HourlySalesReportPage = lazy(() => import("../../features/reports/hourlySalesReport/pages/HourlySalesReportPage"));
+const OrderTypeSalesReportPage = lazy(() => import("../../features/reports/orderTypeSalesReport/pages/OrderTypeSalesReportPage"));
 const AllTransactionReportPage = lazy(() => import("../../features/reports/allTransactionReport/pages/AllTransactionReportPage"));
 const MonthlySalesReportPage = lazy(() => import("../../features/reports/monthlySalesReport/pages/MonthlySalesReportPage"));
 const BillWiseMarginReportPage = lazy(() => import("../../features/reports/billWiseMarginReport/pages/BillWiseMarginReportPage"));
@@ -110,12 +112,15 @@ const LoginRedirect = () => {
 
   if (isPos) {
     if (hasToken) {
+      if (!isRegistered) {
+        return <Navigate to="/system/register" replace />;
+      }
       return <Navigate to="/pos" replace />;
     }
-    if (!isRegistered) {
-      return <Navigate to="/system/register" replace />;
+    if (isRegistered) {
+      return <Navigate to="/cashier/in" replace />;
     }
-    return <Navigate to="/cashier/in" replace />;
+    return <Navigate to="/company/onboarding" replace />;
   }
   
   if (hasToken) {
@@ -242,6 +247,8 @@ const AppRoutes = () => {
                   <Route path="reports/purchase-return" element={<RoleGuard moduleName="Purchase Return Report"><PurchaseReturnReportPage /></RoleGuard>} />
                   <Route path="reports/product-transaction-log" element={<RoleGuard moduleName="Stock Report"><ProductTransactionLogReportPage /></RoleGuard>} />
                   <Route path="reports/daily-sales" element={<RoleGuard moduleName="Sales Report"><DailySalesReportPage /></RoleGuard>} />
+                  <Route path="reports/hourly-sales" element={<RoleGuard moduleName="Sales Report"><HourlySalesReportPage /></RoleGuard>} />
+                  <Route path="reports/order-type-sales" element={<RoleGuard moduleName="Sales Report"><OrderTypeSalesReportPage /></RoleGuard>} />
                   <Route path="reports/all-transaction" element={<RoleGuard moduleName="Sales Report"><AllTransactionReportPage /></RoleGuard>} />
                   <Route path="reports/monthly-sales" element={<RoleGuard moduleName="Sales Report"><MonthlySalesReportPage /></RoleGuard>} />
                   <Route path="reports/bill-wise-margin" element={<RoleGuard moduleName="Sales Report"><BillWiseMarginReportPage /></RoleGuard>} />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { Printer, Save, RotateCcw, Plus, CreditCard, Trash2, X as CloseIcon } from "lucide-react";
+import { Printer, Save, RotateCcw, Plus, Trash2, X as CloseIcon } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, Modal } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
@@ -603,6 +603,8 @@ const PurchaseInvoiceFormPage = () => {
                         previousPaymodeId.current = selectedPaymodeId;
                         if (totals.grandTotal <= 0) {
                           showToast("Please add items with a price to enable MultiPay settlement", "warning");
+                        } else {
+                          setIsMultiPayOpen(true);
                         }
                       } else if (paymode) {
                         // Single paymode — auto-set full grand total, no modal needed

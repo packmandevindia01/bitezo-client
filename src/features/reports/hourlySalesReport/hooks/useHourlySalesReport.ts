@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getBranchList, getDailySalesReport } from "../services/dailySalesReportApi";
+import { getBranchList, getHourlySalesReport } from "../services/hourlySalesReportApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
-import type { BranchOption, DailySalesReportData } from "../types";
+import type { BranchOption, HourlySalesReportData } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
-export const useDailySalesReport = () => {
+export const useHourlySalesReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
 
@@ -29,9 +29,9 @@ export const useDailySalesReport = () => {
 
   // Report query
   const { data: reportData, isLoading: reportLoading, isFetching, refetch } = useQuery({
-    queryKey: ["dailySalesReport", { fromDate, toDate, branchId, decimalPart }],
+    queryKey: ["hourlySalesReport", { fromDate, toDate, branchId, decimalPart }],
     queryFn: () =>
-      getDailySalesReport({
+      getHourlySalesReport({
         BranchId: Number(branchId),
         FromDate: fromDate,
         ToDate: toDate,
@@ -44,24 +44,11 @@ export const useDailySalesReport = () => {
       if (data.columns.includes("Total")) return data;
 
       const newColumns = [...data.columns, "Total"];
-      const newRows = data.rows.map(row => {
-        const rowTotal = data.columns.reduce((sum, col) => {
-          if (col !== "VoucherDate") {
-            return sum + (Number(row[col]) || 0);
-          }
-          return sum;
-        }, 0);
-        
-        const result: Record<string, string | number> = {
-          ...row,
-          Total: String(rowTotal)
-        };
-        return result;
-      });
       
+      // The backend response for Hourly Sales Report already includes the "Total" property in rows
       return {
         columns: newColumns,
-        rows: newRows
+        rows: data.rows
       };
     },
   });
@@ -82,8 +69,8 @@ export const useDailySalesReport = () => {
     setBranchId(defaultBranch);
   };
 
-  const parsedReportData: DailySalesReportData = reportData || {
-    columns: ["VoucherDate", "Cash", "Credit"],
+  const parsedReportData: HourlySalesReportData = reportData || {
+    columns: ["Time", "Cash", "Credit", "Total"],
     rows: []
   };
 

@@ -72,7 +72,6 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   selectedTender,
   setSelectedTender,
   setIsMultiPayModalOpen,
-  setIsCashModalOpen,
   setIsDeliveryChargeModalOpen,
   tenderOptions,
   onPrice,

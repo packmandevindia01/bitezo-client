@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useCallback } from "react";
 import { Printer, X, Download } from "lucide-react";
-import { useDailySalesReport } from "../hooks/useDailySalesReport";
+import { useOrderTypeSalesReport } from "../hooks/useOrderTypeSalesReport";
 import {
-  exportDailySalesReportPDF,
-  exportDailySalesReportExcel,
-} from "../utils/dailySalesExportUtils";
+  exportOrderTypeSalesReportPDF,
+  exportOrderTypeSalesReportExcel,
+} from "../utils/exportUtils";
 import { formatAmount } from "../../../../utils/currency";
 import {
   PageShell,
@@ -14,7 +14,7 @@ import {
   SearchableSelect,
   ResetButton,
 } from "../../../../components/common";
-import { DailySalesPrintPreviewModal } from "../components/DailySalesPrintPreviewModal";
+import { OrderTypeSalesReportPrintPreviewModal } from "../components/OrderTypeSalesReportPrintPreviewModal";
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -26,9 +26,9 @@ const formatDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-export const DailySalesReportPage = () => {
+export const OrderTypeSalesReportPage = () => {
   const navigate = useNavigate();
-  const { filters, masterData, report } = useDailySalesReport();
+  const { filters, masterData, report } = useOrderTypeSalesReport();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const branchOptions = useMemo(() => {
@@ -38,9 +38,9 @@ export const DailySalesReportPage = () => {
     }));
   }, [masterData.branches]);
 
-  // dynamic paymode column list (exclude VoucherDate)
+  // dynamic paymode column list (exclude Date)
   const dynamicPaymodes = useMemo(() => {
-    return report.columns.filter((c) => c !== "VoucherDate");
+    return report.columns.filter((c) => c !== "Date");
   }, [report.columns]);
 
   // Dynamically calculate column totals for the footer
@@ -56,26 +56,29 @@ export const DailySalesReportPage = () => {
     return totalIndex >= 0 ? (colTotals[totalIndex] || 0) : 0;
   }, [dynamicPaymodes, colTotals]);
 
-
-
   const handleExportPDF = useCallback(() => {
-    exportDailySalesReportPDF(report.columns, report.rows, filters);
+    exportOrderTypeSalesReportPDF(
+      { columns: report.columns, rows: report.rows },
+      { branchName: filters.branchId === "0" ? "All" : filters.branchId, fromDate: filters.fromDate, toDate: filters.toDate }
+    );
   }, [report, filters]);
 
   const handleExportExcel = useCallback(() => {
-    exportDailySalesReportExcel(report.columns, report.rows, filters);
+    exportOrderTypeSalesReportExcel(
+      { columns: report.columns, rows: report.rows },
+      { branchName: filters.branchId === "0" ? "All" : filters.branchId, fromDate: filters.fromDate, toDate: filters.toDate }
+    );
   }, [report, filters]);
 
   const previewData = useMemo(() => ({
-    columns: report.columns,
-    rows: report.rows,
+    reportData: { columns: report.columns, rows: report.rows },
     filters,
     companyName: localStorage.getItem("companyName") || "FEKRA advertising",
     companyAddress: localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21",
   }), [report, filters]);
 
   return (
-    <PageShell title="Daily Sales Report">
+    <PageShell title="Order Type Sales Report">
       <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
         {/* ── Filter Panel ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
@@ -99,7 +102,7 @@ export const DailySalesReportPage = () => {
                 <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Location</span>
                 <div className="w-40">
                   <SearchableSelect
-                    id="dsr-branch"
+                    id="otsr-branch"
                     options={branchOptions}
                     value={filters.branchId}
                     onChange={filters.setBranchId}
@@ -159,13 +162,13 @@ export const DailySalesReportPage = () => {
               <tbody className="divide-y divide-gray-100">
                 {report.isLoading ? (
                   <tr>
-                    <td colSpan={dynamicPaymodes.length + 2} className="text-center py-12 text-gray-500">
-                      Loading daily sales data...
+                    <td colSpan={dynamicPaymodes.length + 1} className="text-center py-12 text-gray-500">
+                      Loading order type sales data...
                     </td>
                   </tr>
                 ) : report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={dynamicPaymodes.length + 2} className="text-center py-12 text-gray-400 font-medium">
+                    <td colSpan={dynamicPaymodes.length + 1} className="text-center py-12 text-gray-400 font-medium">
                       No records found.
                     </td>
                   </tr>
@@ -174,7 +177,7 @@ export const DailySalesReportPage = () => {
                     return (
                       <tr key={rIdx} className="hover:bg-gray-50/70 transition-colors odd:bg-white even:bg-gray-50/20">
                         <td className="px-3 py-2 text-center text-gray-800 border-r border-gray-100/60 font-semibold">
-                          {row.VoucherDate ? formatDate(row.VoucherDate) : ""}
+                          {row.Date ? formatDate(row.Date) : ""}
                         </td>
                         {dynamicPaymodes.map((col) => {
                           const val = Number(row[col] || 0);
@@ -243,7 +246,7 @@ export const DailySalesReportPage = () => {
         </div>
       </div>
 
-      <DailySalesPrintPreviewModal
+      <OrderTypeSalesReportPrintPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         onExportPDF={handleExportPDF}
@@ -252,4 +255,4 @@ export const DailySalesReportPage = () => {
     </PageShell>
   );
 };
-export default DailySalesReportPage;
+export default OrderTypeSalesReportPage;
