@@ -117,7 +117,6 @@ const LoginForm = () => {
         placeholder="Username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        inputClassName="text-center"
         autoFocus
         tabIndex={1}
       />

@@ -28,6 +28,9 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   required,
   placeholder,
   hideLabel = false,
+  onKeyDown,
+  onInput,
+  onChange,
   ...props
 }, ref) => {
   const inputId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
@@ -36,18 +39,18 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
   const isNumericField = type === 'number' || (label && /\b(price|cost|amount|qty|quantity|vat|disc|discount|rate|total|net|gross|percentage|%|balance)\b/i.test(label));
 
   return (
-    <div className={`flex flex-col gap-1 mb-1 min-w-0 relative ${wrapperClassName || "w-full"}`}>
+    <div className={`flex flex-col justify-end gap-1 mb-1 min-w-0 relative h-full ${wrapperClassName || "w-full"}`}>
 
       {/* LABEL */}
       {label && !hideLabel && (
         <label
           htmlFor={inputId}
-          className="flex flex-wrap items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
+          className="flex items-center whitespace-nowrap overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
-          <span className="truncate">{label}</span>
+          <span className="truncate shrink">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 
@@ -68,23 +71,13 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
           min={isNumericField ? (props.min ?? 0) : props.min}
           step={props.step ?? (type === 'number' ? 'any' : undefined)}
           autoComplete={props.autoComplete ?? "off"}
-          onKeyDown={(e) => {
-            if (isNumericField && (e.key === '-' || e.key === 'e')) {
-              e.preventDefault();
-            }
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleFocusNextInput(e.currentTarget);
-            }
-            if (props.onKeyDown) props.onKeyDown(e);
-          }}
           className={`
             w-full h-9
             text-xs
             rounded-md border outline-none transition
             ${icon ? "pl-11" : "pl-4"}
             ${rightIcon ? "pr-10" : "pr-4"}
-            ${type === 'password' ? 'text-center' : isNumericField ? 'text-right' : ''}
+            ${isNumericField ? 'text-right' : ''}
             
             ${error ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"}
             ${props.disabled ? "bg-gray-100 cursor-not-allowed" : ""}
@@ -95,6 +88,34 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
             ${inputClassName}
           `}
           {...props}
+          onInput={(e) => {
+            if (type === 'number' && props.maxLength && e.currentTarget.value.length > props.maxLength) {
+              e.currentTarget.value = e.currentTarget.value.slice(0, props.maxLength);
+            }
+            if (type === 'date' && props.max && e.currentTarget.value && e.currentTarget.value > String(props.max)) {
+              e.currentTarget.value = String(props.max);
+            }
+            if (onInput) onInput(e);
+          }}
+          onChange={(e) => {
+            if (type === 'number' && props.maxLength && e.target.value.length > props.maxLength) {
+              e.target.value = e.target.value.slice(0, props.maxLength);
+            }
+            if (type === 'date' && props.max && e.target.value && e.target.value > String(props.max)) {
+              e.target.value = String(props.max);
+            }
+            if (onChange) onChange(e);
+          }}
+          onKeyDown={(e) => {
+            if (isNumericField && (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E')) {
+              e.preventDefault();
+            }
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleFocusNextInput(e.currentTarget);
+            }
+            if (onKeyDown) onKeyDown(e);
+          }}
         />
         {rightIcon && (
           <div className="absolute right-3 text-slate-400 pointer-events-none">

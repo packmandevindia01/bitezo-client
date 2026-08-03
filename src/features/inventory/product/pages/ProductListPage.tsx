@@ -31,6 +31,9 @@ const ProductListPage = () => {
     onSuccess: () => {
       showToast("Product deleted successfully", "success", "Success");
       queryClient.invalidateQueries({ queryKey: ["productsList"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
+      queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
       setPendingDelete(null);
     },
     onError: (error: any) => {

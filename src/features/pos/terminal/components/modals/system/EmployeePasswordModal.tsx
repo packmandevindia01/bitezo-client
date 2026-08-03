@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Delete, XCircle } from "lucide-react";
 import { Modal } from "../../../../../../components/common";
 
@@ -48,6 +48,27 @@ export const EmployeePasswordModal = ({
     onSubmit(passwordToValidate);
   };
 
+  useEffect(() => {
+    if (!isOpen || loading) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key >= "0" && e.key <= "9") {
+        handleKeyPress(e.key);
+      } else if (e.key === "Backspace") {
+        handleKeyPress("Back");
+      } else if (e.key === "Delete" || e.key === "Escape") {
+        if (password.length > 0) {
+          handleKeyPress("Clear");
+        } else if (e.key === "Escape") {
+          onClose();
+        }
+      } else if (e.key === "Enter" && password) {
+        handleSubmit();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, loading, password]);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -64,12 +85,12 @@ export const EmployeePasswordModal = ({
       </div>
 
       <div className="bg-[#f8fafc] p-4 space-y-4">
-        <div className="bg-[#1e293b] p-3 rounded-2xl shadow-xl flex flex-col items-end relative overflow-hidden shrink-0">
+        <div className="bg-[#1e293b] p-3 rounded-2xl shadow-xl flex flex-col items-center relative overflow-hidden shrink-0">
           <div className={`absolute top-0 left-0 w-1 h-full ${isAdminOverride ? 'bg-red-500' : 'bg-[#ff9500]'}`} />
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 text-center">
             {isAdminOverride ? "Enter authorized admin password" : "Enter employee password"}
           </span>
-          <div className="w-full min-h-[40px] text-right text-3xl font-black text-white font-mono tracking-normal leading-none flex items-center justify-end">
+          <div className="w-full min-h-[40px] text-center text-3xl font-black text-white font-mono tracking-widest leading-none flex items-center justify-center">
             {password ? "*".repeat(password.length) : ""}
           </div>
         </div>

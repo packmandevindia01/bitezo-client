@@ -51,17 +51,17 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
   const selectId = id || name || label?.replace(/\s+/g, "-").toLowerCase();
 
   return (
-    <div className={`flex flex-col gap-1 w-full min-w-0 relative ${noMargin ? "" : "mb-1"}`}>
+    <div className={`flex flex-col justify-end gap-1 w-full min-w-0 relative h-full ${noMargin ? "" : "mb-1"}`}>
 
       {/* LABEL */}
       {label && (
         <label
           htmlFor={selectId}
-          className="flex flex-wrap items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
+          className="flex items-center whitespace-nowrap overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0"
         >
-          <span className="truncate">{label}</span>
+          <span className="truncate shrink">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 

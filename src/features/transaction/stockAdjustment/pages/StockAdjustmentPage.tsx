@@ -26,6 +26,7 @@ const StockAdjustmentPage = () => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [shouldResetAfterPrint, setShouldResetAfterPrint] = useState(false);
 
   // Tracks whether a product was just selected via Enter (so we don't exit grid accidentally)
   const productSelectedRef = useRef(false);
@@ -196,6 +197,7 @@ const StockAdjustmentPage = () => {
       const success = await onSubmit(data);
       if (success) {
         setIsPrintModalOpen(true);
+        setShouldResetAfterPrint(true);
       }
     })();
   };
@@ -590,7 +592,17 @@ const StockAdjustmentPage = () => {
 
         <StockAdjustmentPrintModal
           isOpen={isPrintModalOpen}
-          onClose={() => setIsPrintModalOpen(false)}
+          onClose={() => {
+            setIsPrintModalOpen(false);
+            if (shouldResetAfterPrint) {
+              if (id) {
+                navigate("/dashboard/stock-adjustment");
+              } else {
+                handleReset();
+                setShouldResetAfterPrint(false);
+              }
+            }
+          }}
           form={printForm as any}
           items={printItems}
           branches={masterData.branches}

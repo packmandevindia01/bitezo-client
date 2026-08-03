@@ -64,6 +64,14 @@ export const useStockAdjustmentType = () => {
       return;
     }
 
+    const isDuplicate = types.some(
+      t => t.typeName.trim().toLowerCase() === form.typeName.trim().toLowerCase() && t.typeId !== editingId
+    );
+    if (isDuplicate) {
+      showToast("Stock Adjustment Type already exists.", "warning");
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (editingId) {
@@ -74,9 +82,14 @@ export const useStockAdjustmentType = () => {
         showToast("Stock Adjustment Type created successfully", "success");
       }
       handleCloseModal();
-      fetchTypes();
+      await fetchTypes();
     } catch (err: any) {
-      showToast(err.message || "Failed to save stock adjustment type", "error");
+      const serverMsg = err?.response?.data?.message || err?.response?.data || err?.message || "Failed to save stock adjustment type";
+      if (typeof serverMsg === "string" && (serverMsg.toLowerCase().includes("duplicate") || serverMsg.toLowerCase().includes("already exist") || serverMsg.toLowerCase().includes("unique"))) {
+        showToast("Stock Adjustment Type already exists.", "warning");
+      } else {
+        showToast(typeof serverMsg === "string" ? serverMsg : "Failed to save stock adjustment type", "error");
+      }
     } finally {
       setIsSaving(false);
     }

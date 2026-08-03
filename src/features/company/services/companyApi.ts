@@ -71,7 +71,7 @@ export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
     name: formData.custName,
     mobNo: formData.custMob,
     telNo: formData.custMob2 || "",
-    country: 1,
+    country: formData.country ? Number(formData.country) : 1,
     block: formData.block || "",
     area: formData.area || "",
     road: formData.road || "",

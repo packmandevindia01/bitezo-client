@@ -125,14 +125,8 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'configuration') {
-      requestAuthorization({
-        actionLabel: "Configuration",
-        permissionId: 24,
-        onAuthorized: () => {
-          onClose();
-          navigate('/pos/configuration');
-        }
-      });
+      onClose();
+      navigate('/pos/configuration');
       return;
     }
     if (item.action === 'lock') {

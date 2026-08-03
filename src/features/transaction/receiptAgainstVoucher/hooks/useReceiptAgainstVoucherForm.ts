@@ -127,24 +127,29 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
 
   const saveMutation = useMutation({
     mutationFn: async (data: ReceiptAgainstVoucherFormData): Promise<any> => {
-      // Ensure date format is correct and add timestamp like PaymentAgainst
+      const totalAmount = data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const now = new Date();
-      const payload = {
+
+      const payload: any = {
         ...data,
         transId: transId || 0,
+        amount: totalAmount,
         createdAt: transId ? undefined : new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString(),
-        updatedAt: transId ? new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString() : undefined,
-        amount: data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+        updatedAt: transId ? new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString() : undefined
       };
       
       if (Number(data.paymodeId) !== 3) {
-        (payload as any).paymodes = [];
+        payload.paymodes = [];
       }
       
       if (transId) {
-        return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(transId, payload as any);
+        delete payload.createdAt;
+        console.log("RECEIPT AGAINST UPDATE PAYLOAD:", JSON.stringify(payload, null, 2));
+        return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(transId, payload);
       }
-      return receiptAgainstVoucherApi.createReceiptAgainstVoucher(payload as any);
+      delete payload.updatedAt;
+      console.log("RECEIPT AGAINST CREATE PAYLOAD:", JSON.stringify(payload, null, 2));
+      return receiptAgainstVoucherApi.createReceiptAgainstVoucher(payload);
     },
     onSuccess,
   });

@@ -92,7 +92,16 @@ const ReceiptVoucherFormPage = () => {
               label="BRANCH"
               autoFocus
               value={String(watch("branchId") || "")}
-              onChange={(val) => setValue("branchId", Number(val))}
+              onChange={(val) => {
+                const newBranchId = Number(val);
+                setValue("branchId", newBranchId);
+                setValue("seriesId", 0);
+                setValue("voucherNo", "");
+                setValue("employeeId", 0);
+                setValue("paymodeId", 0);
+                setValue("accountId", 0);
+                setValue("accountName", "");
+              }}
               placeholder="Select Branch"
               options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "rv-series")}
@@ -133,6 +142,7 @@ const ReceiptVoucherFormPage = () => {
                 setValue("accountId", accId);
                 const selectedAccount = accountList.find(a => a.accountId === accId);
                 if (selectedAccount) setValue("accountName", selectedAccount.accountName);
+                else setValue("accountName", "");
               }}
               placeholder="Select Account"
               options={accountList.map(a => ({ label: a.accountName, value: String(a.accountId) }))}
@@ -170,7 +180,13 @@ const ReceiptVoucherFormPage = () => {
               id="rv-series"
               label="SERIES"
               value={String(watch("seriesId") || "")}
-              onChange={(val) => setValue("seriesId", Number(val))}
+              onChange={(val) => {
+                const newSeriesId = Number(val);
+                setValue("seriesId", newSeriesId);
+                if (!newSeriesId) {
+                  setValue("voucherNo", "");
+                }
+              }}
               placeholder="Select Series"
               options={seriesList.map(s => ({ label: s.seriesName, value: String(s.seriesId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "rv-date")}

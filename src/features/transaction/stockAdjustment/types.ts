@@ -48,6 +48,7 @@ export interface StockAdjustmentPayloadDetail {
 }
 
 export interface StockAdjustmentPayload {
+  transId?: number;
   transDate: string;
   branchId: number;
   employeeId: number;

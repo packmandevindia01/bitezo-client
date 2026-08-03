@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
+import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader, StatusBadge } from "../../../../components/common";
 import MenuSettingsForm from "../components/MenuSettingsForm";
 import { useMenuSettings } from "../hooks/useMenuSettings";
 import type { MenuSettingsListItem } from "../types";
@@ -57,7 +57,16 @@ const MenuSettingsPage = () => {
           { header: "#", accessor: "sNo" },
           { header: "Code", accessor: "code" },
           { header: "Name", accessor: "name" },
-          { header: "Status", accessor: "isActive" },
+          {
+            header: "Status",
+            accessor: "isActive",
+            render: (row: MenuSettingsListItem) => (
+              <StatusBadge
+                status={row.isActive === "Active" ? "active" : "inactive"}
+                label={row.isActive}
+              />
+            ),
+          },
           {
             header: "Actions",
             accessor: "menuId",

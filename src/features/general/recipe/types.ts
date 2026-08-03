@@ -3,7 +3,7 @@ import { z } from "zod";
 export const recipeItemSchema = z.object({
   id: z.string().optional(), // uuid
   productId: z.number().optional(),
-  product: z.string().min(1, "Product is required"),
+  product: z.string().min(1, "Please select at least one Raw Material."),
   productName: z.string().optional(), // stored label for display
   code: z.string().optional(),
   unitId: z.number().optional(),
@@ -24,7 +24,7 @@ export const recipeSchema = z.object({
   finishedProductUnit: z.string().min(1, "Unit is required"),
   finishedProductUnitName: z.string().optional(),
   finishedProductQty: z.string().min(1, "Output Qty is required").refine((val) => !isNaN(Number(val)) && Number(val) > 0, "Invalid Qty"),
-  items: z.array(recipeItemSchema).min(1, "At least one raw material is required"),
+  items: z.array(recipeItemSchema).min(1, "Please select at least one Raw Material."),
   excludeOrders: z.array(z.number()).optional(),
 });
 

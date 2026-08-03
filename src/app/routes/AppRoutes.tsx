@@ -90,6 +90,8 @@ const ProductTransactionLogReportPage = lazy(() => import("../../features/report
 const DailySalesReportPage = lazy(() => import("../../features/reports/dailySalesReport/pages/DailySalesReportPage"));
 const HourlySalesReportPage = lazy(() => import("../../features/reports/hourlySalesReport/pages/HourlySalesReportPage"));
 const OrderTypeSalesReportPage = lazy(() => import("../../features/reports/orderTypeSalesReport/pages/OrderTypeSalesReportPage"));
+const GroupWiseSalesReportPage = lazy(() => import("../../features/reports/groupWiseSalesReport/pages/GroupWiseSalesReportPage"));
+const CategoryWiseSalesReportPage = lazy(() => import("../../features/reports/categoryWiseSalesReport/pages/CategoryWiseSalesReportPage"));
 const AllTransactionReportPage = lazy(() => import("../../features/reports/allTransactionReport/pages/AllTransactionReportPage"));
 const MonthlySalesReportPage = lazy(() => import("../../features/reports/monthlySalesReport/pages/MonthlySalesReportPage"));
 const BillWiseMarginReportPage = lazy(() => import("../../features/reports/billWiseMarginReport/pages/BillWiseMarginReportPage"));
@@ -249,6 +251,8 @@ const AppRoutes = () => {
                   <Route path="reports/daily-sales" element={<RoleGuard moduleName="Sales Report"><DailySalesReportPage /></RoleGuard>} />
                   <Route path="reports/hourly-sales" element={<RoleGuard moduleName="Sales Report"><HourlySalesReportPage /></RoleGuard>} />
                   <Route path="reports/order-type-sales" element={<RoleGuard moduleName="Sales Report"><OrderTypeSalesReportPage /></RoleGuard>} />
+                  <Route path="reports/group-wise-sales" element={<RoleGuard moduleName="Sales Report"><GroupWiseSalesReportPage /></RoleGuard>} />
+                  <Route path="reports/category-wise-sales" element={<RoleGuard moduleName="Sales Report"><CategoryWiseSalesReportPage /></RoleGuard>} />
                   <Route path="reports/all-transaction" element={<RoleGuard moduleName="Sales Report"><AllTransactionReportPage /></RoleGuard>} />
                   <Route path="reports/monthly-sales" element={<RoleGuard moduleName="Sales Report"><MonthlySalesReportPage /></RoleGuard>} />
                   <Route path="reports/bill-wise-margin" element={<RoleGuard moduleName="Sales Report"><BillWiseMarginReportPage /></RoleGuard>} />

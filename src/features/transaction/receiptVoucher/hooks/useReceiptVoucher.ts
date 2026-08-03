@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { receiptVoucherSchema } from "../types";
 import type { ReceiptVoucherForm, ReceiptVoucherPayload } from "../types";
 import { receiptVoucherApi } from "../services/receiptVoucherApi";
@@ -45,6 +45,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   const { data: allBranches = [] } = useQuery<BranchRecord[]>({
     queryKey: ["allBranchesList"],
     queryFn: () => branchApi.fetchBranchNames(true),
+    placeholderData: keepPreviousData,
   });
 
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
@@ -70,6 +71,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   const { data: masterData } = useQuery({
     queryKey: ["receiptMaster", currentFormBranchId],
     queryFn: () => receiptVoucherApi.getLoadMaster(currentFormBranchId || 0),
+    placeholderData: keepPreviousData,
   });
 
   // Derived lists
@@ -81,6 +83,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   const { data: accountList = [] } = useQuery({
     queryKey: ["receiptAccountList"],
     queryFn: () => receiptVoucherApi.getAccountList(""),
+    placeholderData: keepPreviousData,
   });
 
   // 3. Receipt Details List

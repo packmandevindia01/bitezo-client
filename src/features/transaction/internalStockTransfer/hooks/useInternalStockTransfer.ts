@@ -287,6 +287,7 @@ export const useInternalStockTransfer = (id?: string) => {
       };
 
       if (id) {
+        payload.transId = Number(id);
         await internalStockTransferApi.updateTransfer(Number(id), payload);
         showToast("Stock transfer updated successfully", "success");
       } else {

@@ -10,6 +10,7 @@ export const useVoucherSeriesManager = () => {
   const { showToast } = useToast();
   const [records, setRecords] = useState<VoucherSeriesRecord[]>([]);
   const [form, setForm] = useState<VoucherSeriesForm>(emptyVoucherSeriesForm);
+  const [errors, setErrors] = useState<Partial<Record<keyof VoucherSeriesForm, string>>>({});
   const [branches, setBranches] = useState<BranchRecord[]>([]);
 
   const [search, setSearch] = useState("");
@@ -43,10 +44,14 @@ export const useVoucherSeriesManager = () => {
 
   const setField = <K extends keyof VoucherSeriesForm>(key: K, value: VoucherSeriesForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
   };
 
   const resetForm = () => {
     setForm(emptyVoucherSeriesForm);
+    setErrors({});
     setEditingId(null);
   };
 
@@ -62,20 +67,20 @@ export const useVoucherSeriesManager = () => {
 
   const handleSave = async () => {
     const vName = form.name.trim();
-    const vType = form.voucherType;
+    const vType = form.voucherType.trim();
     const branchId = Number(form.branchId);
     const startNo = Number(form.startNo) || 1;
 
-    if (!vType) {
-      showToast("Voucher type is required", "error");
-      return;
+    const newErrors: Partial<Record<keyof VoucherSeriesForm, string>> = {};
+    if (!vType) newErrors.voucherType = "required";
+    if (!vName) newErrors.name = "required";
+    if (form.startNo === undefined || form.startNo === null || !String(form.startNo).trim()) {
+      newErrors.startNo = "required";
     }
-    if (!vName) {
-      showToast("Voucher name is required", "error");
-      return;
-    }
-    if (!branchId) {
-      showToast("Please select a branch", "error");
+    if (!branchId || isNaN(branchId)) newErrors.branchId = "required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -112,6 +117,7 @@ export const useVoucherSeriesManager = () => {
       setLoading(true);
       const detail = await voucherseriesService.getById(record.voucherId);
 
+      setErrors({});
       setEditingId(detail.voucherId);
       setForm({
         voucherType: detail.voucherType,
@@ -154,6 +160,7 @@ export const useVoucherSeriesManager = () => {
 
   return {
     form,
+    errors,
     branches,
     open,
     search,

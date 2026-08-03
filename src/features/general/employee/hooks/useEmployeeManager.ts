@@ -28,6 +28,7 @@ export const useEmployeeManager = () => {
   // 1. Form Instance
   const form = useForm({
     resolver: zodResolver(employeeSchema),
+    mode: "onChange",
     defaultValues: {
       name: "",
       code: "",

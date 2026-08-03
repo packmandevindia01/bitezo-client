@@ -5,6 +5,7 @@ import type { VoucherSeriesForm as VoucherSeriesFormType } from "../types";
 
 interface VoucherSeriesFormProps {
   form: VoucherSeriesFormType;
+  errors?: Partial<Record<keyof VoucherSeriesFormType, string>>;
   branches: BranchRecord[];
   saving?: boolean;
   onChange: <K extends keyof VoucherSeriesFormType>(
@@ -15,6 +16,7 @@ interface VoucherSeriesFormProps {
 
 const VoucherSeriesForm = ({
   form,
+  errors,
   branches,
   saving = false,
   onChange,
@@ -35,6 +37,7 @@ const VoucherSeriesForm = ({
           placeholder="Select voucher type"
           required
           disabled={saving}
+          error={errors?.voucherType}
           autoFocus
         />
 
@@ -45,6 +48,7 @@ const VoucherSeriesForm = ({
           placeholder="Enter voucher name"
           required
           disabled={saving}
+          error={errors?.name}
         />
 
         <div className="grid grid-cols-2 gap-4">
@@ -64,6 +68,7 @@ const VoucherSeriesForm = ({
             placeholder="1"
             required
             disabled={saving}
+            error={errors?.startNo}
           />
         </div>
 
@@ -75,6 +80,7 @@ const VoucherSeriesForm = ({
           placeholder="Select a branch"
           required
           disabled={saving}
+          error={errors?.branchId}
         />
       </div>
     </div>

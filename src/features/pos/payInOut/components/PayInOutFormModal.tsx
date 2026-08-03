@@ -130,7 +130,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
       noPadding
       className="!max-w-[95vw] w-[95vw] md:!max-w-[800px] md:w-[800px] !max-h-[95vh] h-[95vh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 h-full min-h-0 bg-slate-50">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col flex-1 h-full min-h-0 bg-slate-50">
         
         {/* Premium Header */}
         <div className="flex items-center justify-between bg-[#49293e] px-4 py-3 text-white shrink-0 border-b border-white/10 relative flex-wrap gap-4 shadow-md z-20">

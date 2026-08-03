@@ -224,7 +224,7 @@ export const PurchasePrintPreviewModal = ({
         ...(!isReturn ? ['Discount'] : []),
         ...(isReturn ? ['Amount', 'Dis Amt'] : []),
         isReturn ? 'Taxable Amount' : 'Net Value',
-        ...(isWithTax ? [isReturn ? 'VAT 5%' : 'VAT (%)'] : []),
+        ...(isWithTax ? [isReturn ? 'VAT Amt' : 'VAT (%)'] : []),
         ...(isWithTax && !isReturn ? ['VAT Amt'] : []),
         'Net Amount'
       ];

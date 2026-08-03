@@ -34,6 +34,7 @@ export const InternalStockTransferFormSchema = z.object({
 export type InternalStockTransferForm = z.infer<typeof InternalStockTransferFormSchema>;
 
 export interface InternalStockTransferPayload {
+  transId?: number;
   transDate: string;
   fromBranchId: number;
   toBranchId: number;

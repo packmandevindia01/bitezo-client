@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { paymentVoucherSchema } from "../types";
 import type { PaymentVoucherForm, PaymentVoucherPayload } from "../types";
 import { paymentVoucherApi } from "../services/paymentVoucherApi";
@@ -45,6 +45,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   const { data: allBranches = [] } = useQuery<BranchRecord[]>({
     queryKey: ["allBranchesList"],
     queryFn: () => branchApi.fetchBranchNames(true),
+    placeholderData: keepPreviousData,
   });
 
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
@@ -70,6 +71,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   const { data: masterData } = useQuery({
     queryKey: ["paymentMaster", currentFormBranchId],
     queryFn: () => paymentVoucherApi.getLoadMaster(currentFormBranchId || 0),
+    placeholderData: keepPreviousData,
   });
 
   // Derived lists
@@ -81,6 +83,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   const { data: accountList = [] } = useQuery({
     queryKey: ["paymentAccountList"],
     queryFn: () => paymentVoucherApi.getAccountList(""),
+    placeholderData: keepPreviousData,
   });
 
   // 3. Payment Details List

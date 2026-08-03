@@ -140,15 +140,15 @@ const RecipePage = () => {
           <button
             type="button"
             onClick={() => navigate("/dashboard/recipes")}
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
+            className="absolute top-1.5 right-2.5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >
             <CloseIcon size={20} />
           </button>
 
           {/* ── Static Header Fields ── */}
-          <div className="p-2 md:p-3 pb-0" style={{ paddingRight: "60px" }}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-2 gap-y-1.5 mb-2">
+          <div className="p-3 md:p-4 pb-0">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-3 gap-y-2 mb-3">
               <Controller
                 name="finishedProduct"
                 control={control}

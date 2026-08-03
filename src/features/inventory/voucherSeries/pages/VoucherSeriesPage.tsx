@@ -16,6 +16,7 @@ const VoucherSeriesPage = () => {
   const { hasPermission } = usePermissions();
   const {
     form,
+    errors,
     branches,
     open,
     search,
@@ -136,6 +137,7 @@ const VoucherSeriesPage = () => {
       >
         <VoucherSeriesForm
           form={form}
+          errors={errors}
           branches={branches}
           saving={saving}
           onChange={setField}

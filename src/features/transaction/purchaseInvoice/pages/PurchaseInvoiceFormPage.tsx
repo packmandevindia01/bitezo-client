@@ -101,13 +101,14 @@ const PurchaseInvoiceFormPage = () => {
 
   // Show confirm dialog before saving
   const onSaveClick = async () => {
-    const isValid = await methods.trigger();
-    if (!isValid) {
+    const headerFields = ["series", "purchaseNo", "purchaseDate", "invoiceNo", "refNo", "invoiceDate", "supplier", "branch", "salesman"];
+    const isHeaderValid = await methods.trigger(headerFields as any);
+    if (!isHeaderValid) {
       const errs = methods.formState.errors;
-      const firstErrorKey = Object.keys(errs)[0];
-      if (firstErrorKey) {
+      const firstErrorKey = Object.keys(errs).find(k => headerFields.includes(k)) || Object.keys(errs)[0];
+      if (firstErrorKey && (errs as any)[firstErrorKey]) {
         const err = (errs as any)[firstErrorKey];
-        showToast((err as any)?.message || `Please fill required fields (${firstErrorKey}).`, "error");
+        showToast(err?.message || `Please fill required fields (${firstErrorKey}).`, "error");
         setTimeout(() => {
           const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
           if (el) {
@@ -129,6 +130,20 @@ const PurchaseInvoiceFormPage = () => {
       showToast("Please add at least one product.", "warning");
       return;
     }
+
+    const isValid = await methods.trigger();
+    if (!isValid) {
+      const errs = methods.formState.errors;
+      const firstErrorKey = Object.keys(errs)[0];
+      if (firstErrorKey && (errs as any)[firstErrorKey]) {
+        const err = (errs as any)[firstErrorKey];
+        showToast(err?.message || `Please check item details and required fields.`, "error");
+      } else {
+        showToast("Please fill all required fields.", "error");
+      }
+      return;
+    }
+
     setShowSaveConfirm(true);
   };
 
@@ -302,10 +317,10 @@ const PurchaseInvoiceFormPage = () => {
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pi-purchaseNo" label="Purchase No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pi-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" max={new Date().toISOString().split("T")[0]} {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               <FormInput required={true} maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceNo" label="Inv No" {...register("invoiceNo")} onKeyDown={(e) => hk(e, "pi-refNo")} readOnly={!canSave} error={errors.invoiceNo?.message as string} />
               <FormInput maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-refNo" label="Ref No" {...register("refNo")} onKeyDown={(e) => hk(e, "pi-invoiceDate")} readOnly={!canSave} error={errors.refNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceDate" label="Inv Date" type="date" max={new Date().toISOString().split("T")[0]} {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pi-supplier")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceDate" label="Inv Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pi-supplier")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
               <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2 flex items-end gap-1">
                 <div className="flex-1 min-w-0">
                   <Controller name="supplier" control={control} render={({ field }) => (
@@ -541,16 +556,16 @@ const PurchaseInvoiceFormPage = () => {
             {/* Top Row: Adjustments */}
             <div className="flex flex-wrap items-end gap-2 w-full">
               <div className="w-16">
-                <FormInput id="pi-disc-pct" label="Disc(%)" {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-disc-amt")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pi-disc-pct" label="Disc(%)" type="number" step="any" maxLength={6} {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-disc-amt")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="w-24">
-                <FormInput id="pi-disc-amt" label="Disc Amt" {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-other-chg")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pi-disc-amt" label="Disc Amt" type="number" step="any" maxLength={12} {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-other-chg")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="w-24">
-                <FormInput id="pi-other-chg" label="Other Chg" {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-round-off")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pi-other-chg" label="Other Chg" type="number" step="any" maxLength={12} {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-round-off")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="w-20">
-                <FormInput id="pi-round-off" label="Round Off" {...register("roundOff")} onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-narration")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput id="pi-round-off" label="Round Off" type="number" step="any" maxLength={8} {...register("roundOff")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-narration")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
               </div>
               <div className="flex-1 min-w-[80px]">
                 <FormInput id="pi-narration" label="Narration" maxLength={200} {...register("narration")} onKeyDown={(e) => hk(e, "pi-paymode")} inputClassName="!h-8 !text-xs !px-2" readOnly={!canSave} />
@@ -567,20 +582,22 @@ const PurchaseInvoiceFormPage = () => {
                    {formatAmount(activeItem.avgCost || 0)}
                  </div>
               </div>
-              {payments.length > 0 && (
-                <div className="min-w-[120px] max-w-[200px]">
-                  <div className="flex flex-col gap-0.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-1">Payments</label>
-                    <div className="h-8 px-2 rounded-md border border-gray-200 bg-gray-50 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide text-xs font-bold text-gray-600">
-                      {payments.map((p: any, i: number) => (
+              <div className="min-w-[120px] max-w-[200px]">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-1">Payments</label>
+                  <div className="h-8 px-2 rounded-md border border-gray-200 bg-gray-50 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide text-xs font-bold text-gray-600">
+                    {payments.length > 0 ? (
+                      payments.map((p: any, i: number) => (
                         <span key={i} className="capitalize shrink-0">
                           {p.mode}: {formatAmount(Number(p.amount))}
                         </span>
-                      ))}
-                    </div>
+                      ))
+                    ) : (
+                      <span className="font-mono font-normal text-gray-400">{formatAmount(0)}</span>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Bottom Row: Actions & Total */}

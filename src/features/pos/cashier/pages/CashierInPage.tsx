@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { posLoginApi } from "../../../../features/auth/services/authApi";
 import { cashierLogService } from "../services/cashierLogService";
@@ -10,17 +10,30 @@ import { Settings, Delete } from "lucide-react";
 
 // --- Custom Premium Numpad Component ---
 const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const handleNumClick = (num: string) => onChange(value + num);
   const handleClear = () => onChange("");
   const handleDelete = () => onChange(value.slice(0, -1));
 
+  // Fix Chromium caret jumping bug on controlled text-center password input
+  useEffect(() => {
+    if (inputRef.current) {
+      try {
+        const len = value.length;
+        inputRef.current.setSelectionRange(len, len);
+      } catch (e) {
+        // Fallback if browser ignores selection range on password fields
+      }
+    }
+  }, [value]);
+
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (loading) return;
+      if (document.activeElement?.tagName === "INPUT") return;
       if (e.key >= "0" && e.key <= "9") {
-        if (value.length < 6) {
-          onChange(value + e.key);
-        }
+        onChange(value + e.key);
       } else if (e.key === "Backspace") {
         onChange(value.slice(0, -1));
       } else if (e.key === "Enter") {
@@ -37,24 +50,23 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      {/* PIN Display Area */}
-      <div className="mb-3 xl:mb-6 relative">
-        <div className="flex justify-center gap-3 xl:gap-4 py-3 xl:py-4 px-4 xl:px-6 border-2 border-slate-100 bg-white rounded-2xl shadow-sm">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${value.length > i
-                  ? "bg-[#49293e] border-[#49293e] scale-110 shadow-[0_0_10px_rgba(73,41,62,0.3)]"
-                  : "bg-slate-50 border-slate-200"
-                }`}
-            />
-          ))}
-        </div>
+      {/* Centered Password Input Box */}
+      <div className="mb-3 xl:mb-6">
         <input
+          ref={inputRef}
+          id="cashier-pin-input"
           type="password"
           value={value}
-          readOnly
-          className="sr-only"
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && value.length > 0) {
+              onSubmit();
+            }
+          }}
+          placeholder="ENTER PIN"
+          autoFocus
+          disabled={loading}
+          className="w-full h-12 sm:h-14 py-3 px-6 text-center text-2xl font-black tracking-[0.4em] text-[#49293e] bg-white border-2 border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:border-[#49293e] transition-colors placeholder:text-sm placeholder:font-bold placeholder:tracking-[0.2em] placeholder:text-slate-300"
         />
       </div>
 
@@ -63,10 +75,20 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
         {buttons.map((btn) => (
           <button
             key={btn}
+            tabIndex={-1}
             onClick={() => {
               if (btn === "Clear") handleClear();
               else if (btn === "Del") handleDelete();
               else handleNumClick(btn);
+              setTimeout(() => {
+                if (inputRef.current) {
+                  inputRef.current.focus();
+                  try {
+                    const len = inputRef.current.value.length;
+                    inputRef.current.setSelectionRange(len, len);
+                  } catch (e) {}
+                }
+              }, 10);
             }}
             disabled={loading}
             className={`h-11 sm:h-12 xl:h-14 rounded-xl flex items-center justify-center text-lg md:text-xl font-black transition-all active:scale-95 shadow-sm border-2 ${btn === "Clear" || btn === "Del"

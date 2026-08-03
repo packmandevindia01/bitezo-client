@@ -6,6 +6,7 @@ interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: EmployeeRoleForm;
+  error?: string;
   permissions: EmployeeRolePermission[];
   detailLoading: boolean;
   saving: boolean;
@@ -23,6 +24,7 @@ const EmployeeRoleModal = ({
   isOpen,
   editingId,
   form,
+  error,
   permissions,
   detailLoading,
   saving,
@@ -89,10 +91,10 @@ const EmployeeRoleModal = ({
             <div className="flex flex-col gap-6">
               
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                  Role Name
-                </p>
                 <FormInput
+                  label="Role Name"
+                  required
+                  error={error}
                   value={form.roleName}
                   onChange={(e) => onChange({ roleName: e.target.value })}
                   placeholder="Enter employee role name (e.g. Cashier)"

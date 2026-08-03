@@ -459,9 +459,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   }, []);
 
-  const handleInvoiceSearch = useCallback(async (query: string) => {
-    if (!watchedBranch || !watchedSupplier) return;
-    if (!query) {
+  const handleInvoiceSearch = useCallback(async (query: string = "") => {
+    if (!watchedBranch || !watchedSupplier) {
       setInvoiceOptions([]);
       return;
     }
@@ -482,6 +481,12 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setSearchingInvoices(false);
     }
   }, [watchedBranch, watchedSupplier]);
+
+  useEffect(() => {
+    if (!invoiceId && watchedBranch && watchedSupplier) {
+      handleInvoiceSearch("");
+    }
+  }, [invoiceId, watchedBranch, watchedSupplier, handleInvoiceSearch]);
 
   const handleInvoiceSelect = async (purchaseIdStr: string, invoiceNoText: string) => {
     if (!purchaseIdStr || purchaseIdStr === "0") {

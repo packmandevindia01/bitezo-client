@@ -9,18 +9,31 @@ const CompanyPage = () => {
   const {
     form: {
       register,
+      watch,
       formState: { errors },
     },
     currencies,
+    countries = [],
     isLoading,
     isSaving,
     onSubmit,
     handleReset,
   } = useCompanyForm();
 
+  const selectedCountryId = watch("country");
+  const selectedCountryObj = countries.find(
+    (item) => item.id.toString() === String(selectedCountryId)
+  );
+  const currentMobCode = selectedCountryId ? (selectedCountryObj?.mobCode || "") : "";
+
   const currencyOptions = currencies.map((item) => ({
     label: item.currencyName,
     value: item.currencyId.toString(),
+  }));
+
+  const countryOptions = countries.map((item) => ({
+    label: item.name,
+    value: item.id.toString(),
   }));
 
   if (isLoading) {
@@ -37,6 +50,7 @@ const CompanyPage = () => {
     <PageShell title="Company">
       <form
         onSubmit={onSubmit}
+        noValidate
         className="rounded-3xl border border-gray-200 bg-white shadow-sm flex flex-col"
         style={{ height: "calc(100vh - 120px)" }}
       >
@@ -80,11 +94,12 @@ const CompanyPage = () => {
               label="CR No"
               required
               autoFocus
+              maxLength={20}
               {...register("crNo")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  document.getElementById("co-mobile")?.focus();
+                  document.getElementById("co-country")?.focus();
                 }
               }}
               error={errors.crNo?.message}
@@ -92,22 +107,57 @@ const CompanyPage = () => {
               tabIndex={1}
             />
 
-            <FormInput
-              id="co-mobile"
-              label="Mobile No"
+            <SelectInput
+              id="co-country"
+              label="Country"
               required
-              placeholder="+973 36001234"
-              {...register("custMob")}
+              {...register("country")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  document.getElementById("co-tel")?.focus();
+                  document.getElementById("co-mobile")?.focus();
                 }
               }}
-              error={errors.custMob?.message}
+              options={countryOptions}
+              error={errors.country?.message}
               disabled={isSaving}
               tabIndex={2}
             />
+
+            <div className="flex items-end gap-2 w-full">
+              <FormInput
+                id="co-countryCode"
+                label="Code"
+                value={currentMobCode}
+                readOnly
+                disabled={isSaving}
+                wrapperClassName="w-[72px] shrink-0"
+                className="bg-slate-50 text-center font-semibold px-2 cursor-not-allowed"
+                tabIndex={-1}
+              />
+              <FormInput
+                id="co-mobile"
+                label="Mobile No"
+                required
+                placeholder={currentMobCode === "+91" ? "9876543210" : "36001234"}
+                maxLength={20}
+                {...register("custMob")}
+                onChange={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, "");
+                  register("custMob").onChange(e);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    document.getElementById("co-tel")?.focus();
+                  }
+                }}
+                error={errors.custMob?.message}
+                disabled={isSaving}
+                wrapperClassName="flex-1 min-w-0"
+                tabIndex={3}
+              />
+            </div>
 
             {/* Read-Only Email */}
             <FormInput
@@ -124,7 +174,12 @@ const CompanyPage = () => {
             <FormInput
               id="co-tel"
               label="Tel No / Landline"
+              maxLength={20}
               {...register("custMob2")}
+              onChange={(e) => {
+                e.target.value = e.target.value.replace(/[^\d+-\s]/g, "");
+                register("custMob2").onChange(e);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -133,12 +188,13 @@ const CompanyPage = () => {
               }}
               error={errors.custMob2?.message}
               disabled={isSaving}
-              tabIndex={3}
+              tabIndex={4}
             />
 
             <FormInput
               id="co-tax-no"
               label="Tax Reg No"
+              maxLength={20}
               {...register("taxRegNo")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -146,8 +202,9 @@ const CompanyPage = () => {
                   document.getElementById("co-currency")?.focus();
                 }
               }}
+              error={errors.taxRegNo?.message}
               disabled={isSaving}
-              tabIndex={4}
+              tabIndex={5}
             />
 
             <SelectInput
@@ -164,12 +221,13 @@ const CompanyPage = () => {
               options={currencyOptions}
               error={errors.currency?.message}
               disabled={isSaving}
-              tabIndex={5}
+              tabIndex={6}
             />
 
             <FormInput
               id="co-block"
               label="Block No"
+              maxLength={15}
               {...register("block")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -177,13 +235,15 @@ const CompanyPage = () => {
                   document.getElementById("co-area")?.focus();
                 }
               }}
+              error={errors.block?.message}
               disabled={isSaving}
-              tabIndex={6}
+              tabIndex={7}
             />
 
             <FormInput
               id="co-area"
               label="Area / Street"
+              maxLength={50}
               {...register("area")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -191,13 +251,15 @@ const CompanyPage = () => {
                   document.getElementById("co-building")?.focus();
                 }
               }}
+              error={errors.area?.message}
               disabled={isSaving}
-              tabIndex={7}
+              tabIndex={8}
             />
 
             <FormInput
               id="co-building"
               label="Building No"
+              maxLength={20}
               {...register("building")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -205,13 +267,15 @@ const CompanyPage = () => {
                   document.getElementById("co-road")?.focus();
                 }
               }}
+              error={errors.building?.message}
               disabled={isSaving}
-              tabIndex={8}
+              tabIndex={9}
             />
 
             <FormInput
               id="co-road"
               label="Road No"
+              maxLength={20}
               {...register("road")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -219,16 +283,19 @@ const CompanyPage = () => {
                   document.getElementById("co-flat")?.focus();
                 }
               }}
+              error={errors.road?.message}
               disabled={isSaving}
-              tabIndex={9}
+              tabIndex={10}
             />
 
             <FormInput
               id="co-flat"
               label="Flat / Shop No"
+              maxLength={20}
               {...register("flatNo")}
+              error={errors.flatNo?.message}
               disabled={isSaving}
-              tabIndex={10}
+              tabIndex={11}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();

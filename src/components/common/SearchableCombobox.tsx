@@ -264,16 +264,16 @@ const SearchableCombobox = ({
       {label && (
         <label 
           htmlFor={id}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer w-fit mb-0.5"
+          className="flex items-center whitespace-nowrap overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer min-w-0 mb-0.5"
           onClick={() => {
             if (disabled) return;
             inputRef.current?.focus();
           }}
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
-          <span>{label}</span>
-          {required && <span className="text-red-500 ml-1 font-bold">*</span>}
-          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case">({error.toLowerCase().includes('required') ? 'required' : error})</span>}
+          <span className="truncate shrink">{label}</span>
+          {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
+          {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>
       )}
 

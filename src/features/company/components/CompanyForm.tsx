@@ -43,20 +43,30 @@ const CompanyForm = ({
 
   const isLocked = (field: keyof CompanyFormValues) => lockedFields.includes(field);
 
-  // Fallback mocks if data is empty (per previous request)
-  const countryOptions = countries.length > 0 
-    ? countries.map((item) => ({
-        label: item.name,
-        value: item.id.toString(),
-      }))
+  const selectedCountryId = form.watch("country");
+
+  // Use API master data if available, otherwise fall back to standard regional list with mobCodes
+  const activeCountries = countries.length > 0
+    ? countries
     : [
-        { label: "Bahrain", value: "1" },
-        { label: "Saudi Arabia", value: "2" },
-        { label: "United Arab Emirates", value: "3" },
-        { label: "Kuwait", value: "4" },
-        { label: "Oman", value: "5" },
-        { label: "Qatar", value: "6" },
+        { id: 1, name: "Bahrain", mobCode: "+973" },
+        { id: 2, name: "Oman", mobCode: "+968" },
+        { id: 3, name: "Uae", mobCode: "+971" },
+        { id: 4, name: "Saudi Arabia", mobCode: "+966" },
+        { id: 5, name: "Kuwait", mobCode: "+965" },
+        { id: 6, name: "Qatar", mobCode: "+974" },
+        { id: 7, name: "India", mobCode: "+91" },
       ];
+
+  const countryOptions = activeCountries.map((item) => ({
+    label: item.name,
+    value: item.id.toString(),
+  }));
+
+  const selectedCountryObj = activeCountries.find(
+    (item) => item.id.toString() === String(selectedCountryId)
+  );
+  const currentMobCode = selectedCountryId ? (selectedCountryObj?.mobCode || "") : "";
 
   const currencyOptions = currencies.map((item) => ({
     label: item.currencyName,
@@ -122,6 +132,7 @@ const CompanyForm = ({
               label="CR Number"
               required
               tabIndex={3}
+              maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-country")}
               error={fieldState.error?.message}
@@ -151,11 +162,11 @@ const CompanyForm = ({
           )}
         />
 
-        <div className="flex gap-2 w-full">
+        <div className="flex items-end gap-2 w-full">
           <FormInput
             id="co-countryCode"
             label="Code"
-            value="+973"
+            value={currentMobCode}
             readOnly
             disabled={isSubmitting}
             wrapperClassName="w-[72px] shrink-0"
@@ -168,11 +179,13 @@ const CompanyForm = ({
             render={({ field, fieldState }) => (
               <FormInput
                 id="co-custMob"
-                label="Mobile Number"
+                label="Mobile No"
                 required
                 tabIndex={5}
-                placeholder="36001234"
+                placeholder={currentMobCode === "+91" ? "9876543210" : "36001234"}
+                maxLength={currentMobCode === "+91" ? 10 : 15}
                 {...field}
+                onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
                 onKeyDown={(e) => handleKeyDown(e, "co-email")}
                 error={fieldState.error?.message}
                 disabled={isSubmitting}
@@ -211,7 +224,9 @@ const CompanyForm = ({
               id="co-custMob2"
               label="Landline / Alt Mobile"
               tabIndex={7}
+              maxLength={20}
               {...field}
+              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => handleKeyDown(e, "co-taxRegNo")}
               error={fieldState.error?.message}
               disabled={isSubmitting}
@@ -229,6 +244,7 @@ const CompanyForm = ({
               id="co-taxRegNo"
               label="Tax Registration No"
               tabIndex={8}
+              maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-currency")}
               error={fieldState.error?.message}
@@ -266,6 +282,7 @@ const CompanyForm = ({
               id="co-block"
               label="Block No"
               tabIndex={10}
+              maxLength={15}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-area")}
               error={fieldState.error?.message}
@@ -284,6 +301,7 @@ const CompanyForm = ({
               id="co-area"
               label="Area / Street"
               tabIndex={11}
+              maxLength={50}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-building")}
               error={fieldState.error?.message}
@@ -302,6 +320,7 @@ const CompanyForm = ({
               id="co-building"
               label="Building"
               tabIndex={12}
+              maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-road")}
               error={fieldState.error?.message}
@@ -320,6 +339,7 @@ const CompanyForm = ({
               id="co-road"
               label="Road No"
               tabIndex={13}
+              maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-flatNo")}
               error={fieldState.error?.message}
@@ -338,6 +358,7 @@ const CompanyForm = ({
               id="co-flatNo"
               label="Flat / Shop No"
               tabIndex={14}
+              maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-save-btn")}
               error={fieldState.error?.message}

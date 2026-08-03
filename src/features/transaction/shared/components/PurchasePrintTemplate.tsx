@@ -194,7 +194,7 @@ export const PurchasePrintTemplate = forwardRef<HTMLDivElement, PurchasePrintTem
                 {isReturn && <th className="border-r border-[#000000] p-1">Amount</th>}
                 {isReturn && <th className="border-r border-[#000000] p-1">Dis Amt</th>}
                 <th className="border-r border-[#000000] p-1">{isReturn ? 'Taxable Amount' : 'Net Value'}</th>
-                {isWithTax && <th className="border-r border-[#000000] p-1">{isReturn ? 'VAT 5%' : 'VAT (%)'}</th>}
+                {isWithTax && <th className="border-r border-[#000000] p-1">{isReturn ? 'VAT Amt' : 'VAT (%)'}</th>}
                 {isWithTax && !isReturn && <th className="border-r border-[#000000] p-1">VAT Amt</th>}
                 <th className="p-1">Net Amount</th>
               </tr>

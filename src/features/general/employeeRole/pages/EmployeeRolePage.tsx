@@ -28,6 +28,7 @@ const EmployeeRolePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<EmployeeRoleForm>(initialFormState);
+  const [error, setError] = useState<string | undefined>(undefined);
   
   const [deleteRecord, setDeleteRecord] = useState<EmployeeRoleRecord | null>(null);
 
@@ -58,6 +59,7 @@ const EmployeeRolePage = () => {
 
   const openAddModal = () => {
     setEditingId(null);
+    setError(undefined);
     setForm(initialFormState);
     setIsModalOpen(true);
   };
@@ -65,6 +67,7 @@ const EmployeeRolePage = () => {
   const openEditModal = async (id: number) => {
     try {
       setEditingId(id);
+      setError(undefined);
       setIsModalOpen(true);
       setDetailLoading(true);
       
@@ -109,8 +112,12 @@ const EmployeeRolePage = () => {
   };
 
   const handleSave = async () => {
-    if (!form.roleName) {
-      showToast("Role name is required", "error");
+    if (!form.roleName.trim()) {
+      setError("required");
+      return;
+    }
+    if (form.roleName.trim().length > 50) {
+      setError("Maximum character limit exceeded.");
       return;
     }
     try {
@@ -145,6 +152,7 @@ const EmployeeRolePage = () => {
   };
 
   const handleClear = () => {
+    setError(undefined);
     setForm(prev => ({ ...prev, roleName: "", permissionsIds: [] }));
   };
   
@@ -208,12 +216,19 @@ const EmployeeRolePage = () => {
         isOpen={isModalOpen}
         editingId={editingId}
         form={form}
+        error={error}
         permissions={permissions}
         detailLoading={detailLoading}
         saving={saving}
         deleting={deleting}
-        onClose={() => setIsModalOpen(false)}
-        onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+        onClose={() => {
+          setIsModalOpen(false);
+          setError(undefined);
+        }}
+        onChange={(patch) => {
+          setForm((prev) => ({ ...prev, ...patch }));
+          if (patch.roleName !== undefined) setError(undefined);
+        }}
         onTogglePermission={handleTogglePermission}
         onToggleAll={handleToggleAll}
         onClear={handleClear}

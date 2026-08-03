@@ -278,6 +278,9 @@ export const useProductForm = (productId?: number) => {
     onSuccess: () => {
       showToast("Product saved successfully!", "success", "Success");
       queryClient.invalidateQueries({ queryKey: ["productsList"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
+      queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
       navigate("/dashboard/product");
     },
     onError: (error: any) => {
@@ -290,6 +293,9 @@ export const useProductForm = (productId?: number) => {
     onSuccess: () => {
       showToast("Product deleted successfully", "success", "Success");
       queryClient.invalidateQueries({ queryKey: ["productsList"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
+      queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
       navigate("/dashboard/product");
     },
     onError: (error: any) => {

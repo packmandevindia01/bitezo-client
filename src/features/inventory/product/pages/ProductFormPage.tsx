@@ -158,20 +158,8 @@ const ProductFormPage = () => {
                   onSuccess: () => navigate("/dashboard/products")
                 });
               },
-              (errors) => {
-                // Show the first validation error in a toast
-                const getFirstError = (obj: any, path: string = ""): string => {
-                  for (const key in obj) {
-                    const currentPath = path ? `${path}.${key}` : key;
-                    if (obj[key]?.message) return `[${currentPath}] ${obj[key].message}`;
-                    if (typeof obj[key] === "object") {
-                      const msg = getFirstError(obj[key], currentPath);
-                      if (msg) return msg;
-                    }
-                  }
-                  return "Please check the form for validation errors.";
-                };
-                showToast(getFirstError(errors), "error");
+              () => {
+                showToast("Please fill in all mandatory fields.", "error");
               }
             )}
             disabled={isSaving || isDeleting || isLoading}

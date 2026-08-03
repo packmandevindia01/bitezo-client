@@ -77,11 +77,11 @@ const AllTransactionReportPage = () => {
       <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
         
         {/* ── Filter Panel ────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-28">
           
           <button
             onClick={() => navigate("/dashboard")}
-            className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
+            className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >
             <X size={18} />
@@ -89,7 +89,7 @@ const AllTransactionReportPage = () => {
 
           <ResetButton
             onReset={handleReset}
-            className="absolute bottom-3 right-3"
+            className="absolute top-1/2 -translate-y-1/2 right-12"
           />
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">

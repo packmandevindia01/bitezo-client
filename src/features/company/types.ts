@@ -72,6 +72,7 @@ export interface CompanyMasterOption {
   id: number;
   name: string;
   code?: string;
+  mobCode?: string;
 }
 
 export interface CurrencyOption {
@@ -81,6 +82,7 @@ export interface CurrencyOption {
 
 export interface CompanyMasterloadResponse {
   data?: {
+    country?: CompanyMasterOption[];
     countries?: CompanyMasterOption[];
     countryList?: CompanyMasterOption[];
     currency?: CompanyMasterOption[];

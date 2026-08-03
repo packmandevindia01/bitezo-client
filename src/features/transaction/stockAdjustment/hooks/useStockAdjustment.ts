@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
 import { stockAdjustmentTypeApi } from "../../../inventory/stockAdjustmentType/services/stockAdjustmentTypeApi";
 import { productService } from "../../../inventory/product/services/productService";
@@ -27,6 +27,7 @@ export const calculateLine = (item: StockAdjustmentLineItem) => {
 };
 
 export const useStockAdjustment = (id?: string | null) => {
+  const queryClient = useQueryClient();
   const { formatAmount } = useCurrency();
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const { showToast } = useToast();
@@ -515,6 +516,7 @@ export const useStockAdjustment = (id?: string | null) => {
       console.log("Saving Stock Adjustment payload:", JSON.stringify(payload, null, 2));
 
       if (id) {
+        payload.transId = Number(id);
         await stockAdjustmentApi.updateStockAdjustment(Number(id), payload);
         showToast("Stock adjustment updated successfully", "success");
       } else {
@@ -522,6 +524,8 @@ export const useStockAdjustment = (id?: string | null) => {
         showToast("Stock adjustment saved successfully", "success");
       }
 
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentList"] });
+      queryClient.invalidateQueries({ queryKey: ["branchData"] });
       return true;
     } catch (err: any) {
       console.error("Save error:", err);

@@ -56,6 +56,7 @@ const TableMasterForm = ({
             label="Table Name"
             required={true}
             placeholder='e.g. "T1"'
+            maxLength={15}
             error={errors.tableName?.message}
             {...register("tableName")}
             className="h-11 text-base font-bold !rounded-xl border-gray-200 uppercase"
@@ -63,8 +64,8 @@ const TableMasterForm = ({
             disabled={loading}
             onKeyDown={(e) => handleEnter(e, "table-chairs")}
             onChange={(e) => {
-              // Convert to uppercase on change
-              setValue("tableName", e.target.value.toUpperCase(), { shouldValidate: true, shouldDirty: true });
+              // Convert to uppercase on change and enforce max 15 characters
+              setValue("tableName", e.target.value.toUpperCase().slice(0, 15), { shouldValidate: true, shouldDirty: true });
             }}
           />
         </div>

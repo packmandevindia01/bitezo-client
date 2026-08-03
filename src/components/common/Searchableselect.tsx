@@ -86,8 +86,20 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
     }
   }, [autoFocus, disabled]);
 
-  // Derive selected label from value - robust comparison. Fallback to value if not found (supports custom values)
-  const selectedLabel = options.find((o) => String(o.value) === String(value))?.label ?? (String(value) === "0" ? "" : value);
+  // Preserve last known label for a valid value so temporary option reloading/emptying doesn't display raw IDs
+  const lastKnownLabelRef = useRef<{ value: string; label: string }>({ value: "", label: "" });
+
+  const foundOption = options.find((o) => String(o.value) === String(value));
+  if (foundOption && String(value) !== "0" && value !== "") {
+    lastKnownLabelRef.current = { value: String(value), label: foundOption.label };
+  }
+
+  // Derive selected label from value - robust comparison. Fallback to last known label, then value if not found
+  const selectedLabel = foundOption?.label ?? (
+    lastKnownLabelRef.current.value === String(value) && String(value) !== "" && String(value) !== "0"
+      ? lastKnownLabelRef.current.label
+      : (String(value) === "0" ? "" : value)
+  );
 
   // Filtered options based on search query
   const meetsMinQuery = query.trim().length >= minQueryLength;
@@ -317,12 +329,12 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
   };
 
   return (
-    <div className="flex flex-col gap-1 mb-1 w-full min-w-0 relative" ref={containerRef} onBlur={handleBlur}>
+    <div className="flex flex-col justify-end gap-1 mb-1 w-full min-w-0 relative h-full" ref={containerRef} onBlur={handleBlur}>
       {/* Label */}
       {label && (
         <label 
           htmlFor={id}
-          className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer min-w-0 mb-0.5"
+          className="flex items-center whitespace-nowrap overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-600 cursor-pointer min-w-0 mb-0.5"
           onClick={() => {
             if (disabled) return;
             triggerRef.current?.focus();
@@ -330,7 +342,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
           }}
         >
           {labelIcon && <span className="shrink-0 mr-1">{labelIcon}</span>}
-          <span className="truncate">{label}</span>
+          <span className="truncate shrink">{label}</span>
           {required && <span className="text-red-500 ml-1 font-bold shrink-0">*</span>}
           {error && <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>({error.toLowerCase().includes('required') ? 'required' : error})</span>}
         </label>

@@ -279,7 +279,13 @@ export const useRecipeForm = (initialTransId?: number) => {
   const handleFinishedProductSelect = async (productId: string) => {
     setValue("finishedProduct", productId);
     const prod = finishedProducts.find(p => p.value === productId);
-    if (!prod) return;
+    if (!prod || !productId) {
+      setValue("finishedProductCode", "");
+      setValue("finishedProductUnit", "");
+      setValue("finishedProductUnitName", "");
+      setFinishedProductUnits([]);
+      return;
+    }
 
     setValue("finishedProductCode", prod.code || "");
     const identifier = prod.code || productId;
@@ -302,6 +308,18 @@ export const useRecipeForm = (initialTransId?: number) => {
 
   const handleGridProductSelect = async (index: number, productId: string, barcode: string) => {
     setValue(`items.${index}.product`, productId);
+    if (!productId || productId === "0") {
+      setValue(`items.${index}.productId`, 0);
+      setValue(`items.${index}.productName`, "");
+      setValue(`items.${index}.code`, "");
+      setValue(`items.${index}.unit`, "");
+      setValue(`items.${index}.unitId`, 0);
+      setValue(`items.${index}.unitCategory`, "");
+      setValue(`items.${index}.cost`, "0");
+      setValue(`items.${index}.amount`, 0);
+      return;
+    }
+
     setValue(`items.${index}.productId`, Number(productId));
     setValue(`items.${index}.code`, barcode || "");
     const identifier = barcode || productId;

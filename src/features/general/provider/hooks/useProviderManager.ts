@@ -94,7 +94,21 @@ export const useProviderManager = () => {
       }
     },
     onError: (error: any) => {
-      showToast(error?.message || "Failed to delete provider", "error");
+      const errMsg = String(error?.response?.data?.message || error?.message || "");
+      if (
+        !errMsg ||
+        errMsg.includes("REFERENCE") ||
+        errMsg.includes("foreign key") ||
+        errMsg.includes("constraint") ||
+        errMsg.includes("conflict") ||
+        errMsg.includes("500") ||
+        errMsg.includes("409") ||
+        errMsg.includes("Request failed")
+      ) {
+        showToast("Provider is in use and cannot be deleted.", "error");
+      } else {
+        showToast(errMsg, "error");
+      }
     },
   });
 

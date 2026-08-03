@@ -596,7 +596,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const onSubmit = async (data: PurchaseInvoiceForm): Promise<boolean> => {
     const validItems = data.items.filter(item => item.product.trim() !== "");
     if (validItems.length === 0) {
-      showToast("Please add at least one item", "warning");
+      showToast("Please add at least one product.", "warning");
       return false;
     }
     
