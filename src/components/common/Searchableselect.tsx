@@ -322,13 +322,18 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
     onKeyDown?.(e);
   };
 
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleBlur = (e: React.FocusEvent) => {
     const newFocus = e.relatedTarget as Node | null;
     const isInsideContainer = containerRef.current?.contains(newFocus);
     const isInsidePortal = newFocus && (newFocus as HTMLElement).closest(".select-portal-content");
     
     if (!isInsideContainer && !isInsidePortal) {
-      setOpen(false);
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = setTimeout(() => {
+        setOpen(false);
+      }, 150);
     }
   };
 
@@ -370,6 +375,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
         }}
         onFocus={() => {
           if (disabled) return;
+          if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
           if (!open && !disableAutoOpenOnFocus) {
             setOpen(true);
           }
@@ -460,6 +466,18 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
                     aria-selected={String(opt.value) === String(value)}
                     onMouseDown={(e) => {
                       e.preventDefault();
+                      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+                      handleSelect(opt.value);
+                    }}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+                      handleSelect(opt.value);
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
                       handleSelect(opt.value);
                     }}
                     onMouseMove={(e) => {

@@ -26,6 +26,7 @@ export const emptyForm: ProductFormData = {
   colorCode: "#49293e",
   altProducts: [],
   productColors: [],
+  openingStocks: [],
 };
 
 export const emptyAltDraft: Omit<AltProductDraft, "id"> = {

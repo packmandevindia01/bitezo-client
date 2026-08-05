@@ -28,13 +28,13 @@ const StatusBadge = ({
   return (
     <span
       className={`
-        inline-flex items-center rounded font-medium
+        inline-flex items-center rounded font-medium capitalize
         ${sizes[size]}
         ${styles[status] || styles.default}
         ${className}
       `}
     >
-      {label || status}
+      {label || status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
 };

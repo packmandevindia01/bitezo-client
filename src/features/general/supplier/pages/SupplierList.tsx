@@ -143,16 +143,15 @@ const SupplierList = () => {
           supplier.code,
           supplier.name,
           supplier.mobileNo ?? "",
-          supplier.email ?? "",
-          supplier.branchName ?? "",
+          supplier.area ?? "",
           supplier.statusLabel ?? "",
         ].some((value) => value.toLowerCase().includes(query));
       }),
-    [suppliers, search]
+    [search, suppliers]
   );
 
   return (
-    <PageShell title="Supplier Management">
+    <PageShell title="Suppliers">
       <ListHeader
         search={search}
         onSearchChange={setSearch}
@@ -174,13 +173,8 @@ const SupplierList = () => {
           columns={[
             { header: "Code", accessor: "code" },
             { header: "Supplier Name", accessor: "name" },
-            { header: "Mobile No", accessor: "mobileNo" },
-            { header: "Email", accessor: "email" },
-            {
-              header: "Branch",
-              accessor: "branchName",
-              render: (row) => <span>{row.branchName || row.branchId || "-"}</span>,
-            },
+            { header: "Mobile No", accessor: "mobileNo", render: (row) => <span>{row.mobileNo || "-"}</span> },
+            { header: "Area", accessor: "area", render: (row) => <span>{row.area || "-"}</span> },
             {
               header: "Status",
               accessor: "isActive",

@@ -60,11 +60,12 @@ export const PosProviderModal = ({ isOpen, onClose, onSelect, onClear }: PosProv
                   onSelect(provider);
                   onClose();
                 }}
+                title={provider.providerName}
                 className="
                   group relative flex flex-col items-center justify-center p-3
                   rounded-xl border border-slate-200 bg-white text-center overflow-hidden
                   transition-all duration-300 hover:shadow-xl hover:shadow-[#49293e]/5 hover:-translate-y-1
-                  h-[115px] xl:h-[125px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+                  h-[115px] xl:h-[125px] w-full max-w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                 "
               >
                 <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center mb-2.5 shrink-0 bg-slate-50 border border-slate-100 group-hover:border-[#ff9500] transition-colors duration-300">
@@ -83,7 +84,7 @@ export const PosProviderModal = ({ isOpen, onClose, onSelect, onClear }: PosProv
                     </span>
                   )}
                 </div>
-                <h3 className="text-[11px] font-black text-[#49293e] tracking-widest uppercase line-clamp-2 break-words">
+                <h3 className="w-full max-w-full text-[11px] font-black text-[#49293e] tracking-wider uppercase truncate px-1" title={provider.providerName}>
                   {provider.providerName}
                 </h3>
               </button>

@@ -275,6 +275,7 @@ export const useInternalStockTransfer = (id?: string) => {
         employeeId: parseInt(data.salesman || "", 10) || 0,
         netAmount,
         narration: "",
+        createdAt: new Date().toISOString(),
         details: validItems.map(item => {
           const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
           const unitCurrentValue = (() => {

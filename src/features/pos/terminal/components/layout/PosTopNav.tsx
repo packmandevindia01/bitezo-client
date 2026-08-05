@@ -139,7 +139,7 @@ const PosTopNav = ({
             onClick={onProvider}
           >
             <Users size={13} className="xl:w-3.5 xl:h-3.5" />
-            <span className="inline uppercase whitespace-nowrap">
+            <span className="inline uppercase whitespace-nowrap max-w-[100px] xl:max-w-[140px] truncate" title={activeProvider ? activeProvider.provider.providerName : undefined}>
               {activeProvider ? activeProvider.provider.providerName : "Provider"}
             </span>
           </PosActionButton>

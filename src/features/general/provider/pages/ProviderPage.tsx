@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, Globe } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { ConfirmDialog, PageShell, RecordTableCard, ListHeader, StatusBadge } from "../../../../components/common";
 import ProviderModal from "../components/ProviderModal";
 import { useProviderManager } from "../hooks/useProviderManager";
@@ -60,14 +60,7 @@ const ProviderPage = () => {
             header: "Provider Info", 
             accessor: "providerName",
             render: (row) => (
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
-                  <Globe size={20} className="text-gray-300" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-gray-900">{row.providerName}</span>
-                </div>
-              </div>
+              <span className="font-bold text-gray-900">{row.providerName}</span>
             )
           },
           { 

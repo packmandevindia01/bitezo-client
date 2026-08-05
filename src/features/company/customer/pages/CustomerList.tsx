@@ -20,6 +20,7 @@ const CustomerList = () => {
   const {
     customers,
     loading,
+    detailLoading,
     saving,
     deleting,
     open,
@@ -67,7 +68,7 @@ const CustomerList = () => {
             {
               header: "Opening Bal",
               accessor: "openingBalance",
-              align: "right",
+              align: "center",
               render: (row) => <span>{formatAmount(Number(row.openingBalance) || 0)}</span>,
             },
             {
@@ -115,16 +116,22 @@ const CustomerList = () => {
       )}
 
       <Modal isOpen={open} onClose={closeModal} title={editCustomer ? "Edit Customer" : "Customer Creation"} size="xl">
-        <CustomerForm
-          key={editCustomer?.id ?? "new-customer"}
-          initialData={editCustomer}
-          onSubmit={handleSave}
-          onCancel={closeModal}
-          submitting={saving}
-          onDelete={editCustomer && canDelete ? () => setDeleteCandidate(editCustomer) : undefined}
-          deleting={deleting}
-          onClear={() => setEditCustomer(null)}
-        />
+        {detailLoading ? (
+          <div className="p-10 flex justify-center">
+            <Loader text="Loading customer details..." />
+          </div>
+        ) : (
+          <CustomerForm
+            key={editCustomer?.id ?? "new-customer"}
+            initialData={editCustomer}
+            onSubmit={handleSave}
+            onCancel={closeModal}
+            submitting={saving}
+            onDelete={editCustomer && canDelete ? () => setDeleteCandidate(editCustomer) : undefined}
+            deleting={deleting}
+            onClear={() => setEditCustomer(null)}
+          />
+        )}
       </Modal>
 
       <ConfirmDialog

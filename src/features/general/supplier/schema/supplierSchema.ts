@@ -6,7 +6,7 @@ export const supplierSchema = z.object({
   arabicName: z.string().max(100, "Arabic Name cannot exceed 100 characters"),
   mobileNo: z.string().max(20, "Mobile No cannot exceed 20 characters"),
   telNo: z.string().max(20, "Tel No cannot exceed 20 characters"),
-  email: z.string().max(100, "Email cannot exceed 100 characters"),
+  email: z.string().max(30, "Email cannot exceed 30 characters"),
   address: z.string().max(500, "Address cannot exceed 500 characters"),
   area: z.string().max(100, "Area cannot exceed 100 characters"),
   identityNo: z.string().max(50, "Identity No cannot exceed 50 characters"),

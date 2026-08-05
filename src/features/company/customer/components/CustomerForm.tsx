@@ -54,6 +54,7 @@ const CustomerForm = ({
           id="cust-code"
           label="Customer Code"
           required
+          maxLength={20}
           placeholder="Enter customer code"
           autoFocus
           {...register("customerCode")}
@@ -66,6 +67,7 @@ const CustomerForm = ({
           id="cust-name"
           label="Customer Name"
           required
+          maxLength={100}
           placeholder="Enter customer name"
           {...register("customerName")}
           error={(errors.customerName as any)?.message}
@@ -76,6 +78,7 @@ const CustomerForm = ({
         <FormInput
           id="cust-arabic"
           label="Arabic Name"
+          maxLength={100}
           placeholder="Enter arabic name"
           inputClassName="text-right font-arabic"
           {...register("arabicName")}
@@ -88,6 +91,7 @@ const CustomerForm = ({
           id="cust-mobile"
           label="Mobile No"
           required
+          maxLength={20}
           placeholder="Enter mobile number"
           {...register("mobileNo", {
             onChange: (e) => {
@@ -102,6 +106,7 @@ const CustomerForm = ({
         <FormInput
           id="customer-telNo"
           label="Tel No"
+          maxLength={20}
           placeholder="Enter tel number"
           {...register("telNo", {
             onChange: (e) => {
@@ -117,6 +122,7 @@ const CustomerForm = ({
           id="cust-email"
           label="Email"
           type="email"
+          maxLength={30}
           placeholder="Enter email address"
           {...register("email")}
           error={(errors.email as any)?.message}
@@ -127,6 +133,7 @@ const CustomerForm = ({
         <FormInput
           id="cust-id-no"
           label="Identity No"
+          maxLength={50}
           placeholder="Enter identity number"
           {...register("identityNo")}
           error={(errors.identityNo as any)?.message}
@@ -137,80 +144,33 @@ const CustomerForm = ({
         <FormInput
           id="cust-trn"
           label="TRN No"
+          maxLength={50}
           placeholder="Enter TRN number"
           {...register("trnNo")}
           error={(errors.trnNo as any)?.message}
           onKeyDown={(e) => handleKeyDown(e, "cust-address")}
         />
 
-        {/* Address Full Width on mobile/tablet, 2 cols on lg+ */}
-        <div className="md:col-span-2 lg:col-span-2 flex flex-col gap-1 mb-4 w-full relative">
-          <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0">
-            Address
-            {errors.address && (
-              <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink">
-                ({(errors.address as any).message})
-              </span>
-            )}
-          </label>
-          <textarea
-            id="cust-address"
-            placeholder="Enter full address"
-            {...register("address")}
-            onKeyDown={(e) => handleKeyDown(e, "cust-area")}
-            className={`w-full px-3 md:px-4 py-2 text-sm rounded-md border outline-none transition resize-none h-[42px] ${
-              errors.address ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"
-            } focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20`}
-          />
-        </div>
+        {/* Address */}
+        <FormInput
+          id="cust-address"
+          label="Address"
+          maxLength={250}
+          placeholder="Enter full address"
+          wrapperClassName="md:col-span-2 lg:col-span-2"
+          {...register("address")}
+          error={(errors.address as any)?.message}
+          onKeyDown={(e) => handleKeyDown(e, "cust-area")}
+        />
 
         {/* Area */}
         <FormInput
           id="cust-area"
           label="Area"
+          maxLength={100}
           placeholder="Enter area"
           {...register("area")}
           error={(errors.area as any)?.message}
-          onKeyDown={(e) => handleKeyDown(e, "cust-building")}
-        />
-
-        {/* Building No */}
-        <FormInput
-          id="cust-building"
-          label="Building No"
-          placeholder="Enter building no"
-          {...register("buildingNo")}
-          error={(errors.buildingNo as any)?.message}
-          onKeyDown={(e) => handleKeyDown(e, "cust-flat")}
-        />
-
-        {/* Flat No */}
-        <FormInput
-          id="cust-flat"
-          label="Flat No"
-          placeholder="Enter flat no"
-          {...register("flatNo")}
-          error={(errors.flatNo as any)?.message}
-          onKeyDown={(e) => handleKeyDown(e, "cust-block")}
-        />
-
-        {/* Block No */}
-        <FormInput
-          id="cust-block"
-          label="Block No"
-          placeholder="Enter block no"
-          {...register("blockNo")}
-          error={(errors.blockNo as any)?.message}
-          onKeyDown={(e) => handleKeyDown(e, "cust-road")}
-        />
-
-        {/* Road No */}
-        <FormInput
-          id="cust-road"
-          label="Road No"
-          placeholder="Enter road no"
-          {...register("roadNo")}
-          error={(errors.roadNo as any)?.message}
           onKeyDown={(e) => handleKeyDown(e, "cust-branch")}
         />
 

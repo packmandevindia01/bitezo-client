@@ -117,26 +117,22 @@ const SupplierForm = ({
           tabIndex={6}
           label="Email"
           type="email"
-          maxLength={100}
+          maxLength={30}
           {...register("email")}
           error={errors.email?.message}
           onKeyDown={(e) => hk(e, "supplier-address")}
         />
 
-        <div className="flex flex-col gap-1 w-full relative md:col-span-3">
-          <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5">
-            Address
-          </label>
-          <textarea
-            id="supplier-address"
-            tabIndex={7}
-            {...register("address")}
-            maxLength={500}
-            className="w-full text-sm rounded-md border border-gray-300 bg-white px-4 py-2 outline-none transition focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 resize-none h-10.5"
-            placeholder="Enter full address"
-            onKeyDown={(e) => hk(e, "supplier-area")}
-          />
-        </div>
+        <FormInput
+          id="supplier-address"
+          tabIndex={7}
+          label="Address"
+          maxLength={500}
+          placeholder="Enter full address"
+          wrapperClassName="md:col-span-3"
+          {...register("address")}
+          onKeyDown={(e) => hk(e, "supplier-area")}
+        />
 
         <FormInput
           id="supplier-area"

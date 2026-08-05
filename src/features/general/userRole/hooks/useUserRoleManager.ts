@@ -5,7 +5,26 @@ import { userRoleService } from "../services/userRoleService";
 import type { UserRoleForm, UserRolePermission, UserRoleRecord } from "../types";
 
 const getErrorMessage = (error: unknown, fallback: string) => {
-  if (error instanceof Error && error.message.trim()) return error.message;
+  const anyErr = error as any;
+  const status = anyErr?.response?.status ?? anyErr?.status;
+  const dataMessage = anyErr?.response?.data?.message;
+  const errorMessage = error instanceof Error ? error.message : "";
+
+  if (
+    status === 409 ||
+    String(errorMessage).includes("409") ||
+    String(dataMessage).toLowerCase().includes("already exists") ||
+    String(dataMessage).toLowerCase().includes("conflict")
+  ) {
+    return "Role name already exists. Please enter a unique role name.";
+  }
+
+  if (dataMessage && typeof dataMessage === "string" && dataMessage.trim()) {
+    return dataMessage;
+  }
+  if (errorMessage && errorMessage.trim() && !errorMessage.includes("status code 409")) {
+    return errorMessage;
+  }
   return fallback;
 };
 
@@ -141,6 +160,16 @@ export const useUserRoleManager = () => {
   const handleSave = async () => {
     if (!form.roleName.trim()) {
       showToast("Role name is required", "error");
+      return;
+    }
+
+    const duplicateRole = records.some(
+      (r) =>
+        r.roleName.trim().toLowerCase() === form.roleName.trim().toLowerCase() &&
+        r.roleId !== editingId
+    );
+    if (duplicateRole) {
+      showToast("Role name already exists. Please enter a unique role name.", "error");
       return;
     }
 

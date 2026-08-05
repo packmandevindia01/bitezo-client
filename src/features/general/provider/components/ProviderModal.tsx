@@ -129,6 +129,7 @@ const ProviderModal = ({
               label="Provider Name"
               required
               tabIndex={1}
+              maxLength={20}
               {...register("providerName")}
               placeholder="Enter provider name"
               autoFocus

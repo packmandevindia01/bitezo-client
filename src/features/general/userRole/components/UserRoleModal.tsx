@@ -143,18 +143,19 @@ const UserRoleModal = ({
         <div className="flex flex-col overflow-y-auto pr-1" style={{ maxHeight: "calc(90vh - 120px)" }}>
           <section className="rounded-3xl border border-gray-200 bg-white p-2 md:p-3">
             <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
-              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                Role Name
+              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 flex items-center">
+                Role Name <span className="text-red-500 ml-1 font-bold">*</span>
               </p>
               <FormInput
                 value={form.roleName}
+                maxLength={50}
                 onChange={(e) => onChange({ roleName: e.target.value })}
                 placeholder="Enter role name"
                 autoFocus
               />
 
-              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                Permissions
+              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 flex items-center">
+                Permissions <span className="text-red-500 ml-1 font-bold">*</span>
               </p>
               <div className="overflow-hidden rounded-xl border border-gray-200">
                 {moduleNames.length === 0 ? (

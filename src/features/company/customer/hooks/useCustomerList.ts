@@ -12,6 +12,7 @@ export const useCustomerList = () => {
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Customer | null>(null);
   const [search, setSearch] = useState("");
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // 1. Fetch Customers List
   const { data: customersResponse, isLoading: loading } = useQuery({
@@ -65,9 +66,24 @@ export const useCustomerList = () => {
     setOpen(true);
   };
 
-  const handleEdit = (customer: Customer) => {
-    setEditCustomer(customer);
-    setOpen(true);
+  const handleEdit = async (customer: Customer) => {
+    if (!customer.id) return;
+    try {
+      setOpen(true);
+      setDetailLoading(true);
+      const res = await customerApi.getCustomerById(customer.id);
+      if (res && res.data) {
+        setEditCustomer(res.data);
+      } else {
+        setEditCustomer(customer);
+      }
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.message || error?.message || "Failed to fetch customer details";
+      showToast(errMsg, "error");
+      closeModal();
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleSave = async (data: Customer) => {
@@ -104,6 +120,7 @@ export const useCustomerList = () => {
     customers: filteredCustomers,
     totalCount: customers.length,
     loading,
+    detailLoading,
     saving: saveMutation.isPending,
     deleting: deleteMutation.isPending,
     open,

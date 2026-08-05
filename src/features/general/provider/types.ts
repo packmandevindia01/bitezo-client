@@ -36,7 +36,7 @@ export interface ProviderPayload {
 
 export const providerSchema = z.object({
   providerId: z.number().optional(),
-  providerName: z.string().min(1, "Provider name is required"),
+  providerName: z.string().min(1, "Provider name is required").max(20, "Provider name cannot exceed 20 characters"),
   paymodeId: z.number().min(1, "Please select a paymode"),
   deliveryStatus: z.boolean(),
   branchIds: z.array(z.number()),

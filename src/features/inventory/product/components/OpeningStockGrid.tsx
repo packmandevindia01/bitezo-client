@@ -51,8 +51,12 @@ export const OpeningStockGrid = ({
     }
 
     const key = `${focusPos.r}-${focusPos.c}`;
-    const el = cellRefs.current.get(key) ?? document.getElementById(`stock-branch-${focusPos.r}`);
-    if (el) {
+    let el: HTMLElement | null = (cellRefs.current.get(key) as HTMLElement) ?? null;
+    if (!el) {
+      if (focusPos.c === 0) el = document.getElementById(`stock-branch-${focusPos.r}`);
+      else if (focusPos.c === 1) el = document.getElementById(`stock-unit-${focusPos.r}`);
+    }
+    if (el && document.activeElement !== el && !el.contains(document.activeElement)) {
       el.focus();
       if (el instanceof HTMLInputElement) el.select();
     }
@@ -253,6 +257,7 @@ export const OpeningStockGrid = ({
                           className="px-0.5 py-0"
                         >
                           <SearchableSelect
+                            ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-1`, el); }}
                             key={`stock-unit-${rIdx}-${stock.id}`}
                             id={`stock-unit-${rIdx}`}
                             options={altUnitOptions.length > 0 ? altUnitOptions : (masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [])}

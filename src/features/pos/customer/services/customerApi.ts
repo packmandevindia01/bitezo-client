@@ -64,18 +64,27 @@ export const customerApi = {
     unwrap<{ data: any }>(axiosInstance.get(`/customer/${id}/customer-data`))
       .then(res => ({
         ...res,
-        data: res.data ? mapToFrontend(res.data) : null
+        data: res.data ? mapToFrontend({ ...res.data, customerId: id }) : null
       })),
 
   saveCustomer: (customer: Customer) => {
-    const payload = mapToBackend(customer);
+    const basePayload = mapToBackend(customer);
     if (customer.id) {
+      const payload = {
+        ...basePayload,
+        updatedAt: new Date().toISOString(),
+      };
       return unwrap<{ data: any }>(axiosInstance.put(`/customer/${customer.id}`, payload))
         .then(res => ({
           ...res,
-          data: res.data ? mapToFrontend(res.data) : customer
+          data: res.data ? mapToFrontend({ ...res.data, customerId: customer.id }) : customer
         }));
     } else {
+      const { customerId, isActive, ...postPayload } = basePayload;
+      const payload = {
+        ...postPayload,
+        createdAt: new Date().toISOString(),
+      };
       return unwrap<{ data: any }>(axiosInstance.post("/customer", payload))
         .then(res => ({
           ...res,
