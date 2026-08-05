@@ -56,6 +56,15 @@ export interface ProductColorItem {
   colorCode: string;
 }
 
+export interface OpeningStockItem {
+  unitId: number;
+  qty: number;
+  cost: number;
+  amount: number;
+  baseQty: number;
+  branchId: number;
+}
+
 export interface ProductListItem {
   productId: number;
   sNo: number;
@@ -97,6 +106,7 @@ export interface ProductDetail {
   } | null;
   altProducts: AltProductItem[] | null;
   productColors: ProductColorItem[] | null;
+  openingStocks: OpeningStockItem[] | null;
 }
 
 export interface CreateProductPayload {
@@ -123,6 +133,7 @@ export interface CreateProductPayload {
   oldPath?: string | null;
   altProducts: AltProductItem[];
   productColors: ProductColorItem[];
+  openingStocks: OpeningStockItem[];
 }
 
 export interface UpdateProductPayload extends Omit<CreateProductPayload, "createdAt"> {
@@ -130,4 +141,4 @@ export interface UpdateProductPayload extends Omit<CreateProductPayload, "create
   updatedAt: string;
 }
 
-export type { ProductFormData, AltProductFormData, ProductColorFormData } from "./schema/productSchema";
+export type { ProductFormData, AltProductFormData, ProductColorFormData, OpeningStockFormData } from "./schema/productSchema";

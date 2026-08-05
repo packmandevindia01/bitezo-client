@@ -40,7 +40,8 @@ const BomPage = () => {
   const canDelete = hasPermission("BOM Master", "Delete");
   const canSave = canAdd || canEdit;
 
-  const { watch, setValue, control, register } = form;
+  const { watch, setValue, control, register, formState: { errors, isSubmitted } } = form;
+  const showErr = (fieldError?: { message?: string }) => isSubmitted ? fieldError?.message : undefined;
   const watchedItems = watch("items") || [];
   const productSelectedRef = useRef(false);
 
@@ -119,6 +120,7 @@ const BomPage = () => {
                 maxLength={100}
                 autoFocus
                 required
+                error={showErr(errors.bomName)}
               />
               <Controller
                 name="branchId"
@@ -133,6 +135,7 @@ const BomPage = () => {
                     onChange={(val) => setValue("branchId", val)}
                     disabled={!canSave}
                     required
+                    error={showErr(errors.branchId)}
                   />
                 )}
               />
@@ -159,6 +162,7 @@ const BomPage = () => {
                     }}
                     disabled={!canSave}
                     required
+                    error={showErr(errors.finishedProduct)}
                   />
                 )}
               />
@@ -169,7 +173,6 @@ const BomPage = () => {
                 value={watch("finishedProductCode") || ""} 
                 onChange={(e) => setValue("finishedProductCode", e.target.value)} 
                 onKeyDown={(e) => hk(e, "bom-finQty")} 
-                required 
                 readOnly={true} 
               />
               <Controller
@@ -180,15 +183,17 @@ const BomPage = () => {
                     id="bom-finUnit"
                     label="Unit" 
                     className="h-8 !px-2 !text-xs"
-                    options={finishedProductUnits}
+                    options={finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || [])}
                     value={field.value}
                     onChange={(val) => {
                       field.onChange(val);
-                      const opt = finishedProductUnits.find(u => u.value === val);
+                      const opts = finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || []);
+                      const opt = opts.find(u => u.value === val);
                       setValue("finishedProductUnitName", opt?.label || "");
                     }}
-                    disabled={!canSave || finishedProductUnits.length === 0}
+                    disabled={!canSave || !watch("finishedProduct")}
                     required
+                    error={showErr(errors.finishedProductUnit)}
                   />
                 )}
               />
@@ -202,7 +207,8 @@ const BomPage = () => {
                 onKeyDown={(e) => hk(e, "product-select-0")} 
                 maxLength={10}
                 required 
-                readOnly={!canSave} 
+                readOnly={!canSave}
+                error={showErr(errors.finishedProductQty)}
               />
             </div>
           </div>
@@ -232,6 +238,7 @@ const BomPage = () => {
                     {items.map((item, index) => {
                       const itemWatch = watchedItems[index] || {};
                       const rowOptions = getRowOptions(index);
+                      const rowError = (errors.items as any)?.[index];
                       return (
                         <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 bg-gray-50/30">{index + 1}</td>
@@ -339,9 +346,14 @@ const BomPage = () => {
                                   }
                                 }
                               }}
-                              className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none"
+                              className={`w-full h-7 text-right bg-transparent border hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none ${showErr(rowError?.qty) ? 'border-red-500 bg-red-50/30 text-red-600' : 'border-transparent'}`}
                               readOnly={!canSave}
                             />
+                            {showErr(rowError?.qty) && (
+                              <span className="block text-[10px] font-bold text-red-500 px-1 truncate" title={showErr(rowError?.qty)}>
+                                required
+                              </span>
+                            )}
                           </td>
                           <td className="px-2 py-1 text-center">
                             <button
@@ -361,6 +373,11 @@ const BomPage = () => {
                   </tbody>
                 </table>
               </div>
+              {isSubmitted && (errors.items as any)?.message && typeof (errors.items as any)?.message === 'string' && (
+                <div className="px-3 py-1.5 text-xs text-red-600 font-semibold bg-red-50/50 border-t border-red-100">
+                  {(errors.items as any).message}
+                </div>
+              )}
 
               {/* Add Row Button */}
               <div className="flex justify-start px-2 py-2 border-t border-gray-100">

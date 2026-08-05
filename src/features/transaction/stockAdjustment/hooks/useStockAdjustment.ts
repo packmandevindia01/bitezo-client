@@ -33,7 +33,7 @@ export const useStockAdjustment = (id?: string | null) => {
   const { showToast } = useToast();
 
   const [saving, setSaving] = useState(false);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
@@ -42,7 +42,7 @@ export const useStockAdjustment = (id?: string | null) => {
       stockAdjustmentApi.getUnitList(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -121,7 +121,7 @@ export const useStockAdjustment = (id?: string | null) => {
         return {
           options: typeRes.map((t: any) => ({ label: t.typeName, value: String(t.typeId) })),
           raw: typeRes,
-          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) })),
+          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) })),
         };
       } catch (err: any) {
         showToast("Error loading Types: " + (err.message || "Unknown error"), "error");
@@ -501,16 +501,28 @@ export const useStockAdjustment = (id?: string | null) => {
         netAmount,
         narration: data.series || "",
         createdAt: new Date().toISOString(),
-        details: validItems.map(item => ({
-          productId: parseInt(item.product, 10) || 0,
-          unitId: item.unitId || parseInt(item.unit || "1", 10) || 1,
-          qty: toNumber(item.qty),
-          price: toNumber(item.cost),
-          amount: toNumber(item.qty) * toNumber(item.cost),
-          baseQty: toNumber(item.qty),
-          typeId: item.typeId || parseInt(item.type, 10) || 0,
-          effect: item.effect || "+",
-        }))
+        details: validItems.map(item => {
+          const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
+          const unitCurrentValue = (() => {
+            for (const units of Object.values(categoryUnits)) {
+              const found = units.find(u => String(u.value) === String(unitId));
+              if (found && !isNaN(found.currentValue)) return found.currentValue;
+            }
+            const foundMaster = typesData.units?.find((u: any) => String(u.value) === String(unitId));
+            if (foundMaster && !isNaN(foundMaster.currentValue)) return foundMaster.currentValue;
+            return 1;
+          })();
+          return {
+            productId: parseInt(item.product, 10) || 0,
+            unitId,
+            qty: toNumber(item.qty),
+            price: toNumber(item.cost),
+            amount: toNumber(item.qty) * toNumber(item.cost),
+            baseQty: toNumber(item.qty) * unitCurrentValue,
+            typeId: item.typeId || parseInt(item.type, 10) || 0,
+            effect: item.effect || "+",
+          };
+        })
       };
 
       console.log("Saving Stock Adjustment payload:", JSON.stringify(payload, null, 2));

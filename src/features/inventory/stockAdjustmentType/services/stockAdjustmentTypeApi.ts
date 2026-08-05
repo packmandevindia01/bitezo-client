@@ -31,7 +31,10 @@ export const stockAdjustmentTypeApi = {
   create: async (payload: StockAdjustmentTypePayload) => {
     const response = await axiosInstance.post<ApiResponse<any>>(
       "/stock-adjustment-type",
-      payload
+      {
+        ...payload,
+        createdAt: new Date().toISOString()
+      }
     );
     if (!response.data.isSuccess) {
       throw new Error(response.data.message || "Failed to create stock adjustment type");
@@ -42,7 +45,13 @@ export const stockAdjustmentTypeApi = {
   update: async (typeId: number, payload: StockAdjustmentTypePayload) => {
     const response = await axiosInstance.put<ApiResponse<any>>(
       `/stock-adjustment-type/${typeId}`,
-      payload
+      {
+        ...payload,
+        typeId,
+        id: typeId,
+        adjustmentTypeId: typeId,
+        updatedAt: new Date().toISOString()
+      }
     );
     if (!response.data.isSuccess) {
       throw new Error(response.data.message || "Failed to update stock adjustment type");

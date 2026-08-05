@@ -40,7 +40,6 @@ const RecipePage = () => {
     onSubmit,
     masterData,
     isBranchLocked,
-    handleRawMaterialSearch,
     handleReset
   } = useRecipeForm(id ? parseInt(id, 10) : undefined);
 
@@ -184,16 +183,17 @@ const RecipePage = () => {
                     id="rec-finUnit"
                     label="Unit"
                     className="h-8 !px-2 !text-xs"
-                    options={finishedProductUnits}
+                    options={finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || [])}
                     value={field.value}
                     onChange={(val) => {
                       setValue("finishedProductUnit", val);
-                      const name = finishedProductUnits.find(u => u.value === val)?.label || val;
+                      const opts = finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || []);
+                      const name = opts.find(u => u.value === val)?.label || val;
                       setValue("finishedProductUnitName", name);
                     }}
                     required
-                    disabled={finishedProductUnits.length === 0 || !canSave}
-                    placeholder={finishedProductUnits.length === 0 ? "Select product first" : "Select unit"}
+                    disabled={!canSave || !watch("finishedProduct")}
+                    placeholder={!watch("finishedProduct") ? "Select product first" : "Select unit"}
                     tabIndex={3}
                   />
                 )}
@@ -241,8 +241,8 @@ const RecipePage = () => {
           </div>
 
           {/* ── Scrollable DataGrid ── */}
-          <div className="flex-1 overflow-y-auto p-2 md:p-3">
-            <div className="h-full flex flex-col rounded-xl border border-gray-200 bg-white">
+          <div className="flex-1 flex flex-col overflow-y-auto p-2 md:p-3">
+            <div className="flex-1 min-h-[200px] flex flex-col rounded-xl border border-gray-200 bg-white">
               <div className="flex-1 overflow-auto">
                 <table className="min-w-full table-fixed text-left text-xs">
                   <thead>
@@ -285,7 +285,6 @@ const RecipePage = () => {
                                     className="h-7 !px-2 text-xs"
                                     value={selectField.value}
                                     options={rowOptions}
-                                    onSearch={handleRawMaterialSearch}
                                     onChange={(val) => {
                                       productSelectedRef.current = true;
                                       selectField.onChange(val);
@@ -408,8 +407,8 @@ const RecipePage = () => {
                 </table>
               </div>
               
-              {/* Add Row Button */}
-              <div className="flex justify-start px-2 py-2 border-t border-gray-100">
+              {/* Add Row Button & Totals */}
+              <div className="flex flex-wrap items-center justify-between px-3 py-2.5 border-t border-gray-200 bg-gray-50/50 rounded-b-xl gap-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -423,21 +422,32 @@ const RecipePage = () => {
                     }, 50);
                   }}
                   disabled={!canSave}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] bg-white border border-gray-200 hover:bg-[#49293e]/5 rounded-md transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={14} /> Add Item
                 </button>
+
+                <div className="flex items-center gap-6 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Unit Price :</span>
+                    <span className="text-sm font-bold text-gray-800 font-mono">{formatAmount(totals.unitPrice)}</span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-300"></div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Total Amount :</span>
+                    <span className="text-base font-bold text-[#49293e] font-mono">{formatAmount(totals.totalAmount)}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* ── Bottom: Exclude Order + Totals ── */}
-            <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              {/* Left: Exclude Order button + description */}
-              <div className="pt-2">
+            {/* ── Bottom: Exclude Order ── */}
+            <div className="mt-3 flex items-center justify-between">
+              <div>
                 <Button
                   type="button"
                   variant="secondary"
-                  className="border-gray-200 shadow-sm mb-2 text-gray-700"
+                  className="border-gray-200 shadow-sm mb-1 text-gray-700"
                   disabled={!canSave}
                   onClick={() => handleExcludeOrdersClick("master")}
                   isAction
@@ -449,19 +459,6 @@ const RecipePage = () => {
                 <p className="text-[10px] font-medium text-gray-500 max-w-[220px] leading-relaxed">
                   Exclude product from some orders (eg: dine in no need container)
                 </p>
-              </div>
-
-              {/* Right: Totals Box */}
-              <div className="flex items-center gap-6 rounded-xl border border-gray-200 bg-white px-5 h-[52px] shadow-sm">
-                <div className="flex items-center gap-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Cost / Unit :</p>
-                  <p className="text-sm font-bold text-gray-700 font-mono">{formatAmount(totals.costPerUnit)}</p>
-                </div>
-                <div className="h-6 w-px bg-gray-200"></div>
-                <div className="flex items-center gap-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Grand Total :</p>
-                  <p className="text-lg font-bold text-[#49293e] font-mono">{formatAmount(totals.grandTotal)}</p>
-                </div>
               </div>
             </div>
 

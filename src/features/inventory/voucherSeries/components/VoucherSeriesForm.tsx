@@ -44,7 +44,8 @@ const VoucherSeriesForm = ({
         <FormInput
           label="Name"
           value={form.name}
-          onChange={(e) => onChange("name", e.target.value)}
+          maxLength={50}
+          onChange={(e) => onChange("name", e.target.value.slice(0, 50))}
           placeholder="Enter voucher name"
           required
           disabled={saving}
@@ -55,16 +56,19 @@ const VoucherSeriesForm = ({
           <FormInput
             label="Prefix"
             value={form.prefix}
-            onChange={(e) => onChange("prefix", e.target.value.toUpperCase())}
+            maxLength={10}
+            onChange={(e) => onChange("prefix", e.target.value.toUpperCase().slice(0, 10))}
             placeholder="e.g. S-"
             disabled={saving}
+            error={errors?.prefix}
           />
 
           <FormInput
             label="Start No"
             type="number"
             value={form.startNo}
-            onChange={(e) => onChange("startNo", e.target.value)}
+            maxLength={9}
+            onChange={(e) => onChange("startNo", e.target.value.slice(0, 9))}
             placeholder="1"
             required
             disabled={saving}

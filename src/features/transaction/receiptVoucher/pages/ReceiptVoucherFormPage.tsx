@@ -36,7 +36,8 @@ const ReceiptVoucherFormPage = () => {
 
   const canSave = !isCancelled;
 
-  const { watch, setValue, formState: { errors } } = form;
+  const { watch, setValue, formState: { errors, isSubmitted } } = form;
+  const showErr = (err?: string) => (isSubmitted ? err : undefined);
   const watchedAmount = watch("amount");
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
@@ -94,7 +95,7 @@ const ReceiptVoucherFormPage = () => {
               value={String(watch("branchId") || "")}
               onChange={(val) => {
                 const newBranchId = Number(val);
-                setValue("branchId", newBranchId);
+                setValue("branchId", newBranchId, { shouldValidate: true });
                 setValue("seriesId", 0);
                 setValue("voucherNo", "");
                 setValue("employeeId", 0);
@@ -108,6 +109,7 @@ const ReceiptVoucherFormPage = () => {
               tabIndex={1}
               disabled={!canSave || isBranchLocked}
               required
+              error={showErr(errors.branchId?.message)}
             />
             
             <FormInput
@@ -116,11 +118,12 @@ const ReceiptVoucherFormPage = () => {
               type="date"
               max={new Date().toISOString().split("T")[0]}
               value={watch("voucherDate")}
-              onChange={(e) => setValue("voucherDate", e.target.value)}
+              onChange={(e) => setValue("voucherDate", e.target.value, { shouldValidate: true })}
               onKeyDown={(e) => handleKeyDown(e, "rv-employee")}
               tabIndex={3}
               readOnly={!canSave}
               required
+              error={showErr(errors.voucherDate?.message)}
             />
 
             <FormInput
@@ -139,10 +142,10 @@ const ReceiptVoucherFormPage = () => {
               value={String(watch("accountId") || "")}
               onChange={(val) => {
                 const accId = Number(val);
-                setValue("accountId", accId);
+                setValue("accountId", accId, { shouldValidate: true });
                 const selectedAccount = accountList.find(a => a.accountId === accId);
-                if (selectedAccount) setValue("accountName", selectedAccount.accountName);
-                else setValue("accountName", "");
+                if (selectedAccount) setValue("accountName", selectedAccount.accountName, { shouldValidate: true });
+                else setValue("accountName", "", { shouldValidate: true });
               }}
               placeholder="Select Account"
               options={accountList.map(a => ({ label: a.accountName, value: String(a.accountId) }))}
@@ -150,6 +153,7 @@ const ReceiptVoucherFormPage = () => {
               tabIndex={7}
               disabled={!canSave}
               required
+              error={showErr(errors.accountId?.message || errors.accountName?.message)}
             />
 
             <div className="flex items-end gap-2">
@@ -160,7 +164,7 @@ const ReceiptVoucherFormPage = () => {
                   value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
                   onChange={(val) => {
                     const numVal = Number(val);
-                    setValue("paymodeId", numVal);
+                    setValue("paymodeId", numVal, { shouldValidate: true });
                     if (numVal === 3) setIsMultiPayOpen(true);
                   }}
                   placeholder="Select Paymode"
@@ -169,6 +173,7 @@ const ReceiptVoucherFormPage = () => {
                   tabIndex={9}
                   disabled={!canSave}
                   required={true}
+                  error={showErr(errors.paymodeId?.message)}
                 />
               </div>
             </div>
@@ -182,7 +187,7 @@ const ReceiptVoucherFormPage = () => {
               value={String(watch("seriesId") || "")}
               onChange={(val) => {
                 const newSeriesId = Number(val);
-                setValue("seriesId", newSeriesId);
+                setValue("seriesId", newSeriesId, { shouldValidate: true });
                 if (!newSeriesId) {
                   setValue("voucherNo", "");
                 }
@@ -193,19 +198,21 @@ const ReceiptVoucherFormPage = () => {
               tabIndex={2}
               disabled={!canSave}
               required
+              error={showErr(errors.seriesId?.message)}
             />
 
             <SearchableSelect
               id="rv-employee"
               label="EMPLOYEE"
               value={String(watch("employeeId") || "")}
-              onChange={(val) => setValue("employeeId", Number(val))}
+              onChange={(val) => setValue("employeeId", Number(val), { shouldValidate: true })}
               placeholder="Select Employee"
               options={employeeList.map(e => ({ label: e.employeeName, value: String(e.employeeId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "rv-no")}
               tabIndex={4}
               disabled={!canSave}
               required
+              error={showErr(errors.employeeId?.message)}
             />
 
             <FormInput
@@ -217,7 +224,7 @@ const ReceiptVoucherFormPage = () => {
               tabIndex={6}
               readOnly={!canSave}
               maxLength={50}
-              error={errors.refNo?.message}
+              error={showErr(errors.refNo?.message)}
             />
 
             <FormInput
@@ -231,7 +238,7 @@ const ReceiptVoucherFormPage = () => {
               tabIndex={8}
               readOnly={!canSave}
               maxLength={12}
-              error={errors.amount?.message}
+              error={showErr(errors.amount?.message)}
               required
             />
 

@@ -202,10 +202,15 @@ const CashierInPage = () => {
           const statusResponse = await cashierLogService.checkStatus(branchId, counterId);
           const st = statusResponse.cashierInStatus;
           if (st && !st.isDayClosed && !st.isShiftClosed) {
-            localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: st.dayId, shiftId: st.shiftId }));
+            const formattedTransDate = st.transDate ? st.transDate.split("T")[0] : "";
+            localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: st.dayId, shiftId: st.shiftId, transDate: formattedTransDate }));
+            if (formattedTransDate) {
+              localStorage.setItem("transDate", formattedTransDate);
+            }
             navigate("/pos", { replace: true });
           } else {
             localStorage.removeItem("activeShift");
+            localStorage.removeItem("transDate");
             navigate("/pos", { replace: true });
           }
         } catch (err) {

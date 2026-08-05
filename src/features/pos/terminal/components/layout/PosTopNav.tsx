@@ -96,7 +96,7 @@ const PosTopNav = ({
       <div className="flex items-center gap-0 lg:gap-0 xl:gap-0 min-w-0 h-full">
         
         {/* Centered logo inside the left column, strictly constrained to avoid cutoff */}
-        <div className="flex items-center justify-center w-[100px] md:w-[160px] lg:w-[180px] xl:w-[200px] h-full shrink-0">
+        <div className="flex items-center justify-center w-[100px] md:w-[160px] lg:w-[180px] xl:w-[260px] h-full shrink-0">
           <div className="w-[80%] h-[80%] flex items-center justify-center">
             <img 
                src="/LOGO6.png" 

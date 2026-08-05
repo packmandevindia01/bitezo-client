@@ -15,6 +15,15 @@ export const productColorSchema = z.object({
   colorCode: z.string().min(1, "Color is required")
 });
 
+export const openingStockSchema = z.object({
+  unitId: z.string().min(1, "Unit is required"),
+  qty: z.string().min(1, "Qty is required").max(15, "Max 15 characters allowed").refine(val => Number(val) >= 0, "Qty must be 0 or greater"),
+  cost: z.string().min(1, "Cost is required").max(15, "Max 15 characters allowed").refine(val => Number(val) >= 0, "Cost must be 0 or greater"),
+  amount: z.string().optional(),
+  baseQty: z.string().optional(),
+  branchId: z.string().min(1, "Branch is required")
+});
+
 export const productSchema = z.object({
   productId: z.number().optional(),
   code: z.string().min(1, "Code is required").max(100, "Code must be 100 characters or less"),
@@ -38,10 +47,13 @@ export const productSchema = z.object({
   fileUrl: z.string().optional(),
   filePath: z.string().optional(),
   altProducts: z.array(altProductSchema),
-  productColors: z.array(productColorSchema)
+  productColors: z.array(productColorSchema),
+  openingStocks: z.array(openingStockSchema)
 });
 
 export type ProductFormData = z.infer<typeof productSchema>;
 export type AltProductFormData = z.infer<typeof altProductSchema>;
 export type ProductColorFormData = z.infer<typeof productColorSchema>;
+export type OpeningStockFormData = z.infer<typeof openingStockSchema>;
 export type AltProductDraft = AltProductFormData & { id?: number | string };
+export type OpeningStockDraft = OpeningStockFormData & { id?: number | string };

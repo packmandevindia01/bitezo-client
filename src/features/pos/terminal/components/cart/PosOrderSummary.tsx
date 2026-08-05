@@ -28,7 +28,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
   return (
     <div className="shrink-0 p-2 lg:p-2.5 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2">
       {/* Financial Breakdown */}
-      <div className="flex gap-4 border-b border-slate-200/60 pb-1.5">
+      <div className="flex gap-1.5 lg:gap-2.5 border-b border-slate-200/60 pb-1.5">
         <div className="flex-1 space-y-0.5">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Sub Total</span>
@@ -47,7 +47,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-0.5 border-l border-slate-200/50 pl-4">
+        <div className="flex-1 space-y-0.5 border-l border-slate-200/50 pl-2 lg:pl-3">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Net Value</span>
             <span>{formatAmount(subtotal - discount + charges)}</span>
@@ -86,13 +86,13 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="flex gap-1.5 mt-1">
           <button 
             onClick={onDiscount}
-            className="h-8 lg:h-9 px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[9px] font-bold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
+            className="h-8 lg:h-9 px-2 lg:px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[9px] font-bold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
           >
             Discount
           </button>
           <button 
             onClick={onCom}
-            className="h-8 lg:h-9 px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[9px] font-bold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
+            className="h-8 lg:h-9 px-2 lg:px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[9px] font-bold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
           >
             COM
           </button>

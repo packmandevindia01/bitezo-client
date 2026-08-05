@@ -16,7 +16,7 @@ const PosSubCategoryRail = ({
   return (
     <div className="
       no-scrollbar flex flex-row w-full gap-3 overflow-auto border-b border-slate-100 bg-[#fcf9fb] p-3 shrink-0
-      lg:flex-col lg:w-[200px] xl:w-[220px] lg:h-full lg:border-r lg:p-3 xl:p-4 lg:gap-3 xl:gap-4 lg:bg-slate-50/30
+      lg:flex-col lg:w-[150px] xl:w-[180px] lg:h-full lg:border-r lg:p-3 xl:p-4 lg:gap-3 xl:gap-4 lg:bg-slate-50/30
     ">
       <div className="hidden lg:block mb-2 px-2">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Sub Category</p>

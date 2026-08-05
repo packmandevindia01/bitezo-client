@@ -67,7 +67,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       purchaseReturnApi.getUnitsByCategory(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId), currentValue: u.currentValue ?? 1 }))
+          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(console.error);
       return prev;
@@ -824,12 +824,12 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       for (const item of validItems) {
         const unitCurrentValue = (() => {
           for (const units of Object.values(categoryUnits)) {
-            const found = units.find(u => u.value === item.unit);
-            if (found) return found.currentValue;
+            const found = units.find(u => String(u.value) === String(item.unit));
+            if (found && !isNaN(found.currentValue)) return found.currentValue;
           }
           return 1;
         })();
-        const baseQty = toNumber(item.qty) * unitCurrentValue;
+        const baseQty = (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue;
         const productId = parseInt(item.product) || 0;
         
         try {
@@ -889,8 +889,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           // Find the unit's currentValue from loaded categoryUnits
           const unitCurrentValue = (() => {
             for (const units of Object.values(categoryUnits)) {
-              const found = units.find(u => u.value === item.unit);
-              if (found) return found.currentValue;
+              const found = units.find(u => String(u.value) === String(item.unit));
+              if (found && !isNaN(found.currentValue)) return found.currentValue;
             }
             return 1; // default to 1 (base unit)
           })();
@@ -905,7 +905,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
             discAmount: l.discountAmount,
             vatAmount: l.vatAmount,
             netAmount: l.netAmount,
-            baseQty: toNumber(item.qty) * unitCurrentValue,
+            baseQty: (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue,
           };
         }),
         paymodes: (() => {

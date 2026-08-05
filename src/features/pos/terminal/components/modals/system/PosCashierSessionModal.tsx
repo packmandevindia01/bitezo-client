@@ -89,10 +89,15 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       setCashierStatus(st);
 
       if (st && !st.isDayClosed && !st.isShiftClosed) {
-        localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: st.dayId, shiftId: st.shiftId }));
+        const formattedTransDate = st.transDate ? st.transDate.split("T")[0] : "";
+        localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: st.dayId, shiftId: st.shiftId, transDate: formattedTransDate }));
+        if (formattedTransDate) {
+          localStorage.setItem("transDate", formattedTransDate);
+        }
         setCloseTab("SHIFT");
       } else {
         localStorage.removeItem("activeShift");
+        localStorage.removeItem("transDate");
       }
 
       try {
@@ -191,7 +196,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       const now        = new Date();
       const timePart   = now.toISOString().split("T")[1] || "00:00:00.000Z";
       const isoString  = `${selectedDate}T${timePart}`;
-      const dateOnly   = `${selectedDate}T00:00:00Z`;
+      const dateOnly   = selectedDate;
       
       const denominations: any[] = (mode === "CLOSE_DAY" || entryMode !== "DENOM") 
         ? []
@@ -202,9 +207,11 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
 
       if (mode === "OPEN_DAY") {
         const res = await cashierLogService.openDay({ startDate: isoString, transDate: dateOnly, openingBal: totalAmount, denominations });
+        const activeTransDate = res.data?.transDate || selectedDate;
         if (res.data?.shiftId) {
-          localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: res.data.dayId, shiftId: res.data.shiftId }));
+          localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: res.data.dayId, shiftId: res.data.shiftId, transDate: activeTransDate }));
         }
+        localStorage.setItem("transDate", activeTransDate);
         await queryClient.invalidateQueries({ queryKey: ["cashierStatus"] });
         showToast("Business Day Opened Successfully", "success");
         onSessionReady?.();
@@ -212,9 +219,11 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
 
       } else if (mode === "OPEN_SHIFT") {
         const res = await cashierLogService.openShift({ dayId: cashierStatus.dayId, startDate: isoString, transDate: dateOnly, openingBal: totalAmount, denominations });
+        const activeTransDate = res.data?.transDate || cashierStatus?.transDate || selectedDate;
         if (res.data?.shiftId || cashierStatus.dayId) {
-          localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: cashierStatus.dayId, shiftId: res.data?.shiftId || 0 }));
+          localStorage.setItem("activeShift", JSON.stringify({ status: "open", dayId: cashierStatus.dayId, shiftId: res.data?.shiftId || 0, transDate: activeTransDate }));
         }
+        localStorage.setItem("transDate", activeTransDate);
         await queryClient.invalidateQueries({ queryKey: ["cashierStatus"] });
         showToast("Shift Opened Successfully", "success");
         onSessionReady?.();

@@ -23,6 +23,7 @@ export interface SalesInvoicePayload {
   employeeId: number;
   dayId: number;
   shiftId: number;
+  transDate: string;
   orderTypeId: number;
   androidStatus: boolean;
   saleId?: number;
@@ -51,6 +52,8 @@ export interface SalesInvoicePayload {
     isComing?: boolean;
     comingTime?: string;
     providerNo?: string;
+    driverId?: number;
+    transDate?: string;
   };
   combinedOrderIds?: number[];
   modifiers?: any[];

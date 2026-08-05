@@ -130,7 +130,7 @@ export const PosOrderPanel = ({
       {onClose && (
         <button
           onClick={onClose}
-          className="lg:hidden absolute -left-12 top-4 bg-white p-3 rounded-l-2xl shadow-premium text-slate-400"
+          className="md:hidden absolute -left-12 top-4 bg-white p-3 rounded-l-2xl shadow-premium text-slate-400"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" /><path d="m6 6 12 12" />

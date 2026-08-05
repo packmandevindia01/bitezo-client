@@ -413,6 +413,12 @@ const SearchableCombobox = ({
         </div>,
         document.body
       )}
+      {/* ERROR (FALLBACK IF LABEL IS NOT PROVIDED) */}
+      {error && !label && (
+        <span className="mt-0.5 block text-[10px] font-bold text-red-500 truncate" title={error}>
+          {error.toLowerCase().includes('required') ? 'required' : error}
+        </span>
+      )}
     </div>
   );
 };

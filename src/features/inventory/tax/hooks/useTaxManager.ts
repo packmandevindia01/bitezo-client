@@ -36,6 +36,15 @@ export const useTaxManager = () => {
         return;
       }
 
+      // ── Date validation check ───────────────────────────────────────────────
+      const today = new Date().toISOString().split("T")[0];
+      if (form.expireAt && form.expireAt < today) {
+        setMutationError("End Date cannot be a past date.");
+        showToast("End Date cannot be a past date.", "error");
+        setSaving(false);
+        return;
+      }
+
       try {
         const valNumeric = parseFloat(form.value) || 0;
 

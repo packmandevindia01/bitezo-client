@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, ListTree, Palette } from "lucide-react";
+import { LayoutGrid, ListTree, Palette, Boxes } from "lucide-react";
 import { ImageUploadPanel } from "../../../../components/common";
 import type { UseFormReturn } from "react-hook-form";
 import type { ProductFormData } from "../schema/productSchema";
@@ -8,6 +8,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { ProductDetailsSection } from "./ProductDetailsSection";
 import { AlternativePricingGrid } from "./AlternativePricingGrid";
 import { BranchColorsSection } from "./BranchColorsSection";
+import { OpeningStockGrid } from "./OpeningStockGrid";
 import { useQuery } from "@tanstack/react-query";
 import { productService } from "../services/productService";
 import { formatAmount } from "../../../../utils/currency";
@@ -36,9 +37,9 @@ const ProductMasterForm = ({
   currentBranchId
 }: ProductMasterFormProps) => {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<"product" | "alternatives" | "colors">("product");
+  const [activeTab, setActiveTab] = useState<"product" | "alternatives" | "openingStocks" | "colors">("product");
   
-  const handleTabSwitch = (tab: "product" | "alternatives" | "colors") => {
+  const handleTabSwitch = (tab: "product" | "alternatives" | "openingStocks" | "colors") => {
     if (tab !== "product") {
       const { code, name, categoryId, groupId, unitId, pVatId, sVatId, typeId } = form.getValues();
       const required = [
@@ -111,6 +112,18 @@ const ProductMasterForm = ({
           </button>
           <button
             type="button"
+            onClick={() => handleTabSwitch("openingStocks")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
+              activeTab === "openingStocks"
+                ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
+                : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
+            }`}
+          >
+            <Boxes size={14} />
+            Opening Stocks
+          </button>
+          <button
+            type="button"
             onClick={() => handleTabSwitch("colors")}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
               activeTab === "colors"
@@ -176,6 +189,18 @@ const ProductMasterForm = ({
           baseBarcode={form.watch("barcode") || ""}
           baseCode={form.watch("code") || ""}
           baseName={form.watch("name") || ""}
+        />
+      )}
+
+      {activeTab === "openingStocks" && (
+        <OpeningStockGrid
+          openingStocks={form.watch("openingStocks") as any[]}
+          onOpeningStocksChange={(stocks) => form.setValue("openingStocks", stocks, { shouldValidate: true, shouldDirty: true })}
+          masterData={masterData}
+          branches={branches}
+          mainUnitId={String(form.watch("unitId") || "")}
+          mainBranchId={String(localStorage.getItem("branchId") || "0")}
+          defaultCost={String(form.watch("cost") || "0")}
         />
       )}
 

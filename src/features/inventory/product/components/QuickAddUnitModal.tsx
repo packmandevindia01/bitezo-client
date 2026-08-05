@@ -60,6 +60,7 @@ export const QuickAddUnitModal = ({ isOpen, onClose, onCreated }: Props) => {
           placeholder="Select category"
           onKeyDown={(e) => handleKeyDown(e, "q-unit-conversion")}
           error={errors.category?.message}
+          disableAutoOpenOnFocus
         />
         <FormInput
           id="q-unit-conversion"
@@ -78,6 +79,7 @@ export const QuickAddUnitModal = ({ isOpen, onClose, onCreated }: Props) => {
           value={String(watch("parentId") ?? 0)}
           onChange={(v) => setValue("parentId", Number(v), { shouldValidate: false })}
           placeholder="Select parent unit"
+          disableAutoOpenOnFocus
         />
         <FormInput
           label="Calculated Value"

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const productionItemSchema = z.object({
   id: z.string().optional(), // uuid
   productId: z.number().optional(),
-  product: z.string().min(1, "Product is required"),
+  product: z.string().min(1, "Raw Material is required"),
   productName: z.string().optional(),
   code: z.string().optional(),
   unitId: z.number().optional(),

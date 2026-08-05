@@ -130,26 +130,47 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       const totalAmount = data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const now = new Date();
 
-      const payload: any = {
-        ...data,
-        transId: transId || 0,
+      const basePayload = {
+        seriesId: Number(data.seriesId || 0),
+        prefix: data.prefix || "",
+        branchId: Number(data.branchId || 0),
+        accountId: Number(data.accountId || 0),
+        paymodeId: Number(data.paymodeId || 0),
+        dayId: 0,
+        shiftId: 0,
+        employeeId: Number(data.employeeId || 0),
+        voucherDate: data.voucherDate,
+        discount: Number(data.discount || 0),
         amount: totalAmount,
-        createdAt: transId ? undefined : new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString(),
-        updatedAt: transId ? new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString() : undefined
+        refNo: data.refNo || "",
+        narration: data.narration || "",
+        details: data.details.map(d => ({
+          invoiceId: Number(d.invoiceId || 0),
+          voucherType: d.voucherType || "",
+          amount: Number(d.amount || 0)
+        })),
+        paymodes: Number(data.paymodeId) === 3 ? (data.paymodes || []).map(p => ({
+          paymodeId: Number(p.paymodeId || 0),
+          amount: Number(p.amount || 0)
+        })) : []
       };
       
-      if (Number(data.paymodeId) !== 3) {
-        payload.paymodes = [];
+      if (transId) {
+        const updatePayload: any = {
+          ...basePayload,
+          transId,
+          updatedAt: new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString()
+        };
+        console.log("RECEIPT AGAINST UPDATE PAYLOAD:", JSON.stringify(updatePayload, null, 2));
+        return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(transId, updatePayload as any);
       }
       
-      if (transId) {
-        delete payload.createdAt;
-        console.log("RECEIPT AGAINST UPDATE PAYLOAD:", JSON.stringify(payload, null, 2));
-        return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(transId, payload);
-      }
-      delete payload.updatedAt;
-      console.log("RECEIPT AGAINST CREATE PAYLOAD:", JSON.stringify(payload, null, 2));
-      return receiptAgainstVoucherApi.createReceiptAgainstVoucher(payload);
+      const createPayload: any = {
+        ...basePayload,
+        createdAt: new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString()
+      };
+      console.log("RECEIPT AGAINST CREATE PAYLOAD:", JSON.stringify(createPayload, null, 2));
+      return receiptAgainstVoucherApi.createReceiptAgainstVoucher(createPayload as any);
     },
     onSuccess,
   });

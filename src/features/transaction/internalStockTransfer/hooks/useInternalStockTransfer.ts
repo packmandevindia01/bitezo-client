@@ -37,7 +37,7 @@ export const useInternalStockTransfer = (id?: string) => {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
@@ -46,7 +46,7 @@ export const useInternalStockTransfer = (id?: string) => {
       internalStockTransferApi.getUnits(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -275,15 +275,24 @@ export const useInternalStockTransfer = (id?: string) => {
         employeeId: parseInt(data.salesman || "", 10) || 0,
         netAmount,
         narration: "",
-        createdAt: new Date().toISOString(),
-        details: validItems.map(item => ({
-          productId: parseInt(item.product, 10) || 0,
-          unitId: item.unitId || parseInt(item.unit || "1", 10) || 1,
-          qty: toNumber(item.qty),
-          price: toNumber(item.cost),
-          amount: toNumber(item.qty) * toNumber(item.cost),
-          baseQty: toNumber(item.qty)
-        }))
+        details: validItems.map(item => {
+          const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
+          const unitCurrentValue = (() => {
+            for (const units of Object.values(categoryUnits)) {
+              const found = units.find(u => String(u.value) === String(unitId));
+              if (found && !isNaN(found.currentValue)) return found.currentValue;
+            }
+            return 1;
+          })();
+          return {
+            productId: parseInt(item.product, 10) || 0,
+            unitId,
+            qty: toNumber(item.qty),
+            price: toNumber(item.cost),
+            amount: toNumber(item.qty) * toNumber(item.cost),
+            baseQty: toNumber(item.qty) * unitCurrentValue
+          };
+        })
       };
 
       if (id) {

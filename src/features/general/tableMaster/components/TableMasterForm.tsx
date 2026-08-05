@@ -1,4 +1,4 @@
-import { Trash2, Minus, Plus, Save, RotateCcw } from "lucide-react";
+import { Trash2, Minus, Plus, Save, RotateCcw, X } from "lucide-react";
 import { Button, FormInput, Checkbox } from "../../../../components/common";
 import type { UseFormReturn } from "react-hook-form";
 import type { TableMasterForm as TableMasterFormType } from "../schemas";
@@ -10,6 +10,7 @@ interface TableMasterFormProps {
   loading: boolean;
   onClear: () => void;
   onSave: () => void;
+  onClose?: () => void;
   onDeleteRequest?: () => void;
 }
 
@@ -19,6 +20,7 @@ const TableMasterForm = ({
   loading,
   onClear,
   onSave,
+  onClose,
   onDeleteRequest
 }: TableMasterFormProps) => {
   const { register, watch, setValue, formState: { errors } } = form;
@@ -46,6 +48,17 @@ const TableMasterForm = ({
         <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-[#49293e]">
           {mode === "edit" ? "Edit Table" : "Register New Table"}
         </h2>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Close"
+            aria-label="Close modal"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

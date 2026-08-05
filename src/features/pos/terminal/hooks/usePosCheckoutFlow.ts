@@ -137,14 +137,19 @@ export const usePosCheckoutFlow = ({
 
     try {
       const systemSeriesId = Number(localStorage.getItem("systemSeriesId")) || 1;
+      const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
+      const activeTransDate = rawTransDate.split("T")[0];
+      const activeDriverId = (orderPayload as any).driverId || Number(localStorage.getItem("selectedDriverId") || 0);
+      const rootPaymodeId = payments.length > 1 ? 3 : (payments.length === 1 ? payments[0].paymodeId : 0);
       const salesPayload: any = {
         seriesId: systemSeriesId,
         prefix: "",
         customerId: orderPayload.customerId,
-        paymodeId: payments.length > 0 ? payments[0].paymodeId : 0,
+        paymodeId: rootPaymodeId,
         employeeId: employeeId,
         dayId: status.dayId,
         shiftId: status.shiftId,
+        transDate: activeTransDate,
         orderTypeId: orderPayload.orderTypeId,
         androidStatus: false,
         saleId: editingSaleId || 0,
@@ -164,6 +169,8 @@ export const usePosCheckoutFlow = ({
           isComing: orderPayload.isComing,
           comingTime: orderPayload.comingTime,
           providerNo: orderPayload.providerNo,
+          driverId: activeDriverId,
+          transDate: activeTransDate,
         },
         combinedOrderIds: orderPayload.combinedOrderIds,
         modifiers: orderPayload.modifiers,
@@ -195,7 +202,7 @@ export const usePosCheckoutFlow = ({
           mapId: d.mapId,
           complimentaryStatus: d.complimentaryStatus || false
         })),
-        paymodes: payments
+        paymodes: rootPaymodeId === 3 ? payments : []
       };
 
       console.log("SENDING SALES PAYLOAD:", JSON.stringify(salesPayload, null, 2));

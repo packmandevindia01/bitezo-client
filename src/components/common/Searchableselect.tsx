@@ -33,6 +33,7 @@ interface Props {
   minQueryLength?: number;
   forcePlacement?: "top" | "bottom";
   disableAutoOpenOnFocus?: boolean;
+  hideErrorText?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
   minQueryLength = 0,
   forcePlacement,
   disableAutoOpenOnFocus = false,
+  hideErrorText = false,
 }, ref) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -82,9 +84,11 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
   useEffect(() => {
     if (autoFocus && triggerRef.current && !disabled) {
       triggerRef.current.focus();
-      setOpen(true);
+      if (!disableAutoOpenOnFocus) {
+        setOpen(true);
+      }
     }
-  }, [autoFocus, disabled]);
+  }, [autoFocus, disabled, disableAutoOpenOnFocus]);
 
   // Preserve last known label for a valid value so temporary option reloading/emptying doesn't display raw IDs
   const lastKnownLabelRef = useRef<{ value: string; label: string }>({ value: "", label: "" });
@@ -479,7 +483,12 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
         document.body
       )}
 
-      {/* Error is rendered inline in the label */}
+      {/* Error is rendered inline in the label, or fallback if no label */}
+      {error && !label && !hideErrorText && (
+        <span className="mt-0.5 block text-[10px] font-bold text-red-500 truncate" title={error}>
+          {error.toLowerCase().includes('required') ? 'required' : error}
+        </span>
+      )}
     </div>
   );
 });

@@ -78,9 +78,9 @@ export const useRecipeForm = (initialTransId?: number) => {
       return acc + (q * c);
     }, 0);
     const finQty = Number(watchedFinishedProductQty) || 0;
-    const costPerUnit = finQty > 0 ? grandTotal / finQty : 0;
+    const unitPrice = finQty > 0 ? grandTotal / finQty : 0;
 
-    return { grandTotal, costPerUnit };
+    return { grandTotal, costPerUnit: unitPrice, totalAmount: grandTotal, unitPrice };
   }, [watchedItems, watchedFinishedProductQty]);
 
   // 4. React Query Data Fetching
@@ -96,41 +96,30 @@ export const useRecipeForm = (initialTransId?: number) => {
     }
   });
 
-  const [rawMaterials, setRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
-  const [searchingRawMaterials, setSearchingRawMaterials] = useState(false);
+  const [scannedRawMaterials, setScannedRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
 
-  const handleRawMaterialSearch = useCallback(async (query: string) => {
-    setSearchingRawMaterials(true);
-    try {
-      const rm = await recipeApi.getRawMaterialProductListByName(query);
-      const mapped = rm.map((p: any) => ({
-        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-        code: p.barcode || p.code || "",
-        barcode: p.barcode || ""
-      }));
-      setRawMaterials(mapped);
-    } catch (e) {
-      console.error("Failed to search raw materials", e);
-    } finally {
-      setSearchingRawMaterials(false);
-    }
-  }, []);
-
-  useQuery({
-    queryKey: ["rawMaterialsInit"],
+  const { data: rawMaterialsQueryData = [] } = useQuery({
+    queryKey: ["recipeRawMaterials"],
     queryFn: async () => {
       const rm = await recipeApi.getRawMaterialProductListByName("");
-      const mapped = rm.map((p: any) => ({
+      return rm.map((p: any) => ({
         label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
         value: String(p.productId),
         code: p.barcode || p.code || "",
         barcode: p.barcode || ""
       }));
-      setRawMaterials(mapped);
-      return mapped;
     }
   });
+
+  const rawMaterials = useMemo(() => {
+    const combined = [...rawMaterialsQueryData];
+    scannedRawMaterials.forEach(item => {
+      if (!combined.some(c => c.value === item.value)) {
+        combined.push(item as any);
+      }
+    });
+    return combined;
+  }, [rawMaterialsQueryData, scannedRawMaterials]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches"],
@@ -351,7 +340,7 @@ export const useRecipeForm = (initialTransId?: number) => {
           const bcToUse = first.barcode || first.code || barcode;
           details = await recipeApi.getProductCostData(bcToUse).catch(() => null);
           if (!details) {
-            setRawMaterials(prev => {
+            setScannedRawMaterials(prev => {
               if (prev.some(o => o.value === String(first.productId))) return prev;
               return [...prev, { label: first.productName, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
             });
@@ -365,7 +354,7 @@ export const useRecipeForm = (initialTransId?: number) => {
       }
 
       if (details) {
-        setRawMaterials(prev => {
+        setScannedRawMaterials(prev => {
           if (prev.some(o => o.value === String(details.productId))) return prev;
           return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
         });
@@ -495,33 +484,12 @@ export const useRecipeForm = (initialTransId?: number) => {
   const onSubmit = handleSubmit((data) => {
     const validItems = data.items.filter(item => item.product);
     if (validItems.length === 0) {
-      showToast("Please select at least one Raw Material.", "warning");
+      form.setError("items", { type: "manual", message: "Please select at least one Raw Material." });
       return;
     }
     saveMutation.mutate(data);
   }, (errors) => {
-    // Show validation errors via toast (supporting nested arrays like items)
-    const findFirstError = (obj: any): string | undefined => {
-      if (!obj) return undefined;
-      if (obj.message) return obj.message as string;
-      if (Array.isArray(obj)) {
-        for (const item of obj) {
-          const msg = findFirstError(item);
-          if (msg) return msg;
-        }
-      } else if (typeof obj === "object") {
-        for (const key in obj) {
-          const msg = findFirstError(obj[key]);
-          if (msg) return msg;
-        }
-      }
-      return undefined;
-    };
-    
-    const msg = findFirstError(errors);
-    if (msg) {
-      showToast(msg, "error");
-    }
+    console.error("Validation errors:", errors);
   });
 
   const handleReset = useCallback(() => {
@@ -558,8 +526,6 @@ export const useRecipeForm = (initialTransId?: number) => {
     handleGridUnitChange,
     handleBarcodeScan,
     getRowOptions,
-    handleRawMaterialSearch,
-    searchingRawMaterials,
     handleReset,
     onSubmit,
     masterData: { units: allUnits },

@@ -222,28 +222,6 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
       }
 
       saveMutation.mutate(data);
-    },
-    (errors) => {
-      const findFirstError = (obj: any): string | undefined => {
-        if (!obj) return undefined;
-        if (obj.message) return obj.message as string;
-        if (Array.isArray(obj)) {
-          for (const item of obj) {
-            const msg = findFirstError(item);
-            if (msg) return msg;
-          }
-        } else if (typeof obj === "object") {
-          for (const key in obj) {
-            const msg = findFirstError(obj[key]);
-            if (msg) return msg;
-          }
-        }
-        return undefined;
-      };
-      const msg = findFirstError(errors);
-      if (msg) {
-        showToast(msg, "error");
-      }
     }
   );
 

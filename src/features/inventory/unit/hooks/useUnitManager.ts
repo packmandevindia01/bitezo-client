@@ -96,10 +96,20 @@ export const useUnitManager = () => {
       if (modal.mode === "edit" && modal.unitId === deleteCandidate.unitId) {
         closeModal();
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed.";
-      setMutationError(message);
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { message?: string; title?: string; errors?: { message?: string }[] } }; message?: string };
+      const status = axErr.response?.status;
+      const apiMsg = axErr.response?.data?.message || axErr.response?.data?.title || axErr.response?.data?.errors?.[0]?.message;
+
+      let message = apiMsg;
+      if (status === 409 || status === 404 || axErr.message?.includes("409") || axErr.message?.includes("404") || apiMsg?.includes("conflict") || apiMsg?.includes("constraint")) {
+        message = "This Unit cannot be deleted because it is actively used in products or transactions.";
+      } else if (!message || message.includes("Request failed with status code")) {
+        message = axErr.message || "Failed to delete Unit. It may be protected or currently in use.";
+      }
+
       showToast(message, "error");
+      setDeleteCandidate(null);
       await fetchUnits();
     } finally {
       setDeleting(null);

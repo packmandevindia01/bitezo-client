@@ -60,6 +60,11 @@ export const PosDriverSelectionModal = ({
     try {
       const res = await orderApi.updateRecallDriver(orderId, driverId);
       if (res && res.isSuccess !== false) {
+        if (driverId === 0) {
+          localStorage.removeItem("selectedDriverId");
+        } else {
+          localStorage.setItem("selectedDriverId", String(driverId));
+        }
         showToast("Driver updated successfully", "success");
         onSuccess();
       } else {

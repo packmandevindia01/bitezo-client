@@ -56,7 +56,8 @@ export const useProductForm = (productId?: number) => {
       fileUrl: "",
       filePath: "",
       altProducts: [],
-      productColors: []
+      productColors: [],
+      openingStocks: []
     }
   });
 
@@ -192,6 +193,14 @@ export const useProductForm = (productId?: number) => {
         productColors: existingData.productColors?.map(c => ({
           branchId: String(c.branchId),
           colorCode: c.colorCode || "#49293e"
+        })) || [],
+        openingStocks: existingData.openingStocks?.map(o => ({
+          unitId: String(o.unitId),
+          qty: String(Number(o.qty) || 0),
+          cost: Number(o.cost).toFixed(dec),
+          amount: Number(o.amount).toFixed(dec),
+          baseQty: String(Number(o.baseQty) || 0),
+          branchId: String(o.branchId)
         })) || []
       });
 
@@ -260,6 +269,20 @@ export const useProductForm = (productId?: number) => {
           branchId: Number(c.branchId),
           colorCode: c.colorCode
         })),
+        openingStocks: (data.openingStocks || []).map(o => {
+          const unitObj = masterData?.unit?.find(u => String(u.id) === String(o.unitId));
+          const uVal = unitObj?.currentvalue !== undefined && unitObj?.currentvalue !== null ? Number(unitObj.currentvalue) : 1;
+          const q = Number(o.qty) || 0;
+          const c = Number(o.cost) || 0;
+          return {
+            unitId: Number(o.unitId),
+            qty: q,
+            cost: c,
+            amount: q * c,
+            baseQty: q * (isNaN(uVal) ? 1 : uVal),
+            branchId: Number(o.branchId)
+          };
+        }),
         oldPath: data.filePath ? (data.filePath.startsWith("http") ? new URL(data.filePath).pathname : data.filePath).replace(/\\/g, "/") : "string"
       };
 

@@ -76,6 +76,7 @@ export default defineConfig({
     },
   },
   build: {
+    target: ['es2015', 'chrome74'],
     rollupOptions: {
       output: {
         manualChunks(id) {

@@ -19,8 +19,8 @@ export const useProductionForm = (initialTransId?: number) => {
   const queryClient = useQueryClient();
 
   // Unit lists for Finished Product and Raw Material rows
-  const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string }[]>([]);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+  const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string; currentValue: number }[]>([]);
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
@@ -29,7 +29,7 @@ export const useProductionForm = (initialTransId?: number) => {
       productionApi.getUnitListByName(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -166,7 +166,7 @@ export const useProductionForm = (initialTransId?: number) => {
       if (prod && prod.code) {
         productionApi.getProductCostData(prod.code).then(costData => {
           productionApi.getUnitListByName(costData.unitCategory).then(unitsResp => {
-            const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+            const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }));
             setFinishedProductUnits(unitOptions);
           });
         }).catch(() => {});
@@ -272,7 +272,7 @@ export const useProductionForm = (initialTransId?: number) => {
       const costData = await productionApi.getProductCostData(prod.code);
       const unitsResp = await productionApi.getUnitListByName(costData.unitCategory);
 
-      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }));
       setFinishedProductUnits(unitOptions);
 
       // Default to baseUnitId
@@ -494,6 +494,7 @@ export const useProductionForm = (initialTransId?: number) => {
   // React Query Mutation for Save
   const saveMutation = useMutation({
     mutationFn: async (data: ProductionForm) => {
+      const fpVal = finishedProductUnits.find(u => String(u.value) === String(data.finishedProductUnit))?.currentValue ?? 1;
       const payload: ProductionPayload = {
         transId: initialTransId || 0,
         productionDate: new Date().toISOString().split('T')[0],
@@ -503,19 +504,29 @@ export const useProductionForm = (initialTransId?: number) => {
         cost: totals.grandTotal,
         totalWage: Number(data.otherCharge),
         amount: totals.grandTotal,
-        baseQty: Number(data.finishedProductQty),
+        baseQty: Number(data.finishedProductQty) * fpVal,
         branchId: Number(data.branchId),
         employeeId: Number(data.employeeId),
         narration: data.narration || "",
         createdAt: new Date().toISOString(),
-        details: data.items.filter(item => item.product).map(item => ({
-          productId: Number(item.productId || item.product),
-          unitId: Number(item.unitId || item.unit),
-          qty: Number(item.qty),
-          cost: Number(item.cost),
-          amount: Number(item.qty) * Number(item.cost),
-          baseQty: Number(item.qty)
-        }))
+        details: data.items.filter(item => item.product).map(item => {
+          const uId = Number(item.unitId || item.unit);
+          const uVal = (() => {
+            for (const units of Object.values(categoryUnits)) {
+              const found = units.find(u => String(u.value) === String(uId));
+              if (found && !isNaN(found.currentValue)) return found.currentValue;
+            }
+            return 1;
+          })();
+          return {
+            productId: Number(item.productId || item.product),
+            unitId: uId,
+            qty: Number(item.qty),
+            cost: Number(item.cost),
+            amount: Number(item.qty) * Number(item.cost),
+            baseQty: Number(item.qty) * uVal
+          };
+        })
       };
 
       if (initialTransId) {

@@ -68,19 +68,36 @@ export const useVoucherSeriesManager = () => {
   const handleSave = async () => {
     const vName = form.name.trim();
     const vType = form.voucherType.trim();
+    const vPrefix = form.prefix?.trim() || "";
     const branchId = Number(form.branchId);
-    const startNo = Number(form.startNo) || 1;
+    const startNoStr = String(form.startNo ?? "").trim();
+    const startNo = Number(startNoStr) || 1;
 
     const newErrors: Partial<Record<keyof VoucherSeriesForm, string>> = {};
     if (!vType) newErrors.voucherType = "required";
-    if (!vName) newErrors.name = "required";
-    if (form.startNo === undefined || form.startNo === null || !String(form.startNo).trim()) {
-      newErrors.startNo = "required";
+    if (!vName) {
+      newErrors.name = "required";
+    } else if (vName.length > 50) {
+      newErrors.name = "Maximum character limit exceeded.";
     }
+
+    if (vPrefix.length > 10) {
+      newErrors.prefix = "Maximum character limit exceeded.";
+    }
+
+    if (!startNoStr) {
+      newErrors.startNo = "required";
+    } else if (startNoStr.length > 9 || startNo > 999999999) {
+      newErrors.startNo = "Maximum character limit exceeded.";
+    }
+
     if (!branchId || isNaN(branchId)) newErrors.branchId = "required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      if (Object.values(newErrors).some((msg) => msg === "Maximum character limit exceeded.")) {
+        showToast("Maximum character limit exceeded.", "warning");
+      }
       return;
     }
 
@@ -104,9 +121,21 @@ export const useVoucherSeriesManager = () => {
 
       await fetchData(); // Refresh list
       closeModal();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to save voucher series";
-      showToast(msg, "error");
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { message?: string; title?: string; errors?: { message?: string }[] } }; message?: string };
+      const status = axErr.response?.status;
+      const apiMsg = axErr.response?.data?.message || axErr.response?.data?.title || axErr.response?.data?.errors?.[0]?.message;
+
+      let message = apiMsg;
+      if (status === 400 && (!message || message.includes("400") || message.includes("validation"))) {
+        message = "Maximum character limit exceeded or invalid input.";
+      } else if (status === 409 || status === 404 || axErr.message?.includes("409") || axErr.message?.includes("404") || apiMsg?.includes("conflict") || apiMsg?.includes("constraint") || apiMsg?.includes("in use")) {
+        message = "This Voucher Series cannot be modified because it is actively used in transactions.";
+      } else if (!message || message.includes("Request failed with status code")) {
+        message = axErr.message || "Failed to save Voucher Series. It may be currently in use.";
+      }
+
+      showToast(message, "error");
     } finally {
       setSaving(false);
     }
@@ -140,8 +169,19 @@ export const useVoucherSeriesManager = () => {
       await voucherseriesService.remove(record.voucherId);
       showToast("Voucher series deleted successfully", "success");
       await fetchData();
-    } catch {
-      showToast("Failed to delete voucher series", "error");
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { message?: string; title?: string; errors?: { message?: string }[] } }; message?: string };
+      const status = axErr.response?.status;
+      const apiMsg = axErr.response?.data?.message || axErr.response?.data?.title || axErr.response?.data?.errors?.[0]?.message;
+
+      let message = apiMsg;
+      if (status === 409 || status === 404 || axErr.message?.includes("409") || axErr.message?.includes("404") || apiMsg?.includes("conflict") || apiMsg?.includes("constraint") || apiMsg?.includes("in use")) {
+        message = "This Voucher Series cannot be deleted because it is actively used in transactions.";
+      } else if (!message || message.includes("Request failed with status code")) {
+        message = axErr.message || "Failed to delete Voucher Series. It may be protected or currently in use.";
+      }
+
+      showToast(message, "error");
     } finally {
       setSaving(false);
     }

@@ -43,6 +43,7 @@ export interface CashierInStatus {
   dayId: number;
   shiftId: number;
   userId: number;
+  transDate: string;
 }
 
 export interface CashierStatusResponse {

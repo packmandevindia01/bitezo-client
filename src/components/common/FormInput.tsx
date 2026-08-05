@@ -124,11 +124,11 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
         )}
       </div>
 
-      {/* ERROR (FALLBACK IF LABEL IS HIDDEN) */}
-      {error && hideLabel && (
-        <div className="absolute -bottom-3.5 left-1 text-[10px] text-red-600 font-semibold animate-in fade-in slide-in-from-top-1">
-          {error}
-        </div>
+      {/* ERROR (FALLBACK IF LABEL IS HIDDEN OR NOT PROVIDED) */}
+      {error && (hideLabel || !label) && (
+        <span className="mt-0.5 block text-[10px] font-bold text-red-500 truncate" title={error}>
+          {error.toLowerCase().includes('required') ? 'required' : error}
+        </span>
       )}
 
     </div>

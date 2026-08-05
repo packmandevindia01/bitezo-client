@@ -125,6 +125,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           placeholder="Select category"
           required
           autoFocus
+          disableAutoOpenOnFocus
         />
 
         <FormInput
@@ -165,6 +166,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           disabled={loadingParents}
           placeholder="Select parent unit"
           required
+          disableAutoOpenOnFocus
         />
 
         <div className="md:col-span-2">

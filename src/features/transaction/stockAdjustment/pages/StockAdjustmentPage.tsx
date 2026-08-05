@@ -540,30 +540,36 @@ const StockAdjustmentPage = () => {
           {/* ── Compact Action Footer ── */}
           <div className="border-t border-gray-200 bg-gray-50/50 p-3 rounded-b-2xl shrink-0 flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-              <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
-                <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(totals.grandTotal)}</span>
+              <div className="flex items-center gap-2">
+                {/* Placeholder for standard left alignment spacing */}
               </div>
 
-              <div className="flex items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">
-                <Button type="button" variant="secondary" onClick={() => {
-                  if (id) {
-                    navigate("/dashboard/stock-adjustment");
-                  } else {
-                    handleClearClick();
-                  }
-                }} tabIndex={-1} isAction icon={<Plus size={16} />}>
-                  New
-                </Button>
-                <Button id="sa-save-btn" type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
-                  Save
-                </Button>
-                <Button type="button" variant="secondary" isAction icon={<Printer size={16} />} onClick={() => setIsPrintModalOpen(true)} disabled={watchedItems.length === 0 || watchedItems[0]?.product === ""}>
-                  Print
-                </Button>
-                <Button type="button" variant="secondary" onClick={handleClearClick} isAction icon={<RotateCcw size={16} />}>
-                  Clear
-                </Button>
+              <div className="flex flex-wrap items-center gap-4 justify-end flex-1">
+                <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
+                  <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(totals.grandTotal)}</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">
+                  <Button type="button" variant="secondary" onClick={() => {
+                    if (id) {
+                      navigate("/dashboard/stock-adjustment");
+                    } else {
+                      handleClearClick();
+                    }
+                  }} tabIndex={-1} isAction icon={<Plus size={16} />}>
+                    New
+                  </Button>
+                  <Button id="sa-save-btn" type="button" onClick={onSaveClick} isAction icon={<Save size={16} />} loading={saving} disabled={saving}>
+                    Save
+                  </Button>
+                  <Button type="button" variant="secondary" isAction icon={<Printer size={16} />} onClick={() => setIsPrintModalOpen(true)} disabled={watchedItems.length === 0 || watchedItems[0]?.product === ""}>
+                    Print
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={handleClearClick} isAction icon={<RotateCcw size={16} />}>
+                    Clear
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

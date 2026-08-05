@@ -21,19 +21,28 @@ const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
 
 const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onClear }: Props) => {
   const [form, setForm] = useState<TaxFormState>(() => createInitialForm(initialData));
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleChange = (key: keyof TaxFormState, value: string) => {
+    if (key === "expireAt") setValidationError(null);
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleClear = () => {
     setForm(createInitialForm(null));
+    setValidationError(null);
     if (onClear) onClear();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.value || !form.expireAt) return;
+
+    const today = new Date().toISOString().split("T")[0];
+    if (form.expireAt < today) {
+      setValidationError("End Date cannot be a past date.");
+      return;
+    }
 
     onSubmit({
       ...form,
@@ -50,11 +59,13 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
     }
   };
 
+  const displayError = error || validationError;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100">
-          {error}
+      {displayError && (
+        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100 font-medium">
+          {displayError}
         </div>
       )}
 
@@ -87,7 +98,9 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
           id="tax-date"
           label="End Date"
           type="date"
+          min={new Date().toISOString().split("T")[0]}
           value={form.expireAt}
+          error={validationError ? "Cannot be a past date" : undefined}
           onChange={(e) => handleChange("expireAt", e.target.value)}
           required
         />

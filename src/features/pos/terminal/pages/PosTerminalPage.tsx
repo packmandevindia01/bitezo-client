@@ -725,7 +725,7 @@ export const PosTerminalPage = () => {
             </div>
           )}
 
-          <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]">
+          <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[minmax(260px,22%)_minmax(0,1fr)]">
             <PosCategoryRail
               categories={terminal.categories}
               activeCategoryId={terminal.activeCategoryId ? terminal.activeCategoryId.toString() : ""}
@@ -754,7 +754,7 @@ export const PosTerminalPage = () => {
                 {!modals.isCartOpen && (
                   <button
                     onClick={() => modals.setIsCartOpen(true)}
-                    className="xl:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
+                    className="lg:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />

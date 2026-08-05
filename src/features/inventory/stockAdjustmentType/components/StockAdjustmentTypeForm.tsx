@@ -16,7 +16,8 @@ export const StockAdjustmentTypeForm = ({ form, setForm, onSave, isSaving }: Pro
         <FormInput
           label="Type Name"
           value={form.typeName}
-          onChange={(e) => setForm({ ...form, typeName: e.target.value })}
+          maxLength={50}
+          onChange={(e) => setForm({ ...form, typeName: e.target.value.slice(0, 50) })}
           disabled={isSaving}
           required
           autoFocus
@@ -37,7 +38,7 @@ export const StockAdjustmentTypeForm = ({ form, setForm, onSave, isSaving }: Pro
       <div className="flex justify-end pt-4">
         <Button onClick={onSave} loading={isSaving} disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Save Type
+          Save
         </Button>
       </div>
     </div>

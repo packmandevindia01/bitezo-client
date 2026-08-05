@@ -213,6 +213,7 @@ const TableMasterPage = () => {
             loading={isSaving}
             onClear={handleClear}
             onSave={handleSave}
+            onClose={handleCloseModal}
             onDeleteRequest={(mode === "edit" && canDelete) ? () => {
               const record = tables.find(t => t.tableId === selectedId);
               if (record) setDeleteRecord(record);

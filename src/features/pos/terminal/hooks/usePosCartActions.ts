@@ -224,6 +224,7 @@ export const usePosCartActions = () => {
       isComing,
       comingTime: comingTime || new Date().toISOString(),
       providerNo: session.providerOrderNo || "",
+      driverId: Number(localStorage.getItem("selectedDriverId") || 0),
       details: cartDetails.map((item, index) => {
         const mapId = item.mapId || (Math.max(0, ...cartDetails.map(i => i.mapId || 0), ...voidProducts.map(v => v.mapId || 0)) + index + 1);
         
@@ -477,6 +478,7 @@ export const usePosCartActions = () => {
         change,
         isComing,
         comingTime: comingTime || new Date().toISOString(),
+        driverId: Number(localStorage.getItem("selectedDriverId") || 0),
         details: cartDetails.map((item, index) => {
           const mapId = index + 1;
           

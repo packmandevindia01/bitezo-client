@@ -59,6 +59,10 @@ export const useStockAdjustmentType = () => {
       showToast("Type Name is required", "warning");
       return;
     }
+    if (form.typeName.trim().length > 50) {
+      showToast("Maximum character limit exceeded.", "warning");
+      return;
+    }
     if (!form.effect.trim()) {
       showToast("Effect is required", "warning");
       return;
@@ -84,11 +88,18 @@ export const useStockAdjustmentType = () => {
       handleCloseModal();
       await fetchTypes();
     } catch (err: any) {
-      const serverMsg = err?.response?.data?.message || err?.response?.data || err?.message || "Failed to save stock adjustment type";
-      if (typeof serverMsg === "string" && (serverMsg.toLowerCase().includes("duplicate") || serverMsg.toLowerCase().includes("already exist") || serverMsg.toLowerCase().includes("unique"))) {
+      const status = err?.response?.status;
+      const serverMsg = err?.response?.data?.message || err?.response?.data?.title || err?.message || "Failed to save stock adjustment type";
+      let message = typeof serverMsg === "string" ? serverMsg : "Failed to save stock adjustment type";
+
+      if (message.toLowerCase().includes("duplicate") || message.toLowerCase().includes("already exist") || message.toLowerCase().includes("unique")) {
         showToast("Stock Adjustment Type already exists.", "warning");
+      } else if (status === 400 || message.includes("400") || message.includes("ID mismatch") || message.includes("validation")) {
+        showToast("Validation failed: unable to save Stock Adjustment Type due to invalid input or ID mismatch.", "error");
+      } else if (status === 409 || status === 404 || message.includes("in use") || message.includes("conflict")) {
+        showToast("This Stock Adjustment Type cannot be modified because it is actively used in transactions.", "error");
       } else {
-        showToast(typeof serverMsg === "string" ? serverMsg : "Failed to save stock adjustment type", "error");
+        showToast(!message.includes("status code") ? message : "Failed to save stock adjustment type. It may be currently in use.", "error");
       }
     } finally {
       setIsSaving(false);

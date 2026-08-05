@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ export const useBom = (initialTransId?: number) => {
   const queryClient = useQueryClient();
 
   const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string }[]>([]);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string }[]>>({});
+  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string; value: string }[]>>({});
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
@@ -56,6 +56,8 @@ export const useBom = (initialTransId?: number) => {
   });
 
   const watchedItems = useWatch({ control, name: "items" }) || [];
+  const watchedFinishedProduct = useWatch({ control, name: "finishedProduct" });
+  const watchedFinishedProductUnit = useWatch({ control, name: "finishedProductUnit" });
 
 
   const { data: finishedProducts = [] } = useQuery({
@@ -70,41 +72,30 @@ export const useBom = (initialTransId?: number) => {
     }
   });
 
-  const [rawMaterials, setRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
-  const [searchingRawMaterials, setSearchingRawMaterials] = useState(false);
+  const [scannedRawMaterials, setScannedRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
 
-  const handleRawMaterialSearch = useCallback(async (query: string) => {
-    setSearchingRawMaterials(true);
-    try {
-      const rm = await bomApi.getRawMaterialProductListByName(query);
-      const mapped = rm.map((p: any) => ({
-        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-        code: p.barcode || p.code || "",
-        barcode: p.barcode || ""
-      }));
-      setRawMaterials(mapped);
-    } catch (e) {
-      console.error("Failed to search raw materials", e);
-    } finally {
-      setSearchingRawMaterials(false);
-    }
-  }, []);
-
-  useQuery({
-    queryKey: ["rawMaterialsInit"],
+  const { data: rawMaterialsQueryData = [] } = useQuery({
+    queryKey: ["bomRawMaterials"],
     queryFn: async () => {
       const rm = await bomApi.getRawMaterialProductListByName("");
-      const mapped = rm.map((p: any) => ({
+      return rm.map((p: any) => ({
         label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
         value: String(p.productId),
         code: p.barcode || p.code || "",
         barcode: p.barcode || ""
       }));
-      setRawMaterials(mapped);
-      return mapped;
     }
   });
+
+  const rawMaterials = useMemo(() => {
+    const combined = [...rawMaterialsQueryData];
+    scannedRawMaterials.forEach(item => {
+      if (!combined.some(c => c.value === item.value)) {
+        combined.push(item as any);
+      }
+    });
+    return combined;
+  }, [rawMaterialsQueryData, scannedRawMaterials]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches"],
@@ -174,6 +165,40 @@ export const useBom = (initialTransId?: number) => {
     enabled: !!initialTransId,
   });
 
+  useEffect(() => {
+    const syncEditModeData = async () => {
+      if (initialTransId && watchedFinishedProduct && finishedProducts.length > 0) {
+        const currentCode = getValues("finishedProductCode");
+        const prod = finishedProducts.find(p => p.value === watchedFinishedProduct);
+        if (prod && prod.code && !currentCode) {
+          setValue("finishedProductCode", prod.code);
+        }
+
+        if (finishedProductUnits.length === 0) {
+          try {
+            const identifier = prod?.code || watchedFinishedProduct;
+            const costData = await bomApi.getProductCostData(identifier);
+            if (costData && costData.unitCategory) {
+              const unitsResp = await bomApi.getUnitListByName(costData.unitCategory);
+              const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+              setFinishedProductUnits(unitOptions);
+
+              if (watchedFinishedProductUnit) {
+                const foundUnit = unitsResp.find((u: any) => String(u.unitId) === String(watchedFinishedProductUnit));
+                if (foundUnit) {
+                  setValue("finishedProductUnitName", foundUnit.name);
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Failed to sync edit mode units in BOM", e);
+          }
+        }
+      }
+    };
+    syncEditModeData();
+  }, [initialTransId, watchedFinishedProduct, watchedFinishedProductUnit, finishedProducts, finishedProductUnits.length, setValue, getValues]);
+
   const handleFinishedProductSelect = async (productId: string) => {
     setValue("finishedProduct", productId);
     const prod = finishedProducts.find(p => p.value === productId);
@@ -239,7 +264,7 @@ export const useBom = (initialTransId?: number) => {
           const bcToUse = first.barcode || first.code || barcode;
           details = await bomApi.getProductCostData(bcToUse).catch(() => null);
           if (!details) {
-            setRawMaterials(prev => {
+            setScannedRawMaterials(prev => {
               if (prev.some(o => o.value === String(first.productId))) return prev;
               return [...prev, { label: first.productName, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
             });
@@ -253,7 +278,7 @@ export const useBom = (initialTransId?: number) => {
       }
 
       if (details) {
-        setRawMaterials(prev => {
+        setScannedRawMaterials(prev => {
           if (prev.some(o => o.value === String(details.productId))) return prev;
           return [...prev, { label: details.productName, value: String(details.productId), code: details.productCode || "", barcode }];
         });
@@ -298,7 +323,7 @@ export const useBom = (initialTransId?: number) => {
         unitId: Number(data.finishedProductUnit),
         qty: Number(data.finishedProductQty),
         branchId: Number(data.branchId),
-        details: data.items.filter(item => item.product).map(item => ({
+        details: data.items.filter(item => item.product && item.product.trim() !== "").map(item => ({
           productId: Number(item.productId || item.product),
           unitId: Number(item.unitId || item.unit),
           qty: Number(item.qty),
@@ -331,25 +356,10 @@ export const useBom = (initialTransId?: number) => {
     saveMutation.mutate(data);
   }, (errors) => {
     console.error("Validation errors:", errors);
-    const getFirstErrorMsg = (errObj: any): string | undefined => {
-      if (!errObj) return undefined;
-      if (typeof errObj.message === "string" && errObj.message.trim() !== "") return errObj.message;
-      if (Array.isArray(errObj)) {
-        for (const err of errObj) {
-          const msg = getFirstErrorMsg(err);
-          if (msg) return msg;
-        }
-      } else if (typeof errObj === "object") {
-        for (const key in errObj) {
-          const msg = getFirstErrorMsg(errObj[key]);
-          if (msg) return msg;
-        }
-      }
-      return undefined;
-    };
-
-    const msg = getFirstErrorMsg(errors);
-    showToast(msg || "Please fill all required fields correctly.", "error");
+    const hasMainErrors = errors.bomName || errors.branchId || errors.finishedProduct || errors.finishedProductUnit || errors.finishedProductQty;
+    if (!hasMainErrors && errors.items) {
+      showToast("Please add at least one raw material.", "warning");
+    }
   });
 
   return {
@@ -369,8 +379,6 @@ export const useBom = (initialTransId?: number) => {
     handleGridUnitChange,
     handleBarcodeScan,
     getRowOptions,
-    handleRawMaterialSearch,
-    searchingRawMaterials,
     onSubmit,
     masterData: { units: allUnits },
   };

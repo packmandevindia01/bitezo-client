@@ -26,7 +26,7 @@ const PosCategoryRailComponent = ({
   };
 
   return (
-    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-[160px] lg:w-[180px] xl:w-[200px] md:border-b-0 md:border-r border-slate-200 bg-[#f8fafc] md:bg-white shadow-sm overflow-hidden shrink-0 z-10 relative">
+    <div className="flex flex-row w-full border-b md:flex-col md:h-full md:w-full md:border-b-0 md:border-r border-slate-200 bg-[#f8fafc] md:bg-white shadow-sm overflow-hidden shrink-0 z-10 relative">
       <div className="hidden md:flex justify-center w-full bg-[#f8fafc] md:bg-white py-1.5 z-20 relative border-b border-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
         <button
           type="button"
@@ -43,7 +43,7 @@ const PosCategoryRailComponent = ({
         ref={scrollContainerRef}
         className="
           no-scrollbar flex gap-2 overflow-auto border-slate-100 p-3 shrink-0 flex-1
-          flex-row w-full md:grid md:grid-cols-2 md:content-start md:p-1 xl:p-1.5 md:gap-1 xl:gap-1.5 md:overflow-y-auto md:overflow-x-hidden
+          flex-row w-full md:grid md:grid-cols-2 md:content-start md:p-1.5 xl:p-2 md:gap-1.5 xl:gap-2 md:overflow-y-auto md:overflow-x-hidden
         "
       >
         {categories.map((category) => {
@@ -63,10 +63,10 @@ const PosCategoryRailComponent = ({
                     ? "bg-gradient-to-br from-[#49293e] to-[#603551] shadow-[0_4px_12px_rgba(73,41,62,0.4)] ring-2 ring-offset-2 ring-[#49293e]/50 border-transparent translate-y-[-2px] z-10"
                     : "bg-white border border-slate-200/80 shadow-sm hover:border-[#49293e]/40 hover:shadow-[0_8px_16px_rgba(73,41,62,0.12)] hover:-translate-y-[2px]"
                 }
-                w-auto md:w-full min-w-[100px] md:min-w-0 h-auto md:h-[80px] xl:h-[95px] mb-1.5
+                w-auto md:w-full min-w-[100px] md:min-w-0 h-auto md:h-[80px] lg:h-[90px] xl:h-[125px] md:mb-0
               `}
             >
-              <div className={`relative w-10 h-10 md:w-full md:h-[55%] shrink-0 overflow-hidden rounded-md md:rounded-none md:border-b flex items-center justify-center ${isActive ? 'bg-white/90 md:border-white/20' : 'bg-slate-50 border-slate-100/50'}`}>
+              <div className={`relative w-10 h-10 md:w-full md:h-[57%] shrink-0 overflow-hidden rounded-md md:rounded-none md:border-b flex items-center justify-center ${isActive ? 'bg-white/90 md:border-white/20' : 'bg-slate-50 border-slate-100/50'}`}>
                 {category.imageUrl ? (
                   <img 
                     src={category.imageUrl} 
@@ -82,12 +82,12 @@ const PosCategoryRailComponent = ({
                   </span>
                 )}
               </div>
-              <div className="flex flex-col flex-1 min-w-0 md:items-center justify-center w-full md:px-1.5 md:py-1">
-                <p className={`text-[11px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-tight line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
+              <div className="flex flex-col flex-1 min-h-0 min-w-0 md:items-center justify-center w-full md:px-1 md:py-1 overflow-hidden">
+                <p className={`text-[11px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-[1.15] line-clamp-2 break-words md:text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
                   {category.name}
                 </p>
                 {category.arabicName && (
-                  <p className={`text-[10px] md:text-[9px] xl:text-[9.5px] font-bold leading-tight mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/90" : "text-slate-500"}`}>
+                  <p className={`text-[10px] md:text-[9px] xl:text-[10px] font-bold leading-[1.15] mt-0.5 line-clamp-1 break-words md:text-center ${isActive ? "text-white/90" : "text-slate-500"}`}>
                     {category.arabicName}
                   </p>
                 )}

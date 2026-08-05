@@ -84,9 +84,6 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
 
     if (actionButtons.length > 0) {
       actionButtons[0].focus();
-      if (actionButtons[0].getAttribute("type") === "submit") {
-        actionButtons[0].click();
-      }
     }
   }
 };
