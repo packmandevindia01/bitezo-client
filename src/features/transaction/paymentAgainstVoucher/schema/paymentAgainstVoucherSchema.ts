@@ -18,7 +18,7 @@ export const paymentAgainstVoucherSchema = z.object({
   branchId: z.coerce.number(),
   accountId: z.coerce.number().min(1, "Account/Supplier is required"),
   paymodeId: z.coerce.number().min(1, "Paymode is required"),
-  employeeId: z.coerce.number().min(1, "Salesman is required"),
+  employeeId: z.coerce.number().default(0),
   voucherDate: z.string().min(1, "Voucher Date is required").refine((date) => {
     const selectedDate = new Date(date);
     const today = new Date();

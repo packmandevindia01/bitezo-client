@@ -45,6 +45,12 @@ export const paymodeService = {
     );
   },
 
+  getNextCode(): Promise<{ code: number }> {
+    return unwrap(
+      axiosInstance.get<ApiResponse<{ code: number }>>(`${BASE}/next-paymode-code`)
+    );
+  },
+
   create(payload: Partial<PaymodeForm>): Promise<{ id: number }> {
     return unwrap(
       axiosInstance.post<ApiResponse<{ id: number }>>(BASE, {

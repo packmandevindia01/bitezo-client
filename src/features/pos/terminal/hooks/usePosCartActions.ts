@@ -191,11 +191,14 @@ export const usePosCartActions = () => {
     const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
     const config = getBillingConfig(selectedOrderTypeName || "DineIn");
     const deliveryChargeVal = getDeliveryChargeValue();
+    const rawTransDate = (session as any).transDate || localStorage.getItem("transDate") || new Date().toISOString();
+    const activeTransDate = rawTransDate.split("T")[0];
 
     return {
       orderId: editingOrderId || 0,
       customerId: selectedCustomerId || 0,
       employeeId: session.employeeId ?? session.userId ?? 1,
+      transDate: activeTransDate,
       discAmount: Number(discount.toFixed(getDecimalPart())),
       discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
       serviceCharge: Number(totalServiceCharge.toFixed(getDecimalPart())),
@@ -452,12 +455,15 @@ export const usePosCartActions = () => {
       }
 
       const deliveryChargeVal = getDeliveryChargeValue();
+      const rawTransDate = (session as any).transDate || localStorage.getItem("transDate") || new Date().toISOString();
+      const activeTransDate = rawTransDate.split("T")[0];
       const payload: MenuOrderRequest = {
         voucherDate: new Date().toISOString(),
         customerId: selectedCustomerId || 0,
         employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
+        transDate: activeTransDate,
         discAmount: Number(discount.toFixed(getDecimalPart())),
         discPer: billDiscountType === 'percentage' ? billDiscountValue : 0,
         serviceCharge: Number(totalServiceCharge.toFixed(getDecimalPart())),

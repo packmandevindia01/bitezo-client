@@ -36,6 +36,19 @@ export const useGroupManager = () => {
 
   const handleSave = useCallback(
     async (form: GroupForm) => {
+      // Validate uniqueness to prevent 409 Conflict
+      const isDuplicateCode = groups.some(g => g.code.toLowerCase() === form.code.trim().toLowerCase() && (modal.mode === "create" || (modal.mode === "edit" && g.grpId !== modal.grpId)));
+      if (isDuplicateCode) {
+        showToast("A group with this Code already exists.", "error");
+        return;
+      }
+
+      const isDuplicateName = groups.some(g => g.name.toLowerCase() === form.name.trim().toLowerCase() && (modal.mode === "create" || (modal.mode === "edit" && g.grpId !== modal.grpId)));
+      if (isDuplicateName) {
+        showToast("A group with this Name already exists.", "error");
+        return;
+      }
+
       setSaving(true);
       setMutationError(null);
 

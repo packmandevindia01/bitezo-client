@@ -40,6 +40,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     taxRegNo: data.taxRegNo || "",
     currencyId: parseLookupId(data.currency, "Currency"),
     regId: data.regId,
+    startDate: data.startDate ? data.startDate : new Date().toISOString().split("T")[0],
     createdAt: new Date().toISOString(),
   };
 
@@ -82,6 +83,7 @@ export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
     taxRegNo: formData.taxRegNo || "",
     currencyId: formData.currency ? Number(formData.currency) : 0,
     regId: formData.regId,
+    startDate: formData.startDate ? formData.startDate : new Date().toISOString().split("T")[0],
     updatedAt: new Date().toISOString(),
   };
 

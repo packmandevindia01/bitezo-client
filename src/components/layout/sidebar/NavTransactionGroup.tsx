@@ -39,6 +39,13 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
         </div>
       )}
 
+      {hasPermission("Physical Entry", "View") && (
+        <div onClick={() => handleItemClick("/dashboard/physical-entries")} className={itemClassName}>
+          <FileText size={13} className="shrink-0" />
+          <span>Physical Entry</span>
+        </div>
+      )}
+
       {hasPermission("Stock Adjustment", "View") && (
         <div onClick={() => handleItemClick("/dashboard/stock-adjustments")} className={itemClassName}>
           <FileText size={13} className="shrink-0" />

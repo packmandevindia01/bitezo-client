@@ -19,6 +19,8 @@ export interface RuntimePosConfig {
   priceView?: string;
   cashdrawer?: string;
   recipe?: string;
+  dayDate?: string;
+  DayDate?: string;
   itemSeperationEdit?: string;
   multiEmployeeTable?: string;
   customerTakeout?: string;

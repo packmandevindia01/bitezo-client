@@ -175,7 +175,7 @@ const GroupForm = ({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 mb-4">
-        <div className="space-y-3">
+        <div className="space-y-3 self-start">
           <FormInput
             id="grp-code"
             label="Code"
@@ -206,6 +206,7 @@ const GroupForm = ({
             disabled={saving}
             className="text-right"
             onChange={(e) => handleChange("arabicName", e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e)}
           />
 
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">

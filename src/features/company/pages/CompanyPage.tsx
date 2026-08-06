@@ -215,13 +215,30 @@ const CompanyPage = () => {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  document.getElementById("co-block")?.focus();
+                  document.getElementById("co-start-date")?.focus();
                 }
               }}
               options={currencyOptions}
               error={errors.currency?.message}
               disabled={isSaving}
               tabIndex={6}
+            />
+
+            <FormInput
+              id="co-start-date"
+              label="Start Date"
+              type="date"
+              required
+              {...register("startDate")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("co-block")?.focus();
+                }
+              }}
+              error={errors.startDate?.message}
+              disabled={isSaving}
+              tabIndex={7}
             />
 
             <FormInput
@@ -237,7 +254,7 @@ const CompanyPage = () => {
               }}
               error={errors.block?.message}
               disabled={isSaving}
-              tabIndex={7}
+              tabIndex={8}
             />
 
             <FormInput
@@ -253,7 +270,7 @@ const CompanyPage = () => {
               }}
               error={errors.area?.message}
               disabled={isSaving}
-              tabIndex={8}
+              tabIndex={9}
             />
 
             <FormInput
@@ -269,7 +286,7 @@ const CompanyPage = () => {
               }}
               error={errors.building?.message}
               disabled={isSaving}
-              tabIndex={9}
+              tabIndex={10}
             />
 
             <FormInput
@@ -285,7 +302,7 @@ const CompanyPage = () => {
               }}
               error={errors.road?.message}
               disabled={isSaving}
-              tabIndex={10}
+              tabIndex={11}
             />
 
             <FormInput
@@ -295,7 +312,7 @@ const CompanyPage = () => {
               {...register("flatNo")}
               error={errors.flatNo?.message}
               disabled={isSaving}
-              tabIndex={11}
+              tabIndex={12}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -324,6 +341,7 @@ const CompanyPage = () => {
             ref={saveBtnRef} 
             disabled={isSaving}
             isAction
+            tabIndex={13}
             loading={isSaving}
             icon={<Save size={18} />}
           >

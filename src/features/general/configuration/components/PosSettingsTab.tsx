@@ -149,6 +149,13 @@ const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
             label="Enable Recipe" 
             checked={form.recipe} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("recipe", e.target.checked)} 
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-daydate")}
+          />
+          <Checkbox 
+            id="conf-pos-daydate"
+            label="Enable Day Date" 
+            checked={form.dayDate} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("dayDate", e.target.checked)} 
             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-multi")}
           />
           <Checkbox 

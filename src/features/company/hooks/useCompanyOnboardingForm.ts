@@ -32,7 +32,7 @@ export const useCompanyOnboardingForm = ({
       flatNo: "",
       branchCount: 0,
       regId: "",
-      startDate: new Date().toISOString(),
+      startDate: new Date().toISOString().split("T")[0],
       isDemo: true,
       database: "",
       crNo: "",

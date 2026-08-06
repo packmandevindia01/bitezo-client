@@ -30,6 +30,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   priceView: "Exclusive",
   cashdrawer: "Default",
   recipe: false,
+  dayDate: false,
   multiEmployeeTable: false,
   customerTakeout: false,
   deliverySettle: false,

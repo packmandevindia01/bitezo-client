@@ -271,7 +271,7 @@ const ReceiptAgainstVoucherPage = () => {
         <div className="flex-1 overflow-hidden p-3 md:p-4 pt-10 md:pt-12 flex flex-col">
           <form id="rav-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full gap-4">
             
-            <div className="grid gap-x-3 gap-y-2 md:grid-cols-4 xl:grid-cols-5 flex-none">
+            <div className="grid gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6 flex-none">
               <div
                 onMouseDownCapture={(e) => {
                   if (!branchId) {
@@ -294,6 +294,16 @@ const ReceiptAgainstVoucherPage = () => {
                   autoFocus
                 />
               </div>
+              
+              <SearchableSelect
+                id="rav-page-employee"
+                label="Employee"
+                options={masterData?.salesman?.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName })) || []}
+                value={String(form.watch("employeeId") || "")}
+                onChange={(val) => form.setValue("employeeId", Number(val) || 0, { shouldValidate: true })}
+                disabled={!!transId}
+                error={form.formState.errors.employeeId?.message}
+              />
               
               <FormInput 
                 id="rav-page-vchNo" 
@@ -323,11 +333,11 @@ const ReceiptAgainstVoucherPage = () => {
                     error={form.formState.errors.accountId?.message}
                   />
                 </div>
-                <div className="flex items-end pb-1">
+                <div className="flex items-end mb-1">
                   <Button 
                     type="button"
                     variant="secondary" 
-                    className="h-10.5 px-3 text-xs font-bold" 
+                    className="h-9 px-4 text-xs font-bold" 
                     onClick={() => {
                       if (!form.watch("accountId")) {
                         showToast("Please select a customer first", "error", "Error");
@@ -390,12 +400,12 @@ const ReceiptAgainstVoucherPage = () => {
                 <FormInput id="rav-manual-paid" label="Paid" value={manualItem.paid} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right" onChange={(e) => setManualField("paid", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "rav-manual-balance")} />
                 <FormInput id="rav-manual-balance" label="Balance" value={manualItem.balance} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right" onChange={(e) => setManualField("balance", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "rav-manual-amount")} />
                 <FormInput id="rav-manual-amount" label="Amount" value={manualItem.amount} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right font-bold text-[#49293e]" onChange={(e) => setManualField("amount", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "rav-manual-add-btn")} />
-                <div className="flex items-end pb-1">
+                <div className="flex items-end mb-1">
                   <Button
                     id="rav-manual-add-btn"
                     onClick={handleManualAdd}
                     type="button"
-                    className="h-10.5 w-full"
+                    className="h-9 w-full"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();

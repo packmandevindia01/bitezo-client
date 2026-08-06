@@ -80,7 +80,7 @@ export const usePaymodeManager = () => {
     mutationFn: async (data: PaymodeSchemaType) => {
       const payload = {
         ...data,
-        code: data.code, // Pass as string, backend expects string or number
+        code: parseInt(data.code, 10) || 0, // Pass as integer, backend expects integer value
       };
       if (editingId) {
         return await paymodeService.update(editingId, payload);
@@ -131,9 +131,17 @@ export const usePaymodeManager = () => {
     resetForm();
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     resetForm();
     setOpen(true);
+    try {
+      const res = await paymodeService.getNextCode();
+      if (res && res.code !== undefined && res.code !== null) {
+        form.setValue("code", String(res.code), { shouldValidate: false, shouldDirty: false });
+      }
+    } catch (error) {
+      console.warn("Failed to fetch next paymode code:", error);
+    }
   };
 
   const handleEdit = async (record: PaymodeRecord) => {

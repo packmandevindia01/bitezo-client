@@ -157,14 +157,8 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'backoffice') {
-      requestAuthorization({
-        actionLabel: "Backoffice",
-        permissionId: 27,
-        onAuthorized: () => {
-          onClose();
-          window.open('/?system=backoffice', '_blank');
-        }
-      });
+      onClose();
+      window.open('/?system=backoffice', '_blank');
       return;
     }
     if (item.action === 'cashierOut') {

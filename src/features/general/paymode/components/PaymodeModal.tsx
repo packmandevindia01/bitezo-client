@@ -102,8 +102,8 @@ const PaymodeModal = ({
               tabIndex={1}
               {...register("code", {
                 onChange: (e) => {
-                  // Transform input directly on change: uppercase, no spaces
-                  e.target.value = e.target.value.toUpperCase().replace(/\s/g, "");
+                  // Ensure only integer (numeric) values are entered
+                  e.target.value = e.target.value.replace(/[^0-9]/g, "");
                 }
               })}
               placeholder="Enter paymode code"

@@ -37,6 +37,7 @@ export interface ConfigurationState {
   priceView: "Inclusive" | "Exclusive";
   cashdrawer: "Default" | "Normal";
   recipe: boolean;
+  dayDate: boolean;
   multiEmployeeTable: boolean;
   customerTakeout: boolean;
   deliverySettle: boolean;

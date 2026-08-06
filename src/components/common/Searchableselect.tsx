@@ -23,11 +23,13 @@ interface Props {
   error?: string;
   /** Show a clear (×) button when a value is selected. Default: true */
   clearable?: boolean;
+  allowClear?: boolean;
   autoFocus?: boolean;
   tabIndex?: number;
   labelIcon?: React.ReactNode;
   onKeyDown?: (e: React.KeyboardEvent<any>) => void;
   onSearch?: (query: string) => void;
+  onBarcodeScan?: (barcode: string) => void;
   loading?: boolean;
   className?: string;
   minQueryLength?: number;
@@ -128,8 +130,8 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
 
   // Reset highlighted index when filtered list changes
   useEffect(() => {
-    setHighlightedIndex(filtered.length > 0 ? 0 : -1);
-  }, [filtered.length]);
+    setHighlightedIndex(query.trim().length > 0 && filtered.length > 0 ? 0 : -1);
+  }, [filtered.length, query]);
 
   // Scroll highlighted item into view manually without triggering page scroll
   useEffect(() => {
@@ -236,13 +238,20 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
         setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
         break;
       case "Enter":
-        e.preventDefault();
-        e.stopPropagation();
         if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+          e.preventDefault();
+          e.stopPropagation();
           handleSelect(filtered[highlightedIndex].value);
-        } else if (filtered.length === 1) {
-          // If only one option, select it on Enter
+        } else if (filtered.length === 1 && query.trim().length > 0) {
+          // If only one option and user typed something, select it on Enter
+          e.preventDefault();
+          e.stopPropagation();
           handleSelect(filtered[0].value);
+        } else {
+          // Nothing selected, close and forward Enter to parent
+          setOpen(false);
+          setQuery("");
+          if (onKeyDown) onKeyDown(e);
         }
         break;
       case "Escape":
@@ -300,6 +309,8 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         setOpen(true);
+      } else {
+        if (onKeyDown) onKeyDown(e);
       }
     } else {
       // If open but focus is mysteriously still on the trigger, handle navigation directly
@@ -308,14 +319,19 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
       } else if (e.key === "ArrowUp") {
         setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
       } else if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
         if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+          e.preventDefault();
+          e.stopPropagation();
           handleSelect(filtered[highlightedIndex].value);
+        } else {
+          setOpen(false);
+          if (onKeyDown) onKeyDown(e);
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
         setOpen(false);
+      } else {
+        if (onKeyDown) onKeyDown(e);
       }
     }
     

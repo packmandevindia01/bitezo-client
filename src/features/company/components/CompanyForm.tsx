@@ -265,10 +265,30 @@ const CompanyForm = ({
               required
               tabIndex={9}
               {...field}
-              onKeyDown={(e) => handleKeyDown(e, "co-block")}
+              onKeyDown={(e) => handleKeyDown(e, "co-startDate")}
               options={currencyOptions}
               error={fieldState.error?.message}
               disabled={isSubmitting}
+              className="bg-white"
+            />
+          )}
+        />
+
+        <Controller
+          name="startDate"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <FormInput
+              id="co-startDate"
+              label="Start Date"
+              type="date"
+              required
+              tabIndex={10}
+              {...field}
+              onKeyDown={(e) => handleKeyDown(e, "co-block")}
+              error={fieldState.error?.message}
+              disabled={isSubmitting}
+              readOnly={isLocked("startDate")}
               className="bg-white"
             />
           )}
@@ -281,7 +301,7 @@ const CompanyForm = ({
             <FormInput
               id="co-block"
               label="Block No"
-              tabIndex={10}
+              tabIndex={11}
               maxLength={15}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-area")}
@@ -300,7 +320,7 @@ const CompanyForm = ({
             <FormInput
               id="co-area"
               label="Area / Street"
-              tabIndex={11}
+              tabIndex={12}
               maxLength={50}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-building")}
@@ -319,7 +339,7 @@ const CompanyForm = ({
             <FormInput
               id="co-building"
               label="Building"
-              tabIndex={12}
+              tabIndex={13}
               maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-road")}
@@ -338,7 +358,7 @@ const CompanyForm = ({
             <FormInput
               id="co-road"
               label="Road No"
-              tabIndex={13}
+              tabIndex={14}
               maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-flatNo")}
@@ -357,7 +377,7 @@ const CompanyForm = ({
             <FormInput
               id="co-flatNo"
               label="Flat / Shop No"
-              tabIndex={14}
+              tabIndex={15}
               maxLength={20}
               {...field}
               onKeyDown={(e) => handleKeyDown(e, "co-save-btn")}
@@ -387,7 +407,7 @@ const CompanyForm = ({
           ref={saveBtnRef} 
           onClick={onSubmit} 
           disabled={isSubmitting}
-          tabIndex={15}
+          tabIndex={16}
           isAction
           loading={isSubmitting}
           icon={<Save size={18} />}

@@ -14,7 +14,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
   const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
-  const employeeId = auth?.employeeId || 1;
+  const employeeId = Number(localStorage.getItem("employeeId")) || 0;
 
   const form = useForm<ReceiptAgainstVoucherFormData>({
     resolver: zodResolver(receiptAgainstVoucherSchema) as any,

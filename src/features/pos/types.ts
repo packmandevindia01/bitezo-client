@@ -260,6 +260,7 @@ export interface MenuOrderRequest {
   employeeId: number;
   dayId: number;
   shiftId: number;
+  transDate?: string;
   discAmount: number;
   discPer: number;
   serviceCharge: number;
@@ -294,6 +295,7 @@ export interface MenuOrderUpdateRequest {
   orderId: number;
   customerId: number;
   employeeId: number;
+  transDate?: string;
   discAmount: number;
   discPer: number;
   serviceCharge: number;

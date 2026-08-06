@@ -69,6 +69,8 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/production-list": "Production",
     "/dashboard/production": "New Production",
     "/dashboard/stock-adjustment": "Stock Adjustment",
+    "/dashboard/physical-entries": "Physical Entry",
+    "/dashboard/physical-entry": "New Physical Entry",
     "/dashboard/payment-against-voucher": "Payment Against Voucher",
     "/dashboard/receipt-against-voucher": "Receipt Against Voucher",
     "/dashboard/payment-voucher": "Payment Voucher",

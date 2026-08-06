@@ -14,8 +14,8 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
   const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
-  // Use user's employeeId from state if available, else fallback to 1
-  const employeeId = auth?.employeeId || 1;
+  // Use employeeId from storage if available, otherwise fallback to 0 as expected by backend when unassigned
+  const employeeId = Number(localStorage.getItem("employeeId")) || 0;
 
   const form = useForm<PaymentAgainstVoucherFormData>({
     resolver: zodResolver(paymentAgainstVoucherSchema) as any,

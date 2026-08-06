@@ -69,6 +69,8 @@ const PaymentAgainstVoucherPage = lazy(() => import("../../features/transaction/
 const PaymentAgainstVoucherListPage = lazy(() => import("../../features/transaction/paymentAgainstVoucher/pages/PaymentAgainstVoucherListPage"));
 const ReceiptAgainstVoucherPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherPage"));
 const ReceiptAgainstVoucherListPage = lazy(() => import("../../features/transaction/receiptAgainstVoucher/pages/ReceiptAgainstVoucherListPage"));
+const PhysicalEntryPage = lazy(() => import("../../features/transaction/physicalEntry/pages/PhysicalEntryPage"));
+const PhysicalEntryListPage = lazy(() => import("../../features/transaction/physicalEntry/pages/PhysicalEntryListPage"));
 const PaymentVoucherListPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherListPage"));
 const PaymentVoucherFormPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherFormPage"));
 const ReceiptVoucherListPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherListPage"));
@@ -212,6 +214,8 @@ const AppRoutes = () => {
                   <Route path="production" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
                   <Route path="production/:id" element={<RoleGuard moduleName="Production"><ProductionPage /></RoleGuard>} />
                   <Route path="production-list" element={<RoleGuard moduleName="Production"><ProductionListPage /></RoleGuard>} />
+                  <Route path="physical-entries" element={<RoleGuard moduleName="Physical Entry"><PhysicalEntryListPage /></RoleGuard>} />
+                  <Route path="physical-entry" element={<RoleGuard moduleName="Physical Entry"><PhysicalEntryPage /></RoleGuard>} />
                   <Route path="stock-adjustments" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentListPage /></RoleGuard>} />
                   <Route path="stock-adjustment" element={<RoleGuard moduleName="Stock Adjustment"><StockAdjustmentPage /></RoleGuard>} />
                   <Route path="internal-stock-transfers" element={<RoleGuard moduleName="Internal Stock Transfer"><InternalStockTransferListPage /></RoleGuard>} />
