@@ -484,12 +484,28 @@ export const useRecipeForm = (initialTransId?: number) => {
   const onSubmit = handleSubmit((data) => {
     const validItems = data.items.filter(item => item.product);
     if (validItems.length === 0) {
+      showToast("Please select at least one Raw Material.", "error", "Validation Error");
       form.setError("items", { type: "manual", message: "Please select at least one Raw Material." });
       return;
     }
     saveMutation.mutate(data);
-  }, (errors) => {
-    console.error("Validation errors:", errors);
+  }, (errors: any) => {
+    // Check if there are other validation errors besides 'items'
+    const otherErrors = Object.keys(errors).filter(key => key !== 'items');
+    
+    // Only show the toast if ALL other required fields are filled (i.e. 'items' is the ONLY error)
+    if (errors.items && otherErrors.length === 0) {
+      let errorMsg = "Please select at least one Raw Material.";
+      if (errors.items.message) {
+         errorMsg = errors.items.message;
+      } else if (Array.isArray(errors.items)) {
+         const firstItemErr = errors.items.find((err: any) => err !== undefined);
+         if (firstItemErr?.product?.message) {
+            errorMsg = firstItemErr.product.message;
+         }
+      }
+      showToast(errorMsg, "error", "Validation Error");
+    }
   });
 
   const handleReset = useCallback(() => {

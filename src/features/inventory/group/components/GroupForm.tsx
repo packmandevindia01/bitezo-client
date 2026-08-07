@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trash2, Save, RotateCcw } from "lucide-react";
 import { Button, Checkbox, FormInput } from "../../../../components/common";
+import { groupService } from "../services/groupService";
 import type { GroupDetail, GroupForm as GroupFormState } from "../types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -134,6 +135,12 @@ const GroupForm = ({
 
   useEffect(() => {
     setForm(buildInitialForm(initialData));
+    
+    if (!initialData) {
+      groupService.getNextGroupCode()
+        .then(code => setForm(prev => ({ ...prev, code })))
+        .catch(() => {}); // ignore error, user can still type it manually
+    }
   }, [initialData]);
 
   const handleChange = <K extends keyof GroupFormState>(key: K, value: GroupFormState[K]) => {
@@ -179,18 +186,17 @@ const GroupForm = ({
           <FormInput
             id="grp-code"
             label="Code"
-            autoFocus
             tabIndex={1}
             value={form.code}
             disabled={saving}
-            onChange={(e) => handleChange("code", e.target.value.toUpperCase().replace(/\s/g, '_'))}
-            onKeyDown={(e) => handleKeyDown(e, "grp-name")}
-            className="uppercase font-mono"
+            readOnly
+            className="uppercase font-mono cursor-not-allowed text-slate-500 bg-slate-50"
           />
 
           <FormInput
             id="grp-name"
             label="Name"
+            autoFocus
             tabIndex={2}
             value={form.name}
             disabled={saving}

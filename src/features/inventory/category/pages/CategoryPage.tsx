@@ -82,10 +82,17 @@ const CategoryPage = () => {
     });
   };
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     resetForm();
     setEditingId(null);
     setOpen(true);
+    
+    try {
+      const code = await categoryApi.getNextCategoryCode();
+      form.setValue("code", code);
+    } catch {
+      // ignore, user can type manually
+    }
   };
 
   const handleEdit = async (cat: CategoryListItem) => {

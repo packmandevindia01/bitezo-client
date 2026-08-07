@@ -182,7 +182,7 @@ const CategoryModal = ({
                     onKeyDown={(e) => handleKeyDown(e, "cat-name")}
                     placeholder="Enter code"
                     required
-                    autoFocus
+                    readOnly
                   />
 
                   <FormInput
@@ -193,6 +193,7 @@ const CategoryModal = ({
                     onKeyDown={(e) => handleKeyDown(e, "cat-arabic")}
                     placeholder="Enter name"
                     required
+                    autoFocus
                   />
 
                   <FormInput

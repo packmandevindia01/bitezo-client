@@ -38,6 +38,12 @@ export const groupService = {
     );
   },
 
+  getNextGroupCode(): Promise<string> {
+    return unwrap(
+      axiosInstance.get<ApiResponse<{ code: number }>>(`${BASE}/next-group-code`)
+    ).then(data => data.code.toString());
+  },
+
   getById(grpId: number): Promise<GroupDetail> {
     return unwrap(
       axiosInstance.get<ApiResponse<GroupDetail>>(`${BASE}/${grpId}/subcatid-data`)

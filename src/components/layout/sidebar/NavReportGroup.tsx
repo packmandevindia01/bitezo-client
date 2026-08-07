@@ -33,6 +33,14 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <BarChart3 size={13} className="shrink-0" />
             <span>Customer Statement</span>
           </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/day-end-report")} className={itemClassName}>
+            <BarChart3 size={13} className="shrink-0" />
+            <span>Day End Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/shift-end-report")} className={itemClassName}>
+            <BarChart3 size={13} className="shrink-0" />
+            <span>Shift End Report</span>
+          </div>
         </SidebarDropdown>
       )}
 
@@ -73,6 +81,10 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
           <div onClick={() => handleItemClick("/dashboard/reports/product-wise-margin")} className={itemClassName}>
             <TrendingUp size={13} className="shrink-0" />
             <span>Product Wise Margin Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/employee-sales-report")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Employee Sales Report</span>
           </div>
         </SidebarDropdown>
       )}

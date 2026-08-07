@@ -100,6 +100,9 @@ const BillWiseMarginReportPage = lazy(() => import("../../features/reports/billW
 const ProductWiseMarginReportPage = lazy(() => import("../../features/reports/productWiseMarginReport/pages/ProductWiseMarginReportPage"));
 const SupplierStatementPage = lazy(() => import("../../features/reports/supplierStatement/pages/SupplierStatementPage"));
 const CustomerStatementPage = lazy(() => import("../../features/reports/customerStatement/pages/CustomerStatementPage"));
+const EmployeeSalesReportPage = lazy(() => import("../../features/reports/employeeSalesReport/pages/EmployeeSalesReportPage"));
+const DayEndReportPage = lazy(() => import("../../features/reports/dayEndReport/pages/DayEndReportPage"));
+const ShiftEndReportPage = lazy(() => import("../../features/reports/shiftEndReport/pages/ShiftEndReportPage"));
 
 
 const LoginRedirect = () => {
@@ -263,6 +266,9 @@ const AppRoutes = () => {
                   <Route path="reports/product-wise-margin" element={<RoleGuard moduleName="Sales Report"><ProductWiseMarginReportPage /></RoleGuard>} />
                   <Route path="reports/supplier-statement" element={<RoleGuard moduleName="Purchase Report"><SupplierStatementPage /></RoleGuard>} />
                   <Route path="reports/customer-statement" element={<RoleGuard moduleName="Sales Report"><CustomerStatementPage /></RoleGuard>} />
+                  <Route path="reports/employee-sales-report" element={<RoleGuard moduleName="Sales Report"><EmployeeSalesReportPage /></RoleGuard>} />
+                  <Route path="reports/day-end-report" element={<RoleGuard moduleName="Sales Report"><DayEndReportPage /></RoleGuard>} />
+                  <Route path="reports/shift-end-report" element={<RoleGuard moduleName="Sales Report"><ShiftEndReportPage /></RoleGuard>} />
                 </Route>
 
               </Route>

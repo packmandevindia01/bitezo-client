@@ -146,6 +146,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
   }, [isOpen, loadAll]);
 
   const handleCountChange = (id: number, val: string) => {
+    if (val.length > 5) return;
     setCounts(prev => ({ ...prev, [id]: Math.max(0, parseInt(val) || 0) }));
   };
 
@@ -158,9 +159,15 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       } else if (key === "Back") {
         setManualAmount((prev) => prev.slice(0, -1));
       } else if (key === ".") {
-        setManualAmount((prev) => (!prev.includes(".") ? (prev ? prev + "." : "0.") : prev));
+        setManualAmount((prev) => {
+          const next = !prev.includes(".") ? (prev ? prev + "." : "0.") : prev;
+          return next.length <= 15 ? next : prev;
+        });
       } else {
-        setManualAmount((prev) => (prev === "0" ? key : prev + key));
+        setManualAmount((prev) => {
+          const next = prev === "0" ? key : prev + key;
+          return next.length <= 15 ? next : prev;
+        });
       }
       inputRefs.current["TOTAL"]?.focus();
     } else {
@@ -179,7 +186,9 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       } else {
         nextVal = currentVal === "0" ? key : currentVal + key;
       }
-      setCounts((prev) => ({ ...prev, [targetId]: Math.max(0, parseInt(nextVal) || 0) }));
+      if (nextVal.length <= 5) {
+        setCounts((prev) => ({ ...prev, [targetId]: Math.max(0, parseInt(nextVal) || 0) }));
+      }
       inputRefs.current[targetId]?.focus();
     }
   };
@@ -420,6 +429,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                     type="text"
                     tabIndex={1}
                     autoFocus={true}
+                    maxLength={15}
                     className="w-full text-right text-5xl font-extrabold px-5 py-4 rounded-xl border border-slate-300 bg-white text-[#49293e] shadow-sm hover:border-slate-400 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e] outline-none transition-all placeholder:text-slate-200"
                     placeholder="0.000"
                     value={entryMode === "MANUAL" ? manualAmount : formatAmount(totalAmount)}
@@ -433,7 +443,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                     }}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (/^\d*\.?\d*$/.test(val)) {
+                      if (/^\d*\.?\d*$/.test(val) && val.length <= 15) {
                         setManualAmount(val);
                         setEntryMode("MANUAL");
                       }

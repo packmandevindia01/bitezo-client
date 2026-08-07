@@ -45,6 +45,10 @@ const ReceiptAgainstVoucherPage = () => {
     name: "details"
   });
 
+  const availablePendingInvoices = useMemo(() => {
+    return pendingInvoices?.filter((inv: any) => !fields.some((f: any) => f.invoiceId === inv.invoiceId)) || [];
+  }, [pendingInvoices, fields]);
+
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const [isMultiPaymodeOpen, setIsMultiPaymodeOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -85,8 +89,16 @@ const ReceiptAgainstVoucherPage = () => {
       showToast("Please select a valid Invoice No from the dropdown.", "error", "Validation Error");
       return;
     }
-    if (!manualItem.amount || Number(manualItem.amount) === 0) {
+    if (!manualItem.amount || Number(manualItem.amount) <= 0) {
       showToast("Please enter a valid Amount.", "error", "Validation Error");
+      return;
+    }
+    if (fields.some(f => f.invoiceId === manualItem.invoiceId)) {
+      showToast("This invoice has already been added.", "error", "Validation Error");
+      return;
+    }
+    if (Number(manualItem.amount) > Number(manualItem.balance)) {
+      showToast("Amount cannot exceed the balance.", "error", "Validation Error");
       return;
     }
     
@@ -172,6 +184,21 @@ const ReceiptAgainstVoucherPage = () => {
         showToast(error?.response?.data?.message || "Failed to save voucher", "error", "Error");
       }
     });
+  };
+
+  const onInvalid = (errors: any) => {
+    if (errors.details?.message) {
+      showToast(errors.details.message, "error", "Validation Error");
+      return;
+    }
+    const firstError = Object.values(errors)[0] as any;
+    if (firstError?.message) {
+      showToast(firstError.message as string, "error", "Validation Error");
+    } else if (firstError?.root?.message) {
+      showToast(firstError.root.message as string, "error", "Validation Error");
+    } else if (Array.isArray(firstError) && firstError[0]?.message) {
+      showToast(firstError[0].message as string, "error", "Validation Error");
+    }
   };
 
   const handleMultiSelect = (selectedInvoices: InvoiceRecord[]) => {
@@ -269,7 +296,7 @@ const ReceiptAgainstVoucherPage = () => {
           <X size={20} />
         </button>
         <div className="flex-1 overflow-hidden p-3 md:p-4 pt-10 md:pt-12 flex flex-col">
-          <form id="rav-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full gap-4">
+          <form id="rav-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col h-full gap-4">
             
             <div className="grid gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6 flex-none">
               <div
@@ -374,10 +401,10 @@ const ReceiptAgainstVoucherPage = () => {
                   <SearchableSelect
                     id="rav-manual-vchNo"
                     label="INV NO"
-                    options={pendingInvoices?.map((inv: any) => ({ value: inv.invoiceNo, label: `${inv.invoiceNo} | ${inv.voucherType}` })) || []}
+                    options={availablePendingInvoices.map((inv: any) => ({ value: inv.invoiceNo, label: `${inv.invoiceNo} | ${inv.voucherType}` }))}
                     value={manualItem.invoiceNo}
                     onChange={(val) => {
-                      const selected = pendingInvoices.find((i: any) => i.invoiceNo === val);
+                      const selected = availablePendingInvoices.find((i: any) => i.invoiceNo === val);
                       if (selected) {
                         setManualItem(prev => ({
                           ...prev,
@@ -458,6 +485,7 @@ const ReceiptAgainstVoucherPage = () => {
                           <td className="px-2 py-2">
                             <input
                               type="number"
+                              max={item.balance}
                               step={Math.pow(10, -getDecimalPart()).toString()}
                               className="w-full text-right font-mono font-semibold text-gray-900 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]"
                               {...form.register(`details.${index}.amount`)}

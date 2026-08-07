@@ -37,6 +37,7 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 }
 
 // â”€â”€ Category endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 export const getCategories = async (
   catCode?: string,
@@ -59,6 +60,13 @@ export const getCategories = async (
     colorCode: item.colorCode || "red",
     branches: [],
   }));
+};
+
+export const getNextCategoryCode = async (): Promise<string> => {
+  const data = await unwrap(
+    axiosInstance.get<ApiResponse<{ code: number }>>("/category/next-category-code")
+  );
+  return data.code.toString();
 };
 
 export const getCategoryById = async (id: number): Promise<CategoryDetailResponse["data"]> => {
@@ -168,6 +176,7 @@ export const getBranches = async (): Promise<BranchOption[]> => {
 
 export const categoryApi = {
   getCategories,
+  getNextCategoryCode,
   getCategoryById,
   createCategory,
   updateCategory,

@@ -52,7 +52,8 @@ const RecipePage = () => {
   const canDelete = hasPermission("Recipe Master", "Delete");
   const canSave   = canAdd || canEdit;
 
-  const { isDirty } = form.formState;
+  const { isDirty, errors, isSubmitted } = form.formState;
+  const showErr = (fieldError: any) => isSubmitted ? fieldError?.message : undefined;
 
   const handleClearClick = () => {
     const shouldConfirm = isDirty || (!id && items.length > 0 && items[0]?.product !== "");
@@ -162,6 +163,7 @@ const RecipePage = () => {
                     required
                     disabled={!canSave}
                     tabIndex={1}
+                    error={showErr(errors.finishedProduct)}
                   />
                 )}
               />
@@ -195,6 +197,7 @@ const RecipePage = () => {
                     disabled={!canSave || !watch("finishedProduct")}
                     placeholder={!watch("finishedProduct") ? "Select product first" : "Select unit"}
                     tabIndex={3}
+                    error={showErr(errors.finishedProductUnit)}
                   />
                 )}
               />
@@ -211,6 +214,7 @@ const RecipePage = () => {
                 required
                 readOnly={!canSave}
                 tabIndex={4}
+                error={showErr(errors.finishedProductQty)}
               />
               <Controller
                 name="branchId"
@@ -234,6 +238,7 @@ const RecipePage = () => {
                     tabIndex={5}
                     placeholder="Select branch"
                     onKeyDown={(e) => hk(e, "product-select-0")}
+                    error={showErr(errors.branchId)}
                   />
                 )}
               />
@@ -293,6 +298,8 @@ const RecipePage = () => {
                                         setValue(`items.${index}.productName`, opt.label);
                                         setValue(`items.${index}.code`, opt.code || "");
                                         handleGridProductSelect(index, val, opt.code || "");
+                                      } else if (!val) {
+                                        handleGridProductSelect(index, "", "");
                                       }
                                       setTimeout(() => {
                                         const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);

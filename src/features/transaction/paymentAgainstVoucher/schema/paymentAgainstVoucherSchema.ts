@@ -8,6 +8,14 @@ export const paymentAgainstDetailSchema = z.object({
   invoiceAmount: z.number().optional(),
   balance: z.number().optional(),
   amount: z.string().refine(val => Number(val) !== 0, "Amount cannot be zero"),
+}).superRefine((data, ctx) => {
+  if (data.balance !== undefined && Number(data.amount) > data.balance) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Amount cannot exceed balance`,
+      path: ["amount"]
+    });
+  }
 });
 
 export const paymentAgainstVoucherSchema = z.object({
