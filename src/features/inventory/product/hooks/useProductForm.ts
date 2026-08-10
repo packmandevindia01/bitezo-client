@@ -11,6 +11,7 @@ import { subCategoryApi } from "../../subcategory/api";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../../app/providers/useToast";
 import { getConfig } from "../../../../config";
+import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
 
 export const useProductForm = (productId?: number) => {
   const navigate = useNavigate();
@@ -144,15 +145,46 @@ export const useProductForm = (productId?: number) => {
     }
   }, [productId, form]);
 
-  // Set default unit to 'nos' if available and not set
+  const selectedFormBranchId = form.watch("branchId");
+  const activeBranchId = Number(selectedFormBranchId) > 0 
+    ? Number(selectedFormBranchId) 
+    : (auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 1);
+
+  // Fetch Backoffice Config to get branch default Product Type and VAT %
+  const { data: backofficeConfigList } = useQuery({
+    queryKey: ["backofficeBranchConfig", activeBranchId],
+    queryFn: () => backofficeConfigApi.getConfigData(activeBranchId),
+    enabled: !productId && !!activeBranchId
+  });
+
+  // Set default values (Product Type, VAT %, Unit 'nos') from Backoffice Config when creating new product
   useEffect(() => {
-    if (!productId && masterData?.unit && !form.getValues("unitId")) {
+    if (productId) return;
+
+    const boConfig = backofficeConfigList && backofficeConfigList.length > 0 ? backofficeConfigList[0] : null;
+    console.log("[useProductForm] Branch:", activeBranchId, "Loaded boConfig:", boConfig);
+    
+    // Default Product Type
+    if (boConfig?.productType) {
+      console.log("[useProductForm] Pre-selecting Product Type from config:", boConfig.productType);
+      form.setValue("typeId", String(boConfig.productType), { shouldValidate: true });
+    }
+
+    // Default VAT % (applies to both Purchase VAT and Sales VAT)
+    if (boConfig?.vatId) {
+      console.log("[useProductForm] Pre-selecting VAT % from config:", boConfig.vatId);
+      form.setValue("pVatId", String(boConfig.vatId), { shouldValidate: true });
+      form.setValue("sVatId", String(boConfig.vatId), { shouldValidate: true });
+    }
+
+    // Default Unit ('nos')
+    if (masterData?.unit) {
       const nosUnit = masterData.unit.find(u => u.name.toLowerCase() === 'nos' || u.name.toLowerCase().includes('nos'));
-      if (nosUnit) {
+      if (nosUnit && !form.getValues("unitId")) {
         form.setValue("unitId", String(nosUnit.id), { shouldValidate: true });
       }
     }
-  }, [masterData, productId, form]);
+  }, [backofficeConfigList, masterData, productId, form]);
 
   // Load existing data into form
   useEffect(() => {
@@ -203,40 +235,21 @@ export const useProductForm = (productId?: number) => {
           branchId: String(o.branchId)
         })) || []
       });
-
-      // Preload existing image from server as File to prevent backend from clearing it on PUT
-      const path = p.filePath;
-      if (path && path !== "string") {
-        let normalizedPath = path.replace(/\\/g, "/");
-        try {
-          const apiOrigin = new URL(getConfig().apiBaseUrl, window.location.origin).origin;
-          if (normalizedPath.startsWith(apiOrigin)) {
-            normalizedPath = normalizedPath.replace(apiOrigin, "");
-          }
-        } catch (e) {
-          console.error("Failed to parse apiBaseUrl in image path stripping", e);
-        }
-        const fullUrl = normalizedPath.startsWith("http")
-          ? normalizedPath
-          : `${window.location.origin}${normalizedPath}`;
-
-        fetch(fullUrl)
-          .then(res => res.blob())
-          .then(blob => {
-            const fileName = normalizedPath.split("/").pop() || "image.jpg";
-            const file = new File([blob], fileName, { type: blob.type });
-            setImageFile(file);
-          })
-          .catch(err => console.error("Failed to preload existing image file", err));
-      }
     }
   }, [existingData, form, currentBranchId]);
 
   // Save Mutation
   const saveMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
+      const activeProductId = productId || data.productId || (existingData?.product?.productId) || 0;
+      const rawPath = existingData?.product?.filePath || data.filePath || "";
+      const cleanOldPath = (!rawPath || rawPath === "string") 
+        ? "string" 
+        : (rawPath.startsWith("http") ? new URL(rawPath).pathname : rawPath).replace(/\\/g, "/");
+
       const payload: any = {
         code: data.code,
+        barcode: data.barcode,
         name: data.name,
         arabicName: data.arabicName || "",
         categoryId: Number(data.categoryId),
@@ -248,14 +261,15 @@ export const useProductForm = (productId?: number) => {
         sVatId: Number(data.sVatId),
         cost: Number(data.cost),
         price: Number(data.price),
-        barcode: data.barcode,
+        priceIsIncl: data.priceIsIncl,
         branchId: Number(data.branchId),
         isActive: data.isActive,
-        priceIsIncl: data.priceIsIncl,
-        colorCode: data.colorCode,
-        fileName: data.fileUrl ? data.fileUrl.split("/").pop() || "" : data.fileName || "",
-        fileUrl: data.fileUrl,
-        filePath: data.filePath ? (data.filePath.startsWith("http") ? new URL(data.filePath).pathname : data.filePath).replace(/\\/g, "/") : "",
+        colorCode: data.colorCode || "#49293e",
+        ColorCode: data.colorCode || "#49293e",
+        filePath: cleanOldPath !== "string" ? cleanOldPath : "",
+        fileUrl: cleanOldPath !== "string" ? cleanOldPath : "",
+        OldPath: cleanOldPath || "string",
+        oldPath: cleanOldPath || "string",
         altProducts: data.altProducts.map(a => ({
           unitId: Number(a.unitId),
           barcode: a.barcode || "",
@@ -282,19 +296,18 @@ export const useProductForm = (productId?: number) => {
             baseQty: q * (isNaN(uVal) ? 1 : uVal),
             branchId: Number(o.branchId)
           };
-        }),
-        oldPath: data.filePath ? (data.filePath.startsWith("http") ? new URL(data.filePath).pathname : data.filePath).replace(/\\/g, "/") : "string"
+        })
       };
 
-      console.log("Submitting payload to API:", JSON.stringify(payload, null, 2));
-
-      if (data.productId) {
-        payload.productId = data.productId;
+      if (activeProductId > 0) {
+        payload.productId = activeProductId;
         payload.updatedAt = new Date().toISOString();
-        await productService.update(data.productId, { ...payload, imageFile: imageFile || undefined });
-        return { id: data.productId };
+        console.log("Submitting PUT payload to API:", JSON.stringify(payload, null, 2));
+        await productService.update(activeProductId, { ...payload, imageFile: imageFile || undefined });
+        return { id: activeProductId };
       } else {
         payload.createdAt = new Date().toISOString();
+        console.log("Submitting POST payload to API:", JSON.stringify(payload, null, 2));
         return productService.create({ ...payload, imageFile: imageFile || undefined });
       }
     },

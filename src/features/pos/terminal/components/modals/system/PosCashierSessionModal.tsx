@@ -207,7 +207,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       const isoString  = `${selectedDate}T${timePart}`;
       const dateOnly   = selectedDate;
       
-      const denominations: any[] = (mode === "CLOSE_DAY" || entryMode !== "DENOM") 
+      const denominations: any[] = (entryMode !== "DENOM") 
         ? []
         : Object.entries(counts).map(([id, count]) => ({
             denominationId: Number(id),
@@ -249,7 +249,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
           setSubmitting(false);
           return;
         }
-        await cashierLogService.closeDay({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: 0, endDate: isoString, denominations: [] });
+        await cashierLogService.closeDay({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations: denominations });
         setPrintState({ type: "DAY", step: 2, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
       }
     } catch (err: any) {
@@ -288,7 +288,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       
       await cashierLogService.closeShift(payload);
       
-      await cashierLogService.closeDay({ ...payload, closingBal: 0, denominations: [] });
+      await cashierLogService.closeDay({ ...payload, closingBal: totalAmount, denominations });
       
       setPrintState({ type: "DAY", step: 1, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
     } catch (err: any) {
@@ -367,44 +367,6 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
   };
 
   const renderSessionContent = () => {
-    if (mode === "CLOSE_DAY") {
-      return (
-        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
-          <div className="flex-1 border border-slate-200 rounded-xl p-8 bg-slate-50/50 flex flex-col items-center justify-center text-center text-slate-500 min-h-[380px]">
-            <LogOut size={56} className="text-slate-300 mb-4 animate-pulse" />
-            <h3 className="text-xl font-bold text-slate-800">Ready to Close Business Day</h3>
-            <p className="text-sm mt-2 max-w-sm font-medium text-slate-500">
-              {cashierStatus?.isShiftClosed 
-                ? "No cash counting required because the shift is already closed."
-                : "Closing the day will also close your active shift and complete day-end reporting."}
-            </p>
-          </div>
-          
-          <div className="w-full lg:w-[320px] shrink-0 flex flex-col justify-end gap-4">
-            <div className="grid grid-cols-2 gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(true)}
-                disabled={submitting}
-                className="py-3.5 px-4 rounded-xl font-bold text-white shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-                style={{ backgroundColor: cfg?.color || "#49293e" }}
-              >
-                {submitting ? <Loader2 size={18} className="animate-spin" /> : "Confirm Close"}
-              </button>
-              <button
-                type="button"
-                onClick={handleModalClose}
-                disabled={submitting}
-                className="py-3.5 px-4 bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center text-sm disabled:opacity-50"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     // DEFAULT SCREEN: Dedicated Direct Manual Amount Entry
     if (viewScreen === "MANUAL") {
       return (

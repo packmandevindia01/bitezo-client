@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
+import { orderApi } from '../../services/orderApi';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -12,11 +13,13 @@ interface UsePosCheckoutFlowProps {
   subtotal: number;
   totalDiscountAmount: number;
   totalServiceCharge: number;
+  totalLevy: number;
   totalVat: number;
   total: number;
   deliveryCharge: number;
   tenderOptions: any[];
   decimalPart: number;
+  waiterName: string | null;
   
   submitOrder: (params: any, print: boolean) => Promise<any>;
   getDirectSettleOrderPayload: (params: any) => any;
@@ -42,10 +45,12 @@ export const usePosCheckoutFlow = ({
   isCartModified,
   subtotal,
   totalServiceCharge,
+  totalLevy,
   totalVat,
   total,
   deliveryCharge,
   decimalPart,
+  waiterName,
   submitOrder,
   getDirectSettleOrderPayload,
   requestAuthorization,
@@ -228,12 +233,43 @@ export const usePosCheckoutFlow = ({
         };
         const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || "DINE IN";
         
+        let orderNoStr = finalSaleId.toString();
+        let ticketNoStr = finalSaleId.toString();
+        let waiterStr = waiterName || localStorage.getItem("employeeName") || "Waiter";
+        let sectionStr = orderPayload.sectionId ? String(orderPayload.sectionId) : "DINE IN";
+        let tableStr = orderPayload.tableNo ? orderPayload.tableNo : (orderPayload.tableId ? String(orderPayload.tableId) : "");
+
+        try {
+          const targetOrderId = orderPayload.orderId || editingOrderId || 0;
+          let masterData: any = null;
+          if (finalSaleId > 0 && targetOrderId > 0) {
+            const saleRes = await salesInvoiceApi.getSalesInvoiceData(finalSaleId, targetOrderId);
+            masterData = saleRes?.masterData || saleRes?.master || saleRes?.data?.masterData || saleRes?.data?.master || saleRes;
+          } else if (targetOrderId > 0) {
+            const orderRes = await orderApi.getOrderDetails(targetOrderId);
+            masterData = orderRes?.data?.masterData || orderRes?.masterData || orderRes?.data?.master || orderRes?.master;
+          }
+
+          if (masterData) {
+            orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
+            ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
+            waiterStr = masterData.employeeName || waiterStr;
+            sectionStr = masterData.sectionName || sectionStr;
+            tableStr = masterData.tableNo || masterData.tableName || tableStr;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch invoice metadata for print:", e);
+        }
+
         const printPayloadObj = {
           mappedItems: cartDetails,
           printData: {
-            orderNo: finalSaleId.toString(),
-            ticketNo: finalSaleId.toString(),
-            waiter: String(employeeId),
+            orderNo: orderNoStr,
+            ticketNo: ticketNoStr,
+            waiter: waiterStr,
+            counter: "Main",
+            section: sectionStr,
+            table: tableStr,
             orderType: mappedOrderType,
             date: now.toLocaleDateString('en-GB'),
             time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
@@ -244,7 +280,7 @@ export const usePosCheckoutFlow = ({
             })),
             subTotal: subtotal,
             serviceCharge: totalServiceCharge,
-            levy: 0,
+            levy: totalLevy,
             vatAmount: totalVat,
             deliveryCharge: deliveryCharge,
             netAmount: total,

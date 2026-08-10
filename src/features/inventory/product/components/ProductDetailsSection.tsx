@@ -49,17 +49,30 @@ export const ProductDetailsSection = ({
     return options;
   };
 
-  const categoryOptions = ensureOption(masterData?.category?.map(c => ({ label: c.name, value: String(c.id) })) ?? [], watch("categoryId") || "", "Category");
-  const groupOptions = ensureOption(masterData?.group?.map(g => ({ label: g.name, value: String(g.id) })) ?? [], watch("groupId") || "", "Group");
-  const unitOptions = ensureOption(masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [], watch("unitId") || "", "Unit");
-  const vatOptionsRaw = masterData?.vat?.map(v => ({
-    label: v.name.includes(String(v.value)) ? v.name : `${v.name} (${v.value}%)`,
-    value: String(v.id)
-  })) ?? [];
+  const categoryOptions = ensureOption(masterData?.category?.map((c: any) => ({ label: c.name || c.categoryName || "Unknown", value: String(c.id ?? c.categoryId ?? "") })) ?? [], watch("categoryId") || "", "Category");
+  const groupOptions = ensureOption(masterData?.group?.map((g: any) => ({ label: g.name || g.groupName || "Unknown", value: String(g.id ?? g.groupId ?? "") })) ?? [], watch("groupId") || "", "Group");
+  const unitOptions = ensureOption(masterData?.unit?.map((u: any) => ({ label: u.name || u.unitName || "Unknown", value: String(u.id ?? u.unitId ?? "") })) ?? [], watch("unitId") || "", "Unit");
+  const vatOptionsRaw = masterData?.vat?.map((v: any) => {
+    const vName = v.name || v.vatName || "";
+    const vVal = v.value ?? v.vatValue ?? 0;
+    return {
+      label: vName.includes(String(vVal)) ? vName : `${vName} (${vVal}%)`,
+      value: String(v.id ?? v.vatId ?? "")
+    };
+  }) ?? [];
   const pVatOptions = ensureOption(vatOptionsRaw, watch("pVatId") || "", "VAT");
   const sVatOptions = ensureOption(vatOptionsRaw, watch("sVatId") || "", "VAT");
   
-  const typeOptions = ensureOption(masterData?.type?.map(t => ({ label: t.name, value: String(t.id) })) ?? productTypeOptions, watch("typeId") || "", "Type");
+  const typeOptions = ensureOption(
+    (masterData?.type && masterData.type.length > 0)
+      ? masterData.type.map((t: any) => ({
+          label: t.name || t.productTypeName || t.typeName || "Unknown",
+          value: String(t.id ?? t.productTypeId ?? t.typeId ?? "")
+        }))
+      : productTypeOptions,
+    watch("typeId") || "",
+    "Type"
+  );
   const branchOptionsSafe = ensureOption(branchOptions, watch("branchId") || "", "Branch");
   const subCatOptionsSafe = ensureOption(subCatOptions, watch("subCatId") || "", "Sub-Category");
 

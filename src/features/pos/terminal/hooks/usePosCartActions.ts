@@ -29,6 +29,7 @@ export const usePosCartActions = () => {
   const itemCount = useAppSelector(selectItemCount);
   const totalExtras = useAppSelector(selectTotalExtras);
   const baseSubtotal = useAppSelector(selectBaseSubtotal);
+  const waiterName = useAppSelector((state: any) => state.pos.waiterName);
   const {
     orderTypes,
     selectedOrderTypeId,
@@ -352,27 +353,51 @@ export const usePosCartActions = () => {
         const response = await orderApi.updateOrder(editingOrderId, updatePayload as MenuOrderUpdateRequest);
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
-
               if (shouldPrint) {
                 try {
+                  const orderId = editingOrderId;
+                  let orderNoStr = String(orderId);
+                  let ticketNoStr = String(orderId);
+                  let orderTypeStr = selectedOrderTypeName || "DINE IN";
+                  let waiterStr = localStorage.getItem("employeeName") || "Cashier";
+                  let sectionStr = selectedSectionId ? String(selectedSectionId) : "Main";
+                  let tableStr = selectedTableId ? String(selectedTableId) : "T1";
+                  let vehicleNoStr = vehicleNo || localStorage.getItem("driveThruVehicleNo") || "";
+                  let customerNameStr = vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || "";
+
+                  try {
+                    const detailsRes = await orderApi.getOrderDetails(orderId);
+                    const masterData = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data?.master || detailsRes?.master;
+                    if (masterData) {
+                      orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
+                      ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
+                      orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
+                      waiterStr = masterData.employeeName || waiterStr;
+                      sectionStr = masterData.sectionName || sectionStr;
+                      tableStr = masterData.tableNo || tableStr;
+                      vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
+                      customerNameStr = masterData.deliveryCustomerName || masterData.vehicleCustomerName || masterData.customerName || customerNameStr;
+                    }
+                  } catch (e) {
+                    console.error("Failed to fetch order details for updated KOT printing:", e);
+                  }
+
                   const { printerSettingsApi } = await import("../../services/printerSettingsApi");
                   const { printHtmlReceipt } = await import("../../services/qzService");
                   const { generateKotHtml } = await import("../../utils/kotTemplate");
                   const { executeKotRouting } = await import("../../utils/printerRouting");
-    
-                  const employeeName = localStorage.getItem("employeeName") || "Cashier";
-                  const orderTypeStr = selectedOrderTypeName || "DINE IN";
-                  
+     
                   const commonPrintData = {
-                    orderNo: String(editingOrderId),
-                    ticketNo: String(editingOrderId),
-                    waiter: employeeName,
+                    orderNo: orderNoStr,
+                    ticketNo: ticketNoStr,
+                    waiter: waiterStr,
                     counter: "Main",
-                    section: selectedSectionId ? String(selectedSectionId) : "Main",
-                    table: selectedTableId ? String(selectedTableId) : "T1",
+                    section: sectionStr,
+                    table: tableStr,
                     orderType: orderTypeStr,
-                    vehicleNo: vehicleNo || localStorage.getItem("driveThruVehicleNo") || "",
-                    customerName: vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
+                    orderTypeId: selectedOrderTypeId,
+                    vehicleNo: vehicleNoStr,
+                    customerName: customerNameStr
                   };
     
                   const reorderItems = cartDetails
@@ -416,8 +441,11 @@ export const usePosCartActions = () => {
                   lineTotal: vp.amount,
                   product: { 
                     name: vp.productName || `Product #${vp.productId}`, 
-                    price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0 
+                    price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0,
+                    categoryId: vp.categoryId || 0
                   },
+                  vatAmount: vp.vatAmount || 0,
+                  netAmount: vp.netAmount || (vp.amount + (vp.vatAmount || 0)),
                   extras: voidModifiers
                             .filter(vm => vm.mapId === vp.mapId && vm.amount > 0)
                             .map(vm => ({ 
@@ -567,24 +595,49 @@ export const usePosCartActions = () => {
 
         if (shouldPrint) {
           try {
+            const orderId = response.data.id;
+            let orderNoStr = String(orderId);
+            let ticketNoStr = String(orderId);
+            let orderTypeStr = selectedOrderTypeName || "DINE IN";
+            let waiterStr = localStorage.getItem("employeeName") || "Cashier";
+            let sectionStr = selectedSectionId ? String(selectedSectionId) : "Main";
+            let tableStr = selectedTableId ? String(selectedTableId) : "T1";
+            let vehicleNoStr = vehicleNo || localStorage.getItem("driveThruVehicleNo") || "";
+            let customerNameStr = vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || "";
+
+            try {
+              const detailsRes = await orderApi.getOrderDetails(orderId);
+              const masterData = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data?.master || detailsRes?.master;
+              if (masterData) {
+                orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
+                ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
+                orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
+                waiterStr = masterData.employeeName || waiterStr;
+                sectionStr = masterData.sectionName || sectionStr;
+                tableStr = masterData.tableNo || tableStr;
+                vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
+                customerNameStr = masterData.deliveryCustomerName || masterData.vehicleCustomerName || masterData.customerName || customerNameStr;
+              }
+            } catch (e) {
+              console.error("Failed to fetch order details for KOT printing:", e);
+            }
+
             const { printerSettingsApi } = await import("../../services/printerSettingsApi");
             const { printHtmlReceipt } = await import("../../services/qzService");
             const { generateKotHtml } = await import("../../utils/kotTemplate");
             const { executeKotRouting } = await import("../../utils/printerRouting");
 
-            const employeeName = localStorage.getItem("employeeName") || "Cashier";
-            const orderTypeStr = selectedOrderTypeName || "DINE IN";
-            
             const basePrintOptions = {
-               orderNo: String(response.data.id),
-               ticketNo: String(response.data.id),
-               waiter: employeeName,
+               orderNo: orderNoStr,
+               ticketNo: ticketNoStr,
+               waiter: waiterStr,
                counter: "Main",
-               section: selectedSectionId ? String(selectedSectionId) : "Main",
-               table: selectedTableId ? String(selectedTableId) : "T1",
+               section: sectionStr,
+               table: tableStr,
                orderType: orderTypeStr,
-               vehicleNo: vehicleNo || localStorage.getItem("driveThruVehicleNo") || "",
-               customerName: vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
+               orderTypeId: selectedOrderTypeId,
+               vehicleNo: vehicleNoStr,
+               customerName: customerNameStr
             };
             
             await executeKotRouting(
@@ -652,6 +705,8 @@ export const usePosCartActions = () => {
     itemCount,
     totalExtras,
     baseSubtotal,
+    totalServiceCharge,
+    totalLevy,
     orderTypes,
     selectedOrderTypeId,
     selectedOrderTypeName,
@@ -671,6 +726,7 @@ export const usePosCartActions = () => {
     vehicleNo,
     billDiscountType,
     billDiscountValue,
+    waiterName,
     orderLoading,
     orderError,
     editingOrderId,

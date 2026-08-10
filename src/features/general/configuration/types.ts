@@ -68,6 +68,7 @@ export interface BackofficeConfigState {
   // SelectInput — multi-option fields
   defaultProductType: string;        // From API (placeholder options for now)
   defaultVat: string;                // From API (placeholder options for now)
+  defaultPaymode: string;            // Default paymode ID
   stockValueMethod: "AverageCost" | "LastPurchase" | "FIFO";
   updateLndCostType: "All" | "Barcode" | "Unit";
   discountCalculation: "Inclusive" | "Exclusive";

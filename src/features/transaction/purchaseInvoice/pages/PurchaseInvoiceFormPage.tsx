@@ -249,11 +249,11 @@ const PurchaseInvoiceFormPage = () => {
   }, [watchedItems, payments, supplierOptions, productOptions, totals, getValues]);
 
   const watchedBranchId = methods.watch("branch");
-  const seriesOptions = masterData?.series
-    .filter(s => s.branchId.toString() === watchedBranchId)
-    .map(s => ({ label: s.seriesName, value: s.seriesId.toString() })) || [];
-  const branchOptions = masterData?.branches.map(b => ({ label: b.branchName, value: b.branchId.toString() })) || [];
-  const salesmanOptions = masterData?.salesman.map(s => ({ label: s.employeeName, value: s.employeeId.toString() })) || [];
+  const seriesOptions = (masterData?.series || [])
+    .filter((s: any) => s.branchId.toString() === watchedBranchId)
+    .map((s: any) => ({ label: s.seriesName, value: s.seriesId.toString() }));
+  const branchOptions = (masterData?.branches || []).map((b: any) => ({ label: b.branchName, value: b.branchId.toString() }));
+  const salesmanOptions = (masterData?.salesman || []).map((s: any) => ({ label: s.employeeName, value: s.employeeId.toString() }));
 
   const canAdd = hasPermission("Purchase Invoice", "Add");
   const canEdit = hasPermission("Purchase Invoice", "Edit");
@@ -631,7 +631,7 @@ const PurchaseInvoiceFormPage = () => {
                       }
                     }}
                     placeholder="Paymode"
-                    options={(paymodeList as { paymodeId: number; paymodeName: string }[]).map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
+                    options={(paymodeList || []).map((p: any) => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
                     disabled={!canSave || saving}
                     className="!h-9"
                   />

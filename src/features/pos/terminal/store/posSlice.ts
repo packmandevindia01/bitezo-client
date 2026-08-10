@@ -49,6 +49,7 @@ interface PosState {
   comingTime: string;
   vehicleCustomerName: string;
   vehicleNo: string;
+  waiterName: string | null;
   editingOrderId: number | null;
   editingSaleId: number | null;
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
@@ -99,6 +100,7 @@ const initialState: PosState = {
   comingTime: new Date().toISOString(),
   vehicleCustomerName: '',
   vehicleNo: '',
+  waiterName: null,
   editingOrderId: null,
   editingSaleId: null,
   voidProducts: [],
@@ -209,6 +211,7 @@ const posSlice = createSlice({
     clearCart: (state) => {
       state.cartItems = [];
       state.editingOrderId = null;
+      state.waiterName = null;
       state.editingSaleId = null;
       state.voidProducts = [];
       state.voidModifiers = [];
@@ -410,9 +413,11 @@ const posSlice = createSlice({
       billDiscountValue: number;
       billDiscountType: 'percentage' | 'amount';
       sectionId?: number;
+      providerOrderNo?: string;
       tableId?: number;
       isSettling?: boolean;
       isSettledEdit?: boolean;
+      waiterName?: string | null;
     }>) => {
       const { 
         editingOrderId, 
@@ -427,12 +432,14 @@ const posSlice = createSlice({
         sectionId,
         tableId,
         isSettling,
-        isSettledEdit
+        isSettledEdit,
+        waiterName
       } = action.payload;
       state.editingOrderId = editingOrderId ?? null;
       state.editingSaleId = editingSaleId ?? null;
       state.isSettling = isSettling ?? false;
       state.isSettledEdit = isSettledEdit ?? false;
+      state.waiterName = waiterName ?? null;
       state.isCartModified = false;
       state.voidProducts = [];
       state.voidModifiers = [];

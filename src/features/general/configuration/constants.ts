@@ -60,6 +60,7 @@ export const INITIAL_BACKOFFICE_CONFIG: BackofficeConfigState = {
   // SelectInput fields
   defaultProductType: "",
   defaultVat: "",
+  defaultPaymode: "",
   stockValueMethod: "AverageCost",
   updateLndCostType: "All",
   discountCalculation: "Exclusive",

@@ -106,6 +106,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       });
 
       let calculatedSubTotal = 0;
+      let calculatedVatTotal = 0;
       const mappedItems = details.map((d: any) => {
         const itemMods = orderModifiersData.filter((m: any) => m.mapId === d.mapId);
         const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
@@ -118,6 +119,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         let lineBase = (d.price || 0) * (d.qty || 1);
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
         calculatedSubTotal += lineBase;
+        calculatedVatTotal += (d.vatAmount || 0);
         
         return {
           productId: d.productId || d.itemId || 0,
@@ -162,7 +164,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         subTotal: calculatedSubTotal,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
-        vatAmount: master.vatAmount || 0,
+        vatAmount: master.vatAmount || calculatedVatTotal || 0,
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat

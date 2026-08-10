@@ -214,14 +214,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         } catch { /* ignore */ }
       }
 
-      let calculatedSubTotal = 0;
-      const mappedItems = details.map((d: any) => {
+      let totalVatBase = 0;
+      const preMapped = details.map((d: any) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1, typeId: m.typeId
         }));
         const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+          id: m.modifierId, name: m.modifierName, qty: m.qty || 1, typeId: m.typeId
         }));
         
         const qty = d.qty ?? d.Qty ?? 1;
@@ -230,16 +230,44 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
         let lineBase = price * qty;
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
-        calculatedSubTotal += lineBase;
+        
+        const itemLineNetAmount = amount || lineBase;
+        const itemVatBase = itemLineNetAmount - (d.vatAmount || 0);
+        totalVatBase += itemVatBase;
+        
+        return {
+          ...d,
+          qty,
+          price,
+          extras,
+          modifiers,
+          lineBase,
+          itemVatBase
+        };
+      });
+
+      const calculatedSubTotal = master.vatExclAmount || totalVatBase;
+      const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
+
+      const mappedItems = preMapped.map((d: any) => {
+        const trueLineTotal = d.itemVatBase * globalRatio;
+        const itemRatio = d.lineBase > 0 ? trueLineTotal / d.lineBase : 1;
+        
+        const adjustedExtras = d.extras.map((ex: any) => ({
+          ...ex,
+          price: ex.price * itemRatio
+        }));
+        
+        const adjustedPrice = d.price * itemRatio;
         
         return {
           productId: d.productId || d.itemId || 0,
-          quantity: qty,
-          price: price,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: price },
-          extras,
-          modifiers,
-          lineTotal: lineBase
+          quantity: d.qty,
+          price: adjustedPrice,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: adjustedPrice },
+          extras: adjustedExtras,
+          modifiers: d.modifiers,
+          lineTotal: trueLineTotal
         };
       });
 

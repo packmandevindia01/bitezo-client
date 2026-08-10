@@ -87,6 +87,7 @@ export const generateGuestPrintHtml = async (
     : `SIMPLIFIED INVOICE<br/>${orderTypeLabel}`;
 
   let itemsHtml = "";
+  let displaySubTotal = 0; // Sum of rounded display amounts for consistency
   cartDetails.forEach((item) => {
     let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
     if (item.variantName && item.variantName.toLowerCase().trim() !== 'main') {
@@ -108,6 +109,7 @@ export const generateGuestPrintHtml = async (
     
     const rate = (baseAmt / qty).toFixed(3);
     const amt = baseAmt.toFixed(3);
+    displaySubTotal += parseFloat(amt);
 
     itemsHtml += `
       <tr>
@@ -123,6 +125,7 @@ export const generateGuestPrintHtml = async (
         const exName = (ex.name || "EXTRA").toUpperCase();
         const exRate = ex.price.toFixed(3);
         const exAmt = (ex.price * (ex.qty || 1)).toFixed(3);
+        displaySubTotal += parseFloat(exAmt);
         itemsHtml += `
           <tr>
             <td style="text-align: left; vertical-align: top; padding: 2px 0;">${ex.qty || 1}</td>
@@ -148,6 +151,19 @@ export const generateGuestPrintHtml = async (
       });
     }
   });
+
+  // Calculate VAT Amount from item cartDetails sum (exact same logic as KOT template)
+  const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
+  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
+
+  displaySubTotal = parseFloat(displaySubTotal.toFixed(3));
+  if (data.enableVat) {
+    data.vatAmount = parseFloat(rawVat.toFixed(3));
+    data.subTotal = parseFloat((data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)).toFixed(3));
+  } else {
+    data.subTotal = displaySubTotal;
+    data.vatAmount = 0;
+  }
 
   return `
     <html>

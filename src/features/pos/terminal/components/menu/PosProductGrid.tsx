@@ -37,7 +37,7 @@ const PosProductGrid = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const firstAltRef = useRef<HTMLButtonElement>(null);
   const { formatAmount } = useCurrency();
-  const [columns, setColumns] = useState(4);
+  const [columns, setColumns] = useState(6);
 
   // Stable callbacks using the ref pattern to prevent stale closures
   // without needing to wrap the heavy parent functions in useCallback
@@ -63,12 +63,11 @@ const PosProductGrid = ({
     if (!scrollRef.current) return;
 
     const computeColumns = (width: number) => {
-      // For POS terminal monitors (and tab views), ensure 4 product columns by default
-      if (width < 380) return 3;
-      if (width <= 600) return 4;
-      if (width <= 800) return 5;
-      if (width <= 1000) return 6;
-      return 7;
+      // Aim for an ideal card width of ~130px.
+      // This mathematically guarantees a fluid width,
+      // perfectly emulating CSS repeat(auto-fill, minmax(130px, 1fr)).
+      const cols = Math.floor(width / 130);
+      return Math.max(3, Math.min(cols, 8)); // Keep between 3 and 8 columns
     };
 
     const observer = new ResizeObserver((entries) => {
@@ -186,7 +185,7 @@ const PosProductGrid = ({
                         <button
                           key={`sub-${sub.subCategoryId}`}
                           onClick={() => onSelectSubCategory(sub.subCategoryId)}
-                          className="flex flex-col items-center justify-center gap-1 sm:gap-1 lg:gap-2 min-h-[95px] sm:min-h-[110px] xl:min-h-[125px] h-full rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20 p-2"
+                          className="flex flex-col items-center justify-center gap-1 sm:gap-1 lg:gap-2 min-h-[75px] sm:min-h-[85px] md:min-h-[95px] xl:min-h-[110px] h-full rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20 p-2"
                         >
                           <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                             {sub.imageUrl ? (
@@ -218,7 +217,7 @@ const PosProductGrid = ({
                             group relative flex flex-col justify-between
                             rounded-xl border border-[#49293e]/20 bg-white text-left overflow-hidden
                             transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-                            h-[90px] md:h-[105px] xl:h-[130px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+                            h-[75px] sm:h-[90px] md:h-[100px] xl:h-[115px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
                           "
                         >
                           <div className="relative w-full h-[57%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
@@ -249,11 +248,11 @@ const PosProductGrid = ({
 
                           <div className="w-full flex-1 min-h-0 flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
                             <div className="w-full flex flex-col items-center justify-center text-center">
-                              <h3 className="text-[9.5px] md:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
+                              <h3 className="text-[8.5px] sm:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
                                 {alt.altName}
                               </h3>
                               {alt.altArabic && (
-                                <p className="text-[8.5px] md:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
+                                <p className="text-[7.5px] sm:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
                                   {alt.altArabic}
                                 </p>
                               )}

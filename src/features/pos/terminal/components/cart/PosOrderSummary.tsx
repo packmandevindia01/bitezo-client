@@ -26,10 +26,10 @@ interface PosOrderSummaryProps {
 export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, onDiscount, onCom }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
-    <div className="shrink-0 p-2 lg:p-2.5 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2">
+    <div className="shrink-0 p-2 lg:p-2.5 [@media(max-height:800px)]:p-1 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2 [@media(max-height:800px)]:space-y-0.5">
       {/* Financial Breakdown */}
-      <div className="flex gap-1.5 lg:gap-2.5 border-b border-slate-200/60 pb-1.5">
-        <div className="flex-1 space-y-0.5">
+      <div className="flex gap-1.5 lg:gap-2.5 border-b border-slate-200/60 pb-1.5 [@media(max-height:800px)]:pb-0.5">
+        <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Sub Total</span>
             <span>{formatAmount(subtotal)}</span>
@@ -47,7 +47,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-0.5 border-l border-slate-200/50 pl-2 lg:pl-3">
+        <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0 border-l border-slate-200/50 pl-2 lg:pl-3">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Net Value</span>
             <span>{formatAmount(subtotal - discount + charges)}</span>
@@ -83,36 +83,36 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="flex gap-1.5 mt-1">
+        <div className="flex gap-1.5 [@media(max-height:800px)]:mt-0 mt-1">
           <button 
             onClick={onDiscount}
-            className="h-8 lg:h-9 px-2 lg:px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[9px] font-bold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
+            className="h-7 md:h-8 lg:h-9 [@media(max-height:800px)]:h-6 px-2 md:px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[10px] md:text-[11px] xl:text-[12px] [@media(max-height:800px)]:text-[9px] font-extrabold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
           >
             Discount
           </button>
           <button 
             onClick={onCom}
-            className="h-8 lg:h-9 px-2 lg:px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[9px] font-bold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
+            className="h-7 md:h-8 lg:h-9 [@media(max-height:800px)]:h-6 px-2 md:px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[10px] md:text-[11px] xl:text-[12px] [@media(max-height:800px)]:text-[9px] font-extrabold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
           >
             COM
           </button>
         </div>
-        <div className="flex flex-col items-end leading-none mt-1">
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Grand Total</span>
-          <span className="text-[24px] lg:text-[28px] font-black text-slate-900 tracking-tighter">
+        <div className="flex flex-col items-end leading-none mt-1 [@media(max-height:800px)]:mt-0">
+          <span className="text-[9px] [@media(max-height:800px)]:text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Grand Total</span>
+          <span className="text-[24px] lg:text-[28px] [@media(max-height:800px)]:text-[18px] font-black text-slate-900 tracking-tighter">
             {formatAmount(total || 0)}
           </span>
         </div>
       </div>
 
       {/* Payment Methods */}
-      <div className="grid grid-cols-5 gap-1.5">
+      <div className="grid grid-cols-5 gap-1 md:gap-1.5">
         {(tenderOptions || []).map((mode) => (
           <button
             key={mode.id}
             onClick={() => onSelectTender(mode.id)}
             className={`
-              h-9 lg:h-10 rounded-xl border-2 text-[9px] font-bold transition-all shadow-sm active:scale-95 uppercase
+              h-8 md:h-9 lg:h-10 [@media(max-height:800px)]:h-7 rounded-xl border-2 text-[9px] md:text-[10px] lg:text-[11px] [@media(max-height:800px)]:text-[8px] font-extrabold transition-all shadow-sm active:scale-95 uppercase leading-tight px-0.5 break-words flex items-center justify-center text-center
               ${selectedTender === mode.id
                 ? "border-pos-green bg-pos-green/10 text-pos-green-dark"
                 : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"}
@@ -121,41 +121,49 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             {mode.label}
           </button>
         ))}
-        <div className="h-9 lg:h-10 rounded-xl border-2 border-dashed border-slate-200" />
+        <div className="h-8 md:h-9 lg:h-10 [@media(max-height:800px)]:h-7 rounded-xl border-2 border-dashed border-slate-200" />
       </div>
 
       {/* Bottom Actions */}
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5 lg:gap-2 pt-1 [@media(max-height:800px)]:pt-0.5">
+        <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
           <button
             onClick={() => onSettle && onSettle(false)}
             disabled={orderLoading || isSettling || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-[#2b9e5a] text-white font-bold text-[10px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
             Settle
           </button>
           <button
             onClick={() => onSettle && onSettle(true)}
             disabled={orderLoading || isSettling || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-[#2b9e5a] text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
-            Settle & <br />Print
+            <span>Settle &</span>
+            <span>Print</span>
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
           <button
             onClick={() => onOrder && onOrder(false)}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-[#2e70e0] text-white font-bold text-[10px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={() => onOrder && onOrder(true)}
             disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
-            className="h-10 lg:h-12 rounded-xl bg-[#2e70e0] text-white font-bold text-[9px] leading-tight px-1 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
-            {orderLoading ? "Wait..." : "Order & Print"}
+            {orderLoading ? (
+              <span>Wait...</span>
+            ) : (
+              <>
+                <span>Order &</span>
+                <span>Print</span>
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -55,20 +55,24 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       iframeDoc.write(htmlContent);
       iframeDoc.close();
 
-      // Wait for images inside the iframe to load
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for images inside the iframe to load (reduced for speed)
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Size iframe perfectly to the content to avoid printing endless white space, but add a 40px padding buffer to prevent clipping
       const contentHeight = (iframeDoc.body.scrollHeight || iframeDoc.documentElement.scrollHeight) + 40;
       iframe.style.height = `${contentHeight}px`;
 
+      // Optimized for speed: Lower scale slightly, use JPEG compression, and force white background
       const canvas = await html2canvas(iframeDoc.body, { 
-        scale: 2,
+        scale: 1.5,
         windowWidth: 288,
         windowHeight: contentHeight,
-        logging: false 
+        logging: false,
+        backgroundColor: '#ffffff'
       });
-      const base64 = canvas.toDataURL('image/png');
+      
+      // Use JPEG with 0.6 quality for massive payload size reduction over TCP
+      const base64 = canvas.toDataURL('image/jpeg', 0.6);
       document.body.removeChild(iframe);
 
       // We will pull the configured Native printer from local storage

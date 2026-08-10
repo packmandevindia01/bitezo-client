@@ -92,8 +92,8 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
 
       {/* Right Column: Order Panel */}
       <div className={`
-        fixed inset-y-0 right-0 z-50 w-[85%] max-w-[460px] transform transition-transform duration-300 ease-in-out bg-white shadow-2xl
-        lg:static lg:w-[30%] xl:w-[28%] max-w-[460px] min-w-[320px] xl:min-w-[350px] lg:translate-x-0 lg:shadow-none lg:z-auto lg:h-full lg:overflow-hidden
+        fixed inset-y-0 right-0 z-50 w-[85%] sm:w-[45%] max-w-[460px] transform transition-transform duration-300 ease-in-out bg-white shadow-2xl
+        md:static md:w-[35%] lg:w-[30%] xl:w-[28%] min-w-[280px] md:min-w-[320px] xl:min-w-[350px] md:translate-x-0 md:shadow-none md:z-auto md:h-full md:overflow-hidden
         ${isCartOpen ? "translate-x-0" : "translate-x-full"}
       `}>
         <ErrorBoundary name="Order Panel">

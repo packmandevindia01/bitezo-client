@@ -8,6 +8,10 @@ interface Props {
   onChange: <K extends keyof BackofficeConfigState>(key: K, value: BackofficeConfigState[K]) => void;
   productTypeOptions: {label: string, value: string}[];
   vatOptions: {label: string, value: string}[];
+  paymodeOptions: {label: string, value: string}[];
+  backofficeBranches?: {label: string, value: string}[];
+  selectedBranch?: string;
+  onBranchChange?: (branchId: string) => void;
 }
 
 // Tab navigation helper — moves focus to the next field on Enter
@@ -22,9 +26,29 @@ const handleKeyDown = (
 };
 
 // Named export — strictly following project rules
-export const BackofficeSettingsTab = ({ form, onChange, productTypeOptions, vatOptions }: Props) => {
+export const BackofficeSettingsTab = ({
+  form,
+  onChange,
+  productTypeOptions,
+  vatOptions,
+  paymodeOptions,
+  backofficeBranches,
+  selectedBranch,
+  onBranchChange
+}: Props) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* ── Branch Selection ────────────────────────────────────────── */}
+      {backofficeBranches && onBranchChange && (
+        <SelectInput
+          id="bo-conf-branch-select"
+          label="Branch Name"
+          value={selectedBranch || ""}
+          onChange={(e) => onBranchChange(e.target.value)}
+          options={backofficeBranches}
+        />
+      )}
+
       {/* ── Products & VAT ─────────────────────────────────────────── */}
       <SelectInput
         id="bo-conf-product-type"
@@ -43,8 +67,18 @@ export const BackofficeSettingsTab = ({ form, onChange, productTypeOptions, vatO
         tabIndex={2}
         value={form.defaultVat}
         onChange={(e) => onChange("defaultVat", e.target.value)}
-        onKeyDown={(e) => handleKeyDown(e, "bo-conf-stock-method")}
+        onKeyDown={(e) => handleKeyDown(e, "bo-conf-paymode-select")}
         options={vatOptions}
+      />
+
+      <SelectInput
+        id="bo-conf-paymode-select"
+        label="Default Paymode"
+        tabIndex={3}
+        value={form.defaultPaymode}
+        onChange={(e) => onChange("defaultPaymode", e.target.value)}
+        onKeyDown={(e) => handleKeyDown(e, "bo-conf-stock-method")}
+        options={paymodeOptions}
       />
 
       <SelectInput

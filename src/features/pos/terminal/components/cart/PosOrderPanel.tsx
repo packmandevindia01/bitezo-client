@@ -139,7 +139,7 @@ export const PosOrderPanel = ({
       )}
 
       {/* Utility Action Bar */}
-      <div className="grid grid-cols-5 gap-1 lg:gap-1.5 p-1.5 lg:p-2 shrink-0 border-b border-slate-100 bg-slate-50/50">
+      <div className="grid grid-cols-5 gap-1 lg:gap-1.5 [@media(max-height:800px)]:gap-0.5 p-1.5 lg:p-2 [@media(max-height:800px)]:p-1 shrink-0 border-b border-slate-100 bg-slate-50/50">
         
         {/* ROW 1: QTY, PRICE, DISCOUNT, VOID, MESSAGE */}
         {/* QTY — manual quantity override */}
@@ -148,7 +148,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Manual Quantity"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
@@ -156,11 +156,11 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="4" x2="20" y1="9" y2="9" /><line x1="4" x2="20" y1="15" y2="15" />
             <line x1="10" x2="8" y1="3" y2="21" /><line x1="16" x2="14" y1="3" y2="21" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">Qty</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Qty</span>
         </button>
 
         {/* PRICE */}
@@ -169,7 +169,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Change Price"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-[#f37021] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#f37021]"
@@ -177,8 +177,8 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <DollarSign size={14} strokeWidth={2.5} color="currentColor" />
-          <span className="text-[8px] font-black uppercase tracking-widest">Price</span>
+          <DollarSign className="w-3 h-3 lg:w-3.5 lg:h-3.5" strokeWidth={2.5} color="currentColor" />
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Price</span>
         </button>
 
         {/* DISCOUNT */}
@@ -187,7 +187,7 @@ export const PosOrderPanel = ({
           disabled={cartDetails.length === 0}
           title="Apply Discount"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${cartDetails.length > 0
               ? "bg-white border-slate-200 shadow-sm hover:border-[#f37021] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#f37021]"
@@ -195,8 +195,8 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <Tag size={14} strokeWidth={2.5} color="currentColor" />
-          <span className="text-[8px] font-black uppercase tracking-widest">Discount</span>
+          <Tag className="w-3 h-3 lg:w-3.5 lg:h-3.5" strokeWidth={2.5} color="currentColor" />
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Discount</span>
         </button>
 
         {/* VOID ITEM */}
@@ -205,7 +205,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Void selected item"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-red-500 hover:shadow hover:-translate-y-0.5 cursor-pointer text-red-500"
@@ -213,10 +213,10 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">Void</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Void</span>
         </button>
 
         {/* VOID ORDER */}
@@ -225,7 +225,7 @@ export const PosOrderPanel = ({
           disabled={cartDetails.length === 0}
           title="Void Entire Order"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${cartDetails.length > 0
               ? "bg-white border-slate-200 shadow-sm hover:border-red-500 hover:shadow hover:-translate-y-0.5 cursor-pointer text-red-500"
@@ -233,10 +233,10 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">Void Ord</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Void Ord</span>
         </button>
 
 
@@ -247,7 +247,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Decrease quantity"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-[#49293e] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#49293e]"
@@ -255,10 +255,10 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+          <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <path d="M5 12h14" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">QTY -</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">QTY -</span>
         </button>
 
         {/* PLUS — increment selected row */}
@@ -267,7 +267,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Increase quantity"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-[#49293e] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#49293e]"
@@ -275,10 +275,10 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+          <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">QTY +</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">QTY +</span>
         </button>
 
         {/* MOD */}
@@ -287,7 +287,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Mod"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
@@ -295,11 +295,11 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 7h-9" /><path d="M14 17H5" />
             <circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">Mod</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Mod</span>
         </button>
 
         {/* EXTRAS */}
@@ -308,7 +308,7 @@ export const PosOrderPanel = ({
           disabled={!hasSelection}
           title="Extras"
           className={`
-            h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
             ${hasSelection
               ? "bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
@@ -316,22 +316,22 @@ export const PosOrderPanel = ({
             }
           `}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">Extras</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Extras</span>
         </button>
 
         {/* MESSAGE */}
         <button
           onClick={onMessage}
           title="Add Message"
-          className="h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 border bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
+          className="h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 border bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span className="text-[8px] font-black uppercase tracking-widest">Msg</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Msg</span>
         </button>
 
       </div>

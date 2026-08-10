@@ -36,7 +36,7 @@ export const getBranchList = async () => {
 };
 
 export const getPaymodeList = async () => {
-  const response = await axiosInstance.get<PaymodeOption[]>("/paymode/paymode-list");
+  const response = await axiosInstance.get<PaymodeOption[]>("/paymode/list-name");
   return unwrap<PaymodeOption[]>(response);
 };
 

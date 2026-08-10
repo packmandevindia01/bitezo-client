@@ -562,7 +562,20 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           return rest;
         });
 
-        replaceItems(finalItems);
+        // Do not auto-populate the table with invoice items per user request.
+        // Provide a single empty row instead for manual entry.
+        replaceItems([{
+          id: generateUUID(),
+          product: "",
+          code: "",
+          unit: "",
+          qty: "1",
+          foc: "0",
+          price: "0",
+          vatId: "0",
+          vatPercent: "0",
+          discPercent: "0",
+        }]);
         
         const productIds = Array.from(new Set(finalItems.map((i: any) => i.product)));
         const options: any[] = [];
@@ -582,13 +595,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
               console.error("Failed to load product", err);
             }
         }
-        setProductOptions(prev => {
-          const newOpts = [...prev];
-          options.forEach(o => {
-            if (!newOpts.find(n => n.value === o.value)) newOpts.push(o);
-          });
-          return newOpts;
-        });
+        setProductOptions(options);
       }
     } catch (error: any) {
       console.error("Failed to fetch invoice details", error);

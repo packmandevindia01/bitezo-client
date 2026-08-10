@@ -166,6 +166,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         extras,
         modifiers,
         isExisting: true,
+        rawAmount: detail.amount ?? detail.netAmount ?? ((detail.price || 0) * (detail.qty || 1)),
+        rawVatAmount: detail.vatAmount || 0,
         mapId: detail.mapId,
         originalQty: detail.qty || 1,
         product: {
@@ -198,6 +200,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId,
         tableId: table!.tableId,
+        waiterName: master.employeeName ?? "Waiter",
       }));
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
       onEditSuccess?.();
@@ -225,7 +228,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId,
         tableId: table!.tableId,
-        isSettling: true
+        isSettling: true,
+        waiterName: master.employeeName ?? "Waiter",
       }));
       showToast(`Settling Order #${selectedMaster.orderNo}`, 'success');
       onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
@@ -278,17 +282,44 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       };
 
       // Since the backend might not provide subTotal explicitly, recalculate from items
-      let calculatedSubTotal = 0;
+      let totalVatBase = 0;
       mappedItems.forEach((item: any) => {
         let lineBase = item.price * item.quantity;
         if (item.extras && item.extras.length > 0) {
           item.extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
         }
-        calculatedSubTotal += lineBase;
+        item.lineBase = lineBase;
+        item.itemVatBase = (item.rawAmount || lineBase) - (item.rawVatAmount || 0);
+        totalVatBase += item.itemVatBase;
       });
-      printData.subTotal = calculatedSubTotal;
 
-      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
+      const calculatedSubTotal = master.vatExclAmount || totalVatBase;
+      const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
+      
+      const printMappedItems = mappedItems.map((item: any) => {
+        const trueLineTotal = item.itemVatBase * globalRatio;
+        const itemRatio = item.lineBase > 0 ? trueLineTotal / item.lineBase : 1;
+        
+        const adjustedExtras = item.extras?.map((ex: any) => ({
+          ...ex,
+          price: ex.price * itemRatio
+        })) || [];
+        
+        const adjustedPrice = item.price * itemRatio;
+        
+        return {
+          ...item,
+          price: adjustedPrice,
+          extras: adjustedExtras,
+          lineTotal: trueLineTotal,
+          product: { ...item.product, price: adjustedPrice }
+        };
+      });
+
+      printData.subTotal = calculatedSubTotal;
+      printData.vatAmount = master.vatAmount || 0;
+
+      const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
       const settingsRes = await printerSettingsApi.getGeneral();
       const billPrinter = settingsRes.data?.billPrinter || "No Printer";
       

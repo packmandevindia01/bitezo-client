@@ -21,9 +21,8 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 
 export const paymodeService = {
   list(): Promise<PaymodeRecord[]> {
-    const tenantId = localStorage.getItem("tenantId") || "";
     return unwrap(
-      axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/paymode-list?clientDb=${tenantId}`)
+      axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/list-name`)
     );
   },
 

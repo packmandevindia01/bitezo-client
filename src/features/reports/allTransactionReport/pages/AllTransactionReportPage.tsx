@@ -19,7 +19,7 @@ const AllTransactionReportPage = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const branchOptions = useMemo(() => {
-    return branches.map(b => ({
+    return (branches || []).map(b => ({
       label: b.branchName,
       value: String(b.id)
     }));
@@ -175,7 +175,7 @@ const AllTransactionReportPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  groupedData.map((group, gIdx) => {
+                  (groupedData || []).map((group, gIdx) => {
                     const isBalance = group.voucher.toLowerCase().includes("balance");
                     return (
                       <Fragment key={gIdx}>

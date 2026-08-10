@@ -104,9 +104,12 @@ const EmployeeModal = ({
           required
           placeholder="Enter employee code"
           tabIndex={2}
-          {...register("code")}
+          {...register("code", {
+            onChange: (e) => {
+              e.target.value = e.target.value.toUpperCase().replace(/\s/g, '');
+            }
+          })}
           error={errors.code?.message}
-          onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, ''), { shouldValidate: true, shouldDirty: true })}
           onKeyDown={(e) => handleKeyDown(e, "emp-branch")}
         />
 

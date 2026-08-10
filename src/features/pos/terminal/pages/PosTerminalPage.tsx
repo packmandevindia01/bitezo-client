@@ -161,12 +161,14 @@ export const PosTerminalPage = () => {
     isCartModified,
     subtotal: terminal.subtotal,
     totalDiscountAmount: terminal.discount,
-    totalServiceCharge: 0,
+    totalServiceCharge: terminal.totalServiceCharge,
+    totalLevy: terminal.totalLevy,
     totalVat: terminal.tax,
     total: terminal.total,
     deliveryCharge,
     tenderOptions: terminal.tenderOptions,
     decimalPart,
+    waiterName: terminal.waiterName,
     submitOrder: terminal.submitOrder,
     getDirectSettleOrderPayload: terminal.getDirectSettleOrderPayload,
     requestAuthorization,
@@ -682,7 +684,7 @@ export const PosTerminalPage = () => {
       
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="flex flex-col md:flex-row md:items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-3 lg:pl-4 xl:pl-6 pr-3">
+          <div className="flex flex-row items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-2 md:pl-3 lg:pl-4 xl:pl-6 pr-2 md:pr-3">
             <div className="shrink-0">
               <PosGroupTabs 
                 groups={terminal.groups} 
@@ -695,20 +697,20 @@ export const PosTerminalPage = () => {
               />
             </div>
             
-            <div className="flex-1 flex items-center justify-end py-2 md:py-1">
-              <div className="relative w-full max-w-xs group">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex-1 flex items-center justify-end py-1">
+              <div className="relative w-full max-w-[200px] md:max-w-xs group">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-2 md:pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
+                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
                 <input
                   type="text"
-                  autoFocus={window.innerWidth >= 768 && !Capacitor.isNativePlatform()}
+                  autoFocus={window.innerWidth >= 600 && !Capacitor.isNativePlatform()}
                   value={terminal.search}
                   onChange={(e) => terminal.setSearch(e.target.value)}
                   placeholder="Search by name..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-10 text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-1 focus:ring-[#f37021]/20 transition-all outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 md:py-2 px-8 md:px-10 text-[11px] md:text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-1 focus:ring-[#f37021]/20 transition-all outline-none"
                 />
               </div>
             </div>
@@ -725,7 +727,7 @@ export const PosTerminalPage = () => {
             </div>
           )}
 
-          <main className="flex flex-col flex-1 overflow-hidden md:grid md:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[minmax(260px,22%)_minmax(0,1fr)]">
+          <main className="flex-1 overflow-hidden grid grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[150px_minmax(0,1fr)] lg:grid-cols-[160px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]">
             <PosCategoryRail
               categories={terminal.categories}
               activeCategoryId={terminal.activeCategoryId ? terminal.activeCategoryId.toString() : ""}
@@ -754,7 +756,7 @@ export const PosTerminalPage = () => {
                 {!modals.isCartOpen && (
                   <button
                     onClick={() => modals.setIsCartOpen(true)}
-                    className="lg:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
+                    className="md:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />

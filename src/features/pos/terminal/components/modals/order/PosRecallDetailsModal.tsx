@@ -185,15 +185,35 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         let lineBase = (d.price || 0) * (d.qty || 1);
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
         
+        // Use the VAT-inclusive net amount as lineTotal so the KOT template
+        // shows the same amounts as the Order & Print flow (which uses inclusive lineTotal).
+        // d.netAmount from API = vatBase + vatAmount (inclusive).
+        // Fallback: lineBase + vatAmount if netAmount is missing.
+        const vatAmt = d.vatAmount || 0;
+        const inclusiveLineTotal = d.netAmount || (lineBase + vatAmt);
+        
+        let pId = d.productId || d.itemId || 0;
+        let matchedProduct = pId ? products.find((p: any) => p.id === pId) : null;
+        if (!matchedProduct && d.productName) {
+          matchedProduct = products.find((p: any) => p.name === d.productName || p.name === d.ProductName);
+          if (matchedProduct) pId = matchedProduct.id;
+        }
+        
         return {
-          productId: d.productId || d.itemId || 0,
-          categoryId: d.categoryId || 0,
+          productId: pId,
+          categoryId: d.categoryId || matchedProduct?.categoryId || 0,
           quantity: d.qty || 1,
           price: d.price || 0,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          product: { 
+            name: d.productName || d.ProductName || matchedProduct?.name || `Product #${pId}`, 
+            price: d.price || 0,
+            categoryId: d.categoryId || matchedProduct?.categoryId || 0
+          },
           extras,
           modifiers,
-          lineTotal: lineBase
+          lineTotal: inclusiveLineTotal,
+          vatAmount: vatAmt,
+          netAmount: inclusiveLineTotal
         };
       });
 
@@ -265,28 +285,49 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         } catch { /* ignore */ }
       }
 
-      let calculatedSubTotal = 0;
-      const mappedItems = details.map((d: any) => {
+      let totalVatBase = 0;
+      const preMapped = details.map((d: any) => {
+        const itemLineNetAmount = d.amount ?? d.netAmount ?? ((d.price || 0) * (d.qty || 1));
+        const itemVatBase = itemLineNetAmount - (d.vatAmount || 0);
+        totalVatBase += itemVatBase;
+        
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1, typeId: m.typeId
         }));
         const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+          id: m.modifierId, name: m.modifierName, qty: m.qty || 1, typeId: m.typeId
         }));
         
         let lineBase = (d.price || 0) * (d.qty || 1);
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
-        calculatedSubTotal += lineBase;
+        
+        return { ...d, itemVatBase, extras, modifiers, lineBase };
+      });
+
+      const calculatedSubTotal = master.vatExclAmount || totalVatBase;
+      const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
+      let calculatedVatTotal = master.vatAmount || details.reduce((sum: number, d: any) => sum + (d.vatAmount || 0), 0);
+
+      const mappedItems = preMapped.map((d: any) => {
+        const trueLineTotal = d.itemVatBase * globalRatio;
+        const itemRatio = d.lineBase > 0 ? trueLineTotal / d.lineBase : 1;
+        
+        const adjustedExtras = d.extras.map((ex: any) => ({
+          ...ex,
+          price: ex.price * itemRatio
+        }));
+        
+        const adjustedPrice = (d.price || 0) * itemRatio;
         
         return {
           productId: d.productId || d.itemId || 0,
           quantity: d.qty || 1,
-          price: d.price || 0,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
-          extras,
-          modifiers,
-          lineTotal: lineBase
+          price: adjustedPrice,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: adjustedPrice },
+          extras: adjustedExtras,
+          modifiers: d.modifiers,
+          lineTotal: trueLineTotal
         };
       });
 
@@ -323,7 +364,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         subTotal: calculatedSubTotal,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
-        vatAmount: master.vatAmount || 0,
+        vatAmount: calculatedVatTotal,
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat

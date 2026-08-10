@@ -16,6 +16,7 @@ const BackofficeConfigurationPage = () => {
     loadingBackoffice,
     productTypeOptions,
     vatOptions,
+    paymodeOptions,
   } = useConfigurationManager();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,7 +74,7 @@ const BackofficeConfigurationPage = () => {
         >
           <div className="p-4 md:p-6 min-h-[400px]">
             {loadingBackoffice ? (
-              <div className="flex h-64 items-center justify-center text-gray-400">
+              <div className="flex h-[#200px] items-center justify-center text-gray-400">
                 Loading configuration...
               </div>
             ) : (
@@ -82,6 +83,10 @@ const BackofficeConfigurationPage = () => {
                 onChange={setBackofficeField}
                 productTypeOptions={productTypeOptions}
                 vatOptions={vatOptions}
+                paymodeOptions={paymodeOptions}
+                backofficeBranches={backofficeBranches}
+                selectedBranch={selectedBranch}
+                onBranchChange={setSelectedBranch}
               />
             )}
           </div>

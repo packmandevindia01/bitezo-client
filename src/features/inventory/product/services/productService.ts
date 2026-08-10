@@ -15,11 +15,10 @@ const BASE = "/product";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
-
   try {
     const { data: envelope } = await promise;
 
-    if (!envelope.isSuccess) {
+    if (envelope && envelope.isSuccess === false) {
       const firstError = envelope.errors?.[0] as any;
       const msg = (typeof firstError === 'object' ? firstError.message : firstError) 
                   ?? envelope.message 
@@ -34,13 +33,20 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
   } catch (error: any) {
     const responseData = error.response?.data;
     if (responseData) {
-      const envelope = responseData as ApiResponse<any>;
-      const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? firstError.message : firstError) 
-                  ?? envelope.message 
-                  ?? error.message;
+      console.error("================ API ERROR RESPONSE ================");
+      console.error("HTTP Status:", error.response?.status);
+      console.error("Raw Error Body:", JSON.stringify(responseData, null, 2));
+      if (responseData.errors) {
+        console.error("Validation Errors:", responseData.errors);
+        const errorEntries = typeof responseData.errors === 'object'
+          ? Object.entries(responseData.errors).map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          : [String(responseData.errors)];
+        throw new Error(`API Validation Error (${error.response?.status}): ${errorEntries.join(' | ')}`);
+      }
+      const msg = responseData.title || responseData.message || error.message;
       throw new Error(msg);
     }
+    console.error("[productService] Request failed:", error);
     throw error;
   }
 }
@@ -129,20 +135,19 @@ export const productService = {
   },
 
   /** PUT /api/product/{productId} */
-  async update(productId: number, payload: UpdateProductPayload & { imageFile?: File }): Promise<{ id: number }> {
-    const { imageFile, ...jsonData } = payload;
+  async update(productId: number, payload: UpdateProductPayload & { imageFile?: File; oldPath?: string }): Promise<{ id: number }> {
+    const { imageFile, oldPath, ...jsonData } = payload;
     const url = `${BASE}/${productId}`;
 
     // 1. Update product as JSON
     const data = await unwrap(
       axiosInstance.put<ApiResponse<{ id: number }>>(url, jsonData)
-
     );
 
-    // 2. If a new image was provided, upload it
+    // 2. If a new image was explicitly selected by the user, upload it
     if (imageFile) {
       try {
-        await productService.uploadImage(productId, imageFile);
+        await productService.uploadImage(productId, imageFile, oldPath || (jsonData as any).filePath || "string");
       } catch (error) {
         console.error("[ProductService] Image upload failed after update:", error);
       }

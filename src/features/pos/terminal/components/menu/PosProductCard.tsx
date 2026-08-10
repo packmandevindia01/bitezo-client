@@ -52,7 +52,7 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
         group relative flex flex-col justify-between
         rounded-xl border border-slate-200 bg-white text-left overflow-hidden
         transition-all duration-300 hover:shadow-lg hover:shadow-[#49293e]/5 hover:-translate-y-0.5
-        h-[95px] md:h-[112px] lg:h-[120px] xl:h-[130px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
+        h-[75px] sm:h-[95px] md:h-[105px] lg:h-[100px] xl:h-[115px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
       "
     >
       <div className="relative w-full h-[57%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
@@ -93,11 +93,11 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
 
       <div className="w-full flex-1 min-h-0 flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
         <div className="w-full flex flex-col items-center justify-center text-center">
-          <h3 className="text-[9.5px] md:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
+          <h3 className="text-[8.5px] sm:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
             {product.name}
           </h3>
           {product.arabicName && (
-            <p className="text-[8.5px] md:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
+            <p className="text-[7.5px] sm:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
               {product.arabicName}
             </p>
           )}

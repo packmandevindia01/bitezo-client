@@ -79,7 +79,12 @@
     scrollbar-width: auto;
   }
   .scrollbar-wide::-webkit-scrollbar {
-    width: 48px;
+    width: 24px;
+  }
+  @media (min-width: 1024px) {
+    .scrollbar-wide::-webkit-scrollbar {
+      width: 48px;
+    }
   }
   .scrollbar-wide::-webkit-scrollbar-track {
     background-color: #ffffff; /* Pure white column */

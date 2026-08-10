@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { INITIAL_CONFIG, INITIAL_BACKOFFICE_CONFIG } from "../constants";
 import type { ConfigurationState, DeliveryCharge, BackofficeConfigState } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
@@ -12,6 +13,7 @@ export interface ConfigurationEmployeeOption {
 }
 
 export const useConfigurationManager = () => {
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [form, setForm] = useState<ConfigurationState>(INITIAL_CONFIG);
   const [backofficeForm, setBackofficeFormState] = useState<BackofficeConfigState>(INITIAL_BACKOFFICE_CONFIG);
@@ -25,6 +27,7 @@ export const useConfigurationManager = () => {
   // Dropdown Options State
   const [productTypeOptions, setProductTypeOptions] = useState<{label: string, value: string}[]>([]);
   const [vatOptions, setVatOptions] = useState<{label: string, value: string}[]>([]);
+  const [paymodeOptions, setPaymodeOptions] = useState<{label: string, value: string}[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -59,9 +62,10 @@ export const useConfigurationManager = () => {
 
     const loadDropdownOptions = async () => {
       try {
-        const [productTypesRes, vatsRes] = await Promise.all([
+        const [productTypesRes, vatsRes, paymodesRes] = await Promise.all([
           axiosInstance.get("/product/list-product-type-name").catch(() => ({ data: { data: [] } })),
-          axiosInstance.get("/vat/vat-list").catch(() => ({ data: { data: [] } }))
+          axiosInstance.get("/vat/vat-list").catch(() => ({ data: { data: [] } })),
+          axiosInstance.get("/paymode/list-name").catch(() => ({ data: { data: [] } }))
         ]);
 
         if (!active) return;
@@ -76,6 +80,12 @@ export const useConfigurationManager = () => {
         setVatOptions(vats.map((v: any) => ({
           label: v.vatName || v.name || `${v.vatValue || 0}%`,
           value: String(v.id || v.vatId || "")
+        })));
+
+        const paymodes = paymodesRes.data?.data || [];
+        setPaymodeOptions(paymodes.map((pm: any) => ({
+          label: pm.paymodeName || pm.name || "Unknown",
+          value: String(pm.paymodeId || pm.id || "")
         })));
       } catch (err) {
         console.error("Failed to load dropdown options", err);
@@ -108,6 +118,7 @@ export const useConfigurationManager = () => {
           setBackofficeFormState({
             defaultProductType: config.productType?.toString() || INITIAL_BACKOFFICE_CONFIG.defaultProductType,
             defaultVat: config.vatId?.toString() || INITIAL_BACKOFFICE_CONFIG.defaultVat,
+            defaultPaymode: config.paymodeId?.toString() || INITIAL_BACKOFFICE_CONFIG.defaultPaymode,
             advancedProductSearch: !!config.advancedProductSearch,
             displayAllUnits: !!config.displayAllUnit,
             stockValueMethod: config.stockValueMethod || INITIAL_BACKOFFICE_CONFIG.stockValueMethod,
@@ -196,12 +207,26 @@ export const useConfigurationManager = () => {
     setSaving(true);
     try {
       const payload = {
-        ...backofficeForm,
-        branchId: Number(selectedBranch),
-        productType: Number(backofficeForm.defaultProductType),
-        vatId: Number(backofficeForm.defaultVat),
+        productType: Number(backofficeForm.defaultProductType || 0),
+        vatId: Number(backofficeForm.defaultVat || 0),
+        paymodeId: Number(backofficeForm.defaultPaymode || 0),
+        advancedProductSearch: !!backofficeForm.advancedProductSearch,
+        advancedSearch: !!backofficeForm.advancedProductSearch,
+        displayAllUnit: !!backofficeForm.displayAllUnits,
+        stockValueMethod: backofficeForm.stockValueMethod || "AverageCost",
+        updateLndCost: !!backofficeForm.updateLndCost,
+        updateLndCostType: backofficeForm.updateLndCostType || "All",
+        supplierProductInPurchase: !!backofficeForm.supplierProductsInPurchase,
+        discountCalculation: backofficeForm.discountCalculation || "Exclusive",
+        updateSupplierInPurchase: !!backofficeForm.autoUpdateSupplier,
+        focustAmountInPurchase: true,
+        barcodeView: !!backofficeForm.barcodeView,
+        vatStatus: !!backofficeForm.vatStatus,
+        branchId: Number(selectedBranch)
       };
       await backofficeConfigApi.updateConfig(Number(selectedBranch), payload as any);
+      await queryClient.invalidateQueries({ queryKey: ["backofficeBranchConfig"] });
+      await queryClient.invalidateQueries({ queryKey: ["backofficeConfig"] });
       showToast("Backoffice Configuration saved successfully", "success");
       return true;
     } catch (err: any) {
@@ -238,5 +263,6 @@ export const useConfigurationManager = () => {
     loadingBackoffice,
     productTypeOptions,
     vatOptions,
+    paymodeOptions,
   };
 };

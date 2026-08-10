@@ -131,6 +131,7 @@ export interface CreateProductPayload {
   colorCode: string;
   createdAt: string;
   oldPath?: string | null;
+  OldPath?: string | null;
   altProducts: AltProductItem[];
   productColors: ProductColorItem[];
   openingStocks: OpeningStockItem[];
