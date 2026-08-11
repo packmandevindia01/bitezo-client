@@ -37,7 +37,13 @@ const ProductListPage = () => {
       setPendingDelete(null);
     },
     onError: (error: any) => {
-      showToast(error.message || "Failed to delete product", "error", "Error");
+      let errorMessage = error.message || "Failed to delete product";
+      // Clean up technical API prefixes and generic terms
+      errorMessage = errorMessage.replace(/^API Validation Error \(\d+\):\s*/i, "");
+      errorMessage = errorMessage.replace(/The specified reference/i, "Product");
+      errorMessage = errorMessage.replace(/\.+$/, "");
+      
+      showToast(errorMessage, "error", "Error");
       setPendingDelete(null);
     }
   });

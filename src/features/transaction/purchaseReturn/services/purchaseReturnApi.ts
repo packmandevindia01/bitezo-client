@@ -133,12 +133,18 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
-  getPurchaseInvoiceBalanceQty: async (purchaseId: number, productId: number) => {
+  getPurchaseInvoiceBalanceQty: async (purchaseId: number, productId: number, returnId?: number | string) => {
+    const params: any = {};
+    if (returnId && Number(returnId) > 0) {
+      params.returnId = returnId;
+    }
     const response = await axiosInstance.get<{
-      data: number;
+      data: number | { baseQty?: number; balanceQty?: number; balance?: number };
       isSuccess: boolean;
       message: string;
-    }>(`/purchase-return-invoice/${purchaseId}/purchase-invoice-balance-qty/${productId}`);
+    }>(`/purchase-return-invoice/${purchaseId}/purchase-invoice-balance-qty/${productId}`, {
+      params
+    });
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data.data;
   },

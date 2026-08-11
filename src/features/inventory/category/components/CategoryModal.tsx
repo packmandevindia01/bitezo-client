@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Building2, Save, RotateCcw, Trash2, LayoutGrid, ListTree } from "lucide-react";
+import { Building2, Save, RotateCcw, Trash2, LayoutGrid, Clock } from "lucide-react";
 import { Button, Checkbox, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
 import type { BranchOption } from "../types";
-import type { GroupListItem } from "../../group/types";
+import type { MenuSettingsListItem } from "../../../general/menuSettings/types";
 import type { UseFormReturn } from "react-hook-form";
 import type { CategoryForm } from "../schemas";
 import SearchBar from "../../../../components/common/SearchBar";
@@ -13,7 +13,7 @@ interface Props {
   form: UseFormReturn<CategoryForm>;
   saving: boolean;
   branchOptions: BranchOption[];
-  groups: GroupListItem[];
+  menuTimes: MenuSettingsListItem[];
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
@@ -26,22 +26,23 @@ const CategoryModal = ({
   form,
   saving,
   branchOptions,
-  groups,
+  menuTimes,
   onClose,
   onClear,
   onSave,
   onDelete,
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<"general" | "groups" | "branches">("general");
-  const [searchGroup, setSearchGroup] = useState("");
+  const [activeTab, setActiveTab] = useState<"general" | "menuTimes" | "branches">("general");
+  const [searchMenu, setSearchMenu] = useState("");
   const [searchBranch, setSearchBranch] = useState("");
 
   const { register, watch, setValue, formState: { errors } } = form;
 
   const image = watch("image");
   const branchAllocations = watch("branchAllocations") || [];
-  const groupIds = watch("groupIds") || [];
+  const menuIds = watch("menuIds") || [];
   const isActive = watch("isActive");
+  const posStatus = watch("posStatus");
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
@@ -52,11 +53,11 @@ const CategoryModal = ({
     }
   };
 
-  const onToggleGroup = (groupId: number) => {
-    if (groupIds.includes(groupId)) {
-      setValue("groupIds", groupIds.filter((id) => id !== groupId), { shouldValidate: true, shouldDirty: true });
+  const onToggleMenu = (menuId: number) => {
+    if (menuIds.includes(menuId)) {
+      setValue("menuIds", menuIds.filter((id) => id !== menuId), { shouldValidate: true, shouldDirty: true });
     } else {
-      setValue("groupIds", [...groupIds, groupId], { shouldValidate: true, shouldDirty: true });
+      setValue("menuIds", [...menuIds, menuId], { shouldValidate: true, shouldDirty: true });
     }
   };
 
@@ -79,7 +80,7 @@ const CategoryModal = ({
     }
   };
 
-  const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(searchGroup.toLowerCase()));
+  const filteredMenuTimes = menuTimes.filter(m => m.name.toLowerCase().includes(searchMenu.toLowerCase()));
   const filteredBranches = branchOptions.filter(b => b.name.toLowerCase().includes(searchBranch.toLowerCase()));
 
   return (
@@ -140,26 +141,26 @@ const CategoryModal = ({
               General
             </button>
             <button
-              onClick={() => setActiveTab("groups")}
+              onClick={() => setActiveTab("menuTimes")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
-                activeTab === "groups"
+                activeTab === "menuTimes"
                   ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
-                  : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
+                  : errors.menuIds ? "bg-red-50 text-red-600 border-red-200" : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
               }`}
             >
-              <ListTree size={14} />
-              Group Allocation
+              <Clock size={14} />
+              Menu Time Allocation <span className="text-red-500">*</span>
             </button>
             <button
               onClick={() => setActiveTab("branches")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
                 activeTab === "branches"
                   ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
-                  : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
+                  : errors.branchAllocations ? "bg-red-50 text-red-600 border-red-200" : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
               }`}
             >
               <Building2 size={14} />
-              Branch Allocation
+              Branch Allocation <span className="text-red-500">*</span>
             </button>
           </div>
         </div>
@@ -206,41 +207,51 @@ const CategoryModal = ({
                   />
                 </div>
 
-                <div className="mt-4 flex items-center gap-4">
+                <div className="mt-4 flex items-center gap-6 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <Checkbox
                     label="Active Status"
                     checked={isActive}
                     onChange={(e) => setValue("isActive", e.target.checked, { shouldDirty: true })}
+                  />
+                  <Checkbox
+                    label="Show on POS"
+                    checked={posStatus}
+                    onChange={(e) => setValue("posStatus", e.target.checked, { shouldDirty: true })}
                   />
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === "groups" && (
+          {activeTab === "menuTimes" && (
             <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4 flex flex-col h-[350px]">
+              {errors.menuIds?.message && (
+                <p className="text-xs font-bold text-red-600 mb-3 bg-red-50 p-2 rounded-lg border border-red-200">
+                  ⚠️ {errors.menuIds.message}
+                </p>
+              )}
               <div className="flex items-center justify-between shrink-0 mb-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Group Allocation</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Menu Time Allocation *</p>
                 <div className="w-64">
                   <SearchBar 
-                    value={searchGroup}
-                    onChange={setSearchGroup}
-                    placeholder="Search groups..."
+                    value={searchMenu}
+                    onChange={setSearchMenu}
+                    placeholder="Search menu times..."
                   />
                 </div>
               </div>
               <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-2">
-                {filteredGroups.length === 0 ? (
-                  <p className="text-[10px] text-gray-400">No groups available.</p>
+                {filteredMenuTimes.length === 0 ? (
+                  <p className="text-[10px] text-gray-400">No menu times available.</p>
                 ) : (
-                  filteredGroups.map((group) => {
-                    const active = groupIds.includes(group.grpId);
+                  filteredMenuTimes.map((menu) => {
+                    const active = menuIds.includes(menu.menuId);
                     return (
-                      <div key={group.grpId} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
-                        <span className="text-sm font-medium text-gray-700">{group.name}</span>
+                      <div key={menu.menuId} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
+                        <span className="text-sm font-medium text-gray-700">{menu.name}</span>
                         <button
                           type="button"
-                          onClick={() => onToggleGroup(group.grpId)}
+                          onClick={() => onToggleMenu(menu.menuId)}
                           className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                             active
                               ? "bg-[#49293e] text-white"
@@ -260,8 +271,13 @@ const CategoryModal = ({
 
           {activeTab === "branches" && (
             <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4 flex flex-col h-[350px]">
+              {errors.branchAllocations?.message && (
+                <p className="text-xs font-bold text-red-600 mb-3 bg-red-50 p-2 rounded-lg border border-red-200">
+                  ⚠️ {errors.branchAllocations.message}
+                </p>
+              )}
               <div className="flex items-center justify-between shrink-0 mb-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation *</p>
                 <div className="w-64">
                   <SearchBar 
                     value={searchBranch}

@@ -49,13 +49,24 @@ export const menuApi = {
         currentTime: timeSpanString
       }
     }));
-    const groups = raw.groups ?? raw.group ?? [];
+    const rawMenu = raw.menu ?? raw.groups ?? raw.group ?? [];
+    const menu = rawMenu.map((m: any) => ({
+      menuId: m.menuId ?? m.groupId ?? 0,
+      menuName: m.menuName ?? m.groupName ?? "",
+      arabicName: m.arabicName ?? "",
+    }));
+    const legacyGroup = rawMenu.map((m: any) => ({
+      groupId: m.menuId ?? m.groupId ?? 0,
+      groupName: m.menuName ?? m.groupName ?? "",
+      arabicName: m.arabicName ?? "",
+    }));
     const categories = raw.categories ?? raw.category ?? [];
     const orderTypes = raw.orderTypes ?? [];
     const paymodes = raw.paymodes ?? [];
 
     return {
-      group: groups,
+      menu,
+      group: legacyGroup,
       category: categories.map((c: any) => ({
         id: c.categoryId,
         name: c.categoryName,
@@ -74,10 +85,10 @@ export const menuApi = {
       params: { clientDb: localStorage.getItem("tenantId") || "" }
     })),
 
-  /** GET /api/menu/{groupId}/categories */
-  getGroupCategories: async (groupId: number, orderTypeId?: number) => {
+  /** GET /api/menu/{menuId}/categories */
+  getGroupCategories: async (menuId: number, orderTypeId?: number) => {
     try {
-      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${groupId}/categories`, {
+      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${menuId}/categories`, {
         params: {
           clientDb: localStorage.getItem("tenantId") || "",
           orderTypeId
@@ -91,9 +102,13 @@ export const menuApi = {
         colorCode: c.colorCode
       })) as PosCategory[];
     } catch (error) {
-      console.error(`[menuApi] Failed to fetch group categories for groupId ${groupId}:`, error);
+      console.error(`[menuApi] Failed to fetch menu categories for menuId ${menuId}:`, error);
       return [];
     }
+  },
+
+  getMenuCategories: async (menuId: number, orderTypeId?: number) => {
+    return menuApi.getGroupCategories(menuId, orderTypeId);
   },
 
   /** GET /api/menu/categories/{categoryId}/sub-categories */
@@ -127,9 +142,11 @@ export const menuApi = {
         price: p.price,
         imageUrl: p.imageUrl,
         colorCode: p.colorCode,
+        vatId: p.vatId,
         vatValue: p.vatValue,
         unitId: p.unitId ?? p.defaultUnitId ?? undefined,
         hasAlternatives: p.hasAlternatives ?? false,
+        isLocked: p.isLocked ?? false,
         isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
                 p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
                 p.isincl !== undefined ? Boolean(p.isincl) :

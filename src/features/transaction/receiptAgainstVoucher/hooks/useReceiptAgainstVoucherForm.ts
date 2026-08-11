@@ -18,6 +18,8 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
 
   const form = useForm<ReceiptAgainstVoucherFormData>({
     resolver: zodResolver(receiptAgainstVoucherSchema) as any,
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       transId: undefined,
       seriesId: 0,

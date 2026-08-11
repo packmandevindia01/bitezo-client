@@ -34,7 +34,7 @@ const PaymentVoucherFormPage = () => {
 
   const canSave = !isCancelled;
 
-  const { watch, setValue } = form;
+  const { watch, setValue, formState: { errors } } = form;
   const watchedAmount = watch("amount");
 
   // Stores the paymodeId that was active before the MultiPay modal was opened.
@@ -95,26 +95,30 @@ const PaymentVoucherFormPage = () => {
             <SearchableSelect
               id="pv-branch"
               label="BRANCH"
+              required
               autoFocus
               value={String(watch("branchId") || "")}
-              onChange={(val) => setValue("branchId", Number(val))}
+              onChange={(val) => setValue("branchId", Number(val), { shouldValidate: true })}
               placeholder="Select Branch"
               options={formBranchList.map((b: {branchId: number, branchName: string}) => ({ label: b.branchName, value: String(b.branchId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "pv-series")}
               tabIndex={1}
               disabled={!canSave || isBranchLocked}
+              error={errors.branchId?.message as string}
             />
             
             <FormInput
               id="pv-date"
               label="DATE"
+              required
               type="date"
               max={new Date().toISOString().split("T")[0]}
               value={watch("voucherDate")}
-              onChange={(e) => setValue("voucherDate", e.target.value)}
+              onChange={(e) => setValue("voucherDate", e.target.value, { shouldValidate: true })}
               onKeyDown={(e) => handleKeyDown(e, "pv-employee")}
               tabIndex={3}
               readOnly={!canSave}
+              error={errors.voucherDate?.message as string}
             />
 
             <FormInput
@@ -130,10 +134,11 @@ const PaymentVoucherFormPage = () => {
             <SearchableSelect
               id="pv-account"
               label="ACCOUNT"
+              required
               value={String(watch("accountId") || "")}
               onChange={(val) => {
                 const accId = Number(val);
-                setValue("accountId", accId);
+                setValue("accountId", accId, { shouldValidate: true });
                 const selectedAccount = accountList.find(a => a.accountId === accId);
                 if (selectedAccount) setValue("accountName", selectedAccount.accountName);
               }}
@@ -142,6 +147,7 @@ const PaymentVoucherFormPage = () => {
               onKeyDown={(e) => handleKeyDown(e as any, "pv-amount")}
               tabIndex={7}
               disabled={!canSave}
+              error={errors.accountId?.message as string}
             />
 
             <div className="flex items-end gap-2">
@@ -150,10 +156,11 @@ const PaymentVoucherFormPage = () => {
                   key={paymodeSelectKey}
                   id="pv-paymode"
                   label="PAYMODE"
+                  required
                   value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
                   onChange={(val) => {
                     const numVal = Number(val);
-                    setValue("paymodeId", numVal);
+                    setValue("paymodeId", numVal, { shouldValidate: true });
                     if (numVal === 3) setIsMultiPayOpen(true);
                   }}
                   placeholder="Select Paymode"
@@ -161,6 +168,7 @@ const PaymentVoucherFormPage = () => {
                   onKeyDown={(e) => handleKeyDown(e as any, "pv-narration")}
                   tabIndex={9}
                   disabled={!canSave}
+                  error={errors.paymodeId?.message as string}
                 />
               </div>
             </div>
@@ -171,25 +179,29 @@ const PaymentVoucherFormPage = () => {
             <SearchableSelect
               id="pv-series"
               label="SERIES"
+              required
               value={String(watch("seriesId") || "")}
-              onChange={(val) => setValue("seriesId", Number(val))}
+              onChange={(val) => setValue("seriesId", Number(val), { shouldValidate: true })}
               placeholder="Select Series"
               options={seriesList.map(s => ({ label: s.seriesName, value: String(s.seriesId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "pv-date")}
               tabIndex={2}
               disabled={!canSave}
+              error={errors.seriesId?.message as string}
             />
 
             <SearchableSelect
               id="pv-employee"
               label="EMPLOYEE"
+              required
               value={String(watch("employeeId") || "")}
-              onChange={(val) => setValue("employeeId", Number(val))}
+              onChange={(val) => setValue("employeeId", Number(val), { shouldValidate: true })}
               placeholder="Select Employee"
               options={employeeList.map(e => ({ label: e.employeeName, value: String(e.employeeId) }))}
               onKeyDown={(e) => handleKeyDown(e as any, "pv-no")}
               tabIndex={4}
               disabled={!canSave}
+              error={errors.employeeId?.message as string}
             />
 
             <FormInput
@@ -206,6 +218,7 @@ const PaymentVoucherFormPage = () => {
             <FormInput
               id="pv-amount"
               label="AMOUNT"
+              required
               type="number"
               inputClassName="text-right"
               min="0"
@@ -213,13 +226,14 @@ const PaymentVoucherFormPage = () => {
               value={watchedAmount}
               onChange={(e) => {
                 if (e.target.value.length <= 15) {
-                  setValue("amount", e.target.value);
+                  setValue("amount", e.target.value, { shouldValidate: true });
                 }
               }}
               onKeyDown={(e) => handleKeyDown(e, "pv-paymode")}
               tabIndex={8}
               readOnly={!canSave}
               maxLength={15}
+              error={errors.amount?.message as string}
             />
 
             <FormInput

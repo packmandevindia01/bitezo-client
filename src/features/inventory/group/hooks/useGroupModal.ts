@@ -38,9 +38,6 @@ export const useGroupModal = () => {
           isActive: record.isActive === "Active",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          posStatus: false,
-          startTime: "00:00",
-          endTime: "00:00",
         },
       });
     } finally {

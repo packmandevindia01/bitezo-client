@@ -687,6 +687,7 @@ export const PosTerminalPage = () => {
           <div className="flex flex-row items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-2 md:pl-3 lg:pl-4 xl:pl-6 pr-2 md:pr-3">
             <div className="shrink-0">
               <PosGroupTabs 
+                menuTimes={terminal.menuTimes}
                 groups={terminal.groups} 
                 activeGroupId={terminal.activeGroupId} 
                 onSelect={(id) => {

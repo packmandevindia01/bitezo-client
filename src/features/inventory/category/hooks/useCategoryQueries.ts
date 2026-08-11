@@ -32,10 +32,11 @@ export const useCreateCategory = () => {
       name: data.name,
       arabic: data.arabic || "",
       isActive: data.isActive,
+      posStatus: data.posStatus,
       colorCode: data.colorCode,
       createdAt: new Date().toISOString(),
       branchIds: data.branchAllocations,
-      groupIds: data.groupIds,
+      menuIds: data.menuIds,
       imageFile: data.imageFile
     }),
     onSuccess: () => {
@@ -54,10 +55,11 @@ export const useUpdateCategory = () => {
         name: data.name,
         arabic: data.arabic || "",
         isActive: data.isActive,
+        posStatus: data.posStatus,
         colorCode: data.colorCode,
         updatedAt: new Date().toISOString(),
         branchIds: data.branchAllocations,
-        groupIds: data.groupIds,
+        menuIds: data.menuIds,
         imageFile: data.imageFile
       }),
     onSuccess: (_, variables) => {

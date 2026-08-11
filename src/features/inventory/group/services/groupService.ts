@@ -46,7 +46,7 @@ export const groupService = {
 
   getById(grpId: number): Promise<GroupDetail> {
     return unwrap(
-      axiosInstance.get<ApiResponse<GroupDetail>>(`${BASE}/${grpId}/subcatid-data`)
+      axiosInstance.get<ApiResponse<GroupDetail>>(`${BASE}/${grpId}/grpid-data`)
     );
   },
 

@@ -88,6 +88,7 @@ const PurchaseReportPage = lazy(() => import("../../features/reports/purchaseRep
 const PurchaseReturnReportPage = lazy(() => import("../../features/reports/purchaseReturnReport/pages/PurchaseReturnReportPage"));
 const ProductWisePurchaseReportPage = lazy(() => import("../../features/reports/productWisePurchaseReport/pages/ProductWisePurchaseReportPage"));
 const StockRegisterReportPage = lazy(() => import("../../features/reports/stockRegisterReport/pages/StockRegisterReportPage"));
+const StockAdjustmentReportPage = lazy(() => import("../../features/reports/stockAdjustmentReport/pages/StockAdjustmentReportPage"));
 const ProductTransactionLogReportPage = lazy(() => import("../../features/reports/productTransactionLogReport/pages/ProductTransactionLogReportPage"));
 const DailySalesReportPage = lazy(() => import("../../features/reports/dailySalesReport/pages/DailySalesReportPage"));
 const HourlySalesReportPage = lazy(() => import("../../features/reports/hourlySalesReport/pages/HourlySalesReportPage"));
@@ -253,6 +254,7 @@ const AppRoutes = () => {
                   <Route path="reports/purchase" element={<RoleGuard moduleName="Purchase Report"><PurchaseReportPage /></RoleGuard>} />
                   <Route path="reports/product-wise-purchase" element={<RoleGuard moduleName="Purchase Report"><ProductWisePurchaseReportPage /></RoleGuard>} />
                   <Route path="reports/stock-register" element={<RoleGuard moduleName="Purchase Report"><StockRegisterReportPage /></RoleGuard>} />
+                  <Route path="reports/stock-adjustment" element={<RoleGuard moduleName="Purchase Report"><StockAdjustmentReportPage /></RoleGuard>} />
                   <Route path="reports/purchase-return" element={<RoleGuard moduleName="Purchase Return Report"><PurchaseReturnReportPage /></RoleGuard>} />
                   <Route path="reports/product-transaction-log" element={<RoleGuard moduleName="Stock Report"><ProductTransactionLogReportPage /></RoleGuard>} />
                   <Route path="reports/daily-sales" element={<RoleGuard moduleName="Sales Report"><DailySalesReportPage /></RoleGuard>} />

@@ -38,10 +38,27 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
       console.error("Raw Error Body:", JSON.stringify(responseData, null, 2));
       if (responseData.errors) {
         console.error("Validation Errors:", responseData.errors);
-        const errorEntries = typeof responseData.errors === 'object'
-          ? Object.entries(responseData.errors).map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
-          : [String(responseData.errors)];
-        throw new Error(`API Validation Error (${error.response?.status}): ${errorEntries.join(' | ')}`);
+        
+        let errorMessages: string[] = [];
+        if (Array.isArray(responseData.errors)) {
+          errorMessages = responseData.errors.map((err: any) => {
+            if (typeof err === 'string') return err;
+            if (typeof err === 'object' && err !== null && err.message) return err.message;
+            return JSON.stringify(err);
+          });
+        } else if (typeof responseData.errors === 'object' && responseData.errors !== null) {
+          errorMessages = Object.entries(responseData.errors).map(([field, msgs]) => 
+            `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`
+          );
+        } else {
+          errorMessages = [String(responseData.errors)];
+        }
+        
+        const finalMessage = errorMessages.length > 0 && errorMessages[0] !== "{}" 
+          ? errorMessages.join(' | ') 
+          : responseData.message || "Unknown validation error";
+          
+        throw new Error(`API Validation Error (${error.response?.status}): ${finalMessage}`);
       }
       const msg = responseData.title || responseData.message || error.message;
       throw new Error(msg);

@@ -16,6 +16,7 @@ export interface PosProduct {
   prepTime?: string;
   imageUrl?: string | null;
   colorCode?: string;
+  vatId?: number;
   vatValue?: number;
   unitId?: number;
   hasAlternatives?: boolean;
@@ -165,6 +166,12 @@ export interface PrinterDataResponse {
 }
 // ─── Menu API Types ──────────────────────────────────────────────────────────
 
+export interface PosMenuTime {
+  menuId: number;
+  menuName: string;
+  arabicName?: string;
+}
+
 export interface MenuGroup {
   groupId: number;
   groupName: string;
@@ -184,7 +191,8 @@ export interface PosPaymode {
 }
 
 export interface MenuMasterData {
-  group: MenuGroup[];
+  menu: PosMenuTime[];
+  group?: MenuGroup[];
   category: PosCategory[];
   orderTypes: PosOrderType[];
   paymodes: PosPaymode[];

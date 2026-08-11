@@ -5,14 +5,15 @@ export const categoryFormSchema = z.object({
   name: z.string().min(1, "Name is required").max(50, "Maximum 50 characters allowed"),
   arabic: z.string().optional(),
   isActive: z.boolean().default(true),
+  posStatus: z.boolean().default(true),
   colorCode: z.string().default("red"),
   branchAllocations: z.array(
     z.object({
       branchId: z.number(),
       colorCode: z.string()
     })
-  ).default([]),
-  groupIds: z.array(z.number()).default([]),
+  ).min(1, "Please select at least one branch"),
+  menuIds: z.array(z.number()).min(1, "Please select at least one menu time"),
   imageFile: z.any().optional(), // File | undefined
   image: z.string().optional(),
 });

@@ -16,7 +16,7 @@ import {
   useCategoryBranches,
 } from "../hooks/useCategoryQueries";
 import { useQuery } from "@tanstack/react-query";
-import { groupService } from "../../group/services/groupService";
+import { menuSettingsApi } from "../../../general/menuSettings/services/menuSettingsApi";
 import { categoryApi } from "../api";
 import type { CategoryListItem } from "../types";
 
@@ -37,9 +37,9 @@ const CategoryPage = () => {
   // Data Fetching
   const { data: categories = [], isLoading } = useCategories();
   const { data: branchOptions = [] } = useCategoryBranches();
-  const { data: groups = [] } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => groupService.list(),
+  const { data: menuTimes = [] } = useQuery({
+    queryKey: ["menuTimeSettingsList"],
+    queryFn: () => menuSettingsApi.list(),
   });
 
   // Mutations
@@ -62,9 +62,10 @@ const CategoryPage = () => {
       code: "",
       name: "",
       isActive: true,
+      posStatus: true,
       colorCode: "red",
       branchAllocations: [],
-      groupIds: [],
+      menuIds: [],
     },
   });
 
@@ -74,9 +75,10 @@ const CategoryPage = () => {
       name: "",
       arabic: "",
       isActive: true,
+      posStatus: true,
       colorCode: "red",
       branchAllocations: [],
-      groupIds: [],
+      menuIds: [],
       imageFile: undefined,
       image: undefined,
     });
@@ -104,12 +106,13 @@ const CategoryPage = () => {
         name: detail.category?.name || "",
         arabic: detail.category?.arabic || "",
         isActive: detail.category?.isActive ?? true,
+        posStatus: detail.category?.posStatus ?? true,
         colorCode: detail.category?.colorCode || "red",
         branchAllocations: detail.branch?.map((b: any) => ({
           branchId: b.id,
           colorCode: b.colorCode || "red",
         })) || [],
-        groupIds: detail.group?.map((g: any) => g.id) || [],
+        menuIds: detail.menu?.map((m: any) => m.id ?? m.menuId) || [],
       });
       setOpen(true);
     } catch (err: any) {
@@ -117,35 +120,46 @@ const CategoryPage = () => {
     }
   };
 
-  const handleSave = form.handleSubmit((data) => {
-    setError(null);
-    if (editingId) {
-      updateMutation.mutate(
-        { id: editingId, data },
-        {
+  const handleSave = form.handleSubmit(
+    (data) => {
+      setError(null);
+      if (editingId) {
+        updateMutation.mutate(
+          { id: editingId, data },
+          {
+            onSuccess: () => {
+              showToast("Category updated successfully", "success");
+              setOpen(false);
+            },
+            onError: (err: any) => {
+              setError(err.message || "Failed to update category");
+              showToast(err.message || "Failed to update category", "error");
+            },
+          }
+        );
+      } else {
+        createMutation.mutate(data, {
           onSuccess: () => {
-            showToast("Category updated successfully", "success");
+            showToast("Category created successfully", "success");
             setOpen(false);
           },
           onError: (err: any) => {
-            setError(err.message || "Failed to update category");
-            showToast(err.message || "Failed to update category", "error");
+            setError(err.message || "Failed to create category");
+            showToast(err.message || "Failed to create category", "error");
           },
-        }
-      );
-    } else {
-      createMutation.mutate(data, {
-        onSuccess: () => {
-          showToast("Category created successfully", "success");
-          setOpen(false);
-        },
-        onError: (err: any) => {
-          setError(err.message || "Failed to create category");
-          showToast(err.message || "Failed to create category", "error");
-        },
-      });
+        });
+      }
+    },
+    (invalidErrors) => {
+      if (invalidErrors.menuIds?.message) {
+        showToast(String(invalidErrors.menuIds.message), "error");
+      } else if (invalidErrors.branchAllocations?.message) {
+        showToast(String(invalidErrors.branchAllocations.message), "error");
+      } else if (invalidErrors.name?.message) {
+        showToast(String(invalidErrors.name.message), "error");
+      }
     }
-  });
+  );
 
   const confirmDelete = () => {
     if (!deleteCandidate) return;
@@ -197,7 +211,7 @@ const CategoryPage = () => {
         form={form}
         saving={saving}
         branchOptions={branchOptions}
-        groups={groups}
+        menuTimes={menuTimes}
         onClose={() => setOpen(false)}
         onClear={resetForm}
         onSave={handleSave}

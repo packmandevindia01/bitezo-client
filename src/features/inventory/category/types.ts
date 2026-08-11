@@ -30,9 +30,10 @@ export interface CategoryListItem {
 }
 
 export interface CategoryDetailData {
-  category: CategoryListItem | null;
+  category: (CategoryListItem & { posStatus?: boolean }) | null;
   branch: (BranchOption & { colorCode?: string })[] | null;
   group: BranchOption[] | null;
+  menu?: { id: number; name: string; menuId?: number }[] | null;
 }
 
 export interface CategoryFormState {
@@ -40,9 +41,10 @@ export interface CategoryFormState {
   name: string;
   arabic: string;
   isActive: boolean;
+  posStatus: boolean;
   colorCode: string;
   branchAllocations: BranchAllocation[];
-  groupIds: number[];
+  menuIds: number[];
   imageFile?: File;
   image?: string; // Preview URL
 }
@@ -57,10 +59,11 @@ export interface CreateCategoryPayload {
   name: string;
   arabic: string;
   isActive: boolean;
+  posStatus: boolean;
   colorCode: string;
   createdAt: string;
   branchIds: BranchAllocation[];
-  groupIds: number[];
+  menuIds: number[];
 }
 
 export interface UpdateCategoryPayload {
@@ -69,8 +72,9 @@ export interface UpdateCategoryPayload {
   name: string;
   arabic: string;
   isActive: boolean;
+  posStatus: boolean;
   colorCode: string;
   updatedAt: string;
   branchIds: BranchAllocation[];
-  groupIds: number[];
+  menuIds: number[];
 }

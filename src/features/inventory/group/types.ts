@@ -26,7 +26,7 @@ export interface GroupListItem {
   isActive: "Active" | "Inactive";
 }
 
-/** Shape returned by GET /api/group/{grpId}/subcatid-data */
+/** Shape returned by GET /api/group/{grpId}/grpid-data */
 export interface GroupDetail {
   grpId: number;
   code: string;
@@ -35,9 +35,6 @@ export interface GroupDetail {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  posStatus: boolean;
-  startTime: string;
-  endTime: string;
 }
 
 /** Body for POST /api/group */
@@ -47,9 +44,6 @@ export interface CreateGroupPayload {
   arabicName: string;
   isActive: boolean;
   createdAt: string;
-  posStatus: boolean;
-  startTime: string;
-  endTime: string;
 }
 
 /** Body for PUT /api/group/{grpId} */
@@ -60,9 +54,6 @@ export interface UpdateGroupPayload {
   arabicName: string;
   isActive: boolean;
   updatedAt: string;
-  posStatus: boolean;
-  startTime: string;
-  endTime: string;
 }
 
 /** Response data for create / update / delete */
@@ -78,9 +69,6 @@ export interface GroupForm {
   name: string;
   arabicName: string;
   isActive: boolean;
-  posStatus: boolean;
-  startTime: string;
-  endTime: string;
 }
 
 /** Row displayed in the table */

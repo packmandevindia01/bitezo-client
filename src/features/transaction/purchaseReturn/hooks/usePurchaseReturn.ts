@@ -46,6 +46,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [masterError, setMasterError] = useState<string | null>(null);
   const [purchaseId, setPurchaseId] = useState<number>(0);
   const [loadedInvoiceText, setLoadedInvoiceText] = useState("");
+  const [selectedInvoiceItems, setSelectedInvoiceItems] = useState<any[]>([]);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
@@ -235,6 +236,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
                setValue("branch", initialBranchId);
              } else if (data.branches.length > 0) {
                setValue("branch", data.branches[0].branchId.toString());
+             }
+             if (data.salesman && data.salesman.length > 0 && !getValues("salesman")) {
+               setValue("salesman", data.salesman[0].employeeId.toString());
              }
           }
         }
@@ -490,80 +494,35 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const handleInvoiceSelect = async (purchaseIdStr: string, invoiceNoText: string) => {
     if (!purchaseIdStr || purchaseIdStr === "0") {
-      setValue("invoiceNo", invoiceNoText);
+      setValue("invoiceNo", invoiceNoText, { shouldValidate: true });
       return;
     }
-    setValue("invoiceNo", invoiceNoText);
+    setLoadedInvoiceText(invoiceNoText);
+    setValue("invoiceNo", invoiceNoText, { shouldValidate: true });
     try {
       const res = await purchaseReturnApi.getPurchaseInvoiceData(purchaseIdStr);
       if (res && res.masterData) {
+        const actualInvoiceNo = res.masterData.invoiceNo || res.masterData.purchaseNo || invoiceNoText;
         setPurchaseId(res.masterData.purchaseId || parseInt(purchaseIdStr) || 0);
-        setLoadedInvoiceText(invoiceNoText);
-        setValue("refNo", res.masterData.refNo || getValues("refNo"));
+        setLoadedInvoiceText(actualInvoiceNo);
+        setValue("invoiceNo", actualInvoiceNo, { shouldValidate: true });
+        if (res.masterData.refNo) setValue("refNo", res.masterData.refNo, { shouldValidate: true });
+        if (res.masterData.narration) setValue("narration", res.masterData.narration);
       }
-      if (res && res.detailsData) {
-        const currentPurchaseId = res.masterData?.purchaseId || parseInt(purchaseIdStr) || 0;
+      if (res && res.detailsData && res.detailsData.length > 0) {
+        setSelectedInvoiceItems(res.detailsData);
         
-        const itemsWithBalances = await Promise.all((res.detailsData || []).map(async (d: any) => {
-          let balance = Number(d.qty || 1);
-          if (currentPurchaseId > 0 && d.productId) {
-            try {
-              const balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(currentPurchaseId, d.productId);
-              if (typeof balanceData === "object" && balanceData !== null) {
-                balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);
-              } else {
-                balance = Number(balanceData) || 0;
-              }
-            } catch (e) {
-              console.error("Failed to fetch balance for product", d.productId, e);
-            }
-          }
-          
-          const productOpt = productOptions.find((p: any) => p.value === d.productId?.toString());
-          let details: any = null;
-          
-          if (productOpt && productOpt.barcode) {
-             try {
-               details = await purchaseReturnApi.getProductCostData(productOpt.barcode, currentPurchaseId);
-               if (details && details.unitCategory) {
-                 loadCategoryUnits(details.unitCategory);
-               }
-             } catch (e) {
-               console.error("Failed to fetch product details", productOpt.barcode, e);
-             }
-          }
-          
-          return {
-            id: generateUUID(),
-            product: d.productId?.toString() || "",
-            code: d.productId?.toString() || "",
-            unitCategory: details?.unitCategory || "",
-            unit: d.unitId?.toString() || details?.baseUnitId?.toString() || "",
-            unitName: d.unitName || "",
-            qty: balance.toString(),
-            foc: d.foc?.toString() || "0",
-            price: d.price?.toString() || details?.cost?.toString() || "0",
-            discPercent: d.discPer?.toString() || "0",
-            vatId: (d.vatId || details?.vatId || 0).toString(),
-            vatPercent: (d.vatValue || details?.vatValue || 0).toString(),
-            _balance: balance
-          };
+        // Build product options using ONLY products belonging to this selected invoice
+        const invoiceProductOptions = res.detailsData.map((d: any) => ({
+          label: d.productName ? (d.productCode || d.barcode ? `[${d.productCode || d.barcode}] ${d.productName}` : d.productName) : "Product",
+          value: d.productId ? d.productId.toString() : "",
+          code: d.productCode || d.barcode || "",
+          barcode: d.barcode || d.productCode || ""
         }));
         
-        const validItems = itemsWithBalances.filter(i => i._balance > 0);
-        
-        if (validItems.length === 0 && res.detailsData && res.detailsData.length > 0) {
-          showToast("This invoice has already been fully returned.", "warning");
-        }
-        
-        // Remove the temporary _balance property
-        const finalItems = validItems.map(i => {
-          const { _balance, ...rest } = i;
-          return rest;
-        });
+        setProductOptions(invoiceProductOptions);
 
-        // Do not auto-populate the table with invoice items per user request.
-        // Provide a single empty row instead for manual entry.
+        // Reset grid to a single empty row so user can pick the exact products to return
         replaceItems([{
           id: generateUUID(),
           product: "",
@@ -576,26 +535,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           vatPercent: "0",
           discPercent: "0",
         }]);
-        
-        const productIds = Array.from(new Set(finalItems.map((i: any) => i.product)));
-        const options: any[] = [];
-        for (const pId of productIds) {
-            if (!pId) continue;
-            try {
-              const pData = await productService.getById(Number(pId));
-              if (pData && pData.product) {
-                options.push({
-                  label: pData.product.code ? `[${pData.product.code}] ${pData.product.name}` : pData.product.name,
-                  value: pData.product.productId.toString(),
-                  code: pData.product.code || "",
-                  barcode: pData.product.barcode || ""
-                });
-              }
-            } catch (err) {
-              console.error("Failed to load product", err);
-            }
-        }
-        setProductOptions(options);
       }
     } catch (error: any) {
       console.error("Failed to fetch invoice details", error);
@@ -605,21 +544,54 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const handleProductSelect = async (index: number, productId: string, _code: string) => {
     const opt = productOptions.find(o => o.value === productId);
-    if (!opt || !opt.barcode) return;
+    if (!opt) return;
     try {
       setValue(`items.${index}.stock`, "...");
       setValue(`items.${index}.avgCost`, "...");
 
-      const details = await purchaseReturnApi.getProductCostData(opt.barcode, purchaseId);
-      const currentQty = getValues(`items.${index}.qty`);
-      setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-      setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
-      setValue(`items.${index}.price`, formatAmount(details.cost));
-      setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
-      setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
-      if (purchaseId && details.productId) {
+      const invoiceItem = selectedInvoiceItems.find((d: any) => String(d.productId) === String(productId));
+
+      let barcodeVal = opt.barcode || opt.code || "";
+
+      if (invoiceItem) {
+        const unitIdStr = invoiceItem.unitId ? String(invoiceItem.unitId) : "";
+        const unitNameStr = invoiceItem.unitName || "";
+        const priceVal = formatAmount(invoiceItem.price || 0);
+        const vatIdVal = invoiceItem.vatId ? String(invoiceItem.vatId) : "0";
+        const vatPercentVal = invoiceItem.vatValue ? String(invoiceItem.vatValue) : "0";
+        const discPercentVal = invoiceItem.discPer ? String(invoiceItem.discPer) : "0";
+        barcodeVal = invoiceItem.barcode || invoiceItem.productCode || barcodeVal;
+
+        setValue(`items.${index}.code`, invoiceItem.productCode || invoiceItem.barcode || opt.code || "");
+        setValue(`items.${index}.unit`, unitIdStr);
+        setValue(`items.${index}.unitName`, unitNameStr);
+        setValue(`items.${index}.price`, priceVal);
+        setValue(`items.${index}.vatId`, vatIdVal);
+        setValue(`items.${index}.vatPercent`, vatPercentVal);
+        setValue(`items.${index}.discPercent`, discPercentVal);
+      }
+
+      if (barcodeVal) {
         try {
-          const balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, details.productId);
+          const details = await purchaseReturnApi.getProductCostData(barcodeVal, purchaseId);
+          if (!invoiceItem) {
+            setValue(`items.${index}.unitCategory`, details.unitCategory || "");
+            setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
+            setValue(`items.${index}.price`, formatAmount(details.cost));
+            setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
+            setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
+          }
+          if (details.unitCategory) {
+            loadCategoryUnits(details.unitCategory);
+          }
+        } catch (e) {
+          console.error("Failed to load cost data", e);
+        }
+      }
+
+      if (purchaseId && productId) {
+        try {
+          const balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, Number(productId), invoiceId);
           let balance = 0;
           if (typeof balanceData === "object" && balanceData !== null) {
             balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);
@@ -635,47 +607,27 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           }
         } catch (err) {
           console.error("Failed to fetch balance qty", err);
+          const currentQty = getValues(`items.${index}.qty`);
           if (currentQty === "0" || currentQty === "") {
             setValue(`items.${index}.qty`, "1");
           }
         }
       } else {
+        const currentQty = getValues(`items.${index}.qty`);
         if (currentQty === "0" || currentQty === "") {
           setValue(`items.${index}.qty`, "1");
         }
       }
-      if (details.unitCategory) {
-        loadCategoryUnits(details.unitCategory);
-      }
 
-      const branchIdStr = methods.getValues("branch");
-      if (branchIdStr && details.productId) {
-        const branchId = Number(branchIdStr);
-        productService.getClosingStock(details.productId, branchId)
-          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch((err) => {
-            console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
-            setValue(`items.${index}.stock`, "Error");
-          });
-
-        productService.getAverageCost(details.productId, details.baseUnitId, branchId)
-          .then(res => setValue(`items.${index}.avgCost`, res.avgCost || 0))
-          .catch(() => setValue(`items.${index}.avgCost`, "Error"));
-      }
-
-    } catch (error) {
-      console.error("Failed to load product details", error);
-      setValue(`items.${index}.avgCost`, "Error");
-      // Try to fetch stock anyway if we have _val
       const branchIdStr = methods.getValues("branch");
       if (branchIdStr && productId) {
         const branchId = Number(branchIdStr);
         productService.getClosingStock(Number(productId), branchId)
           .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
-      } else {
-        setValue(`items.${index}.stock`, "Error");
+          .catch(() => setValue(`items.${index}.stock`, "0"));
       }
+    } catch (error: any) {
+      console.error("Error selecting product", error);
     }
   };
 
@@ -840,7 +792,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         const productId = parseInt(item.product) || 0;
         
         try {
-          let balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, productId);
+          let balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, productId, invoiceId);
           let balance = 0;
           if (typeof balanceData === "object" && balanceData !== null) {
             balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);

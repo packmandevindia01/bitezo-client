@@ -20,7 +20,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
 
   const showToast = useCallback(
     (message: string, type: ToastType = "success", title?: string) => {
-      // Convert 'error' to 'warning' to show all errors as warnings
+      // Show all errors as warnings (orange) - keep red only for input field validation
       const finalType = type === "error" ? "warning" : type;
       const id = ++_id;
       setToasts((current) => [...current, { id, message, type: finalType, title }]);

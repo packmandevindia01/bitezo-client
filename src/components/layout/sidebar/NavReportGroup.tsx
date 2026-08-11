@@ -103,6 +103,10 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <ShoppingCart size={13} className="shrink-0" />
             <span>Stock Register Report</span>
           </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/stock-adjustment")} className={itemClassName}>
+            <ShoppingCart size={13} className="shrink-0" />
+            <span>Stock Adjustment Report</span>
+          </div>
         </SidebarDropdown>
       )}
 

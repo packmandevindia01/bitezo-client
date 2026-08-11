@@ -22,6 +22,8 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
 
   const form = useForm<PaymentVoucherForm>({
     resolver: zodResolver(paymentVoucherSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       seriesId: 0,
       prefix: "",
@@ -217,10 +219,8 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
       saveMutation.mutate(data);
     },
     (errors) => {
-      const firstError = Object.values(errors)[0];
-      if (firstError?.message) {
-        showToast(firstError.message as string, "error");
-      }
+      // Inline field errors (red border + label) already show what's missing — no toast needed
+      void errors;
     }
   );
 

@@ -35,6 +35,7 @@ export const usePosProducts = () => {
   } = useAppSelector((state) => state.pos);
 
   const { data: masterData, isLoading: groupsLoading, refetch: refreshMasterData } = usePosMasterData();
+  const menuTimes = masterData?.menu ?? [];
   const groups = masterData?.group ?? [];
   const paymodes = masterData?.paymodes ?? [];
 
@@ -47,12 +48,14 @@ export const usePosProducts = () => {
   const loading = groupsLoading || catsLoading || subsLoading || prodsLoading;
   const error = null;
 
-  // Auto-select first group if none active
+  // Auto-select first menu item if none active
   useEffect(() => {
-    if (groups.length > 0 && !activeGroupId) {
+    if (menuTimes.length > 0 && !activeGroupId) {
+      dispatch(setGroup(menuTimes[0].menuId));
+    } else if (groups.length > 0 && !activeGroupId) {
       dispatch(setGroup(groups[0].groupId));
     }
-  }, [groups, activeGroupId, dispatch]);
+  }, [menuTimes, groups, activeGroupId, dispatch]);
 
   // Auto-select first category if none active
   useEffect(() => {
@@ -105,6 +108,7 @@ export const usePosProducts = () => {
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
 
   return {
+    menuTimes,
     groups,
     categories,
     subCategories,

@@ -19,6 +19,8 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
 
   const form = useForm<PaymentAgainstVoucherFormData>({
     resolver: zodResolver(paymentAgainstVoucherSchema) as any,
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       transId: undefined,
       seriesId: 0,

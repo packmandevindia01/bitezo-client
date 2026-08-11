@@ -32,8 +32,9 @@ export const useQuickAddCategory = (onCreated: (id: string, name: string) => voi
         isActive: data.isActive,
         colorCode: "red",
         createdAt: new Date().toISOString(),
+        posStatus: true,
         branchIds: [],
-        groupIds: [],
+        menuIds: [],
       }),
     onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ["productMasterData"] });

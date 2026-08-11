@@ -367,6 +367,7 @@ const PurchaseReturnFormPage = () => {
                     {items.map((field, index) => {
                       const itemWatch = watchedItems[index] || {};
                       const lineTotals = calculateLine(itemWatch as any, decimalPart, grossTotal, Number(watchedDiscAmount) || 0);
+                      const isInvoiceLoaded = purchaseId > 0 || (getValues("invoiceNo") ? true : false);
                       return (
                         <tr key={field.id} onFocusCapture={() => setActiveRowIndex(index)} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
@@ -432,7 +433,7 @@ const PurchaseReturnFormPage = () => {
                                           setTimeout(() => document.getElementById("pr-disc-pct")?.focus(), 50);
                                         }
                                       }}
-                                      disabled={!canSave || purchaseId > 0}
+                                      disabled={!canSave || (isInvoiceLoaded && !!itemWatch.product)}
                                     />
                                 </div>
                               )}
@@ -462,7 +463,7 @@ const PurchaseReturnFormPage = () => {
                                       qtyInputs[0]?.focus();
                                     }, 100);
                                   }}
-                                  disabled={!canSave || (getValues("invoiceNo") ? true : false)}
+                                  disabled={!canSave || (isInvoiceLoaded && !!itemWatch.product)}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />
@@ -473,7 +474,7 @@ const PurchaseReturnFormPage = () => {
                             <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-16">
-                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                            <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className={`w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none ${(isInvoiceLoaded && !!itemWatch.product) ? "cursor-not-allowed text-gray-500 bg-gray-50/50" : ""}`} readOnly={!canSave || (isInvoiceLoaded && !!itemWatch.product)} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-24">
                             <input
@@ -492,8 +493,8 @@ const PurchaseReturnFormPage = () => {
                                   }
                                 }
                               }}
-                              className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono"
-                              readOnly={!canSave || purchaseId > 0}
+                              className={`w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono ${(isInvoiceLoaded && !!itemWatch.product) ? "cursor-not-allowed text-gray-500 bg-gray-50/50" : ""}`}
+                              readOnly={!canSave || (isInvoiceLoaded && !!itemWatch.product)}
                             />
                           </td>
                           <td className="px-2 py-1 text-right font-mono text-xs text-gray-600 bg-gray-50/50 border-r border-gray-100">{formatAmount(lineTotals.amount)}</td>
@@ -545,7 +546,7 @@ const PurchaseReturnFormPage = () => {
                       document.getElementById(`product-select-${items.length}`)?.focus();
                     }, 50);
                   }}
-                  disabled={!canSave || purchaseId > 0}
+                  disabled={!canSave}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={14} /> Add Item

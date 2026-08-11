@@ -746,3 +746,17 @@ Whenever we complete a feature, the AI MUST provide a summary answering these 6 
 - **Lazy Loaded Modals:** Complex transaction modals (Split, Combine, Void, Modifiers) that are not immediately visible on first paint MUST be lazy-loaded (`React.lazy`) and wrapped in `<Suspense>`. This massively reduces the initial JS bundle size and improves rendering speed.
 - **React Query Deduplication:** Shared data hooks (like `useCashierLog`) that are called by multiple components simultaneously (Page, Guards, Modals, Hooks) MUST use `@tanstack/react-query` (`useQuery`). This ensures that 8 simultaneous hook calls are automatically deduplicated into **1 single network request**, caching the result instantly across the app to prevent UI freezing.
 - **Touch Target Optimization (Tab View):** The POS is often operated on tablets. Interactive icon buttons (especially modal close 'X' buttons) MUST have adequate touch padding (`p-2`), proper type attributes (`type="button"`), and stop event propagation (`e.stopPropagation()`) to guarantee touch reliability and prevent click-bleed.
+
+---
+
+## 29. Form Validation UX (Phase 6 Standard)
+- **Inline Field Errors First:** When validating forms (like `PaymentVoucherFormPage` or `PurchaseInvoiceFormPage`), always rely on React Hook Form's inline field errors (`error={errors.fieldName?.message}`) to show red borders and error text directly below or next to the input field.
+- **No Duplicate Toasts for Validation:** Do NOT show a global toast message (e.g., `showToast(firstError.message, "error")`) in the `handleSubmit` error callback for individual field validation failures. Redundant toasts covering the top of the screen are annoying when the fields themselves are already highlighted in red.
+- **onChange Validation:** Always configure `useForm` with `mode: "onChange"` and `reValidateMode: "onChange"` (or use `setValue("field", val, { shouldValidate: true })`) so that validation error styling immediately disappears the moment the user selects a valid value.
+
+---
+
+## 30. Common Components Modification Rule (STRICT)
+- **NEVER change common components without explicit permission:** The components inside `src/components/common/` (like `FormInput`, `SearchableSelect`, `Button`, `Modal`, `PageShell`, etc.) are heavily reused across the entire application. Modifying them can cause widespread unintended side effects.
+- If a specific page requires a unique visual change to a common component, use the `className` or `inputClassName` props to override styles locally, or create a localized wrapper component.
+- You must explicitly ask the user for permission before altering the core implementation of any common component.

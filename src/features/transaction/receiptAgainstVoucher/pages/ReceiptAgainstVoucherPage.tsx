@@ -191,14 +191,7 @@ const ReceiptAgainstVoucherPage = () => {
       showToast(errors.details.message, "error", "Validation Error");
       return;
     }
-    const firstError = Object.values(errors)[0] as any;
-    if (firstError?.message) {
-      showToast(firstError.message as string, "error", "Validation Error");
-    } else if (firstError?.root?.message) {
-      showToast(firstError.root.message as string, "error", "Validation Error");
-    } else if (Array.isArray(firstError) && firstError[0]?.message) {
-      showToast(firstError[0].message as string, "error", "Validation Error");
-    }
+    // Inline field errors (red border + label) already show what's missing — no toast needed
   };
 
   const handleMultiSelect = (selectedInvoices: InvoiceRecord[]) => {
@@ -311,6 +304,7 @@ const ReceiptAgainstVoucherPage = () => {
                 <SelectInput 
                   id="rav-page-series" 
                   label="Series" 
+                  required
                   options={masterData?.series?.map((s: any) => ({ value: String(s.seriesId), label: s.seriesName })) || []}
                   value={String(form.watch("seriesId") || "")}
                   {...form.register("seriesId", { 
@@ -325,6 +319,7 @@ const ReceiptAgainstVoucherPage = () => {
               <SearchableSelect
                 id="rav-page-employee"
                 label="Employee"
+                required
                 options={masterData?.salesman?.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName })) || []}
                 value={String(form.watch("employeeId") || "")}
                 onChange={(val) => form.setValue("employeeId", Number(val) || 0, { shouldValidate: true })}
@@ -342,9 +337,12 @@ const ReceiptAgainstVoucherPage = () => {
               <FormInput 
                 id="rav-page-date" 
                 label="Date" 
+                required
                 type="date" 
                 max={new Date().toISOString().split("T")[0]}
-                {...form.register("voucherDate")}
+                {...form.register("voucherDate", {
+                  onChange: (e) => form.setValue("voucherDate", e.target.value, { shouldValidate: true })
+                })}
                 error={form.formState.errors.voucherDate?.message}
               />
               
@@ -353,6 +351,7 @@ const ReceiptAgainstVoucherPage = () => {
                   <SearchableSelect
                     id="rav-page-customer"
                     label="Customer"
+                    required
                     options={accounts.map((a: any) => ({ value: String(a.accountId), label: `${a.code} - ${a.accountName}` }))}
                     value={String(form.watch("accountId") || "")}
                     onChange={(val) => form.setValue("accountId", Number(val), { shouldValidate: true })}
@@ -522,6 +521,7 @@ const ReceiptAgainstVoucherPage = () => {
                     <SearchableSelect 
                       id="rav-page-paymode" 
                       label="Paymode" 
+                      required
                       options={masterData?.paymodes?.map(p => ({ value: String(p.paymodeId), label: p.paymodeName })) || []}
                       value={String(form.watch("paymodeId") || "")}
                       onChange={handlePaymodeChange}
