@@ -188,7 +188,7 @@ export const usePosCartActions = () => {
     }
   };
 
-  const getDirectSettleOrderPayload = (session: { employeeId?: number; userId?: number; providerOrderNo?: string }) => {
+  const getDirectSettleOrderPayload = (session: { employeeId?: number; userId?: number; customerId?: number; providerId?: number; providerOrderNo?: string; transDate?: string }) => {
     const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
     const config = getBillingConfig(selectedOrderTypeName || "DineIn");
     const deliveryChargeVal = getDeliveryChargeValue();
@@ -197,7 +197,7 @@ export const usePosCartActions = () => {
 
     return {
       orderId: editingOrderId || 0,
-      customerId: selectedCustomerId || 0,
+      customerId: session.customerId || selectedCustomerId || 1,
       employeeId: session.employeeId ?? session.userId ?? 1,
       transDate: activeTransDate,
       discAmount: Number(discount.toFixed(getDecimalPart())),
@@ -209,7 +209,7 @@ export const usePosCartActions = () => {
       netAmount: Number(total.toFixed(getDecimalPart())),
       deliveryCharge: Number(deliveryChargeVal.toFixed(getDecimalPart())),
       updatedAt: new Date().toISOString(),
-      orderTypeId: selectedOrderTypeId,
+      orderTypeId: session.providerId || selectedOrderTypeId,
       sectionId: isDineIn ? selectedSectionId : 0,
       tableId: isDineIn ? selectedTableId : 0,
       tableNo: isDineIn ? selectedTableNo : "",
@@ -227,6 +227,8 @@ export const usePosCartActions = () => {
       change,
       isComing,
       comingTime: comingTime || new Date().toISOString(),
+      providerId: session.providerId || 0,
+      providerOrderNo: session.providerOrderNo || "",
       providerNo: session.providerOrderNo || "",
       driverId: Number(localStorage.getItem("selectedDriverId") || 0),
       details: cartDetails.map((item, index) => {
@@ -285,13 +287,22 @@ export const usePosCartActions = () => {
         const modifierRows = (item.modifiers || []).map(mod => ({
           mapId: mapId,
           modifierId: mod.id,
-          qty: mod.qty,
+          qty: mod.qty || 1,
           price: 0,
           amount: 0,
           typeId: mod.typeId
         }));
 
-        return [...extrasRows, ...modifierRows];
+        const messageRows = (item.messages || []).map(msg => ({
+          mapId: mapId,
+          modifierId: msg.id || 0,
+          qty: 1,
+          price: 0,
+          amount: 0,
+          typeId: 1
+        }));
+
+        return [...extrasRows, ...modifierRows, ...messageRows];
       }),
       voidProducts: voidProducts.map(vp => ({
         productId: vp.productId,
@@ -306,7 +317,7 @@ export const usePosCartActions = () => {
   };
 
   const submitOrder = async (
-    session: { dayId: number; shiftId: number; userId: number; employeeId?: number; providerId?: number; providerOrderNo?: string },
+    session: { dayId: number; shiftId: number; userId: number; employeeId?: number; customerId?: number; providerId?: number; providerOrderNo?: string; transDate?: string },
     shouldPrint: boolean = true
   ) => {
     if (cartDetails.length === 0) {
@@ -350,6 +361,7 @@ export const usePosCartActions = () => {
           throw new Error(`CRITICAL: A cart item is missing a valid productId!`);
         }
 
+        console.log("[UPDATE ORDER PAYLOAD]:", updatePayload);
         const response = await orderApi.updateOrder(editingOrderId, updatePayload as MenuOrderUpdateRequest);
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
@@ -485,9 +497,10 @@ export const usePosCartActions = () => {
       const deliveryChargeVal = getDeliveryChargeValue();
       const rawTransDate = (session as any).transDate || localStorage.getItem("transDate") || new Date().toISOString();
       const activeTransDate = rawTransDate.split("T")[0];
+      const resolvedCustomerId = session.customerId || selectedCustomerId || 1;
       const payload: MenuOrderRequest = {
         voucherDate: new Date().toISOString(),
-        customerId: selectedCustomerId || 0,
+        customerId: resolvedCustomerId,
         employeeId: session.employeeId ?? session.userId,
         dayId: session.dayId,
         shiftId: session.shiftId,
@@ -501,7 +514,7 @@ export const usePosCartActions = () => {
         netAmount: Number(total.toFixed(getDecimalPart())),
         deliveryCharge: Number(deliveryChargeVal.toFixed(getDecimalPart())),
         createdAt: new Date().toISOString(),
-        orderTypeId: selectedOrderTypeId,
+        orderTypeId: session.providerId || selectedOrderTypeId,
         sectionId: isDineIn ? selectedSectionId : 0,
         tableId: isDineIn ? selectedTableId : 0,
         guestNo,
@@ -577,7 +590,16 @@ export const usePosCartActions = () => {
             typeId: mod.typeId
           }));
 
-          return [...extrasRows, ...modifierRows];
+          const messageRows = (item.messages || []).map(msg => ({
+            mapId: mapId,
+            modifierId: msg.id || 0,
+            qty: 1,
+            price: 0,
+            amount: 0,
+            typeId: 1
+          }));
+
+          return [...extrasRows, ...modifierRows, ...messageRows];
         }),
         vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
           ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
@@ -585,10 +607,12 @@ export const usePosCartActions = () => {
         vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
           ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
           : "",
+        providerId: session.providerId || 0,
+        providerOrderNo: session.providerOrderNo || "",
         providerNo: session.providerOrderNo || "",
       };
 
-      // console.log removed
+      console.log("[SUBMIT ORDER PAYLOAD]:", payload);
       const response = await orderApi.submitOrder(payload);
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
@@ -666,7 +690,7 @@ export const usePosCartActions = () => {
     } catch (err: any) {
       // Extract the actual backend error — handles .NET validation ProblemDetails
       const responseData = err?.response?.data;
-      console.error("[ORDER ERROR]", JSON.stringify(responseData, null, 2));
+      console.error("[ORDER ERROR]", responseData ? JSON.stringify(responseData, null, 2) : (err?.message || err));
 
       let msg = responseData?.message || "";
       

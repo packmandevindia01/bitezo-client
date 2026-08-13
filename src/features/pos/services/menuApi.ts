@@ -91,7 +91,7 @@ export const menuApi = {
       const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${menuId}/categories`, {
         params: {
           clientDb: localStorage.getItem("tenantId") || "",
-          orderTypeId
+          orderTypeId: orderTypeId || 1
         }
       }));
       return raw.map((c: any) => ({
@@ -129,7 +129,7 @@ export const menuApi = {
       const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories/${subCategoryId}/products`, {
         params: {
           clientDb: localStorage.getItem("tenantId") || "",
-          orderTypeId,
+          orderTypeId: orderTypeId || 1,
           currentDateTime: new Date().toISOString(),
           providerOwnStatus: getProviderOwnStatus()
         }
@@ -155,6 +155,51 @@ export const menuApi = {
       })) as PosProduct[];
     } catch (error) {
       console.error(`[menuApi] Failed to fetch products for cat ${categoryId} sub ${subCategoryId}:`, error);
+      return [];
+    }
+  },
+
+  /** GET /api/menu/product-list */
+  searchProducts: async (params: {
+    productName: string;
+    orderTypeId?: number;
+    currentDateTime?: string;
+    providerOwnStatus?: boolean;
+  }): Promise<import("../types").PosProductSearchResult[]> => {
+    try {
+      const res = await axiosInstance.get<any>(`/menu/product-list`, {
+        params: {
+          clientDb: localStorage.getItem("tenantId") || "",
+          orderTypeId: params.orderTypeId || 1,
+          currentDateTime: params.currentDateTime || new Date().toISOString(),
+          productName: params.productName,
+          providerOwnStatus: params.providerOwnStatus ?? getProviderOwnStatus()
+        }
+      });
+
+      const raw = Array.isArray(res.data) 
+        ? res.data 
+        : (Array.isArray(res.data?.data) ? res.data.data : []);
+
+      return (raw || []).map((p: any) => ({
+        productId: p.productId ?? p.id ?? 0,
+        productName: p.productName ?? p.name ?? "",
+        arabicName: p.arabicName || "",
+        vatId: p.vatId,
+        vatValue: p.vatValue,
+        price: Number(p.price ?? 0),
+        hasAlternatives: Boolean(p.hasAlternatives),
+        isLocked: Boolean(p.isLocked),
+        imageUrl: p.imageUrl,
+        code: p.code || p.productCode || "",
+        unitId: p.unitId,
+        isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
+                p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+                p.priceView !== undefined ? (p.priceView === 'Inclusive') :
+                undefined,
+      })).filter((p: any) => p.productId > 0 && p.productName);
+    } catch (err) {
+      console.error("[menuApi] searchProducts error:", err);
       return [];
     }
   },
@@ -247,7 +292,7 @@ export const menuApi = {
         ? raw 
         : (raw?.message || raw?.messages || raw?.data || (raw ? [raw] : []));
       return (list || []).map((m: any) => ({
-        id: m.id ?? m.messageId ?? m.ID ?? Math.random(),
+        id: m.id ?? m.messageId ?? m.modifierId ?? m.ID ?? 0,
         name: m.name ?? m.messageName ?? m.messageText ?? m.description ?? String(m)
       }));
     } catch (err) {
@@ -257,11 +302,14 @@ export const menuApi = {
   },
 
   /** POST /api/menu/message */
-  createMessage: (name: string): Promise<{ id: number }> =>
-    unwrap(axiosInstance.post<ApiResponse<{ id: number }>>("/menu/message", {
+  createMessage: async (name: string): Promise<{ id: number; name: string }> => {
+    const raw: any = await unwrap(axiosInstance.post<ApiResponse<any>>("/menu/message", {
       name,
       createdAt: new Date().toISOString()
     }, {
       params: { clientDb: localStorage.getItem("tenantId") || "" }
-    })),
+    }));
+    const id = raw?.id ?? raw?.messageId ?? raw?.modifierId ?? (typeof raw === 'number' ? raw : 0);
+    return { id, name };
+  },
 };

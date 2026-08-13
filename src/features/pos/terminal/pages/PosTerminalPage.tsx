@@ -17,9 +17,10 @@ import { PosActionButtons } from "../components/layout/PosActionButtons";
 import { PosTerminalModals } from "../components/modals/PosTerminalModals";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
-import { clearAllItemDiscounts, setCustomDeliveryCharge } from "../store/posSlice";
+import { cacheProducts, clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setOrderType, setOrderTypeByName } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
-import type { PosProduct, PosAlternative } from "../../types";
+import { PosProductSearchDropdown } from "../components/menu/PosProductSearchDropdown";
+import type { PosProduct, PosAlternative, PosProductSearchResult } from "../../types";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
 import { menuApi } from "../../services/menuApi";
 import { useCashierLog } from "../../cashier";
@@ -51,6 +52,7 @@ export const PosTerminalPage = () => {
   
   // Ref to debounce rapid double-clicks on zero price items
   const zeroPriceLockRef = useRef<number>(0);
+  const initialAutoDineInChecked = useRef(false);
 
   useEffect(() => {
     const state = location.state as { openMoreModal?: boolean; openCashModal?: boolean };
@@ -65,6 +67,28 @@ export const PosTerminalPage = () => {
   }, [location.state, modals]);
 
   const terminal = usePosTerminal();
+
+  const isCreditProviderActive = useMemo(() => {
+    if (!activeProvider?.provider) return false;
+    const { paymodeId, paymode, paymodeName } = activeProvider.provider;
+    if (paymodeId === 2) return true;
+    if (paymode && paymode.toLowerCase().includes("credit")) return true;
+    if (paymodeName && paymodeName.toLowerCase().includes("credit")) return true;
+    const matchTender = terminal.tenderOptions.find((t) => t.id === String(paymodeId));
+    if (matchTender && matchTender.label.toLowerCase().includes("credit")) return true;
+    return false;
+  }, [activeProvider, terminal.tenderOptions]);
+
+  useEffect(() => {
+    if (activeProvider?.provider) {
+      if (activeProvider.provider.paymodeId) {
+        setSelectedTender(String(activeProvider.provider.paymodeId));
+      }
+      if (activeProvider.provider.postAccountId) {
+        dispatch(setCustomerId(activeProvider.provider.postAccountId));
+      }
+    }
+  }, [activeProvider, dispatch]);
 
   useEffect(() => {
     if (terminal.tenderOptions.length > 0 && !selectedTender) {
@@ -103,7 +127,7 @@ export const PosTerminalPage = () => {
 
   const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> => {
     const storedConfig = readStoredPosConfig();
-    if (storedConfig?.defaultEmployee !== undefined && storedConfig.employeeId !== undefined) {
+    if (storedConfig?.defaultEmployee !== undefined && storedConfig.employeeId !== undefined && storedConfig.defaultOrderTypeId !== undefined) {
       return storedConfig;
     }
     const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
@@ -115,6 +139,42 @@ export const PosTerminalPage = () => {
     }
     return storedConfig;
   };
+
+  const applyDefaultOrderType = async (allowAutoDineIn: boolean = false) => {
+    try {
+      const config = await getRuntimePosConfig();
+      const defaultId = Number(config?.defaultOrderTypeId) || 1;
+
+      const match = terminal.orderTypes.find((t) => t.orderTypeId === defaultId);
+      if (match) {
+        dispatch(setOrderType(match));
+      } else {
+        const fallbackName = defaultId === 2 ? "TakeOut" : defaultId === 3 ? "DriveThru" : defaultId === 4 ? "Delivery" : defaultId === 6 ? "Coming" : "DineIn";
+        dispatch(setOrderTypeByName(fallbackName));
+      }
+
+      const isDineIn = defaultId === 1 || (match?.orderType && match.orderType.toLowerCase().includes("dine"));
+      const isShiftOpen = status && !status.isDayClosed && !status.isShiftClosed;
+      if (isDineIn && allowAutoDineIn && isShiftOpen && !terminal.editingOrderId && !terminal.selectedTableId) {
+        navigate("/pos/dine-in", { state: { skipAutoDineIn: true } });
+      }
+    } catch (e) {
+      console.error("Error applying default order type:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (initialAutoDineInChecked.current) return;
+    if (isLoading || !status) return;
+
+    initialAutoDineInChecked.current = true;
+
+    const skip = (location.state as any)?.skipAutoDineIn || false;
+    const hasActiveCart = terminal.cartDetails.length > 0;
+    const hasActiveOrder = !!terminal.editingOrderId || !!terminal.selectedTableId;
+
+    void applyDefaultOrderType(!skip && !hasActiveCart && !hasActiveOrder);
+  }, [terminal.orderTypes, status, isLoading]);
 
   useEffect(() => {
     setAlternatives([]);
@@ -136,6 +196,8 @@ export const PosTerminalPage = () => {
     clearAllPosCache();
     resetTerminalState();
     setActiveProvider(null);
+    dispatch(setCustomerId(1));
+    void applyDefaultOrderType(true);
   };
 
   const voidFlow = usePosVoidFlow({
@@ -287,12 +349,6 @@ export const PosTerminalPage = () => {
     modals.setIsQtyModalOpen(false);
   };
 
-  const initialSelections = useMemo(() => {
-    if (!currentSelectedItem) return [];
-    return extrasModifierType === 'extras'
-      ? (currentSelectedItem.extras || [])
-      : (currentSelectedItem.modifiers || []);
-  }, [currentSelectedItem, extrasModifierType]);
 
   const openPriceModal = () => {
     if (!selectedKey) return;
@@ -589,6 +645,128 @@ export const PosTerminalPage = () => {
     }
   };
 
+  const handleSearchProductSelect = async (searchItem: PosProductSearchResult) => {
+    const productId = searchItem.productId;
+
+    // Prevent rapid double clicks on zero price items
+    if (searchItem.price === 0) {
+      const now = Date.now();
+      if (now - zeroPriceLockRef.current < 1000) return;
+      zeroPriceLockRef.current = now;
+    }
+
+    const safeOrderTypeId = terminal.selectedOrderTypeId || 1;
+    const cacheKey = `${productId}-${safeOrderTypeId}`;
+    let cachedData = productDataCache[cacheKey];
+
+    if (!cachedData) {
+      try {
+        cachedData = await menuApi.getProductData(productId, safeOrderTypeId);
+        productDataCache[cacheKey] = cachedData;
+      } catch (err) {
+        console.error("Failed to fetch product data", err);
+      }
+    }
+
+    let isIncl = searchItem.isIncl;
+    let targetPrice = searchItem.price ?? 0;
+    let promoPrice: number | undefined = undefined;
+
+    if (cachedData) {
+      isIncl = cachedData.isIncl;
+      targetPrice = cachedData.price;
+      promoPrice = cachedData.promoPrice;
+    }
+
+    let discountValue: number | undefined = undefined;
+    let discountType: 'percentage' | 'amount' | undefined = undefined;
+
+    if (promoPrice !== undefined && promoPrice > 0 && targetPrice > 0) {
+      const diff = targetPrice - promoPrice;
+      if (diff > 0) {
+        discountValue = Number(((diff / targetPrice) * 100).toFixed(4));
+        discountType = 'percentage';
+      }
+      if (cachedData && cachedData.promoIsIncl !== undefined) {
+        isIncl = cachedData.promoIsIncl;
+      }
+    }
+
+    dispatch(cacheProducts([{
+      id: searchItem.productId,
+      name: searchItem.productName,
+      arabicName: searchItem.arabicName,
+      categoryId: 0,
+      price: targetPrice,
+      vatId: searchItem.vatId,
+      vatValue: searchItem.vatValue,
+      unitId: searchItem.unitId,
+      hasAlternatives: searchItem.hasAlternatives,
+      isIncl: isIncl,
+      isLocked: searchItem.isLocked,
+      imageUrl: searchItem.imageUrl,
+    }]));
+
+    const newKey = terminal.addProduct(productId, undefined, targetPrice, isIncl, discountValue, discountType);
+    setSelectedKey(newKey);
+    if (targetPrice === 0) {
+      modals.setIsPriceModalOpen(true);
+    }
+  };
+
+  const handleSearchAltSelect = (product: PosProductSearchResult, variant: PosAlternative) => {
+    // Prevent double clicking on zero price items
+    if (variant.price === 0) {
+      const now = Date.now();
+      if (now - zeroPriceLockRef.current < 1000) return;
+      zeroPriceLockRef.current = now;
+    }
+
+    let discountValue: number | undefined = undefined;
+    let discountType: 'percentage' | 'amount' | undefined = undefined;
+    let isIncl = variant.isIncl;
+
+    if (variant.promoPrice !== undefined && variant.promoPrice > 0 && variant.price > 0) {
+      const diff = variant.price - variant.promoPrice;
+      if (diff > 0) {
+        discountValue = Number(((diff / variant.price) * 100).toFixed(4));
+        discountType = 'percentage';
+      }
+      if (variant.promoIsIncl !== undefined) {
+        isIncl = variant.promoIsIncl;
+      }
+    }
+
+    dispatch(cacheProducts([{
+      id: product.productId,
+      name: product.productName,
+      arabicName: product.arabicName,
+      categoryId: 0,
+      price: variant.price,
+      vatId: product.vatId,
+      vatValue: product.vatValue,
+      unitId: variant.unitId ?? product.unitId,
+      hasAlternatives: product.hasAlternatives,
+      isIncl: isIncl,
+      isLocked: product.isLocked,
+      imageUrl: product.imageUrl,
+    }]));
+
+    const newKey = terminal.addProduct(
+      product.productId,
+      variant.altName,
+      variant.price,
+      isIncl,
+      discountValue,
+      discountType,
+      variant.unitId
+    );
+    setSelectedKey(newKey);
+    if (variant.price === 0) {
+      modals.setIsPriceModalOpen(true);
+    }
+  };
+
   const handleGridBack = () => {
     if (alternatives.length > 0) {
       setAlternatives([]);
@@ -678,13 +856,16 @@ export const PosTerminalPage = () => {
         status={status}
         orderTypes={terminal.orderTypes}
         selectedOrderTypeId={terminal.selectedOrderTypeId}
-        onSelectOrderType={(type) => terminal.setSelectedOrderType(type.orderTypeId, type.orderType)}
+        onSelectOrderType={(type) => {
+          setActiveProvider(null);
+          terminal.setSelectedOrderType(type.orderTypeId, type.orderType);
+        }}
         activeProvider={activeProvider}
       />
       
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="flex flex-row items-center bg-white border-b border-slate-100 overflow-hidden shrink-0 pl-2 md:pl-3 lg:pl-4 xl:pl-6 pr-2 md:pr-3">
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          <div className="flex flex-row items-center bg-white border-b border-slate-100 relative z-30 shrink-0 pl-2 md:pl-3 lg:pl-4 xl:pl-6 pr-2 md:pr-3">
             <div className="shrink-0">
               <PosGroupTabs 
                 menuTimes={terminal.menuTimes}
@@ -699,21 +880,13 @@ export const PosTerminalPage = () => {
             </div>
             
             <div className="flex-1 flex items-center justify-end py-1">
-              <div className="relative w-full max-w-[200px] md:max-w-xs group">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-2 md:pl-3 pointer-events-none text-slate-400 group-focus-within:text-[#f37021] transition-colors">
-                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  autoFocus={window.innerWidth >= 600 && !Capacitor.isNativePlatform()}
-                  value={terminal.search}
-                  onChange={(e) => terminal.setSearch(e.target.value)}
-                  placeholder="Search by name..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 md:py-2 px-8 md:px-10 text-[11px] md:text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-1 focus:ring-[#f37021]/20 transition-all outline-none"
-                />
-              </div>
+              <PosProductSearchDropdown
+                orderTypeId={terminal.selectedOrderTypeId || 1}
+                onSelectProduct={handleSearchProductSelect}
+                onSelectAlternative={handleSearchAltSelect}
+                autoFocus={window.innerWidth >= 600 && !Capacitor.isNativePlatform()}
+                className="max-w-[200px] md:max-w-xs"
+              />
             </div>
           </div>
 
@@ -775,7 +948,13 @@ export const PosTerminalPage = () => {
 
               <PosActionButtons 
                 onClearCart={handleClearCart}
-                onCustomer={() => modals.setIsCustomerModalOpen(true)}
+                onCustomer={() => {
+                  if (isCreditProviderActive) {
+                    showToast("Customer is locked to configured Post Account for Credit Provider orders", "warning");
+                    return;
+                  }
+                  modals.setIsCustomerModalOpen(true);
+                }}
                 onWaiter={() => {}}
                 onSplit={() => modals.setIsSplitOpen(true)}
                 onCombine={() => modals.setIsCombineOpen(true)}
@@ -788,6 +967,7 @@ export const PosTerminalPage = () => {
                 }}
                 onMore={() => modals.setIsMoreModalOpen(true)}
                 isOrderEditing={!!terminal.editingOrderId}
+                isCustomerLocked={isCreditProviderActive}
               />
             </div>
           </main>
@@ -882,7 +1062,6 @@ export const PosTerminalPage = () => {
         setDiscountMode={discountFlow.setDiscountMode}
         extrasModifierType={extrasModifierType}
         setExtrasModifierType={setExtrasModifierType}
-        initialSelections={initialSelections}
         voidConfirmState={voidFlow.voidConfirmState}
         setVoidConfirmState={voidFlow.setVoidConfirmState}
         billDiscountConfirmState={discountFlow.billDiscountConfirmState}

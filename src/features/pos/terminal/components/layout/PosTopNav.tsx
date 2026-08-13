@@ -95,13 +95,13 @@ const PosTopNav = ({
     <nav className="flex items-center justify-between gap-2 lg:gap-3 max-[1100px]:gap-1.5 max-[800px]:gap-1 border-b border-[#3a2031] bg-[#49293e] pr-3 lg:pr-4 max-[800px]:pr-1.5 h-[60px] max-[1100px]:h-[52px] max-[800px]:h-[46px] shadow-sm shrink-0 w-full transition-all duration-300">
       <div className="flex items-center gap-0 lg:gap-0 xl:gap-0 min-w-0 h-full">
         
-        {/* Centered logo inside the left column, strictly constrained to avoid cutoff */}
-        <div className="flex items-center justify-center w-[100px] md:w-[160px] lg:w-[180px] xl:w-[260px] max-[1100px]:!w-[140px] max-[800px]:!w-[90px] max-[700px]:!w-[70px] h-full shrink-0 transition-all duration-300">
-          <div className="w-[80%] h-[80%] flex items-center justify-center">
+        {/* Centered logo, cleanly proportioned across all screen sizes */}
+        <div className="flex items-center justify-center w-[90px] sm:w-[110px] md:w-[130px] lg:w-[140px] xl:w-[150px] h-full shrink-0 px-2 transition-all duration-300">
+          <div className="w-full h-full flex items-center justify-center">
             <img 
                src="/LOGO6.png" 
                alt="Bitezo" 
-               className="max-w-full max-h-full object-contain brightness-0 invert" 
+               className="h-7 sm:h-8 md:h-8 lg:h-9 max-w-full object-contain brightness-0 invert" 
             />
           </div>
         </div>
@@ -111,7 +111,7 @@ const PosTopNav = ({
             const Icon = getOrderTypeIcon(type.orderType);
             const label = formatOrderTypeLabel(type.orderType);
             const normalized = normalizeOrderType(type.orderType);
-            const isActive = selectedOrderTypeId === type.orderTypeId;
+            const isActive = !activeProvider && selectedOrderTypeId === type.orderTypeId;
 
             return (
             <PosActionButton
@@ -156,9 +156,9 @@ const PosTopNav = ({
             <span><span className="text-white/70 font-semibold mr-1">Ticket:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
           </div>
           <div className="flex gap-3 max-[1100px]:gap-2 justify-end text-white/90 font-semibold text-[12px] max-[1100px]:text-[10px] max-[800px]:text-[8px] max-[700px]:text-[7px] mt-0.5">
-            <span><span className="text-white/50 font-medium mr-1">Section:</span>{selectedOrderTypeName || "-"}</span>
+            <span><span className="text-white/50 font-medium mr-1">Section:</span>{activeProvider ? activeProvider.provider.providerName : (selectedOrderTypeName || "-")}</span>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/50 font-medium mr-1">Table:</span>{selectedTableNo || "-"}</span>
+            <span><span className="text-white/50 font-medium mr-1">Table:</span>{activeProvider ? "-" : (selectedTableNo || "-")}</span>
           </div>
         </div>
 

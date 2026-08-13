@@ -14,6 +14,7 @@ import { PosMultiPayModal } from './payment/PosMultiPayModal';
 import { PosProviderOrderModal } from './providers/PosProviderOrderModal';
 import { EmployeePasswordModal } from './system/EmployeePasswordModal';
 import { PosCashierSessionModal } from './system/PosCashierSessionModal';
+import { setCustomerId, setOrderType } from '../../store/posSlice';
 
 // Lazy loaded modals
 const PosReportModal = React.lazy(() => import('./system/PosReportModal').then(m => ({ default: m.PosReportModal })));
@@ -85,7 +86,6 @@ interface PosTerminalModalsProps {
   
   extrasModifierType: 'none' | 'extras' | 'modifiers';
   setExtrasModifierType: (type: 'none' | 'extras' | 'modifiers') => void;
-  initialSelections: any[];
   
   voidConfirmState: { isOpen: boolean; uniqueId: string; productName: string; onConfirmed: () => void };
   setVoidConfirmState: React.Dispatch<React.SetStateAction<any>>;
@@ -147,14 +147,12 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         cartItems={props.cartDetails}
         selectedKey={props.selectedKey}
         onSelectRow={props.setSelectedKey}
-        initialSelections={props.initialSelections}
-        onDone={(selections: any[]) => {
+        initialExtras={props.currentSelectedItem?.extras || []}
+        initialModifiers={props.currentSelectedItem?.modifiers || []}
+        initialMessages={props.currentSelectedItem?.messages || []}
+        onDone={(extras, modifiers, messages) => {
           if (!props.selectedKey) return;
-          if (props.extrasModifierType === 'extras') {
-            props.setItemCustomizations(props.selectedKey, selections, props.currentSelectedItem?.modifiers, props.currentSelectedItem?.messages);
-          } else {
-            props.setItemCustomizations(props.selectedKey, props.currentSelectedItem?.extras, selections, props.currentSelectedItem?.messages);
-          }
+          props.setItemCustomizations(props.selectedKey, extras, modifiers, messages);
           props.setExtrasModifierType('none');
         }}
       />
@@ -164,15 +162,12 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         cartItems={props.cartDetails}
         selectedKey={props.selectedKey}
         onSelectRow={props.setSelectedKey}
-        initialSelections={props.currentSelectedItem?.messages || []}
-        onDone={(selections: any[]) => {
+        initialExtras={props.currentSelectedItem?.extras || []}
+        initialModifiers={props.currentSelectedItem?.modifiers || []}
+        initialMessages={props.currentSelectedItem?.messages || []}
+        onDone={(extras, modifiers, messages) => {
           if (!props.selectedKey) return;
-          props.setItemCustomizations(
-            props.selectedKey, 
-            props.currentSelectedItem?.extras, 
-            props.currentSelectedItem?.modifiers, 
-            selections
-          );
+          props.setItemCustomizations(props.selectedKey, extras, modifiers, messages);
           modals.setIsMessageModalOpen(false);
         }}
       />
@@ -215,9 +210,11 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         provider={props.selectedProviderForOrder}
         onSubmit={(orderNo) => {
           if (props.selectedProviderForOrder) {
+            const provider = props.selectedProviderForOrder;
             props.resetTerminalState();
-            props.setActiveProvider({ provider: props.selectedProviderForOrder, orderNo });
-            props.showToast(`${props.selectedProviderForOrder.providerName} order #${orderNo} started`, 'success');
+            props.setActiveProvider({ provider, orderNo });
+            props.dispatch(setOrderType({ orderTypeId: provider.providerId, orderType: provider.providerName }));
+            props.showToast(`${provider.providerName} order #${orderNo} started`, 'success');
           }
           props.setSelectedProviderForOrder(null);
         }}
@@ -304,6 +301,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
             }}
             onClear={() => {
               props.setActiveProvider(null);
+              props.dispatch(setCustomerId(1));
             }}
           />
         )}
@@ -361,7 +359,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         <PosCashierSessionModal
           isOpen={props.modals.isCashierSessionOpen}
           onClose={() => props.modals.closeModal('cashierSession')}
-          onSessionReady={() => window.location.reload()}
+          onSessionReady={() => props.modals.closeModal('cashierSession')}
         />
       </Suspense>
     </>

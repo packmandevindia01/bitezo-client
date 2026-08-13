@@ -1,4 +1,5 @@
 import React from 'react';
+import { Lock } from 'lucide-react';
 
 interface PosActionButtonsProps {
   onClearCart: () => void;
@@ -9,6 +10,7 @@ interface PosActionButtonsProps {
   onRecall: () => void;
   onMore: () => void;
   isOrderEditing: boolean;
+  isCustomerLocked?: boolean;
 }
 
 export const PosActionButtons = React.memo(function PosActionButtons({
@@ -19,7 +21,8 @@ export const PosActionButtons = React.memo(function PosActionButtons({
   onCombine,
   onRecall,
   onMore,
-  isOrderEditing
+  isOrderEditing,
+  isCustomerLocked
 }: PosActionButtonsProps) {
   return (
     <div className="grid grid-cols-7 gap-1 lg:gap-1.5 py-1 sm:py-1.5 lg:py-2 px-1.5 sm:px-3 lg:px-4 bg-white border-t border-slate-100 shrink-0">
@@ -32,9 +35,13 @@ export const PosActionButtons = React.memo(function PosActionButtons({
       </button>
       <button
         onClick={onCustomer}
-        className="h-7 md:h-8 lg:h-9 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
+        className={`h-7 md:h-8 lg:h-9 rounded text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5 relative flex items-center justify-center gap-0.5 ${
+          isCustomerLocked ? 'bg-[#d95f16] hover:bg-[#c45310]' : 'bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md'
+        }`}
+        title={isCustomerLocked ? 'Customer locked to configured Post Account' : undefined}
         tabIndex={-1}
       >
+        {isCustomerLocked && <Lock size={10} className="shrink-0" />}
         Customer
       </button>
       <button 

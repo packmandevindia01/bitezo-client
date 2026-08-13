@@ -85,13 +85,13 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
           </div>
         )}
 
-        {/* Messages Display */}
+        {/* Messages / Notes Display */}
         {(item.messages && item.messages.length > 0) && (
-          <div className="mt-0.5 space-y-0.5">
+          <div className="mt-1 flex flex-wrap gap-1">
             {item.messages.map((msg, i) => (
-              <p key={i} className="text-[9px] font-bold text-purple-600 uppercase leading-none italic">
+              <span key={i} className="text-[9px] font-bold text-purple-800 uppercase leading-none italic bg-purple-100/70 border border-purple-200/80 px-1.5 py-0.5 rounded">
                 💬 {msg.name} {(msg.qty && msg.qty > 1) ? `(x${msg.qty})` : ""}
-              </p>
+              </span>
             ))}
           </div>
         )}
@@ -138,6 +138,7 @@ export const PosCartItemCard = memo(PosCartItemCardBase, (prev, next) => {
     prev.item.itemDiscount === next.item.itemDiscount &&
     prev.item.netValue === next.item.netValue &&
     prev.item.extras?.length === next.item.extras?.length &&
-    prev.item.modifiers?.length === next.item.modifiers?.length
+    prev.item.modifiers?.length === next.item.modifiers?.length &&
+    JSON.stringify(prev.item.messages) === JSON.stringify(next.item.messages)
   );
 });

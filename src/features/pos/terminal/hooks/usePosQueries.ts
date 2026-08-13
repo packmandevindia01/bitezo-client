@@ -44,9 +44,10 @@ export const usePosMasterData = () => {
  * 2. Fetches Categories based on active Group and Order Type
  */
 export const usePosCategories = (groupId: number | null | undefined, orderTypeId: number | undefined) => {
+  const activeOrderTypeId = orderTypeId || 1;
   return useQuery({
-    queryKey: POS_QUERY_KEYS.categories(groupId!, orderTypeId || 1),
-    queryFn: () => menuApi.getGroupCategories(groupId!, orderTypeId || 1),
+    queryKey: POS_QUERY_KEYS.categories(groupId!, activeOrderTypeId),
+    queryFn: () => menuApi.getGroupCategories(groupId!, activeOrderTypeId),
     enabled: !!groupId, // Only fetch if a group is actually selected
     ...CACHE_CONFIG,
   });
@@ -72,10 +73,11 @@ export const usePosProductsList = (
   subCategoryId: number | null | undefined, 
   orderTypeId: number | undefined
 ) => {
+  const activeOrderTypeId = orderTypeId || 1;
   return useQuery({
     // If subCategoryId is null, we pass 0 to the API as per previous logic
-    queryKey: POS_QUERY_KEYS.products(categoryId!, subCategoryId ?? 0, orderTypeId || 1),
-    queryFn: () => menuApi.getProducts(categoryId!, subCategoryId ?? 0, orderTypeId || 1),
+    queryKey: POS_QUERY_KEYS.products(categoryId!, subCategoryId ?? 0, activeOrderTypeId),
+    queryFn: () => menuApi.getProducts(categoryId!, subCategoryId ?? 0, activeOrderTypeId),
     enabled: !!categoryId, // Must have a category to fetch products
     ...CACHE_CONFIG,
   });

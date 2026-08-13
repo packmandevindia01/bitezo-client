@@ -28,6 +28,7 @@ export const useConfigurationManager = () => {
   const [productTypeOptions, setProductTypeOptions] = useState<{label: string, value: string}[]>([]);
   const [vatOptions, setVatOptions] = useState<{label: string, value: string}[]>([]);
   const [paymodeOptions, setPaymodeOptions] = useState<{label: string, value: string}[]>([]);
+  const [orderTypeOptions, setOrderTypeOptions] = useState<{label: string, value: string}[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -62,10 +63,11 @@ export const useConfigurationManager = () => {
 
     const loadDropdownOptions = async () => {
       try {
-        const [productTypesRes, vatsRes, paymodesRes] = await Promise.all([
+        const [productTypesRes, vatsRes, paymodesRes, orderTypesRes] = await Promise.all([
           axiosInstance.get("/product/list-product-type-name").catch(() => ({ data: { data: [] } })),
           axiosInstance.get("/vat/vat-list").catch(() => ({ data: { data: [] } })),
-          axiosInstance.get("/paymode/list-name").catch(() => ({ data: { data: [] } }))
+          axiosInstance.get("/paymode/list-name").catch(() => ({ data: { data: [] } })),
+          axiosInstance.get("/pos-config/order-type-list-name").catch(() => ({ data: { data: [] } }))
         ]);
 
         if (!active) return;
@@ -87,6 +89,31 @@ export const useConfigurationManager = () => {
           label: pm.paymodeName || pm.name || "Unknown",
           value: String(pm.paymodeId || pm.id || "")
         })));
+
+        const oTypes = Array.isArray(orderTypesRes.data) 
+          ? orderTypesRes.data 
+          : (Array.isArray(orderTypesRes.data?.data) ? orderTypesRes.data.data : []);
+        
+        const mappedOrderTypes = (oTypes || []).map((t: any) => {
+          const id = t.orderTypeId ?? t.providerId ?? t.typeId ?? t.id ?? t.Id ?? t.OrderTypeId ?? 0;
+          const name = t.orderTypeName ?? t.providerName ?? t.typeName ?? t.orderType ?? t.name ?? t.OrderTypeName ?? t.OrderType ?? t.Name ?? "";
+          return {
+            label: String(name || "").trim(),
+            value: String(id || "")
+          };
+        }).filter((t: any) => t.label !== "" && t.value !== "" && t.value !== "0");
+
+        if (mappedOrderTypes.length > 0) {
+          setOrderTypeOptions(mappedOrderTypes);
+        } else {
+          setOrderTypeOptions([
+            { label: "Dine In", value: "1" },
+            { label: "Take Out", value: "2" },
+            { label: "Drive Thru", value: "3" },
+            { label: "Delivery", value: "4" },
+            { label: "Coming", value: "6" },
+          ]);
+        }
       } catch (err) {
         console.error("Failed to load dropdown options", err);
       }
@@ -264,5 +291,6 @@ export const useConfigurationManager = () => {
     productTypeOptions,
     vatOptions,
     paymodeOptions,
+    orderTypeOptions,
   };
 };

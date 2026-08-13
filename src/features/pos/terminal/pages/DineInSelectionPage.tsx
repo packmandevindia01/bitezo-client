@@ -65,7 +65,7 @@ export const DineInSelectionPage: React.FC = () => {
   const { sparse, cells } = buildGrid(tables);
 
   /* ── event handlers ── */
-  const handleBack = () => navigate('/pos');
+  const handleBack = () => navigate('/pos', { state: { skipAutoDineIn: true } });
 
   const handleTableClick = useCallback((table: DineInTable) => {
     if (table.isUsed) {
@@ -92,7 +92,7 @@ export const DineInSelectionPage: React.FC = () => {
     dispatch(setGuestNo(guestCount));
     dispatch(setOrderTypeByName('DineIn'));
     setGuestTable(null);
-    navigate('/pos');
+    navigate('/pos', { state: { skipAutoDineIn: true } });
   };
 
   /* ── Table card ── */

@@ -24,6 +24,21 @@ export interface PosProduct {
   isLocked?: boolean;
 }
 
+export interface PosProductSearchResult {
+  productId: number;
+  productName: string;
+  arabicName?: string;
+  vatId?: number;
+  vatValue?: number;
+  price: number;
+  hasAlternatives: boolean;
+  isLocked?: boolean;
+  imageUrl?: string;
+  code?: string;
+  unitId?: number;
+  isIncl?: boolean;
+}
+
 export interface PosCartItem {
   uniqueId: string;
   productId: number;
@@ -425,4 +440,9 @@ export interface MenuProvider {
   providerId: number;
   providerName: string;
   imageUrl: string | null;
+  paymodeId?: number;
+  postAccountId?: number;
+  paymode?: string;
+  paymodeName?: string;
+  postAccountName?: string;
 }

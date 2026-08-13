@@ -5,7 +5,8 @@ import {
   setSearch,
   setGroup,
   setSubCategory,
-  cacheProducts
+  cacheProducts,
+  setOrderTypes
 } from "../store/posSlice";
 import { lockProductService } from "../../lockItem/services/lockProductService";
 import { 
@@ -48,6 +49,13 @@ export const usePosProducts = () => {
   const loading = groupsLoading || catsLoading || subsLoading || prodsLoading;
   const error = null;
 
+  // Sync masterData orderTypes to redux
+  useEffect(() => {
+    if (masterData?.orderTypes && masterData.orderTypes.length > 0) {
+      dispatch(setOrderTypes(masterData.orderTypes));
+    }
+  }, [masterData?.orderTypes, dispatch]);
+
   // Auto-select first menu item if none active
   useEffect(() => {
     if (menuTimes.length > 0 && !activeGroupId) {
@@ -57,12 +65,23 @@ export const usePosProducts = () => {
     }
   }, [menuTimes, groups, activeGroupId, dispatch]);
 
-  // Auto-select first category if none active
-  useEffect(() => {
-    if (categories.length > 0 && !activeCategoryId && activeGroupId) {
-      dispatch(setCategory(categories[0].id));
+  // Ensure categories remain visible even if no menu time is configured or if they are unassigned to menu times
+  const displayCategories = useMemo(() => {
+    const masterCats = masterData?.category ?? [];
+    if (!categories || categories.length === 0) {
+      return masterCats;
     }
-  }, [categories, activeCategoryId, activeGroupId, dispatch]);
+    const groupCatIds = new Set(categories.map(c => c.id));
+    const unassignedMasterCats = masterCats.filter(c => !groupCatIds.has(c.id));
+    return [...categories, ...unassignedMasterCats];
+  }, [categories, masterData?.category]);
+
+  // Auto-select first category if none active or activeCategoryId is invalid
+  useEffect(() => {
+    if (displayCategories.length > 0 && (!activeCategoryId || !displayCategories.some(c => c.id === activeCategoryId))) {
+      dispatch(setCategory(displayCategories[0].id));
+    }
+  }, [displayCategories, activeCategoryId, dispatch]);
 
   // Keep productCache updated for the cart calculation selectors
   useEffect(() => {
@@ -104,13 +123,13 @@ export const usePosProducts = () => {
     }));
   }, [products, deferredSearch, lockedIds]);
 
-  const activeCategory = categories.find((c) => c.id === activeCategoryId);
+  const activeCategory = displayCategories.find((c) => c.id === activeCategoryId);
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
 
   return {
     menuTimes,
     groups,
-    categories,
+    categories: displayCategories,
     subCategories,
     activeGroup,
     activeGroupId,

@@ -110,11 +110,14 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       let calculatedVatTotal = 0;
       const mappedItems = details.map((d: any) => {
         const itemMods = orderModifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+        const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
         }));
-        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+        }));
+        const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
+          id: m.modifierId, name: m.modifierName || m.name || ""
         }));
         
         let lineBase = (d.price || 0) * (d.qty || 1);
@@ -129,6 +132,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
           product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
           extras,
           modifiers,
+          messages,
           lineTotal: lineBase
         };
       });

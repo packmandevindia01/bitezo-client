@@ -8,7 +8,7 @@ import ChargesTab from "../components/ChargesTab";
 import DayEndTab from "../components/DayEndTab";
 
 const ConfigurationPage = () => {
-  const { form, employeeOptions, saving, setField, setDayEndField, addDeliveryCharge, removeDeliveryCharge, handleSave } = useConfigurationManager();
+  const { form, employeeOptions, orderTypeOptions, saving, setField, setDayEndField, addDeliveryCharge, removeDeliveryCharge, handleSave } = useConfigurationManager();
   const [activeTab, setActiveTab] = useState<"pos" | "printing" | "charges" | "dayend">("pos");
 
   const tabs = [
@@ -35,7 +35,7 @@ const ConfigurationPage = () => {
                 }`}
               >
                 {tab.icon}
-                <span className="hidden md:inline">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -54,7 +54,7 @@ const ConfigurationPage = () => {
         {/* Tab Content */}
         <div className="rounded-3xl border border-gray-200 bg-white p-4 md:p-6 shadow-sm min-h-[500px]">
           {activeTab === "pos" && (
-            <PosSettingsTab form={form} employeeOptions={employeeOptions} onChange={setField} />
+            <PosSettingsTab form={form} employeeOptions={employeeOptions} orderTypeOptions={orderTypeOptions} onChange={setField} />
           )}
           {activeTab === "printing" && (
             <PrintingTab form={form} onChange={setField} />

@@ -115,6 +115,8 @@ const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().r
 
 const fallbackOrderTypeByName = (name: string): PosOrderType => {
   const normalized = normalizeOrderTypeName(name);
+  if (normalized.includes("provider")) return { orderTypeId: 5, orderType: "Providers" };
+  if (normalized.includes("coming")) return { orderTypeId: 6, orderType: "Coming" };
   if (normalized.includes("takeout") || normalized.includes("takeaway")) return { orderTypeId: 2, orderType: "TakeOut" };
   if (normalized.includes("drive")) return { orderTypeId: 3, orderType: "DriveThru" };
   if (normalized.includes("delivery")) return { orderTypeId: 4, orderType: "Delivery" };
@@ -245,20 +247,38 @@ const posSlice = createSlice({
     },
     setOrderTypes: (state, action: PayloadAction<PosOrderType[]>) => {
       state.orderTypes = action.payload;
+
+      let defaultId = 1;
+      try {
+        const stored = localStorage.getItem("posConfigs");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.configs?.defaultOrderTypeId) {
+            defaultId = Number(parsed.configs.defaultOrderTypeId);
+          }
+        }
+      } catch {}
+
       const selectedTypeExists = action.payload.some((type) => type.orderTypeId === state.selectedOrderTypeId);
       if ((!state.selectedOrderTypeId || !selectedTypeExists) && action.payload.length > 0) {
-        // Try to recover the selection by name before giving up and defaulting to index 0
-        const currentNameNorm = normalizeOrderTypeName(state.selectedOrderTypeName || "");
-        const matchByName = action.payload.find(
-          (type) => normalizeOrderTypeName(type.orderType) === currentNameNorm
-        );
-
-        if (matchByName) {
-          state.selectedOrderTypeId = matchByName.orderTypeId;
-          state.selectedOrderTypeName = matchByName.orderType;
+        const matchByDefaultId = action.payload.find((type) => type.orderTypeId === defaultId);
+        if (matchByDefaultId) {
+          state.selectedOrderTypeId = matchByDefaultId.orderTypeId;
+          state.selectedOrderTypeName = matchByDefaultId.orderType;
         } else {
-          state.selectedOrderTypeId = action.payload[0].orderTypeId;
-          state.selectedOrderTypeName = action.payload[0].orderType;
+          // Try to recover the selection by name before defaulting to index 0
+          const currentNameNorm = normalizeOrderTypeName(state.selectedOrderTypeName || "");
+          const matchByName = action.payload.find(
+            (type) => normalizeOrderTypeName(type.orderType) === currentNameNorm
+          );
+
+          if (matchByName) {
+            state.selectedOrderTypeId = matchByName.orderTypeId;
+            state.selectedOrderTypeName = matchByName.orderType;
+          } else {
+            state.selectedOrderTypeId = action.payload[0].orderTypeId;
+            state.selectedOrderTypeName = action.payload[0].orderType;
+          }
         }
       }
     },

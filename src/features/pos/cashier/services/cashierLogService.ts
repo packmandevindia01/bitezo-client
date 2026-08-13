@@ -135,12 +135,12 @@ export const cashierLogService = {
   },
 
   closeDay: async (payload: CloseDayRequest): Promise<any> => {
-    const { data } = await axiosInstance.post<ApiResponse<any>>(`/Cashier-log/close-day`, payload);
+    const { data } = await axiosInstance.put<ApiResponse<any>>(`/Cashier-log/close-day`, payload);
     return data;
   },
 
   closeShift: async (payload: CloseShiftRequest): Promise<any> => {
-    const { data } = await axiosInstance.post<ApiResponse<any>>(`/Cashier-log/close-shift`, payload);
+    const { data } = await axiosInstance.put<ApiResponse<any>>(`/Cashier-log/close-shift`, payload);
     return data;
   },
 

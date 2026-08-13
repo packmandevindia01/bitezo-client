@@ -14,6 +14,7 @@ interface Props {
   selectedBranchIds: number[];
   branchOptions: { id: number; name: string }[];
   paymodeOptions: { id: number; name: string }[];
+  accountOptions: { id: number; name: string }[];
   imagePreview: string;
   onClose: () => void;
   onToggleAllocation: () => void;
@@ -33,6 +34,7 @@ const ProviderModal = ({
   selectedBranchIds,
   branchOptions,
   paymodeOptions,
+  accountOptions,
   imagePreview,
   onClose,
   onToggleAllocation,
@@ -148,6 +150,17 @@ const ProviderModal = ({
               options={paymodeOptions.map((pm) => ({ value: String(pm.id), label: pm.name }))}
             />
 
+            {/* Post Account */}
+            <SearchableSelect
+              label="Post Account"
+              tabIndex={3}
+              value={String(form.watch("postAccountId") || "")}
+              onChange={(val) => form.setValue("postAccountId", Number(val) || 0, { shouldDirty: true, shouldValidate: true })}
+              error={errors.postAccountId?.message}
+              placeholder="Select Post Account"
+              options={accountOptions.map((acc) => ({ value: String(acc.id), label: acc.name }))}
+            />
+
             {/* Delivery Status */}
             <div className="flex flex-col gap-1 w-full mt-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
@@ -155,7 +168,7 @@ const ProviderModal = ({
               </span>
               <div className="flex items-center h-10">
                 <Checkbox
-                  tabIndex={3}
+                  tabIndex={4}
                   checked={form.watch("deliveryStatus")}
                   onChange={(e) => form.setValue("deliveryStatus", e.target.checked, { shouldDirty: true, shouldValidate: true })}
                   label={form.watch("deliveryStatus") ? "Delivery Enabled" : "Delivery Disabled"}

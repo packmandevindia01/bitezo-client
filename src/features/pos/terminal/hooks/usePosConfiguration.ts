@@ -47,6 +47,7 @@ const mapApiToState = (data: PosConfigResponseData): ConfigurationState => {
     defaultDeliveryCharge: configs.deliveryCharge || 0,
     defaultEmployee: configs.defaultEmployee === "Enable",
     employeeId: configs.employeeId ? String(configs.employeeId) : "",
+    defaultOrderTypeId: String(configs.defaultOrderTypeId ? configs.defaultOrderTypeId : 1),
     groupInMenu: configs.showGroup === "Enable",
     providerOwnMenuStatus: configs.providerOwnStatus ?? true,
 
@@ -120,6 +121,9 @@ const mapStateToApi = (state: ConfigurationState, branchId: number): PosConfigUp
     employeeId: Number(state.employeeId) || 0,
     showGroup: state.groupInMenu ? "Enable" : "Disable",
     providerOwnStatus: state.providerOwnMenuStatus,
+    isRecipeEnable: state.recipe,
+    isDayDateEnable: state.dayDate,
+    defaultOrderTypeId: Number(state.defaultOrderTypeId) || 1,
 
     deliveryCharges: state.multiDeliveryCharges.map(d => ({
       chargeName: d.name,
@@ -132,6 +136,7 @@ export const usePosConfiguration = () => {
   const { showToast } = useToast();
   const [form, setForm] = useState<ConfigurationState>(INITIAL_CONFIG);
   const [employeeOptions, setEmployeeOptions] = useState<ConfigurationEmployeeOption[]>([]);
+  const [orderTypeOptions, setOrderTypeOptions] = useState<{ label: string; value: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -143,9 +148,10 @@ export const usePosConfiguration = () => {
         setLoading(true);
         const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
         
-        // Fetch employees and pos config concurrently
-        const [employees, posConfigRes] = await Promise.all([
+        // Fetch employees, order types, and pos config concurrently
+        const [employees, orderTypesRes, posConfigRes] = await Promise.all([
           getEmployeeNames(branchId).catch((e) => { console.error(e); return []; }),
+          posConfigApi.getOrderTypeList().catch((e) => { console.error(e); return []; }),
           posConfigApi.getPosConfig(branchId).catch(() => null)
         ]);
 
@@ -157,6 +163,23 @@ export const usePosConfiguration = () => {
             value: String(employee.empId),
           }))
         );
+
+        if (orderTypesRes && orderTypesRes.length > 0) {
+          setOrderTypeOptions(
+            orderTypesRes.map((t) => ({
+              label: t.orderTypeName,
+              value: String(t.orderTypeId),
+            }))
+          );
+        } else {
+          setOrderTypeOptions([
+            { label: "Dine In", value: "1" },
+            { label: "Take Out", value: "2" },
+            { label: "Drive Thru", value: "3" },
+            { label: "Delivery", value: "4" },
+            { label: "Coming", value: "6" },
+          ]);
+        }
 
         if (posConfigRes?.data) {
           setForm(mapApiToState(posConfigRes.data));
@@ -220,7 +243,20 @@ export const usePosConfiguration = () => {
       
       const res = await posConfigApi.updatePosConfig(payload);
       
-      // Based on typical backend pattern, checking for isSuccess / success properties
+      // Update local storage runtime posConfigs
+      try {
+        const saved = localStorage.getItem("posConfigs");
+        const parsed = saved ? JSON.parse(saved) : {};
+        if (parsed.configs) {
+          parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
+          parsed.configs.isRecipeEnable = payload.isRecipeEnable;
+          parsed.configs.isDayDateEnable = payload.isDayDateEnable;
+          localStorage.setItem("posConfigs", JSON.stringify(parsed));
+        }
+      } catch (e) {
+        console.error("Failed to update cached posConfigs:", e);
+      }
+
       if (res && (res.isSuccess !== false)) {
         showToast("POS Configuration saved successfully", "success");
       } else {
@@ -237,6 +273,7 @@ export const usePosConfiguration = () => {
   return {
     form,
     employeeOptions,
+    orderTypeOptions,
     saving,
     loading,
     setField,

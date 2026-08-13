@@ -133,6 +133,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     if (loadedInvoiceText !== "" && watchedInvoiceNo !== loadedInvoiceText) {
       setPurchaseId(0);
       setLoadedInvoiceText("");
+      setSelectedInvoiceItems([]);
       replaceItems([{
         id: generateUUID(),
         product: "",
@@ -145,9 +146,31 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         vatPercent: "0",
         discPercent: "0",
       }]);
-      setProductOptions([]);
+      if (watchedBranch) {
+        setSearchingProducts(true);
+        purchaseReturnApi.searchProductsByName(Number(watchedBranch), "", 0)
+          .then(results => {
+            const mapped = results.map((r) => ({
+              label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
+              value: r.productId.toString(),
+              code: r.code || "",
+              barcode: r.barcode || "",
+            }));
+            const seenIds = new Set<string>();
+            const unique = mapped.filter(item => {
+              if (seenIds.has(item.value)) return false;
+              seenIds.add(item.value);
+              return true;
+            });
+            setProductOptions(unique);
+          })
+          .catch(e => console.error("Failed to reload branch products", e))
+          .finally(() => setSearchingProducts(false));
+      } else {
+        setProductOptions([]);
+      }
     }
-  }, [watchedInvoiceNo, loadedInvoiceText, purchaseId, replaceItems]);
+  }, [watchedInvoiceNo, loadedInvoiceText, purchaseId, watchedBranch, replaceItems]);
   
   // Calculate totals
   const grossTotal = useMemo(() => {
@@ -766,6 +789,11 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       showToast("Transaction amount cannot be zero or negative", "warning");
       return false;
     }
+    if (!selectedPaymodeId || selectedPaymodeId <= 0 || watchedPayments.length === 0) {
+      showToast("Paymode is required. Please select a paymode", "warning");
+      return false;
+    }
+
     const totalPaid = watchedPayments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
     const roundedPaid = Number(totalPaid.toFixed(decimalPart));
     const roundedDue = Number(totals.grandTotal.toFixed(decimalPart));

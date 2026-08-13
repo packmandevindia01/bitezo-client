@@ -75,6 +75,7 @@ export const usePosCheckoutFlow = ({
       shiftId: status.shiftId,
       userId: status.userId,
       employeeId,
+      customerId: (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0) ? activeProvider.provider.postAccountId : undefined,
       providerId: activeProvider?.provider?.providerId,
       providerOrderNo: activeProvider?.orderNo,
     }, shouldPrint);
@@ -85,6 +86,7 @@ export const usePosCheckoutFlow = ({
       setActiveProvider(null);
       setIsCashModalOpen(false);
       setIsMultiPayModalOpen(false);
+      handleClearCart();
     }
   });
 
@@ -144,6 +146,8 @@ export const usePosCheckoutFlow = ({
     
     const orderPayload = getDirectSettleOrderPayload({
       employeeId,
+      customerId: (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0) ? activeProvider.provider.postAccountId : undefined,
+      providerId: activeProvider?.provider?.providerId,
       providerOrderNo: activeProvider?.orderNo,
     });
 
@@ -154,11 +158,15 @@ export const usePosCheckoutFlow = ({
       const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
       const activeTransDate = rawTransDate.split("T")[0];
       const activeDriverId = (orderPayload as any).driverId || Number(localStorage.getItem("selectedDriverId") || 0);
+      const resolvedCustomerId = (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0)
+        ? activeProvider.provider.postAccountId
+        : orderPayload.customerId;
+
       const rootPaymodeId = payments.length > 1 ? 3 : (payments.length === 1 ? payments[0].paymodeId : 0);
       const salesPayload: any = {
         seriesId: systemSeriesId,
         prefix: "",
-        customerId: orderPayload.customerId,
+        customerId: resolvedCustomerId,
         paymodeId: rootPaymodeId,
         employeeId: employeeId,
         dayId: status.dayId,

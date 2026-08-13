@@ -5,7 +5,8 @@ import type { ProductionPayload, ProductionDetailParams } from "../types";
 
 function unwrap<T>(data: ApiResponse<T>): T {
   if (!data.isSuccess) {
-    throw new Error(data.message || "Operation failed");
+    const firstError = data.errors && data.errors.length > 0 ? data.errors[0].message : null;
+    throw new Error(firstError || data.message || "Operation failed");
   }
   return data.data;
 }

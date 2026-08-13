@@ -41,9 +41,10 @@ export const getPurchaseReturnSchema = (decimalPart: number) => {
       return selectedDate <= today;
     }, { message: "Future dates are not allowed" }),
     invoiceNo: z.string()
-      .min(1, "Invoice No is required")
       .max(50, "Max 50 characters")
-      .regex(/^[a-zA-Z0-9\s\-_]+$/, "Special characters not allowed"),
+      .regex(/^[a-zA-Z0-9\s\-_]*$/, "Special characters not allowed")
+      .optional()
+      .or(z.literal("")),
     refNo: z.string()
       .max(50, "Max 50 characters")
       .regex(/^[a-zA-Z0-9\s\-_]*$/, "Special characters not allowed")

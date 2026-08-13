@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AlertCircle, Trash2, Pencil, Plus } from "lucide-react";
+import { Trash2, Pencil, Plus } from "lucide-react";
 import { Button, PageShell, RecordTableCard, ConfirmDialog, SelectInput, SearchableSelect } from "../../../../components/common";
 import { useProductionList } from "../hooks/useProductionList";
 import { productionApi } from "../services/productionApi";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -19,10 +19,17 @@ const ProductionListPage = () => {
     filters,
     branches,
     products,
+    units,
     handleFilterChange,
   } = useProductionList();
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      showToast(error, "error");
+    }
+  }, [error, showToast]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -47,13 +54,6 @@ const ProductionListPage = () => {
 
   return (
     <PageShell title="Production" description="View and manage Production records.">
-      {error && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{error}</span>
-        </div>
-      )}
-
       {/* Standard Filter Header */}
       <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
         <div className="flex gap-4 items-end flex-1 flex-wrap">
@@ -76,6 +76,16 @@ const ProductionListPage = () => {
               options={products}
               value={filters.productId} 
               onChange={(val) => handleFilterChange("productId", val)} 
+            />
+          </div>
+          <div className="w-48">
+            <SelectInput 
+              id="filter-unit"
+              label="Unit" 
+              placeholder="All Units"
+              options={units}
+              value={filters.unitId} 
+              onChange={(e) => handleFilterChange("unitId", e.target.value)} 
             />
           </div>
         </div>

@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { providerSchema, type ProviderFormType, type ProviderListItem } from "../types";
-import { fetchProviders, fetchProviderById, createProvider, updateProvider, deleteProvider } from "../services/providerService";
+import { fetchProviders, fetchProviderById, createProvider, updateProvider, deleteProvider, fetchProviderAccounts } from "../services/providerService";
 import { paymodeService } from "../../paymode/services/paymodeService";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
@@ -47,6 +47,19 @@ export const useProviderManager = () => {
     },
   });
 
+  const { data: accounts = [], isLoading: accountsLoading } = useQuery({
+    queryKey: ["providerAccounts"],
+    queryFn: async () => {
+      const data = await fetchProviderAccounts();
+      return data.map((acc) => ({
+        id: acc.customerId,
+        name: acc.customerName ? `${acc.code ? `${acc.code} - ` : ""}${acc.customerName}` : String(acc.customerId),
+        code: acc.code,
+        customerName: acc.customerName,
+      }));
+    },
+  });
+
   // ── Form Setup ──────────────────────────────────────────
 
   const form = useForm<ProviderFormType>({
@@ -54,6 +67,7 @@ export const useProviderManager = () => {
     defaultValues: {
       providerName: "",
       paymodeId: 0,
+      postAccountId: 0,
       deliveryStatus: true,
       branchIds: [],
       imageFile: null,
@@ -118,6 +132,7 @@ export const useProviderManager = () => {
     form.reset({
       providerName: "",
       paymodeId: 0,
+      postAccountId: 0,
       deliveryStatus: true,
       branchIds: [],
       imageFile: null,
@@ -152,6 +167,7 @@ export const useProviderManager = () => {
         providerId: detail.provider.providerId,
         providerName: detail.provider.providerName,
         paymodeId: detail.provider.paymodeId,
+        postAccountId: detail.provider.postAccountId || 0,
         deliveryStatus: detail.provider.deliveryStatus === "Enable",
         branchIds: branchIds,
         fileUrl: detail.provider.fileUrl || "",
@@ -212,11 +228,12 @@ export const useProviderManager = () => {
     search,
     editingId,
     filteredRecords,
-    loading: recordsLoading || masterLoading || paymodesLoading,
+    loading: recordsLoading || masterLoading || paymodesLoading || accountsLoading,
     saving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
     branchOptions: branches,
     paymodeOptions: paymodes,
+    accountOptions: accounts,
     allocationOpen,
     imagePreview,
     setAllocationOpen,

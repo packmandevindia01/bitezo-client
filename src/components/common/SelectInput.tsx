@@ -90,9 +90,11 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
         {...rest}
       >
         {/* Placeholder */}
-        <option value="">
-          {placeholder}
-        </option>
+        {placeholder ? (
+          <option value="">
+            {placeholder}
+          </option>
+        ) : null}
 
         {/* Options */}
         {options.map((opt) => (

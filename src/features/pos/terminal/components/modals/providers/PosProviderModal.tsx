@@ -32,6 +32,25 @@ export const PosProviderModal = ({ isOpen, onClose, onSelect, onClear }: PosProv
     }
   };
 
+  const handleSelectProvider = async (provider: MenuProvider) => {
+    let fullProvider = { ...provider };
+    if (fullProvider.paymodeId === undefined || fullProvider.postAccountId === undefined) {
+      try {
+        const { fetchProviderById } = await import("../../../../../general/provider/services/providerService");
+        const detail = await fetchProviderById(provider.providerId);
+        if (detail?.provider) {
+          fullProvider.paymodeId = detail.provider.paymodeId;
+          fullProvider.postAccountId = detail.provider.postAccountId;
+          fullProvider.paymode = (detail.provider as any).paymode;
+        }
+      } catch (err) {
+        console.error("Failed to fetch detailed provider info:", err);
+      }
+    }
+    onSelect(fullProvider);
+    onClose();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -56,10 +75,7 @@ export const PosProviderModal = ({ isOpen, onClose, onSelect, onClear }: PosProv
             {providers.map((provider) => (
               <button
                 key={provider.providerId}
-                onClick={() => {
-                  onSelect(provider);
-                  onClose();
-                }}
+                onClick={() => handleSelectProvider(provider)}
                 title={provider.providerName}
                 className="
                   group relative flex flex-col items-center justify-center p-3

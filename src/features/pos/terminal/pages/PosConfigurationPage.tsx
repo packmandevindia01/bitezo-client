@@ -22,6 +22,7 @@ export const PosConfigurationPage: React.FC = () => {
   const { 
     form, 
     employeeOptions, 
+    orderTypeOptions,
     saving, 
     setField, 
     setDayEndField, 
@@ -130,6 +131,7 @@ export const PosConfigurationPage: React.FC = () => {
               <PosSettingsTab 
                 form={form} 
                 employeeOptions={employeeOptions} 
+                orderTypeOptions={orderTypeOptions}
                 onChange={setField} 
               />
             )}

@@ -7,10 +7,11 @@ import type { ConfigurationEmployeeOption } from "../hooks/useConfigurationManag
 interface Props {
   form: ConfigurationState;
   employeeOptions: ConfigurationEmployeeOption[];
+  orderTypeOptions?: { label: string; value: string }[];
   onChange: <K extends keyof ConfigurationState>(key: K, value: ConfigurationState[K]) => void;
 }
 
-const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
+const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange }: Props) => {
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -19,6 +20,15 @@ const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
       }
     }
   };
+
+  const validOrderTypes = orderTypeOptions.filter(o => o.label && o.label.trim() !== "" && o.value && o.value !== "0");
+  const defaultOrderTypes = validOrderTypes.length > 0 ? validOrderTypes : [
+    { value: "1", label: "Dine In" },
+    { value: "2", label: "Take Out" },
+    { value: "3", label: "Drive Thru" },
+    { value: "4", label: "Delivery" },
+    { value: "6", label: "Coming" },
+  ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
@@ -54,12 +64,22 @@ const PosSettingsTab = ({ form, employeeOptions, onChange }: Props) => {
             autoFocus
             value={form.alternativeOrder}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("alternativeOrder", e.target.value as any)}
-            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-default-employee")}
+            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-order-type")}
             options={[
               { value: "Id", label: "Id" },
               { value: "Name", label: "Name" },
               { value: "Price", label: "Price" },
             ]}
+          />
+
+          <SelectInput
+            id="conf-pos-order-type"
+            label="Default Order Type"
+            placeholder=""
+            value={form.defaultOrderTypeId && form.defaultOrderTypeId !== "0" ? form.defaultOrderTypeId : "1"}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("defaultOrderTypeId", e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-default-employee")}
+            options={defaultOrderTypes}
           />
 
           <Checkbox

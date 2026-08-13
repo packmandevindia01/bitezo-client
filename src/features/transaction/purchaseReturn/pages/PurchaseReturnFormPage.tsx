@@ -312,7 +312,7 @@ const PurchaseReturnFormPage = () => {
               
               <Controller name="invoiceNo" control={control} render={({ field }) => (
                 <AutocompleteInput
-                  required={true}
+                  required={false}
                   inputClassName="!h-8 !px-2 !text-xs"
                   id="pr-invoiceNo"
                   label="Inv No"
@@ -614,6 +614,7 @@ const PurchaseReturnFormPage = () => {
                     key={paymodeSelectKey}
                     id="pr-paymode"
                     label="Paymode"
+                    required={true}
                     value={selectedPaymodeId === multiPayId ? String(multiPayId) : String(selectedPaymodeId || "")}
                     forcePlacement="top"
                     onChange={(val) => {

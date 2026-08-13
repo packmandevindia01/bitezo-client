@@ -107,7 +107,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     dispatch(setOrderTypeByName('DineIn'));
     setShowGuestCount(false);
     onClose();
-    navigate('/pos');
+    navigate('/pos', { state: { skipAutoDineIn: true } });
   };
 
   /* ── FULL ORDER MAPPER ── */
@@ -206,7 +206,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
       onEditSuccess?.();
       onClose();
-      navigate('/pos');
+      navigate('/pos', { state: { skipAutoDineIn: true } });
     } catch {
       showToast('Failed to load full order for editing', 'error');
     }
@@ -235,7 +235,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       showToast(`Settling Order #${selectedMaster.orderNo}`, 'success');
       onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
       onClose();
-      navigate('/pos');
+      navigate('/pos', { state: { skipAutoDineIn: true } });
     } catch {
       showToast('Failed to load full order for settlement', 'error');
     }

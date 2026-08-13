@@ -176,20 +176,19 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       
       const mappedItems = details.map((d: any) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+        const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
         }));
-        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+        }));
+        const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
+          id: m.modifierId, name: m.modifierName || m.name || ""
         }));
         
         let lineBase = (d.price || 0) * (d.qty || 1);
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
         
-        // Use the VAT-inclusive net amount as lineTotal so the KOT template
-        // shows the same amounts as the Order & Print flow (which uses inclusive lineTotal).
-        // d.netAmount from API = vatBase + vatAmount (inclusive).
-        // Fallback: lineBase + vatAmount if netAmount is missing.
         const vatAmt = d.vatAmount || 0;
         const inclusiveLineTotal = d.netAmount || (lineBase + vatAmt);
         
@@ -212,6 +211,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           },
           extras,
           modifiers,
+          messages,
           lineTotal: inclusiveLineTotal,
           vatAmount: vatAmt,
           netAmount: inclusiveLineTotal
@@ -293,17 +293,20 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         totalVatBase += itemVatBase;
         
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+        const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1, typeId: m.typeId
         }));
-        const modifiers = itemMods.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, qty: m.qty || 1, typeId: m.typeId
+        }));
+        const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
+          id: m.modifierId, name: m.modifierName || m.name || ""
         }));
         
         let lineBase = (d.price || 0) * (d.qty || 1);
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
         
-        return { ...d, itemVatBase, extras, modifiers, lineBase };
+        return { ...d, itemVatBase, extras, modifiers, messages, lineBase };
       });
 
       const calculatedSubTotal = master.vatExclAmount || totalVatBase;
@@ -328,6 +331,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: adjustedPrice },
           extras: adjustedExtras,
           modifiers: d.modifiers,
+          messages: d.messages || [],
           lineTotal: trueLineTotal
         };
       });
@@ -416,7 +420,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const mappedCartItems = details.map((detail: any, idx: number) => {
         const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
         
-        const extras = itemModifiers.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
+        const extras = itemModifiers.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId,
           name: m.modifierName,
           price: m.price || 0,
@@ -424,12 +428,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           typeId: m.typeId
         }));
 
-        const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
+        const modifiers = itemModifiers.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
           id: m.modifierId,
           name: m.modifierName,
           qty: m.qty || 1,
           typeId: m.typeId,
           typeName: m.typeName
+        }));
+
+        const messages = itemModifiers.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
+          id: m.modifierId,
+          name: m.modifierName || m.name || ""
         }));
 
         let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
@@ -484,6 +493,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           discountType: detail.discPer ? 'percentage' : 'amount',
           extras,
           modifiers,
+          messages,
           isExisting: true,
           mapId: detail.mapId,
           originalQty: detail.qty || 1,
@@ -875,16 +885,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                           </div>
                         </div>
                         
-                        {/* Modifiers display as separate rows */}
+                        {/* Modifiers and Messages display as separate rows */}
                         {itemModifiers.map((mod: any, idx: number) => {
+                          const isMessage = (mod.status || "").toLowerCase() === "message";
                           let prefix = "+";
                           
-                          // 1. If backend explicitly provides typeName, use it
-                          if (mod.typeName && mod.typeName.trim() !== "") {
+                          if (isMessage) {
+                            prefix = "💬";
+                          } else if (mod.typeName && mod.typeName.trim() !== "") {
                             prefix = mod.typeName.toUpperCase();
-                          } 
-                          // 2. Otherwise try to match typeId to our loaded types
-                          else if (mod.typeId) {
+                          } else if (mod.typeId) {
                             const match = modifierTypes.find((t: any) => t.typeId === mod.typeId || t.id === mod.typeId);
                             if (match && match.name) {
                               prefix = match.name.toUpperCase();
@@ -894,8 +904,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                           return (
                             <div key={idx} className="grid grid-cols-[24px_1fr_60px] items-start text-[9px] leading-tight mt-0.5">
                               <div></div>
-                              <div className="pl-3 text-[#f48120] font-medium">
-                                {prefix} {mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName}
+                              <div className={`pl-3 font-medium ${isMessage ? "text-purple-600" : "text-[#f48120]"}`}>
+                                {prefix} {!isMessage && mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName}
                               </div>
                               <div className="text-right font-medium text-[#f48120]">
                                 {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}

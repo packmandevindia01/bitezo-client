@@ -1,5 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
-import type { ProviderListItem, ProviderDetail, ProviderPayload } from "../types";
+import type { ProviderListItem, ProviderDetail, ProviderPayload, ProviderAccountItem } from "../types";
 import type { ApiResponse } from "../../../inventory/product/types";
 
 const BASE = "/provider";
@@ -43,6 +43,13 @@ export const fetchProviders = async (): Promise<ProviderListItem[]> => {
 export const fetchProviderById = async (id: number): Promise<ProviderDetail> => {
   return unwrap(
     axiosInstance.get<ApiResponse<ProviderDetail>>(`${BASE}/${id}/provider-data`)
+  );
+};
+
+export const fetchProviderAccounts = async (accountName: string = ""): Promise<ProviderAccountItem[]> => {
+  const params = accountName ? `?accountName=${encodeURIComponent(accountName)}` : "";
+  return unwrap(
+    axiosInstance.get<ApiResponse<ProviderAccountItem[]>>(`${BASE}/account-list${params}`)
   );
 };
 

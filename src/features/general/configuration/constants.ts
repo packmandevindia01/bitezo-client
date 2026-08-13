@@ -7,6 +7,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   alternativeOrder: "Name",
   defaultEmployee: false,
   employeeId: "",
+  defaultOrderTypeId: "1",
   groupInMenu: false,
   packagerHeader: false,
   enableVat: false,

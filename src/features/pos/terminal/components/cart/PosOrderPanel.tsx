@@ -325,8 +325,16 @@ export const PosOrderPanel = ({
         {/* MESSAGE */}
         <button
           onClick={onMessage}
+          disabled={!hasSelection}
           title="Add Message"
-          className="h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 border bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
+          className={`
+            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
+            transition-all active:scale-95 border
+            ${hasSelection
+              ? "bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
+              : "bg-transparent border-slate-200 cursor-not-allowed opacity-40 text-slate-400"
+            }
+          `}
         >
           <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />

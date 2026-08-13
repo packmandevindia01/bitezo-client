@@ -13,6 +13,7 @@ export interface ConfigurationState {
   alternativeOrder: "Id" | "Name" | "Price";
   defaultEmployee: boolean;
   employeeId: string;
+  defaultOrderTypeId: string;
   groupInMenu: boolean;
   packagerHeader: boolean;
   

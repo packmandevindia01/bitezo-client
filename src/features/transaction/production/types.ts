@@ -41,6 +41,8 @@ export type ProductionForm = z.infer<typeof productionSchema>;
 export interface ProductionDetailParams {
   BranchId?: number;
   ProductId?: number;
+  UnitId?: number;
+  Decimals?: number;
   FromDate?: string;
   ToDate?: string;
 }
