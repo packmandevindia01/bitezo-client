@@ -100,4 +100,56 @@ public class BitezoPrinterPlugin extends Plugin {
             }
         }).start();
     }
+
+    /**
+     * Fast ESC/POS text print using dantsu markup.
+     * Replaces the slow html2canvas → image path for all receipt/KOT printing.
+     * Markup format: [L]left text  [C]center text  [R]right text
+     * Bold: [L]<b>text</b>   Double height: [L]<font size='big'>text</font>
+     */
+    @PluginMethod
+    public void printEscPos(PluginCall call) {
+        String markup  = call.getString("markup");
+        String type    = call.getString("type");
+        String address = call.getString("address");
+        int port       = call.getInt("port", 9100);
+
+        if (markup == null || type == null || address == null) {
+            call.reject("Missing required parameters: markup, type, address");
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                EscPosPrinter printer;
+
+                if (type.equals("tcp")) {
+                    printer = new EscPosPrinter(
+                        new TcpConnection(address, port, 15000), 203, 72f, 48
+                    );
+                } else if (type.equals("bluetooth")) {
+                    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                    if (adapter == null || !adapter.isEnabled()) {
+                        call.reject("Bluetooth is not enabled");
+                        return;
+                    }
+                    BluetoothDevice device = adapter.getRemoteDevice(address);
+                    printer = new EscPosPrinter(
+                        new BluetoothConnection(device), 203, 72f, 48
+                    );
+                } else {
+                    call.reject("Invalid connection type: " + type);
+                    return;
+                }
+
+                // Single call — no chunking, no sleep(), no image conversion
+                printer.printFormattedTextAndCut(markup);
+                printer.disconnectPrinter();
+                call.resolve();
+
+            } catch (Exception e) {
+                call.reject("ESC/POS print failed: " + e.getMessage());
+            }
+        }).start();
+    }
 }

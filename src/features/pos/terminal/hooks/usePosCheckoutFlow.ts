@@ -93,15 +93,7 @@ export const usePosCheckoutFlow = ({
     if (shouldPrint && payload) {
       showToast("Printing receipt...", "info");
       try {
-        const { printerSettingsApi } = await import("../../services/printerSettingsApi");
-        const { printHtmlReceipt } = await import("../../services/qzService");
-        const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
-        
-        let targetPrinter: string | undefined;
-        try {
-          const printerSettingsResponse = await printerSettingsApi.getGeneral();
-          targetPrinter = printerSettingsResponse?.data?.billPrinter;
-        } catch {}
+        const { Capacitor } = await import("@capacitor/core");
 
         const getVatStatus = (): boolean => {
           try {
@@ -115,8 +107,25 @@ export const usePosCheckoutFlow = ({
         const enableVat = getVatStatus();
         payload.printData.enableVat = enableVat;
 
-        const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
-        await printHtmlReceipt(html, targetPrinter);
+        if (Capacitor.isNativePlatform()) {
+          // ── FAST PATH: Native ESC/POS (no html2canvas, no API call) ──────────
+          const { printEscPosMarkup } = await import("../../services/qzService");
+          const { generateBillMarkup } = await import("../../utils/escPosGenerator");
+          const markup = generateBillMarkup({
+            cartDetails: payload.mappedItems,
+            data: payload.printData,
+          });
+          await printEscPosMarkup(markup);
+        } else {
+          // ── DESKTOP PATH: QZ Tray (unchanged) ───────────────────────────────
+          const { printHtmlReceipt } = await import("../../services/qzService");
+          const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
+          // Read bill printer from cache (set by PrinterSettingsTab on save)
+          const targetPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+          const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
+          await printHtmlReceipt(html, targetPrinter);
+        }
+
         showToast("Sales saved successfully", "success");
       } catch (printErr: any) {
         console.error("Settled print failed:", printErr);

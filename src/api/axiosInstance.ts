@@ -108,6 +108,34 @@ axiosInstance.interceptors.response.use(
         window.location.href = "/";
       }
     }
+
+    // Extract human-readable backend message (e.g. 400, 404, 409, 500 error envelopes)
+    if (error.response?.data) {
+      const data = error.response.data;
+      let backendMessage: string | undefined;
+
+      if (Array.isArray(data.errors) && data.errors.length > 0) {
+        const first = data.errors[0];
+        backendMessage = typeof first === "object" ? (first.message || first.field) : first;
+      } else if (data.errors && typeof data.errors === "object") {
+        // Standard ASP.NET validation dictionary: { "Field": ["Message 1", "Message 2"] }
+        const entries = Object.entries(data.errors);
+        if (entries.length > 0) {
+          const [field, msgs] = entries[0] as [string, any];
+          const firstMsg = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          backendMessage = firstMsg ? `${field ? field + ": " : ""}${firstMsg}` : undefined;
+        }
+      }
+
+      if (!backendMessage) {
+        backendMessage = data.message || data.title;
+      }
+
+      if (backendMessage && typeof backendMessage === "string") {
+        error.message = backendMessage;
+      }
+    }
+
     return Promise.reject(error);
   }
 );

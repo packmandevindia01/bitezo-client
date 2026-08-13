@@ -5,12 +5,27 @@ import type { ExtrasTypeForm, ExtrasTypeRecord, ExtrasTypeDetailRecord } from ".
 const BASE = "/extrastype";
 
 async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
-  const { data: envelope } = await promise;
-  if (!envelope.isSuccess) {
-    const msg = envelope.errors?.[0]?.message ?? envelope.message ?? "An error occurred";
-    throw new Error(msg);
+  try {
+    const { data: envelope } = await promise;
+    if (!envelope.isSuccess) {
+      const firstError = envelope.errors?.[0] as any;
+      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError) 
+                  ?? envelope.message 
+                  ?? "An error occurred";
+      throw new Error(msg);
+    }
+    return envelope.data;
+  } catch (error: any) {
+    if (error.response?.data) {
+      const envelope = error.response.data as ApiResponse<any>;
+      const firstError = envelope.errors?.[0] as any;
+      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError) 
+                  ?? envelope.message 
+                  ?? error.message;
+      throw new Error(msg);
+    }
+    throw error;
   }
-  return envelope.data;
 }
 
 export const extrasTypeApi = {

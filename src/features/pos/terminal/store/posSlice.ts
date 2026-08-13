@@ -334,13 +334,15 @@ const posSlice = createSlice({
       uniqueId: string; 
       extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
       modifiers?: { id: number; name: string; qty: number; typeId: number }[];
+      messages?: { id?: number; name: string; qty?: number }[];
     }>) => {
       state.isCartModified = true;
-      const { uniqueId, extras, modifiers } = action.payload;
+      const { uniqueId, extras, modifiers, messages } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
-        item.extras = extras;
-        item.modifiers = modifiers;
+        if (extras !== undefined) item.extras = extras;
+        if (modifiers !== undefined) item.modifiers = modifiers;
+        if (messages !== undefined) item.messages = messages;
       }
     },
     

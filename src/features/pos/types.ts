@@ -36,6 +36,7 @@ export interface PosCartItem {
   unitId?: number;
   extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
   modifiers?: { id: number; name: string; qty: number; typeId: number }[];
+  messages?: { id?: number; name: string; qty?: number }[];
   isExisting?: boolean;
   mapId?: number;
   originalQty?: number;

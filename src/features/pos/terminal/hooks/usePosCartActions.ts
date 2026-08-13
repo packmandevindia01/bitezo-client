@@ -757,8 +757,8 @@ export const usePosCartActions = () => {
       dispatch(updateItemPrice({ uniqueId, price })),
     updateItemQty: (uniqueId: string, quantity: number) =>
       dispatch(updateItemQty({ uniqueId, quantity })),
-    setItemCustomizations: (uniqueId: string, extras?: PosCartItem["extras"], modifiers?: PosCartItem["modifiers"]) =>
-      dispatch(setItemCustomizations({ uniqueId, extras, modifiers })),
+    setItemCustomizations: (uniqueId: string, extras?: PosCartItem["extras"], modifiers?: PosCartItem["modifiers"], messages?: PosCartItem["messages"]) =>
+      dispatch(setItemCustomizations({ uniqueId, extras, modifiers, messages })),
     setChange: (value: string) => dispatch(setChange(value)),
   };
 };

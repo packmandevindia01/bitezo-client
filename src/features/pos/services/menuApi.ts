@@ -233,4 +233,35 @@ export const menuApi = {
   /** GET /api/menu/providers */
   getProviders: () =>
     unwrap(axiosInstance.get<ApiResponse<import("../types").MenuProvider[]>>(`/menu/providers${getTenantQuery()}`)),
+
+  /** GET /api/menu/message */
+  getMessages: async (messageName?: string): Promise<{ id: number; name: string }[]> => {
+    try {
+      const raw = await unwrap(axiosInstance.get<ApiResponse<any>>("/menu/message", { 
+        params: { 
+          clientDb: localStorage.getItem("tenantId") || "", 
+          messageName: messageName || undefined 
+        } 
+      }));
+      const list = Array.isArray(raw) 
+        ? raw 
+        : (raw?.message || raw?.messages || raw?.data || (raw ? [raw] : []));
+      return (list || []).map((m: any) => ({
+        id: m.id ?? m.messageId ?? m.ID ?? Math.random(),
+        name: m.name ?? m.messageName ?? m.messageText ?? m.description ?? String(m)
+      }));
+    } catch (err) {
+      console.error("[menuApi] getMessages error:", err);
+      return [];
+    }
+  },
+
+  /** POST /api/menu/message */
+  createMessage: (name: string): Promise<{ id: number }> =>
+    unwrap(axiosInstance.post<ApiResponse<{ id: number }>>("/menu/message", {
+      name,
+      createdAt: new Date().toISOString()
+    }, {
+      params: { clientDb: localStorage.getItem("tenantId") || "" }
+    })),
 };

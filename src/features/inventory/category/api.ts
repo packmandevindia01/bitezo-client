@@ -15,22 +15,38 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
     const { data: envelope } = await promise;
 
     if (!envelope.isSuccess) {
-      const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? (firstError.field || firstError.message) : firstError) 
-                  ?? envelope.message 
-                  ?? "An unexpected error occurred.";
-      throw new Error(msg);
+      let msg: string | undefined;
+      if (Array.isArray(envelope.errors) && envelope.errors.length > 0) {
+        const firstError = envelope.errors[0] as any;
+        msg = typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError;
+      } else if (envelope.errors && typeof envelope.errors === 'object') {
+        const entries = Object.entries(envelope.errors);
+        if (entries.length > 0) {
+          const [field, msgs] = entries[0] as [string, any];
+          const firstMsg = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          msg = firstMsg ? `${field ? field + ": " : ""}${firstMsg}` : undefined;
+        }
+      }
+      throw new Error(msg || envelope.message || "An unexpected error occurred.");
     }
 
     return envelope.data;
   } catch (error: any) {
     if (error.response?.data) {
-      const envelope = error.response.data as ApiResponse<any>;
-      const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? (firstError.field || firstError.message) : firstError) 
-                  ?? envelope.message 
-                  ?? error.message;
-      throw new Error(msg);
+      const envelope = error.response.data as any;
+      let msg: string | undefined;
+      if (Array.isArray(envelope.errors) && envelope.errors.length > 0) {
+        const firstError = envelope.errors[0] as any;
+        msg = typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError;
+      } else if (envelope.errors && typeof envelope.errors === 'object') {
+        const entries = Object.entries(envelope.errors);
+        if (entries.length > 0) {
+          const [field, msgs] = entries[0] as [string, any];
+          const firstMsg = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          msg = firstMsg ? `${field ? field + ": " : ""}${firstMsg}` : undefined;
+        }
+      }
+      throw new Error(msg || envelope.message || error.message);
     }
     throw error;
   }

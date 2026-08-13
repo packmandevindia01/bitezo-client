@@ -18,6 +18,7 @@ export interface CartRow {
   variantName?: string;
   extras?: { id: number; name: string; price: number; qty: number }[];
   modifiers?: { id: number; name: string; qty: number; typeName?: string }[];
+  messages?: { id?: number; name: string; qty?: number }[];
   product: {
     name: string;
     sku?: string;
@@ -79,6 +80,17 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
             {item.modifiers.map((mod, i) => (
               <p key={i} className="text-[9px] font-bold text-orange-600 uppercase leading-none italic">
                 {mod.typeName ? `${mod.typeName}` : "*"} {mod.name}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Messages Display */}
+        {(item.messages && item.messages.length > 0) && (
+          <div className="mt-0.5 space-y-0.5">
+            {item.messages.map((msg, i) => (
+              <p key={i} className="text-[9px] font-bold text-purple-600 uppercase leading-none italic">
+                💬 {msg.name} {(msg.qty && msg.qty > 1) ? `(x${msg.qty})` : ""}
               </p>
             ))}
           </div>

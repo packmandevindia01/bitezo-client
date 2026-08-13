@@ -322,17 +322,23 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
     if (printState.step === 1) {
       if (shouldPrint) {
         try {
-          const data = await cashierLogService.getShiftEndReport(printState.dayId, printState.shiftId);
-          const html = await generateEndReportHtml(data, 'SHIFTEND');
-          const { printHtmlReceipt } = await import("../../../../services/qzService");
-          let defaultPrinter: string | undefined = undefined;
-          try {
-            const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-            defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-          } catch(e){}
-          await printHtmlReceipt(html, defaultPrinter);
+          const { Capacitor } = await import("@capacitor/core");
+          const reportData = await cashierLogService.getShiftEndReport(printState.dayId, printState.shiftId);
+          if (Capacitor.isNativePlatform()) {
+            // ── FAST PATH: ESC/POS native ──────────────────────────────────────
+            const { printEscPosMarkup } = await import("../../../../services/qzService");
+            const { generateEndReportMarkup } = await import("../../../../utils/escPosGenerator");
+            const markup = generateEndReportMarkup(reportData, 'SHIFTEND');
+            await printEscPosMarkup(markup);
+          } else {
+            // ── DESKTOP PATH: QZ Tray ──────────────────────────────────────────
+            const html = await generateEndReportHtml(reportData, 'SHIFTEND');
+            const { printHtmlReceipt } = await import("../../../../services/qzService");
+            const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+            await printHtmlReceipt(html, defaultPrinter);
+            await new Promise(res => setTimeout(res, 3000));
+          }
           showToast("Printing Shift End...", "success");
-          await new Promise(res => setTimeout(res, 3000));
         } catch (e: any) {
           showToast(e.message || "Failed to print Shift End", "error");
         }
@@ -346,17 +352,21 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
     } else if (printState.step === 2) {
       if (shouldPrint) {
         try {
-          const data = await cashierLogService.getDayEndReport(printState.dayId);
-          const html = await generateEndReportHtml(data, 'DAYEND');
-          const { printHtmlReceipt } = await import("../../../../services/qzService");
-          let defaultPrinter: string | undefined = undefined;
-          try {
-            const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-            defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-          } catch(e){}
-          await printHtmlReceipt(html, defaultPrinter);
+          const { Capacitor } = await import("@capacitor/core");
+          const reportData = await cashierLogService.getDayEndReport(printState.dayId);
+          if (Capacitor.isNativePlatform()) {
+            const { printEscPosMarkup } = await import("../../../../services/qzService");
+            const { generateEndReportMarkup } = await import("../../../../utils/escPosGenerator");
+            const markup = generateEndReportMarkup(reportData, 'DAYEND');
+            await printEscPosMarkup(markup);
+          } else {
+            const html = await generateEndReportHtml(reportData, 'DAYEND');
+            const { printHtmlReceipt } = await import("../../../../services/qzService");
+            const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+            await printHtmlReceipt(html, defaultPrinter);
+            await new Promise(res => setTimeout(res, 3000));
+          }
           showToast("Printing Day End...", "success");
-          await new Promise(res => setTimeout(res, 3000));
         } catch (e: any) {
           showToast(e.message || "Failed to print Day End", "error");
         }

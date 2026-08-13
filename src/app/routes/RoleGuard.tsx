@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { usePermissions } from "../../hooks/usePermissions";
 
 interface RoleGuardProps {
-  moduleName: string;
+  moduleName: string | string[];
   action?: string;
   children: ReactNode;
 }
@@ -11,7 +11,11 @@ interface RoleGuardProps {
 const RoleGuard = ({ moduleName, action = "View", children }: RoleGuardProps) => {
   const { hasPermission } = usePermissions();
 
-  if (!hasPermission(moduleName, action)) {
+  const allowed = Array.isArray(moduleName)
+    ? moduleName.some((mod) => hasPermission(mod, action))
+    : hasPermission(moduleName, action);
+
+  if (!allowed) {
     return <Navigate to="/dashboard" replace />;
   }
 

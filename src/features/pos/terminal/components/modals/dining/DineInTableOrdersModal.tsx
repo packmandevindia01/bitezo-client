@@ -11,6 +11,7 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
+import { Capacitor } from '@capacitor/core';
 import type {
   DineInTable,
   TableOrdersResponse,
@@ -319,11 +320,17 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       printData.subTotal = calculatedSubTotal;
       printData.vatAmount = master.vatAmount || 0;
 
-      const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
-      const settingsRes = await printerSettingsApi.getGeneral();
-      const billPrinter = settingsRes.data?.billPrinter || "No Printer";
-      
-      await printHtmlReceipt(htmlContent, billPrinter);
+      if (Capacitor.isNativePlatform()) {
+        const { generateBillMarkup } = await import('../../../../utils/escPosGenerator');
+        const { printEscPosMarkup } = await import('../../../../services/qzService');
+        const markup = generateBillMarkup({ cartDetails: printMappedItems as any, data: printData as any });
+        await printEscPosMarkup(markup);
+      } else {
+        const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+        await printHtmlReceipt(htmlContent, billPrinter);
+      }
       showToast("Guest receipt sent to printer!", "success");
     } catch (e) {
       console.error(e);

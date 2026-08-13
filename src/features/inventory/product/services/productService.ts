@@ -136,15 +136,17 @@ export const productService = {
     // 1. Create product as JSON
     const data = await unwrap(
       axiosInstance.post<ApiResponse<{ id: number }>>(BASE, jsonData)
-
     );
 
-    // 2. If an image was provided, upload it separately
-    if (imageFile && data.id) {
+    const createdId = (data as any)?.id || (data as any)?.productId || (typeof data === "number" ? data : 0);
+
+    // 2. Upload image sequentially right after product is created
+    if (imageFile && createdId) {
       try {
-        await productService.uploadImage(data.id, imageFile);
-      } catch (error) {
+        await productService.uploadImage(createdId, imageFile, "string");
+      } catch (error: any) {
         console.error("[ProductService] Image upload failed after creation:", error);
+        throw new Error(error.message ? `Product created, but image upload failed: ${error.message}` : "Product created, but image upload failed.");
       }
     }
 
@@ -161,12 +163,13 @@ export const productService = {
       axiosInstance.put<ApiResponse<{ id: number }>>(url, jsonData)
     );
 
-    // 2. If a new image was explicitly selected by the user, upload it
+    // 2. Upload new image sequentially right after product is updated
     if (imageFile) {
       try {
-        await productService.uploadImage(productId, imageFile, oldPath || (jsonData as any).filePath || "string");
-      } catch (error) {
+        await productService.uploadImage(productId, imageFile, oldPath || "string");
+      } catch (error: any) {
         console.error("[ProductService] Image upload failed after update:", error);
+        throw new Error(error.message ? `Product updated, but image upload failed: ${error.message}` : "Product updated, but image upload failed.");
       }
     }
 

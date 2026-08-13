@@ -181,6 +181,11 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, on
             localStorage.setItem('printServerIp', printServerIp);
             localStorage.setItem('nativePrinterType', nativePrinterType);
             localStorage.setItem('nativePrinterAddress', nativePrinterAddress);
+            // Cache printer names so print jobs never need an API call per print
+            localStorage.setItem('cachedBillPrinter', settings.billPrinter || '');
+            localStorage.setItem('cachedKotPrinter', settings.kotPrinter || '');
+            localStorage.setItem('cachedPackagerPrinter', settings.packagerPrinter || '');
+            localStorage.setItem('cachedMasterKotPrinter', settings.masterKOT || '');
             onSave(settings);
           }}
           loading={loading}

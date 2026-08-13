@@ -6,6 +6,7 @@ import { PosDiscountKeypadModal } from './cart/PosDiscountKeypadModal';
 import { PosPriceKeypadModal } from './cart/PosPriceKeypadModal';
 import { PosQtyKeypadModal } from './cart/PosQtyKeypadModal';
 import { PosExtrasModifierModal } from './product/PosExtrasModifierModal';
+import { PosMessageModal } from './product/PosMessageModal';
 import { PosMoreModal } from './system/PosMoreModal';
 import { PosDeliveryChargeModal } from './payment/PosDeliveryChargeModal';
 import { PosCashTenderModal } from './payment/PosCashTenderModal';
@@ -66,7 +67,7 @@ interface PosTerminalModalsProps {
   handlePriceModalClose: () => void;
   handleApplyPrice: (val: string) => void;
   handleApplyQty: (val: string) => void;
-  setItemCustomizations: (id: string, selections: any[], existingOther?: any[]) => void;
+  setItemCustomizations: (id: string, extras?: any[], modifiers?: any[], messages?: any[]) => void;
   handleItemComplimentary: () => void;
   handleBillComplimentary: () => void;
   handleClearCart: () => void;
@@ -150,11 +151,29 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         onDone={(selections: any[]) => {
           if (!props.selectedKey) return;
           if (props.extrasModifierType === 'extras') {
-            props.setItemCustomizations(props.selectedKey, selections, props.currentSelectedItem?.modifiers);
+            props.setItemCustomizations(props.selectedKey, selections, props.currentSelectedItem?.modifiers, props.currentSelectedItem?.messages);
           } else {
-            props.setItemCustomizations(props.selectedKey, props.currentSelectedItem?.extras, selections);
+            props.setItemCustomizations(props.selectedKey, props.currentSelectedItem?.extras, selections, props.currentSelectedItem?.messages);
           }
           props.setExtrasModifierType('none');
+        }}
+      />
+      <PosMessageModal
+        isOpen={modals.isMessageModalOpen}
+        onClose={() => modals.setIsMessageModalOpen(false)}
+        cartItems={props.cartDetails}
+        selectedKey={props.selectedKey}
+        onSelectRow={props.setSelectedKey}
+        initialSelections={props.currentSelectedItem?.messages || []}
+        onDone={(selections: any[]) => {
+          if (!props.selectedKey) return;
+          props.setItemCustomizations(
+            props.selectedKey, 
+            props.currentSelectedItem?.extras, 
+            props.currentSelectedItem?.modifiers, 
+            selections
+          );
+          modals.setIsMessageModalOpen(false);
         }}
       />
       <PosMoreModal 

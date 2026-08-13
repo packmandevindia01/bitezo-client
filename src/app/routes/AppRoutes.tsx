@@ -104,6 +104,9 @@ const CustomerStatementPage = lazy(() => import("../../features/reports/customer
 const EmployeeSalesReportPage = lazy(() => import("../../features/reports/employeeSalesReport/pages/EmployeeSalesReportPage"));
 const DayEndReportPage = lazy(() => import("../../features/reports/dayEndReport/pages/DayEndReportPage"));
 const ShiftEndReportPage = lazy(() => import("../../features/reports/shiftEndReport/pages/ShiftEndReportPage"));
+const ProductWiseStockAdjustmentReportPage = lazy(() => import("../../features/reports/productWiseStockAdjustmentReport/pages/ProductWiseStockAdjustmentReportPage"));
+const StockTransferReportPage = lazy(() => import("../../features/reports/stockTransferReport/pages/StockTransferReportPage"));
+const ProductWiseStockTransferReportPage = lazy(() => import("../../features/reports/productWiseStockTransferReport/pages/ProductWiseStockTransferReportPage"));
 
 
 const LoginRedirect = () => {
@@ -253,10 +256,13 @@ const AppRoutes = () => {
                   <Route path="reports/sales" element={<RoleGuard moduleName="Sales Report"><SalesReportPage /></RoleGuard>} />
                   <Route path="reports/purchase" element={<RoleGuard moduleName="Purchase Report"><PurchaseReportPage /></RoleGuard>} />
                   <Route path="reports/product-wise-purchase" element={<RoleGuard moduleName="Purchase Report"><ProductWisePurchaseReportPage /></RoleGuard>} />
-                  <Route path="reports/stock-register" element={<RoleGuard moduleName="Purchase Report"><StockRegisterReportPage /></RoleGuard>} />
-                  <Route path="reports/stock-adjustment" element={<RoleGuard moduleName="Purchase Report"><StockAdjustmentReportPage /></RoleGuard>} />
-                  <Route path="reports/purchase-return" element={<RoleGuard moduleName="Purchase Return Report"><PurchaseReturnReportPage /></RoleGuard>} />
-                  <Route path="reports/product-transaction-log" element={<RoleGuard moduleName="Stock Report"><ProductTransactionLogReportPage /></RoleGuard>} />
+                  <Route path="reports/stock-register" element={<RoleGuard moduleName={["Stock Report", "Purchase Report", "Inventory Report"]}><StockRegisterReportPage /></RoleGuard>} />
+                  <Route path="reports/stock-adjustment" element={<RoleGuard moduleName={["Stock Report", "Purchase Report", "Inventory Report"]}><StockAdjustmentReportPage /></RoleGuard>} />
+                  <Route path="reports/product-wise-stock-adjustment" element={<RoleGuard moduleName={["Stock Report", "Purchase Report", "Inventory Report"]}><ProductWiseStockAdjustmentReportPage /></RoleGuard>} />
+                  <Route path="reports/stock-transfer" element={<RoleGuard moduleName={["Stock Report", "Purchase Report", "Inventory Report"]}><StockTransferReportPage /></RoleGuard>} />
+                  <Route path="reports/product-wise-stock-transfer" element={<RoleGuard moduleName={["Stock Report", "Purchase Report", "Inventory Report"]}><ProductWiseStockTransferReportPage /></RoleGuard>} />
+                  <Route path="reports/purchase-return" element={<RoleGuard moduleName={["Purchase Report", "Purchase Return Report"]}><PurchaseReturnReportPage /></RoleGuard>} />
+                  <Route path="reports/product-transaction-log" element={<RoleGuard moduleName={["Stock Report", "Purchase Report", "Inventory Report"]}><ProductTransactionLogReportPage /></RoleGuard>} />
                   <Route path="reports/daily-sales" element={<RoleGuard moduleName="Sales Report"><DailySalesReportPage /></RoleGuard>} />
                   <Route path="reports/hourly-sales" element={<RoleGuard moduleName="Sales Report"><HourlySalesReportPage /></RoleGuard>} />
                   <Route path="reports/order-type-sales" element={<RoleGuard moduleName="Sales Report"><OrderTypeSalesReportPage /></RoleGuard>} />

@@ -834,7 +834,13 @@ export const PosTerminalPage = () => {
               onAuthorized: () => modals.setIsVoidModalOpen(true),
             });
           }}
-          onMessage={() => alert("Message/Note functionality to be implemented")}
+          onMessage={() => {
+            if (!selectedKey) {
+              showToast("Please select an item in the cart first", "warning");
+              return;
+            }
+            modals.setIsMessageModalOpen(true);
+          }}
           onCom={handleItemComplimentary}
         />
       </div>

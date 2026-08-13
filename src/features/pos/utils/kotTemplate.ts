@@ -145,6 +145,21 @@ export const generateKotHtml = async (
           `;
         });
     }
+
+    // Print messages / notes
+    if (item.messages && item.messages.length > 0) {
+      item.messages.forEach((msg) => {
+          const msgName = (msg.name || "NOTE").toUpperCase();
+          itemsHtml += `
+            <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+              <div style="flex: 0 0 30px;"></div>
+              <div style="flex: 0 0 36px;"></div>
+              <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px; color:#d97706;">NOTE: ${msgName}</div>
+              <div style="flex: 0 0 48px; min-width:48px;"></div>
+            </div>
+          `;
+        });
+    }
     
     // Accumulate totals
     const itemVat = (item as any).vatAmount || 0;

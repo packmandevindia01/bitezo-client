@@ -150,6 +150,20 @@ export const generateGuestPrintHtml = async (
         `;
       });
     }
+
+    if (item.messages && item.messages.length > 0) {
+      item.messages.forEach((msg) => {
+        const msgName = (msg.name || "NOTE").toUpperCase();
+        itemsHtml += `
+          <tr>
+            <td style="text-align: left; vertical-align: top;"></td>
+            <td style="text-align: left; vertical-align: top; font-style: italic;">MSG: ${msgName}</td>
+            <td style="text-align: right; vertical-align: top;"></td>
+            <td style="text-align: right; vertical-align: top;"></td>
+          </tr>
+        `;
+      });
+    }
   });
 
   // Calculate VAT Amount from item cartDetails sum (exact same logic as KOT template)

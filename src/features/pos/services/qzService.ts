@@ -1,9 +1,11 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import qz from "qz-tray";
-import html2canvas from "html2canvas";
+// html2canvas removed — native printing now uses ESC/POS via printEscPosMarkup()
 
 export interface BitezoPrinterPlugin {
-  printImage(options: { base64: string, type: string, address: string, port?: number }): Promise<void>;
+  printImage(options: { base64: string; type: string; address: string; port?: number }): Promise<void>;
+  /** Fast ESC/POS text print — uses dantsu markup, no image conversion */
+  printEscPos(options: { markup: string; type: string; address: string; port?: number }): Promise<void>;
 }
 const BitezoPrinter = registerPlugin<BitezoPrinterPlugin>('BitezoPrinter');
 
@@ -31,73 +33,48 @@ export const connectQZ = async (): Promise<void> => {
 };
 
 /**
- * Prints HTML content to a specific printer.
- * If printerName is omitted or not found, it falls back to the default printer.
+ * Fast ESC/POS native print using dantsu markup.
+ * Used on Capacitor (tablet/phone) for ALL POS print jobs:
+ * bill receipts, KOT slips, cashier reports, reprints.
+ *
+ * @param markup  dantsu-formatted markup string (from escPosGenerator.ts)
  */
-export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
-  // 1. Check if we are running as a Native App on a tablet
-  if (Capacitor.isNativePlatform()) {
-    console.log("[Mobile App] Routing print job to Native Plugin...");
-    try {
-      // Create a hidden iframe to isolate CSS so html2canvas doesn't crash on Tailwind's oklch variables
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.top = '-9999px';
-      iframe.style.left = '-9999px';
-      iframe.style.width = '288px';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-
-      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (!iframeDoc) throw new Error("Could not access iframe document");
-
-      iframeDoc.open();
-      iframeDoc.write(htmlContent);
-      iframeDoc.close();
-
-      // Wait for images inside the iframe to load (reduced for speed)
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Size iframe perfectly to the content to avoid printing endless white space, but add a 40px padding buffer to prevent clipping
-      const contentHeight = (iframeDoc.body.scrollHeight || iframeDoc.documentElement.scrollHeight) + 40;
-      iframe.style.height = `${contentHeight}px`;
-
-      // Optimized for speed: Lower scale slightly, use JPEG compression, and force white background
-      const canvas = await html2canvas(iframeDoc.body, { 
-        scale: 1.5,
-        windowWidth: 288,
-        windowHeight: contentHeight,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-      
-      // Use JPEG with 0.6 quality for massive payload size reduction over TCP
-      const base64 = canvas.toDataURL('image/jpeg', 0.6);
-      document.body.removeChild(iframe);
-
-      // We will pull the configured Native printer from local storage
-      const nativePrinterType = localStorage.getItem('nativePrinterType') || 'tcp'; // 'tcp' or 'bluetooth'
-      const nativePrinterAddress = localStorage.getItem('nativePrinterAddress'); // IP or MAC Address
-
-      if (!nativePrinterAddress) {
-        throw new Error("No native printer configured. Please go to Printer Settings.");
-      }
-
-      await BitezoPrinter.printImage({
-        base64: base64,
-        type: nativePrinterType,
-        address: nativePrinterAddress,
-        port: 9100
-      });
-      console.log("[Mobile App] Successfully sent image to Native Printer!");
-    } catch (err) {
-      console.error("[Mobile App] Native Print failed:", err);
-      throw err;
-    }
+export const printEscPosMarkup = async (markup: string): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    console.warn("[printEscPosMarkup] Called on non-native platform — skipping.");
     return;
   }
-  
-  // 2. Fallback to existing Web Browser Logic for desktop cashiers
+
+  const nativePrinterType    = localStorage.getItem('nativePrinterType') || 'tcp';
+  const nativePrinterAddress = localStorage.getItem('nativePrinterAddress');
+
+  if (!nativePrinterAddress) {
+    throw new Error("No native printer configured. Please go to POS Settings → Printer Settings.");
+  }
+
+  console.log(`[Native ESC/POS] Sending markup to ${nativePrinterType} printer at ${nativePrinterAddress}`);
+
+  await BitezoPrinter.printEscPos({
+    markup,
+    type: nativePrinterType,
+    address: nativePrinterAddress,
+    port: 9100,
+  });
+
+  console.log("[Native ESC/POS] Print job sent successfully.");
+};
+
+/**
+ * Prints HTML content via QZ Tray — WEB / DESKTOP path only.
+ * On native Capacitor, use printEscPosMarkup() instead.
+ */
+export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
+  if (Capacitor.isNativePlatform()) {
+    // Safety guard — native callers must use printEscPosMarkup()
+    throw new Error("[Native] printHtmlReceipt() is not supported on mobile. Use printEscPosMarkup() instead.");
+  }
+
+  // Web Browser / Desktop — route to QZ Tray
   console.log("[Web Browser] Routing print job to QZ Tray...");
   await connectQZ();
 

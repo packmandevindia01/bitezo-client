@@ -12,6 +12,7 @@ import { orderApi } from "../../../../services/orderApi";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
+import { Capacitor } from "@capacitor/core";
 
 
 interface PosRecallModalProps {
@@ -170,12 +171,17 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         enableVat
       };
 
-      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
-      
-      const settingsRes = await printerSettingsApi.getGeneral();
-      const billPrinter = settingsRes.data?.billPrinter || "No Printer";
-      
-      await printHtmlReceipt(htmlContent, billPrinter);
+      if (Capacitor.isNativePlatform()) {
+        const { printEscPosMarkup } = await import("../../../../services/qzService");
+        const { generateBillMarkup } = await import("../../../../utils/escPosGenerator");
+        const markup = generateBillMarkup({ cartDetails: mappedItems as any, data: printData as any });
+        await printEscPosMarkup(markup);
+      } else {
+        const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+        await printHtmlReceipt(htmlContent, billPrinter);
+      }
       showToast("Guest receipt sent to printer!", "success");
     } catch (err) {
       console.error("Print Error:", err);

@@ -11,6 +11,11 @@
 
 ---
 
+## Strict Git Operations & Revert Rule
+- **NEVER** run any command that reverts, restores, resets, or discards code (`git checkout`, `git restore`, `git reset`, `git revert`, `git clean`, `git stash drop`, etc.) without explicit, direct permission from the USER. All existing and modified code must be strictly preserved.
+
+---
+
 ## Next-Generation Architecture Rule (NEW STANDARD)
 *Every new feature and any major refactor of an existing feature MUST strictly follow this architecture:*
 

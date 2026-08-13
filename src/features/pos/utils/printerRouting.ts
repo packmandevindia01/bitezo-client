@@ -1,4 +1,6 @@
+import { Capacitor } from "@capacitor/core";
 import type { PosCartItem } from "../types";
+
 export const executeKotRouting = async (
   items: PosCartItem[], 
   basePrintOptions: any, 
@@ -8,6 +10,24 @@ export const executeKotRouting = async (
   generateKotHtml: any,
   isUpdate: boolean = false
 ) => {
+  const isNative = Capacitor.isNativePlatform();
+
+  // On native, we use the fast ESC/POS path instead of html
+  const printFn = isNative
+    ? async (htmlOrMarkup: string, _printerName?: string) => {
+        const { printEscPosMarkup } = await import("../services/qzService");
+        await printEscPosMarkup(htmlOrMarkup);
+      }
+    : printHtmlReceipt;
+
+  // On native, generate ESC/POS markup instead of HTML
+  const generateFn = isNative
+    ? async (kotItems: PosCartItem[], data: any) => {
+        const { generateKotMarkup } = await import("./escPosGenerator");
+        return generateKotMarkup({ cartDetails: kotItems, data });
+      }
+    : generateKotHtml;
+
   let printerData: any = null;
   try {
     const res = await printerSettingsApi.getPrinterData();
@@ -75,19 +95,23 @@ export const executeKotRouting = async (
 
     // Dispatch routed jobs
     for (const [printerName, groupedItems] of printerGroups.entries()) {
-      const kotHtml = await generateKotHtml(groupedItems, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
-      await printHtmlReceipt(kotHtml, printerName).catch((err: any) => console.error(`[Print Error: ${printerName}]`, err));
+      const kotOutput = await generateFn(groupedItems, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
+      // On native, printerName is ignored (single native printer from localStorage)
+      await printFn(kotOutput, isNative ? undefined : printerName)
+        .catch((err: any) => console.error(`[Print Error: ${printerName}]`, err));
     }
 
     // Master KOT
     if (generalPrinter && generalPrinter.masterKOT && generalPrinter.masterKOT !== "No Printer") {
-       const masterHtml = await generateKotHtml(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT", isMaster: true });
-       await printHtmlReceipt(masterHtml, generalPrinter.masterKOT).catch((err: any) => console.error("[Print Error: Master]", err));
+       const masterOutput = await generateFn(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT", isMaster: true });
+       await printFn(masterOutput, isNative ? undefined : generalPrinter.masterKOT)
+         .catch((err: any) => console.error("[Print Error: Master]", err));
     }
     
   } else {
     // Legacy fallback if API fails
-    const kotHtml = await generateKotHtml(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
-    await printHtmlReceipt(kotHtml, undefined).catch((err: any) => console.error("[Print Error: Legacy]", err));
+    const kotOutput = await generateFn(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
+    await printFn(kotOutput, undefined)
+      .catch((err: any) => console.error("[Print Error: Legacy]", err));
   }
 };

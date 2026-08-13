@@ -14,7 +14,7 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 
     if (!envelope.isSuccess) {
       const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? (firstError.field || firstError.message) : firstError) 
+      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError) 
                   ?? envelope.message 
                   ?? "An unexpected error occurred.";
       throw new Error(msg);
@@ -25,7 +25,7 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
     if (error.response?.data) {
       const envelope = error.response.data as ApiResponse<any>;
       const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? (firstError.field || firstError.message) : firstError) 
+      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError) 
                   ?? envelope.message 
                   ?? error.message;
       throw new Error(msg);

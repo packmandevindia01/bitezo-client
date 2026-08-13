@@ -1,4 +1,4 @@
-import { BarChart3, TrendingUp, ShoppingCart, PackageSearch } from "lucide-react";
+import { BarChart3, TrendingUp, ShoppingCart, Boxes } from "lucide-react";
 import SidebarDropdown from "../SidebarDropdown";
 import { usePermissions } from "../../../hooks/usePermissions";
 
@@ -99,32 +99,40 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <ShoppingCart size={13} className="shrink-0" />
             <span>Product Wise Purchase</span>
           </div>
-          <div onClick={() => handleItemClick("/dashboard/reports/stock-register")} className={itemClassName}>
+          <div onClick={() => handleItemClick("/dashboard/reports/purchase-return")} className={itemClassName}>
             <ShoppingCart size={13} className="shrink-0" />
-            <span>Stock Register Report</span>
-          </div>
-          <div onClick={() => handleItemClick("/dashboard/reports/stock-adjustment")} className={itemClassName}>
-            <ShoppingCart size={13} className="shrink-0" />
-            <span>Stock Adjustment Report</span>
+            <span>Purchase Return Report</span>
           </div>
         </SidebarDropdown>
       )}
 
-      {hasPermission("Purchase Return Report", "View") && (
-        <div onClick={() => handleItemClick("/dashboard/reports/purchase-return")} className={itemClassName}>
-          <ShoppingCart size={13} className="shrink-0" />
-          <span>Purchase Return Report</span>
-        </div>
-      )}
-
-      {hasPermission("Stock Report", "View") && (
-        <>
-
+      {(hasPermission("Stock Report", "View") || hasPermission("Purchase Report", "View") || hasPermission("Inventory Report", "View")) && (
+        <SidebarDropdown icon={<Boxes size={14} />} label="Inventory Report" nested={true}>
+          <div onClick={() => handleItemClick("/dashboard/reports/stock-register")} className={itemClassName}>
+            <Boxes size={13} className="shrink-0" />
+            <span>Stock Register Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/stock-adjustment")} className={itemClassName}>
+            <Boxes size={13} className="shrink-0" />
+            <span>Stock Adjustment Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-wise-stock-adjustment")} className={itemClassName}>
+            <Boxes size={13} className="shrink-0" />
+            <span>Product Wise Stock Adj.</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/stock-transfer")} className={itemClassName}>
+            <Boxes size={13} className="shrink-0" />
+            <span>Stock Transfer Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-wise-stock-transfer")} className={itemClassName}>
+            <Boxes size={13} className="shrink-0" />
+            <span>Product Wise Stock Transfer</span>
+          </div>
           <div onClick={() => handleItemClick("/dashboard/reports/product-transaction-log")} className={itemClassName}>
-            <PackageSearch size={13} className="shrink-0" />
+            <Boxes size={13} className="shrink-0" />
             <span>Product Transaction Log</span>
           </div>
-        </>
+        </SidebarDropdown>
       )}
     </SidebarDropdown>
   );

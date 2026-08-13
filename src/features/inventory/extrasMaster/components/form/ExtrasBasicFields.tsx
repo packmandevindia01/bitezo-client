@@ -84,10 +84,11 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
         id="ext-price"
         label="Price"
         type="number"
-        min={0}
-        step={0.01}
+        min={0.001}
+        step="any"
         required
         placeholder="0.00"
+        inputClassName="text-right"
         error={errors.price?.message}
         {...register("price")}
         onKeyDown={(e) => handleEnter(e, "ext-color")}

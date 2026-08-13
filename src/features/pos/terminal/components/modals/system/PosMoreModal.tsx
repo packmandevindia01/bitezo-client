@@ -3,19 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Settings, 
   Printer, 
-  LayoutGrid, 
   BarChart, 
-  FileText,
-  History,
-  Search,
-  Banknote,
-  LogOut,
-  UtensilsCrossed,
-  UserPlus,
-  Monitor,
-  Gift,
-  CheckCircle,
-  Lock,
+  Banknote, 
+  LogOut, 
+  UtensilsCrossed, 
+  UserPlus, 
+  Monitor, 
+  Gift, 
+  CheckCircle, 
+  Lock, 
 } from 'lucide-react';
 import { Modal } from '../../../../../../components/common';
 
@@ -32,11 +28,7 @@ interface PosMoreModalProps {
 }
 
 const ORDER_ITEMS = [
-  { label: 'ORDER HISTORY', icon: History },
-  { label: 'ACTIVE ORDERS', icon: FileText },
   { label: 'SETTLED', icon: CheckCircle, action: 'settledOrders' },
-  { label: 'TABLE STATUS', icon: LayoutGrid },
-  { label: 'CUSTOMER SEARCH', icon: Search },
   { label: 'CUSTOMER MASTER', icon: UserPlus, action: 'customerMaster' },
   { label: 'SET MENU DINE IN', icon: UtensilsCrossed, action: 'setMenuDineIn' },
 ];
@@ -212,9 +204,9 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       */}
       <div className="flex flex-col gap-2.5">
 
-        {/* SALES & CUSTOMERS — full width, 6 cols on lg */}
+        {/* SALES & CUSTOMERS */}
         <Section title="Sales & Customers">
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-3 gap-2.5">
             {ORDER_ITEMS.map((item) => (
               <ActionBtn
                 key={item.label}
