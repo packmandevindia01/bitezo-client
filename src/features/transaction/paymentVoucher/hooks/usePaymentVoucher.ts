@@ -115,26 +115,30 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   const isCancelled = paymentData?.masterData?.isCancelled || false;
 
   useEffect(() => {
-    if (paymentData?.masterData) {
-      const d = paymentData.masterData;
-      reset({
-        seriesId: d.seriesId || 0,
-        prefix: "",
-        voucherDate: d.voucherDate ? d.voucherDate.split("T")[0] : new Date().toISOString().split("T")[0],
-        voucherNo: d.voucherNo || "",
-        accountId: d.accountId || 0,
-        accountName: d.accountName || "",
-        paymodeId: d.paymodeId || 0,
-        branchId: d.branchId || defaultBranchId,
-        employeeId: d.employeeId || 0,
-        refNo: d.refNo || "",
-        amount: Number(d.amount).toFixed(decimalPart),
-        narration: d.narration || "",
-        paymodes: paymentData.paymodesData?.map((p: any) => ({
-          paymodeId: p.paymodeId,
-          amount: p.amount
-        })) || undefined,
-      });
+    if (paymentData) {
+      const d = paymentData.masterData || (paymentData as any);
+      if (d) {
+        const narrationValue = d.narration ?? (d as any).Narration ?? (d as any).remarks ?? (paymentData as any).narration ?? "";
+        const refNoValue = d.refNo ?? (d as any).RefNo ?? "";
+        reset({
+          seriesId: d.seriesId || 0,
+          prefix: "",
+          voucherDate: d.voucherDate ? d.voucherDate.split("T")[0] : new Date().toISOString().split("T")[0],
+          voucherNo: d.voucherNo || "",
+          accountId: d.accountId || 0,
+          accountName: d.accountName || "",
+          paymodeId: d.paymodeId || 0,
+          branchId: d.branchId || defaultBranchId,
+          employeeId: d.employeeId || 0,
+          refNo: refNoValue,
+          amount: Number(d.amount).toFixed(decimalPart),
+          narration: narrationValue,
+          paymodes: paymentData.paymodesData?.map((p: any) => ({
+            paymodeId: p.paymodeId,
+            amount: p.amount
+          })) || undefined,
+        });
+      }
     }
   }, [paymentData, reset, decimalPart, defaultBranchId]);
 

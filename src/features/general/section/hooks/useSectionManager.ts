@@ -10,6 +10,7 @@ export const useSectionManager = () => {
   const { showToast } = useToast();
   const [records, setRecords] = useState<SectionRecord[]>([]);
   const [form, setForm] = useState<SectionForm>(emptySectionForm);
+  const [errors, setErrors] = useState<{ name?: string; counterId?: string }>({});
   const [counters, setCounters] = useState<CounterRecord[]>([]);
 
   const [search, setSearch] = useState("");
@@ -43,10 +44,14 @@ export const useSectionManager = () => {
 
   const setField = <K extends keyof SectionForm>(key: K, value: SectionForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
   };
 
   const resetForm = () => {
     setForm(emptySectionForm);
+    setErrors({});
     setEditingId(null);
   };
 
@@ -64,12 +69,16 @@ export const useSectionManager = () => {
     const sName = form.name.trim();
     const counterId = Number(form.counterId);
 
+    const validationErrors: { name?: string; counterId?: string } = {};
     if (!sName) {
-      showToast("Section name is required", "error");
-      return;
+      validationErrors.name = "Section name is required";
     }
     if (!counterId) {
-      showToast("Please select a counter", "error");
+      validationErrors.counterId = "Counter is required";
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
 
@@ -146,6 +155,7 @@ export const useSectionManager = () => {
 
   return {
     form,
+    errors,
     counters,
     open,
     search,

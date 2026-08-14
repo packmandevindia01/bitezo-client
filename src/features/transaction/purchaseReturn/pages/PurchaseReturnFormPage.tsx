@@ -296,18 +296,18 @@ const PurchaseReturnFormPage = () => {
             {/* ── Header Fields ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 mb-2 items-end">
               <Controller name="series" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo", { onChange: () => methods.trigger("purchaseNo") })} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate", { onChange: () => methods.trigger("purchaseDate") })} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               
               <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2">
                 <Controller name="supplier" control={control} render={({ field }) => (
-                  <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                  <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
                 )} />
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               
               <Controller name="invoiceNo" control={control} render={({ field }) => (
@@ -321,7 +321,7 @@ const PurchaseReturnFormPage = () => {
                   options={invoiceOptions}
                   onSearch={handleInvoiceSearch}
                   loading={searchingInvoices}
-                  onChange={field.onChange}
+                  onChange={(val) => { field.onChange(val); methods.trigger("invoiceNo"); }}
                   onSelectOption={(val, label) => handleInvoiceSelect(val, label)}
                   onKeyDown={(e) => hk(e, "pr-refNo")}
                   disabled={!canSave || !watchedBranch || !watchedSupplier || (!!id && purchaseId > 0)}
@@ -334,7 +334,7 @@ const PurchaseReturnFormPage = () => {
                   label="Ref No"
                   value={field.value}
                   maxLength={50}
-                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                  onChange={(e) => { field.onChange(e.target.value.toUpperCase()); methods.trigger("refNo"); }}
                   onKeyDown={(e) => hk(e, "pr-salesman")}
                   inputClassName="!h-8 !text-xs !px-2"
                   readOnly={!canSave}
@@ -342,7 +342,7 @@ const PurchaseReturnFormPage = () => {
                 />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
           </div>
@@ -561,11 +561,46 @@ const PurchaseReturnFormPage = () => {
             
             {/* Top Row: Adjustments */}
             <div className="flex flex-wrap items-end gap-2 w-full">
-              <div className="w-16">
-                <FormInput id="pr-disc-pct" label="Disc(%)" type="number" step="any" maxLength={6} {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-disc-amt")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+              <div className="w-20">
+                <FormInput
+                  id="pr-disc-pct"
+                  label="Disc(%)"
+                  type="number"
+                  step="any"
+                  maxLength={10}
+                  {...register("globalDiscPercent", {
+                    onChange: (e) => {
+                      const val = e.target.value;
+                      if (!val || val === "0" || Number(val) === 0) {
+                        methods.setValue("discAmount", formatAmount(0));
+                      } else {
+                        const total = watchedItems.reduce((acc: number, item: any) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0);
+                        const newDiscAmt = formatAmount(total * (Number(val) / 100));
+                        methods.setValue("discAmount", newDiscAmt);
+                      }
+                    }
+                  })}
+                  min="0"
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => hk(e, "pr-disc-amt")}
+                  inputClassName="text-right !h-8 !text-xs !px-2"
+                  readOnly={!canSave}
+                />
               </div>
               <div className="w-24">
-                <FormInput id="pr-disc-amt" label="Disc Amt" type="number" step="any" maxLength={12} {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-other-chg")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput
+                  id="pr-disc-amt"
+                  label="Disc Amt"
+                  type="number"
+                  step="any"
+                  maxLength={12}
+                  {...register("discAmount")}
+                  min="0"
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => hk(e, "pr-other-chg")}
+                  inputClassName="text-right !h-8 !text-xs !px-2"
+                  readOnly={!canSave}
+                />
               </div>
               <div className="w-24">
                 <FormInput id="pr-other-chg" label="Other Chg" type="number" step="any" maxLength={12} {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pr-round-off")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />

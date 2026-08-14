@@ -178,6 +178,7 @@ const CustomerForm = ({
         <SelectInput
           id="cust-branch"
           label="Branch"
+          required
           placeholder="Select Branch..."
           options={branchOptions}
           {...register("branch")}
@@ -189,6 +190,7 @@ const CustomerForm = ({
         <FormInput
           id="cust-balance"
           label="Opening Balance"
+          required
           type="number"
           placeholder="0.000"
           inputClassName="text-right"

@@ -207,8 +207,7 @@ const PaymentVoucherFormPage = () => {
             <FormInput
               id="pv-refno"
               label="REF NO"
-              value={watch("refNo")}
-              onChange={(e) => setValue("refNo", e.target.value)}
+              {...form.register("refNo")}
               onKeyDown={(e) => handleKeyDown(e, "pv-account")}
               tabIndex={6}
               readOnly={!canSave}
@@ -239,8 +238,7 @@ const PaymentVoucherFormPage = () => {
             <FormInput
               id="pv-narration"
               label="NARRATION"
-              value={watch("narration")}
-              onChange={(e) => setValue("narration", e.target.value)}
+              {...form.register("narration")}
               onKeyDown={(e) => handleKeyDown(e, "pv-save")}
               tabIndex={10}
               readOnly={!canSave}

@@ -12,8 +12,8 @@ export const categoryFormSchema = z.object({
       branchId: z.number(),
       colorCode: z.string()
     })
-  ).min(1, "Please select at least one branch"),
-  menuIds: z.array(z.number()).min(1, "Please select at least one menu time"),
+  ).default([]),
+  menuIds: z.array(z.number()).default([]),
   imageFile: z.any().optional(), // File | undefined
   image: z.string().optional(),
 });

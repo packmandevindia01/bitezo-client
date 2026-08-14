@@ -114,7 +114,7 @@ const BomPage = () => {
                 label="BOM Name" 
                 inputClassName="!h-8 !px-2 !text-xs"
                 value={watch("bomName")}
-                onChange={(e) => setValue("bomName", e.target.value)}
+                onChange={(e) => setValue("bomName", e.target.value, { shouldValidate: true, shouldDirty: true })}
                 disabled={!canSave}
                 onKeyDown={(e) => hk(e, "bom-branch")}
                 maxLength={100}
@@ -132,7 +132,10 @@ const BomPage = () => {
                     className="h-8 !px-2 !text-xs"
                     options={branches}
                     value={field.value}
-                    onChange={(val) => setValue("branchId", val)}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      setValue("branchId", val, { shouldValidate: true, shouldDirty: true });
+                    }}
                     disabled={!canSave}
                     required
                     error={showErr(errors.branchId)}
@@ -150,12 +153,13 @@ const BomPage = () => {
                     options={finishedProducts}
                     value={field.value}
                     onChange={(val) => {
+                      field.onChange(val);
                       if (val) {
                         handleFinishedProductSelect(val);
                       } else {
-                        setValue("finishedProduct", "");
+                        setValue("finishedProduct", "", { shouldValidate: true });
                         setValue("finishedProductCode", "");
-                        setValue("finishedProductUnit", "");
+                        setValue("finishedProductUnit", "", { shouldValidate: true });
                         setValue("finishedProductUnitName", "");
                         setValue("finishedProductQty", "");
                       }
@@ -190,6 +194,7 @@ const BomPage = () => {
                       const opts = finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || []);
                       const opt = opts.find(u => u.value === val);
                       setValue("finishedProductUnitName", opt?.label || "");
+                      setValue("finishedProductUnit", val, { shouldValidate: true });
                     }}
                     disabled={!canSave || !watch("finishedProduct")}
                     required
@@ -203,7 +208,7 @@ const BomPage = () => {
                 type="number"
                 inputClassName="!h-8 !px-2 !text-xs text-right"
                 value={watch("finishedProductQty")} 
-                onChange={(e) => setValue("finishedProductQty", e.target.value)} 
+                onChange={(e) => setValue("finishedProductQty", e.target.value, { shouldValidate: true, shouldDirty: true })} 
                 onKeyDown={(e) => hk(e, "product-select-0")} 
                 maxLength={10}
                 required 

@@ -52,8 +52,8 @@ const RecipePage = () => {
   const canDelete = hasPermission("Recipe Master", "Delete");
   const canSave   = canAdd || canEdit;
 
-  const { isDirty, errors, isSubmitted } = form.formState;
-  const showErr = (fieldError: any) => isSubmitted ? fieldError?.message : undefined;
+  const { isDirty, errors } = form.formState;
+  const showErr = (fieldError: any) => fieldError?.message;
 
   const handleClearClick = () => {
     const shouldConfirm = isDirty || (!id && items.length > 0 && items[0]?.product !== "");
@@ -188,10 +188,10 @@ const RecipePage = () => {
                     options={finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || [])}
                     value={field.value}
                     onChange={(val) => {
-                      setValue("finishedProductUnit", val);
+                      setValue("finishedProductUnit", val, { shouldValidate: true, shouldDirty: true });
                       const opts = finishedProductUnits.length > 0 ? finishedProductUnits : (masterData?.units || []);
                       const name = opts.find(u => u.value === val)?.label || val;
-                      setValue("finishedProductUnitName", name);
+                      setValue("finishedProductUnitName", name, { shouldDirty: true });
                     }}
                     required
                     disabled={!canSave || !watch("finishedProduct")}
@@ -209,7 +209,7 @@ const RecipePage = () => {
                 step={step}
                 inputClassName="!h-8 !px-2 !text-xs text-right"
                 value={watch("finishedProductQty")}
-                onChange={(e) => setValue("finishedProductQty", e.target.value)}
+                onChange={(e) => setValue("finishedProductQty", e.target.value, { shouldValidate: true, shouldDirty: true })}
                 onKeyDown={(e) => hk(e, "rec-branch")}
                 required
                 readOnly={!canSave}
@@ -227,7 +227,7 @@ const RecipePage = () => {
                     options={branches}
                     value={field.value}
                     onChange={(val) => {
-                      setValue("branchId", val);
+                      setValue("branchId", val, { shouldValidate: true, shouldDirty: true });
                       setTimeout(() => {
                         const target = document.getElementById("product-select-0");
                         if (target) target.focus();

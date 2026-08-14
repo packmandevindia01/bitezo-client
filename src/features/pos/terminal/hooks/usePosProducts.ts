@@ -44,7 +44,11 @@ export const usePosProducts = () => {
   
   const { data: subCategories = [], isLoading: subsLoading } = usePosSubCategories(activeCategoryId);
 
-  const { data: products = [], isLoading: prodsLoading } = usePosProductsList(activeCategoryId, activeSubCategoryId, selectedOrderTypeId);
+  const effectiveSubCategoryId = activeSubCategoryId !== null 
+    ? activeSubCategoryId 
+    : (subCategories.length > 0 ? subCategories[0].subCategoryId : 0);
+
+  const { data: products = [], isLoading: prodsLoading } = usePosProductsList(activeCategoryId, effectiveSubCategoryId, selectedOrderTypeId);
 
   const loading = groupsLoading || catsLoading || subsLoading || prodsLoading;
   const error = null;
@@ -76,12 +80,26 @@ export const usePosProducts = () => {
     return [...categories, ...unassignedMasterCats];
   }, [categories, masterData?.category]);
 
+  // Auto-select first category when menu group changes
+  useEffect(() => {
+    if (categories.length > 0) {
+      dispatch(setCategory(categories[0].id));
+    }
+  }, [activeGroupId, categories, dispatch]);
+
   // Auto-select first category if none active or activeCategoryId is invalid
   useEffect(() => {
     if (displayCategories.length > 0 && (!activeCategoryId || !displayCategories.some(c => c.id === activeCategoryId))) {
       dispatch(setCategory(displayCategories[0].id));
     }
   }, [displayCategories, activeCategoryId, dispatch]);
+
+  // Auto-select first subcategory if only 1 subcategory exists
+  useEffect(() => {
+    if (subCategories.length === 1 && !activeSubCategoryId) {
+      dispatch(setSubCategory(subCategories[0].subCategoryId));
+    }
+  }, [subCategories, activeSubCategoryId, dispatch]);
 
   // Keep productCache updated for the cart calculation selectors
   useEffect(() => {

@@ -72,6 +72,8 @@ export const useStockAdjustment = (id?: string | null) => {
 
   const methods = useForm<any>({
     resolver: zodResolver(stockAdjustmentSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: initialForm,
   });
 

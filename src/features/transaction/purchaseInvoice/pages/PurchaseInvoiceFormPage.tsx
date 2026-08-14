@@ -314,17 +314,17 @@ const PurchaseInvoiceFormPage = () => {
             {/* ── Header Fields ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 mb-2 items-end">
               <Controller name="series" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-series" label="Series" value={field.value} options={seriesOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pi-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pi-purchaseNo" label="Purchase No" {...register("purchaseNo")} onKeyDown={(e) => hk(e, "pi-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate")} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
-              <FormInput required={true} maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceNo" label="Inv No" {...register("invoiceNo")} onKeyDown={(e) => hk(e, "pi-refNo")} readOnly={!canSave} error={errors.invoiceNo?.message as string} />
-              <FormInput maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-refNo" label="Ref No" {...register("refNo")} onKeyDown={(e) => hk(e, "pi-invoiceDate")} readOnly={!canSave} error={errors.refNo?.message as string} />
-              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceDate" label="Inv Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("invoiceDate")} onKeyDown={(e) => hk(e, "pi-supplier")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pi-purchaseNo" label="Purchase No" {...register("purchaseNo", { onChange: () => methods.trigger("purchaseNo") })} onKeyDown={(e) => hk(e, "pi-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate", { onChange: () => methods.trigger("purchaseDate") })} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
+              <FormInput required={true} maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceNo" label="Inv No" {...register("invoiceNo", { onChange: () => methods.trigger("invoiceNo") })} onKeyDown={(e) => hk(e, "pi-refNo")} readOnly={!canSave} error={errors.invoiceNo?.message as string} />
+              <FormInput maxLength={50} inputClassName="!h-8 !px-2 !text-xs" id="pi-refNo" label="Ref No" {...register("refNo", { onChange: () => methods.trigger("refNo") })} onKeyDown={(e) => hk(e, "pi-invoiceDate")} readOnly={!canSave} error={errors.refNo?.message as string} />
+              <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-invoiceDate" label="Inv Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("invoiceDate", { onChange: () => methods.trigger("invoiceDate") })} onKeyDown={(e) => hk(e, "pi-supplier")} readOnly={!canSave} error={errors.invoiceDate?.message as string} />
               <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2 flex items-end gap-1">
                 <div className="flex-1 min-w-0">
                   <Controller name="supplier" control={control} render={({ field }) => (
-                    <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                    <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, "pi-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
                   )} />
                 </div>
                 <button type="button" onClick={() => setIsSupplierModalOpen(true)} className="mb-1 shrink-0 h-8 w-8 flex items-center justify-center rounded border border-[#49293e] bg-[#49293e] hover:bg-[#3c2232] hover:border-[#3c2232] text-white transition-colors">
@@ -332,10 +332,10 @@ const PurchaseInvoiceFormPage = () => {
                 </button>
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" value={field.value} options={branchOptions} onChange={field.onChange} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={field.onChange} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
           </div>
@@ -555,11 +555,46 @@ const PurchaseInvoiceFormPage = () => {
             
             {/* Top Row: Adjustments */}
             <div className="flex flex-wrap items-end gap-2 w-full">
-              <div className="w-16">
-                <FormInput id="pi-disc-pct" label="Disc(%)" type="number" step="any" maxLength={6} {...register("globalDiscPercent")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-disc-amt")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+              <div className="w-20">
+                <FormInput
+                  id="pi-disc-pct"
+                  label="Disc(%)"
+                  type="number"
+                  step="any"
+                  maxLength={10}
+                  {...register("globalDiscPercent", {
+                    onChange: (e) => {
+                      const val = e.target.value;
+                      if (!val || val === "0" || Number(val) === 0) {
+                        methods.setValue("discAmount", formatAmount(0));
+                      } else {
+                        const total = watchedItems.reduce((acc: number, item: any) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0);
+                        const newDiscAmt = formatAmount(total * (Number(val) / 100));
+                        methods.setValue("discAmount", newDiscAmt);
+                      }
+                    }
+                  })}
+                  min="0"
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => hk(e, "pi-disc-amt")}
+                  inputClassName="text-right !h-8 !text-xs !px-2"
+                  readOnly={!canSave}
+                />
               </div>
               <div className="w-24">
-                <FormInput id="pi-disc-amt" label="Disc Amt" type="number" step="any" maxLength={12} {...register("discAmount")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-other-chg")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />
+                <FormInput
+                  id="pi-disc-amt"
+                  label="Disc Amt"
+                  type="number"
+                  step="any"
+                  maxLength={12}
+                  {...register("discAmount")}
+                  min="0"
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => hk(e, "pi-other-chg")}
+                  inputClassName="text-right !h-8 !text-xs !px-2"
+                  readOnly={!canSave}
+                />
               </div>
               <div className="w-24">
                 <FormInput id="pi-other-chg" label="Other Chg" type="number" step="any" maxLength={12} {...register("otherCharge")} min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => hk(e, "pi-round-off")} inputClassName="text-right !h-8 !text-xs !px-2" readOnly={!canSave} />

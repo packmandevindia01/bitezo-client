@@ -100,10 +100,11 @@ const PaymodeModal = ({
               label="Paymode Code"
               required
               tabIndex={1}
+              maxLength={9}
               {...register("code", {
                 onChange: (e) => {
-                  // Ensure only integer (numeric) values are entered
-                  e.target.value = e.target.value.replace(/[^0-9]/g, "");
+                  // Ensure only integer (numeric) values are entered and clamped to 9 digits (max int32 safe)
+                  e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 9);
                 }
               })}
               placeholder="Enter paymode code"
@@ -116,6 +117,7 @@ const PaymodeModal = ({
               label="Paymode Name"
               required
               tabIndex={2}
+              maxLength={25}
               {...register("paymodeName")}
               placeholder="Enter paymode name"
               error={errors.paymodeName?.message as string}

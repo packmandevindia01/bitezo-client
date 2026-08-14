@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
-import { PageShell, RecordTableCard, Modal, ListHeader } from "../../../../components/common";
+import { Pencil, Trash2, Save, RotateCcw } from "lucide-react";
+import { PageShell, RecordTableCard, Modal, ListHeader, Button } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useStockAdjustmentType } from "../hooks/useStockAdjustmentType";
 import { StockAdjustmentTypeForm } from "../components/StockAdjustmentTypeForm";
@@ -12,10 +12,13 @@ const StockAdjustmentTypePage = () => {
     loading,
     form,
     setForm,
+    errors,
+    editingId,
     isModalOpen,
     isSaving,
     handleOpenModal,
     handleCloseModal,
+    handleClear,
     handleSave,
     handleDelete,
   } = useStockAdjustmentType();
@@ -93,14 +96,37 @@ const StockAdjustmentTypePage = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={form.typeName ? "Edit Stock Adjustment Type" : "Add Stock Adjustment Type"}
+        title={editingId ? "Edit Stock Adjustment Type" : "Add Stock Adjustment Type"}
         size="md"
+        footer={
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              onClick={handleClear}
+              disabled={isSaving}
+              tabIndex={-1}
+              isAction
+              icon={<RotateCcw size={18} />}
+            >
+              Clear
+            </Button>
+            <Button
+              onClick={handleSave}
+              loading={isSaving}
+              disabled={isSaving}
+              isAction
+              icon={<Save size={18} />}
+            >
+              {editingId ? "Update" : "Save"}
+            </Button>
+          </div>
+        }
       >
         <StockAdjustmentTypeForm
           form={form}
           setForm={setForm}
-          onSave={handleSave}
           isSaving={isSaving}
+          errors={errors}
         />
       </Modal>
 

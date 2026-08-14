@@ -153,39 +153,42 @@ const StockAdjustmentPage = () => {
   };
 
   const onSaveClick = () => {
-    const currentItems = getValues("items") || [];
-    const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
-    if (validItems.length === 0) {
-      showToast("Please add at least one product.", "warning");
-      return;
-    }
-    if (validItems.length !== currentItems.length) {
-      methods.setValue("items", validItems);
-    }
-    
-    // Trigger validation before showing confirm dialog
+    // 1. Trigger validation
     methods.handleSubmit(
       () => {
+        const currentItems = getValues("items") || [];
+        const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
+        if (validItems.length === 0) {
+          showToast("Please add at least one product.", "warning");
+          setTimeout(() => {
+            document.getElementById("product-select-0")?.focus();
+          }, 100);
+          return;
+        }
+        if (validItems.length !== currentItems.length) {
+          methods.setValue("items", validItems);
+        }
         setShowSaveConfirm(true);
       },
       (errs) => {
         console.error("Validation failed:", errs);
-        const firstErrorKey = Object.keys(errs)[0];
-        if (firstErrorKey) {
-          const errMsg = getFirstError((errs as any)[firstErrorKey]) || `Please fill required fields (${firstErrorKey}).`;
-          showToast(errMsg, "error");
-          
+        const hasHeaderErrors = errs.branch || errs.salesman || errs.date || errs.refNo;
+        
+        if (hasHeaderErrors) {
+          const firstHeaderKey = errs.branch ? "branch" : errs.salesman ? "salesman" : errs.date ? "date" : "refNo";
           setTimeout(() => {
-            const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
-            if (el) {
-              el.focus();
-            } else {
-              const elId = document.getElementById(`sa-${firstErrorKey}`);
-              if (elId) elId.focus();
-            }
+            const elId = document.getElementById(`sa-${firstHeaderKey}`);
+            if (elId) elId.focus();
           }, 100);
-        } else {
-          showToast("Please fill all required fields.", "error");
+          return;
+        }
+
+        // If headers are valid, but items has validation error (empty product in rows)
+        if (errs.items) {
+          showToast("Please add at least one product.", "warning");
+          setTimeout(() => {
+            document.getElementById("product-select-0")?.focus();
+          }, 100);
         }
       }
     )();
@@ -231,14 +234,14 @@ const StockAdjustmentPage = () => {
 
             {/* ── Header Fields ── Extremely dense padding to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
-              <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="sa-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
+              <FormInput required inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="sa-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked || !!id} error={errors.branch?.message as string} />
+                <SearchableSelect required className="h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked || !!id} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect className="h-8 !px-2 !text-xs" id="sa-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required className="h-8 !px-2 !text-xs" id="sa-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
 

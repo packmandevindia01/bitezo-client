@@ -11,10 +11,27 @@ export const useStockAdjustmentType = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const [form, setForm] = useState<StockAdjustmentTypePayload>({
+  const [form, setFormState] = useState<StockAdjustmentTypePayload>({
     typeName: "",
-    effect: "All"
+    effect: ""
   });
+
+  const [errors, setErrors] = useState<{ typeName?: string; effect?: string }>({});
+
+  const setForm = (newForm: StockAdjustmentTypePayload) => {
+    setFormState(newForm);
+    // Clear errors immediately when valid value is entered
+    setErrors((prev) => {
+      const updated = { ...prev };
+      if (newForm.typeName.trim() && updated.typeName) {
+        delete updated.typeName;
+      }
+      if (newForm.effect.trim() && updated.effect) {
+        delete updated.effect;
+      }
+      return updated;
+    });
+  };
 
   const fetchTypes = async () => {
     setLoading(true);
@@ -33,17 +50,18 @@ export const useStockAdjustmentType = () => {
   }, []);
 
   const handleOpenModal = (typeToEdit?: StockAdjustmentType) => {
+    setErrors({});
     if (typeToEdit) {
       setEditingId(typeToEdit.typeId);
-      setForm({
+      setFormState({
         typeName: typeToEdit.typeName,
         effect: typeToEdit.effect
       });
     } else {
       setEditingId(null);
-      setForm({
+      setFormState({
         typeName: "",
-        effect: "All"
+        effect: ""
       });
     }
     setIsModalOpen(true);
@@ -52,19 +70,32 @@ export const useStockAdjustmentType = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
+    setErrors({});
+  };
+
+  const handleClear = () => {
+    setFormState({
+      typeName: "",
+      effect: ""
+    });
+    setErrors({});
   };
 
   const handleSave = async () => {
+    const newErrors: { typeName?: string; effect?: string } = {};
+
     if (!form.typeName.trim()) {
-      showToast("Type Name is required", "warning");
-      return;
+      newErrors.typeName = "required";
+    } else if (form.typeName.trim().length > 50) {
+      newErrors.typeName = "Max 50 characters";
     }
-    if (form.typeName.trim().length > 50) {
-      showToast("Maximum character limit exceeded.", "warning");
-      return;
-    }
+
     if (!form.effect.trim()) {
-      showToast("Effect is required", "warning");
+      newErrors.effect = "required";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -72,7 +103,7 @@ export const useStockAdjustmentType = () => {
       t => t.typeName.trim().toLowerCase() === form.typeName.trim().toLowerCase() && t.typeId !== editingId
     );
     if (isDuplicate) {
-      showToast("Stock Adjustment Type already exists.", "warning");
+      setErrors({ typeName: "Already exists" });
       return;
     }
 
@@ -93,7 +124,7 @@ export const useStockAdjustmentType = () => {
       let message = typeof serverMsg === "string" ? serverMsg : "Failed to save stock adjustment type";
 
       if (message.toLowerCase().includes("duplicate") || message.toLowerCase().includes("already exist") || message.toLowerCase().includes("unique")) {
-        showToast("Stock Adjustment Type already exists.", "warning");
+        setErrors({ typeName: "Already exists" });
       } else if (status === 400 || message.includes("400") || message.includes("ID mismatch") || message.includes("validation")) {
         showToast("Validation failed: unable to save Stock Adjustment Type due to invalid input or ID mismatch.", "error");
       } else if (status === 409 || status === 404 || message.includes("in use") || message.includes("conflict")) {
@@ -121,10 +152,13 @@ export const useStockAdjustmentType = () => {
     loading,
     form,
     setForm,
+    errors,
+    editingId,
     isModalOpen,
     isSaving,
     handleOpenModal,
     handleCloseModal,
+    handleClear,
     handleSave,
     handleDelete,
   };

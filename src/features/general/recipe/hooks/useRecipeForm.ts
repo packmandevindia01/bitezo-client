@@ -43,6 +43,8 @@ export const useRecipeForm = (initialTransId?: number) => {
   // 1. Initialize React Hook Form
   const form = useForm<RecipeForm>({
     resolver: zodResolver(recipeSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       branchId: isBranchLocked ? initialBranchId : "",
       finishedProduct: "",
@@ -266,17 +268,17 @@ export const useRecipeForm = (initialTransId?: number) => {
 
   // 5. Actions & Handlers
   const handleFinishedProductSelect = async (productId: string) => {
-    setValue("finishedProduct", productId);
+    setValue("finishedProduct", productId, { shouldValidate: true, shouldDirty: true });
     const prod = finishedProducts.find(p => p.value === productId);
     if (!prod || !productId) {
-      setValue("finishedProductCode", "");
-      setValue("finishedProductUnit", "");
-      setValue("finishedProductUnitName", "");
+      setValue("finishedProductCode", "", { shouldDirty: true });
+      setValue("finishedProductUnit", "", { shouldValidate: true, shouldDirty: true });
+      setValue("finishedProductUnitName", "", { shouldDirty: true });
       setFinishedProductUnits([]);
       return;
     }
 
-    setValue("finishedProductCode", prod.code || "");
+    setValue("finishedProductCode", prod.code || "", { shouldDirty: true });
     const identifier = prod.code || productId;
 
     try {
@@ -286,10 +288,10 @@ export const useRecipeForm = (initialTransId?: number) => {
       const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
       setFinishedProductUnits(unitOptions);
 
-      setValue("finishedProductUnit", String(costData.baseUnitId));
+      setValue("finishedProductUnit", String(costData.baseUnitId), { shouldValidate: true, shouldDirty: true });
       const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
-      setValue("finishedProductUnitName", unitName);
-      setValue("finishedProductQty", "1");
+      setValue("finishedProductUnitName", unitName, { shouldDirty: true });
+      setValue("finishedProductQty", "1", { shouldValidate: true, shouldDirty: true });
     } catch (err: any) {
       showToast("Failed to fetch product details", "error");
     }

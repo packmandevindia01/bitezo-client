@@ -149,7 +149,7 @@ const CategoryModal = ({
               }`}
             >
               <Clock size={14} />
-              Menu Time Allocation <span className="text-red-500">*</span>
+              Menu Time Allocation
             </button>
             <button
               onClick={() => setActiveTab("branches")}
@@ -160,7 +160,7 @@ const CategoryModal = ({
               }`}
             >
               <Building2 size={14} />
-              Branch Allocation <span className="text-red-500">*</span>
+              Branch Allocation
             </button>
           </div>
         </div>
@@ -231,7 +231,7 @@ const CategoryModal = ({
                 </p>
               )}
               <div className="flex items-center justify-between shrink-0 mb-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Menu Time Allocation *</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Menu Time Allocation</p>
                 <div className="w-64">
                   <SearchBar 
                     value={searchMenu}
@@ -277,7 +277,7 @@ const CategoryModal = ({
                 </p>
               )}
               <div className="flex items-center justify-between shrink-0 mb-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation *</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation</p>
                 <div className="w-64">
                   <SearchBar 
                     value={searchBranch}

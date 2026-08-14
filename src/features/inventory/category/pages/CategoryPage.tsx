@@ -151,12 +151,9 @@ const CategoryPage = () => {
       }
     },
     (invalidErrors) => {
-      if (invalidErrors.menuIds?.message) {
-        showToast(String(invalidErrors.menuIds.message), "error");
-      } else if (invalidErrors.branchAllocations?.message) {
-        showToast(String(invalidErrors.branchAllocations.message), "error");
-      } else if (invalidErrors.name?.message) {
-        showToast(String(invalidErrors.name.message), "error");
+      const firstError = Object.values(invalidErrors)[0];
+      if (firstError?.message) {
+        showToast(String(firstError.message), "error");
       }
     }
   );

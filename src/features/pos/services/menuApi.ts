@@ -17,8 +17,8 @@ export interface ApiResponse<T> {
 
 const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) => 
   promise.then(res => {
-    if (!res.data.isSuccess) throw new Error(res.data.message);
-    return res.data.data;
+    if (res.data && res.data.isSuccess === false) throw new Error(res.data.message);
+    return (res.data?.data !== undefined ? res.data.data : res.data) as T;
   });
 
 const getTenantQuery = () => {
@@ -26,13 +26,22 @@ const getTenantQuery = () => {
   return `?clientDb=${tenantId}`;
 };
 
-const getProviderOwnStatus = () => {
+const getProviderOwnStatus = (orderTypeId?: number) => {
   try {
     const saved = localStorage.getItem('posConfigs');
     const full = saved ? JSON.parse(saved) : {};
-    return full?.configs?.providerOwnMenuStatus === true;
+    const val = full?.configs?.providerOwnStatus ?? 
+                full?.configs?.providerOwnMenuStatus ?? 
+                full?.configs?.ProviderOwnStatus;
+    if (val !== undefined && val !== null) {
+      return val === true || val === "Enable" || val === "true" || val === 1;
+    }
+    if (orderTypeId && orderTypeId > 4) {
+      return true;
+    }
+    return true;
   } catch {
-    return false;
+    return true;
   }
 };
 
@@ -43,12 +52,18 @@ export const menuApi = {
     const now = new Date();
     const timeSpanString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
-    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data`, {
-      params: {
-        clientDb: localStorage.getItem("tenantId") || "",
-        currentTime: timeSpanString
-      }
-    }));
+    const [raw, allCategoriesRes] = await Promise.all([
+      unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data`, {
+        params: {
+          clientDb: localStorage.getItem("tenantId") || "",
+          currentTime: timeSpanString
+        }
+      })),
+      axiosInstance.get<ApiResponse<any[]>>(`/category/category-list`, {
+        params: { clientDb: localStorage.getItem("tenantId") || "" }
+      }).then(r => (Array.isArray(r.data?.data) ? r.data.data : (Array.isArray(r.data) ? r.data : []))).catch(() => [])
+    ]);
+
     const rawMenu = raw.menu ?? raw.groups ?? raw.group ?? [];
     const menu = rawMenu.map((m: any) => ({
       menuId: m.menuId ?? m.groupId ?? 0,
@@ -60,20 +75,47 @@ export const menuApi = {
       groupName: m.menuName ?? m.groupName ?? "",
       arabicName: m.arabicName ?? "",
     }));
-    const categories = raw.categories ?? raw.category ?? [];
+
+    const masterCategories = Array.isArray(raw.categories ?? raw.category) ? (raw.categories ?? raw.category) : [];
+    const allCatList = Array.isArray(allCategoriesRes) ? allCategoriesRes : [];
+
+    // Map all categories from database (ensuring unassigned categories are always available)
+    const categoryMap = new Map<number, PosCategory>();
+
+    allCatList.forEach((c: any) => {
+      const id = Number(c.catId ?? c.categoryId ?? c.id ?? 0);
+      if (id > 0) {
+        categoryMap.set(id, {
+          id,
+          name: String(c.catName ?? c.categoryName ?? c.name ?? ""),
+          arabicName: String(c.arabic ?? c.arabicName ?? ""),
+          imageUrl: c.imageUrl ?? null,
+          colorCode: c.colorCode || "red",
+        });
+      }
+    });
+
+    masterCategories.forEach((c: any) => {
+      const id = Number(c.categoryId ?? c.id ?? 0);
+      if (id > 0) {
+        categoryMap.set(id, {
+          id,
+          name: String(c.categoryName ?? c.name ?? ""),
+          arabicName: String(c.arabicName ?? c.arabic ?? ""),
+          imageUrl: c.imageUrl ?? null,
+          colorCode: c.colorCode || "red"
+        });
+      }
+    });
+
+    const categories = Array.from(categoryMap.values());
     const orderTypes = raw.orderTypes ?? [];
     const paymodes = raw.paymodes ?? [];
 
     return {
       menu,
       group: legacyGroup,
-      category: categories.map((c: any) => ({
-        id: c.categoryId,
-        name: c.categoryName,
-        arabicName: c.arabicName,
-        imageUrl: c.imageUrl,
-        colorCode: c.colorCode
-      })),
+      category: categories,
       orderTypes,
       paymodes
     } as MenuMasterData;
@@ -86,21 +128,23 @@ export const menuApi = {
     })),
 
   /** GET /api/menu/{menuId}/categories */
-  getGroupCategories: async (menuId: number, orderTypeId?: number) => {
+  getGroupCategories: async (menuId: number, _orderTypeId?: number) => {
     try {
       const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${menuId}/categories`, {
         params: {
           clientDb: localStorage.getItem("tenantId") || "",
-          orderTypeId: orderTypeId || 1
+          orderTypeId: 1
         }
       }));
-      return raw.map((c: any) => ({
-        id: c.categoryId,
-        name: c.categoryName,
-        arabicName: c.arabicName,
-        imageUrl: c.imageUrl,
-        colorCode: c.colorCode
-      })) as PosCategory[];
+      const list = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
+
+      return list.map((c: any) => ({
+        id: Number(c.categoryId ?? c.id ?? c.catId ?? 0),
+        name: String(c.categoryName ?? c.name ?? c.catName ?? ""),
+        arabicName: String(c.arabicName ?? c.arabic ?? ""),
+        imageUrl: c.imageUrl ?? null,
+        colorCode: c.colorCode || "red"
+      })).filter((c: PosCategory) => c.id > 0) as PosCategory[];
     } catch (error) {
       console.error(`[menuApi] Failed to fetch menu categories for menuId ${menuId}:`, error);
       return [];
@@ -114,9 +158,16 @@ export const menuApi = {
   /** GET /api/menu/categories/{categoryId}/sub-categories */
   getSubCategories: async (categoryId: number) => {
     try {
-      return await unwrap(axiosInstance.get<ApiResponse<MenuSubCategory[]>>(`/menu/categories/${categoryId}/sub-categories`, {
+      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/categories/${categoryId}/sub-categories`, {
         params: { clientDb: localStorage.getItem("tenantId") || "" }
       }));
+      const list = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
+      return list.map((s: any) => ({
+        subCategoryId: Number(s.subCategoryId ?? s.id ?? s.subCatId ?? s.subcategoryId ?? 0),
+        subCategoryName: String(s.subCategoryName ?? s.name ?? s.subCatName ?? s.subcategoryName ?? ""),
+        arabicName: String(s.arabicName ?? ""),
+        imageUrl: s.imageUrl ?? null
+      })).filter((s: MenuSubCategory) => s.subCategoryId > 0);
     } catch (error) {
       console.error(`[menuApi] Failed to fetch sub-categories for categoryId ${categoryId}:`, error);
       return [];
@@ -131,7 +182,7 @@ export const menuApi = {
           clientDb: localStorage.getItem("tenantId") || "",
           orderTypeId: orderTypeId || 1,
           currentDateTime: new Date().toISOString(),
-          providerOwnStatus: getProviderOwnStatus()
+          providerOwnStatus: getProviderOwnStatus(orderTypeId)
         }
       }));
       return raw.map((p: any) => ({
@@ -173,7 +224,7 @@ export const menuApi = {
           orderTypeId: params.orderTypeId || 1,
           currentDateTime: params.currentDateTime || new Date().toISOString(),
           productName: params.productName,
-          providerOwnStatus: params.providerOwnStatus ?? getProviderOwnStatus()
+          providerOwnStatus: params.providerOwnStatus ?? getProviderOwnStatus(params.orderTypeId)
         }
       });
 

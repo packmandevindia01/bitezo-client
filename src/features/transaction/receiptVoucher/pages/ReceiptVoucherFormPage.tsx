@@ -38,7 +38,6 @@ const ReceiptVoucherFormPage = () => {
 
   const { watch, setValue, formState: { errors, isSubmitted } } = form;
   const showErr = (err?: string) => (isSubmitted ? err : undefined);
-  const watchedAmount = watch("amount");
 
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
@@ -218,8 +217,7 @@ const ReceiptVoucherFormPage = () => {
             <FormInput
               id="rv-refno"
               label="REF NO"
-              value={watch("refNo")}
-              onChange={(e) => setValue("refNo", e.target.value)}
+              {...form.register("refNo")}
               onKeyDown={(e) => handleKeyDown(e, "rv-account")}
               tabIndex={6}
               readOnly={!canSave}
@@ -232,8 +230,7 @@ const ReceiptVoucherFormPage = () => {
               label="AMOUNT"
               type="number"
               inputClassName="text-right"
-              value={watchedAmount}
-              onChange={(e) => setValue("amount", e.target.value)}
+              {...form.register("amount")}
               onKeyDown={(e) => handleKeyDown(e, "rv-paymode")}
               tabIndex={8}
               readOnly={!canSave}
@@ -248,9 +245,8 @@ const ReceiptVoucherFormPage = () => {
               </label>
               <textarea
                 id="rv-narration"
-                value={watch("narration")}
+                {...form.register("narration")}
                 maxLength={200}
-                onChange={(e) => setValue("narration", e.target.value)}
                 readOnly={!canSave}
                 tabIndex={10}
                 onKeyDown={(e) => {

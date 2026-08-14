@@ -102,6 +102,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const methods = useForm<any>({
     resolver: zodResolver(schema),
     defaultValues: initialForm,
+    mode: "onChange",
+    reValidateMode: "onChange",
   });
 
   const { control, setValue, reset, getValues } = methods;
@@ -227,14 +229,19 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
-    if (toNumber(watchedGlobalDiscPercent) > 0 && watchedItems.length > 0) {
-      const subTotal = watchedItems.reduce((acc: any, item: any) => acc + calculateLine(item as PurchaseReturnLineItem, decimalPart).netAmount, 0);
-      const newDiscAmt = formatAmount(subTotal * (toNumber(watchedGlobalDiscPercent) / 100));
+    const discPct = toNumber(watchedGlobalDiscPercent);
+    if (discPct > 0 && watchedItems.length > 0) {
+      const newDiscAmt = formatAmount(grossTotal * (discPct / 100));
       if (newDiscAmt !== watchedDiscAmount) {
         setValue("discAmount", newDiscAmt);
       }
+    } else if (watchedGlobalDiscPercent === "" || discPct === 0) {
+      const zeroAmount = formatAmount(0);
+      if (watchedDiscAmount && watchedDiscAmount !== "0" && watchedDiscAmount !== zeroAmount) {
+        setValue("discAmount", zeroAmount);
+      }
     }
-  }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount]);
+  }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount, decimalPart, grossTotal]);
 
   useEffect(() => {
     const fetchMasterData = async () => {

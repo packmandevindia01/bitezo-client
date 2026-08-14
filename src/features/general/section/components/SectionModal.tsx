@@ -7,6 +7,7 @@ interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: SectionForm;
+  errors?: { name?: string; counterId?: string };
   counters: CounterRecord[];
   loading?: boolean;
   saving?: boolean;
@@ -21,6 +22,7 @@ const SectionModal = ({
   isOpen,
   editingId,
   form,
+  errors,
   counters,
   saving,
   onChange,
@@ -79,26 +81,26 @@ const SectionModal = ({
         </div>
       }
     >
-      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
+      <div className="flex flex-col gap-4">
         {/* NAME FIELD */}
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-          Section Name
-        </p>
         <FormInput
           id="section-name"
+          label="Section Name"
+          required
           value={form.name}
           onChange={(e) => onChange("name", e.target.value)}
           placeholder="Enter section name"
           onKeyDown={(e) => handleEnter(e, "section-counter")}
           autoFocus
+          error={errors?.name}
+          maxLength={30}
         />
 
         {/* COUNTER FIELD */}
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-          Counter Name
-        </p>
         <SelectInput
           id="section-counter"
+          label="Counter"
+          required
           value={form.counterId}
           onChange={(e) => onChange("counterId", e.target.value)}
           options={counters.map((c) => ({
@@ -107,6 +109,7 @@ const SectionModal = ({
           }))}
           placeholder="Select a counter"
           onKeyDown={(e) => handleEnter(e, "section-save")}
+          error={errors?.counterId}
         />
       </div>
     </Modal>

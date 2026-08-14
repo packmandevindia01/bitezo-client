@@ -22,10 +22,6 @@ export const mapToFrontend = (item: any): Customer => ({
 });
 
 export const mapToBackend = (customer: Customer): any => {
-  const currentBranchId = localStorage.getItem("activeBranchId") 
-    ? parseInt(localStorage.getItem("activeBranchId")!, 10) 
-    : 2;
-
   return {
     customerId: customer.id || 0,
     code: customer.customerCode || "",
@@ -39,7 +35,7 @@ export const mapToBackend = (customer: Customer): any => {
     area: customer.area || "",
     identityNo: customer.identityNo || "",
     trnNo: customer.trnNo || "",
-    branchId: customer.branch ? (parseInt(customer.branch, 10) || currentBranchId) : currentBranchId,
+    branchId: parseInt(customer.branch, 10),
     isActive: customer.isActive ?? true,
   };
 };

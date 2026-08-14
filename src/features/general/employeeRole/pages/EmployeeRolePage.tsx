@@ -116,8 +116,8 @@ const EmployeeRolePage = () => {
       setError("required");
       return;
     }
-    if (form.roleName.trim().length > 50) {
-      setError("Maximum character limit exceeded.");
+    if (form.roleName.trim().length > 20) {
+      setError("Maximum 20 characters allowed");
       return;
     }
     try {

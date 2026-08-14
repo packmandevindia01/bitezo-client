@@ -8,14 +8,20 @@ import { counterService } from "../../counter/services/counterService";
 import { useToast } from "../../../../app/providers/useToast";
 import type { PaymodeForm, PaymodeRecord } from "../types";
 
+const MAX_INT32 = 2147483647;
+
 // We create a schema factory to inject existing codes for uniqueness validation
 const getPaymodeSchema = (existingRecords: PaymodeRecord[], editingId: number | null) => {
   return z.object({
     paymodeId: z.number(),
     code: z.string()
       .min(1, "Paymode code is required")
-      .max(10, "Code must not exceed 10 characters")
+      .max(9, "Code must not exceed 9 digits")
       .regex(/^[0-9]+$/, "Code must contain only numbers")
+      .refine((val) => {
+        const num = Number(val);
+        return num > 0 && num <= MAX_INT32;
+      }, "Code is too large")
       .refine((val) => {
         // Uniqueness check
         const isDuplicate = existingRecords.some(
@@ -23,7 +29,9 @@ const getPaymodeSchema = (existingRecords: PaymodeRecord[], editingId: number | 
         );
         return !isDuplicate;
       }, "This Paymode Code already exists. Please choose a unique code."),
-    paymodeName: z.string().min(1, "Paymode name is required"),
+    paymodeName: z.string()
+      .min(1, "Paymode name is required")
+      .max(25, "Name must not exceed 25 characters"),
     isActive: z.boolean(),
     counterIds: z.array(z.number()),
   });
@@ -61,6 +69,8 @@ export const usePaymodeManager = () => {
   // ── Form Setup ──────────────────────────────────────────
 
   const form = useForm<PaymodeSchemaType>({
+    mode: "onChange",
+    reValidateMode: "onChange",
     resolver: (data, context, options) => {
       // Re-evaluate schema dynamically with the latest records
       return zodResolver(getPaymodeSchema(records, editingId))(data, context, options);

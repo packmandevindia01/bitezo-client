@@ -12,11 +12,12 @@ export const customerSchema = z.object({
   area: z.string().max(100, "Area cannot exceed 100 characters").optional().default(""),
   identityNo: z.string().max(50, "Identity No cannot exceed 50 characters").optional().default(""),
   trnNo: z.string().max(50, "TRN No cannot exceed 50 characters").optional().default(""),
-  branch: z.string().max(50).optional().default(""),
-  openingBalance: z.union([z.string(), z.number()]).optional().default("0.000").refine(val => {
-    const strVal = String(val);
+  branch: z.string().min(1, "Branch is required").max(50).trim(),
+  openingBalance: z.union([z.string(), z.number()]).refine(val => {
+    const strVal = String(val).trim();
+    if (!strVal) return false;
     return /^-?\d+(\.\d{1,10})?$/.test(strVal) && strVal.length <= 15;
-  }, "Invalid amount (max 15 characters)"),
+  }, "Opening balance is required (max 15 characters)"),
   isActive: z.boolean().optional().default(true),
 });
 

@@ -162,6 +162,54 @@ export const useProviderSettingsForm = (
     })();
   }, [selectedCategory, showToast]);
 
+  // ─── Products when Category or Sub-Category changes ───────────────────────
+  useEffect(() => {
+    let active = true;
+    const fetchCategoryProducts = async () => {
+      try {
+        const prodsData = await loadProducts({
+          categoryId: selectedCategory ? Number(selectedCategory) : undefined,
+          subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
+        });
+        if (!active) return;
+        const uniqueProds: ProductSearchItem[] = [];
+        const seenKeys = new Set<string>();
+
+        prodsData.forEach((p) => {
+          const key = `${p.productId}-${p.unitId}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            uniqueProds.push({
+              productId: p.productId,
+              unitId: p.unitId,
+              productName: p.product,
+              barcode: p.barcode,
+              altName: p.altName,
+              price: p.price,
+              isIncl: p.isIncl,
+            });
+          }
+        });
+
+        setSelectedProductKey("");
+        setEntryProductId(null);
+        setEntryUnitId(null);
+        setEntryCode("");
+        setEntryAltName("");
+        setEntryPrice(formatAmount(0));
+        setAltNameOptions([]);
+        setAllProducts(uniqueProds);
+      } catch (e) {
+        console.error("Failed to load category products", e);
+      }
+    };
+
+    void fetchCategoryProducts();
+    return () => {
+      active = false;
+    };
+  }, [selectedCategory, selectedSubCategory]);
+
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleLoad = async () => {
     if (!selectedProvider || !selectedBranch) {

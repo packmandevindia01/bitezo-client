@@ -22,7 +22,7 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
 export const paymodeService = {
   list(): Promise<PaymodeRecord[]> {
     return unwrap(
-      axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/list-name`)
+      axiosInstance.get<ApiResponse<PaymodeRecord[]>>(`${BASE}/paymode-list`)
     );
   },
 
@@ -53,8 +53,11 @@ export const paymodeService = {
   create(payload: Partial<PaymodeForm>): Promise<{ id: number }> {
     return unwrap(
       axiosInstance.post<ApiResponse<{ id: number }>>(BASE, {
-        ...payload,
-        createdAt: new Date().toISOString()
+        code: typeof payload.code === "string" ? parseInt(payload.code, 10) : Number(payload.code ?? 0),
+        paymodeName: payload.paymodeName?.trim() || "",
+        isActive: payload.isActive !== false,
+        createdAt: new Date().toISOString(),
+        counterIds: payload.counterIds ?? [],
       })
     );
   },
@@ -62,9 +65,12 @@ export const paymodeService = {
   update(paymodeId: number, payload: Partial<PaymodeForm>): Promise<{ id: number }> {
     return unwrap(
       axiosInstance.put<ApiResponse<{ id: number }>>(`${BASE}/${paymodeId}`, {
-        ...payload,
         paymodeId,
-        updatedAt: new Date().toISOString()
+        code: typeof payload.code === "string" ? parseInt(payload.code, 10) : Number(payload.code ?? 0),
+        paymodeName: payload.paymodeName?.trim() || "",
+        isActive: payload.isActive !== false,
+        updatedAt: new Date().toISOString(),
+        counterIds: payload.counterIds ?? [],
       })
     );
   },

@@ -235,6 +235,7 @@ const TableMasterPage = () => {
           isOpen={sectionManager.open}
           editingId={sectionManager.editingId}
           form={sectionManager.form}
+          errors={sectionManager.errors}
           counters={sectionManager.counters}
           loading={sectionManager.loading}
           saving={sectionManager.saving}

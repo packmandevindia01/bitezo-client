@@ -36,6 +36,8 @@ export const useBom = (initialTransId?: number) => {
 
   const form = useForm<BomForm>({
     resolver: zodResolver(bomSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       bomName: "",
       branchId: "",
@@ -200,7 +202,7 @@ export const useBom = (initialTransId?: number) => {
   }, [initialTransId, watchedFinishedProduct, watchedFinishedProductUnit, finishedProducts, finishedProductUnits.length, setValue, getValues]);
 
   const handleFinishedProductSelect = async (productId: string) => {
-    setValue("finishedProduct", productId);
+    setValue("finishedProduct", productId, { shouldValidate: true });
     const prod = finishedProducts.find(p => p.value === productId);
     if (!prod) return;
 
@@ -219,7 +221,7 @@ export const useBom = (initialTransId?: number) => {
       const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
       setFinishedProductUnits(unitOptions);
 
-      setValue("finishedProductUnit", String(unitData.unitId));
+      setValue("finishedProductUnit", String(unitData.unitId), { shouldValidate: true });
       const unitName = unitsResp.find((u: any) => u.unitId === unitData.unitId)?.name || unitData.unitCategory;
       setValue("finishedProductUnitName", unitName);
     } catch (err) {

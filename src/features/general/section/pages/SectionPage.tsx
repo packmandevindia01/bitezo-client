@@ -10,6 +10,7 @@ const SectionPage = () => {
   const { hasPermission } = usePermissions();
   const {
     form,
+    errors,
     counters,
     open,
     search,
@@ -87,6 +88,7 @@ const SectionPage = () => {
         isOpen={open}
         editingId={editingId}
         form={form}
+        errors={errors}
         counters={counters}
         loading={loading}
         saving={saving}

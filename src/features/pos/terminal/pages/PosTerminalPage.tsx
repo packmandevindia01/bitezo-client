@@ -49,6 +49,7 @@ export const PosTerminalPage = () => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedTender, setSelectedTender] = useState<string>("");
   const [extrasModifierType, setExtrasModifierType] = useState<'none' | 'extras' | 'modifiers'>('none');
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   
   // Ref to debounce rapid double-clicks on zero price items
   const zeroPriceLockRef = useRef<number>(0);
@@ -107,7 +108,7 @@ export const PosTerminalPage = () => {
   const editingSaleId = useAppSelector((state) => state.pos.editingSaleId);
 
   const activeCategory = terminal.categories.find(c => c.id === terminal.activeCategoryId);
-  const activeSubCategory = terminal.subCategories.find(s => s.subCategoryId === terminal.activeSubCategoryId);
+  const activeSubCategory = terminal.subCategories.find((s: any) => s.subCategoryId === terminal.activeSubCategoryId);
   const currentSelectedItem = useMemo(() => {
     if (!selectedKey) return null;
     return terminal.cartDetails.find((item) => item.uniqueId === selectedKey);
@@ -198,6 +199,15 @@ export const PosTerminalPage = () => {
     setActiveProvider(null);
     dispatch(setCustomerId(1));
     void applyDefaultOrderType(true);
+  };
+
+  const handleRequestClearCart = () => {
+    const hasData = terminal.cartDetails.length > 0 || !!terminal.editingOrderId || !!activeProvider;
+    if (hasData) {
+      setIsClearConfirmOpen(true);
+    } else {
+      handleClearCart();
+    }
   };
 
   const voidFlow = usePosVoidFlow({
@@ -947,7 +957,7 @@ export const PosTerminalPage = () => {
               </div>
 
               <PosActionButtons 
-                onClearCart={handleClearCart}
+                onClearCart={handleRequestClearCart}
                 onCustomer={() => {
                   if (isCreditProviderActive) {
                     showToast("Customer is locked to configured Post Account for Credit Provider orders", "warning");
@@ -1069,6 +1079,8 @@ export const PosTerminalPage = () => {
         setBillDiscount={terminal.setBillDiscount}
         clearAllItemDiscounts={() => dispatch(clearAllItemDiscounts())}
         setCustomDeliveryCharge={(val) => dispatch(setCustomDeliveryCharge(val))}
+        isClearConfirmOpen={isClearConfirmOpen}
+        setIsClearConfirmOpen={setIsClearConfirmOpen}
         editingOrderId={terminal.editingOrderId}
         selectedProviderForOrder={selectedProviderForOrder}
         setSelectedProviderForOrder={setSelectedProviderForOrder}

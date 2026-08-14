@@ -95,8 +95,9 @@ const EmployeeRoleModal = ({
                   label="Role Name"
                   required
                   error={error}
+                  maxLength={20}
                   value={form.roleName}
-                  onChange={(e) => onChange({ roleName: e.target.value })}
+                  onChange={(e) => onChange({ roleName: e.target.value.slice(0, 20) })}
                   placeholder="Enter employee role name (e.g. Cashier)"
                   autoFocus
                 />

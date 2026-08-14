@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Technical Report: Category-Wise & Order-Wise Multi-Wi-Fi Printing in Mobile POS</title>
+  <style>
+    :root {
+      --primary: #49293e;
+      --primary-light: #f5f0f3;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --text-dark: #0f172a;
+      --text-muted: #475569;
+      --border: #e2e8f0;
+      --bg-gray: #f8fafc;
+      --code-bg: #0f172a;
+      --success: #15803d;
+      --warning: #b45309;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text-dark);
+      background: #ffffff;
+      line-height: 1.6;
+      padding: 40px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    @media print {
+      body { padding: 0; max-width: 100%; font-size: 12px; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+      pre, table, .card { page-break-inside: avoid; }
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 20px;
+      margin-bottom: 25px;
+    }
+
+    .header-title h1 {
+      color: var(--primary);
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header-title p {
+      color: var(--text-muted);
+      font-size: 13.5px;
+      margin-top: 4px;
+    }
+
+    .meta-badge {
+      background-color: var(--primary-light);
+      color: var(--primary);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: right;
+      border: 1px solid #e9d5ff;
+    }
+
+    .action-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 25px;
+      background: var(--bg-gray);
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      align-items: center;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: #351c2c; }
+
+    .section-title {
+      color: var(--primary);
+      font-size: 17px;
+      font-weight: 700;
+      margin: 28px 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+
+    .section-num {
+      background: var(--primary);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .card-highlight {
+      background: #fdfaff;
+      border-left: 4px solid var(--primary);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--bg-gray);
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    pre {
+      background: var(--code-bg);
+      color: #e2e8f0;
+      padding: 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      overflow-x: auto;
+      margin: 10px 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.45;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .tag-blue { background: #dbeafe; color: #1e40af; }
+    .tag-green { background: #dcfce7; color: #15803d; }
+    .tag-purple { background: #f3e8ff; color: #7e22ce; }
+
+    .arch-diagram {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 14px 0;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="action-bar no-print">
+    <button class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <span style="font-size: 13px; color: #64748b;">
+      Deep Architectural Report for Multi-Target Wi-Fi & Category-Wise Printing on Mobile/Tablet POS.
+    </span>
+  </div>
+
+  <div class="header-bar">
+    <div class="header-title">
+      <h1>Multi-Target Wi-Fi Printing Architecture</h1>
+      <p>Category-Wise, Section-Wise & Order-Type KOT Routing on Mobile & Tablet POS</p>
+    </div>
+    <div class="meta-badge">
+      <div>Platform: <b>Capacitor Mobile + .NET API</b></div>
+      <div>Protocol: <b>ESC/POS over TCP (Port 9100)</b></div>
+      <div style="font-weight: normal; font-size: 11px; margin-top: 2px;">Date: August 14, 2026</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: PROBLEM ANALYSIS -->
+  <div class="section-title">
+    <span class="section-num">1</span> Current State vs Required Architecture
+  </div>
+
+  <div class="grid-2">
+    <div class="card" style="border-left: 4px solid #ef4444;">
+      <h4 style="color: #991b1b; margin-bottom: 6px;">❌ Current Mobile Implementation</h4>
+      <p style="font-size: 13px; color: #475569;">
+        • Mobile stores a single IP address in <code>localStorage.getItem('nativePrinterAddress')</code>.<br>
+        • All prints (Bill, KOT, Cashier, Report) are routed to this <b>single IP</b>.<br>
+        • Category-wise KOTs (Kitchen, Bar, Grill) and Section/Order-type routing rules are ignored on mobile.
+      </p>
+    </div>
+    <div class="card" style="border-left: 4px solid #22c55e;">
+      <h4 style="color: #15803d; margin-bottom: 6px;">✅ Target Multi-Wi-Fi Architecture</h4>
+      <p style="font-size: 13px; color: #475569;">
+        • Mobile maintains a <b>Network Printer Registry</b> (Name $\leftrightarrow$ IP & Port).<br>
+        • When placing an order, the items are dynamically split and filtered by Category, Section, and Product mappings.<br>
+        • Mobile opens parallel TCP sockets to each designated Wi-Fi thermal printer simultaneously.
+      </p>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <div class="arch-diagram">
++----------------------------------------------------------------------------------------------------+
+|                               MOBILE / TABLET POS (Capacitor App)                                  |
+|                                                                                                    |
+|  [Cart Submission] -> [Order Splitter Engine] -> [Network Printer Directory]                       |
+|                             |                              |                                       |
+|            +----------------+----------------+             |                                       |
+|            |                                 |             |                                       |
+|     (Food Items: Pizza, Pasta)     (Drink Items: Juice, Beer)                                      |
+|            |                                 |                                                     |
+|    [Generate Kitchen KOT]            [Generate Bar KOT]    [Generate Customer Bill]                |
+|            |                                 |                       |                             |
+|    [TCP Socket 9100]                 [TCP Socket 9100]       [TCP Socket 9100]                     |
++------------|---------------------------------|-----------------------|-----------------------------+
+             | (Wi-Fi)                         | (Wi-Fi)               | (Wi-Fi / BT)
+             v                                 v                       v
+   [Kitchen Wi-Fi Printer]             [Bar Wi-Fi Printer]     [Cashier / Bill Printer]
+       (192.168.1.101)                   (192.168.1.102)           (192.168.1.100)
+  </div>
+
+  <!-- SECTION 2: FRONTEND ENGINE -->
+  <div class="section-title">
+    <span class="section-num">2</span> Frontend Implementation Plan (React + Capacitor)
+  </div>
+
+  <div class="card">
+    <h4 style="margin-bottom: 8px; color: var(--primary);">A. Multi-Printer Network Registry (Settings Tab)</h4>
+    <p style="font-size: 13px; margin-bottom: 8px;">
+      Replace the single IP input in <code>PrinterSettingsTab.tsx</code> with a <b>Physical Hardware Directory</b> where each logical printer name is assigned a specific IP address & port:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Logical Printer Name</th>
+          <th>Type</th>
+          <th>IP Address</th>
+          <th>Port</th>
+          <th>Assigned Roles / Categories</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Bill-Printer</b></td>
+          <td><span class="tag tag-blue">TCP Wi-Fi</span></td>
+          <td><code>192.168.1.100</code></td>
+          <td><code>9100</code></td>
+          <td>Customer Bills, Cashier Sessions</td>
+        </tr>
+        <tr>
+          <td><b>Kitchen-KOT</b></td>
+          <td><span class="tag tag-blue">TCP Wi-Fi</span></td>
+          <td><code>192.168.1.101</code></td>
+          <td><code>9100</code></td>
+          <td>Food, Main Course, Starters</td>
+        </tr>
+        <tr>
+          <td><b>Bar-KOT</b></td>
+          <td><span class="tag tag-blue">TCP Wi-Fi</span></td>
+          <td><code>192.168.1.102</code></td>
+          <td><code>9100</code></td>
+          <td>Beverages, Soft Drinks, Juices</td>
+        </tr>
+        <tr>
+          <td><b>Master-KOT</b></td>
+          <td><span class="tag tag-blue">TCP Wi-Fi</span></td>
+          <td><code>192.168.1.100</code></td>
+          <td><code>9100</code></td>
+          <td>Master KOT (All items aggregated)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="card">
+    <h4 style="margin-bottom: 8px; color: var(--primary);">B. Dynamic Order & KOT Routing Dispatcher</h4>
+    <p style="font-size: 13px; margin-bottom: 8px;">
+      Create a centralized routing dispatcher (<code>mobilePrintDispatcher.ts</code>) that receives cart items and resolves their destination printers using the priority hierarchy:
+      <br><b>Hierarchy:</b> <code>Product Mapping &gt; Category Mapping &gt; Section Mapping &gt; Default KOT Printer</code>
+    </p>
+
+    <pre>// src/features/pos/utils/mobilePrintDispatcher.ts
+import { printEscPosMarkupToAddress } from '../services/qzService';
+import { generateKotMarkup } from './escPosGenerator';
+
+interface PrintJob {
+  printerName: string;
+  ipAddress: string;
+  port: number;
+  items: any[];
+}
+
+export async function dispatchMobileKotPrints(cartItems: any[], orderMeta: any) {
+  const printerSettings = JSON.parse(localStorage.getItem('posPrinterData') || '{}');
+  const networkPrinters: Record&lt;string, { ip: string; port: number }&gt; = 
+    JSON.parse(localStorage.getItem('networkPrintersDirectory') || '{}');
+
+  const categoryMappings = printerSettings.categoryPrinter || [];
+  const productMappings = printerSettings.productPrinter || [];
+  const defaultKotPrinter = printerSettings.generalPrinter?.kotPrinter || 'Kitchen-KOT';
+
+  // 1. Group items by target printer name
+  const itemsByPrinter = new Map&lt;string, any[]&gt;();
+
+  for (const item of cartItems) {
+    // Check product mapping first, then category mapping, fallback to default
+    const prodMap = productMappings.find((p: any) => p.productId === item.productId);
+    const catMap = categoryMappings.find((c: any) => c.categoryId === item.categoryId);
+
+    const targetPrinter = prodMap?.firstPrinter || catMap?.firstPrinter || defaultKotPrinter;
+
+    if (targetPrinter && targetPrinter !== 'No Printer') {
+      if (!itemsByPrinter.has(targetPrinter)) itemsByPrinter.set(targetPrinter, []);
+      itemsByPrinter.get(targetPrinter)!.push(item);
+    }
+  }
+
+  // 2. Dispatch KOT jobs to each designated Wi-Fi printer in parallel
+  const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerName, items]) => {
+    const printerNet = networkPrinters[printerName];
+    if (!printerNet?.ip) {
+      console.warn(`[Mobile Print] No IP configured for printer: ${printerName}`);
+      return;
+    }
+
+    const kotMarkup = generateKotMarkup({
+      cartDetails: items,
+      data: { ...orderMeta, stationName: printerName }
+    });
+
+    await printEscPosMarkupToAddress(kotMarkup, printerNet.ip, printerNet.port || 9100);
+  });
+
+  // 3. Print Master KOT if enabled
+  if (printerSettings.generalPrinter?.masterKOT && printerSettings.generalPrinter.masterKOT !== 'No Printer') {
+    const masterPrinterName = printerSettings.generalPrinter.masterKOT;
+    const masterNet = networkPrinters[masterPrinterName];
+    if (masterNet?.ip) {
+      const masterMarkup = generateKotMarkup({ cartDetails: cartItems, data: { ...orderMeta, isMasterKot: true } });
+      printPromises.push(printEscPosMarkupToAddress(masterMarkup, masterNet.ip, masterNet.port || 9100));
+    }
+  }
+
+  await Promise.allSettled(printPromises);
+}</pre>
+  </div>
+
+  <div class="card">
+    <h4 style="margin-bottom: 8px; color: var(--primary);">C. Updated Capacitor Plugin Call</h4>
+    <pre>// src/features/pos/services/qzService.ts
+export const printEscPosMarkupToAddress = async (markup: string, address: string, port = 9100): Promise&lt;void&gt; => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  await BitezoPrinter.printEscPos({
+    markup,
+    type: 'tcp',
+    address: address.trim(),
+    port: port,
+  });
+};</pre>
+  </div>
+
+  <!-- SECTION 3: BACKEND ENGINE -->
+  <div class="section-title">
+    <span class="section-num">3</span> Backend Architecture & Sync (.NET Web API)
+  </div>
+
+  <div class="card">
+    <h4 style="margin-bottom: 8px; color: var(--primary);">A. Network Printer Profile Table</h4>
+    <p style="font-size: 13px; margin-bottom: 8px;">
+      Store the physical Wi-Fi printer directory per Branch / Counter so mobile devices download the full network topology upon login:
+    </p>
+    <pre>public class NetworkPrinterProfile
+{
+    [Key]
+    public int Id { get; set; }
+    public int BranchId { get; set; }
+    public string PrinterName { get; set; } = string.Empty; // e.g. "Kitchen-KOT", "Bar-Printer"
+    public string ConnectionType { get; set; } = "TCP";     // "TCP" or "Bluetooth"
+    public string IpAddress { get; set; } = string.Empty;   // "192.168.1.101"
+    public int Port { get; set; } = 9100;
+    public bool IsActive { get; set; } = true;
+}</pre>
+  </div>
+
+  <div class="card">
+    <h4 style="margin-bottom: 8px; color: var(--primary);">B. Sync Endpoint for Mobile App</h4>
+    <table>
+      <tr>
+        <th style="width: 25%;">API Route</th>
+        <td><code>GET /api/pos-printer-settings/network-printers</code></td>
+      </tr>
+      <tr>
+        <th>Response Payload</th>
+        <td>
+          <pre style="margin: 0;">{
+  "data": [
+    { "printerName": "Bill-Printer", "connectionType": "TCP", "ipAddress": "192.168.1.100", "port": 9100 },
+    { "printerName": "Kitchen-KOT", "connectionType": "TCP", "ipAddress": "192.168.1.101", "port": 9100 },
+    { "printerName": "Bar-KOT", "connectionType": "TCP", "ipAddress": "192.168.1.102", "port": 9100 }
+  ]
+}</pre>
+        </td>
+      </tr>
+      <tr>
+        <th>Benefit</th>
+        <td>Whenever a cashier or manager adds/changes a printer IP in Backoffice, all mobile devices automatically sync and print to the updated IP addresses without manual device re-configuration.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- SECTION 4: SUMMARY CHECKLIST -->
+  <div class="section-title">
+    <span class="section-num">4</span> Implementation Checklist & Deliverables
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Layer</th>
+        <th>Key Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Network Printer Directory</b></td>
+        <td>Backend & Frontend</td>
+        <td>Add CRUD for Wi-Fi Printers (Name $\leftrightarrow$ IP & Port) in Backoffice & POS Settings.</td>
+      </tr>
+      <tr>
+        <td><b>Dynamic TCP Dispatcher</b></td>
+        <td>Frontend (Capacitor)</td>
+        <td>Allow <code>BitezoPrinter.printEscPos()</code> to accept target IP address dynamically per print job.</td>
+      </tr>
+      <tr>
+        <td><b>KOT Item Splitter</b></td>
+        <td>Frontend Logic</td>
+        <td>Split cart items by Category/Product mappings and build independent sub-KOT slips.</td>
+      </tr>
+      <tr>
+        <td><b>Parallel Socket Dispatch</b></td>
+        <td>Mobile Engine</td>
+        <td>Send sub-KOTs simultaneously to Kitchen IP (101), Bar IP (102), and Bill IP (100).</td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

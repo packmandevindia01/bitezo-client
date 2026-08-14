@@ -68,7 +68,20 @@ const CompanyForm = ({
   );
   const currentMobCode = selectedCountryId ? (selectedCountryObj?.mobCode || "") : "";
 
-  const currencyOptions = currencies.map((item) => ({
+  const activeCurrencies = currencies.length > 0
+    ? currencies
+    : [
+        { currencyId: 1, currencyName: "BHD" },
+        { currencyId: 2, currencyName: "SAR" },
+        { currencyId: 3, currencyName: "AED" },
+        { currencyId: 4, currencyName: "OMR" },
+        { currencyId: 5, currencyName: "KWD" },
+        { currencyId: 6, currencyName: "QAR" },
+        { currencyId: 7, currencyName: "INR" },
+        { currencyId: 8, currencyName: "USD" },
+      ];
+
+  const currencyOptions = activeCurrencies.map((item) => ({
     label: item.currencyName,
     value: item.currencyId.toString(),
   }));

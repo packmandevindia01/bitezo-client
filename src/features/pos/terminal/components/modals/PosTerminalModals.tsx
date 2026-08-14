@@ -96,6 +96,9 @@ interface PosTerminalModalsProps {
   clearAllItemDiscounts: () => any;
   setCustomDeliveryCharge: (val: number) => any;
   
+  isClearConfirmOpen: boolean;
+  setIsClearConfirmOpen: (open: boolean) => void;
+  
   editingOrderId: number | null;
   selectedProviderForOrder: MenuProvider | null;
   setSelectedProviderForOrder: (p: MenuProvider | null) => void;
@@ -245,6 +248,19 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         onCancel={() => props.setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' })}
         confirmLabel="Override"
         confirmVariant="danger"
+      />
+      <ConfirmDialog
+        isOpen={props.isClearConfirmOpen}
+        title="Clear Order Data?"
+        message="Are you sure you want to clear all items from the current order? This action cannot be undone."
+        confirmLabel="Clear"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => {
+          props.handleClearCart();
+          props.setIsClearConfirmOpen(false);
+        }}
+        onCancel={() => props.setIsClearConfirmOpen(false)}
       />
 
       {/* ── System / Heavy Modals (Lazy Loaded) ── */}

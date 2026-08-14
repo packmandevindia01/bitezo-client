@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "../../../app/providers/useToast";
@@ -47,6 +48,33 @@ export const useCompanyOnboardingForm = ({
 
   const { data: masterDataPayload, isLoading: isLoadingMasterData } = useCompanyMasterData(clientDb, true);
   const createCompanyMutation = useCreateCompany();
+
+  useEffect(() => {
+    if (initialValues) {
+      form.reset({
+        custName: "",
+        custMob: "",
+        custMob2: "",
+        block: "",
+        area: "",
+        road: "",
+        building: "",
+        flatNo: "",
+        branchCount: 0,
+        regId: "",
+        startDate: new Date().toISOString().split("T")[0],
+        isDemo: true,
+        database: "",
+        crNo: "",
+        email: "",
+        taxRegNo: "",
+        country: "",
+        currency: "",
+        customerId: "",
+        ...initialValues,
+      });
+    }
+  }, [initialValues, form]);
 
   const onSubmit = (data: CompanyFormValues) => {
     createCompanyMutation.mutate(
