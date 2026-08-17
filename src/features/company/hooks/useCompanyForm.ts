@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -63,10 +63,25 @@ const companySchema = z.object({
   }
 });
 
+const DEFAULT_COUNTRIES = [
+  { id: 1, name: "Bahrain", mobCode: "+973" },
+  { id: 2, name: "Oman", mobCode: "+968" },
+  { id: 3, name: "Uae", mobCode: "+971" },
+  { id: 4, name: "Saudi Arabia", mobCode: "+966" },
+  { id: 5, name: "Kuwait", mobCode: "+965" },
+  { id: 6, name: "Qatar", mobCode: "+974" },
+  { id: 7, name: "India", mobCode: "+91" },
+];
+
+const DEFAULT_CURRENCIES = [
+  { currencyId: 1, currencyName: "Bahraini Dinar" },
+  { currencyId: 2, currencyName: "Qatari Riyal" },
+];
+
 const cleanPhoneNumber = (mob: string, countryId: string, countriesList: any[]): string => {
   if (!mob) return "";
   let clean = mob.trim();
-  const countryObj = countriesList.find((c: any) => c.id.toString() === String(countryId));
+  const countryObj = countriesList.find((c: any) => String(c.id) === String(countryId) || c.name.toLowerCase() === String(countryId).toLowerCase());
   const mobCode = countryObj?.mobCode || "";
   if (mobCode && clean.startsWith(mobCode)) {
     clean = clean.slice(mobCode.length).trim();
@@ -113,22 +128,41 @@ export const useCompanyForm = () => {
     },
   });
 
+  const { reset } = form;
+
   // Fetch Currencies
-  const { data: currencies = [], isLoading: currenciesLoading } = useQuery({
+  const { data: currenciesData, isLoading: currenciesLoading } = useQuery({
     queryKey: ["company-currency-list"],
     queryFn: () => fetchCurrencyList(),
   });
 
-  // Fetch Master Data (Countries, etc)
+  // Fetch Master Data (Countries, Currencies, etc)
   const { data: masterDataPayload, isLoading: masterLoading } = useQuery({
     queryKey: ["company-masterload"],
     queryFn: () => fetchCompanyMasterload(),
     staleTime: 10 * 60 * 1000,
   });
 
-  const countries = masterDataPayload?.data?.country ||
-    masterDataPayload?.data?.countries ||
-    masterDataPayload?.data?.countryList || [];
+  const currencies = useMemo(() => {
+    const list =
+      (currenciesData && currenciesData.length > 0 ? currenciesData : null) ||
+      masterDataPayload?.data?.currency ||
+      masterDataPayload?.data?.currencies ||
+      masterDataPayload?.data?.currencyList;
+    if (!list || list.length === 0) return DEFAULT_CURRENCIES;
+    return list.map((c: any) => ({
+      currencyId: Number(c.currencyId ?? c.id),
+      currencyName: String(c.currencyName ?? c.name),
+    }));
+  }, [currenciesData, masterDataPayload]);
+
+  const countries = useMemo(() => {
+    const apiCountries =
+      masterDataPayload?.data?.country ||
+      masterDataPayload?.data?.countries ||
+      masterDataPayload?.data?.countryList;
+    return (apiCountries && apiCountries.length > 0) ? apiCountries : DEFAULT_COUNTRIES;
+  }, [masterDataPayload]);
 
   // Fetch Company Data
   const { data: raw, isLoading: companyLoading } = useQuery({
@@ -140,7 +174,14 @@ export const useCompanyForm = () => {
   useEffect(() => {
     if (raw) {
       setComId(Number(raw.comId ?? 0));
-      const rawCountry = raw.country ? String(raw.country) : "";
+      const countryRawVal = raw.countryId ?? raw.country ?? raw.country_id ?? raw.countryID ?? raw.countryName;
+      let rawCountry = "";
+      if (countryRawVal !== undefined && countryRawVal !== null && String(countryRawVal).trim() !== "") {
+        const strVal = String(countryRawVal).trim();
+        const foundByMatch = countries.find((c: any) => String(c.id) === strVal || c.name.toLowerCase() === strVal.toLowerCase());
+        rawCountry = foundByMatch ? String(foundByMatch.id) : strVal;
+      }
+
       const cleanedMob = cleanPhoneNumber(String(raw.mobNo ?? ""), rawCountry, countries);
       const filled = {
         custName: String(raw.name ?? ""),
@@ -149,7 +190,7 @@ export const useCompanyForm = () => {
         custMob2: String(raw.telNo ?? ""),
         email: String(raw.email ?? ""),
         taxRegNo: String(raw.taxRegNo ?? ""),
-        currency: raw.currencyId ? String(raw.currencyId) : "",
+        currency: raw.currencyId ? String(raw.currencyId) : (raw.currency ? String(raw.currency) : ""),
         country: rawCountry,
         block: String(raw.block ?? ""),
         area: String(raw.area ?? ""),
@@ -163,9 +204,9 @@ export const useCompanyForm = () => {
         branchCount: raw.branchCount ?? 0,
         customerId: raw.customerId ?? "",
       };
-      form.reset(filled);
+      reset(filled);
     }
-  }, [raw, countries, form]);
+  }, [raw, countries, reset]);
 
   const mutation = useMutation({
     mutationFn: (data: CompanySchemaType) => {

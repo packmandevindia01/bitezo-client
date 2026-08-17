@@ -43,11 +43,13 @@ export const usePosMasterData = () => {
 /**
  * 2. Fetches Categories based on active Group and Order Type
  */
-export const usePosCategories = (groupId: number | null | undefined, _orderTypeId?: number | undefined) => {
+export const usePosCategories = (groupId: number | null | undefined, orderTypeId?: number | undefined) => {
+  const activeGroupId = groupId ?? 0;
+  const activeOrderTypeId = orderTypeId || 1;
   return useQuery({
-    queryKey: POS_QUERY_KEYS.categories(groupId!, 1),
-    queryFn: () => menuApi.getGroupCategories(groupId!, 1),
-    enabled: !!groupId, // Only fetch if a group is actually selected
+    queryKey: POS_QUERY_KEYS.categories(activeGroupId, activeOrderTypeId),
+    queryFn: () => menuApi.getGroupCategories(activeGroupId, activeOrderTypeId),
+    enabled: groupId !== undefined && groupId !== null, // Enabled even if groupId is 0 to fetch all categories
     ...CACHE_CONFIG,
   });
 };

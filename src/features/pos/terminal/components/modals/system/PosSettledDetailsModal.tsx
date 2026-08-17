@@ -173,6 +173,9 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
+        deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
+        contactNo: master.mobileNo || master.contactNo,
+        note: master.note,
         isSettling: false,
         isSettledEdit: true
       }));

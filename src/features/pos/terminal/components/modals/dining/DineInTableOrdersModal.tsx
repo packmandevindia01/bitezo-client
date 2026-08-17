@@ -201,6 +201,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId,
         tableId: table!.tableId,
+        deliveryCharge: master.deliveryCharge || 0,
         waiterName: master.employeeName ?? "Waiter",
       }));
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
@@ -229,6 +230,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId,
         tableId: table!.tableId,
+        deliveryCharge: master.deliveryCharge || 0,
         isSettling: true,
         waiterName: master.employeeName ?? "Waiter",
       }));

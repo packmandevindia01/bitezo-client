@@ -440,6 +440,15 @@ const posSlice = createSlice({
       isSettling?: boolean;
       isSettledEdit?: boolean;
       waiterName?: string | null;
+      deliveryCharge?: number;
+      customDeliveryCharge?: number | null;
+      contactNo?: string;
+      note?: string;
+      change?: string;
+      isComing?: boolean;
+      comingTime?: string;
+      vehicleCustomerName?: string;
+      vehicleNo?: string;
     }>) => {
       const { 
         editingOrderId, 
@@ -455,7 +464,16 @@ const posSlice = createSlice({
         tableId,
         isSettling,
         isSettledEdit,
-        waiterName
+        waiterName,
+        deliveryCharge,
+        customDeliveryCharge,
+        contactNo,
+        note,
+        change,
+        isComing,
+        comingTime,
+        vehicleCustomerName,
+        vehicleNo
       } = action.payload;
       state.editingOrderId = editingOrderId ?? null;
       state.editingSaleId = editingSaleId ?? null;
@@ -474,6 +492,19 @@ const posSlice = createSlice({
       state.billDiscountType = billDiscountType;
       state.selectedSectionId = sectionId ?? 0;
       state.selectedTableId = tableId ?? 0;
+
+      if (deliveryCharge !== undefined) {
+        state.customDeliveryCharge = deliveryCharge;
+      } else if (customDeliveryCharge !== undefined) {
+        state.customDeliveryCharge = customDeliveryCharge;
+      }
+      if (contactNo !== undefined) state.contactNo = contactNo;
+      if (note !== undefined) state.note = note;
+      if (change !== undefined) state.change = change;
+      if (isComing !== undefined) state.isComing = isComing;
+      if (comingTime !== undefined) state.comingTime = comingTime;
+      if (vehicleCustomerName !== undefined) state.vehicleCustomerName = vehicleCustomerName;
+      if (vehicleNo !== undefined) state.vehicleNo = vehicleNo;
     },
     addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
       state.isCartModified = true;

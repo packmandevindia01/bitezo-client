@@ -8,7 +8,7 @@ import type { MenuOrderRequest, MenuOrderUpdateRequest, PosCartItem } from "../.
 import { menuApi } from "../../services/menuApi";
 import { productDataCache } from "../hooks/usePosProducts";
 import { addToCart, incrementItem, decrementItem, removeFromCart, clearCart, addVoidProduct, addVoidModifier, setOrderType, setTenderOption, setBillDiscount, setItemDiscount, setAllItemsDiscount, updateItemPrice, updateItemQty, setItemCustomizations, setCustomerId, setAddressId, setChange } from "../store/posSlice";
-import { selectCartDetails, selectSubtotal, selectDiscount, selectTax, selectTotal, selectCharges, selectTotalServiceCharge, selectTotalLevy, selectItemCount, selectTotalExtras, selectBaseSubtotal } from "../store/posSelectors";
+import { selectCartDetails, selectSubtotal, selectDiscount, selectTax, selectTotal, selectCharges, selectTotalServiceCharge, selectTotalLevy, selectItemCount, selectTotalExtras, selectBaseSubtotal, selectDeliveryCharge } from "../store/posSelectors";
 import { getBillingConfig } from "../utils/billing";
 
 export const usePosCartActions = () => {
@@ -26,6 +26,7 @@ export const usePosCartActions = () => {
   const totalServiceCharge = useAppSelector(selectTotalServiceCharge);
   const totalLevy = useAppSelector(selectTotalLevy);
   const total = useAppSelector(selectTotal);
+  const deliveryCharge = useAppSelector(selectDeliveryCharge);
   const itemCount = useAppSelector(selectItemCount);
   const totalExtras = useAppSelector(selectTotalExtras);
   const baseSubtotal = useAppSelector(selectBaseSubtotal);
@@ -165,33 +166,67 @@ export const usePosCartActions = () => {
     }
     return null;
   };
-  const getDeliveryChargeValue = (): number => {
-    const isDelivery = selectedOrderTypeId === 4 || (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
-    if (!isDelivery) return 0;
+  const getPackagerPrintConfig = () => {
     try {
-      const saved = localStorage.getItem('posConfigs');
-      if (!saved) return 0;
-      const full = JSON.parse(saved);
-      const configs = full?.configs || {};
-      const val = configs.deliveryCharge !== undefined ? configs.deliveryCharge :
-                  configs.defaultDeliveryCharge !== undefined ? configs.defaultDeliveryCharge :
-                  configs.deliverycharge !== undefined ? configs.deliverycharge :
-                  configs.defaultdeliverycharge !== undefined ? configs.defaultdeliverycharge :
-                  configs.defaultDeliverycharge !== undefined ? configs.defaultDeliverycharge :
-                  full.deliveryCharge !== undefined ? full.deliveryCharge :
-                  full.defaultDeliveryCharge !== undefined ? full.defaultDeliveryCharge : 0;
-      // console.log removed
-      return Number(val) || 0;
+      for (const key of ['posConfigs', 'posConfig', 'pos_configs']) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const val =
+          configs?.packagerPrint ??
+          configs?.packagerprint ??
+          configs?.PackagerPrint ??
+          parsed?.packagerPrint ??
+          parsed?.packagerprint ??
+          parsed?.PackagerPrint;
+        
+        if (val !== undefined && val !== null) {
+          const isEnabled =
+            val === true ||
+            String(val).toLowerCase() === 'enable' ||
+            String(val).toLowerCase() === 'true' ||
+            String(val).toLowerCase() === '1';
+
+          const headerVal =
+            configs?.packagerHeader ??
+            configs?.packagerheader ??
+            configs?.PackagerHeader ??
+            parsed?.packagerHeader ??
+            parsed?.packagerheader ??
+            parsed?.PackagerHeader;
+
+          const showHeader = headerVal === undefined || headerVal === null || (
+            headerVal !== false &&
+            String(headerVal).toLowerCase() !== 'disable' &&
+            String(headerVal).toLowerCase() !== 'false' &&
+            String(headerVal).toLowerCase() !== '0'
+          );
+
+          const enableVat =
+            configs?.VatStatus === true ||
+            String(configs?.VatStatus).toLowerCase() === 'true' ||
+            parsed?.VatStatus === true ||
+            String(parsed?.VatStatus).toLowerCase() === 'true';
+
+          console.log("[getPackagerPrintConfig] Resolved from storage:", { enabled: isEnabled, showHeader, enableVat, rawVal: val });
+          return { enabled: isEnabled, showHeader, enableVat };
+        }
+      }
+
+      const directPrint = localStorage.getItem('packagerPrint') || localStorage.getItem('cachedPackagerPrint');
+      const isEnabled = directPrint === 'Enable' || directPrint === 'true' || directPrint === '1';
+      console.log("[getPackagerPrintConfig] Fallback resolved:", { enabled: isEnabled, directPrint });
+      return { enabled: isEnabled, showHeader: true, enableVat: false };
     } catch (e) {
-      console.error("[usePosCartActions] Error parsing delivery charge:", e);
-      return 0;
+      console.error("[getPackagerPrintConfig] Error:", e);
+      return { enabled: false, showHeader: true, enableVat: false };
     }
   };
 
   const getDirectSettleOrderPayload = (session: { employeeId?: number; userId?: number; customerId?: number; providerId?: number; providerOrderNo?: string; transDate?: string }) => {
     const isDineIn = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("dinein");
     const config = getBillingConfig(selectedOrderTypeName || "DineIn");
-    const deliveryChargeVal = getDeliveryChargeValue();
     const rawTransDate = (session as any).transDate || localStorage.getItem("transDate") || new Date().toISOString();
     const activeTransDate = rawTransDate.split("T")[0];
 
@@ -207,7 +242,7 @@ export const usePosCartActions = () => {
       vatExclAmount: Number(subtotal.toFixed(getDecimalPart())),
       vatAmount: Number(tax.toFixed(getDecimalPart())),
       netAmount: Number(total.toFixed(getDecimalPart())),
-      deliveryCharge: Number(deliveryChargeVal.toFixed(getDecimalPart())),
+      deliveryCharge: Number(deliveryCharge.toFixed(getDecimalPart())),
       updatedAt: new Date().toISOString(),
       orderTypeId: session.providerId || selectedOrderTypeId,
       sectionId: isDineIn ? selectedSectionId : 0,
@@ -365,125 +400,167 @@ export const usePosCartActions = () => {
         const response = await orderApi.updateOrder(editingOrderId, updatePayload as MenuOrderUpdateRequest);
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
-              if (shouldPrint) {
+
+          if (shouldPrint) {
+            try {
+              const orderId = editingOrderId;
+              let orderNoStr = String(orderId);
+              let ticketNoStr = String(orderId);
+              let orderTypeStr = selectedOrderTypeName || "DINE IN";
+              let waiterStr = localStorage.getItem("employeeName") || "Cashier";
+              let sectionStr = selectedSectionId ? String(selectedSectionId) : "Main";
+              let tableStr = selectedTableId ? String(selectedTableId) : "T1";
+              let vehicleNoStr = vehicleNo || localStorage.getItem("driveThruVehicleNo") || "";
+              let customerNameStr = vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || "";
+
+                let masterData: any = null;
                 try {
-                  const orderId = editingOrderId;
-                  let orderNoStr = String(orderId);
-                  let ticketNoStr = String(orderId);
-                  let orderTypeStr = selectedOrderTypeName || "DINE IN";
-                  let waiterStr = localStorage.getItem("employeeName") || "Cashier";
-                  let sectionStr = selectedSectionId ? String(selectedSectionId) : "Main";
-                  let tableStr = selectedTableId ? String(selectedTableId) : "T1";
-                  let vehicleNoStr = vehicleNo || localStorage.getItem("driveThruVehicleNo") || "";
-                  let customerNameStr = vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || "";
-
-                  try {
-                    const detailsRes = await orderApi.getOrderDetails(orderId);
-                    const masterData = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data?.master || detailsRes?.master;
-                    if (masterData) {
-                      orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
-                      ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
-                      orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
-                      waiterStr = masterData.employeeName || waiterStr;
-                      sectionStr = masterData.sectionName || sectionStr;
-                      tableStr = masterData.tableNo || tableStr;
-                      vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
-                      customerNameStr = masterData.deliveryCustomerName || masterData.vehicleCustomerName || masterData.customerName || customerNameStr;
-                    }
-                  } catch (e) {
-                    console.error("Failed to fetch order details for updated KOT printing:", e);
+                  const detailsRes = await orderApi.getOrderDetails(orderId);
+                  masterData = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data?.master || detailsRes?.master;
+                  if (masterData) {
+                    orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
+                    ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
+                    orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
+                    waiterStr = masterData.employeeName || waiterStr;
+                    sectionStr = masterData.sectionName || sectionStr;
+                    tableStr = masterData.tableNo || tableStr;
+                    vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
+                    customerNameStr = masterData.deliveryCustomerName || masterData.vehicleCustomerName || masterData.customerName || customerNameStr;
                   }
+                } catch (e) {
+                  console.error("Failed to fetch order details for updated KOT printing:", e);
+                }
 
-                  const { printerSettingsApi } = await import("../../services/printerSettingsApi");
-                  const { printHtmlReceipt } = await import("../../services/qzService");
-                  const { generateKotHtml } = await import("../../utils/kotTemplate");
-                  const { executeKotRouting } = await import("../../utils/printerRouting");
-     
-                  const commonPrintData = {
-                    orderNo: orderNoStr,
-                    ticketNo: ticketNoStr,
-                    waiter: waiterStr,
-                    counter: "Main",
-                    section: sectionStr,
-                    table: tableStr,
-                    orderType: orderTypeStr,
-                    orderTypeId: selectedOrderTypeId,
-                    vehicleNo: vehicleNoStr,
-                    customerName: customerNameStr
-                  };
-    
-                  const reorderItems = cartDetails
-                    .filter(item => !item.isExisting || item.quantity > (item.originalQty || 0))
-                    .map(item => {
-                      const diffQty = item.isExisting ? item.quantity - (item.originalQty || 0) : item.quantity;
-                      const ratio = item.quantity > 0 ? diffQty / item.quantity : 0;
-                  
-                  return {
-                    ...item,
-                    quantity: diffQty,
-                    lineTotal: item.lineTotal * ratio,
-                    extras: (item.extras || []).map(ex => ({
-                      ...ex,
-                      qty: (ex.qty || 1) * ratio
-                    })),
-                    modifiers: (item.modifiers || []).map(mod => ({
-                      ...mod,
-                      qty: (mod.qty || 1) * ratio
-                    }))
-                  };
-                });
+                const { printerSettingsApi } = await import("../../services/printerSettingsApi");
+                const { printHtmlReceipt } = await import("../../services/qzService");
+                const { generateKotHtml } = await import("../../utils/kotTemplate");
+                const { executeKotRouting } = await import("../../utils/printerRouting");
+   
+                const commonPrintData = {
+                  orderNo: orderNoStr,
+                  ticketNo: ticketNoStr,
+                  waiter: waiterStr,
+                  counter: "Main",
+                  section: sectionStr,
+                  table: tableStr,
+                  orderType: orderTypeStr,
+                  orderTypeId: selectedOrderTypeId,
+                  vehicleNo: vehicleNoStr,
+                  customerName: customerNameStr,
+                  contactNo: (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "",
+                  flatNo: (masterData as any)?.flatNo || "",
+                  buildingNo: (masterData as any)?.buildingNo || "",
+                  blockNo: (masterData as any)?.blockNo || "",
+                  roadNo: (masterData as any)?.roadNo || "",
+                  area: (masterData as any)?.area || "",
+                  providerNo: (masterData as any)?.providerOrderNo || session.providerOrderNo || "",
+                };
+  
+                const reorderItems = cartDetails
+                  .filter(item => !item.isExisting || item.quantity > (item.originalQty || 0))
+                  .map(item => {
+                    const diffQty = item.isExisting ? item.quantity - (item.originalQty || 0) : item.quantity;
+                    const ratio = item.quantity > 0 ? diffQty / item.quantity : 0;
+                
+                return {
+                  ...item,
+                  quantity: diffQty,
+                  lineTotal: item.lineTotal * ratio,
+                  extras: (item.extras || []).map(ex => ({
+                    ...ex,
+                    qty: (ex.qty || 1) * ratio
+                  })),
+                  modifiers: (item.modifiers || []).map(mod => ({
+                    ...mod,
+                    qty: (mod.qty || 1) * ratio
+                  }))
+                };
+              });
 
-              if (reorderItems.length > 0) {
-                await executeKotRouting(
-                  reorderItems,
-                  { ...commonPrintData, headerTitle: "RE-ORDER" },
-                  selectedSectionId,
-                  printerSettingsApi,
-                  printHtmlReceipt,
-                  generateKotHtml,
-                  true
-                );
-              }
-
-              if (voidProducts.length > 0) {
-                const voidCartItems = voidProducts.map((vp: any) => ({
-                  productId: vp.productId,
-                  quantity: vp.qty,
-                  price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0,
-                  lineTotal: vp.amount,
-                  product: { 
-                    name: vp.productName || `Product #${vp.productId}`, 
-                    price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0,
-                    categoryId: vp.categoryId || 0
-                  },
-                  vatAmount: vp.vatAmount || 0,
-                  netAmount: vp.netAmount || (vp.amount + (vp.vatAmount || 0)),
-                  extras: voidModifiers
-                            .filter(vm => vm.mapId === vp.mapId && vm.amount > 0)
-                            .map(vm => ({ 
-                              id: vm.modifierId, 
-                              qty: vm.qty, 
-                              price: vm.amount > 0 ? Number((vm.amount / vm.qty).toFixed(getDecimalPart())) : 0, 
-                              name: "Extra" 
-                            })),
-                  modifiers: []
-                })) as any;
-
-                await executeKotRouting(
-                  voidCartItems,
-                  { ...commonPrintData, headerTitle: "VOID ITEMS" },
-                  selectedSectionId,
-                  printerSettingsApi,
-                  printHtmlReceipt,
-                  generateKotHtml,
-                  true
-                );
-              }
-            } catch (printErr: any) {
-              console.error("[KOT Print Error]", printErr);
-              showToast(`Order updated, but printing failed: ${printErr?.message || printErr?.toString()}`, "warning");
+            if (reorderItems.length > 0) {
+              await executeKotRouting(
+                reorderItems,
+                { ...commonPrintData, headerTitle: "RE-ORDER" },
+                selectedSectionId,
+                printerSettingsApi,
+                printHtmlReceipt,
+                generateKotHtml,
+                true
+              );
             }
+
+            // Packager Print on Reorder / Update: Reprints the COMPLETE order data
+            const packagerConfig = getPackagerPrintConfig();
+            if (packagerConfig.enabled) {
+              try {
+                await new Promise(r => setTimeout(r, 250));
+                const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
+                const { executePackagerPrint } = await import("../../utils/printerRouting");
+
+                const packagerPrintData = {
+                  ...commonPrintData,
+                  subTotal: subtotal,
+                  serviceCharge: totalServiceCharge,
+                  levy: totalLevy,
+                  vatAmount: tax,
+                  netAmount: total,
+                  deliveryCharge,
+                  enableVat: packagerConfig.enableVat,
+                  isPackager: true,
+                  showCompanyHeader: packagerConfig.showHeader,
+                };
+
+                await executePackagerPrint(
+                  cartDetails,
+                  packagerPrintData,
+                  printerSettingsApi,
+                  printHtmlReceipt,
+                  generateGuestPrintHtml
+                );
+              } catch (packErr) {
+                console.error("[Packager Print Error on Reorder]", packErr);
+              }
+            }
+
+            if (voidProducts.length > 0) {
+              const voidCartItems = voidProducts.map((vp: any) => ({
+                productId: vp.productId,
+                quantity: vp.qty,
+                price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0,
+                lineTotal: vp.amount,
+                product: { 
+                  name: vp.productName || `Product #${vp.productId}`, 
+                  price: vp.amount > 0 ? Number((vp.amount / vp.qty).toFixed(getDecimalPart())) : 0,
+                  categoryId: vp.categoryId || 0
+                },
+                vatAmount: vp.vatAmount || 0,
+                netAmount: vp.netAmount || (vp.amount + (vp.vatAmount || 0)),
+                extras: voidModifiers
+                          .filter(vm => vm.mapId === vp.mapId && vm.amount > 0)
+                          .map(vm => ({ 
+                            id: vm.modifierId, 
+                            qty: vm.qty, 
+                            price: vm.amount > 0 ? Number((vm.amount / vm.qty).toFixed(getDecimalPart())) : 0, 
+                            name: "Extra" 
+                          })),
+                modifiers: []
+              })) as any;
+
+              await executeKotRouting(
+                voidCartItems,
+                { ...commonPrintData, headerTitle: "VOID ITEMS" },
+                selectedSectionId,
+                printerSettingsApi,
+                printHtmlReceipt,
+                generateKotHtml,
+                true
+              );
+            }
+          } catch (printErr: any) {
+            console.error("[KOT Print Error]", printErr);
+            showToast(`Order updated, but printing failed: ${printErr?.message || printErr?.toString()}`, "warning");
           }
+        }
 
           dispatch(clearCart());
           localStorage.removeItem("driveThruVehicleNo");
@@ -494,7 +571,6 @@ export const usePosCartActions = () => {
         }
       }
 
-      const deliveryChargeVal = getDeliveryChargeValue();
       const rawTransDate = (session as any).transDate || localStorage.getItem("transDate") || new Date().toISOString();
       const activeTransDate = rawTransDate.split("T")[0];
       const resolvedCustomerId = session.customerId || selectedCustomerId || 1;
@@ -512,7 +588,7 @@ export const usePosCartActions = () => {
         vatExclAmount: Number(subtotal.toFixed(getDecimalPart())),
         vatAmount: Number(tax.toFixed(getDecimalPart())),
         netAmount: Number(total.toFixed(getDecimalPart())),
-        deliveryCharge: Number(deliveryChargeVal.toFixed(getDecimalPart())),
+        deliveryCharge: Number(deliveryCharge.toFixed(getDecimalPart())),
         createdAt: new Date().toISOString(),
         orderTypeId: session.providerId || selectedOrderTypeId,
         sectionId: isDineIn ? selectedSectionId : 0,
@@ -629,50 +705,96 @@ export const usePosCartActions = () => {
             let vehicleNoStr = vehicleNo || localStorage.getItem("driveThruVehicleNo") || "";
             let customerNameStr = vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || "";
 
-            try {
-              const detailsRes = await orderApi.getOrderDetails(orderId);
-              const masterData = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data?.master || detailsRes?.master;
-              if (masterData) {
-                orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
-                ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
-                orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
-                waiterStr = masterData.employeeName || waiterStr;
-                sectionStr = masterData.sectionName || sectionStr;
-                tableStr = masterData.tableNo || tableStr;
-                vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
-                customerNameStr = masterData.deliveryCustomerName || masterData.vehicleCustomerName || masterData.customerName || customerNameStr;
-              }
-            } catch (e) {
-              console.error("Failed to fetch order details for KOT printing:", e);
+          let masterData: any = null;
+          try {
+            const detailsRes = await orderApi.getOrderDetails(orderId);
+            masterData = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data?.master || detailsRes?.master;
+            if (masterData) {
+              orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
+              ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
+              orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
+              waiterStr = masterData.employeeName || waiterStr;
+              sectionStr = masterData.sectionName || sectionStr;
+              tableStr = masterData.tableNo || tableStr;
+              vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
+              customerNameStr = masterData.deliveryCustomerName || masterData.vehicleCustomerName || masterData.customerName || customerNameStr;
             }
+          } catch (e) {
+            console.error("Failed to fetch order details for KOT printing:", e);
+          }
 
-            const { printerSettingsApi } = await import("../../services/printerSettingsApi");
-            const { printHtmlReceipt } = await import("../../services/qzService");
-            const { generateKotHtml } = await import("../../utils/kotTemplate");
-            const { executeKotRouting } = await import("../../utils/printerRouting");
+          const { printerSettingsApi } = await import("../../services/printerSettingsApi");
+          const { printHtmlReceipt } = await import("../../services/qzService");
+          const { generateKotHtml } = await import("../../utils/kotTemplate");
+          const { executeKotRouting } = await import("../../utils/printerRouting");
 
-            const basePrintOptions = {
-               orderNo: orderNoStr,
-               ticketNo: ticketNoStr,
-               waiter: waiterStr,
-               counter: "Main",
-               section: sectionStr,
-               table: tableStr,
-               orderType: orderTypeStr,
-               orderTypeId: selectedOrderTypeId,
-               vehicleNo: vehicleNoStr,
-               customerName: customerNameStr
-            };
-            
-            await executeKotRouting(
-              cartDetails,
-              basePrintOptions,
-              selectedSectionId,
-              printerSettingsApi,
-              printHtmlReceipt,
-              generateKotHtml,
-              false // isUpdate
-            );
+          const basePrintOptions = {
+              orderNo: orderNoStr,
+              ticketNo: ticketNoStr,
+              waiter: waiterStr,
+              counter: "Main",
+              section: sectionStr,
+              table: tableStr,
+              orderType: orderTypeStr,
+              orderTypeId: selectedOrderTypeId,
+              vehicleNo: vehicleNoStr,
+              customerName: customerNameStr,
+              contactNo: (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "",
+              flatNo: (masterData as any)?.flatNo || "",
+              buildingNo: (masterData as any)?.buildingNo || "",
+              blockNo: (masterData as any)?.blockNo || "",
+              roadNo: (masterData as any)?.roadNo || "",
+              area: (masterData as any)?.area || "",
+              providerNo: (masterData as any)?.providerOrderNo || session.providerOrderNo || "",
+          };
+          
+          await executeKotRouting(
+            cartDetails,
+            basePrintOptions,
+            selectedSectionId,
+            printerSettingsApi,
+            printHtmlReceipt,
+            generateKotHtml,
+            false // isUpdate
+          );
+
+          // Packager Print on New Order
+          const packagerConfig = getPackagerPrintConfig();
+          console.log("[PACKAGER PRINT TRIGGER CHECK]", { packagerConfig, cartCount: cartDetails.length });
+          if (packagerConfig.enabled) {
+            console.log("[PACKAGER PRINT EXECUTION STARTING...]");
+            try {
+              await new Promise(r => setTimeout(r, 250));
+              const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
+              const { executePackagerPrint } = await import("../../utils/printerRouting");
+
+              const packagerPrintData = {
+                ...basePrintOptions,
+                subTotal: subtotal,
+                serviceCharge: totalServiceCharge,
+                levy: totalLevy,
+                vatAmount: tax,
+                netAmount: total,
+                deliveryCharge,
+                enableVat: packagerConfig.enableVat,
+                isPackager: true,
+                showCompanyHeader: packagerConfig.showHeader,
+              };
+
+              await executePackagerPrint(
+                cartDetails,
+                packagerPrintData,
+                printerSettingsApi,
+                printHtmlReceipt,
+                generateGuestPrintHtml
+              );
+              console.log("[PACKAGER PRINT EXECUTION COMPLETED]");
+            } catch (packErr) {
+              console.error("[Packager Print Error on New Order]", packErr);
+            }
+          } else {
+            console.warn("[PACKAGER PRINT SKIPPED] packagerConfig.enabled is false");
+          }
           } catch (printErr: any) {
             console.error("[KOT Print Error]", printErr);
             const errMsg = printErr?.message || printErr?.toString() || "Unknown error";

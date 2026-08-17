@@ -87,6 +87,13 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
           <span>Receipt Voucher</span>
         </div>
       )}
+
+      {(hasPermission("Sales Invoice", "View") || hasPermission("Sales Report", "View") || hasPermission("Bulk Settlement", "View")) && (
+        <div onClick={() => handleItemClick("/dashboard/bulk-settlement")} className={itemClassName}>
+          <FileText size={13} className="shrink-0" />
+          <span>Bulk Settlement</span>
+        </div>
+      )}
     </SidebarDropdown>
   );
 };

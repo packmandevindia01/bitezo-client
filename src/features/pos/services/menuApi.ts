@@ -128,12 +128,14 @@ export const menuApi = {
     })),
 
   /** GET /api/menu/{menuId}/categories */
-  getGroupCategories: async (menuId: number, _orderTypeId?: number) => {
+  getGroupCategories: async (menuId: number = 0, orderTypeId?: number) => {
     try {
-      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${menuId}/categories`, {
+      const targetMenuId = menuId ?? 0;
+      const raw = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/${targetMenuId}/categories`, {
         params: {
           clientDb: localStorage.getItem("tenantId") || "",
-          orderTypeId: 1
+          orderTypeId: orderTypeId || 1,
+          providerOwnStatus: getProviderOwnStatus(orderTypeId)
         }
       }));
       const list = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
@@ -151,7 +153,7 @@ export const menuApi = {
     }
   },
 
-  getMenuCategories: async (menuId: number, orderTypeId?: number) => {
+  getMenuCategories: async (menuId: number = 0, orderTypeId?: number) => {
     return menuApi.getGroupCategories(menuId, orderTypeId);
   },
 

@@ -180,10 +180,19 @@ const authSlice = createSlice({
         localStorage.setItem("activeBranchId", String(action.payload));
       }
     },
+    setUserRoles: (state, action: PayloadAction<UserRole[]>) => {
+      state.userRoles = action.payload;
+      const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+      if (isBackofficeMode) {
+        sessionStorage.setItem("backoffice_userRoles", JSON.stringify(action.payload));
+      } else {
+        localStorage.setItem("userRoles", JSON.stringify(action.payload));
+      }
+    },
   },
 });
 
-export const { setCredentials, logout, setCompanyConfig, setActiveBranchId } = authSlice.actions;
+export const { setCredentials, logout, setCompanyConfig, setActiveBranchId, setUserRoles } = authSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
 import type { RootState } from '../../../app/store';

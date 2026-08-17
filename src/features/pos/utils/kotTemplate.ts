@@ -53,8 +53,8 @@ export const generateKotHtml = async (
         }).join("");
       }
     }
-  } catch (e) {
-    console.error("Failed to fetch branch for headers", e);
+  } catch {
+    // Silently proceed with fallback headers if branch endpoint is forbidden for cashiers
   }
 
   // Map internal camelCase/PascalCase names → human-readable display

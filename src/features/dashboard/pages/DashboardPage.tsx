@@ -1,7 +1,7 @@
 import { Suspense, lazy } from "react";
 import StatCard from "../components/StatCard";
 import { Loader } from "../../../components/common";
-import { useAdminDashboard } from "../hooks/useDashboardData";
+import { useDashboardData } from "../hooks/useDashboardData";
 import {
   ShoppingCart,
   Users,
@@ -17,7 +17,7 @@ const OrderTypePieChart = lazy(() => import("../components/OrderTypePieChart"));
 const PayModePieChart = lazy(() => import("../components/PayModePieChart"));
 
 const DashboardPage = () => {
-  const { data: dashboardData, isLoading, isError } = useAdminDashboard();
+  const { data: dashboardData, isLoading, isError, mode } = useDashboardData();
 
   if (isError) {
     return (
@@ -30,25 +30,55 @@ const DashboardPage = () => {
   }
 
   const statcard = dashboardData?.statcard;
+  const hasSalesTotal = statcard?.salesTotal !== undefined && statcard?.salesTotal !== null;
+  const isUserMode = mode === "user";
+
+  // Theme palettes: Admin vs User Dashboard
+  const theme = isUserMode
+    ? {
+        badgeBg: "bg-teal-50 text-teal-700 border-teal-200",
+        badgeText: "User Dashboard",
+        card1: { color: "#0d9488", bgColor: "#ccfbf1" }, // Teal
+        card2: { color: "#0284c7", bgColor: "#e0f2fe" }, // Sky Blue
+        card3: { color: "#059669", bgColor: "#d1fae5" }, // Emerald
+        card4: { color: "#e11d48", bgColor: "#ffe4e6" }, // Rose (Employees)
+      }
+    : {
+        badgeBg: "bg-purple-50 text-purple-700 border-purple-200",
+        badgeText: "Admin Dashboard",
+        card1: { color: "#3b82f6", bgColor: "#dbeafe" }, // Blue
+        card2: { color: "#10b981", bgColor: "#d1fae5" }, // Green
+        card3: { color: "#f59e0b", bgColor: "#fef3c7" }, // Amber
+        cardSalesTotal: { color: "#a855f7", bgColor: "#f3e8ff" }, // Purple
+        card4: { color: "#64748b", bgColor: "#f1f5f9" }, // Slate
+      };
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Mode Header Badge */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-sm ${theme.badgeBg}`}>
+            {theme.badgeText}
+          </span>
+        </div>
+      </div>
+
       {/* 🔥 CARDS */}
       <div
-        className="
+        className={`
           grid gap-4
           grid-cols-1 
           sm:grid-cols-2 
-          md:grid-cols-3 
-          lg:grid-cols-5
-        "
+          ${hasSalesTotal ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-2 lg:grid-cols-4"}
+        `}
       >
         <StatCard
           title="Orders Today"
           value={statcard?.orderToday ?? 0}
           icon={<ShoppingCart size={18} />}
-          color="#3b82f6"
-          bgColor="#dbeafe"
+          color={theme.card1.color}
+          bgColor={theme.card1.bgColor}
           loading={isLoading}
         />
 
@@ -56,8 +86,8 @@ const DashboardPage = () => {
           title="Customers Today"
           value={statcard?.customersToday ?? 0}
           icon={<Users size={18} />}
-          color="#10b981"
-          bgColor="#d1fae5"
+          color={theme.card2.color}
+          bgColor={theme.card2.bgColor}
           loading={isLoading}
         />
 
@@ -65,26 +95,28 @@ const DashboardPage = () => {
           title="Sales Today"
           value={statcard?.salesToday ?? "0.000"}
           icon={<Banknote size={18} />}
-          color="#f59e0b"
-          bgColor="#fef3c7"
+          color={theme.card3.color}
+          bgColor={theme.card3.bgColor}
           loading={isLoading}
         />
 
-        <StatCard
-          title="Sales Total"
-          value={statcard?.salesTotal ?? "0.000"}
-          icon={<CreditCard size={18} />}
-          color="#a855f7"
-          bgColor="#f3e8ff"
-          loading={isLoading}
-        />
+        {hasSalesTotal && (
+          <StatCard
+            title="Sales Total"
+            value={statcard?.salesTotal ?? "0.000"}
+            icon={<CreditCard size={18} />}
+            color={theme.cardSalesTotal?.color || "#a855f7"}
+            bgColor={theme.cardSalesTotal?.bgColor || "#f3e8ff"}
+            loading={isLoading}
+          />
+        )}
 
         <StatCard
           title="Employees"
           value={statcard?.employee ?? 0}
           icon={<UserCheck size={18} />}
-          color="#64748b"
-          bgColor="#f1f5f9"
+          color={theme.card4.color}
+          bgColor={theme.card4.bgColor}
           loading={isLoading}
         />
       </div>

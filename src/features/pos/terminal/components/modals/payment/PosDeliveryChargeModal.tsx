@@ -36,6 +36,25 @@ export const PosDeliveryChargeModal = ({
   const { formatAmount } = useCurrency();
   const [selected, setSelected] = useState<string | null>(null);
 
+  const zones: DeliveryZone[] = (() => {
+    try {
+      const raw = localStorage.getItem('posConfigs') || localStorage.getItem('posConfig');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const list = parsed?.deliverycharges || parsed?.configs?.deliverycharges || parsed?.deliveryCharges || [];
+        if (Array.isArray(list) && list.length > 0) {
+          return list.map((item: any, idx: number) => ({
+            id: String(item.id || item.chargeName || idx + 1),
+            name: item.chargeName || item.name || `Zone ${idx + 1}`,
+            charge: Number(item.chargeValue ?? item.charge ?? 0),
+            description: item.description
+          }));
+        }
+      }
+    } catch { /* ignore */ }
+    return SAMPLE_ZONES;
+  })();
+
   if (!isOpen) return null;
 
   const handleSelect = (zone: DeliveryZone) => {
@@ -45,8 +64,8 @@ export const PosDeliveryChargeModal = ({
   };
 
   const activeZone =
-    SAMPLE_ZONES.find((z) => z.id === selected) ??
-    SAMPLE_ZONES.find((z) => z.charge === currentCharge);
+    zones.find((z) => z.id === selected) ??
+    zones.find((z) => z.charge === currentCharge);
 
   return (
     <div
@@ -101,7 +120,7 @@ export const PosDeliveryChargeModal = ({
         {/* ── Zone grid ─────────────────────────────────────────────── */}
         <div className="p-4">
           <div className="grid grid-cols-3 gap-2">
-            {SAMPLE_ZONES.map((zone) => {
+            {zones.map((zone) => {
               const isActive =
                 selected === zone.id ||
                 (!selected && zone.charge === currentCharge);

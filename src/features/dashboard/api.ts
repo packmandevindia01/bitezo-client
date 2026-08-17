@@ -7,7 +7,7 @@ const unwrap = async <T>(promise: Promise<{ data: { data: T } | T }>): Promise<T
   }
   return response.data as T;
 };
-import type { AdminDashboardData } from "./types";
+import type { AdminDashboardData, UserDashboardData } from "./types";
 
 const getAdminDashboard = async (branchId: number, decimals: number): Promise<AdminDashboardData> => {
   return unwrap(
@@ -17,6 +17,15 @@ const getAdminDashboard = async (branchId: number, decimals: number): Promise<Ad
   );
 };
 
+const getUserDashboard = async (branchId: number, decimals: number): Promise<UserDashboardData> => {
+  return unwrap(
+    axiosInstance.get(`/reports/${branchId}/user-dashboard`, {
+      params: { decimals },
+    })
+  );
+};
+
 export const dashboardApi = {
   getAdminDashboard,
+  getUserDashboard,
 };

@@ -251,8 +251,21 @@ export const usePosConfiguration = () => {
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
           parsed.configs.isRecipeEnable = payload.isRecipeEnable;
           parsed.configs.isDayDateEnable = payload.isDayDateEnable;
-          localStorage.setItem("posConfigs", JSON.stringify(parsed));
+          parsed.configs.deliveryCharge = payload.deliveryCharge;
+          parsed.configs.defaultDeliveryCharge = payload.deliveryCharge;
+          parsed.configs.serviceCharges = payload.serviceCharges;
+          parsed.configs.levy = payload.levy;
+          parsed.configs.packagerPrint = payload.packagerPrint;
+          parsed.configs.packagerHeader = payload.packagerHeader;
         }
+        parsed.deliveryCharge = payload.deliveryCharge;
+        parsed.defaultDeliveryCharge = payload.deliveryCharge;
+        parsed.deliverycharges = payload.deliveryCharges;
+        parsed.serviceCharges = payload.serviceCharges;
+        parsed.levy = payload.levy;
+        parsed.packagerPrint = payload.packagerPrint;
+        parsed.packagerHeader = payload.packagerHeader;
+        localStorage.setItem("posConfigs", JSON.stringify(parsed));
       } catch (e) {
         console.error("Failed to update cached posConfigs:", e);
       }

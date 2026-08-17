@@ -29,7 +29,7 @@ export const initialTransferForm: InternalStockTransferForm = {
   toBranch: "",
   salesman: "",
   narration: "",
-  items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }],
+  items: [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: formatAmount(0) }],
 };
 
 export const useInternalStockTransfer = (id?: string) => {
@@ -128,6 +128,7 @@ export const useInternalStockTransfer = (id?: string) => {
         fromBranch: String(master.fromBranchId || master.branchId || ""),
         toBranch: String(master.toBranchId || ""),
         salesman: String(master.employeeId || ""),
+        narration: String(master.narration || ""),
       };
 
       if (details.length > 0) {
@@ -274,7 +275,7 @@ export const useInternalStockTransfer = (id?: string) => {
         toBranchId: parseInt(data.toBranch, 10),
         employeeId: parseInt(data.salesman || "", 10) || 0,
         netAmount,
-        narration: "",
+        narration: data.narration || "",
         createdAt: new Date().toISOString(),
         details: validItems.map(item => {
           const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;

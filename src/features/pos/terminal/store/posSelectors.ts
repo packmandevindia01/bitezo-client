@@ -133,6 +133,48 @@ export const selectTax = createSelector(
   }
 );
 
+export const getStoredDefaultDeliveryCharge = (): number => {
+  try {
+    for (const key of ['posConfigs', 'posConfig', 'pos_configs', 'pos_config']) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs ?? parsed;
+        const val =
+          configs?.defaultDeliveryCharge ??
+          configs?.defaultdeliverycharge ??
+          configs?.defaultDeliverycharge ??
+          configs?.deliveryCharge ??
+          configs?.deliverycharge ??
+          configs?.DeliveryCharge ??
+          configs?.DefaultDeliveryCharge ??
+          parsed?.defaultDeliveryCharge ??
+          parsed?.defaultdeliverycharge ??
+          parsed?.defaultDeliverycharge ??
+          parsed?.deliveryCharge ??
+          parsed?.deliverycharge ??
+          parsed?.DeliveryCharge ??
+          parsed?.DefaultDeliveryCharge ??
+          parsed?.charges?.defaultDeliveryCharge ??
+          parsed?.charges?.deliveryCharge;
+        if (val !== undefined && val !== null && val !== "" && !isNaN(Number(val))) {
+          return Number(val);
+        }
+      }
+    }
+
+    for (const key of ['defaultDeliveryCharge', 'deliveryCharge', 'defaultdeliverycharge', 'deliverycharge']) {
+      const raw = localStorage.getItem(key);
+      if (raw !== null && raw !== "" && !isNaN(Number(raw))) {
+        return Number(raw);
+      }
+    }
+  } catch (e) {
+    console.error("[posSelectors] Error reading default delivery charge:", e);
+  }
+  return 0;
+};
+
 export const selectDeliveryCharge = createSelector(
   [selectPosState],
   (pos) => {
@@ -141,30 +183,12 @@ export const selectDeliveryCharge = createSelector(
       (pos.selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "").includes("delivery");
     if (!isDelivery) return 0;
 
-    // If user manually picked a zone, use that override
+    // If user manually picked a zone or recalled order has a delivery charge, use that override
     if (pos.customDeliveryCharge !== null && pos.customDeliveryCharge !== undefined) {
-      return pos.customDeliveryCharge;
+      return Number(pos.customDeliveryCharge) || 0;
     }
 
-    // Read the default delivery charge from posConfigs.configs
-    try {
-      const raw = localStorage.getItem('posConfigs');
-      if (raw) {
-        const parsed = JSON.parse(raw) as { configs?: Record<string, unknown> };
-        const configs = parsed.configs ?? {};
-        const val =
-          configs["defaultDeliveryCharge"] ??
-          configs["defaultdeliverycharge"] ??
-          configs["defaultDeliverycharge"] ??
-          configs["deliveryCharge"] ??
-          configs["deliverycharge"] ??
-          0;
-        return Number(val) || 0;
-      }
-    } catch (e) {
-      console.error("[posSlice] selectDeliveryCharge error:", e);
-    }
-    return 0;
+    return getStoredDefaultDeliveryCharge();
   }
 );
 

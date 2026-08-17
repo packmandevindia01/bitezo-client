@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Building2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput, Loader, PageShell, SelectInput } from "../../../components/common";
 import { useCompanyForm } from "../hooks/useCompanyForm";
@@ -21,20 +21,29 @@ const CompanyPage = () => {
   } = useCompanyForm();
 
   const selectedCountryId = watch("country");
-  const selectedCountryObj = countries.find(
-    (item) => item.id.toString() === String(selectedCountryId)
+  const selectedCountryObj = useMemo(
+    () => countries.find((item: any) => item.id.toString() === String(selectedCountryId)),
+    [countries, selectedCountryId]
   );
   const currentMobCode = selectedCountryId ? (selectedCountryObj?.mobCode || "") : "";
 
-  const currencyOptions = currencies.map((item) => ({
-    label: item.currencyName,
-    value: item.currencyId.toString(),
-  }));
+  const currencyOptions = useMemo(
+    () =>
+      currencies.map((item: any) => ({
+        label: item.currencyName,
+        value: item.currencyId.toString(),
+      })),
+    [currencies]
+  );
 
-  const countryOptions = countries.map((item) => ({
-    label: item.name,
-    value: item.id.toString(),
-  }));
+  const countryOptions = useMemo(
+    () =>
+      countries.map((item: any) => ({
+        label: item.name,
+        value: item.id.toString(),
+      })),
+    [countries]
+  );
 
   if (isLoading) {
     return (

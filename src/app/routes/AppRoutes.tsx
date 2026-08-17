@@ -75,6 +75,7 @@ const PaymentVoucherListPage = lazy(() => import("../../features/transaction/pay
 const PaymentVoucherFormPage = lazy(() => import("../../features/transaction/paymentVoucher/pages/PaymentVoucherFormPage"));
 const ReceiptVoucherListPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherListPage"));
 const ReceiptVoucherFormPage = lazy(() => import("../../features/transaction/receiptVoucher/pages/ReceiptVoucherFormPage"));
+const BulkSettlementPage = lazy(() => import("../../features/transaction/bulkSettlement/pages/BulkSettlementPage"));
 const HappyHourPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourPage"));
 const HappyHourFormPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourFormPage"));
 const ProviderSettingsFormPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsFormPage"));
@@ -176,7 +177,7 @@ const AppRoutes = () => {
 
                 {/* Dashboard — fully guarded */}
                 <Route path="/dashboard" element={<MainLayout />}>
-                  <Route index element={<DashboardPage />} />
+                  <Route index element={<RoleGuard moduleName={["Admin Dashboard", "User Dashboard"]}><DashboardPage /></RoleGuard>} />
                   <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
                   <Route path="user-roles" element={<RoleGuard moduleName="User Master"><UserRolePage /></RoleGuard>} />
                   <Route path="employee-roles" element={<RoleGuard moduleName="Employee Master"><EmployeeRolePage /></RoleGuard>} />
@@ -241,6 +242,7 @@ const AppRoutes = () => {
                   <Route path="receipt-voucher" element={<RoleGuard moduleName="Receipt Voucher"><ReceiptVoucherListPage /></RoleGuard>} />
                   <Route path="receipt-voucher/new" element={<RoleGuard moduleName="Receipt Voucher"><ReceiptVoucherFormPage /></RoleGuard>} />
                   <Route path="receipt-voucher/edit/:id" element={<RoleGuard moduleName="Receipt Voucher"><ReceiptVoucherFormPage /></RoleGuard>} />
+                  <Route path="bulk-settlement" element={<RoleGuard moduleName={["Sales Invoice", "Sales Report", "Bulk Settlement"]}><BulkSettlementPage /></RoleGuard>} />
 
 
                   <Route path="configuration" element={<RoleGuard moduleName="Configuration"><ConfigurationPage /></RoleGuard>} />

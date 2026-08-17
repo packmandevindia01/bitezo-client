@@ -167,6 +167,7 @@ export const useStockAdjustment = (id?: string | null) => {
         date: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
         branch: String(master.branchId || ""),
         salesman: String(master.employeeId || ""),
+        narration: master.narration || master.series || "",
       };
 
       if (details.length > 0) {
@@ -501,7 +502,7 @@ export const useStockAdjustment = (id?: string | null) => {
         branchId: parseInt(data.branch, 10),
         employeeId: parseInt(data.salesman || "", 10) || 0,
         netAmount,
-        narration: data.series || "",
+        narration: data.narration || data.series || "",
         createdAt: new Date().toISOString(),
         details: validItems.map(item => {
           const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;

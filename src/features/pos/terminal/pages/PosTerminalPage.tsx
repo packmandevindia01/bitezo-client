@@ -127,18 +127,19 @@ export const PosTerminalPage = () => {
   };
 
   const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> => {
-    const storedConfig = readStoredPosConfig();
-    if (storedConfig?.defaultEmployee !== undefined && storedConfig.employeeId !== undefined && storedConfig.defaultOrderTypeId !== undefined) {
-      return storedConfig;
+    const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
+    if (branchId) {
+      try {
+        const response = await posConfigApi.getPosConfig(branchId);
+        if (response.isSuccess && response.data) {
+          localStorage.setItem(POS_CONFIGS_STORAGE_KEY, JSON.stringify(response.data));
+          return response.data.configs;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch fresh POS configuration:", e);
+      }
     }
-    const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
-    if (!branchId) return storedConfig;
-    const response = await posConfigApi.getPosConfig(branchId);
-    if (response.isSuccess && response.data) {
-      localStorage.setItem(POS_CONFIGS_STORAGE_KEY, JSON.stringify(response.data));
-      return response.data.configs;
-    }
-    return storedConfig;
+    return readStoredPosConfig();
   };
 
   const applyDefaultOrderType = async (allowAutoDineIn: boolean = false) => {
@@ -198,7 +199,8 @@ export const PosTerminalPage = () => {
     resetTerminalState();
     setActiveProvider(null);
     dispatch(setCustomerId(1));
-    void applyDefaultOrderType(true);
+    const activeOrderTypeId = terminal.selectedOrderTypeId;
+    void applyDefaultOrderType(activeOrderTypeId === 1);
   };
 
   const handleRequestClearCart = () => {

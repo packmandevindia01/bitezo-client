@@ -1,3 +1,5 @@
+import { useAppDispatch } from "../../../../app/hooks";
+import { setUserRoles } from "../../../auth/store/authSlice";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { createEmptyUserRoleForm } from "../constants";
@@ -29,6 +31,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const useUserRoleManager = () => {
+  const dispatch = useAppDispatch();
   const { showToast } = useToast();
   const [records, setRecords] = useState<UserRoleRecord[]>([]);
   const [permissions, setPermissions] = useState<UserRolePermission[]>([]);
@@ -94,11 +97,28 @@ export const useUserRoleManager = () => {
   const togglePermission = (permissionId: number) => {
     setForm((prev) => {
       const selected = prev.permissionIds.includes(permissionId);
+      let nextIds = selected
+        ? prev.permissionIds.filter((id) => id !== permissionId)
+        : [...prev.permissionIds, permissionId];
+
+      if (!selected) {
+        const targetPerm = permissions.find((p) => p.permissionId === permissionId);
+        if (targetPerm?.module === "Admin Dashboard") {
+          const userDashIds = permissions
+            .filter((p) => p.module === "User Dashboard")
+            .map((p) => p.permissionId);
+          nextIds = nextIds.filter((id) => !userDashIds.includes(id));
+        } else if (targetPerm?.module === "User Dashboard") {
+          const adminDashIds = permissions
+            .filter((p) => p.module === "Admin Dashboard")
+            .map((p) => p.permissionId);
+          nextIds = nextIds.filter((id) => !adminDashIds.includes(id));
+        }
+      }
+
       return {
         ...prev,
-        permissionIds: selected
-          ? prev.permissionIds.filter((id) => id !== permissionId)
-          : [...prev.permissionIds, permissionId],
+        permissionIds: nextIds,
       };
     });
   };
@@ -108,9 +128,23 @@ export const useUserRoleManager = () => {
       const moduleIds = permissions
         .filter((permission) => permission.module === module)
         .map((permission) => permission.permissionId);
-      const ids = checked
+      let ids = checked
         ? Array.from(new Set([...prev.permissionIds, ...moduleIds]))
         : prev.permissionIds.filter((id) => !moduleIds.includes(id));
+
+      if (checked) {
+        if (module === "Admin Dashboard") {
+          const userDashIds = permissions
+            .filter((p) => p.module === "User Dashboard")
+            .map((p) => p.permissionId);
+          ids = ids.filter((id) => !userDashIds.includes(id));
+        } else if (module === "User Dashboard") {
+          const adminDashIds = permissions
+            .filter((p) => p.module === "Admin Dashboard")
+            .map((p) => p.permissionId);
+          ids = ids.filter((id) => !adminDashIds.includes(id));
+        }
+      }
 
       return { ...prev, permissionIds: ids };
     });
@@ -123,9 +157,27 @@ export const useUserRoleManager = () => {
       .map((p) => p.permissionId);
 
     setForm((prev) => {
-      const ids = checked
+      let ids = checked
         ? Array.from(new Set([...prev.permissionIds, ...actionIds]))
         : prev.permissionIds.filter((id) => !actionIds.includes(id));
+
+      if (checked) {
+        const hasAdminNewlyAdded = permissions.some((p) => actionIds.includes(p.permissionId) && p.module === "Admin Dashboard");
+        const hasUserNewlyAdded = permissions.some((p) => actionIds.includes(p.permissionId) && p.module === "User Dashboard");
+
+        if (hasAdminNewlyAdded) {
+          const userDashIds = permissions
+            .filter((p) => p.module === "User Dashboard")
+            .map((p) => p.permissionId);
+          ids = ids.filter((id) => !userDashIds.includes(id));
+        } else if (hasUserNewlyAdded) {
+          const adminDashIds = permissions
+            .filter((p) => p.module === "Admin Dashboard")
+            .map((p) => p.permissionId);
+          ids = ids.filter((id) => !adminDashIds.includes(id));
+        }
+      }
+
       return { ...prev, permissionIds: ids };
     });
   };
@@ -178,6 +230,21 @@ export const useUserRoleManager = () => {
       return;
     }
 
+    const adminDashIds = permissions
+      .filter((p) => p.module === "Admin Dashboard")
+      .map((p) => p.permissionId);
+    const userDashIds = permissions
+      .filter((p) => p.module === "User Dashboard")
+      .map((p) => p.permissionId);
+
+    const hasAdmin = form.permissionIds.some((id) => adminDashIds.includes(id));
+    const hasUser = form.permissionIds.some((id) => userDashIds.includes(id));
+
+    if (hasAdmin && hasUser) {
+      showToast("A user role cannot have access to both Admin Dashboard and User Dashboard simultaneously.", "error");
+      return;
+    }
+
     try {
       setSaving(true);
       if (editingId) {
@@ -187,6 +254,16 @@ export const useUserRoleManager = () => {
         await userRoleService.create(form);
         showToast("User role created successfully", "success");
       }
+
+      // Dynamically update active permissions in Redux store for real-time reflection
+      const updatedRoles = permissions.map((p) => ({
+        permissionId: p.permissionId,
+        module: p.module,
+        action: p.action,
+        status: form.permissionIds.includes(p.permissionId),
+        moduleType: (p as any).moduleType,
+      }));
+      dispatch(setUserRoles(updatedRoles));
 
       await loadInitialData();
       closeModal();

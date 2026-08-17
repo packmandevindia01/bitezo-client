@@ -17,7 +17,7 @@ export const usePermissions = () => {
 
     // Check if there is an active permission for the given module and action
     return userRoles?.some(
-      (role) => role.module === moduleName && role.action === action
+      (role) => role.module === moduleName && role.action === action && role.status !== false
     ) ?? false;
   };
 

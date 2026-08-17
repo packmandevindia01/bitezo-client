@@ -31,6 +31,8 @@ export interface GuestPrintData {
   payments?: { name: string; amount: number }[];
   changeAmount?: number;
   isSettlement?: boolean;
+  isPackager?: boolean;
+  showCompanyHeader?: boolean;
 }
 
 export const generateGuestPrintHtml = async (
@@ -42,33 +44,36 @@ export const generateGuestPrintHtml = async (
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
 
   let customHeadersHtml = "";
-  try {
-    const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const branchIdStr = isBackoffice
-      ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
-      : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
-    
-    let branchId = 1;
-    if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
-      branchId = Number(branchIdStr);
-    }
-    const branch = await branchApi.fetchBranchById(branchId);
-    
-    if (branch && branch.lines) {
-      const headers = branch.lines.filter(l => l.section === 'header' && l.value);
-      if (headers.length > 0) {
-        customHeadersHtml = headers.map(l => {
-          const styleObj = getLineStyle(l) as any;
-          const styleStr = Object.entries(styleObj).map(([k, v]) => {
-            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-            return `${kebab}:${v}`;
-          }).join(";");
-          return `<div style="${styleStr}">${l.value}</div>`;
-        }).join("");
+  const allowCompanyHeader = data.showCompanyHeader !== false;
+  if (allowCompanyHeader) {
+    try {
+      const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+      const branchIdStr = isBackoffice
+        ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+        : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+      
+      let branchId = 1;
+      if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+        branchId = Number(branchIdStr);
       }
+      const branch = await branchApi.fetchBranchById(branchId);
+      
+      if (branch && branch.lines) {
+        const headers = branch.lines.filter(l => l.section === 'header' && l.value);
+        if (headers.length > 0) {
+          customHeadersHtml = headers.map(l => {
+            const styleObj = getLineStyle(l) as any;
+            const styleStr = Object.entries(styleObj).map(([k, v]) => {
+              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+              return `${kebab}:${v}`;
+            }).join(";");
+            return `<div style="${styleStr}">${l.value}</div>`;
+          }).join("");
+        }
+      }
+    } catch {
+      // Silently proceed with fallback headers if branch endpoint is forbidden for cashiers
     }
-  } catch (e) {
-    console.error("Failed to fetch branch for headers", e);
   }
 
   const isTakeOut = data.orderType?.toLowerCase().includes("take");
@@ -76,11 +81,13 @@ export const generateGuestPrintHtml = async (
   const isDineIn = data.orderType?.toLowerCase().includes("dine");
   const isDelivery = data.orderType?.toLowerCase().includes("delivery");
 
-  let orderTypeLabel = data.isSettlement ? "" : "GUEST";
-  if (isTakeOut) orderTypeLabel = data.isSettlement ? "(TAKE OUT)" : "GUEST (TAKE OUT)";
-  else if (isDriveThru) orderTypeLabel = data.isSettlement ? "(DRIVE THRU)" : "GUEST (DRIVE THRU)";
-  else if (isDineIn) orderTypeLabel = data.isSettlement ? "(DINE IN)" : "GUEST (DINE IN)";
-  else if (isDelivery) orderTypeLabel = data.isSettlement ? "(DELIVERY)" : "GUEST (DELIVERY)";
+  const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
+
+  let orderTypeLabel = modePrefix;
+  if (isTakeOut) orderTypeLabel = modePrefix ? `${modePrefix} (TAKE OUT)` : "(TAKE OUT)";
+  else if (isDriveThru) orderTypeLabel = modePrefix ? `${modePrefix} (DRIVE THRU)` : "(DRIVE THRU)";
+  else if (isDineIn) orderTypeLabel = modePrefix ? `${modePrefix} (DINE IN)` : "(DINE IN)";
+  else if (isDelivery) orderTypeLabel = modePrefix ? `${modePrefix} (DELIVERY)` : "(DELIVERY)";
 
   const headerTitle = data.enableVat 
     ? `SIMPLIFIED TAX INVOICE<br/>${orderTypeLabel}` 
@@ -226,7 +233,7 @@ export const generateGuestPrintHtml = async (
         </style>
       </head>
       <body>
-          ${customHeadersHtml ? `
+          ${allowCompanyHeader ? (customHeadersHtml ? `
             <div style="text-align: center; margin-bottom: 10px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
               ${customHeadersHtml}
             </div>
@@ -240,7 +247,7 @@ export const generateGuestPrintHtml = async (
             ${data.enableVat ? '<div>VAT NO:220003229000002</div>' : ''}
             <div>Tel:17311999,Tel:17311999</div>
           </div>
-          `}
+          `) : ''}
   
           <div class="text-center header-title">${headerTitle}</div>
         

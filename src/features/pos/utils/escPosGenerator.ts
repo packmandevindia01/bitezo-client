@@ -115,20 +115,24 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const isDelivery = data.orderType?.toLowerCase().includes("delivery");
 
   let invoiceTitle = data.enableVat ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
-  let orderLabel = "GUEST";
-  if (isTakeOut)   orderLabel = "GUEST (TAKE OUT)";
-  if (isDriveThru) orderLabel = "GUEST (DRIVE THRU)";
-  if (isDineIn)    orderLabel = "GUEST (DINE IN)";
-  if (isDelivery)  orderLabel = "GUEST (DELIVERY)";
-  if (data.isSettlement) orderLabel = isTakeOut ? "(TAKE OUT)" : isDriveThru ? "(DRIVE THRU)" : isDineIn ? "(DINE IN)" : isDelivery ? "(DELIVERY)" : "";
+  const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
+
+  let orderLabel = modePrefix;
+  if (isTakeOut)   orderLabel = modePrefix ? `${modePrefix} (TAKE OUT)` : "(TAKE OUT)";
+  if (isDriveThru) orderLabel = modePrefix ? `${modePrefix} (DRIVE THRU)` : "(DRIVE THRU)";
+  if (isDineIn)    orderLabel = modePrefix ? `${modePrefix} (DINE IN)` : "(DINE IN)";
+  if (isDelivery)  orderLabel = modePrefix ? `${modePrefix} (DELIVERY)` : "(DELIVERY)";
 
   let markup = "";
 
   // ── Header ──────────────────────────────────────────────────────────────────
-  if (customHeaderLines && customHeaderLines.length > 0) {
-    customHeaderLines.forEach(line => { markup += `[C]${line}\n`; });
-  } else {
-    markup += getCompanyHeader();
+  const allowCompanyHeader = data.showCompanyHeader !== false;
+  if (allowCompanyHeader) {
+    if (customHeaderLines && customHeaderLines.length > 0) {
+      customHeaderLines.forEach(line => { markup += `[C]${line}\n`; });
+    } else {
+      markup += getCompanyHeader();
+    }
   }
 
   markup += `[C]${SEPARATOR}\n`;

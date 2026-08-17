@@ -64,6 +64,23 @@ export const printEscPosMarkup = async (markup: string): Promise<void> => {
   console.log("[Native ESC/POS] Print job sent successfully.");
 };
 
+let cachedPrinterList: string[] | null = null;
+
+export const getAvailablePrinters = async (): Promise<string[]> => {
+  if (cachedPrinterList && cachedPrinterList.length > 0) {
+    return cachedPrinterList;
+  }
+  await connectQZ();
+  try {
+    const list = await qz.printers.find();
+    cachedPrinterList = Array.isArray(list) ? list : [];
+  } catch (err) {
+    console.error("[QZ Tray] Failed to fetch printer list:", err);
+    cachedPrinterList = [];
+  }
+  return cachedPrinterList;
+};
+
 /**
  * Prints HTML content via QZ Tray — WEB / DESKTOP path only.
  * On native Capacitor, use printEscPosMarkup() instead.
@@ -82,12 +99,12 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
 
   try {
     if (printerName) {
-      const printers = await qz.printers.find();
+      const printers = await getAvailablePrinters();
       const exactMatch = printers.find((p: string) => p.toLowerCase() === printerName.toLowerCase());
       if (exactMatch) {
         targetPrinter = exactMatch;
       } else {
-        console.warn(`[QZ Tray] Printer "${printerName}" not found. Falling back to default.`);
+        console.warn(`[QZ Tray] Printer "${printerName}" not found in list (${printers.join(', ')}). Falling back to default.`);
       }
     }
     

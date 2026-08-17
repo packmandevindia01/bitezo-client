@@ -167,6 +167,7 @@ const InternalStockTransferPage = () => {
       fromBranch: vals.fromBranch || "",
       toBranch: vals.toBranch || "",
       salesman: vals.salesman || "",
+      narration: vals.narration || "",
       product: "",
       code: "",
       unit: "",
@@ -192,6 +193,15 @@ const InternalStockTransferPage = () => {
         };
       });
   }, [watchedItems, productOptions]);
+
+  const handleCostBlur = (index: number, value: string) => {
+    const num = parseFloat(value);
+    if (!isNaN(num) && num >= 0) {
+      methods.setValue(`items.${index}.cost`, formatAmount(num));
+    } else {
+      methods.setValue(`items.${index}.cost`, formatAmount(0));
+    }
+  };
 
   const handleClearClick = () => {
     if (items.length > 1 || (watchedItems[0] && watchedItems[0].product)) {
@@ -325,7 +335,7 @@ const InternalStockTransferPage = () => {
                                           methods.setValue(`items.${index}.unitCategory`, "");
                                           methods.setValue(`items.${index}.stock`, "0.000");
                                           methods.setValue(`items.${index}.qty`, "1");
-                                          methods.setValue(`items.${index}.cost`, "0");
+                                          methods.setValue(`items.${index}.cost`, formatAmount(0));
                                         }
                                         setTimeout(() => {
                                           const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
@@ -410,13 +420,18 @@ const InternalStockTransferPage = () => {
                           </td>
                           <td className="p-0 border-r border-gray-100 w-24">
                             <input
-                              type="number"
-                              step="any"
-                              min="0"
+                              type="text"
+                              inputMode="decimal"
                               {...register(`items.${index}.cost`)}
                               onFocus={(e) => e.target.select()}
-                              onKeyDown={(e) => handleGridNav(e, index)}
-                              className="w-full h-7 bg-transparent text-right border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-2 py-0 text-xs text-gray-600 outline-none transition-colors"
+                              onBlur={(e) => handleCostBlur(index, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleCostBlur(index, e.currentTarget.value);
+                                }
+                                handleGridNav(e, index);
+                              }}
+                              className="w-full h-7 bg-transparent text-right border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-2 py-0 text-xs text-gray-600 outline-none transition-colors font-mono"
                               readOnly={!canSave}
                             />
                           </td>
@@ -431,7 +446,7 @@ const InternalStockTransferPage = () => {
                                 if (items.length > 1) {
                                   remove(index);
                                 } else {
-                                  update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" } as any);
+                                  update(index, { id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: formatAmount(0) } as any);
                                 }
                               }}
                               disabled={!canSave}
@@ -445,24 +460,33 @@ const InternalStockTransferPage = () => {
                       );
                     })}
                   </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-200 bg-gray-50/80 font-bold">
+                      <td colSpan={2} className="px-2 py-1.5 text-left">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: formatAmount(0) }, { shouldFocus: false });
+                            setTimeout(() => {
+                              document.getElementById(`product-select-${items.length}`)?.focus();
+                            }, 50);
+                          }}
+                          disabled={!canSave}
+                          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={14} /> Add Item
+                        </button>
+                      </td>
+                      <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] uppercase tracking-wider text-gray-500">
+                        Grand Total:
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-bold text-sm text-[#49293e] border-r border-gray-200 bg-[#49293e]/5">
+                        {formatAmount(grandTotal)}
+                      </td>
+                      <td className="px-1 py-1.5"></td>
+                    </tr>
+                  </tfoot>
                 </table>
-              </div>
-              
-              {/* Add Row Button */}
-              <div className="flex justify-start px-2 py-2 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }, { shouldFocus: false });
-                    setTimeout(() => {
-                      document.getElementById(`product-select-${items.length}`)?.focus();
-                    }, 50);
-                  }}
-                  disabled={!canSave}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus size={14} /> Add Item
-                </button>
               </div>
             </div>
             
@@ -474,15 +498,30 @@ const InternalStockTransferPage = () => {
 
           {/* ── Compact Action Footer ── */}
           <div className="border-t border-gray-200 bg-gray-50/50 p-3 rounded-b-2xl shrink-0 flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Stock</span>
-                  <span className="text-sm font-bold text-gray-700 font-mono">{activeItem.stock || "0.000"}</span>
+            <div className="flex flex-wrap items-end justify-between gap-3 w-full">
+              <div className="flex items-end gap-3 flex-1 min-w-[280px]">
+                <div className="flex-1 max-w-md">
+                  <FormInput
+                    id="st-narration"
+                    label="Narration"
+                    maxLength={200}
+                    {...register("narration")}
+                    placeholder="Enter narration / remarks..."
+                    readOnly={!canSave}
+                    error={errors.narration?.message as string}
+                    inputClassName="!h-8 !text-xs !px-2 bg-white"
+                  />
                 </div>
-                <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Grand Total</span>
-                  <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(grandTotal)}</span>
+                <div className="w-28 shrink-0">
+                  <FormInput
+                    id="st-stock"
+                    label="Stock"
+                    value={activeItem.stock || "0.000"}
+                    readOnly
+                    disabled
+                    inputClassName="!h-8 !text-xs !px-2 bg-gray-50 font-mono font-bold text-right cursor-not-allowed text-gray-700"
+                    tabIndex={-1}
+                  />
                 </div>
               </div>
 

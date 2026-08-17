@@ -115,3 +115,54 @@ export const executeKotRouting = async (
       .catch((err: any) => console.error("[Print Error: Legacy]", err));
   }
 };
+
+export const executePackagerPrint = async (
+  items: PosCartItem[],
+  printData: any,
+  printerSettingsApi: any,
+  printHtmlReceipt: any,
+  generateGuestPrintHtml: any,
+  customHeaderLines?: string[]
+) => {
+  const isNative = Capacitor.isNativePlatform();
+
+  if (isNative) {
+    const { printEscPosMarkup } = await import("../services/qzService");
+    const { generateBillMarkup } = await import("./escPosGenerator");
+    const markup = generateBillMarkup({
+      cartDetails: items,
+      data: { ...printData, isPackager: true },
+      customHeaderLines
+    });
+    await printEscPosMarkup(markup);
+    return;
+  }
+
+  // Desktop (QZ Tray)
+  let targetPrinter = localStorage.getItem("cachedPackagerPrinter") || "";
+  if (!targetPrinter || targetPrinter === "No Printer") {
+    try {
+      const res = await printerSettingsApi.getPrinterData();
+      if (res?.isSuccess && res.data?.generalPrinter?.packagerPrinter && res.data.generalPrinter.packagerPrinter !== "No Printer") {
+        targetPrinter = res.data.generalPrinter.packagerPrinter;
+      }
+    } catch (e) {
+      console.error("[Packager Print] Failed to fetch printer data:", e);
+    }
+  }
+
+  // Fallback to bill printer or default if packager printer not explicitly selected
+  if (!targetPrinter || targetPrinter === "No Printer") {
+    targetPrinter = localStorage.getItem("cachedBillPrinter") || "";
+  }
+
+  console.log(`[Packager Print] Routing to printer: "${targetPrinter || 'Default Printer'}" for ${items.length} items`);
+
+  const html = await generateGuestPrintHtml(items, {
+    ...printData,
+    isPackager: true
+  });
+
+  await printHtmlReceipt(html, (targetPrinter && targetPrinter !== "No Printer") ? targetPrinter : undefined);
+  console.log(`[Packager Print] Successfully sent to QZ Tray (${targetPrinter || 'Default Printer'})`);
+};

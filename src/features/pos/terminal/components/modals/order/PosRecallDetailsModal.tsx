@@ -534,7 +534,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         billDiscountValue: master.discAmount || 0,
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId: master.sectionId || 0,
-        tableId: master.tableId || 0
+        tableId: master.tableId || 0,
+        deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
+        contactNo: master.mobileNo || master.contactNo,
+        note: master.note,
+        change: master.change,
+        isComing: master.isComing,
+        comingTime: master.comingTime,
+        vehicleCustomerName: master.vehicleCustomerName,
+        vehicleNo: master.vehicleNo
       }));
 
       onEditSuccess?.();
@@ -673,6 +681,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         billDiscountType: master.discPer ? 'percentage' : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
+        deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
+        contactNo: master.mobileNo || master.contactNo,
+        note: master.note,
+        change: master.change,
+        isComing: master.isComing,
+        comingTime: master.comingTime,
+        vehicleCustomerName: master.vehicleCustomerName,
+        vehicleNo: master.vehicleNo,
         isSettling: true
       }));
 
@@ -934,9 +950,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               )}
             </div>
 
-            {/* Receipt Footer with Grand Total */}
-            <div className="border-t border-dashed border-stone-400 pt-4 mt-6">
-              <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase">
+            {/* Receipt Footer with Delivery Charge, VAT and Grand Total */}
+            <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
+              {master.vatExclAmount !== undefined && master.vatExclAmount > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Net Value</span>
+                  <span>{formatAmount(master.vatExclAmount)}</span>
+                </div>
+              )}
+              {master.deliveryCharge !== undefined && master.deliveryCharge > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Delivery Charge</span>
+                  <span>{formatAmount(master.deliveryCharge)}</span>
+                </div>
+              )}
+              {master.vatAmount !== undefined && master.vatAmount > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>VAT</span>
+                  <span>{formatAmount(master.vatAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
                 <span>Grand Total</span>
                 <span className="text-base font-black text-[#f48120]">
                   {formatAmount(netAmount)}

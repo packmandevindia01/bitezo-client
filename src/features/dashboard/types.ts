@@ -34,6 +34,22 @@ export interface AdminDashboardData {
   paymodesales: PaymodeSale[];
 }
 
+export interface UserStatCardData {
+  orderToday: string;
+  customersToday: number;
+  salesToday: string;
+  salesTotal?: string;
+  employee: number;
+}
+
+export interface UserDashboardData {
+  statcard: UserStatCardData;
+  monthlysales: MonthlySale[];
+  dailysales: DailySale[];
+  ordertypsales: OrderTypeSale[];
+  paymodesales: PaymodeSale[];
+}
+
 export interface AdminDashboardResponse {
   data: AdminDashboardData;
   status: number;
