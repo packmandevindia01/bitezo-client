@@ -13,9 +13,13 @@ axiosInstance.interceptors.request.use((config) => {
   config.baseURL = getConfig().apiBaseUrl;
 
   const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-  const token = isBackofficeMode 
+  let token = isBackofficeMode 
     ? sessionStorage.getItem("backoffice_accessToken") 
     : localStorage.getItem("accessToken");
+
+  if (!token) {
+    token = localStorage.getItem("accessToken") || sessionStorage.getItem("backoffice_accessToken") || localStorage.getItem("backoffice_accessToken");
+  }
   const explicitTenantId = config.headers ? (config.headers["clientDb"] || config.headers["clientdb"]) : undefined;
   const tenantId = typeof explicitTenantId === "string" ? explicitTenantId : (localStorage.getItem("tenantId") ?? "");
 

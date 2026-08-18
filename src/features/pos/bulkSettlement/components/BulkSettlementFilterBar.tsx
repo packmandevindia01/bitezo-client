@@ -29,10 +29,10 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
   onToggleSelectAll,
 }) => {
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-end bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-      <div className="flex flex-wrap gap-4 items-end flex-1">
+    <div className="flex flex-col md:flex-row gap-3 justify-between items-center bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs shrink-0">
+      <div className="flex flex-wrap gap-3 items-center flex-1 w-full">
         {/* Type Selector (Driver / Provider) */}
-        <div className="w-44">
+        <div className="w-36">
           <SelectInput
             id="bulk-entity-type"
             label="Type"
@@ -46,7 +46,7 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
         </div>
 
         {/* Entity Selector (Driver / Provider Name) */}
-        <div className="w-64 max-w-full">
+        <div className="w-60 max-w-full">
           <SelectInput
             id="bulk-entity-id"
             label={entityType === "driver" ? "Driver Name" : "Provider Name"}
@@ -62,17 +62,17 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
                 ? "Loading..."
                 : `Select ${entityType === "driver" ? "Driver" : "Provider"}`
             }
-            disabled={isEntitiesLoading || entities.length === 0}
+            disabled={isEntitiesLoading}
           />
         </div>
 
         {/* Search Button */}
-        <div>
+        <div className="pt-5">
           <Button
             type="button"
             onClick={onSearch}
-            icon={<Search size={18} />}
-            className="bg-[#49293e] hover:bg-[#382030] text-white"
+            icon={<Search size={16} />}
+            className="bg-[#49293e] hover:bg-[#382030] text-white h-9 px-5 text-xs font-black uppercase tracking-wider"
           >
             SEARCH
           </Button>
@@ -81,20 +81,20 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
 
       {/* Check Box All Button */}
       {hasOrders && (
-        <div>
+        <div className="shrink-0 pt-5">
           <button
             type="button"
             onClick={onToggleSelectAll}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all h-[38px] ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all h-9 ${
               isAllSelected
-                ? "bg-[#49293e]/10 text-[#49293e] border-[#49293e]/30"
-                : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                ? "bg-[#49293e] text-white border-[#49293e] shadow-2xs"
+                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
             }`}
           >
             {isAllSelected ? (
-              <CheckSquare size={18} className="text-[#49293e]" />
+              <CheckSquare size={16} className="text-white" />
             ) : (
-              <Square size={18} className="text-gray-400" />
+              <Square size={16} className="text-slate-400" />
             )}
             Check Box All
           </button>

@@ -71,6 +71,15 @@ const ORDER_ITEMS: ActionItem[] = [
 
 const CASHIER_ITEMS: ActionItem[] = [
   { 
+    label: 'BULK SETTLEMENT', 
+    description: 'Settle driver & provider pending orders', 
+    icon: Banknote, 
+    action: 'bulkSettlement',
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-700',
+    requiresAuth: true
+  },
+  { 
     label: 'PAY IN / PAY OUT', 
     description: 'Petty cash drawer float & payout', 
     icon: Banknote, 
@@ -105,7 +114,8 @@ const DISCOUNT_ITEMS: ActionItem[] = [
     icon: Gift, 
     action: 'itemComp',
     iconBg: 'bg-emerald-50',
-    iconColor: 'text-emerald-600'
+    iconColor: 'text-emerald-600',
+    requiresAuth: true
   },
   { 
     label: 'BILL COMPLIMENTARY', 
@@ -113,7 +123,8 @@ const DISCOUNT_ITEMS: ActionItem[] = [
     icon: Sparkles, 
     action: 'billComp',
     iconBg: 'bg-teal-50',
-    iconColor: 'text-teal-600'
+    iconColor: 'text-teal-600',
+    requiresAuth: true
   },
   { 
     label: 'LOCK PRODUCTS', 
@@ -264,6 +275,17 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       navigate('/pos/dine-in');
       return;
     }
+    if (item.action === 'bulkSettlement') {
+      requestAuthorization({
+        actionLabel: "Bulk Settlement",
+        permissionId: 22,
+        onAuthorized: () => {
+          onClose();
+          navigate('/pos/bulk-settlement');
+        }
+      });
+      return;
+    }
     if (item.action === 'payInOut') {
       requestAuthorization({
         actionLabel: "Pay In Out",
@@ -291,13 +313,25 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'itemComp') {
-      onClose();
-      onItemComplimentary();
+      requestAuthorization({
+        actionLabel: "Item Complimentary",
+        permissionId: 19,
+        onAuthorized: () => {
+          onClose();
+          onItemComplimentary();
+        }
+      });
       return;
     }
     if (item.action === 'billComp') {
-      onClose();
-      onBillComplimentary();
+      requestAuthorization({
+        actionLabel: "Bill Complimentary",
+        permissionId: 19,
+        onAuthorized: () => {
+          onClose();
+          onBillComplimentary();
+        }
+      });
       return;
     }
     if (item.action === 'settledOrders') {

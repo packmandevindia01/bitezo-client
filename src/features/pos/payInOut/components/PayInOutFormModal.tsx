@@ -56,7 +56,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
       vchNo: '',
       date: new Date().toISOString().split('T')[0],
       description: '',
-      amount: (0).toFixed(decimalPart),
+      amount: '',
       paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
     }
   });
@@ -69,7 +69,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           vchNo: initialData.vchNo?.toString() || '',
           date: initialData.voucherDate?.split('T')[0] || new Date().toISOString().split('T')[0],
           description: initialData.description,
-          amount: Number(initialData.amount).toFixed(decimalPart),
+          amount: Number(initialData.amount) > 0 ? Number(initialData.amount).toFixed(decimalPart) : '',
           paymodeId: initialData.paymodeId
         });
       } else {
@@ -78,7 +78,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           vchNo: voucherNumberStr?.toString() || '',
           date: new Date().toISOString().split('T')[0],
           description: '',
-          amount: (0).toFixed(decimalPart),
+          amount: '',
           paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
         });
       }
@@ -105,7 +105,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
       vchNo: voucherNumberStr?.toString() || '',
       date: new Date().toISOString().split('T')[0],
       description: '',
-      amount: (0).toFixed(decimalPart),
+      amount: '',
       paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
     });
   };
@@ -241,8 +241,6 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           {...register('date')}
           hideLabel
           error={errors.date?.message}
-          inputMode={isKeyboardEnabled ? "none" : undefined}
-          readOnly={isKeyboardEnabled}
         />
 
         {/* DESCRIPTION */}
@@ -256,8 +254,6 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           error={errors.description?.message}
           onFocus={handleInputFocus}
           onClick={handleInputFocus}
-          inputMode={isKeyboardEnabled ? "none" : undefined}
-          readOnly={isKeyboardEnabled}
         />
 
         {/* AMOUNT */}
@@ -272,10 +268,11 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           inputClassName="text-right font-black"
           hideLabel
           error={errors.amount?.message}
-          onFocus={handleInputFocus}
+          onFocus={(e) => {
+            handleInputFocus(e);
+            e.target.select();
+          }}
           onClick={handleInputFocus}
-          inputMode={isKeyboardEnabled ? "none" : undefined}
-          readOnly={isKeyboardEnabled}
         />
 
         {/* PAYMODE */}

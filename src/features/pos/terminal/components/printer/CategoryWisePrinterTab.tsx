@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  SelectInput, 
-  SearchableSelect, 
-  Button, 
+import React, { useState, useEffect } from "react";
+import {
+  SelectInput,
+  SearchableSelect,
+  Button,
   RecordTableCard,
-  ConfirmDialog
-} from '../../../../../components/common';
-import { Trash2 } from 'lucide-react';
-import type { CategoryPrinterSetting } from '../../../types';
-import { menuApi } from '../../../services/menuApi';
+  ConfirmDialog,
+} from "../../../../../components/common";
+import { Trash2 } from "lucide-react";
+import type { CategoryPrinterSetting } from "../../../types";
+import { menuApi } from "../../../services/menuApi";
+import { useAvailablePrinters } from "../../hooks/useAvailablePrinters";
 
 interface CategoryWisePrinterTabProps {
   initialData: CategoryPrinterSetting[];
@@ -16,17 +17,18 @@ interface CategoryWisePrinterTabProps {
   loading?: boolean;
 }
 
-export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({ 
-  initialData, 
+export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
+  initialData,
   onSave,
-  loading 
+  loading,
 }) => {
+  const { printerOptions } = useAvailablePrinters();
   const [items, setItems] = useState<CategoryPrinterSetting[]>(initialData);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [form, setForm] = useState({
-    categoryId: '',
-    firstPrinter: 'pos-80c',
-    secondPrinter: 'No Printer',
+    categoryId: "",
+    firstPrinter: "No Printer",
+    secondPrinter: "No Printer",
   });
   const [showDeleteAll, setShowDeleteAll] = useState(false);
 
@@ -34,42 +36,48 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
     setItems(initialData);
   }, [initialData]);
 
+  // Set default printer from live options when available
   useEffect(() => {
-    menuApi.getMasterData().then(data => {
-      setCategoryOptions(data.category.map((c: any) => ({ label: c.name, value: String(c.id) })));
-    }).catch(err => {
-      console.error("Failed to load categories:", err);
-    });
-  }, []);
+    if (printerOptions.length > 1 && form.firstPrinter === "No Printer") {
+      setForm((prev) => ({
+        ...prev,
+        firstPrinter: printerOptions[1].value,
+      }));
+    }
+  }, [printerOptions]);
 
-  const printerOptions = [
-    { label: 'pos-80c', value: 'pos-80c' },
-    { label: 'delivery', value: 'delivery' },
-    { label: 'No Printer', value: 'No Printer' },
-  ];
+  useEffect(() => {
+    menuApi
+      .getMasterData()
+      .then((data) => {
+        setCategoryOptions(data.category.map((c: any) => ({ label: c.name, value: String(c.id) })));
+      })
+      .catch((err) => {
+        console.error("Failed to load categories:", err);
+      });
+  }, []);
 
   const handleAdd = () => {
     if (!form.categoryId) return;
-    const cat = categoryOptions.find(c => c.value === form.categoryId);
+    const cat = categoryOptions.find((c) => c.value === form.categoryId);
     const newItem: CategoryPrinterSetting = {
       categoryId: parseInt(form.categoryId),
       category: cat?.label,
       firstPrinter: form.firstPrinter,
       secondPrinter: form.secondPrinter,
     };
-    
-    // Check if category already exists in list
-    if (items.some(item => item.categoryId === newItem.categoryId)) {
-      setItems(items.map(item => item.categoryId === newItem.categoryId ? newItem : item));
+
+    if (items.some((item) => item.categoryId === newItem.categoryId)) {
+      setItems(items.map((item) => (item.categoryId === newItem.categoryId ? newItem : item)));
     } else {
       setItems([newItem, ...items]);
     }
-    
-    setForm({ ...form, categoryId: '' });
+
+    setForm({ ...form, categoryId: "" });
   };
 
   const handleDelete = (id: number) => {
-    setItems(items.filter(item => item.categoryId !== id));
+    setItems(items.filter((item) => item.categoryId !== id));
   };
 
   return (
@@ -77,7 +85,9 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
       <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
           <div className="flex items-center gap-3 min-w-[300px]">
-            <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">Category</label>
+            <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">
+              Category
+            </label>
             <div className="flex-1">
               <SearchableSelect
                 autoFocus={window.innerWidth > 1024}
@@ -88,9 +98,11 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 min-w-[220px]">
-            <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">KOT 1</label>
+            <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">
+              KOT 1
+            </label>
             <div className="flex-1">
               <SelectInput
                 noMargin
@@ -102,7 +114,9 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
           </div>
 
           <div className="flex items-center gap-3 min-w-[220px]">
-            <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">KOT 2</label>
+            <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">
+              KOT 2
+            </label>
             <div className="flex-1">
               <SelectInput
                 noMargin
@@ -113,8 +127,8 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
             </div>
           </div>
 
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleAdd}
             className="h-10.5 px-8 uppercase tracking-[0.2em] font-black text-[10px] shadow-sm ml-auto"
             disabled={!form.categoryId}
@@ -131,41 +145,44 @@ export const CategoryWisePrinterTab: React.FC<CategoryWisePrinterTabProps> = ({
           rowKey="categoryId"
           columns={[
             { header: "SNo", accessor: "categoryId", render: (_: any, index: number) => index + 1 },
-            { 
-              header: "Category", 
+            {
+              header: "Category",
               accessor: "category",
-              render: (row) => row.category || categoryOptions.find(c => c.value === String(row.categoryId))?.label || `Category #${row.categoryId}`
+              render: (row) =>
+                row.category ||
+                categoryOptions.find((c) => c.value === String(row.categoryId))?.label ||
+                `Category #${row.categoryId}`,
             },
             { header: "First Printer", accessor: "firstPrinter" },
             { header: "Second Printer", accessor: "secondPrinter" },
-            { 
-              header: "Actions", 
+            {
+              header: "Actions",
               accessor: "categoryId",
               render: (row) => (
-                <button 
+                <button
                   onClick={() => handleDelete(row.categoryId)}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
-              )
-            }
+              ),
+            },
           ]}
         />
       </div>
 
       <div className="flex justify-between items-center pt-2">
         <div className="flex gap-4">
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => onSave(items)}
             loading={loading}
             className="px-12 uppercase tracking-widest font-black text-[10px]"
           >
             Save Category Routing
           </Button>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => setShowDeleteAll(true)}
             className="text-red-500 border-red-100 hover:bg-red-50"
             disabled={items.length === 0}
