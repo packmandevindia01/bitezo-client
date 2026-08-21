@@ -64,11 +64,7 @@ export const uploadProviderImage = async (id: number, imageFile: File, oldPath: 
   formData.append("OldPath", oldPath || "string");
   formData.append("ProviderImage", imageFile);
 
-  await axiosInstance.post("/provider/provider-image", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  await axiosInstance.post("/provider/provider-image", formData);
 };
 
 export const createProvider = async (payload: ProviderPayload): Promise<{id: number}> => {

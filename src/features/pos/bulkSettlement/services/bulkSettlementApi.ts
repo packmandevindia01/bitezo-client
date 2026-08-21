@@ -5,6 +5,8 @@ import type {
   UnsettledOrder,
   DriverSettlementPayload,
   ProviderSettlementPayload,
+  DaySettlementPayload,
+  PendingOrderStatusResponse,
 } from "../types";
 
 export const bulkSettlementApi = {
@@ -150,5 +152,30 @@ export const bulkSettlementApi = {
       throw new Error(data.message || "Provider settlement failed");
     }
     return { isSuccess: true, message: data?.message || "Provider settlement completed successfully" };
+  },
+
+  // Check if there are any pending orders for the day
+  // GET /api/sales-invoices/{dayId}/pending-order-status
+  checkPendingOrderStatus: async (dayId: number): Promise<PendingOrderStatusResponse> => {
+    const res = await axiosInstance.get<{ data: PendingOrderStatusResponse; isSuccess: boolean; message: string }>(
+      `/sales-invoices/${dayId}/pending-order-status`
+    );
+    if (res.data?.isSuccess && res.data?.data) {
+      return res.data.data;
+    }
+    throw new Error(res.data?.message || "Failed to check pending order status");
+  },
+
+  // Settle all pending orders for the day
+  // POST /api/sales-invoices/day-settlement
+  submitDaySettlement: async (
+    payload: DaySettlementPayload
+  ): Promise<{ isSuccess: boolean; message?: string }> => {
+    const res = await axiosInstance.post("/sales-invoices/day-settlement", payload);
+    const data = res.data;
+    if (data && typeof data === "object" && "isSuccess" in data && !data.isSuccess) {
+      throw new Error(data.message || "Day settlement failed");
+    }
+    return { isSuccess: true, message: data?.message || "Day settlement completed successfully" };
   },
 };

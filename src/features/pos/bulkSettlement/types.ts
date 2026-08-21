@@ -59,3 +59,16 @@ export interface BulkSettlementFilter {
   dayId?: number;
   counterId?: number;
 }
+
+export interface PendingOrderStatusResponse {
+  hasPendingOrder: boolean;
+}
+
+export interface DaySettlementPayload {
+  seriesId: number;
+  prefix: string;
+  dayId: number;
+  createdAt: string;
+  voucherDate: string;
+  transDate: string;
+}

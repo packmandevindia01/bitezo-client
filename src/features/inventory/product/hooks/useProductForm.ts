@@ -121,19 +121,22 @@ export const useProductForm = (productId?: number) => {
       if (path && path !== "string") {
         // Normalize backslashes to forward slashes
         path = path.replace(/\\/g, "/");
-        // If absolute URL points to backend server, strip it to go through local proxy
-        try {
-          const apiOrigin = new URL(getConfig().apiBaseUrl, window.location.origin).origin;
-          if (path.startsWith(apiOrigin)) {
-            path = path.replace(apiOrigin, "");
+        let fullUrl = "";
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+          fullUrl = path;
+        } else {
+          let apiOrigin = "";
+          try {
+            const rawApi = getConfig().apiBaseUrl;
+            apiOrigin = rawApi.startsWith("http") 
+              ? new URL(rawApi).origin 
+              : window.location.origin;
+          } catch {
+            apiOrigin = window.location.origin;
           }
-        } catch (e) {
-          console.error("Failed to parse apiBaseUrl in image path stripping", e);
+          const cleanPath = path.startsWith("/") ? path : `/${path}`;
+          fullUrl = `${apiOrigin}${cleanPath}`;
         }
-        // If already an absolute URL, use it directly. Otherwise prepend base URL.
-        const fullUrl = path.startsWith("http://") || path.startsWith("https://")
-          ? path
-          : `${window.location.origin}${path}`;
         console.log("[useProductForm] Product ID:", productId, "Existing image URL:", fullUrl);
         setImagePreview(fullUrl);
       } else {

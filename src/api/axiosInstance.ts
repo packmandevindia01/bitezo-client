@@ -51,8 +51,8 @@ axiosInstance.interceptors.request.use((config) => {
                               normalizedUrl.includes("/employee/list-name");
 
 
-  // 3. Cleanup: Remove headers that can cause 500s on strict backends
-  if (config.method?.toLowerCase() === "get") {
+  // 3. Cleanup: Remove headers that can cause 500s or boundary errors on strict backends
+  if (config.method?.toLowerCase() === "get" || config.data instanceof FormData) {
     if (config.headers.delete) {
       config.headers.delete("Content-Type");
       config.headers.delete("X-Requested-With");

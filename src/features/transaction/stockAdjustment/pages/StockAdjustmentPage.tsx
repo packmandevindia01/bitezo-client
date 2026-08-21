@@ -191,7 +191,7 @@ const StockAdjustmentPage = () => {
           {/* Close Button in top right */}
           <button
             type="button"
-            onClick={() => navigate("/dashboard/stock-adjustment")}
+            onClick={() => navigate("/dashboard/stock-adjustments")}
             className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
             tabIndex={-1}

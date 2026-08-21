@@ -516,20 +516,16 @@ const ReceiptAgainstVoucherPage = () => {
                   label="Narration" 
                   {...form.register("narration")} 
                 />
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1 min-w-0">
-                    <SearchableSelect 
-                      id="rav-page-paymode" 
-                      label="Paymode" 
-                      required
-                      options={masterData?.paymodes?.map(p => ({ value: String(p.paymodeId), label: p.paymodeName })) || []}
-                      value={String(form.watch("paymodeId") || "")}
-                      onChange={handlePaymodeChange}
-                      disabled={!!transId}
-                      error={form.formState.errors.paymodeId?.message}
-                    />
-                  </div>
-                </div>
+                <SearchableSelect 
+                  id="rav-page-paymode" 
+                  label="Paymode" 
+                  required
+                  options={masterData?.paymodes?.map(p => ({ value: String(p.paymodeId), label: p.paymodeName })) || []}
+                  value={String(form.watch("paymodeId") || "")}
+                  onChange={handlePaymodeChange}
+                  disabled={!!transId}
+                  error={form.formState.errors.paymodeId?.message}
+                />
               </div>
               <div className="flex justify-end mt-2 px-2">
               <div className="flex flex-col items-end">

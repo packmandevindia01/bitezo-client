@@ -73,11 +73,7 @@ export const uploadSubCategoryImage = async (id: number, imageFile: File, oldPat
   formData.append("OldPath", oldPath || "string");
   formData.append("SubCategoryImage", imageFile);
 
-  await axiosInstance.post("/subcategory/subcategory-image", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  await axiosInstance.post("/subcategory/subcategory-image", formData);
 };
 
 export const createSubCategory = async (

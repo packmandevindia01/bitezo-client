@@ -193,11 +193,7 @@ export const productService = {
     formData.append("OldPath", oldPath || "string");
     formData.append("ProductImage", imageFile);
 
-    await axiosInstance.post(url, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data"
-      }
-    });
+    await axiosInstance.post(url, formData);
   },
 
   /** DELETE /api/product/{productId} */

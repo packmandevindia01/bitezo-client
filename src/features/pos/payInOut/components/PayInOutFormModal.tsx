@@ -11,10 +11,14 @@ const payInOutSchema = z.object({
   type: z.enum(['IN', 'OUT']),
   vchNo: z.string().optional(),
   date: z.string().min(1, "Date is required"),
-  description: z.string().min(1, "Description is required"),
-  amount: z.string().min(1, "Amount is required").refine(val => Number(val) >= 0.01, "Amount must be greater than 0"),
+  description: z.string().min(1, "Description is required").max(100, "Max 100 characters"),
+  amount: z.string()
+    .min(1, "Amount is required")
+    .refine(val => Number(val) >= 0.01, "Amount must be greater than 0")
+    .refine(val => Number(val) <= 9_999_999, "Amount cannot exceed 9,999,999"),
   paymodeId: z.number().min(1, "Paymode is required")
 });
+
 
 export type PayInOutFormData = z.infer<typeof payInOutSchema>;
 
@@ -47,7 +51,6 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors }
   } = useForm<PayInOutFormData>({
     resolver: zodResolver(payInOutSchema),
@@ -193,102 +196,102 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
 
         {/* Form Body */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 hide-scrollbar relative z-10">
-          <div className="bg-white rounded-2xl p-5 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200/60 max-w-[600px] mx-auto">
-            <div className="grid gap-5 md:grid-cols-[120px_minmax(0,1fr)] md:items-center py-2">
-        {/* TYPE Selection */}
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Type</span>
-        <div className="flex gap-6 items-center py-2">
-          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-black text-[#49293e] uppercase tracking-[0.1em] select-none">
-            <input
-              type="radio"
-              value="IN"
-              {...register('type')}
-              className="w-4 h-4 text-[#49293e] focus:ring-[#49293e]/30 border-gray-300"
-            />
-            IN
-          </label>
-          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-black text-[#49293e] uppercase tracking-[0.1em] select-none">
-            <input
-              type="radio"
-              value="OUT"
-              {...register('type')}
-              className="w-4 h-4 text-[#49293e] focus:ring-[#49293e]/30 border-gray-300"
-            />
-            OUT
-          </label>
-        </div>
+          <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200/60 max-w-[680px] mx-auto">
 
-        {/* VCH NO */}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Vch No</label>
-        </div>
-        <FormInput
-          {...register('vchNo', {
-             onChange: (e) => setValue('vchNo', e.target.value.toUpperCase().replace(/\s/g, ''))
-          })}
-          placeholder="Auto Generated"
-          hideLabel
-          disabled
-          error={errors.vchNo?.message}
-        />
+            {/* Row 1: Type | VCH NO | Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
 
-        {/* DATE */}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex items-center gap-1">Date <span className="text-red-500">*</span></label>
-        </div>
-        <FormInput
-          type="date"
-          {...register('date')}
-          hideLabel
-          error={errors.date?.message}
-        />
+              {/* TYPE */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Type</span>
+                <div className="flex gap-5 items-center h-10">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-[#49293e] uppercase tracking-[0.1em] select-none">
+                    <input
+                      type="radio"
+                      value="IN"
+                      {...register('type')}
+                      className="w-4 h-4 text-[#49293e] focus:ring-[#49293e]/30 border-gray-300"
+                    />
+                    IN
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-[#49293e] uppercase tracking-[0.1em] select-none">
+                    <input
+                      type="radio"
+                      value="OUT"
+                      {...register('type')}
+                      className="w-4 h-4 text-[#49293e] focus:ring-[#49293e]/30 border-gray-300"
+                    />
+                    OUT
+                  </label>
+                </div>
+              </div>
 
-        {/* DESCRIPTION */}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex items-center gap-1">Description <span className="text-red-500">*</span></label>
-        </div>
-        <FormInput
-          {...register('description')}
-          placeholder="Enter description..."
-          hideLabel
-          error={errors.description?.message}
-          onFocus={handleInputFocus}
-          onClick={handleInputFocus}
-        />
+              {/* VCH NO */}
+              <FormInput
+                {...register('vchNo')}
+                label="Vch No"
+                placeholder="Auto Generated"
+                disabled
+              />
 
-        {/* AMOUNT */}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex items-center gap-1">Amount <span className="text-red-500">*</span></label>
-        </div>
-        <FormInput
-          type="number"
-          {...register('amount')}
-          placeholder={(0).toFixed(decimalPart)}
-          step={Math.pow(10, -decimalPart).toString()}
-          inputClassName="text-right font-black"
-          hideLabel
-          error={errors.amount?.message}
-          onFocus={(e) => {
-            handleInputFocus(e);
-            e.target.select();
-          }}
-          onClick={handleInputFocus}
-        />
-
-        {/* PAYMODE */}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 flex items-center gap-1">Paymode <span className="text-red-500">*</span></label>
-        </div>
-        <SelectInput
-          {...register('paymodeId', { valueAsNumber: true })}
-          options={paymodes}
-          noMargin
-          error={errors.paymodeId?.message}
-        />
+              {/* DATE */}
+              <FormInput
+                type="date"
+                label="Date"
+                required
+                {...register('date')}
+                error={errors.date?.message}
+              />
             </div>
+
+            {/* Row 2: Description (full width) */}
+            <div className="mb-4">
+              <FormInput
+                {...register('description')}
+                label="Description"
+                required
+                placeholder="Enter description..."
+                maxLength={100}
+                error={errors.description?.message}
+                onFocus={handleInputFocus}
+                onClick={handleInputFocus}
+              />
+            </div>
+
+            {/* Row 3: Amount | Paymode */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormInput
+                type="number"
+                label="Amount"
+                required
+                {...register('amount')}
+                placeholder={(0).toFixed(decimalPart)}
+                step={Math.pow(10, -decimalPart).toString()}
+                max="9999999"
+                inputClassName="text-right font-black"
+                error={errors.amount?.message}
+                onFocus={(e) => {
+                  handleInputFocus(e);
+                  e.target.select();
+                }}
+                onClick={handleInputFocus}
+              />
+
+
+              <SelectInput
+                {...register('paymodeId', { valueAsNumber: true })}
+                label="Paymode"
+                required
+                options={paymodes}
+                noMargin
+                error={errors.paymodeId?.message}
+              />
+            </div>
+
           </div>
         </div>
-        
+
+
         {/* Keyboard Section */}
         {showKeyboard && (
           <div className={`shrink-0 w-full bg-[#f8f9fa] mt-auto ${isCompactViewport ? "px-1 pb-1" : "px-3 lg:px-4 pb-2"} border-t border-slate-100`}>

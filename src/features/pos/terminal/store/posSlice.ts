@@ -64,12 +64,30 @@ const loadCart = (): PosCartItem[] => {
   return POS_INITIAL_CART;
 };
 
+const getDefaultInitialOrderType = () => {
+  try {
+    const stored = localStorage.getItem("posConfigs");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const defaultId = Number(parsed?.configs?.defaultOrderTypeId);
+      if (defaultId === 2) return { id: 2, name: "TakeOut" };
+      if (defaultId === 3) return { id: 3, name: "DriveThru" };
+      if (defaultId === 4) return { id: 4, name: "Delivery" };
+      if (defaultId === 5) return { id: 5, name: "Providers" };
+      if (defaultId === 1) return { id: 1, name: "DineIn" };
+    }
+  } catch {}
+  return { id: 2, name: "TakeOut" };
+};
+
+const initialOT = getDefaultInitialOrderType();
+
 const initialState: PosState = {
   cartItems: loadCart(),
   search: '',
   orderTypes: [],
-  selectedOrderTypeId: 1,
-  selectedOrderTypeName: "DineIn",
+  selectedOrderTypeId: initialOT.id,
+  selectedOrderTypeName: initialOT.name,
   selectedTender: POS_TENDER_OPTIONS[0]?.id ?? '',
   
   billDiscountValue: 0,
@@ -259,22 +277,25 @@ const posSlice = createSlice({
         }
       } catch {}
 
-      const selectedTypeExists = action.payload.some((type) => type.orderTypeId === state.selectedOrderTypeId);
-      if ((!state.selectedOrderTypeId || !selectedTypeExists) && action.payload.length > 0) {
+      const isCartEmpty = state.cartItems.length === 0;
+      const isNotEditing = state.editingOrderId === null;
+
+      if ((isCartEmpty && isNotEditing) || !state.selectedOrderTypeId) {
         const matchByDefaultId = action.payload.find((type) => type.orderTypeId === defaultId);
         if (matchByDefaultId) {
           state.selectedOrderTypeId = matchByDefaultId.orderTypeId;
           state.selectedOrderTypeName = matchByDefaultId.orderType;
-        } else {
-          // Try to recover the selection by name before defaulting to index 0
-          const currentNameNorm = normalizeOrderTypeName(state.selectedOrderTypeName || "");
-          const matchByName = action.payload.find(
-            (type) => normalizeOrderTypeName(type.orderType) === currentNameNorm
-          );
-
-          if (matchByName) {
-            state.selectedOrderTypeId = matchByName.orderTypeId;
-            state.selectedOrderTypeName = matchByName.orderType;
+        } else if (action.payload.length > 0) {
+          state.selectedOrderTypeId = action.payload[0].orderTypeId;
+          state.selectedOrderTypeName = action.payload[0].orderType;
+        }
+      } else {
+        const selectedTypeExists = action.payload.some((type) => type.orderTypeId === state.selectedOrderTypeId);
+        if (!selectedTypeExists && action.payload.length > 0) {
+          const matchByDefaultId = action.payload.find((type) => type.orderTypeId === defaultId);
+          if (matchByDefaultId) {
+            state.selectedOrderTypeId = matchByDefaultId.orderTypeId;
+            state.selectedOrderTypeName = matchByDefaultId.orderType;
           } else {
             state.selectedOrderTypeId = action.payload[0].orderTypeId;
             state.selectedOrderTypeName = action.payload[0].orderType;

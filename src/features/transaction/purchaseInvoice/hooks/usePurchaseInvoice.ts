@@ -232,6 +232,23 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     }
   }, []);
 
+  const parseStockValue = useCallback((res: any): string => {
+    if (res === null || res === undefined) return "0.000";
+    if (typeof res === "number") return formatAmount(res);
+    if (typeof res === "string") {
+      const num = Number(res);
+      return isNaN(num) ? res : formatAmount(num);
+    }
+    if (typeof res === "object") {
+      const val = res.stock ?? res.closingStock ?? res.currentStock ?? res.balance ?? res.availableStock ?? res.qty;
+      if (val !== undefined && val !== null) {
+        const num = Number(val);
+        return isNaN(num) ? String(val) : formatAmount(num);
+      }
+    }
+    return "0.000";
+  }, [formatAmount]);
+
   const handleProductSelect = async (index: number, _val: string, barcode: string) => {
     if (!_val && !barcode) return;
     try {
@@ -267,10 +284,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       if (branchIdStr && details.productId) {
         const branchId = Number(branchIdStr);
         productService.getClosingStock(details.productId, branchId)
-          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+          .then(res => setValue(`items.${index}.stock`, parseStockValue(res)))
           .catch((err) => {
             console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
-            setValue(`items.${index}.stock`, "Error");
+            setValue(`items.${index}.stock`, "0.000");
           });
 
         productService.getAverageCost(details.productId, details.baseUnitId, branchId)
@@ -286,10 +303,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       if (branchIdStr && _val) {
         const branchId = Number(branchIdStr);
         productService.getClosingStock(Number(_val), branchId)
-          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
+          .then(res => setValue(`items.${index}.stock`, parseStockValue(res)))
+          .catch(() => setValue(`items.${index}.stock`, "0.000"));
       } else {
-        setValue(`items.${index}.stock`, "Error");
+        setValue(`items.${index}.stock`, "0.000");
       }
     }
   };
@@ -348,10 +365,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         if (branchIdStr && details.productId) {
           const branchId = Number(branchIdStr);
           productService.getClosingStock(details.productId, branchId)
-            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .then(res => setValue(`items.${index}.stock`, parseStockValue(res)))
             .catch((err) => {
               console.error(`Failed to fetch closing stock for productId: ${details.productId}, branchId: ${branchId}`, err);
-              setValue(`items.${index}.stock`, "Error");
+              setValue(`items.${index}.stock`, "0.000");
             });
 
           productService.getAverageCost(details.productId, details.baseUnitId, branchId)
@@ -367,15 +384,15 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         const opt = productOptions.find(o => o.code === barcode || o.barcode === barcode);
         if (branchIdStr && opt) {
           productService.getClosingStock(Number(opt.value), Number(branchIdStr))
-            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-            .catch(() => setValue(`items.${index}.stock`, "Error"));
+            .then(res => setValue(`items.${index}.stock`, parseStockValue(res)))
+            .catch(() => setValue(`items.${index}.stock`, "0.000"));
         } else {
-          setValue(`items.${index}.stock`, "Error");
+          setValue(`items.${index}.stock`, "0.000");
         }
       }
     } catch (e) {
       console.error("Instant barcode lookup failed", e);
-      setValue(`items.${index}.stock`, "Error");
+      setValue(`items.${index}.stock`, "0.000");
       setValue(`items.${index}.avgCost`, "Error");
     }
     return false;

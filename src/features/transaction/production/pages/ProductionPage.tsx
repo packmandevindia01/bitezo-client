@@ -108,7 +108,7 @@ const ProductionPage = () => {
           {/* Close Button in top right */}
           <button
             type="button"
-            onClick={() => navigate("/production-list")}
+            onClick={() => navigate("/dashboard/production-list")}
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >

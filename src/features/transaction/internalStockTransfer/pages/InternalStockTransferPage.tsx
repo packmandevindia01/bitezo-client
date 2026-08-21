@@ -14,10 +14,12 @@ import { formatAmount } from "../../../../utils/currency";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
 import type { InternalStockTransferLineItem } from "../types";
 import { generateUUID } from "../../../../utils/uuid";
+import { useToast } from "../../../../app/providers/useToast";
 
 const InternalStockTransferPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const {
     methods,
@@ -211,13 +213,41 @@ const InternalStockTransferPage = () => {
     }
   };
 
-  const onSaveClick = () => {
+  const onSaveClick = async () => {
+    // 1. Validate required header fields first (date, fromBranch, toBranch, salesman)
+    const headerFields = ["date", "fromBranch", "toBranch", "salesman"];
+    const isHeaderValid = await methods.trigger(headerFields as any);
+    if (!isHeaderValid) {
+      const errs = methods.formState.errors;
+      const firstErrorKey = Object.keys(errs).find(k => headerFields.includes(k)) || Object.keys(errs)[0];
+      if (firstErrorKey) {
+        setTimeout(() => {
+          const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
+          if (el) {
+            el.focus();
+          } else {
+            const elId = document.getElementById(`st-${firstErrorKey}`);
+            if (elId) elId.focus();
+          }
+        }, 100);
+      }
+      return;
+    }
+
+    // 2. Validate at least one product selected
     const currentItems = getValues("items") || [];
     const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
     if (validItems.length === 0) {
-      methods.setError("items", { message: "Please add at least one product." });
+      showToast("Please add at least one product.", "warning");
       return;
     }
+
+    // 3. Trigger full form validation
+    const isValid = await methods.trigger();
+    if (!isValid) {
+      return;
+    }
+
     setShowSaveConfirm(true);
   };
 
@@ -489,11 +519,6 @@ const InternalStockTransferPage = () => {
                 </table>
               </div>
             </div>
-            
-            {errors.items?.message && (
-              <p className="mt-1 text-xs text-red-500">{errors.items.message as string}</p>
-            )}
-
           </div>
 
           {/* ── Compact Action Footer ── */}

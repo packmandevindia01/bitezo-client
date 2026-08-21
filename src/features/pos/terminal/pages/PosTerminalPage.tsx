@@ -142,8 +142,10 @@ export const PosTerminalPage = () => {
     return readStoredPosConfig();
   };
 
-  const applyDefaultOrderType = async (allowAutoDineIn: boolean = false) => {
+  const applyDefaultOrderType = async (shouldApplyDefault: boolean = false) => {
     try {
+      if (!shouldApplyDefault) return;
+
       const config = await getRuntimePosConfig();
       const defaultId = Number(config?.defaultOrderTypeId) || 1;
 
@@ -157,7 +159,7 @@ export const PosTerminalPage = () => {
 
       const isDineIn = defaultId === 1 || (match?.orderType && match.orderType.toLowerCase().includes("dine"));
       const isShiftOpen = status && !status.isDayClosed && !status.isShiftClosed;
-      if (isDineIn && allowAutoDineIn && isShiftOpen && !terminal.editingOrderId && !terminal.selectedTableId) {
+      if (isDineIn && isShiftOpen && !terminal.editingOrderId && !terminal.selectedTableId) {
         navigate("/pos/dine-in", { state: { skipAutoDineIn: true } });
       }
     } catch (e) {
@@ -199,8 +201,7 @@ export const PosTerminalPage = () => {
     resetTerminalState();
     setActiveProvider(null);
     dispatch(setCustomerId(1));
-    const activeOrderTypeId = terminal.selectedOrderTypeId;
-    void applyDefaultOrderType(activeOrderTypeId === 1);
+    void applyDefaultOrderType(true);
   };
 
   const handleRequestClearCart = () => {

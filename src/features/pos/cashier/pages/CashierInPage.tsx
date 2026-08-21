@@ -6,7 +6,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../app/hooks";
 import { setCredentials } from "../../../../features/auth/store/authSlice";
 import { fetchPosMasterDataApi } from "../../../../features/auth/services/authApi";
-import { Settings, Delete } from "lucide-react";
+import { Delete } from "lucide-react";
 
 // --- Custom Premium Numpad Component ---
 const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
@@ -271,14 +271,6 @@ const CashierInPage = () => {
 
           {/* Context and Config */}
           <div className="mt-1 xl:mt-4 flex flex-col items-center gap-2 xl:gap-4 w-full">
-            <button
-              onClick={() => navigate("/system/register")}
-              className="group flex items-center gap-2 xl:gap-3 px-4 py-2 xl:px-5 xl:py-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-[#49293e] hover:border-[#49293e]/30 shadow-sm transition-all duration-300"
-            >
-              <Settings size={16} className="group-hover:rotate-90 transition-transform duration-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Terminal Configuration</span>
-            </button>
-
             <div className="flex items-center gap-4 w-full">
               <div className="flex-1 flex flex-col items-center gap-0.5">
                 <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Branch</span>

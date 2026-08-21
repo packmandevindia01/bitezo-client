@@ -72,16 +72,21 @@ const PayInOutPage: React.FC = () => {
     }
 
     if (editingId) {
+      // Parse date as local time (not UTC) to avoid date shifting in +5:30 timezones
+      const [year, month, day] = data.date.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      const nowIso = new Date().toISOString();
+
       updateTransaction.mutate({
         id: editingId,
         data: {
           transId: editingId,
           inOut: data.type,
-          voucherDate: new Date(data.date).toISOString(),
+          voucherDate: localDate.toISOString(),
           description: data.description,
           amount: Number(data.amount),
           paymodeId: data.paymodeId,
-          updatedAt: new Date().toISOString()
+          updatedAt: nowIso
         }
       }, {
         onSuccess: () => {
@@ -94,15 +99,20 @@ const PayInOutPage: React.FC = () => {
         }
       });
     } else {
+      // Parse date as local time (not UTC) to avoid date shifting in +5:30 timezones
+      const [year, month, day] = data.date.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      const nowIso = new Date().toISOString();
+
       createTransaction.mutate({
         inOut: data.type,
-        voucherDate: new Date(data.date).toISOString(),
+        voucherDate: localDate.toISOString(),
         description: data.description,
         amount: Number(data.amount),
         paymodeId: data.paymodeId,
         dayId: cashierStatus.dayId,
         shiftId: cashierStatus.shiftId,
-        createdAt: new Date().toISOString()
+        createdAt: nowIso
       }, {
         onSuccess: () => {
           showToast("Transaction saved successfully", "success");
@@ -114,6 +124,7 @@ const PayInOutPage: React.FC = () => {
         }
       });
     }
+
   };
 
   const handleCancel = (transId: number) => {

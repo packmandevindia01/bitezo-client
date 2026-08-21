@@ -83,6 +83,7 @@ const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockIt
 const PosMorePage = lazy(() => import("../../features/pos/terminal/pages/PosMorePage"));
 const PosConfigurationPage = lazy(() => import("../../features/pos/terminal/pages/PosConfigurationPage"));
 const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages/DineInSelectionPage"));
+const PosDeliveryPage = lazy(() => import("../../features/pos/customer/pages/PosDeliveryPage"));
 const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
 const SalesReportPage = lazy(() => import("../../features/reports/salesReport/pages/SalesReportPage"));
 const PurchaseReportPage = lazy(() => import("../../features/reports/purchaseReport/pages/PurchaseReportPage"));
@@ -173,6 +174,7 @@ const AppRoutes = () => {
                   <Route path="pos/more" element={<RoleGuard moduleName="Sales Invoice"><PosMorePage /></RoleGuard>} />
                   <Route path="pos/configuration" element={<RoleGuard moduleName="Sales Invoice"><PosConfigurationPage /></RoleGuard>} />
                   <Route path="pos/dine-in" element={<RoleGuard moduleName="Sales Invoice"><DineInSelectionPage /></RoleGuard>} />
+                  <Route path="pos/delivery" element={<RoleGuard moduleName="Sales Invoice"><PosDeliveryPage /></RoleGuard>} />
                   <Route path="pos/bulk-settlement" element={<RoleGuard moduleName={["Sales Invoice", "Sales Report", "Bulk Settlement"]}><BulkSettlementPage /></RoleGuard>} />
                 </Route>
 
