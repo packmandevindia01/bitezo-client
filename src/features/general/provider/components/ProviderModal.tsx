@@ -66,13 +66,13 @@ const ProviderModal = ({
           <Button
             type="button"
             variant="secondary"
-            className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
+            className={`text-[#49293e] hover:bg-[#e7dbe2] ${errors.branchIds ? "border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500" : "bg-[#f0e8ed]"}`}
             onClick={onToggleAllocation}
             disabled={saving}
             isAction
             icon={<Building2 size={18} />}
           >
-            Branches
+            Branches {errors.branchIds ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
           </Button>
           <Button 
             type="button"
@@ -153,6 +153,7 @@ const ProviderModal = ({
             {/* Post Account */}
             <SearchableSelect
               label="Post Account"
+              required
               tabIndex={3}
               value={String(form.watch("postAccountId") || "")}
               onChange={(val) => form.setValue("postAccountId", Number(val) || 0, { shouldDirty: true, shouldValidate: true })}
@@ -221,8 +222,17 @@ const ProviderModal = ({
 
         {/* Branch allocation panel */}
         {allocationOpen && (
-          <div className="mt-6 rounded-2xl border border-[#49293e]/15 bg-[#49293e]/3 p-5 animate-in fade-in slide-in-from-top-2 duration-300">
-            <p className="text-sm font-semibold text-gray-800">Branch Allocation</p>
+          <div className={`mt-6 rounded-2xl border p-5 animate-in fade-in slide-in-from-top-2 duration-300 ${errors.branchIds ? "border-red-300 bg-red-50/20" : "border-[#49293e]/15 bg-[#49293e]/3"}`}>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-800">
+                Branch Allocation <span className="text-red-500 font-bold">*</span>
+              </p>
+              {errors.branchIds?.message && (
+                <span className="text-xs font-semibold text-red-500">
+                  {errors.branchIds.message}
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-xs text-gray-500">
               Select the branches where this provider is available.
             </p>

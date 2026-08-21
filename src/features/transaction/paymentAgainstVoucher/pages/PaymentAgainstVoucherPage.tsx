@@ -81,6 +81,9 @@ const PaymentAgainstVoucherPage = () => {
   };
 
   const setManualField = (key: string, value: string) => {
+    if (key === "amount" || key === "invoiceAmount" || key === "paid" || key === "balance") {
+      if (value !== "" && !/^\d*\.?\d*$/.test(value)) return;
+    }
     setManualItem(prev => ({ ...prev, [key]: value }));
   };
 
@@ -421,11 +424,26 @@ const PaymentAgainstVoucherPage = () => {
                     }}
                   />
                 </div>
-                <FormInput id="pav-manual-vchType" label="INV TYPE" value={manualItem.voucherType} disabled onChange={(e) => setManualField("voucherType", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-invAmnt")} />
-                <FormInput id="pav-manual-invAmnt" label="Inv Amnt" value={manualItem.invoiceAmount} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right" onChange={(e) => setManualField("invoiceAmount", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-paid")} />
-                <FormInput id="pav-manual-paid" label="Paid" value={manualItem.paid} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right" onChange={(e) => setManualField("paid", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-balance")} />
-                <FormInput id="pav-manual-balance" label="Balance" value={manualItem.balance} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right" onChange={(e) => setManualField("balance", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-amount")} />
-                <FormInput id="pav-manual-amount" label="Amount" value={manualItem.amount} placeholder={(0).toFixed(getDecimalPart())} inputClassName="text-right font-bold text-[#49293e]" onChange={(e) => setManualField("amount", e.target.value)} onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-add-btn")} />
+                <FormInput id="pav-manual-vchType" label="INV TYPE" value={manualItem.voucherType} disabled inputClassName="bg-gray-50 cursor-not-allowed text-xs" />
+                <FormInput id="pav-manual-invAmnt" label="Inv Amnt" value={manualItem.invoiceAmount ? formatAmount(Number(manualItem.invoiceAmount)) : ""} placeholder={formatAmount(0)} disabled inputClassName="text-right font-mono bg-gray-50 cursor-not-allowed text-xs" />
+                <FormInput id="pav-manual-paid" label="Paid" value={manualItem.paid ? formatAmount(Number(manualItem.paid)) : ""} placeholder={formatAmount(0)} disabled inputClassName="text-right font-mono bg-gray-50 cursor-not-allowed text-xs" />
+                <FormInput id="pav-manual-balance" label="Balance" value={manualItem.balance ? formatAmount(Number(manualItem.balance)) : ""} placeholder={formatAmount(0)} disabled inputClassName="text-right font-mono bg-gray-50 cursor-not-allowed text-xs" />
+                <FormInput 
+                  id="pav-manual-amount" 
+                  label="Amount" 
+                  type="text"
+                  inputMode="decimal"
+                  value={manualItem.amount} 
+                  placeholder={formatAmount(0)} 
+                  inputClassName="text-right font-bold font-mono text-[#49293e] text-xs" 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      setManualField("amount", val);
+                    }
+                  }} 
+                  onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-add-btn")} 
+                />
                 <div className="flex items-end mb-1">
                   <Button
                     id="pav-manual-add-btn"

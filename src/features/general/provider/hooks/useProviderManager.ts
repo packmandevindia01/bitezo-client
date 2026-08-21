@@ -181,9 +181,16 @@ export const useProviderManager = () => {
     }
   };
 
-  const handleSave = form.handleSubmit((data) => {
-    saveMutation.mutate(data);
-  });
+  const handleSave = form.handleSubmit(
+    (data) => {
+      saveMutation.mutate(data);
+    },
+    (errs) => {
+      if (errs.branchIds) {
+        setAllocationOpen(true);
+      }
+    }
+  );
 
   const handleDelete = (providerId: number) => {
     deleteMutation.mutate(providerId);
