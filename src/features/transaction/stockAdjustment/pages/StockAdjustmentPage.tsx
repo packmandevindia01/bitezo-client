@@ -208,7 +208,7 @@ const StockAdjustmentPage = () => {
               <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="!h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="!h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked || Boolean(id)} clearable={!id} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="!h-8 !px-2 !text-xs" id="sa-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />

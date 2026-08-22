@@ -46,8 +46,8 @@ export interface ProviderPayload {
 export const providerSchema = z.object({
   providerId: z.number().optional(),
   providerName: z.string().min(1, "Provider name is required").max(20, "Provider name cannot exceed 20 characters"),
-  paymodeId: z.coerce.number().min(1, "Please select a paymode"),
-  postAccountId: z.coerce.number().min(1, "Post account is required"),
+  paymodeId: z.number().min(1, "Please select a paymode"),
+  postAccountId: z.number().min(1, "Post account is required"),
   deliveryStatus: z.boolean(),
   branchIds: z.array(z.number()).min(1, "At least one branch is required"),
   imageFile: z.any().optional(), // Using any for File object since zod doesn't have a native File type in browser environments easily checkable here

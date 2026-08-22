@@ -328,16 +328,23 @@ const ProductionPage = () => {
                             <Controller
                               name={`items.${index}.unit`}
                               control={control}
-                              render={({ field: selectField }) => (
-                                <SearchableSelect
-                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
-                                  value={selectField.value}
-                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
-                                  onChange={(val) => handleGridUnitChange(index, val)}
-                                  placeholder="Unit"
-                                  disableAutoOpenOnFocus={true}
-                                />
-                              )}
+                              render={({ field: selectField }) => {
+                                const isProductSelected = Boolean(itemWatch.product && itemWatch.product.trim() !== "");
+                                const rowUnits = isProductSelected
+                                  ? ((itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || []))
+                                  : [];
+                                return (
+                                  <SearchableSelect
+                                    className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
+                                    value={selectField.value}
+                                    options={rowUnits}
+                                    onChange={(val) => handleGridUnitChange(index, val)}
+                                    placeholder={isProductSelected ? "Unit" : ""}
+                                    disabled={!isProductSelected}
+                                    disableAutoOpenOnFocus={true}
+                                  />
+                                );
+                              }}
                             />
                           </td>
                           <td className="p-0 border-r border-gray-100">

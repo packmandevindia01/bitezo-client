@@ -222,7 +222,23 @@ export const useStockAdjustment = (id?: string | null) => {
           });
         }
       }
-      return { rawData: responseData, formPayload, productOptions: options };
+
+      // Pre-fetch employee name if needed
+      const branchIdForEmp = master.branchId;
+      let employeeName = master.employeeName || master.empName || master.salesmanName || master.salesman || "";
+      if (branchIdForEmp && master.employeeId && !employeeName) {
+        try {
+          const empList = await stockAdjustmentApi.getEmployeeList(Number(branchIdForEmp)).catch(() => []);
+          const foundEmp = empList.find((e) => String(e.empId) === String(master.employeeId));
+          if (foundEmp) {
+            employeeName = foundEmp.empName || "";
+          }
+        } catch (e) {
+          console.error("Failed to fetch employee name for stock adjustment", e);
+        }
+      }
+
+      return { rawData: responseData, formPayload, productOptions: options, employeeName };
     },
     enabled: !!id,
   });
@@ -267,12 +283,18 @@ export const useStockAdjustment = (id?: string | null) => {
     const list = [...branchData.employees];
     if (id && recordData) {
       const master = (recordData.rawData as any).masterData || recordData.rawData;
-      const empId = String(master.employeeId || "");
-      if (empId && !list.find(e => e.value === empId)) {
-        list.push({
-          label: master.employeeName || master.empName || master.salesmanName || `[${empId}] Unknown`,
-          value: empId
-        });
+      const empId = String(master.employeeId || master.empId || "");
+      const empName = (recordData as any).employeeName || master.employeeName || master.empName || master.salesmanName || master.salesman || "";
+      if (empId) {
+        const existing = list.find(e => e.value === empId);
+        if (!existing) {
+          list.push({
+            label: empName || `[${empId}] Unknown`,
+            value: empId
+          });
+        } else if (empName && (existing.label.includes("Unknown") || existing.label === empId)) {
+          existing.label = empName;
+        }
       }
     }
     return list;

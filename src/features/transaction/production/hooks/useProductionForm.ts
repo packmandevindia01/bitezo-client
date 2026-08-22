@@ -189,16 +189,16 @@ export const useProductionForm = (initialTransId?: number) => {
   }, [prodNoData, initialTransId, setValue]);
 
   // Fetch initial data if in Edit Mode
-  const { isLoading: isLoadingInitialData } = useQuery({
+  const { data: recordData, isLoading: isLoadingInitialData } = useQuery({
     queryKey: ["productionData", initialTransId],
     queryFn: async () => {
       if (!initialTransId) return null;
       const data = await productionApi.getProductionById(initialTransId);
-      const master = data.masterData || {};
-      const details = data.detailsData || [];
+      const master = data.masterData || data || {};
+      const details = data.detailsData || data.details || [];
       
+      const mappedItems: any[] = [];
       if (details.length > 0) {
-        const mappedItems: any[] = [];
         for (const item of details) {
           const barcode = item.barcode || item.code || "";
           let unitCategory = "";
@@ -216,6 +216,7 @@ export const useProductionForm = (initialTransId?: number) => {
           mappedItems.push({
             id: generateUUID(),
             product: String(item.productId),
+            productName: item.productName || item.itemName || item.name || "",
             code: item.barcode || item.code || "",
             unit: String(item.unitId),
             unitCategory,
@@ -225,25 +226,66 @@ export const useProductionForm = (initialTransId?: number) => {
             unitId: item.unitId,
           });
         }
-        const finishedProdName = master.productName || master.itemName || master.name || "";
-        const finishedProdCode = master.barcode || master.productCode || "";
-        reset({
-          branchId: String(master.branchId || ""),
-          employeeId: String(master.employeeId || ""),
-          finishedProduct: String(master.productId || ""),
-          finishedProductName: finishedProdCode ? `[${finishedProdCode}] ${finishedProdName}` : finishedProdName,
-          finishedProductUnit: String(master.unitId || ""),
-          finishedProductUnitName: master.unitName || String(master.unitId || ""),
-          finishedProductQty: String(master.qty || 1),
-          otherCharge: Number(master.totalWage || 0).toFixed(decimalPart),
-          narration: master.narration || "",
-          items: mappedItems,
-        });
       }
-      return data;
+
+      const finishedProdName = master.productName || master.itemName || master.name || "";
+      const finishedProdCode = master.barcode || master.productCode || master.code || "";
+      
+      let finishedUnits: { label: string; value: string; currentValue: number }[] = [];
+      if (finishedProdCode) {
+        try {
+          const costData = await productionApi.getProductCostData(finishedProdCode);
+          if (costData?.unitCategory) {
+            const unitsResp = await productionApi.getUnitListByName(costData.unitCategory);
+            finishedUnits = (unitsResp || []).map((u: any) => ({
+              label: u.name || u.unitName,
+              value: String(u.unitId),
+              currentValue: Number(u.currentValue ?? u.currentvalue ?? 1)
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to load finished product units", e);
+        }
+      }
+
+      return {
+        master,
+        details,
+        mappedItems,
+        finishedProdName: finishedProdCode ? `[${finishedProdCode}] ${finishedProdName}` : finishedProdName,
+        finishedProdCode,
+        finishedUnits,
+        rawData: data,
+      };
     },
     enabled: !!initialTransId,
   });
+
+  // Apply fetched record data to form reliably on mount and parameter changes
+  useEffect(() => {
+    if (initialTransId && recordData) {
+      const { master, mappedItems, finishedProdName, finishedProdCode, finishedUnits } = recordData;
+      if (finishedUnits && finishedUnits.length > 0) {
+        setFinishedProductUnits(finishedUnits);
+      }
+      reset({
+        branchId: String(master.branchId || ""),
+        employeeId: String(master.employeeId || ""),
+        productionNo: String(master.productionNo || master.prodNo || master.refNo || initialTransId),
+        finishedProduct: String(master.productId || ""),
+        finishedProductCode: finishedProdCode,
+        finishedProductName: finishedProdName,
+        finishedProductUnit: String(master.unitId || ""),
+        finishedProductUnitName: master.unitName || String(master.unitId || ""),
+        finishedProductQty: String(master.qty || 1),
+        otherCharge: Number(master.totalWage || 0).toFixed(decimalPart),
+        narration: master.narration || "",
+        items: mappedItems.length > 0 ? mappedItems : [{ id: generateUUID(), product: "", code: "", unit: "", qty: "1", cost: "0" }],
+      });
+    } else if (!initialTransId) {
+      setFinishedProductUnits([]);
+    }
+  }, [initialTransId, recordData, reset, decimalPart]);
 
   // 5. Actions & Handlers
   const handleFinishedProductSelect = async (productId: string) => {
@@ -539,6 +581,7 @@ export const useProductionForm = (initialTransId?: number) => {
     onSuccess: () => {
       showToast(`Production ${initialTransId ? "updated" : "saved"} successfully!`, "success");
       queryClient.invalidateQueries({ queryKey: ["productionList"] });
+      queryClient.invalidateQueries({ queryKey: ["productionData"] });
       if (!initialTransId) {
         reset();
       }
