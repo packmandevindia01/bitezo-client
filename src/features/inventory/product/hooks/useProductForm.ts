@@ -13,20 +13,9 @@ import { useToast } from "../../../../app/providers/useToast";
 import { getConfig } from "../../../../config";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
 
-async function urlToFile(url: string, filename: string = "image.jpg"): Promise<File | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const mimeType = blob.type || "image/jpeg";
-    const ext = mimeType.split("/")[1]?.replace(/[^a-zA-Z0-9]/g, "") || "jpg";
-    const cleanFilename = filename.includes(".") ? filename : `${filename}.${ext}`;
-    return new File([blob], cleanFilename, { type: mimeType });
-  } catch (e) {
-    console.warn("[useProductForm] Failed to convert existing image to File:", e);
-    return null;
-  }
-}
+
+
+
 
 export const useProductForm = (productId?: number) => {
   const navigate = useNavigate();
@@ -283,6 +272,8 @@ export const useProductForm = (productId?: number) => {
         branchId: Number(data.branchId),
         isActive: data.isActive,
         colorCode: data.colorCode || "#49293e",
+        filePath: cleanOldPath !== "string" ? cleanOldPath : (data.filePath || undefined),
+        fileUrl: existingData?.product?.fileUrl || data.fileUrl || undefined,
         altProducts: data.altProducts.map(a => ({
           unitId: Number(a.unitId),
           barcode: a.barcode || "",
@@ -317,15 +308,9 @@ export const useProductForm = (productId?: number) => {
         payload.updatedAt = new Date().toISOString();
         console.log("Submitting PUT payload to API:", JSON.stringify(payload, null, 2));
 
-        let fileToUpload = imageFile;
-        // If user didn't pick a new image file, but product has an existing image, convert & re-post it
-        if (!fileToUpload && imagePreview && (existingData?.product?.filePath || existingData?.product?.fileUrl)) {
-          fileToUpload = await urlToFile(imagePreview, `product_${activeProductId}`);
-        }
-
         await productService.update(activeProductId, { 
           ...payload, 
-          imageFile: fileToUpload || undefined,
+          imageFile: imageFile || undefined,
           oldPath: cleanOldPath
         });
         return { id: activeProductId };

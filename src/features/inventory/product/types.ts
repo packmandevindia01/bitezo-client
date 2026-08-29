@@ -130,6 +130,8 @@ export interface CreateProductPayload {
   altProducts: AltProductItem[];
   productColors: ProductColorItem[];
   openingStocks: OpeningStockItem[];
+  filePath?: string;
+  fileUrl?: string;
 }
 
 export interface UpdateProductPayload extends Omit<CreateProductPayload, "createdAt"> {

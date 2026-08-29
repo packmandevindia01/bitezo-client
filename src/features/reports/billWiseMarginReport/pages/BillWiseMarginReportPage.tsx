@@ -31,7 +31,7 @@ const BillWiseMarginReportPage = () => {
 
   return (
     <PageShell title="Bill Wise Margin Report">
-      <div className="flex flex-col h-full bg-slate-50 p-4 gap-4">
+      <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden bg-slate-50 p-3 gap-3">
         
         {/* ── Top Header Bar ─────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-12">
@@ -176,19 +176,28 @@ const BillWiseMarginReportPage = () => {
                 )}
               </tbody>
               
-              {!isLoading && rows.length > 0 && (
-                <tfoot className="sticky bottom-0 z-10 bg-gray-100 border-t-2 border-t-[#49293e]/20 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
-                  <tr>
-                    <td colSpan={5} className="px-2 py-2 text-center font-bold text-gray-700 border-r border-gray-200">Total</td>
-                    <td className="px-2 py-2 text-right font-bold tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(totals.netValue)}</td>
-                    <td className="px-2 py-2 text-right font-bold tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(totals.cost)}</td>
-                    <td className="px-2 py-2 text-right font-bold tabular-nums text-green-700 border-r border-gray-200">{formatAmount(totals.margin)}</td>
-                    <td className="px-2 py-2 text-right font-bold tabular-nums text-[#49293e]">{formatAmount(totals.marginper)}</td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
+
+          {!isLoading && rows.length > 0 && (
+            <div className="overflow-x-auto shrink-0 bg-gray-100 border-t-2 border-t-[#49293e]/30 shadow-[0_-2px_6px_rgba(0,0,0,0.08)] z-20">
+              <table className="w-full min-w-[900px] text-xs border-collapse table-fixed">
+                <tbody>
+                  <tr className="font-bold">
+                    <td className="w-16 px-2 py-2 text-center text-gray-700 border-r border-gray-200">Total</td>
+                    <td className="w-32 border-r border-gray-200" />
+                    <td className="w-32 border-r border-gray-200" />
+                    <td className="w-32 border-r border-gray-200" />
+                    <td className="w-48 border-r border-gray-200" />
+                    <td className="w-32 px-2 py-2 text-right tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(totals.netValue)}</td>
+                    <td className="w-32 px-2 py-2 text-right tabular-nums text-gray-900 border-r border-gray-200">{formatAmount(totals.cost)}</td>
+                    <td className="w-32 px-2 py-2 text-right tabular-nums text-green-700 border-r border-gray-200">{formatAmount(totals.margin)}</td>
+                    <td className="w-32 px-2 py-2 text-right tabular-nums text-[#49293e]">{formatAmount(totals.marginper)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* ── Sticky Bottom Actions Bar ───────────────────────────────────── */}

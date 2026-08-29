@@ -163,14 +163,11 @@ export const productService = {
       axiosInstance.put<ApiResponse<{ id: number }>>(url, jsonData)
     );
 
-    // 2. Upload new image sequentially right after product is updated
-    if (imageFile) {
-      try {
-        await productService.uploadImage(productId, imageFile, oldPath || "string");
-      } catch (error: any) {
-        console.error("[ProductService] Image upload failed after update:", error);
-        throw new Error(error.message ? `Product updated, but image upload failed: ${error.message}` : "Product updated, but image upload failed.");
-      }
+    // 2. Call image endpoint with OldPath (Option B)
+    try {
+      await productService.uploadImage(productId, imageFile, oldPath || "string");
+    } catch (error: any) {
+      console.error("[ProductService] Image API call failed after update:", error);
     }
 
     return data;
@@ -185,13 +182,15 @@ export const productService = {
   },
 
   /** POST /api/product/product-image */
-  async uploadImage(productId: number, imageFile: File, oldPath: string = "string"): Promise<void> {
+  async uploadImage(productId: number, imageFile?: File, oldPath: string = "string"): Promise<void> {
     const url = `${BASE}/product-image`;
     const formData = new FormData();
-    // Match Swagger exactly: ProductId, OldPath, ProductImage
+    // Match Swagger: ProductId, OldPath, ProductImage
     formData.append("ProductId", String(productId));
     formData.append("OldPath", oldPath || "string");
-    formData.append("ProductImage", imageFile);
+    if (imageFile) {
+      formData.append("ProductImage", imageFile);
+    }
 
     await axiosInstance.post(url, formData);
   },
