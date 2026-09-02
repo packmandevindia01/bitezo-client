@@ -91,6 +91,7 @@ const EmployeeModal = ({
           label="Name"
           required
           autoFocus
+          maxLength={50}
           placeholder="Enter employee name"
           tabIndex={1}
           {...register("name")}
@@ -102,6 +103,7 @@ const EmployeeModal = ({
           id="emp-code"
           label="Code"
           required
+          maxLength={50}
           placeholder="Enter employee code"
           tabIndex={2}
           {...register("code", {

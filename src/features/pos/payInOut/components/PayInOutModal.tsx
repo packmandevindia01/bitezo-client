@@ -219,7 +219,13 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
               label="AMOUNT"
               type="number"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              maxLength={10}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length <= 10) {
+                  setAmount(val);
+                }
+              }}
               placeholder="0.00"
             />
             <SelectInput

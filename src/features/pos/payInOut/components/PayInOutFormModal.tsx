@@ -14,8 +14,9 @@ const payInOutSchema = z.object({
   description: z.string().min(1, "Description is required").max(100, "Max 100 characters"),
   amount: z.string()
     .min(1, "Amount is required")
+    .max(10, "Max 10 characters allowed")
     .refine(val => Number(val) >= 0.01, "Amount must be greater than 0")
-    .refine(val => Number(val) <= 9_999_999, "Amount cannot exceed 9,999,999"),
+    .refine(val => Number(val) <= 9_999_999_999, "Amount cannot exceed 9,999,999,999"),
   paymodeId: z.number().min(1, "Paymode is required")
 });
 
@@ -264,10 +265,17 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
                 type="number"
                 label="Amount"
                 required
-                {...register('amount')}
+                maxLength={10}
+                {...register('amount', {
+                  onChange: (e) => {
+                    if (e.target.value && e.target.value.length > 10) {
+                      e.target.value = e.target.value.slice(0, 10);
+                    }
+                  }
+                })}
                 placeholder={(0).toFixed(decimalPart)}
                 step={Math.pow(10, -decimalPart).toString()}
-                max="9999999"
+                max="9999999999"
                 inputClassName="text-right font-black"
                 error={errors.amount?.message}
                 onFocus={(e) => {

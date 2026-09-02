@@ -57,6 +57,8 @@ const PurchaseReturnFormPage = () => {
     saving,
     selectedPaymodeId,
     setSelectedPaymodeId,
+    paymodeError,
+    setPaymodeError,
     handleSinglePayment,
     purchaseId,
     grossTotal,
@@ -82,46 +84,27 @@ const PurchaseReturnFormPage = () => {
   const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
 
   const onSaveClick = async () => {
-    const headerFields = ["series", "purchaseNo", "purchaseDate", "invoiceNo", "refNo", "supplier", "branch", "salesman"];
+    // 1. Validate Paymode
+    let hasPaymodeErr = false;
+    if (!selectedPaymodeId || selectedPaymodeId <= 0 || payments.length === 0) {
+      setPaymodeError("required");
+      hasPaymodeErr = true;
+    } else {
+      setPaymodeError("");
+    }
+
+    // 2. Validate RHF Header Fields (Supplier, Branch, Series, Salesman, Return Date, etc.)
+    const headerFields = ["series", "purchaseNo", "purchaseDate", "supplier", "branch", "salesman"];
     const isHeaderValid = await methods.trigger(headerFields as any);
-    if (!isHeaderValid) {
-      const errs = methods.formState.errors;
-      const firstErrorKey = Object.keys(errs).find(k => headerFields.includes(k)) || Object.keys(errs)[0];
-      if (firstErrorKey && (errs as any)[firstErrorKey]) {
-        const err = (errs as any)[firstErrorKey];
-        showToast(err?.message || `Please fill required fields (${firstErrorKey}).`, "error");
-        setTimeout(() => {
-          const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
-          if (el) {
-            el.focus();
-          } else {
-            const elId = document.getElementById(`pr-${firstErrorKey}`);
-            if (elId) elId.focus();
-          }
-        }, 100);
-      } else {
-        showToast("Please fill all required fields.", "error");
-      }
+    if (!isHeaderValid || hasPaymodeErr) {
       return;
     }
 
+    // 3. Validate at least one product
     const currentItems = getValues("items") || [];
     const validItems = currentItems.filter((i: any) => i.product && i.product.trim() !== "");
     if (validItems.length === 0) {
       showToast("Please add at least one product.", "warning");
-      return;
-    }
-
-    const isValid = await methods.trigger();
-    if (!isValid) {
-      const errs = methods.formState.errors;
-      const firstErrorKey = Object.keys(errs)[0];
-      if (firstErrorKey && (errs as any)[firstErrorKey]) {
-        const err = (errs as any)[firstErrorKey];
-        showToast(err?.message || `Please check item details and required fields.`, "error");
-      } else {
-        showToast("Please fill all required fields.", "error");
-      }
       return;
     }
 
@@ -143,23 +126,6 @@ const PurchaseReturnFormPage = () => {
       }
     }, (errs) => {
       console.error("Validation failed:", errs);
-      const firstErrorKey = Object.keys(errs)[0];
-      if (firstErrorKey) {
-        const err = (errs as any)[firstErrorKey];
-        showToast((err as any)?.message || `Please fill required fields (${firstErrorKey}).`, "error");
-        
-        setTimeout(() => {
-          const el = document.querySelector(`[name="${firstErrorKey}"]`) as HTMLElement;
-          if (el) {
-            el.focus();
-          } else {
-            const elId = document.getElementById(`pr-${firstErrorKey}`);
-            if (elId) elId.focus();
-          }
-        }, 100);
-      } else {
-        showToast("Please fill all required fields.", "error");
-      }
     })();
   };
 
@@ -650,10 +616,14 @@ const PurchaseReturnFormPage = () => {
                     id="pr-paymode"
                     label="Paymode"
                     required={true}
+                    error={paymodeError}
                     value={selectedPaymodeId === multiPayId ? String(multiPayId) : String(selectedPaymodeId || "")}
                     forcePlacement="top"
                     onChange={(val) => {
                       const id = Number(val);
+                      if (id > 0) {
+                        setPaymodeError("");
+                      }
                       const paymode = paymodeList.find((p: { paymodeId: number; paymodeName: string }) => p.paymodeId === id);
                       const isMultiPay = paymode?.paymodeName?.toLowerCase().includes("multi") || (multiPayId > 0 && id === multiPayId);
                       if (isMultiPay) {

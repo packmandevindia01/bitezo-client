@@ -51,6 +51,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const [selectedPaymodeId, setSelectedPaymodeId] = useState<number>(0);
+  const [paymodeError, setPaymodeError] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   // Search States
@@ -780,6 +781,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
     setShowClearConfirm(false);
     setSelectedPaymodeId(0);
+    setPaymodeError("");
   };
 
   const handleClearClick = () => {
@@ -799,6 +801,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       paymodeId,
     } as any]);
     setSelectedPaymodeId(paymodeId);
+    setPaymodeError("");
   }, [setPayments, decimalPart]);
 
   const onSubmit = async (data: any): Promise<boolean> => {
@@ -814,8 +817,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       return false;
     }
     if (!selectedPaymodeId || selectedPaymodeId <= 0 || watchedPayments.length === 0) {
-      showToast("Paymode is required. Please select a paymode", "warning");
+      setPaymodeError("required");
       return false;
+    } else {
+      setPaymodeError("");
     }
 
     const totalPaid = watchedPayments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
@@ -955,6 +960,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const handleSettlementSubmit = (newPayments: { mode: string; paymodeId: number; amount: number }[]) => {
     setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString(), paymodeId: p.paymodeId })));
     setSelectedPaymodeId(multiPayId || 3);
+    setPaymodeError("");
     setIsMultiPayOpen(false);
   };
 
@@ -981,6 +987,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     handleSettlementSubmit,
     selectedPaymodeId,
     setSelectedPaymodeId,
+    paymodeError,
+    setPaymodeError,
     handleSinglePayment,
     masterData,
     loadingMaster,
