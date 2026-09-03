@@ -177,6 +177,7 @@ const CategoryModal = ({
                   <FormInput
                     id="cat-code"
                     label="Code"
+                    maxLength={50}
                     error={errors.code?.message}
                     {...register("code")}
                     onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, ''), { shouldValidate: true, shouldDirty: true })}
@@ -189,6 +190,7 @@ const CategoryModal = ({
                   <FormInput
                     id="cat-name"
                     label="Name"
+                    maxLength={50}
                     error={errors.name?.message}
                     {...register("name")}
                     onKeyDown={(e) => handleKeyDown(e, "cat-arabic")}
@@ -200,6 +202,7 @@ const CategoryModal = ({
                   <FormInput
                     id="cat-arabic"
                     label="Arabic Name"
+                    maxLength={50}
                     error={errors.arabic?.message}
                     {...register("arabic")}
                     placeholder="Enter arabic name"

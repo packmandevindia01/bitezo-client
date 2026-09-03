@@ -105,10 +105,12 @@ export const UserForm = ({
           {...register("branchId")}
           disabled={branchesLoading}
           error={errors.branchId?.message}
-          options={branches.map((b) => ({
-            label: b.branchName,
-            value: String(b.branchId),
-          }))}
+          options={branches
+            .filter((b) => b.branchId > 0 && !b.branchName.toLowerCase().startsWith("select"))
+            .map((b) => ({
+              label: b.branchName,
+              value: String(b.branchId),
+            }))}
           placeholder={branchesLoading ? "Loading..." : "Select a branch"}
           onKeyDown={(e) => handleKeyDown(e, "user-role")}
         />
@@ -120,10 +122,12 @@ export const UserForm = ({
           {...register("roleId")}
           disabled={rolesLoading}
           error={errors.roleId?.message}
-          options={roles.map((r) => ({
-            label: r.roleName,
-            value: String(r.roleId),
-          }))}
+          options={roles
+            .filter((r) => r.roleId > 0 && !r.roleName.toLowerCase().startsWith("select"))
+            .map((r) => ({
+              label: r.roleName,
+              value: String(r.roleId),
+            }))}
           placeholder={rolesLoading ? "Loading..." : "Select a role"}
           onKeyDown={(e) => handleKeyDown(e, initialData ? "user-save-btn" : "user-password")}
         />

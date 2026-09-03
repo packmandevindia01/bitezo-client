@@ -7,7 +7,7 @@ import { unitService } from "../../unit/services/unitService";
 import { useToast } from "../../../../app/providers/useToast";
 
 const schema = z.object({
-  name: z.string().min(1, "Unit name is required").trim(),
+  name: z.string().min(1, "Unit name is required").max(50, "Max 50 characters").trim(),
   category: z.string().min(1, "Category is required"),
   conversion: z.union([z.string(), z.number()]),
   parentId: z.union([z.string(), z.number()]),

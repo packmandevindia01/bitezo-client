@@ -85,6 +85,7 @@ const GroupForm = ({
           id="grp-code"
           label="Code"
           tabIndex={1}
+          maxLength={50}
           value={form.code}
           disabled={saving}
           readOnly
@@ -96,6 +97,7 @@ const GroupForm = ({
           label="Name"
           autoFocus
           tabIndex={2}
+          maxLength={50}
           value={form.name}
           disabled={saving}
           onChange={(e) => handleChange("name", e.target.value)}
@@ -106,6 +108,7 @@ const GroupForm = ({
           id="grp-arabic"
           label="Arabic Name"
           tabIndex={3}
+          maxLength={50}
           value={form.arabicName}
           disabled={saving}
           className="text-right"

@@ -7,8 +7,14 @@ import {
 import type { DenominationItem } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
 
+export interface DenominationError {
+  name?: string;
+  value?: string;
+}
+
 export const useDenominationManager = () => {
   const [denominations, setDenominations] = useState<DenominationItem[]>([]);
+  const [errors, setErrors] = useState<Record<number, DenominationError>>({});
   const [hasExistingData, setHasExistingData] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -20,6 +26,7 @@ export const useDenominationManager = () => {
       const data = await fetchDenominations();
       const items = data || [];
       setDenominations(items);
+      setErrors({});
       setHasExistingData(items.length > 0);
     } catch (error) {
       console.error("Failed to fetch denominations:", error);
@@ -39,33 +46,74 @@ export const useDenominationManager = () => {
 
   const removeRow = (index: number) => {
     setDenominations(denominations.filter((_, i) => i !== index));
+    setErrors(prev => {
+      const next: Record<number, DenominationError> = {};
+      Object.keys(prev).forEach((keyStr) => {
+        const k = Number(keyStr);
+        if (k < index) next[k] = prev[k];
+        else if (k > index) next[k - 1] = prev[k];
+      });
+      return next;
+    });
   };
 
   const updateRow = (index: number, field: keyof DenominationItem, value: string | number) => {
     const updated = [...denominations];
     updated[index] = { ...updated[index], [field]: value };
     setDenominations(updated);
+
+    if ((field === "name" || field === "value") && errors[index]?.[field]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        if (next[index]) {
+          next[index] = { ...next[index], [field]: undefined };
+          if (!next[index].name && !next[index].value) {
+            delete next[index];
+          }
+        }
+        return next;
+      });
+    }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<{ success: boolean; firstInvalidIndex?: number; firstInvalidField?: "name" | "value" }> => {
     if (denominations.length === 0) {
       showToast("Please add at least one denomination", "error");
-      return;
+      return { success: false };
     }
 
-    const isValid = denominations.every(d => d.name.trim() !== "" && d.value > 0);
-    if (!isValid) {
-      showToast("Please fill in all names and values must be greater than 0", "error");
-      return;
+    const newErrors: Record<number, DenominationError> = {};
+    let firstInvalidIndex = -1;
+    let firstInvalidField: "name" | "value" | null = null;
+
+    denominations.forEach((d, index) => {
+      const rowErr: DenominationError = {};
+      if (!d.name || d.name.trim() === "") {
+        rowErr.name = "required";
+      }
+      if (d.value === undefined || d.value === null || d.value <= 0 || isNaN(Number(d.value))) {
+        rowErr.value = "must be > 0";
+      }
+      if (rowErr.name || rowErr.value) {
+        newErrors[index] = rowErr;
+        if (firstInvalidIndex === -1) {
+          firstInvalidIndex = index;
+          firstInvalidField = rowErr.name ? "name" : "value";
+        }
+      }
+    });
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      return { success: false, firstInvalidIndex, firstInvalidField: firstInvalidField || undefined };
     }
 
     try {
       setLoading(true);
-      // Strip 'id' from objects if the backend doesn't expect them in the PUT/POST payload
       const sanitizedDenominations = denominations.map(({ name, value }) => ({ name: name.trim(), value }));
       const payload = { denominations: sanitizedDenominations };
       
-      // If we already have items from backend, use PUT. Otherwise use POST.
       const result = hasExistingData 
         ? await updateDenominations(payload)
         : await createDenominations(payload);
@@ -73,17 +121,17 @@ export const useDenominationManager = () => {
       if (result.isSuccess) {
         showToast(result.message || "Denominations saved successfully", "success");
         loadData();
-        return true;
+        return { success: true };
       } else {
         showToast(result.message || "Failed to save denominations", "error");
-        return false;
+        return { success: false };
       }
     } catch (error: unknown) {
       console.error("Save error:", error);
       const axErr = error as { response?: { data?: { message?: string } }; message?: string };
       const serverMsg = axErr.response?.data?.message || axErr.message || "Failed to save denominations";
       showToast(serverMsg, "error");
-      return false;
+      return { success: false };
     } finally {
       setLoading(false);
     }
@@ -91,6 +139,7 @@ export const useDenominationManager = () => {
 
   return {
     denominations,
+    errors,
     loading,
     initialLoading,
     addRow,

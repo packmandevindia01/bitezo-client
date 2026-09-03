@@ -76,6 +76,7 @@ const SubCategoryModal = ({
               id="subcat-code"
               label="Code"
               required
+              maxLength={50}
               {...register("code")}
               onChange={(e) => setValue("code", e.target.value.toUpperCase().replace(/\s/g, ''), { shouldValidate: true, shouldDirty: true })}
               onKeyDown={(e) => handleKeyDown(e, "subcat-name")}
@@ -88,6 +89,7 @@ const SubCategoryModal = ({
               id="subcat-name"
               label="Name"
               required
+              maxLength={50}
               {...register("name")}
               onKeyDown={(e) => handleKeyDown(e, "subcat-arabic")}
               placeholder="Enter name"
@@ -97,6 +99,7 @@ const SubCategoryModal = ({
             <FormInput
               id="subcat-arabic"
               label="Arabic Name"
+              maxLength={50}
               {...register("arabicName")}
               onKeyDown={(e) => handleKeyDown(e, "subcat-category")}
               placeholder="Enter arabic name"

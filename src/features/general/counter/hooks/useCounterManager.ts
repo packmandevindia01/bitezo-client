@@ -6,10 +6,16 @@ import { emptyCounterForm } from "../constants";
 import { counterService } from "../services/counterService";
 import type { CounterForm, CounterRecord } from "../types";
 
+export interface CounterError {
+  name?: string;
+  branchId?: string;
+}
+
 export const useCounterManager = () => {
   const { showToast } = useToast();
   const [records, setRecords] = useState<CounterRecord[]>([]);
   const [form, setForm] = useState<CounterForm>(emptyCounterForm);
+  const [errors, setErrors] = useState<CounterError>({});
   const [branches, setBranches] = useState<BranchRecord[]>([]);
   
   const [search, setSearch] = useState("");
@@ -43,10 +49,14 @@ export const useCounterManager = () => {
 
   const setField = <K extends keyof CounterForm>(key: K, value: CounterForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key as keyof CounterError]) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
   };
 
   const resetForm = () => {
     setForm(emptyCounterForm);
+    setErrors({});
     setEditingId(null);
   };
 
@@ -60,17 +70,22 @@ export const useCounterManager = () => {
     setOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<{ success: boolean; firstInvalidField?: "name" | "branchId" }> => {
     const name = form.name.trim();
     const branchId = Number(form.branchId);
+    const newErrors: CounterError = {};
 
     if (!name) {
-      showToast("Counter name is required", "error");
-      return;
+      newErrors.name = "required";
     }
     if (!branchId) {
-      showToast("Please select a branch", "error");
-      return;
+      newErrors.branchId = "required";
+    }
+
+    setErrors(newErrors);
+
+    if (newErrors.name || newErrors.branchId) {
+      return { success: false, firstInvalidField: newErrors.name ? "name" : "branchId" };
     }
 
     const isDuplicate = records.some(
@@ -78,8 +93,9 @@ export const useCounterManager = () => {
     );
 
     if (isDuplicate) {
+      setErrors({ name: "name already exists" });
       showToast("A counter with this name already exists. Please choose a unique name.", "error");
-      return;
+      return { success: false, firstInvalidField: "name" };
     }
 
     try {
@@ -99,9 +115,11 @@ export const useCounterManager = () => {
 
       await fetchData(); // Refresh list
       closeModal();
+      return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to save counter";
       showToast(msg, "error");
+      return { success: false };
     } finally {
       setSaving(false);
     }
@@ -151,6 +169,7 @@ export const useCounterManager = () => {
 
   return {
     form,
+    errors,
     branches,
     open,
     search,

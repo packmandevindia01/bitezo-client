@@ -91,7 +91,7 @@ export const SelectInput = React.forwardRef<HTMLSelectElement, Props>(({
       >
         {/* Placeholder */}
         {placeholder ? (
-          <option value="">
+          <option value="" disabled hidden>
             {placeholder}
           </option>
         ) : null}

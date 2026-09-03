@@ -832,6 +832,14 @@ export const PosTerminalPage = () => {
     onCheckout: () => {}
   });
 
+  useEffect(() => {
+    if (status && (status.isDayClosed || status.isShiftClosed)) {
+      if (!modals.isCashierSessionOpen) {
+        modals.setIsCashierSessionOpen(true);
+      }
+    }
+  }, [status, modals.isCashierSessionOpen, modals.setIsCashierSessionOpen]);
+
   if (isLoading && !status) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[#ebe6e8]">
@@ -842,14 +850,6 @@ export const PosTerminalPage = () => {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (status && (status.isDayClosed || status.isShiftClosed)) {
-      if (!modals.isCashierSessionOpen) {
-        modals.setIsCashierSessionOpen(true);
-      }
-    }
-  }, [status, modals.isCashierSessionOpen, modals.setIsCashierSessionOpen]);
 
   return (
     <div className="flex h-dvh flex-col bg-[#ebe6e8] font-sans text-slate-900 overflow-hidden relative">

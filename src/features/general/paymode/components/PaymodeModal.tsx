@@ -67,6 +67,7 @@ const PaymodeModal = ({
             Clear
           </Button>
           <Button 
+            id="pm-save-btn"
             type="button"
             onClick={onSave} 
             disabled={saving}
@@ -97,16 +98,22 @@ const PaymodeModal = ({
           <div className="flex flex-col gap-4">
             {/* Paymode Code */}
             <FormInput
+              id="pm-code"
               label="Paymode Code"
               required
               tabIndex={1}
               maxLength={9}
               {...register("code", {
                 onChange: (e) => {
-                  // Ensure only integer (numeric) values are entered and clamped to 9 digits (max int32 safe)
                   e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 9);
                 }
               })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("pm-name")?.focus();
+                }
+              }}
               placeholder="Enter paymode code"
               autoFocus
               error={errors.code?.message as string}
@@ -114,11 +121,18 @@ const PaymodeModal = ({
 
             {/* Paymode Name */}
             <FormInput
+              id="pm-name"
               label="Paymode Name"
               required
               tabIndex={2}
               maxLength={25}
               {...register("paymodeName")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("pm-save-btn")?.focus();
+                }
+              }}
               placeholder="Enter paymode name"
               error={errors.paymodeName?.message as string}
             />

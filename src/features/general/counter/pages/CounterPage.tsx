@@ -10,6 +10,7 @@ const CounterPage = () => {
   const { hasPermission } = usePermissions();
   const {
     form,
+    errors,
     branches,
     open,
     search,
@@ -87,6 +88,7 @@ const CounterPage = () => {
         isOpen={open}
         editingId={editingId}
         form={form}
+        errors={errors}
         branches={branches}
         loading={loading}
         saving={saving}

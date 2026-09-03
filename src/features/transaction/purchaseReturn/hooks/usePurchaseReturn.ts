@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -45,7 +45,12 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
   const [purchaseId, setPurchaseId] = useState<number>(0);
-  const [loadedInvoiceText, setLoadedInvoiceText] = useState("");
+  const loadedInvoiceTextRef = useRef("");
+
+  const updateLoadedInvoiceText = useCallback((val: string) => {
+    loadedInvoiceTextRef.current = val;
+  }, []);
+
   const [selectedInvoiceItems, setSelectedInvoiceItems] = useState<any[]>([]);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -133,9 +138,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   // Clear products if invoice text is manually edited after loading
   useEffect(() => {
-    if (loadedInvoiceText !== "" && watchedInvoiceNo !== loadedInvoiceText) {
+    if (loadedInvoiceTextRef.current !== "" && watchedInvoiceNo !== loadedInvoiceTextRef.current) {
       setPurchaseId(0);
-      setLoadedInvoiceText("");
+      updateLoadedInvoiceText("");
       setSelectedInvoiceItems([]);
       replaceItems([{
         id: generateUUID(),
@@ -173,7 +178,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         setProductOptions([]);
       }
     }
-  }, [watchedInvoiceNo, loadedInvoiceText, purchaseId, watchedBranch, replaceItems]);
+  }, [watchedInvoiceNo, watchedBranch, replaceItems, updateLoadedInvoiceText]);
   
   // Calculate totals
   const grossTotal = useMemo(() => {
@@ -326,7 +331,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       }
 
       const invText = master.purchaseInvoiceNo || master.invoiceNo || "";
-      setLoadedInvoiceText(invText);
+      updateLoadedInvoiceText(invText);
 
       const rootPaymodeId = res.masterData.paymodeId || 1;
       
@@ -525,17 +530,19 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
   const handleInvoiceSelect = async (purchaseIdStr: string, invoiceNoText: string) => {
     if (!purchaseIdStr || purchaseIdStr === "0") {
+      updateLoadedInvoiceText(invoiceNoText);
       setValue("invoiceNo", invoiceNoText, { shouldValidate: true });
       return;
     }
-    setLoadedInvoiceText(invoiceNoText);
+    updateLoadedInvoiceText(invoiceNoText);
     setValue("invoiceNo", invoiceNoText, { shouldValidate: true });
     try {
+      setSearchingProducts(true);
       const res = await purchaseReturnApi.getPurchaseInvoiceData(purchaseIdStr);
       if (res && res.masterData) {
         const actualInvoiceNo = res.masterData.invoiceNo || res.masterData.purchaseNo || invoiceNoText;
+        updateLoadedInvoiceText(actualInvoiceNo);
         setPurchaseId(res.masterData.purchaseId || parseInt(purchaseIdStr) || 0);
-        setLoadedInvoiceText(actualInvoiceNo);
         setValue("invoiceNo", actualInvoiceNo, { shouldValidate: true });
         if (res.masterData.refNo) setValue("refNo", res.masterData.refNo, { shouldValidate: true });
         if (res.masterData.narration) setValue("narration", res.masterData.narration);
@@ -553,23 +560,38 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         
         setProductOptions(invoiceProductOptions);
 
-        // Reset grid to a single empty row so user can pick the exact products to return
-        replaceItems([{
-          id: generateUUID(),
-          product: "",
-          code: "",
-          unit: "",
-          qty: "1",
-          foc: "0",
-          price: "0",
-          vatId: "0",
-          vatPercent: "0",
-          discPercent: "0",
-        }]);
+        // Reset items without unmounting existing row element if row 0 is empty
+        const currentItems = getValues("items") || [];
+        if (currentItems.length === 1 && (!currentItems[0].product || currentItems[0].product === "")) {
+          methods.setValue("items.0.product", "");
+          methods.setValue("items.0.code", "");
+          methods.setValue("items.0.unit", "");
+          methods.setValue("items.0.qty", "1");
+          methods.setValue("items.0.foc", "0");
+          methods.setValue("items.0.price", "0");
+          methods.setValue("items.0.vatId", "0");
+          methods.setValue("items.0.vatPercent", "0");
+          methods.setValue("items.0.discPercent", "0");
+        } else {
+          replaceItems([{
+            id: generateUUID(),
+            product: "",
+            code: "",
+            unit: "",
+            qty: "1",
+            foc: "0",
+            price: "0",
+            vatId: "0",
+            vatPercent: "0",
+            discPercent: "0",
+          }]);
+        }
       }
     } catch (error: any) {
       console.error("Failed to fetch invoice details", error);
       showToast(error.message || "Failed to load invoice details", "error");
+    } finally {
+      setSearchingProducts(false);
     }
   };
 

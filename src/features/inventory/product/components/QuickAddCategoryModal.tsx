@@ -29,6 +29,7 @@ export const QuickAddCategoryModal = ({ isOpen, onClose, onCreated }: Props) => 
           label="Code"
           required
           autoFocus
+          maxLength={50}
           {...register("code")}
           onKeyDown={(e) => handleKeyDown(e, "q-cat-name")}
           error={errors.code?.message}
@@ -37,6 +38,7 @@ export const QuickAddCategoryModal = ({ isOpen, onClose, onCreated }: Props) => 
           id="q-cat-name"
           label="Name"
           required
+          maxLength={50}
           {...register("name")}
           onKeyDown={(e) => handleKeyDown(e, "q-cat-arabic")}
           error={errors.name?.message}
@@ -44,6 +46,7 @@ export const QuickAddCategoryModal = ({ isOpen, onClose, onCreated }: Props) => 
         <FormInput
           id="q-cat-arabic"
           label="Arabic Name"
+          maxLength={50}
           {...register("arabicName")}
           onKeyDown={(e) => handleKeyDown(e, "q-cat-active")}
         />

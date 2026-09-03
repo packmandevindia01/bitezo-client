@@ -70,22 +70,28 @@ export const AutocompleteInput = ({
     return () => clearTimeout(timer);
   }, [value, open, onSearch]);
 
+  const isSelectedLabel = options.some(o => o.label.toLowerCase() === value.trim().toLowerCase());
+
+  const displayOptions = (value.trim() && !isSelectedLabel)
+    ? options.filter(o => o.label.toLowerCase().includes(value.trim().toLowerCase()))
+    : options;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (open && options.length > 0) {
+    if (open && displayOptions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setHighlightedIndex((prev) => (prev + 1) % options.length);
+        setHighlightedIndex((prev) => (prev + 1) % displayOptions.length);
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setHighlightedIndex((prev) => (prev - 1 + options.length) % options.length);
+        setHighlightedIndex((prev) => (prev - 1 + displayOptions.length) % displayOptions.length);
         return;
       }
       if (e.key === "Enter") {
         e.preventDefault();
         if (highlightedIndex >= 0) {
-          const opt = options[highlightedIndex];
+          const opt = displayOptions[highlightedIndex];
           onSelectOption(opt.value, opt.label);
           setOpen(false);
         } else if (value.trim()) {
@@ -119,11 +125,16 @@ export const AutocompleteInput = ({
           label={label}
           value={value}
           onChange={(e) => {
-            onChange(e.target.value);
+            const val = e.target.value;
+            onChange(val);
             setOpen(true);
             setHighlightedIndex(-1);
+            onSearch(val);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            onSearch("");
+          }}
           onBlur={() => {
             if (value.trim()) {
               const exactMatch = options.find(o => o.label.toLowerCase() === value.trim().toLowerCase());
@@ -140,7 +151,7 @@ export const AutocompleteInput = ({
           autoComplete="off"
           maxLength={maxLength}
           inputClassName={inputClassName}
-          rightIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} />}
+          rightIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} className="cursor-pointer" onClick={() => { if (!disabled) { setOpen(!open); onSearch(""); } }} />}
         />
       </div>
 
@@ -148,10 +159,10 @@ export const AutocompleteInput = ({
         <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
           {loading ? (
             <div className={`px-4 py-2 ${textSizeClass} text-gray-500`}>Searching...</div>
-          ) : options.length === 0 ? (
+          ) : displayOptions.length === 0 ? (
             <div className={`px-4 py-2 ${textSizeClass} text-gray-500`}>No matches found</div>
           ) : (
-            options.map((opt, index) => (
+            displayOptions.map((opt, index) => (
               <div
                 key={index}
                 className={`cursor-pointer px-4 py-2 ${textSizeClass} transition-colors ${

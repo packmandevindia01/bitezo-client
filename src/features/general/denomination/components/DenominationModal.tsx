@@ -11,6 +11,7 @@ interface DenominationModalProps {
 const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
   const {
     denominations,
+    errors,
     loading,
     initialLoading,
     addRow,
@@ -41,8 +42,13 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
   }, [initialLoading, denominations.length, addRow]);
 
   const onSave = async () => {
-    const success = await handleSave();
-    if (success) onClose();
+    const result = await handleSave();
+    if (result.success) {
+      onClose();
+    } else if (result.firstInvalidIndex !== undefined && result.firstInvalidIndex >= 0) {
+      const targetIdx = result.firstInvalidIndex * 2 + (result.firstInvalidField === "value" ? 1 : 0);
+      inputRefs.current[targetIdx]?.focus();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number, field: "name" | "value") => {
@@ -79,23 +85,19 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Column headers */}
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Name</p>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Value</p>
-                <span className="w-8" />
-              </div>
-
               {/* Rows */}
               {denominations.map((item, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50/60 px-3 py-2"
+                  className="grid grid-cols-[1fr_1fr_auto] items-start gap-2 rounded-2xl border border-gray-100 bg-gray-50/60 p-3"
                 >
                   <FormInput
                     ref={(el) => { inputRefs.current[index * 2] = el; }}
+                    label="NAME"
+                    required
                     placeholder="e.g. 500 Fils"
                     value={item.name}
+                    error={errors[index]?.name}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updateRow(index, "name", e.target.value)
                     }
@@ -104,10 +106,13 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
                   />
                   <FormInput
                     ref={(el) => { inputRefs.current[index * 2 + 1] = el; }}
+                    label="VALUE"
+                    required
                     type="number"
                     step="any"
                     placeholder="0"
                     value={item.value || ""}
+                    error={errors[index]?.value}
                     onFocus={(e) => e.target.select()}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updateRow(index, "value", e.target.value === "" ? 0 : parseFloat(e.target.value))
@@ -119,7 +124,7 @@ const DenominationModal = ({ isOpen, onClose }: DenominationModalProps) => {
                     type="button"
                     onClick={() => removeRow(index)}
                     disabled={denominations.length === 1}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-30"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-30 self-end mb-1"
                     title="Remove row"
                   >
                     <Trash2 size={15} />

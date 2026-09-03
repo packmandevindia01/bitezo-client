@@ -7,13 +7,14 @@ interface Props {
   isOpen: boolean;
   editingId: number | null;
   form: CounterForm;
+  errors?: { name?: string; branchId?: string };
   branches: BranchRecord[];
   loading?: boolean;
   saving?: boolean;
   onChange: (key: keyof CounterForm, value: string) => void;
   onClose: () => void;
   onClear: () => void;
-  onSave: () => void;
+  onSave: () => Promise<any>;
   onDelete?: () => void;
 }
 
@@ -21,6 +22,7 @@ const CounterModal = ({
   isOpen,
   editingId,
   form,
+  errors = {},
   branches,
   saving,
   onChange,
@@ -29,6 +31,14 @@ const CounterModal = ({
   onSave,
   onDelete,
 }: Props) => {
+  const handleSaveClick = async () => {
+    const res = await onSave();
+    if (res && !res.success && res.firstInvalidField) {
+      const targetId = res.firstInvalidField === "name" ? "counter-name" : "counter-branch";
+      document.getElementById(targetId)?.focus();
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -48,7 +58,8 @@ const CounterModal = ({
             Clear
           </Button>
           <Button 
-            onClick={onSave} 
+            id="counter-save-btn"
+            onClick={handleSaveClick} 
             loading={saving}
             isAction
             icon={<Save size={18} />}
@@ -72,18 +83,36 @@ const CounterModal = ({
       <div className="flex flex-col gap-3">
         {/* NAME FIELD */}
         <FormInput
+          id="counter-name"
           label="Name"
+          required
           value={form.name}
+          error={errors.name}
           onChange={(e) => onChange("name", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              document.getElementById("counter-branch")?.focus();
+            }
+          }}
           placeholder="Enter counter name"
           autoFocus
         />
 
         {/* BRANCH FIELD */}
         <SelectInput
+          id="counter-branch"
           label="Branch Name"
+          required
           value={form.branchId}
+          error={errors.branchId}
           onChange={(e) => onChange("branchId", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              document.getElementById("counter-save-btn")?.focus();
+            }
+          }}
           options={branches.map((b) => ({
             label: b.branchName,
             value: String(b.id),

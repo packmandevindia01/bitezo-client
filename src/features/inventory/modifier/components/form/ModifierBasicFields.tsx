@@ -1,19 +1,13 @@
-import { useState } from "react";
-import { Controller, type UseFormReturn } from "react-hook-form";
-import { FormInput, SearchableSelect } from "../../../../../components/common";
-import { Plus } from "lucide-react";
+import { type UseFormReturn } from "react-hook-form";
+import { FormInput } from "../../../../../components/common";
 import type { ModifierForm } from "../../schemas";
-import { useModifierTypes } from "../../../modifierType/hooks/useModifierTypeQueries";
-import { ModifierTypeQuickAddModal } from "../../../modifierType/components/ModifierTypeQuickAddModal";
 
 interface ModifierBasicFieldsProps {
   form: UseFormReturn<ModifierForm>;
 }
 
 const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
-  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
-  const { register, control, formState: { errors } } = form;
-  const { data: modifierTypes = [], isLoading: isLoadingTypes } = useModifierTypes();
+  const { register, formState: { errors } } = form;
 
   const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
     if (e.key === "Enter") {
@@ -43,40 +37,7 @@ const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabic?.message}
         {...register("arabic")}
-        onKeyDown={(e) => handleEnter(e, "mod-type")}
-      />
-
-      <Controller
-        control={control}
-        name="typeId"
-        render={({ field }) => (
-          <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <SearchableSelect
-              id="mod-type"
-              label="Type"
-              required
-              placeholder={isLoadingTypes ? "Loading types..." : "Select type"}
-              error={errors.typeId?.message}
-              options={modifierTypes.map((t) => ({ label: t.name, value: t.typeId.toString() }))}
-              value={field.value ? field.value.toString() : ""}
-              onChange={(val) => {
-                field.onChange(Number(val));
-                document.getElementById("mod-color")?.focus();
-              }}
-              onKeyDown={(e) => handleEnter(e, "mod-color")}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsTypeModalOpen(true)}
-            disabled={isLoadingTypes}
-            className="h-[42px] w-[42px] flex-shrink-0 flex items-center justify-center bg-[#49293e] hover:bg-[#3d2234] text-white rounded-[10px] transition-colors mb-0.5"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        )}
+        onKeyDown={(e) => handleEnter(e, "mod-color")}
       />
 
       <div className="flex flex-col gap-1.5">
@@ -96,14 +57,6 @@ const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
           <span className="text-xs font-mono uppercase text-gray-500">{form.watch("color")}</span>
         </div>
       </div>
-
-      <ModifierTypeQuickAddModal 
-        isOpen={isTypeModalOpen} 
-        onClose={() => setIsTypeModalOpen(false)} 
-        onSuccess={(id) => {
-          form.setValue("typeId", id, { shouldValidate: true, shouldDirty: true });
-        }}
-      />
     </div>
   );
 };

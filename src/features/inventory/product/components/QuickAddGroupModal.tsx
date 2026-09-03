@@ -29,6 +29,7 @@ export const QuickAddGroupModal = ({ isOpen, onClose, onCreated }: Props) => {
           label="Code"
           required
           autoFocus
+          maxLength={50}
           {...register("code")}
           onKeyDown={(e) => handleKeyDown(e, "q-grp-name")}
           error={errors.code?.message}
@@ -37,6 +38,7 @@ export const QuickAddGroupModal = ({ isOpen, onClose, onCreated }: Props) => {
           id="q-grp-name"
           label="Name"
           required
+          maxLength={50}
           {...register("name")}
           onKeyDown={(e) => handleKeyDown(e, "q-grp-arabic")}
           error={errors.name?.message}
@@ -44,6 +46,7 @@ export const QuickAddGroupModal = ({ isOpen, onClose, onCreated }: Props) => {
         <FormInput
           id="q-grp-arabic"
           label="Arabic Name"
+          maxLength={50}
           {...register("arabicName")}
           onKeyDown={(e) => handleKeyDown(e, "q-grp-active")}
         />

@@ -110,11 +110,14 @@ const FormInput = forwardRef<HTMLInputElement, Props>(({
             if (isNumericField && (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E')) {
               e.preventDefault();
             }
+            if (onKeyDown) {
+              onKeyDown(e);
+              if (e.defaultPrevented) return;
+            }
             if (e.key === 'Enter') {
               e.preventDefault();
               handleFocusNextInput(e.currentTarget);
             }
-            if (onKeyDown) onKeyDown(e);
           }}
         />
         {rightIcon && (

@@ -1,5 +1,5 @@
 import { ChevronDown, Loader2, X } from "lucide-react";
-import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { useEffect, useRef, useState, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { handleFocusNextInput } from "../../utils/keyboard";
 
@@ -80,13 +80,16 @@ const SearchableCombobox = ({
     }
   }, [value, options, focused]);
 
+  const selectedOptionLabel = options.find((o) => String(o.value) === String(value))?.label || "";
+  const isQueryUnchangedLabel = selectedOptionLabel !== "" && query.trim().toLowerCase() === selectedOptionLabel.trim().toLowerCase();
+
   const meetsMinQuery = query.trim().length >= minQueryLength;
 
   const filtered = !meetsMinQuery
     ? []
     : onSearch
     ? options
-    : query.trim()
+    : (query.trim() && !isQueryUnchangedLabel)
     ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
     : options;
 
@@ -138,8 +141,8 @@ const SearchableCombobox = ({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  useLayoutEffect(() => {
-    if (open && containerRef.current) {
+  const updateCoords = useCallback(() => {
+    if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
       const dropdownHeight = 280;
@@ -148,15 +151,29 @@ const SearchableCombobox = ({
       const spaceAbove = rect.top;
       
       const placement = forcePlacement ? forcePlacement : (spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? "top" : "bottom");
+      const calcWidth = rect.width > 0 ? rect.width : (containerRef.current.offsetWidth || 220);
 
       setCoords({
         top: placement === "bottom" ? rect.bottom : rect.top,
         left: rect.left,
-        width: rect.width,
+        width: calcWidth,
         placement
       });
     }
-  }, [open, forcePlacement]);
+  }, [forcePlacement]);
+
+  const openCombobox = useCallback(() => {
+    if (disabled) return;
+    updateCoords();
+    setFocused(true);
+    setOpen(true);
+  }, [disabled, updateCoords]);
+
+  useLayoutEffect(() => {
+    if (open) {
+      updateCoords();
+    }
+  }, [open, updateCoords]);
 
   useEffect(() => {
     if (!open) return;
@@ -292,6 +309,7 @@ const SearchableCombobox = ({
         onClick={() => {
           if (!disabled) {
             inputRef.current?.focus();
+            if (!open) openCombobox();
           }
         }}
       >
@@ -302,16 +320,23 @@ const SearchableCombobox = ({
           value={query}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => {
-            setFocused(true);
-            setOpen(true);
-            inputRef.current?.select();
+          onClick={() => {
+            if (!disabled && !open) {
+              openCombobox();
+            }
           }}
-          onBlur={() => {
-            // Delay blur slightly so click on dropdown can register
+          onFocus={() => {
+            openCombobox();
+          }}
+          onBlur={(e) => {
+            const related = (e.relatedTarget || document.activeElement) as HTMLElement | null;
+            if (containerRef.current?.contains(related) || related?.closest(".combobox-portal-content")) {
+              return;
+            }
             setTimeout(() => {
-              setFocused(false);
-              setOpen(false);
+              if (document.activeElement !== inputRef.current && !containerRef.current?.contains(document.activeElement)) {
+                setFocused(false);
+              }
             }, 150);
           }}
           placeholder={placeholder}
@@ -348,20 +373,20 @@ const SearchableCombobox = ({
                 setOpen(false);
               } else {
                 inputRef.current?.focus();
-                setOpen(true);
+                openCombobox();
               }
             }}
           />
         )}
       </div>
 
-      {open && coords.width > 0 && createPortal(
+      {open && createPortal(
         <div 
           className="fixed z-[10001] combobox-portal-content"
           style={{
             top: coords.placement === "bottom" ? coords.top + 4 : coords.top - 4,
             left: coords.left,
-            width: coords.width,
+            width: coords.width || containerRef.current?.offsetWidth || 220,
             transform: coords.placement === "top" ? "translateY(-100%)" : "none"
           }}
           onMouseDown={(e) => e.stopPropagation()}

@@ -46,6 +46,7 @@ export const QuickAddUnitModal = ({ isOpen, onClose, onCreated }: Props) => {
           label="Unit Name"
           required
           autoFocus
+          maxLength={50}
           {...register("name")}
           onKeyDown={(e) => handleKeyDown(e, "q-unit-category")}
           error={errors.name?.message}
@@ -67,8 +68,15 @@ export const QuickAddUnitModal = ({ isOpen, onClose, onCreated }: Props) => {
           label="Conversion Factor"
           type="number"
           step="0.000001"
+          maxLength={10}
           inputClassName="text-right"
-          {...register("conversion")}
+          {...register("conversion", {
+            onChange: (e) => {
+              if (e.target.value && e.target.value.length > 10) {
+                e.target.value = e.target.value.slice(0, 10);
+              }
+            }
+          })}
           onKeyDown={(e) => handleKeyDown(e, "q-unit-parent")}
           error={errors.conversion?.message}
         />

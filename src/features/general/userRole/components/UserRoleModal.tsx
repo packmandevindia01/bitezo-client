@@ -11,6 +11,7 @@ interface Props {
   detailLoading: boolean;
   saving: boolean;
   deleting: boolean;
+  roleNameError?: string;
   onClose: () => void;
   onChange: (patch: Partial<UserRoleForm>) => void;
   onTogglePermission: (permissionId: number) => void;
@@ -54,6 +55,7 @@ const UserRoleModal = ({
   detailLoading,
   saving,
   deleting,
+  roleNameError,
   onClose,
   onChange,
   onTogglePermission,
@@ -112,6 +114,7 @@ const UserRoleModal = ({
             Clear
           </Button>
           <Button 
+            id="role-save-btn"
             onClick={onSave} 
             disabled={saving || deleting}
             isAction
@@ -142,16 +145,23 @@ const UserRoleModal = ({
       ) : (
         <div className="flex flex-col overflow-y-auto pr-1" style={{ maxHeight: "calc(90vh - 120px)" }}>
           <section className="rounded-3xl border border-gray-200 bg-white p-2 md:p-3">
-            <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
-              <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 flex items-center">
-                Role Name <span className="text-red-500 ml-1 font-bold">*</span>
-              </p>
+            <div className="flex flex-col gap-3">
               <FormInput
+                id="role-name-input"
+                label="Role Name"
                 value={form.roleName}
                 maxLength={50}
+                required
+                error={roleNameError}
                 onChange={(e) => onChange({ roleName: e.target.value })}
                 placeholder="Enter role name"
                 autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    document.getElementById("role-save-btn")?.focus();
+                  }
+                }}
               />
 
               <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 flex items-center">

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const modifierFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   arabic: z.string().optional(),
-  typeId: z.coerce.number().min(1, "Type is required"),
+  typeId: z.coerce.number().optional(),
   color: z.string().optional(),
   branchIds: z.array(z.number()).min(1, "At least one branch must be allocated"),
   categoryIds: z.array(z.number()),

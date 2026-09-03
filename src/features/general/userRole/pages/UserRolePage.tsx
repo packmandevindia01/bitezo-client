@@ -19,6 +19,7 @@ const UserRolePage = () => {
     detailLoading,
     saving,
     deleting,
+    roleNameError,
     setSearch,
     setField,
     togglePermission,
@@ -95,6 +96,7 @@ const UserRolePage = () => {
         detailLoading={detailLoading}
         saving={saving}
         deleting={deleting}
+        roleNameError={roleNameError}
         onClose={closeModal}
         onChange={setField}
         onTogglePermission={togglePermission}

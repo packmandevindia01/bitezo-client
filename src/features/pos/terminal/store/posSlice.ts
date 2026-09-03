@@ -277,10 +277,7 @@ const posSlice = createSlice({
         }
       } catch {}
 
-      const isCartEmpty = state.cartItems.length === 0;
-      const isNotEditing = state.editingOrderId === null;
-
-      if ((isCartEmpty && isNotEditing) || !state.selectedOrderTypeId) {
+      if (!state.selectedOrderTypeId) {
         const matchByDefaultId = action.payload.find((type) => type.orderTypeId === defaultId);
         if (matchByDefaultId) {
           state.selectedOrderTypeId = matchByDefaultId.orderTypeId;

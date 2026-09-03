@@ -113,32 +113,46 @@ const LoginForm = () => {
       <h2 className="mb-6 text-center text-xl font-bold text-[#49293e] sm:text-2xl">Login</h2>
 
       <FormInput
+        id="login-username"
         type="text"
         placeholder="Username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById("login-password")?.focus();
+          }
+        }}
         autoFocus
         tabIndex={1}
       />
 
       <FormInput
+        id="login-password"
         type="password"
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleSubmit(e);
+          }
+        }}
         tabIndex={2}
       />
 
       <button
         type="button"
         onClick={() => navigate("/forgot-password")}
-        tabIndex={3}
+        tabIndex={-1}
         className="mt-2 mb-4 block w-full text-right cursor-pointer text-sm text-gray-600 hover:underline bg-transparent border-none outline-none focus:text-[#49293e] focus:underline"
       >
         Forgot Password?
       </button>
 
-      <Button type="submit" size="lg" fullWidth disabled={loading} tabIndex={4}>
+      <Button type="submit" size="lg" fullWidth disabled={loading} tabIndex={3}>
         {loading ? "Logging in..." : "Login"}
       </Button>
     </form>

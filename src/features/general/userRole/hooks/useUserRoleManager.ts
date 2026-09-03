@@ -43,6 +43,7 @@ export const useUserRoleManager = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [roleNameError, setRoleNameError] = useState("");
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -76,12 +77,16 @@ export const useUserRoleManager = () => {
   }, [records, search]);
 
   const setField = (patch: Partial<UserRoleForm>) => {
+    if (patch.roleName !== undefined && patch.roleName.trim()) {
+      setRoleNameError("");
+    }
     setForm((prev) => ({ ...prev, ...patch }));
   };
 
   const resetForm = () => {
     setForm(createEmptyUserRoleForm());
     setEditingId(null);
+    setRoleNameError("");
   };
 
   const closeModal = () => {
@@ -211,8 +216,13 @@ export const useUserRoleManager = () => {
 
   const handleSave = async () => {
     if (!form.roleName.trim()) {
-      showToast("Role name is required", "error");
+      setRoleNameError("required");
+      setTimeout(() => {
+        document.getElementById("role-name-input")?.focus();
+      }, 50);
       return;
+    } else {
+      setRoleNameError("");
     }
 
     const duplicateRole = records.some(
@@ -301,6 +311,7 @@ export const useUserRoleManager = () => {
     detailLoading,
     saving,
     deleting,
+    roleNameError,
     setSearch,
     setField,
     togglePermission,

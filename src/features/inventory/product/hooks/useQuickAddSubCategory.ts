@@ -7,9 +7,9 @@ import { subCategoryApi } from "../../subcategory/api";
 import { useToast } from "../../../../app/providers/useToast";
 
 const schema = z.object({
-  code: z.string().min(1, "Code is required").transform(v => v.toUpperCase().replace(/\s/g, "")),
-  name: z.string().min(1, "Name is required").trim(),
-  arabicName: z.string(),
+  code: z.string().min(1, "Code is required").max(50, "Max 50 characters").transform(v => v.toUpperCase().replace(/\s/g, "")),
+  name: z.string().min(1, "Name is required").max(50, "Max 50 characters").trim(),
+  arabicName: z.string().max(50, "Max 50 characters").optional(),
   categoryId: z.string().min(1, "Category is required"),
   isActive: z.boolean(),
 });

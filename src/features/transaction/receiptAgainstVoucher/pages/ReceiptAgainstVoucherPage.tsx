@@ -296,6 +296,7 @@ const ReceiptAgainstVoucherPage = () => {
             
             <div className="grid gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6 flex-none">
               <div
+                className="h-full flex flex-col justify-end"
                 onMouseDownCapture={(e) => {
                   if (!branchId) {
                     e.stopPropagation();
@@ -349,8 +350,8 @@ const ReceiptAgainstVoucherPage = () => {
                 error={form.formState.errors.voucherDate?.message}
               />
               
-              <div className="md:col-span-2 flex items-end gap-2">
-                <div className="flex-1 min-w-0">
+              <div className="md:col-span-2 flex items-end gap-2 h-full translate-y-[2px]">
+                <div className="flex-1 min-w-0 h-full flex flex-col justify-end">
                   <SearchableSelect
                     id="rav-page-customer"
                     label="Customer"
@@ -362,7 +363,7 @@ const ReceiptAgainstVoucherPage = () => {
                     error={form.formState.errors.accountId?.message}
                   />
                 </div>
-                <div className="flex items-end mb-1">
+                <div className="mb-1 shrink-0">
                   <Button 
                     type="button"
                     variant="secondary" 

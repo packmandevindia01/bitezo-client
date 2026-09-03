@@ -42,6 +42,7 @@ export const QuickAddSubCategoryModal = ({
           label="Code"
           required
           autoFocus
+          maxLength={50}
           {...register("code")}
           onKeyDown={(e) => handleKeyDown(e, "q-sub-name")}
           error={errors.code?.message}
@@ -50,6 +51,7 @@ export const QuickAddSubCategoryModal = ({
           id="q-sub-name"
           label="Name"
           required
+          maxLength={50}
           {...register("name")}
           onKeyDown={(e) => handleKeyDown(e, "q-sub-arabic")}
           error={errors.name?.message}
@@ -57,6 +59,7 @@ export const QuickAddSubCategoryModal = ({
         <FormInput
           id="q-sub-arabic"
           label="Arabic Name"
+          maxLength={50}
           {...register("arabicName")}
           onKeyDown={(e) => handleKeyDown(e, "q-sub-category")}
         />
