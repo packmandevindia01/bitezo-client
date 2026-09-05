@@ -11,6 +11,7 @@ import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
+import { getVatStatus } from "../../../utils/billing";
 import { Capacitor } from "@capacitor/core";
 import { useEmployeeAuthorization } from "../../../hooks/useEmployeeAuthorization";
 import { EmployeePasswordModal } from "./EmployeePasswordModal";
@@ -128,8 +129,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           quantity: qty,
           price: price,
           isIncl: isIncl,
-          discountValue: detail.discAmount || 0,
-          discountType: detail.discPer ? 'percentage' : 'amount',
+          discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
+          discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
           extras: itemModifiers.filter((m: any) => m.price > 0),
           modifiers: itemModifiers.filter((m: any) => m.price === 0),
           isExisting: true,
@@ -169,8 +170,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discAmount || 0,
-        billDiscountType: master.discPer ? 'percentage' : 'amount',
+        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
+        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
@@ -254,37 +255,18 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
 
       const mappedItems = preMapped.map((d: any) => {
-        const trueLineTotal = d.itemVatBase * globalRatio;
-        const itemRatio = d.lineBase > 0 ? trueLineTotal / d.lineBase : 1;
-        
-        const adjustedExtras = d.extras.map((ex: any) => ({
-          ...ex,
-          price: ex.price * itemRatio
-        }));
-        
-        const adjustedPrice = d.price * itemRatio;
-        
         return {
           productId: d.productId || d.itemId || 0,
-          quantity: d.qty,
-          price: adjustedPrice,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: adjustedPrice },
-          extras: adjustedExtras,
+          quantity: d.qty || 1,
+          price: d.price || 0,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          extras: d.extras,
           modifiers: d.modifiers,
-          lineTotal: trueLineTotal
+          lineTotal: d.lineBase || ((d.price || 0) * (d.qty || 1))
         };
       });
 
       // Determine enableVat dynamically based on configs
-      const getVatStatus = (): boolean => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.VatStatus === true;
-        } catch {
-          return false;
-        }
-      };
       const enableVat = getVatStatus();
 
       const printData = {

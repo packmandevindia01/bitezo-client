@@ -129,7 +129,9 @@ export const useStockAdjustment = (id?: string | null) => {
         showToast("Error loading Types: " + (err.message || "Unknown error"), "error");
         return { options: [], raw: [] };
       }
-    }
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // 3. React Query: Fetch Employees & Reference Number (dependent on Branch selection)

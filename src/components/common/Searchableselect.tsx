@@ -306,11 +306,13 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
     }
 
     if (!open) {
+      if (onKeyDown) {
+        onKeyDown(e);
+        if (e.defaultPrevented) return;
+      }
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         setOpen(true);
-      } else {
-        if (onKeyDown) onKeyDown(e);
       }
     } else {
       // If open but focus is mysteriously still on the trigger, handle navigation directly
@@ -334,8 +336,6 @@ const SearchableSelect = forwardRef<HTMLDivElement, Props>(({
         if (onKeyDown) onKeyDown(e);
       }
     }
-    
-    onKeyDown?.(e);
   };
 
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

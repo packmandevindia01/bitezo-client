@@ -455,6 +455,15 @@ const PurchaseInvoiceFormPage = () => {
                                       qtyInputs[0]?.focus();
                                     }, 100);
                                   }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setTimeout(() => {
+                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                        qtyInputs[0]?.focus();
+                                      }, 50);
+                                    }
+                                  }}
                                   disabled={!canSave}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}

@@ -12,6 +12,7 @@ import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
+import { getVatStatus } from "../../../utils/billing";
 import { Capacitor } from "@capacitor/core";
 
 import { usePosProducts } from "../../../hooks/usePosProducts";
@@ -314,38 +315,19 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let calculatedVatTotal = master.vatAmount || details.reduce((sum: number, d: any) => sum + (d.vatAmount || 0), 0);
 
       const mappedItems = preMapped.map((d: any) => {
-        const trueLineTotal = d.itemVatBase * globalRatio;
-        const itemRatio = d.lineBase > 0 ? trueLineTotal / d.lineBase : 1;
-        
-        const adjustedExtras = d.extras.map((ex: any) => ({
-          ...ex,
-          price: ex.price * itemRatio
-        }));
-        
-        const adjustedPrice = (d.price || 0) * itemRatio;
-        
         return {
           productId: d.productId || d.itemId || 0,
           quantity: d.qty || 1,
-          price: adjustedPrice,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: adjustedPrice },
-          extras: adjustedExtras,
+          price: d.price || 0,
+          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          extras: d.extras,
           modifiers: d.modifiers,
           messages: d.messages || [],
-          lineTotal: trueLineTotal
+          lineTotal: d.lineBase || ((d.price || 0) * (d.qty || 1))
         };
       });
 
       // Determine enableVat dynamically based on configs
-      const getVatStatus = (): boolean => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.VatStatus === true;
-        } catch {
-          return false;
-        }
-      };
       const enableVat = getVatStatus();
 
       const printData = {
@@ -489,8 +471,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           quantity: detail.qty || 1,
           price: detail.price || 0,
           isIncl: itemIsIncl,
-          discountValue: detail.discAmount || 0,
-          discountType: detail.discPer ? 'percentage' : 'amount',
+          discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
+          discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
           extras,
           modifiers,
           messages,
@@ -531,8 +513,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discAmount || 0,
-        billDiscountType: master.discPer ? 'percentage' : 'amount',
+        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
+        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
@@ -636,8 +618,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           quantity: detail.qty || 1,
           price: detail.price || 0,
           isIncl: itemIsIncl,
-          discountValue: detail.discAmount || 0,
-          discountType: detail.discPer ? 'percentage' : 'amount',
+          discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
+          discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
           extras,
           modifiers,
           isExisting: true,
@@ -677,8 +659,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discAmount || 0,
-        billDiscountType: master.discPer ? 'percentage' : 'amount',
+        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
+        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,

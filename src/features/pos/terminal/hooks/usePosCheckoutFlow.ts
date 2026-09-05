@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
+import { getVatStatus } from '../utils/billing';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -97,15 +98,6 @@ export const usePosCheckoutFlow = ({
       try {
         const { Capacitor } = await import("@capacitor/core");
 
-        const getVatStatus = (): boolean => {
-          try {
-            const saved = localStorage.getItem('posConfigs');
-            const full = saved ? JSON.parse(saved) : {};
-            return full?.configs?.VatStatus === true;
-          } catch {
-            return false;
-          }
-        };
         const enableVat = getVatStatus();
         payload.printData.enableVat = enableVat;
 
@@ -151,7 +143,7 @@ export const usePosCheckoutFlow = ({
       providerOrderNo: activeProvider?.orderNo,
     });
 
-    const isOrderEdited = !!editingOrderId && isCartModified;
+    const isOrderEdited = !editingOrderId ? true : isCartModified;
 
     try {
       const systemSeriesId = Number(localStorage.getItem("systemSeriesId")) || 1;

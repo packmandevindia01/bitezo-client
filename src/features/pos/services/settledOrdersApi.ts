@@ -8,6 +8,7 @@ export interface ApiResponse<T> {
 
 export interface SettledOrdersParams {
   DayId?: number;
+  BranchId?: number;
   EmployeeId?: number;
   OrderTypeId?: number;
   SearchStatus?: string;
@@ -18,12 +19,30 @@ export interface SettledOrdersParams {
   DeliveryOutOnlyStatus?: boolean;
 }
 
-const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) => 
+const unwrap = <T>(promise: Promise<{ data: any }>) => 
   promise.then(res => {
-    if (!res.data.isSuccess) {
-      throw new Error(res.data.message || "An unexpected error occurred");
+    const body = res?.data;
+    if (Array.isArray(body)) {
+      return { isSuccess: true, data: body, statusCode: 200, message: null };
     }
-    return res.data;
+    if (body && typeof body === 'object') {
+      if (body.isSuccess === false) {
+        throw new Error(body.message || "An unexpected error occurred");
+      }
+      let dataList: any[] = [];
+      if (Array.isArray(body.data)) {
+        dataList = body.data;
+      } else if (body.data && typeof body.data === 'object') {
+        dataList = Array.isArray(body.data.items) ? body.data.items :
+                   Array.isArray(body.data.records) ? body.data.records :
+                   Array.isArray(body.data.orders) ? body.data.orders :
+                   Array.isArray(body.data.result) ? body.data.result : [];
+      } else if (Array.isArray(body.result)) {
+        dataList = body.result;
+      }
+      return { isSuccess: true, data: dataList, statusCode: body.statusCode || 200, message: body.message || null };
+    }
+    return { isSuccess: true, data: [], statusCode: 200, message: null };
   });
 
 const getPriceView = (): string => {

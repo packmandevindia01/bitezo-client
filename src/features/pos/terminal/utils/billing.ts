@@ -35,6 +35,29 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
   }
 };
 
+export const getVatStatus = (): boolean => {
+  try {
+    for (const key of ['posConfigs', 'posConfig', 'pos_configs']) {
+      const saved = localStorage.getItem(key);
+      if (!saved) continue;
+      const parsed = JSON.parse(saved);
+      const configs = parsed?.configs || parsed;
+      const val = configs?.VatStatus ?? configs?.vatStatus ?? parsed?.VatStatus ?? parsed?.vatStatus;
+      if (val !== undefined && val !== null) {
+        return (
+          val === true ||
+          String(val).toLowerCase() === 'true' ||
+          String(val).toLowerCase() === 'enable' ||
+          String(val).toLowerCase() === '1'
+        );
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 export const calculateLineItem = (
   qty: number,
   price: number,

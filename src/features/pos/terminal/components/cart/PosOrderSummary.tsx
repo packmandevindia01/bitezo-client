@@ -129,14 +129,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
           <button
             onClick={() => onSettle && onSettle(false)}
-            disabled={orderLoading || isSettling || total <= 0}
+            disabled={orderLoading || isSettling || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
             Settle
           </button>
           <button
             onClick={() => onSettle && onSettle(true)}
-            disabled={orderLoading || isSettling || total <= 0}
+            disabled={orderLoading || isSettling || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
             <span>Settle &</span>
@@ -146,14 +146,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
           <button
             onClick={() => onOrder && onOrder(false)}
-            disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
+            disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
             {orderLoading ? "Wait..." : "Order"}
           </button>
           <button
             onClick={() => onOrder && onOrder(true)}
-            disabled={orderLoading || isSettling || isSettledEdit || total <= 0}
+            disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
             {orderLoading ? (

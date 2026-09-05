@@ -9,7 +9,7 @@ import { menuApi } from "../../services/menuApi";
 import { productDataCache } from "../hooks/usePosProducts";
 import { addToCart, incrementItem, decrementItem, removeFromCart, clearCart, addVoidProduct, addVoidModifier, setOrderType, setTenderOption, setBillDiscount, setItemDiscount, setAllItemsDiscount, updateItemPrice, updateItemQty, setItemCustomizations, setCustomerId, setAddressId, setChange } from "../store/posSlice";
 import { selectCartDetails, selectSubtotal, selectDiscount, selectTax, selectTotal, selectCharges, selectTotalServiceCharge, selectTotalLevy, selectItemCount, selectTotalExtras, selectBaseSubtotal, selectDeliveryCharge } from "../store/posSelectors";
-import { getBillingConfig } from "../utils/billing";
+import { getBillingConfig, getVatStatus } from "../utils/billing";
 
 export const usePosCartActions = () => {
   const dispatch = useAppDispatch();
@@ -203,11 +203,7 @@ export const usePosCartActions = () => {
             String(headerVal).toLowerCase() !== '0'
           );
 
-          const enableVat =
-            configs?.VatStatus === true ||
-            String(configs?.VatStatus).toLowerCase() === 'true' ||
-            parsed?.VatStatus === true ||
-            String(parsed?.VatStatus).toLowerCase() === 'true';
+          const enableVat = getVatStatus();
 
           console.log("[getPackagerPrintConfig] Resolved from storage:", { enabled: isEnabled, showHeader, enableVat, rawVal: val });
           return { enabled: isEnabled, showHeader, enableVat };

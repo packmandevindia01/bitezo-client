@@ -81,7 +81,7 @@ axiosInstance.interceptors.request.use((config) => {
   // 4. Inject branchId for specific GET requests (Backoffice Reporting/Master Data)
   const activeBranchId = isBackofficeMode 
     ? sessionStorage.getItem("backoffice_activeBranchId") 
-    : localStorage.getItem("activeBranchId");
+    : (localStorage.getItem("activeBranchId") || localStorage.getItem("systemBranchId") || localStorage.getItem("branchId"));
 
   if (config.method?.toLowerCase() === "get" && activeBranchId) {
     if (normalizedUrl.includes("/settled-orders") || normalizedUrl.includes("load-master")) {

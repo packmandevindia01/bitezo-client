@@ -11,6 +11,7 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
+import { getVatStatus } from '../../../utils/billing';
 import { Capacitor } from '@capacitor/core';
 import type {
   DineInTable,
@@ -162,8 +163,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         quantity: detail.qty || 1,
         price: detail.price || 0,
         isIncl: isIncl,
-        discountValue: detail.discAmount || 0,
-        discountType: detail.discPer ? 'percentage' : 'amount',
+        discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
+        discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
         extras,
         modifiers,
         isExisting: true,
@@ -197,8 +198,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         orderTypeName: 'DineIn',
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discAmount || 0,
-        billDiscountType: master.discPer ? 'percentage' : 'amount',
+        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
+        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
         sectionId,
         tableId: table!.tableId,
         deliveryCharge: master.deliveryCharge || 0,
@@ -226,8 +227,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         orderTypeName: 'DineIn',
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discAmount || 0,
-        billDiscountType: master.discPer ? 'percentage' : 'amount',
+        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
+        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
         sectionId,
         tableId: table!.tableId,
         deliveryCharge: master.deliveryCharge || 0,
@@ -253,15 +254,6 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
       
       // Determine enableVat dynamically based on configs
-      const getVatStatus = (): boolean => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.VatStatus === true;
-        } catch {
-          return false;
-        }
-      };
       const enableVat = getVatStatus();
 
       // Prepare print data
@@ -300,22 +292,12 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
       
       const printMappedItems = mappedItems.map((item: any) => {
-        const trueLineTotal = item.itemVatBase * globalRatio;
-        const itemRatio = item.lineBase > 0 ? trueLineTotal / item.lineBase : 1;
-        
-        const adjustedExtras = item.extras?.map((ex: any) => ({
-          ...ex,
-          price: ex.price * itemRatio
-        })) || [];
-        
-        const adjustedPrice = item.price * itemRatio;
-        
         return {
           ...item,
-          price: adjustedPrice,
-          extras: adjustedExtras,
-          lineTotal: trueLineTotal,
-          product: { ...item.product, price: adjustedPrice }
+          price: item.price,
+          extras: item.extras,
+          lineTotal: item.lineBase || ((item.price || 0) * (item.quantity || 1)),
+          product: { ...item.product, price: item.price }
         };
       });
 

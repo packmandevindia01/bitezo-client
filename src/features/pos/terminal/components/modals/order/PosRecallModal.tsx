@@ -12,6 +12,7 @@ import { orderApi } from "../../../../services/orderApi";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
+import { getVatStatus } from "../../../utils/billing";
 import { Capacitor } from "@capacitor/core";
 
 
@@ -137,15 +138,6 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         };
       });
 
-      const getVatStatus = (): boolean => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.VatStatus === true;
-        } catch {
-          return false;
-        }
-      };
       const enableVat = getVatStatus();
 
       const printData = {

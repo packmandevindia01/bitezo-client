@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
 import { stockAdjustmentTypeApi } from "../services/stockAdjustmentTypeApi";
 import type { StockAdjustmentType, StockAdjustmentTypePayload } from "../types";
 
 export const useStockAdjustmentType = () => {
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [types, setTypes] = useState<StockAdjustmentType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,6 +118,7 @@ export const useStockAdjustmentType = () => {
         await stockAdjustmentTypeApi.create(form);
         showToast("Stock Adjustment Type created successfully", "success");
       }
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentTypes"] });
       handleCloseModal();
       await fetchTypes();
     } catch (err: any) {
@@ -141,6 +144,7 @@ export const useStockAdjustmentType = () => {
     try {
       await stockAdjustmentTypeApi.delete(typeId);
       showToast("Stock Adjustment Type deleted successfully", "success");
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentTypes"] });
       fetchTypes();
     } catch (err: any) {
       showToast(err.message || "Failed to delete stock adjustment type", "error");
