@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { formatAmount } from "../../../../utils/currency";
 
 const getFirstDayOfMonth = () => {
   const d = new Date();
@@ -96,32 +97,21 @@ const PurchaseReturnListPage = () => {
     { 
       header: "Sl No", 
       accessor: "purchaseReturnId" as keyof PurchaseReturnRow,
+      align: "center",
       render: (_: PurchaseReturnRow, index: number) => <span className="text-gray-500 font-medium">{index + 1}</span>
     },
-    { header: "Return No", accessor: "purchaseReturnNo" as keyof PurchaseReturnRow },
+    { header: "Return No", accessor: "purchaseReturnNo" as keyof PurchaseReturnRow, align: "center" },
     { 
       header: "Date", 
       accessor: "purchaseReturnDate" as keyof PurchaseReturnRow,
+      align: "center",
       render: (row: PurchaseReturnRow) => row.purchaseReturnDate ? new Date(row.purchaseReturnDate).toLocaleDateString("en-GB") : "-"
     },
     { 
       header: "Amount", 
       accessor: "netAmount" as keyof PurchaseReturnRow,
-      align: "right",
-      render: (row: PurchaseReturnRow) => <span className="font-semibold text-right block">{Number(row.netAmount || 0).toFixed(3)}</span>
-    },
-    {
-      header: "Status",
-      accessor: "isCancelled" as keyof PurchaseReturnRow,
-      render: (row: PurchaseReturnRow) => (
-        <span
-          className={`px-2 py-1 text-xs font-bold rounded-full ${
-            row.isCancelled ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
-          }`}
-        >
-          {row.isCancelled ? "Cancelled" : "Active"}
-        </span>
-      ),
+      align: "center",
+      render: (row: PurchaseReturnRow) => <span className="font-semibold">{formatAmount(Number(row.netAmount || 0))}</span>
     },
     {
       header: "Actions",

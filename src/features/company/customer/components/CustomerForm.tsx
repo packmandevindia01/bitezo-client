@@ -205,6 +205,7 @@ const CustomerForm = ({
             label="Active"
             checked={watch("isActive")}
             onChange={(e) => setValue("isActive", e.target.checked)}
+            disabled={!initialData}
           />
         </div>
       </div>

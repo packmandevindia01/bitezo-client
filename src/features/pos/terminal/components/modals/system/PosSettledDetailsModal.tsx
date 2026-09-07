@@ -252,7 +252,6 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       });
 
       const calculatedSubTotal = master.vatExclAmount || totalVatBase;
-      const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
 
       const mappedItems = preMapped.map((d: any) => {
         return {

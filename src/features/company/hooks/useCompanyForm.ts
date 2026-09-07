@@ -173,13 +173,28 @@ export const useCompanyForm = () => {
 
   useEffect(() => {
     if (raw) {
-      setComId(Number(raw.comId ?? 0));
+      setComId(Number(raw.comId ?? raw.id ?? raw.companyId ?? 0));
+      
       const countryRawVal = raw.countryId ?? raw.country ?? raw.country_id ?? raw.countryID ?? raw.countryName;
       let rawCountry = "";
-      if (countryRawVal !== undefined && countryRawVal !== null && String(countryRawVal).trim() !== "") {
+      if (countryRawVal !== undefined && countryRawVal !== null && String(countryRawVal).trim() !== "" && String(countryRawVal) !== "0") {
         const strVal = String(countryRawVal).trim();
         const foundByMatch = countries.find((c: any) => String(c.id) === strVal || c.name.toLowerCase() === strVal.toLowerCase());
         rawCountry = foundByMatch ? String(foundByMatch.id) : strVal;
+      }
+      if (!rawCountry && countries.length > 0) {
+        rawCountry = String(countries[0].id);
+      }
+
+      const currencyRawVal = raw.currencyId ?? raw.currency ?? raw.currency_id ?? raw.currencyID;
+      let rawCurrency = "";
+      if (currencyRawVal !== undefined && currencyRawVal !== null && String(currencyRawVal).trim() !== "" && String(currencyRawVal) !== "0") {
+        const strVal = String(currencyRawVal).trim();
+        const found = currencies.find((c: any) => String(c.currencyId) === strVal || c.currencyName.toLowerCase() === strVal.toLowerCase());
+        rawCurrency = found ? String(found.currencyId) : strVal;
+      }
+      if (!rawCurrency && currencies.length > 0) {
+        rawCurrency = String(currencies[0].currencyId);
       }
 
       const cleanedMob = cleanPhoneNumber(String(raw.mobNo ?? ""), rawCountry, countries);
@@ -190,7 +205,7 @@ export const useCompanyForm = () => {
         custMob2: String(raw.telNo ?? ""),
         email: String(raw.email ?? ""),
         taxRegNo: String(raw.taxRegNo ?? ""),
-        currency: raw.currencyId ? String(raw.currencyId) : (raw.currency ? String(raw.currency) : ""),
+        currency: rawCurrency,
         country: rawCountry,
         block: String(raw.block ?? ""),
         area: String(raw.area ?? ""),
@@ -206,7 +221,7 @@ export const useCompanyForm = () => {
       };
       reset(filled);
     }
-  }, [raw, countries, reset]);
+  }, [raw, countries, currencies, reset]);
 
   const mutation = useMutation({
     mutationFn: (data: CompanySchemaType) => {

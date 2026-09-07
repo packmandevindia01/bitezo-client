@@ -311,7 +311,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       });
 
       const calculatedSubTotal = master.vatExclAmount || totalVatBase;
-      const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
       let calculatedVatTotal = master.vatAmount || details.reduce((sum: number, d: any) => sum + (d.vatAmount || 0), 0);
 
       const mappedItems = preMapped.map((d: any) => {

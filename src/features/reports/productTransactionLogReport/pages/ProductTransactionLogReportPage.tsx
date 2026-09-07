@@ -17,14 +17,15 @@ import {
 import { ProductTransactionLogPrintPreviewModal } from "../components/ProductTransactionLogPrintPreviewModal";
 
 const COLS = [
-  { key: "sNo",         label: "SNo",           cls: "w-[5%]  text-center" },
-  { key: "branch",      label: "Branch",        cls: "w-[12%] text-center" },
-  { key: "transaction", label: "Transaction",   cls: "w-[18%] text-left"   },
-  { key: "voucherNo",   label: "Voucher No",    cls: "w-[12%] text-center" },
+  { key: "sNo",         label: "SNo",           cls: "w-[4%]  text-center" },
+  { key: "branch",      label: "Branch",        cls: "w-[10%] text-center" },
+  { key: "date",        label: "Date",          cls: "w-[10%] text-center" },
+  { key: "transaction", label: "Transaction",   cls: "w-[16%] text-left"   },
+  { key: "voucherNo",   label: "Voucher No",    cls: "w-[10%] text-center" },
   { key: "account",     label: "Account",       cls: "w-[18%] text-left"   },
   { key: "qtyIn",       label: "Qty In",        cls: "w-[10%] text-right"  },
   { key: "qtyOut",      label: "Qty Out",       cls: "w-[10%] text-right"  },
-  { key: "balance",     label: "Balance",       cls: "w-[15%] text-right"  },
+  { key: "balance",     label: "Balance",       cls: "w-[12%] text-right"  },
 ];
 
 const formatDate = (dateStr: string) => {
@@ -184,12 +185,13 @@ export const ProductTransactionLogReportPage = () => {
                       >
                         <td className={`px-2 py-1.5 text-center text-gray-500 border-r border-gray-100 ${COLS[0].cls}`}>{row.sNo}</td>
                         <td className={`px-2 py-1.5 text-center text-gray-800 border-r border-gray-100 ${COLS[1].cls}`}>{row.branch}</td>
-                        <td className={`px-2 py-1.5 text-left font-medium text-gray-800 border-r border-gray-100 ${COLS[2].cls}`}>{row.transaction}</td>
-                        <td className={`px-2 py-1.5 text-center font-mono text-gray-800 border-r border-gray-100 ${COLS[3].cls}`}>{row.voucherNo}</td>
-                        <td className={`px-2 py-1.5 text-left text-gray-700 border-r border-gray-100 uppercase ${COLS[4].cls}`}>{row.account || "—"}</td>
-                        <td className={`px-2 py-1.5 text-right font-medium text-gray-800 border-r border-gray-100 ${COLS[5].cls}`}>{row.qtyIn || "—"}</td>
-                        <td className={`px-2 py-1.5 text-right font-medium text-gray-800 border-r border-gray-100 ${COLS[6].cls}`}>{row.qtyOut || "—"}</td>
-                        <td className={`px-2 py-1.5 text-right font-semibold text-[#49293e] border-r border-gray-100 ${COLS[7].cls}`}>{row.balance}</td>
+                        <td className={`px-2 py-1.5 text-center text-gray-700 border-r border-gray-100 ${COLS[2].cls}`}>{formatDate(row.date)}</td>
+                        <td className={`px-2 py-1.5 text-left font-medium text-gray-800 border-r border-gray-100 ${COLS[3].cls}`}>{row.transaction}</td>
+                        <td className={`px-2 py-1.5 text-center font-mono text-gray-800 border-r border-gray-100 ${COLS[4].cls}`}>{row.voucherNo}</td>
+                        <td className={`px-2 py-1.5 text-left text-gray-700 border-r border-gray-100 uppercase ${COLS[5].cls}`}>{row.account || "—"}</td>
+                        <td className={`px-2 py-1.5 text-right font-medium text-gray-800 border-r border-gray-100 ${COLS[6].cls}`}>{row.qtyIn || "—"}</td>
+                        <td className={`px-2 py-1.5 text-right font-medium text-gray-800 border-r border-gray-100 ${COLS[7].cls}`}>{row.qtyOut || "—"}</td>
+                        <td className={`px-2 py-1.5 text-right font-semibold text-[#49293e] border-r border-gray-100 ${COLS[8].cls}`}>{row.balance}</td>
                       </tr>
                     ))
                   )}
@@ -199,7 +201,7 @@ export const ProductTransactionLogReportPage = () => {
                 {!report.isLoading && report.logData.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-100 border-t-2 border-t-[#49293e]/20 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
                     <tr>
-                      <td colSpan={5} className="px-4 py-2 text-left font-semibold text-gray-700 border-r border-gray-200">
+                      <td colSpan={6} className="px-4 py-2 text-left font-semibold text-gray-700 border-r border-gray-200">
                         <div className="flex gap-6">
                           <span><span className="text-gray-500 font-normal">Opening:</span> {report.totalData.opening}</span>
                           <span><span className="text-gray-500 font-normal">Received:</span> {report.totalData.received}</span>

@@ -19,11 +19,11 @@ export interface SettledOrdersParams {
   DeliveryOutOnlyStatus?: boolean;
 }
 
-const unwrap = <T>(promise: Promise<{ data: any }>) => 
+const unwrap = <T = any>(promise: Promise<{ data: any }>): Promise<ApiResponse<T>> => 
   promise.then(res => {
     const body = res?.data;
     if (Array.isArray(body)) {
-      return { isSuccess: true, data: body, statusCode: 200, message: null };
+      return { isSuccess: true, data: body as unknown as T, statusCode: 200, message: null };
     }
     if (body && typeof body === 'object') {
       if (body.isSuccess === false) {
@@ -40,9 +40,9 @@ const unwrap = <T>(promise: Promise<{ data: any }>) =>
       } else if (Array.isArray(body.result)) {
         dataList = body.result;
       }
-      return { isSuccess: true, data: dataList, statusCode: body.statusCode || 200, message: body.message || null };
+      return { isSuccess: true, data: dataList as unknown as T, statusCode: body.statusCode || 200, message: body.message || null };
     }
-    return { isSuccess: true, data: [], statusCode: 200, message: null };
+    return { isSuccess: true, data: [] as unknown as T, statusCode: 200, message: null };
   });
 
 const getPriceView = (): string => {

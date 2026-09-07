@@ -289,7 +289,6 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       });
 
       const calculatedSubTotal = master.vatExclAmount || totalVatBase;
-      const globalRatio = totalVatBase > 0 ? calculatedSubTotal / totalVatBase : 1;
       
       const printMappedItems = mappedItems.map((item: any) => {
         return {

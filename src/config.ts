@@ -20,7 +20,7 @@ export const loadConfig = async (): Promise<AppConfig> => {
     console.error("[Config] Error loading config, falling back to env:", error);
     // Fallback to build-time env if the file is missing or broken
     config = {
-      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "/api"
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "/api/v1"
     };
     return config;
   }
@@ -30,7 +30,7 @@ export const getConfig = (): AppConfig => {
   if (!config) {
     // This should theoretically not happen if main.tsx loads it first
     return {
-      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "/api"
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "/api/v1"
     };
   }
   return config;

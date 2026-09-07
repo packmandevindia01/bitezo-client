@@ -35,11 +35,12 @@ export const exportProductTransactionLogReportPDF = async (
   const tw = doc.getTextWidth(title);
   doc.line(148 - tw / 2, 26.5, 148 + tw / 2, 26.5);
 
-  const headers = [["SNo", "Branch", "Transaction", "Voucher No", "Account", "Qty In", "Qty Out", "Balance"]];
+  const headers = [["SNo", "Branch", "Date", "Transaction", "Voucher No", "Account", "Qty In", "Qty Out", "Balance"]];
 
   const body = logData.map((row) => [
     String(row.sNo),
     row.branch || "",
+    formatHeaderDate(row.date || ""),
     row.transaction || "",
     row.voucherNo || "",
     row.account || "",
@@ -51,7 +52,7 @@ export const exportProductTransactionLogReportPDF = async (
   const foot = [[
     {
       content: `Opening: ${totalData.opening}     Received: ${totalData.received}     Issued: ${totalData.issued}     Balance: ${totalData.balance}`,
-      colSpan: 8,
+      colSpan: 9,
       styles: { halign: "left" as const, fontStyle: "bold" as const },
     },
   ]];
@@ -65,14 +66,15 @@ export const exportProductTransactionLogReportPDF = async (
     headStyles: { fillColor: [73, 41, 62], textColor: 255, fontSize: 8 },
     footStyles: { fillColor: [245, 245, 245], textColor: 50, fontStyle: "bold", fontSize: 8 },
     columnStyles: {
-      0: { halign: "center", cellWidth: 12 },
-      1: { halign: "center", cellWidth: 22 },
-      2: { halign: "left",   cellWidth: 38 },
-      3: { halign: "center", cellWidth: 28 },
-      4: { halign: "left",   cellWidth: 40 },
-      5: { halign: "right",  cellWidth: 28 },
-      6: { halign: "right",  cellWidth: 28 },
-      7: { halign: "right",  cellWidth: 28 },
+      0: { halign: "center", cellWidth: 10 },
+      1: { halign: "center", cellWidth: 20 },
+      2: { halign: "center", cellWidth: 22 },
+      3: { halign: "left",   cellWidth: 34 },
+      4: { halign: "center", cellWidth: 24 },
+      5: { halign: "left",   cellWidth: 38 },
+      6: { halign: "right",  cellWidth: 26 },
+      7: { halign: "right",  cellWidth: 26 },
+      8: { halign: "right",  cellWidth: 26 },
     },
     styles: { fontSize: 8 },
   });
@@ -91,15 +93,16 @@ export const exportProductTransactionLogReportExcel = async (
   const title = `Product Transaction Log — ${formatHeaderDate(filters.fromDate)} to ${formatHeaderDate(filters.toDate)}`;
 
   const rows: any[] = [];
-  rows.push([companyName, "", "", "", "", "", "", ""]);
-  rows.push([title, "", "", "", "", "", "", ""]);
-  rows.push(["", "", "", "", "", "", "", ""]);
-  rows.push(["SNo", "Branch", "Transaction", "Voucher No", "Account", "Qty In", "Qty Out", "Balance"]);
+  rows.push([companyName, "", "", "", "", "", "", "", ""]);
+  rows.push([title, "", "", "", "", "", "", "", ""]);
+  rows.push(["", "", "", "", "", "", "", "", ""]);
+  rows.push(["SNo", "Branch", "Date", "Transaction", "Voucher No", "Account", "Qty In", "Qty Out", "Balance"]);
 
   logData.forEach((row) => {
     rows.push([
       row.sNo,
       row.branch || "",
+      formatHeaderDate(row.date || ""),
       row.transaction || "",
       row.voucherNo || "",
       row.account || "",
@@ -109,13 +112,13 @@ export const exportProductTransactionLogReportExcel = async (
     ]);
   });
 
-  rows.push(["", "", "", "", "", "", "", ""]);
-  rows.push([`Opening: ${totalData.opening}`, "", `Received: ${totalData.received}`, "", `Issued: ${totalData.issued}`, "", `Balance: ${totalData.balance}`, ""]);
+  rows.push(["", "", "", "", "", "", "", "", ""]);
+  rows.push([`Opening: ${totalData.opening}`, "", `Received: ${totalData.received}`, "", `Issued: ${totalData.issued}`, "", `Balance: ${totalData.balance}`, "", ""]);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   // Style header row (row index 3)
-  const headerCols = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  const headerCols = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
   headerCols.forEach((col) => {
     const ref = `${col}4`;
     if (ws[ref]) {
@@ -129,13 +132,13 @@ export const exportProductTransactionLogReportExcel = async (
 
   // Title merges
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
   ];
 
   // Column widths
   ws["!cols"] = [
-    { wch: 6 }, { wch: 14 }, { wch: 24 }, { wch: 16 },
+    { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 16 },
     { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
   ];
 

@@ -11,6 +11,7 @@ import { productService } from "../../../inventory/product/services/productServi
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -232,6 +233,34 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         }
       }
     }, [totals.grandTotal, selectedPaymodeId, multiPayId, decimalPart, methods]);
+
+    // Auto-select default paymode from branch backoffice config when creating new purchase return
+    useEffect(() => {
+      if (invoiceId || !watchedBranch || !masterData?.paymodes) return;
+
+      let active = true;
+      backofficeConfigApi.getConfigData(Number(watchedBranch))
+        .then(configArray => {
+          if (!active) return;
+          if (configArray && configArray.length > 0 && configArray[0].paymodeId) {
+            const defaultPid = Number(configArray[0].paymodeId);
+            const foundPaymode = (masterData.paymodes as any[]).find(p => p.paymodeId === defaultPid);
+            if (foundPaymode && defaultPid > 0) {
+              setSelectedPaymodeId(defaultPid);
+              setPayments([{
+                mode: foundPaymode.paymodeName.toLowerCase(),
+                amount: totals.grandTotal.toFixed(decimalPart),
+                paymodeId: defaultPid,
+              } as any]);
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load branch backoffice config for default paymode", err);
+        });
+
+      return () => { active = false; };
+    }, [invoiceId, watchedBranch, masterData?.paymodes, setPayments, totals.grandTotal, decimalPart]);
 
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {

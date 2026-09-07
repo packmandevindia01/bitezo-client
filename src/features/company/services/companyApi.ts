@@ -67,12 +67,28 @@ export const fetchCompany = async () => {
 
 /** Update the current company's info */
 export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
+  const parsedCurrency = Number(formData.currency);
+  const parsedCountry = Number(formData.country);
+
+  if (!parsedCurrency || isNaN(parsedCurrency) || parsedCurrency <= 0) {
+    throw new Error("Please select a valid Currency before updating company details.");
+  }
+
+  if (!parsedCountry || isNaN(parsedCountry) || parsedCountry <= 0) {
+    throw new Error("Please select a valid Country before updating company details.");
+  }
+
+  const targetComId = comId || Number(formData.comId ?? 0);
+
   const payload = {
-    comId,
+    comId: targetComId,
+    companyId: targetComId,
+    id: targetComId,
     name: formData.custName,
     mobNo: formData.custMob,
     telNo: formData.custMob2 || "",
-    country: formData.country ? Number(formData.country) : 1,
+    country: parsedCountry,
+    countryId: parsedCountry,
     block: formData.block || "",
     area: formData.area || "",
     road: formData.road || "",
@@ -81,8 +97,9 @@ export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
     crNo: formData.crNo || "",
     email: formData.email || "",
     taxRegNo: formData.taxRegNo || "",
-    currencyId: formData.currency ? Number(formData.currency) : 0,
-    regId: formData.regId,
+    currencyId: parsedCurrency,
+    currency: parsedCurrency,
+    regId: formData.regId || "",
     startDate: formData.startDate ? formData.startDate : new Date().toISOString().split("T")[0],
     updatedAt: new Date().toISOString(),
   };

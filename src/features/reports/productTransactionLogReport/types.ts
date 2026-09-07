@@ -10,6 +10,7 @@ export interface ProductTransactionLogParams {
 export interface ProductTransactionLogRecord {
   sNo: number;
   branch: string;
+  date?: string;
   transaction: string;
   voucherNo: string;
   account: string;

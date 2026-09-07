@@ -4,6 +4,16 @@ import type { Customer } from "../types/customer";
 const unwrap = <T>(promise: Promise<{ data: any }>) => 
   promise.then(res => res.data as T);
 
+const parseIsActive = (val: any): boolean => {
+  if (typeof val === "boolean") return val;
+  if (typeof val === "string") {
+    const s = val.trim().toLowerCase();
+    return s === "active" || s === "true" || s === "1";
+  }
+  if (typeof val === "number") return val === 1;
+  return true;
+};
+
 export const mapToFrontend = (item: any): Customer => ({
   id: item.customerId ?? item.id,
   customerCode: item.code ?? item.customerCode ?? "",
@@ -18,7 +28,7 @@ export const mapToFrontend = (item: any): Customer => ({
   trnNo: item.trnNo ?? "",
   branch: item.branchId ? String(item.branchId) : (item.branch ?? ""),
   openingBalance: item.openingBalance !== undefined && item.openingBalance !== null ? String(item.openingBalance) : "0.000",
-  isActive: item.isActive ?? true,
+  isActive: parseIsActive(item.isActive),
   flatNo: item.flatNo ?? "",
   buildingNo: item.buildingNo ?? "",
   blockNo: item.blockNo ?? "",
@@ -77,10 +87,10 @@ export const customerApi = {
       return unwrap<{ data: any }>(axiosInstance.put(`/customer/${customer.id}`, payload))
         .then(res => ({
           ...res,
-          data: res.data ? mapToFrontend({ ...res.data, customerId: customer.id }) : customer
+          data: mapToFrontend({ ...customer, ...res.data, customerId: customer.id })
         }));
     } else {
-      const { customerId, isActive, ...postPayload } = basePayload;
+      const { customerId, ...postPayload } = basePayload;
       const payload = {
         ...postPayload,
         createdAt: new Date().toISOString(),
@@ -88,7 +98,7 @@ export const customerApi = {
       return unwrap<{ data: any }>(axiosInstance.post("/customer", payload))
         .then(res => ({
           ...res,
-          data: res.data ? mapToFrontend(res.data) : customer
+          data: mapToFrontend({ ...customer, ...(res.data || {}) })
         }));
     }
   },

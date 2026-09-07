@@ -117,24 +117,26 @@ export const ProductTransactionLogPrintPreviewModal: React.FC<Props> = ({
             <table className="w-full border-collapse text-[9px]">
               <thead>
                 <tr className="bg-[#49293e] text-white">
-                  <th className="text-center p-1.5 font-bold w-[5%]">SNo</th>
+                  <th className="text-center p-1.5 font-bold w-[4%]">SNo</th>
                   <th className="text-center p-1.5 font-bold w-[10%]">Branch</th>
-                  <th className="text-left   p-1.5 font-bold w-[22%]">Transaction</th>
-                  <th className="text-center p-1.5 font-bold w-[14%]">Voucher No</th>
-                  <th className="text-left   p-1.5 font-bold w-[20%]">Account</th>
-                  <th className="text-right  p-1.5 font-bold w-[10%]">Qty In</th>
-                  <th className="text-right  p-1.5 font-bold w-[10%]">Qty Out</th>
+                  <th className="text-center p-1.5 font-bold w-[10%]">Date</th>
+                  <th className="text-left   p-1.5 font-bold w-[18%]">Transaction</th>
+                  <th className="text-center p-1.5 font-bold w-[12%]">Voucher No</th>
+                  <th className="text-left   p-1.5 font-bold w-[18%]">Account</th>
+                  <th className="text-right  p-1.5 font-bold w-[9%]">Qty In</th>
+                  <th className="text-right  p-1.5 font-bold w-[9%]">Qty Out</th>
                   <th className="text-right  p-1.5 font-bold w-[10%]">Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {data.logData.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-8 text-slate-400">No records found.</td></tr>
+                  <tr><td colSpan={9} className="text-center py-8 text-slate-400">No records found.</td></tr>
                 ) : (
                   data.logData.map((row, idx) => (
                     <tr key={idx} className={idx % 2 === 1 ? "bg-slate-50/80" : "bg-white"}>
                       <td className="text-center p-1.5 text-slate-500">{row.sNo}</td>
                       <td className="text-center p-1.5">{row.branch}</td>
+                      <td className="text-center p-1.5">{formatHeaderDate(row.date || "")}</td>
                       <td className="text-left   p-1.5 font-medium">{row.transaction}</td>
                       <td className="text-center p-1.5 font-mono">{row.voucherNo}</td>
                       <td className="text-left   p-1.5">{row.account || "—"}</td>

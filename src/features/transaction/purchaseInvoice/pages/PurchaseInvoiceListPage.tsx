@@ -113,19 +113,6 @@ const PurchaseInvoiceListPage = () => {
       render: (row: PurchaseInvoiceRow) => <span className="font-semibold text-right block">{Number(row.netAmount || 0).toFixed(3)}</span>
     },
     {
-      header: "Status",
-      accessor: "isCancelled" as keyof PurchaseInvoiceRow,
-      render: (row: PurchaseInvoiceRow) => (
-        <span
-          className={`px-2 py-1 text-xs font-bold rounded-full ${
-            row.isCancelled ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
-          }`}
-        >
-          {row.isCancelled ? "Cancelled" : "Active"}
-        </span>
-      ),
-    },
-    {
       header: "Actions",
       accessor: "purchaseId" as keyof PurchaseInvoiceRow,
       render: (row: PurchaseInvoiceRow) => (
