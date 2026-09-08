@@ -114,7 +114,23 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const isDineIn   = data.orderType?.toLowerCase().includes("dine");
   const isDelivery = data.orderType?.toLowerCase().includes("delivery");
 
-  let invoiceTitle = data.enableVat ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
+  const cartVatSum = cartDetails.reduce((s: number, it: any) => s + (it.vatAmount || 0), 0);
+  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
+  
+  // Calculate displaySubTotal for logic usage
+  let displaySubTotal = 0;
+  cartDetails.forEach((item) => {
+    let extrasSum = 0;
+    if (item.extras && item.extras.length > 0) item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
+    let baseAmt = (item as any).lineTotal;
+    if (baseAmt !== undefined) baseAmt -= extrasSum;
+    else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
+    displaySubTotal += parseFloat(baseAmt.toFixed(3));
+  });
+
+  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
+
+  let invoiceTitle = isVatActive ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
   const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
 
   let orderLabel = modePrefix;
@@ -154,7 +170,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Items ───────────────────────────────────────────────────────────────────
-  let displaySubTotal = 0;
+  displaySubTotal = 0; // Reset for loop
 
   cartDetails.forEach((item) => {
     let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
@@ -207,15 +223,11 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Totals ──────────────────────────────────────────────────────────────────
-  // Recalculate consistent with guestPrintTemplate.ts logic
-  const cartVatSum = cartDetails.reduce((s: number, it: any) => s + (it.vatAmount || 0), 0);
-  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
-
   displaySubTotal = parseFloat(displaySubTotal.toFixed(3));
   let subTotal = displaySubTotal;
   let vatAmount = 0;
-  if (data.enableVat) {
-    vatAmount  = parseFloat(rawVat.toFixed(3));
+  if (isVatActive) {
+    vatAmount  = parseFloat((rawVat > 0 ? rawVat : (data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))).toFixed(3));
     subTotal   = parseFloat((data.netAmount - vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)).toFixed(3));
   }
 
@@ -225,7 +237,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   if ((isDelivery || (data.deliveryCharge && data.deliveryCharge > 0))) {
     markup += totalsLine("Delivery Charge", (data.deliveryCharge || 0).toFixed(3)) + "\n";
   }
-  if (data.enableVat) markup += totalsLine("VAT Amount", vatAmount.toFixed(3)) + "\n";
+  if (isVatActive || vatAmount > 0) markup += totalsLine("VAT Amount", vatAmount.toFixed(3)) + "\n";
 
   markup += `[L]${DASH_SEP}\n`;
   markup += `[L]<b><font size='big'>${padRight("GRAND TOTAL", LINE_WIDTH - 10)}${padLeft(data.netAmount.toFixed(3), 10)}</font></b>\n`;
@@ -242,7 +254,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   }
 
   // ── VAT table (if enabled) ────────────────────────────────────────────────
-  if (data.enableVat) {
+  if (isVatActive || vatAmount > 0) {
     markup += `[L]${DASH_SEP}\n`;
     markup += `[L]<b>${padRight("VAT Code", 14)}${padRight("Excl Amt", 12)}${padRight("VAT Amt", 10)}${padLeft("Net Amt", 12)}</b>\n`;
     markup += `[L]${DASH_SEP}\n`;

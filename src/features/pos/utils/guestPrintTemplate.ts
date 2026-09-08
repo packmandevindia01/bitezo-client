@@ -178,8 +178,13 @@ export const generateGuestPrintHtml = async (
   const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
 
   displaySubTotal = parseFloat(displaySubTotal.toFixed(3));
-  if (data.enableVat) {
-    data.vatAmount = parseFloat(rawVat.toFixed(3));
+  
+  // Show VAT if explicitly enabled OR if vatAmount / cartVatSum / netAmount difference indicates VAT presence
+  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
+
+  if (isVatActive) {
+    data.enableVat = true;
+    data.vatAmount = parseFloat((rawVat > 0 ? rawVat : (data.netAmount - displaySubTotal)).toFixed(3));
     data.subTotal = parseFloat((data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)).toFixed(3));
   } else {
     data.subTotal = displaySubTotal;
@@ -244,7 +249,7 @@ export const generateGuestPrintHtml = async (
             <div>Building:65,Road:2003,Block:320</div>
             <div>HOORA</div>
             <div>CR NO:48622-16</div>
-            ${data.enableVat ? '<div>VAT NO:220003229000002</div>' : ''}
+            ${isVatActive ? '<div>VAT NO:220003229000002</div>' : ''}
             <div>Tel:17311999,Tel:17311999</div>
           </div>
           `) : ''}
@@ -314,7 +319,7 @@ export const generateGuestPrintHtml = async (
             <td class="totals-value">${(data.deliveryCharge || 0).toFixed(3)}</td>
           </tr>
           ` : ''}
-          ${data.enableVat ? `
+          ${isVatActive ? `
           <tr>
             <td class="totals-label">VAT Amount</td>
             <td class="totals-value">${data.vatAmount.toFixed(3)}</td>
@@ -341,7 +346,7 @@ export const generateGuestPrintHtml = async (
           ` : ''}
         </table>
 
-        ${data.enableVat ? `
+        ${isVatActive ? `
         <div class="dashed-hr"></div>
         <table class="vat-table">
           <thead>

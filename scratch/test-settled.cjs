@@ -1,7 +1,7 @@
 const http = require('http');
 
 const options = {
-  hostname: '192.168.1.40',
+  hostname: '192.168.220.35',
   port: 8068,
   path: '/api/settled-orders?DayId=1&OrderTypeId=0&Decimals=3',
   method: 'GET',
