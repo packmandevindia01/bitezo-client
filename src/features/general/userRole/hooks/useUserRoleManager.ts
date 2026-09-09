@@ -1,5 +1,3 @@
-import { useAppDispatch } from "../../../../app/hooks";
-import { setUserRoles } from "../../../auth/store/authSlice";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { createEmptyUserRoleForm } from "../constants";
@@ -31,7 +29,6 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const useUserRoleManager = () => {
-  const dispatch = useAppDispatch();
   const { showToast } = useToast();
   const [records, setRecords] = useState<UserRoleRecord[]>([]);
   const [permissions, setPermissions] = useState<UserRolePermission[]>([]);
@@ -314,16 +311,6 @@ export const useUserRoleManager = () => {
         await userRoleService.create(form);
         showToast("User role created successfully", "success");
       }
-
-      // Dynamically update active permissions in Redux store for real-time reflection
-      const updatedRoles = permissions.map((p) => ({
-        permissionId: p.permissionId,
-        module: p.module,
-        action: p.action,
-        status: form.permissionIds.includes(p.permissionId),
-        moduleType: (p as any).moduleType,
-      }));
-      dispatch(setUserRoles(updatedRoles));
 
       await loadInitialData();
       closeModal();

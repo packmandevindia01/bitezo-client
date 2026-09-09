@@ -1,6 +1,5 @@
 import { LogOut } from "lucide-react";
 import { Modal, Button } from "../../common";
-import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../app/providers/useToast";
 
 import { useAppDispatch } from "../../../app/hooks";

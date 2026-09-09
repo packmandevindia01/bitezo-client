@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,9 +26,23 @@ export const useUserForm = ({ initialData, onSuccess }: UseUserFormProps) => {
       branchId: initialData?.branchId !== undefined && initialData?.branchId !== null ? String(initialData.branchId) : "",
       roleId: initialData?.roleId ? String(initialData.roleId) : "",
       isActive: initialData?.isActive ?? true,
-      isMaster: initialData?.isMaster ?? true,
+      isMaster: initialData?.isMaster ?? false,
     },
   });
+
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        name: initialData.name ?? "",
+        password: "",
+        confirmPassword: "",
+        branchId: initialData.branchId !== undefined && initialData.branchId !== null ? String(initialData.branchId) : "",
+        roleId: initialData.roleId ? String(initialData.roleId) : "",
+        isActive: initialData.isActive ?? true,
+        isMaster: initialData.isMaster ?? false,
+      });
+    }
+  }, [initialData, form]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: UserFormDataUnion) => {

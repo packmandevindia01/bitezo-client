@@ -176,7 +176,8 @@ export const UserForm = ({
           id="user-role"
           label="User Role"
           required
-          {...register("roleId")}
+          value={form.watch("roleId") ?? ""}
+          onChange={(e) => form.setValue("roleId", e.target.value, { shouldValidate: true })}
           disabled={rolesLoading}
           error={errors.roleId?.message}
           options={roles

@@ -214,9 +214,9 @@ const AppRoutes = () => {
                   <Route path="purchase-invoice" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoiceListPage /></RoleGuard>} />
                   <Route path="purchase-invoice/new" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoiceFormPage /></RoleGuard>} />
                   <Route path="purchase-invoice/edit/:id" element={<RoleGuard moduleName="Purchase Invoice"><PurchaseInvoiceFormPage /></RoleGuard>} />
-                  <Route path="purchase-return" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnListPage /></RoleGuard>} />
-                  <Route path="purchase-return/new" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
-                  <Route path="purchase-return/edit/:id" element={<RoleGuard moduleName="Purchase Return"><PurchaseReturnFormPage /></RoleGuard>} />
+                  <Route path="purchase-return" element={<RoleGuard moduleName={["Purchase Return", "Purchase Return Invoice"]}><PurchaseReturnListPage /></RoleGuard>} />
+                  <Route path="purchase-return/new" element={<RoleGuard moduleName={["Purchase Return", "Purchase Return Invoice"]}><PurchaseReturnFormPage /></RoleGuard>} />
+                  <Route path="purchase-return/edit/:id" element={<RoleGuard moduleName={["Purchase Return", "Purchase Return Invoice"]}><PurchaseReturnFormPage /></RoleGuard>} />
 
                   <Route path="recipes" element={<RoleGuard moduleName="Recipe Master"><RecipeListPage /></RoleGuard>} />
                   <Route path="recipe-form" element={<RoleGuard moduleName="Recipe Master"><RecipePage /></RoleGuard>} />

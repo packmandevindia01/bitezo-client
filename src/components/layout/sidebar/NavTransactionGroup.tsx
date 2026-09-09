@@ -25,7 +25,7 @@ const NavTransactionGroup = ({ navigate, onClose, itemClassName }: NavTransactio
         </div>
       )}
 
-      {hasPermission("Purchase Return", "View") && (
+      {(hasPermission("Purchase Return", "View") || hasPermission("Purchase Return Invoice", "View")) && (
         <div onClick={() => handleItemClick("/dashboard/purchase-return")} className={itemClassName}>
           <Repeat2 size={13} className="shrink-0" />
           <span>Purchase Return</span>
