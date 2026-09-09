@@ -1,7 +1,7 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import { useEffect, useState } from "react";
-import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
+import { Button, Checkbox, FormInput, SelectInput, ConfirmDialog } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import type { User } from "../types";
 import { userRoleService } from "../../userRole/services/userRoleService";
@@ -42,11 +42,24 @@ export const UserForm = ({
   const [roles, setRoles] = useState<UserRoleNameOption[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
 
+  const [confirmAllBranchOpen, setConfirmAllBranchOpen] = useState(false);
+  const [prevBranchId, setPrevBranchId] = useState(
+    initialData?.branchId !== undefined && initialData?.branchId !== null
+      ? String(initialData.branchId)
+      : ""
+  );
+
+  useEffect(() => {
+    if (initialData?.branchId !== undefined && initialData?.branchId !== null) {
+      setPrevBranchId(String(initialData.branchId));
+    }
+  }, [initialData]);
+
   useEffect(() => {
     const fetchBranches = async () => {
       try {
         setBranchesLoading(true);
-        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/false/list-name");
+        const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/true/list-name");
         setBranches(data.data ?? []);
       } catch {
         setBranches([]);
@@ -71,6 +84,42 @@ export const UserForm = ({
     fetchRoles();
   }, []);
 
+  const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
+
+  const isAllBranch = (idOrName?: string) => {
+    if (!idOrName) return false;
+    const lower = idOrName.toLowerCase().trim();
+    return lower === "0" || lower === "all" || lower === "all branches" || lower === "all branch";
+  };
+
+  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.target.value;
+    const selectedBranch = branches.find((b) => String(b.branchId) === newValue);
+
+    if (newValue === "0" || (selectedBranch && isAllBranch(selectedBranch.branchName))) {
+      setPendingBranchId(newValue);
+      setConfirmAllBranchOpen(true);
+    } else {
+      form.setValue("branchId", newValue, { shouldValidate: true });
+      setPrevBranchId(newValue);
+    }
+  };
+
+  const handleConfirmAllBranch = () => {
+    if (pendingBranchId !== null) {
+      form.setValue("branchId", pendingBranchId, { shouldValidate: true });
+      setPrevBranchId(pendingBranchId);
+    }
+    setConfirmAllBranchOpen(false);
+    setPendingBranchId(null);
+  };
+
+  const handleCancelAllBranch = () => {
+    form.setValue("branchId", prevBranchId, { shouldValidate: true });
+    setConfirmAllBranchOpen(false);
+    setPendingBranchId(null);
+  };
+
   const handleClear = () => {
     form.reset({
       name: "",
@@ -81,6 +130,8 @@ export const UserForm = ({
       isActive: true,
       isMaster: false,
     });
+    setPrevBranchId("");
+    setPendingBranchId(null);
     if (onClear) onClear();
   };
 
@@ -102,15 +153,21 @@ export const UserForm = ({
           id="user-branch"
           label="Branch"
           required
-          {...register("branchId")}
+          value={form.watch("branchId") ?? ""}
+          onChange={handleBranchChange}
           disabled={branchesLoading}
           error={errors.branchId?.message}
-          options={branches
-            .filter((b) => b.branchId > 0 && !b.branchName.toLowerCase().startsWith("select"))
-            .map((b) => ({
-              label: b.branchName,
-              value: String(b.branchId),
-            }))}
+          options={[
+            ...(!branches.some((b) => isAllBranch(b.branchName))
+              ? [{ label: "All", value: "0" }]
+              : []),
+            ...branches
+              .filter((b) => !b.branchName.toLowerCase().startsWith("select"))
+              .map((b) => ({
+                label: b.branchName,
+                value: String(b.branchId),
+              })),
+          ]}
           placeholder={branchesLoading ? "Loading..." : "Select a branch"}
           onKeyDown={(e) => handleKeyDown(e, "user-role")}
         />
@@ -206,6 +263,17 @@ export const UserForm = ({
           </Button>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmAllBranchOpen}
+        title="Confirm Branch Selection"
+        message="Do you want to continue with 'All' branch?"
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
+        confirmVariant="primary"
+        onConfirm={handleConfirmAllBranch}
+        onCancel={handleCancelAllBranch}
+      />
     </>
   );
 };

@@ -16,6 +16,12 @@
 
 ---
 
+## Strict Shared / Common Component Protection Rule
+- **NEVER** modify, refactor, edit, or touch any global shared/common component in `src/components/` (e.g. `FormInput.tsx`, `Modal.tsx`, `Button.tsx`, `SelectInput.tsx`, `RecordTableCard.tsx`, `ConfirmDialog.tsx`, `PageShell.tsx`, `SearchBar.tsx`, etc.) without explicit, direct permission from the USER.
+- All feature-specific or page-specific customizations, icon handlers, or styling overrides MUST be implemented inside the calling feature/page component (e.g., via existing props, wrappers, or local Tailwind classes) without altering shared common component files.
+
+---
+
 ## Next-Generation Architecture Rule (NEW STANDARD)
 *Every new feature and any major refactor of an existing feature MUST strictly follow this architecture:*
 

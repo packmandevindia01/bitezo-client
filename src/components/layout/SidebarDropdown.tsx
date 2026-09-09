@@ -1,5 +1,5 @@
+import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
 
 // Single consistent accent for ALL nested sub-headings — matches brand #49293e
 const NESTED_ACCENT = {
@@ -17,6 +17,24 @@ interface Props {
   defaultOpen?: boolean;
 }
 
+const hasValidChildren = (children: React.ReactNode): boolean => {
+  if (!children) return false;
+
+  const childArray = React.Children.toArray(children).filter(Boolean);
+  if (childArray.length === 0) return false;
+
+  return childArray.some((child) => {
+    if (!React.isValidElement(child)) return false;
+
+    if (child.type === SidebarDropdown) {
+      const props = child.props as Props;
+      return hasValidChildren(props.children);
+    }
+
+    return true;
+  });
+};
+
 const SidebarDropdown = ({
   icon,
   label,
@@ -26,6 +44,10 @@ const SidebarDropdown = ({
 }: Props) => {
   const [open, setOpen] = useState(defaultOpen);
   const accent = NESTED_ACCENT;
+
+  if (!hasValidChildren(children)) {
+    return null;
+  }
 
   // ── Top-level group header (Master / Transaction / Reports / Settings)
   if (!nested) {

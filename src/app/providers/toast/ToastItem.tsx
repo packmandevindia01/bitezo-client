@@ -11,6 +11,7 @@ interface ToastItemProps {
 
 const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
   const s = STYLES[toast.type];
+  const durationMs = toast.type === "success" ? 600 : 2500;
 
   return (
     <div
@@ -102,7 +103,7 @@ const ToastItem = ({ toast, onRemove }: ToastItemProps) => {
           height: "3px",
           borderRadius: "0 0 16px 16px",
           background: s.progress,
-          animation: "progress 2s linear forwards",
+          animation: `progress ${durationMs}ms linear forwards`,
         }}
       />
     </div>

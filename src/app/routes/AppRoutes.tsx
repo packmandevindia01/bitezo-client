@@ -95,6 +95,7 @@ const ProductTransactionLogReportPage = lazy(() => import("../../features/report
 const DailySalesReportPage = lazy(() => import("../../features/reports/dailySalesReport/pages/DailySalesReportPage"));
 const HourlySalesReportPage = lazy(() => import("../../features/reports/hourlySalesReport/pages/HourlySalesReportPage"));
 const OrderTypeSalesReportPage = lazy(() => import("../../features/reports/orderTypeSalesReport/pages/OrderTypeSalesReportPage"));
+const MenuSessionSalesReportPage = lazy(() => import("../../features/reports/menuSessionSalesReport/pages/MenuSessionSalesReportPage"));
 const GroupWiseSalesReportPage = lazy(() => import("../../features/reports/groupWiseSalesReport/pages/GroupWiseSalesReportPage"));
 const CategoryWiseSalesReportPage = lazy(() => import("../../features/reports/categoryWiseSalesReport/pages/CategoryWiseSalesReportPage"));
 const AllTransactionReportPage = lazy(() => import("../../features/reports/allTransactionReport/pages/AllTransactionReportPage"));
@@ -182,9 +183,9 @@ const AppRoutes = () => {
                 <Route path="/dashboard" element={<MainLayout />}>
                   <Route index element={<RoleGuard moduleName={["Admin Dashboard", "User Dashboard"]}><DashboardPage /></RoleGuard>} />
                   <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
-                  <Route path="user-roles" element={<RoleGuard moduleName="User Master"><UserRolePage /></RoleGuard>} />
-                  <Route path="employee-roles" element={<RoleGuard moduleName="Employee Master"><EmployeeRolePage /></RoleGuard>} />
-                  <Route path="company" element={<RoleGuard moduleName="Customer Master"><CompanyPage /></RoleGuard>} />
+                  <Route path="user-roles" element={<RoleGuard moduleName="User Role"><UserRolePage /></RoleGuard>} />
+                  <Route path="employee-roles" element={<RoleGuard moduleName="Employee Role"><EmployeeRolePage /></RoleGuard>} />
+                  <Route path="company" element={<RoleGuard moduleName="Company Master"><CompanyPage /></RoleGuard>} />
                   <Route path="customers" element={<RoleGuard moduleName="Customer Master"><CustomerList /></RoleGuard>} />
                   <Route path="employees" element={<RoleGuard moduleName="Employee Master"><EmployeePage /></RoleGuard>} />
                   <Route path="paymodes" element={<RoleGuard moduleName="Paymode Master"><PaymodePage /></RoleGuard>} />
@@ -269,6 +270,7 @@ const AppRoutes = () => {
                   <Route path="reports/daily-sales" element={<RoleGuard moduleName="Sales Report"><DailySalesReportPage /></RoleGuard>} />
                   <Route path="reports/hourly-sales" element={<RoleGuard moduleName="Sales Report"><HourlySalesReportPage /></RoleGuard>} />
                   <Route path="reports/order-type-sales" element={<RoleGuard moduleName="Sales Report"><OrderTypeSalesReportPage /></RoleGuard>} />
+                  <Route path="reports/menu-session-sales" element={<RoleGuard moduleName="Sales Report"><MenuSessionSalesReportPage /></RoleGuard>} />
                   <Route path="reports/group-wise-sales" element={<RoleGuard moduleName="Sales Report"><GroupWiseSalesReportPage /></RoleGuard>} />
                   <Route path="reports/category-wise-sales" element={<RoleGuard moduleName="Sales Report"><CategoryWiseSalesReportPage /></RoleGuard>} />
                   <Route path="reports/all-transaction" element={<RoleGuard moduleName="Sales Report"><AllTransactionReportPage /></RoleGuard>} />

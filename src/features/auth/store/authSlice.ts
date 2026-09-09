@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { UserRole } from '../types';
+import { clearAuthStorage } from '../../../utils/authUtils';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -129,30 +130,8 @@ const authSlice = createSlice({
       state.userRoles = [];
       state.decimalPart = 2;
       state.currencySymbol = "BHD";
-      
-      const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
 
-      if (isBackofficeMode) {
-        sessionStorage.removeItem("backoffice_accessToken");
-        sessionStorage.removeItem("backoffice_refreshToken");
-        sessionStorage.removeItem("backoffice_userId");
-        sessionStorage.removeItem("backoffice_userName");
-        sessionStorage.removeItem("backoffice_isMaster");
-        sessionStorage.removeItem("backoffice_branchId");
-        sessionStorage.removeItem("backoffice_activeBranchId");
-        sessionStorage.removeItem("backoffice_userRoles");
-        sessionStorage.removeItem("backoffice_sessionExpiresAt");
-      } else {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("userName");
-        localStorage.removeItem("isMaster");
-        localStorage.removeItem("branchId");
-        localStorage.removeItem("activeBranchId");
-        localStorage.removeItem("userRoles");
-        localStorage.removeItem("sessionExpiresAt");
-      }
+      clearAuthStorage();
     },
     setCompanyConfig: (
       state,

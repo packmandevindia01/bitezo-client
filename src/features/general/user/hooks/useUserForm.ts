@@ -22,7 +22,7 @@ export const useUserForm = ({ initialData, onSuccess }: UseUserFormProps) => {
       name: initialData?.name ?? "",
       password: "",
       confirmPassword: "",
-      branchId: initialData?.branchId ? String(initialData.branchId) : "",
+      branchId: initialData?.branchId !== undefined && initialData?.branchId !== null ? String(initialData.branchId) : "",
       roleId: initialData?.roleId ? String(initialData.roleId) : "",
       isActive: initialData?.isActive ?? true,
       isMaster: initialData?.isMaster ?? true,

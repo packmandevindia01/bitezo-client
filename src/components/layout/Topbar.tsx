@@ -12,24 +12,40 @@ interface TopbarProps {
 }
 
 const Topbar = ({ toggleSidebar }: TopbarProps) => {
-  const username = localStorage.getItem("userName") ?? "Admin";
   const dispatch = useAppDispatch();
+  const stateUserName = useAppSelector((state) => state.auth.userName);
+  const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+  const username = stateUserName || (isBackofficeMode ? sessionStorage.getItem("backoffice_userName") : localStorage.getItem("userName")) || "Admin";
+  
   const userBranchId = useAppSelector(selectBranchId);
   const activeBranchId = useAppSelector(selectActiveBranchId);
   const isMaster = useAppSelector(selectIsMaster);
   
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
 
-  // Admin (branchId === 1 or isMaster) or users with no specific branch assigned can select a branch
-  const canSwitchBranch = isMaster || userBranchId === 1 || !userBranchId;
+  // IF BRANCH ID IS 1 THEN ALLOW THE USER TO CHANGE THE BRANCH, IF BRANCH IS NOT 1, DISABLE THE BRANCH SELECTION
+  const canSwitchBranch = userBranchId === 1 || isMaster;
 
   useEffect(() => {
     branchApi.fetchBranchNames(true)
       .then(data => {
-        setBranches(data.map(b => ({ id: b.id, name: b.branchName })));
+        const branchList = data.map(b => ({ id: b.id, name: b.branchName }));
+        setBranches(branchList);
+
+        // Auto-set default active branch from user's login payload or first available branch if none set
+        if (branchList.length > 0) {
+          const storedActive = isBackofficeMode
+            ? Number(sessionStorage.getItem("backoffice_activeBranchId"))
+            : Number(localStorage.getItem("activeBranchId"));
+
+          if (!activeBranchId && !storedActive) {
+            const defaultId = userBranchId || branchList[0].id;
+            dispatch(setActiveBranchId(defaultId));
+          }
+        }
       })
       .catch(console.error);
-  }, []);
+  }, [userBranchId, activeBranchId, isBackofficeMode, dispatch]);
 
   const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     dispatch(setActiveBranchId(Number(e.target.value)));

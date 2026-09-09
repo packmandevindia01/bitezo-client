@@ -56,8 +56,18 @@ const normalizeUsers = (payload: unknown): User[] => {
   });
 };
 
-export const fetchUsers = async () => {
-  const { data } = await axiosInstance.get<ApiResponse<UserApiRecord[]>>("/user/userlist");
+export const fetchUsers = async (branchId?: number | null) => {
+  const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+  const fallbackBranch = isBackofficeMode
+    ? Number(sessionStorage.getItem("backoffice_activeBranchId")) || null
+    : Number(localStorage.getItem("activeBranchId")) || null;
+  const effectiveBranchId = branchId ?? fallbackBranch;
+
+  const url = effectiveBranchId
+    ? `/user/branches/${effectiveBranchId}/userlist`
+    : "/user/userlist";
+
+  const { data } = await axiosInstance.get<ApiResponse<UserApiRecord[]>>(url);
   if (!data.isSuccess) {
     throw new Error(data.message || "Failed to load users");
   }

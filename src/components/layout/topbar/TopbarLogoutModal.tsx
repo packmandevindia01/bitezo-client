@@ -13,15 +13,16 @@ interface TopbarLogoutModalProps {
 }
 
 const TopbarLogoutModal = ({ isOpen, onClose, username }: TopbarLogoutModalProps) => {
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const dispatch = useAppDispatch();
 
   const handleLogout = () => {
+    onClose();
     dispatch(logout());
+    sessionStorage.setItem("tempSystemType", "backoffice");
     showToast("Logged out successfully", "success");
-    navigate("/", { replace: true });
+    window.location.href = "/";
   };
 
   return (

@@ -59,17 +59,17 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://192.168.220.35:8068/",
+        target: "http://192.168.1.37:8068/",
         changeOrigin: true,
         secure: false,
       },
       "/uploads": {
-        target: "http://192.168.220.35:8068/",
+        target: "http://192.168.1.37:8068/",
         changeOrigin: true,
         secure: false,
       },
       "/images": {
-        target: "http://192.168.220.35:8068/",
+        target: "http://192.168.1.37:8068/",
         changeOrigin: true,
         secure: false,
       },

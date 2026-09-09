@@ -54,21 +54,21 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
           </div>
         )}
 
-        {hasPermission("User Master", "View") && (
+        {hasPermission("User Role", "View") && (
           <div onClick={() => handleItemClick("/dashboard/user-roles")} className={itemClassName}>
             <ShieldCheck size={13} className="shrink-0" />
             <span>User Roles</span>
           </div>
         )}
 
-        {hasPermission("Employee Master", "View") && (
+        {hasPermission("Employee Role", "View") && (
           <div onClick={() => handleItemClick("/dashboard/employee-roles")} className={itemClassName}>
             <ShieldCheck size={13} className="shrink-0" />
             <span>Employee Roles</span>
           </div>
         )}
 
-        {hasPermission("Customer Master", "View") && (
+        {hasPermission("Company Master", "View") && (
           <div onClick={() => handleItemClick("/dashboard/company")} className={itemClassName}>
             <Building2 size={13} className="shrink-0" />
             <span>Company</span>

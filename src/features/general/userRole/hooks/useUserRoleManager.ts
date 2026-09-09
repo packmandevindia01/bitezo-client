@@ -52,8 +52,12 @@ export const useUserRoleManager = () => {
         userRoleService.list(),
         userRoleService.permissions(),
       ]);
+      const normalizedPermissions = permissionRecords.map((p) => ({
+        ...p,
+        module: p.module === "BackofficeConfiguration" ? "Backoffice Configuration" : p.module,
+      }));
       setRecords(roleRecords);
-      setPermissions(permissionRecords);
+      setPermissions(normalizedPermissions);
     } catch (error) {
       showToast(getErrorMessage(error, "Failed to load user roles"), "error");
     } finally {
@@ -101,19 +105,46 @@ export const useUserRoleManager = () => {
 
   const togglePermission = (permissionId: number) => {
     setForm((prev) => {
-      const selected = prev.permissionIds.includes(permissionId);
-      let nextIds = selected
-        ? prev.permissionIds.filter((id) => id !== permissionId)
-        : [...prev.permissionIds, permissionId];
+      const isCurrentlySelected = prev.permissionIds.includes(permissionId);
+      const targetPerm = permissions.find((p) => p.permissionId === permissionId);
+      if (!targetPerm) return prev;
 
-      if (!selected) {
-        const targetPerm = permissions.find((p) => p.permissionId === permissionId);
-        if (targetPerm?.module === "Admin Dashboard") {
+      const moduleName = targetPerm.module;
+      const isViewAction = targetPerm.action.toLowerCase() === "view";
+      let nextIds = [...prev.permissionIds];
+
+      if (isCurrentlySelected) {
+        // Unchecking permission
+        if (isViewAction) {
+          // If View is disabled -> disable all actions (Add, Edit, Delete, Print) for this module
+          const modulePermIds = permissions
+            .filter((p) => p.module === moduleName)
+            .map((p) => p.permissionId);
+          nextIds = nextIds.filter((id) => !modulePermIds.includes(id));
+        } else {
+          nextIds = nextIds.filter((id) => id !== permissionId);
+        }
+      } else {
+        // Checking permission
+        nextIds.push(permissionId);
+
+        // If checking a non-View action -> auto check View for this module
+        if (!isViewAction) {
+          const viewPerm = permissions.find(
+            (p) => p.module === moduleName && p.action.toLowerCase() === "view"
+          );
+          if (viewPerm && !nextIds.includes(viewPerm.permissionId)) {
+            nextIds.push(viewPerm.permissionId);
+          }
+        }
+
+        // Mutual exclusion logic for Admin vs User Dashboard
+        if (moduleName === "Admin Dashboard") {
           const userDashIds = permissions
             .filter((p) => p.module === "User Dashboard")
             .map((p) => p.permissionId);
           nextIds = nextIds.filter((id) => !userDashIds.includes(id));
-        } else if (targetPerm?.module === "User Dashboard") {
+        } else if (moduleName === "User Dashboard") {
           const adminDashIds = permissions
             .filter((p) => p.module === "Admin Dashboard")
             .map((p) => p.permissionId);
@@ -123,7 +154,7 @@ export const useUserRoleManager = () => {
 
       return {
         ...prev,
-        permissionIds: nextIds,
+        permissionIds: Array.from(new Set(nextIds)),
       };
     });
   };
@@ -157,16 +188,22 @@ export const useUserRoleManager = () => {
 
   const setActionPermissions = (category: string, action: string, checked: boolean, categories: Record<string, string[]>) => {
     const modules = categories[category] || [];
-    const actionIds = permissions
-      .filter((p) => modules.includes(p.module) && p.action === action)
-      .map((p) => p.permissionId);
+    const targetActionPerms = permissions.filter((p) => modules.includes(p.module) && p.action.toLowerCase() === action.toLowerCase());
+    const actionIds = targetActionPerms.map((p) => p.permissionId);
 
     setForm((prev) => {
-      let ids = checked
-        ? Array.from(new Set([...prev.permissionIds, ...actionIds]))
-        : prev.permissionIds.filter((id) => !actionIds.includes(id));
+      let ids = [...prev.permissionIds];
 
       if (checked) {
+        ids = Array.from(new Set([...ids, ...actionIds]));
+
+        if (action.toLowerCase() !== "view") {
+          const viewPermIds = permissions
+            .filter((p) => modules.includes(p.module) && p.action.toLowerCase() === "view")
+            .map((p) => p.permissionId);
+          ids = Array.from(new Set([...ids, ...viewPermIds]));
+        }
+
         const hasAdminNewlyAdded = permissions.some((p) => actionIds.includes(p.permissionId) && p.module === "Admin Dashboard");
         const hasUserNewlyAdded = permissions.some((p) => actionIds.includes(p.permissionId) && p.module === "User Dashboard");
 
@@ -180,6 +217,15 @@ export const useUserRoleManager = () => {
             .filter((p) => p.module === "Admin Dashboard")
             .map((p) => p.permissionId);
           ids = ids.filter((id) => !adminDashIds.includes(id));
+        }
+      } else {
+        if (action.toLowerCase() === "view") {
+          const allCatPermIds = permissions
+            .filter((p) => modules.includes(p.module))
+            .map((p) => p.permissionId);
+          ids = ids.filter((id) => !allCatPermIds.includes(id));
+        } else {
+          ids = ids.filter((id) => !actionIds.includes(id));
         }
       }
 
@@ -204,7 +250,11 @@ export const useUserRoleManager = () => {
       });
 
       if (detail.permissions.length > 0) {
-        setPermissions(detail.permissions);
+        const normalizedDetail = detail.permissions.map((p) => ({
+          ...p,
+          module: p.module === "BackofficeConfiguration" ? "Backoffice Configuration" : p.module,
+        }));
+        setPermissions(normalizedDetail);
       }
     } catch (error) {
       closeModal();

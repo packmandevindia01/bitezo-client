@@ -93,13 +93,14 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
+import { clearAuthStorage } from "../utils/authUtils";
+
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Clear tokens and notify the app if unauthorized
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      // Clear all tokens and auth data from BOTH sessionStorage and localStorage
+      clearAuthStorage();
 
       // Broadcast globally for UI reaction
       window.dispatchEvent(new CustomEvent("auth:unauthorized"));

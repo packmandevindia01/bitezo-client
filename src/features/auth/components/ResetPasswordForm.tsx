@@ -16,11 +16,6 @@ const ResetPasswordForm = ({ onSubmit }: Props) => {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
     if (password !== confirm) {
       setError("Passwords do not match");
       return;

@@ -1,15 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchUsers, deleteUser, changeUserPassword } from "../services";
 import { useToast } from "../../../../app/providers/useToast";
+import { useAppSelector } from "../../../../app/hooks";
+import { selectActiveBranchId } from "../../../auth/store/authSlice";
 import type { ChangePasswordPayload } from "../types";
 
 export const useUserList = () => {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
+  const activeBranchId = useAppSelector(selectActiveBranchId);
+  const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+  const fallbackBranch = isBackofficeMode
+    ? Number(sessionStorage.getItem("backoffice_activeBranchId")) || null
+    : Number(localStorage.getItem("activeBranchId")) || null;
+  const currentBranchId = activeBranchId ?? fallbackBranch;
+
   const { data: users = [], isLoading, refetch } = useQuery({
-    queryKey: ["usersList"],
-    queryFn: fetchUsers,
+    queryKey: ["usersList", currentBranchId],
+    queryFn: () => fetchUsers(currentBranchId),
   });
 
   const deleteMutation = useMutation({

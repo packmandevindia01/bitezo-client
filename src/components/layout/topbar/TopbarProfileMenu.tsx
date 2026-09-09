@@ -3,12 +3,16 @@ import { User, LogOut, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TopbarLogoutModal from "./TopbarLogoutModal";
 
+import { useAppSelector } from "../../../app/hooks";
+import { selectIsMaster } from "../../../features/auth/store/authSlice";
+
 interface TopbarProfileMenuProps {
   username: string;
 }
 
 const TopbarProfileMenu = ({ username }: TopbarProfileMenuProps) => {
   const navigate = useNavigate();
+  const isMaster = useAppSelector(selectIsMaster);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -51,7 +55,7 @@ const TopbarProfileMenu = ({ username }: TopbarProfileMenuProps) => {
             </div>
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-semibold text-gray-800">{username}</span>
-              <span className="text-xs text-gray-400">Administrator</span>
+              <span className="text-xs text-gray-400">{isMaster ? "Administrator" : "Authenticated User"}</span>
             </div>
           </div>
 

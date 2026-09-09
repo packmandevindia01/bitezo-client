@@ -1,5 +1,5 @@
 import { Save, RotateCcw, Trash2, ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { Button, Checkbox, FormInput, Loader, Modal } from "../../../../components/common";
 import type { UserRoleForm, UserRolePermission } from "../types";
 
@@ -23,21 +23,6 @@ interface Props {
 }
 
 const ACTION_ORDER = ["View", "Add", "Edit", "Delete", "Print"];
-
-const groupPermissions = (permissions: UserRolePermission[]) => {
-  return permissions.reduce<Record<string, UserRolePermission[]>>((acc, permission) => {
-    acc[permission.module] = acc[permission.module] || [];
-    acc[permission.module].push(permission);
-    return acc;
-  }, {});
-};
-
-const getCategory = (moduleName: string) => {
-  const lower = moduleName.toLowerCase();
-  if (lower.includes("master")) return "Master";
-  if (lower.includes("report")) return "Report";
-  return "Transaction";
-};
 
 const sortActions = (permissions: UserRolePermission[]) => {
   return [...permissions].sort((a, b) => {
@@ -65,21 +50,29 @@ const UserRoleModal = ({
   onDelete,
   setActionPermissions,
 }: Props) => {
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    Master: true,
-    Report: true,
-    Transaction: true,
-  });
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
-  const permissionsByModule = groupPermissions(permissions);
+  const { permissionsByModule, categories } = useMemo(() => {
+    const permByMod: Record<string, UserRolePermission[]> = {};
+    const cats: Record<string, string[]> = {};
+
+    permissions.forEach((perm) => {
+      // Group permissions by module name
+      permByMod[perm.module] = permByMod[perm.module] || [];
+      permByMod[perm.module].push(perm);
+
+      // Group modules by moduleType header directly from API
+      const catName = perm.moduleType || "General";
+      cats[catName] = cats[catName] || [];
+      if (!cats[catName].includes(perm.module)) {
+        cats[catName].push(perm.module);
+      }
+    });
+
+    return { permissionsByModule: permByMod, categories: cats };
+  }, [permissions]);
+
   const moduleNames = Object.keys(permissionsByModule);
-
-  const categories = moduleNames.reduce<Record<string, string[]>>((acc, moduleName) => {
-    const cat = getCategory(moduleName);
-    acc[cat] = acc[cat] || [];
-    acc[cat].push(moduleName);
-    return acc;
-  }, {});
 
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) => ({
@@ -193,7 +186,7 @@ const UserRoleModal = ({
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {Object.entries(categories).map(([category, modules]) => {
-                          const isExpanded = expandedCategories[category];
+                          const isExpanded = expandedCategories[category] ?? true;
                           
                           // Check if all permissions in this category are selected
                           const allCategoryPermissionIds = modules.flatMap(mod => permissionsByModule[mod].map(p => p.permissionId));
@@ -252,6 +245,8 @@ const UserRoleModal = ({
                                 const modulePermissions = sortActions(permissionsByModule[module]);
                                 const moduleIds = modulePermissions.map((permission) => permission.permissionId);
                                 const allSelected = moduleIds.length > 0 && moduleIds.every((id) => form.permissionIds.includes(id));
+                                const viewPerm = modulePermissions.find((p) => p.action.toLowerCase() === "view");
+                                const isViewSelected = viewPerm ? form.permissionIds.includes(viewPerm.permissionId) : true;
 
                                 return (
                                   <Fragment key={module}>
@@ -261,6 +256,7 @@ const UserRoleModal = ({
                                       </td>
                                       {ACTION_ORDER.map((action) => {
                                         const permission = modulePermissions.find((item) => item.action === action);
+                                        const isViewAction = action.toLowerCase() === "view";
 
                                         return (
                                           <td key={action} className="px-2 py-1 text-center">
@@ -269,6 +265,7 @@ const UserRoleModal = ({
                                                 <Checkbox
                                                   checked={form.permissionIds.includes(permission.permissionId)}
                                                   onChange={() => onTogglePermission(permission.permissionId)}
+                                                  disabled={!isViewAction && !isViewSelected}
                                                   id={`permission-${permission.permissionId}`}
                                                 />
                                               </div>

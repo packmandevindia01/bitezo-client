@@ -10,10 +10,7 @@ export const createUserSchema = z
     roleId: z.string().min(1, "Role is required"),
     isActive: z.boolean(),
     isMaster: z.boolean().optional(),
-    password: z
-      .string()
-      .min(1, "Password is required")
-      .min(6, "Password must be at least 6 characters"),
+    password: z.string().min(1, "Password is required"),
     confirmPassword: z.string().min(1, "Confirm password is required"),
   })
   .superRefine((data, ctx) => {
@@ -40,10 +37,7 @@ export const updateUserSchema = z.object({
 export const changePasswordSchema = z
   .object({
     oldPassword: z.string().min(1, "Old password is required"),
-    newPassword: z
-      .string()
-      .min(1, "New password is required")
-      .min(6, "New password must be at least 6 characters"),
+    newPassword: z.string().min(1, "New password is required"),
     confirmPassword: z.string().min(1, "Confirm password is required"),
   })
   .superRefine((data, ctx) => {

@@ -25,11 +25,11 @@ const LoginPage = () => {
       </div>
 
       {/* RIGHT SIDE (FORM) */}
-      <div className="flex items-center justify-center bg-white px-4 py-8">
-        <AutoScaleWrapper className="w-full max-w-md flex flex-col justify-center items-center">
+      <div className="flex items-center justify-center bg-gray-50/50 px-6 py-10 md:px-12">
+        <AutoScaleWrapper className="w-full max-w-lg flex flex-col justify-center items-center">
           <div className="w-full">
           {onboardingState?.message && (
-            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-base text-emerald-800 shadow-sm">
               {onboardingState.message}
               {onboardingState.username && (
                 <div className="mt-2 font-medium">

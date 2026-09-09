@@ -24,7 +24,10 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
       const finalType = type === "error" ? "warning" : type;
       const id = ++_id;
       setToasts((current) => [...current, { id, message, type: finalType, title }]);
-      setTimeout(() => removeToast(id), 2500);
+      
+      // Success toasts dismiss super fast (600ms) so users aren't delayed, while warnings stay 2.5s
+      const duration = finalType === "success" ? 600 : 2500;
+      setTimeout(() => removeToast(id), duration);
     },
     [removeToast]
   );

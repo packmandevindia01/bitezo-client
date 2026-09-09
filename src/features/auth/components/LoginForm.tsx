@@ -5,6 +5,7 @@ import { loginApi } from "../services/authApi";
 import { useToast } from "../../../app/providers/useToast";
 import { useAppDispatch } from "../../../app/hooks";
 import { setCredentials } from "../store/authSlice";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 
 interface LocationState {
   username?: string;
@@ -25,6 +26,7 @@ const LoginForm = () => {
   const [clientDb, setClientDb] = useState(state.clientDb ?? localStorage.getItem("tenantId") ?? "app_db");
   const [username, setUsername] = useState(state.username ?? "");
   const [password, setPassword] = useState(state.password ?? "");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Sync state if navigation state changes (e.g. after OTP verification)
@@ -69,6 +71,7 @@ const LoginForm = () => {
             userId: data.user.userId,
             userName: data.user.userName,
             isMaster: Boolean(data.user.isMaster),
+            branchId: data.user?.branchId ?? data.branchId,
             userRoles: data.userRoles ?? [],
             decimalPart,
             currencySymbol,
@@ -108,51 +111,79 @@ const LoginForm = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-md rounded-xl bg-white p-6 shadow-md sm:p-8"
+      className="mx-auto w-full rounded-2xl bg-white p-8 sm:p-10 shadow-xl border border-gray-100/80"
     >
-      <h2 className="mb-6 text-center text-xl font-bold text-[#49293e] sm:text-2xl">Login</h2>
+      <h2 className="mb-8 text-center text-2xl sm:text-3xl font-extrabold text-[#49293e] tracking-tight">
+        Login
+      </h2>
 
-      <FormInput
-        id="login-username"
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            document.getElementById("login-password")?.focus();
-          }
-        }}
-        autoFocus
-        tabIndex={1}
-      />
+      <div className="space-y-4">
+        <FormInput
+          id="login-username"
+          type="text"
+          label="Username"
+          placeholder="Enter your username"
+          icon={<User size={18} />}
+          inputClassName="!h-12 !text-base !rounded-xl font-medium focus:!border-[#49293e]"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              document.getElementById("login-password")?.focus();
+            }
+          }}
+          autoFocus
+          tabIndex={1}
+        />
 
-      <FormInput
-        id="login-password"
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleSubmit(e);
+        <FormInput
+          id="login-password"
+          type={showPassword ? "text" : "password"}
+          label="Password"
+          placeholder="Enter your password"
+          icon={<Lock size={18} />}
+          rightIcon={
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              tabIndex={-1}
+              className="pointer-events-auto p-1 text-slate-400 hover:text-[#49293e] transition-colors cursor-pointer bg-transparent border-none outline-none focus:outline-none flex items-center justify-center"
+              title={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           }
-        }}
-        tabIndex={2}
-      />
+          inputClassName="!h-12 !text-base !rounded-xl font-medium focus:!border-[#49293e]"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
+          tabIndex={2}
+        />
+      </div>
 
       <button
         type="button"
         onClick={() => navigate("/forgot-password")}
         tabIndex={-1}
-        className="mt-2 mb-4 block w-full text-right cursor-pointer text-sm text-gray-600 hover:underline bg-transparent border-none outline-none focus:text-[#49293e] focus:underline"
+        className="mt-3 mb-6 block w-full text-right cursor-pointer text-sm font-semibold text-gray-500 hover:text-[#49293e] hover:underline bg-transparent border-none outline-none transition-colors"
       >
         Forgot Password?
       </button>
 
-      <Button type="submit" size="lg" fullWidth disabled={loading} tabIndex={3}>
+      <Button 
+        type="submit" 
+        size="lg" 
+        fullWidth 
+        disabled={loading} 
+        tabIndex={3}
+        className="!h-12 !text-base font-bold !rounded-xl bg-[#49293e] hover:bg-[#49293e]/90 transition-all shadow-md active:scale-[0.99]"
+      >
         {loading ? "Logging in..." : "Login"}
       </Button>
     </form>

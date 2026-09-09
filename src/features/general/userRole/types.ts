@@ -14,6 +14,7 @@ export interface UserRolePermission {
   module: string;
   action: string;
   status: boolean;
+  moduleType?: string;
 }
 
 export interface UserRoleDetail {

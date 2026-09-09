@@ -16,7 +16,9 @@ export interface LoginResponse {
     userId: number;
     userName: string;
     isMaster: boolean;
+    branchId?: number;
   };
+  branchId?: number;
   userRoles?: UserRole[];
   tenantId?: string;
   company?: {
