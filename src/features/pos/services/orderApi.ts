@@ -46,6 +46,7 @@ export const orderApi = {
    * PUT /api/order/void/{orderId}
    */
   voidOrder: async (orderId: number, payload: import("../types").VoidOrderRequest): Promise<{ isSuccess: boolean; message: string }> => {
+    console.log('[orderApi] voidOrder calling PUT /order/void/' + orderId, payload);
     return unwrap<{ isSuccess: boolean; message: string }>(
       axiosInstance.put(`/order/void/${orderId}`, payload)
     );

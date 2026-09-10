@@ -50,7 +50,6 @@ interface PosOrderPanelProps {
   onClearCart?: () => void;
   onOrder?: (print: boolean) => void;
   onSettle?: (shouldPrint: boolean) => void;
-  onVoidOrder?: () => void;
   onMessage?: () => void;
   onCom?: () => void;
   onClose?: () => void;
@@ -86,7 +85,6 @@ export const PosOrderPanel = ({
   onDiscount,
   onOrder,
   onSettle,
-  onVoidOrder,
   onMessage,
   onCom,
   onClose,
@@ -219,28 +217,28 @@ export const PosOrderPanel = ({
           <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Void</span>
         </button>
 
-        {/* VOID ORDER */}
+        {/* MESSAGE */}
         <button
-          onClick={onVoidOrder}
-          disabled={cartDetails.length === 0}
-          title="Void Entire Order"
+          onClick={onMessage}
+          disabled={!hasSelection}
+          title="Add Message"
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
-            ${cartDetails.length > 0
-              ? "bg-white border-slate-200 shadow-sm hover:border-red-500 hover:shadow hover:-translate-y-0.5 cursor-pointer text-red-500"
+            ${hasSelection
+              ? "bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
               : "bg-transparent border-slate-200 cursor-not-allowed opacity-40 text-slate-400"
             }
           `}
         >
           <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Void Ord</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Msg</span>
         </button>
 
 
-        {/* ROW 2: QTY -, QTY +, MOD, EXTRAS, VOID ORDER */}
+        {/* ROW 2: QTY -, QTY +, MOD, EXTRAS */}
         {/* MINUS — decrement selected row */}
         <button
           onClick={handleDecrement}
@@ -322,25 +320,8 @@ export const PosOrderPanel = ({
           <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Extras</span>
         </button>
 
-        {/* MESSAGE */}
-        <button
-          onClick={onMessage}
-          disabled={!hasSelection}
-          title="Add Message"
-          className={`
-            h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
-            transition-all active:scale-95 border
-            ${hasSelection
-              ? "bg-white border-slate-200 shadow-sm hover:border-[#002b5c] hover:shadow hover:-translate-y-0.5 cursor-pointer text-[#002b5c]"
-              : "bg-transparent border-slate-200 cursor-not-allowed opacity-40 text-slate-400"
-            }
-          `}
-        >
-          <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Msg</span>
-        </button>
+        {/* EMPTY CELL FOR ALIGNMENT */}
+        <div className="h-7 lg:h-9 w-full rounded-lg bg-slate-100/40 border border-slate-200/30" />
 
       </div>
 

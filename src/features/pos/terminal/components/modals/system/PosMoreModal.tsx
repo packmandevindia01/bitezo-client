@@ -15,7 +15,8 @@ import {
   Sparkles,
   Shield,
   LayoutGrid,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { Modal } from '../../../../../../components/common';
 
@@ -28,6 +29,7 @@ interface PosMoreModalProps {
   onBillComplimentary: () => void;
   onSettledOrders: () => void;
   onReport: () => void;
+  onVoidOrder: () => void;
   requestAuthorization: (options: any) => void;
 }
 
@@ -49,6 +51,15 @@ const ORDER_ITEMS: ActionItem[] = [
     action: 'settledOrders',
     iconBg: 'bg-[#49293e]/10',
     iconColor: 'text-[#49293e]',
+    requiresAuth: true
+  },
+  { 
+    label: 'VOID ORDER', 
+    description: 'Cancel all items & void active order', 
+    icon: Trash2, 
+    action: 'voidOrder',
+    iconBg: 'bg-red-50',
+    iconColor: 'text-red-600',
     requiresAuth: true
   },
   { 
@@ -97,8 +108,8 @@ const CASHIER_ITEMS: ActionItem[] = [
     iconColor: 'text-red-500'
   },
   { 
-    label: 'SHIFT REPORT', 
-    description: 'Daily sales summaries & Z-Report', 
+    label: 'REPORT', 
+    description: 'Shift summaries, sales audit & operational reports', 
     icon: BarChart3, 
     action: 'report',
     iconBg: 'bg-orange-50',
@@ -236,6 +247,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
   onBillComplimentary,
   onSettledOrders,
   onReport,
+  onVoidOrder,
   requestAuthorization
 }) => {
   const navigate = useNavigate();
@@ -313,25 +325,13 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'itemComp') {
-      requestAuthorization({
-        actionLabel: "Item Complimentary",
-        permissionId: 19,
-        onAuthorized: () => {
-          onClose();
-          onItemComplimentary();
-        }
-      });
+      onClose();
+      onItemComplimentary();
       return;
     }
     if (item.action === 'billComp') {
-      requestAuthorization({
-        actionLabel: "Bill Complimentary",
-        permissionId: 19,
-        onAuthorized: () => {
-          onClose();
-          onBillComplimentary();
-        }
-      });
+      onClose();
+      onBillComplimentary();
       return;
     }
     if (item.action === 'settledOrders') {
@@ -342,6 +342,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
     if (item.action === 'report') {
       onClose();
       onReport();
+      return;
+    }
+    if (item.action === 'voidOrder') {
+      onClose();
+      onVoidOrder();
       return;
     }
   };

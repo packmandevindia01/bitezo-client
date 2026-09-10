@@ -38,7 +38,6 @@ interface PosCartPanelProps {
   tenderOptions: { id: string; label: string }[];
   onPrice?: () => void;
   onDiscount?: () => void;
-  onVoidOrder?: () => void;
   onMessage?: () => void;
   onCom?: () => void;
 }
@@ -76,7 +75,6 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   tenderOptions,
   onPrice,
   onDiscount,
-  onVoidOrder,
   onMessage,
   onCom
 }) => {
@@ -136,7 +134,6 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
             }}
             onPrice={onPrice}
             onDiscount={onDiscount}
-            onVoidOrder={onVoidOrder}
             onMessage={onMessage}
             onCom={onCom}
             onOrder={handleOrder}

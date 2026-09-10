@@ -1,10 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Printer, Eye, X, Search, Download } from 'lucide-react';
-import { Modal, Button, FormInput } from '../../../../../../components/common';
+import { Download, FileBarChart, Users, Trash2, PackageX, Receipt, Gift, Truck, Wallet } from 'lucide-react';
+import { Modal, Button } from '../../../../../../components/common';
 import { cashierLogService } from '../../../../cashier/services/cashierLogService';
-import type { DayClosedLog, ShiftClosedLog } from '../../../../cashier/services/cashierLogService';
 import { useToast } from '../../../../../../app/providers/useToast';
 import { generateEndReportHtml } from '../../../../utils/endReportTemplate';
+
+import type { 
+  ReportType, 
+  ReportCardItem, 
+  DayClosedLog, 
+  ShiftClosedLog, 
+  VoidOrderSummaryItem, 
+  VoidProductSummaryItem, 
+  VoidInvoiceSummaryItem,
+  InvoiceComplementarySummaryItem,
+  DriverSummaryItem,
+  AllTransactionSummaryItem
+} from './reports/types';
+import { 
+  generateVoidOrderReportHtml, 
+  generateVoidProductReportHtml, 
+  generateVoidInvoiceReportHtml,
+  generateBillComplementaryReportHtml,
+  generateDriverSummaryReportHtml,
+  generateAllTransactionSummaryReportHtml
+} from './reports/utils/htmlReportTemplates';
+import { exportReportToPdf } from './reports/utils/pdfExportUtils';
+
+import { PosReportsHubView } from './reports/PosReportsHubView';
+import { ClosingLogReportView } from './reports/ClosingLogReportView';
+import { VoidOrderSummaryView } from './reports/VoidOrderSummaryView';
+import { VoidProductSummaryView } from './reports/VoidProductSummaryView';
+import { CancelledInvoiceSummaryView } from './reports/CancelledInvoiceSummaryView';
+import { BillComplementarySummaryView } from './reports/BillComplementarySummaryView';
+import { DriverSummaryView } from './reports/DriverSummaryView';
+import { AllTransactionSummaryView } from './reports/AllTransactionSummaryView';
+import { GenericReportView } from './reports/GenericReportView';
 
 interface PosReportModalProps {
   isOpen: boolean;
@@ -13,8 +44,100 @@ interface PosReportModalProps {
 
 type TabType = 'DAY_END' | 'SHIFT_END';
 
+const REPORT_CARDS: ReportCardItem[] = [
+  {
+    id: 'DAY_END',
+    title: 'Day End Report',
+    badge: 'Z-Report & Closing',
+    badgeBg: 'bg-amber-50',
+    badgeTextColor: 'text-amber-700',
+    description: 'Daily sales summaries, cashier closing balances & Z-Reports',
+    icon: FileBarChart,
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-700',
+  },
+  {
+    id: 'SHIFT_END',
+    title: 'Shift End Report',
+    badge: 'Shift Audit & Closing',
+    badgeBg: 'bg-blue-50',
+    badgeTextColor: 'text-blue-700',
+    description: 'Cashier shift summaries, drawer balances & shift closing logs',
+    icon: Users,
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-700',
+  },
+  {
+    id: 'VOID_ORDER_SUMMARY',
+    title: 'Void Order Summary',
+    badge: 'Void Audit Log',
+    badgeBg: 'bg-red-50',
+    badgeTextColor: 'text-red-700',
+    description: 'Summary of voided customer orders, employee details & reasons',
+    icon: Trash2,
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-700',
+  },
+  {
+    id: 'VOID_PRODUCT_SUMMARY',
+    title: 'Void Product Summary',
+    badge: 'Void Item Log',
+    badgeBg: 'bg-rose-50',
+    badgeTextColor: 'text-rose-700',
+    description: 'Summary of voided products/items, order #, employee & amount',
+    icon: PackageX,
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-700',
+  },
+  {
+    id: 'CANCELLED_INVOICE_SUMMARY',
+    title: 'Cancelled Invoice Summary',
+    badge: 'Void Invoice Log',
+    badgeBg: 'bg-purple-50',
+    badgeTextColor: 'text-purple-700',
+    description: 'Summary of cancelled/voided customer invoices, bill # & amount',
+    icon: Receipt,
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-700',
+  },
+  {
+    id: 'BILL_COMPLEMENTARY_SUMMARY',
+    title: 'Bill Complementary Summary',
+    badge: 'Complementary Audit',
+    badgeBg: 'bg-emerald-50',
+    badgeTextColor: 'text-emerald-700',
+    description: 'Summary of complementary bills, invoice #, date & customer details',
+    icon: Gift,
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-700',
+  },
+  {
+    id: 'DRIVER_SUMMARY',
+    title: 'Driver Summary Report',
+    badge: 'Driver / Delivery Audit',
+    badgeBg: 'bg-cyan-50',
+    badgeTextColor: 'text-cyan-700',
+    description: 'Summary of delivery driver sales totals & order amounts',
+    icon: Truck,
+    iconBg: 'bg-cyan-100',
+    iconColor: 'text-cyan-700',
+  },
+  {
+    id: 'ALL_TRANSACTION_SUMMARY',
+    title: 'All Transaction Summary',
+    badge: 'Payment & Credit Audit',
+    badgeBg: 'bg-indigo-50',
+    badgeTextColor: 'text-indigo-700',
+    description: 'Summary of cash, credit, discounts, pending orders & transactions',
+    icon: Wallet,
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-700',
+  },
+];
+
 export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose }) => {
   const { showToast } = useToast();
+  const [selectedReport, setSelectedReport] = useState<ReportType>('HUB');
   const [activeTab, setActiveTab] = useState<TabType>('DAY_END');
   const [asOnDate, setAsOnDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
@@ -23,24 +146,106 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const [dayLogs, setDayLogs] = useState<DayClosedLog[]>([]);
   const [shiftLogs, setShiftLogs] = useState<ShiftClosedLog[]>([]);
 
+  // Centralized report dates state
+  const [fromDate, setFromDate] = useState<string>(() => {
+    return localStorage.getItem('reportFromDate') || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [toDate, setToDate] = useState<string>(() => {
+    return localStorage.getItem('reportToDate') || new Date().toISOString().split('T')[0];
+  });
+
+  const handleFromDateChange = (val: string) => {
+    setFromDate(val);
+    localStorage.setItem('reportFromDate', val);
+  };
+
+  const handleToDateChange = (val: string) => {
+    setToDate(val);
+    setAsOnDate(val);
+    localStorage.setItem('reportToDate', val);
+  };
+
+  // Void Order Summary state
+  const [voidSummaryLogs, setVoidSummaryLogs] = useState<VoidOrderSummaryItem[]>([]);
+  const [voidLoading, setVoidLoading] = useState(false);
+
+  // Void Product Summary state
+  const [voidProductSummaryLogs, setVoidProductSummaryLogs] = useState<VoidProductSummaryItem[]>([]);
+  const [voidProductLoading, setVoidProductLoading] = useState(false);
+
+  // Cancelled Invoice Summary state
+  const [voidInvoiceSummaryLogs, setVoidInvoiceSummaryLogs] = useState<VoidInvoiceSummaryItem[]>([]);
+  const [voidInvoiceLoading, setVoidInvoiceLoading] = useState(false);
+
+  // Bill Complementary Summary state
+  const [invoiceComplementaryLogs, setInvoiceComplementaryLogs] = useState<InvoiceComplementarySummaryItem[]>([]);
+  const [invoiceComplementaryLoading, setInvoiceComplementaryLoading] = useState(false);
+
+  // Driver Summary state
+  const [driverSummaryLogs, setDriverSummaryLogs] = useState<DriverSummaryItem[]>([]);
+  const [driverLoading, setDriverLoading] = useState(false);
+
+  // All Transaction Summary state
+  const [allTransactionLogs, setAllTransactionLogs] = useState<AllTransactionSummaryItem[]>([]);
+  const [allTransactionLoading, setAllTransactionLoading] = useState(false);
+
   // Selected Row Identifier
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      void fetchLogs();
+    if (isOpen && (selectedReport === 'DAY_END' || selectedReport === 'SHIFT_END')) {
+      const targetTab: TabType = selectedReport === 'DAY_END' ? 'DAY_END' : 'SHIFT_END';
+      setActiveTab(targetTab);
+      void fetchLogs(targetTab);
     }
-  }, [isOpen, activeTab]); // Re-fetch on tab change or open
+  }, [isOpen, selectedReport, activeTab, asOnDate]);
 
-  const fetchLogs = async () => {
+  useEffect(() => {
+    if (isOpen && selectedReport === 'VOID_ORDER_SUMMARY') {
+      void fetchVoidSummary();
+    }
+  }, [isOpen, selectedReport, fromDate, toDate]);
+
+  useEffect(() => {
+    if (isOpen && selectedReport === 'VOID_PRODUCT_SUMMARY') {
+      void fetchVoidProductSummary();
+    }
+  }, [isOpen, selectedReport, fromDate, toDate]);
+
+  useEffect(() => {
+    if (isOpen && selectedReport === 'CANCELLED_INVOICE_SUMMARY') {
+      void fetchVoidInvoiceSummary();
+    }
+  }, [isOpen, selectedReport, fromDate, toDate]);
+
+  useEffect(() => {
+    if (isOpen && selectedReport === 'BILL_COMPLEMENTARY_SUMMARY') {
+      void fetchInvoiceComplementarySummary();
+    }
+  }, [isOpen, selectedReport, fromDate, toDate]);
+
+  useEffect(() => {
+    if (isOpen && selectedReport === 'DRIVER_SUMMARY') {
+      void fetchDriverSummary();
+    }
+  }, [isOpen, selectedReport, fromDate, toDate]);
+
+  useEffect(() => {
+    if (isOpen && selectedReport === 'ALL_TRANSACTION_SUMMARY') {
+      void fetchAllTransactionSummary();
+    }
+  }, [isOpen, selectedReport, fromDate, toDate]);
+
+  const fetchLogs = async (tabOverride?: TabType) => {
+    const currentTab = tabOverride || activeTab;
     if (!asOnDate) return;
     setLoading(true);
     setSelectedDayId(null);
     setSelectedShiftId(null);
     
     try {
-      if (activeTab === 'DAY_END') {
+      if (currentTab === 'DAY_END') {
         const data = await cashierLogService.getDayClosedLogs(asOnDate);
         setDayLogs(data);
       } else {
@@ -54,7 +259,205 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
     }
   };
 
-  const handlePrint = async (directPrint: boolean) => {
+  const fetchVoidSummary = async () => {
+    if (!fromDate || !toDate) return;
+    setVoidLoading(true);
+    try {
+      const data = await cashierLogService.getVoidOrderSummary(fromDate, toDate);
+      setVoidSummaryLogs(data);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch void order summary', 'error');
+    } finally {
+      setVoidLoading(false);
+    }
+  };
+
+  const fetchVoidProductSummary = async () => {
+    if (!fromDate || !toDate) return;
+    setVoidProductLoading(true);
+    try {
+      const data = await cashierLogService.getVoidProductSummary(fromDate, toDate);
+      setVoidProductSummaryLogs(data);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch void product summary', 'error');
+    } finally {
+      setVoidProductLoading(false);
+    }
+  };
+
+  const fetchVoidInvoiceSummary = async () => {
+    if (!fromDate || !toDate) return;
+    setVoidInvoiceLoading(true);
+    try {
+      const data = await cashierLogService.getVoidInvoiceSummary(fromDate, toDate);
+      setVoidInvoiceSummaryLogs(data);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch void invoice summary', 'error');
+    } finally {
+      setVoidInvoiceLoading(false);
+    }
+  };
+
+  const fetchInvoiceComplementarySummary = async () => {
+    if (!fromDate || !toDate) return;
+    setInvoiceComplementaryLoading(true);
+    try {
+      const data = await cashierLogService.getInvoiceComplementarySummary(fromDate, toDate);
+      setInvoiceComplementaryLogs(data);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch invoice complementary summary', 'error');
+    } finally {
+      setInvoiceComplementaryLoading(false);
+    }
+  };
+
+  const fetchDriverSummary = async () => {
+    if (!fromDate || !toDate) return;
+    setDriverLoading(true);
+    try {
+      const data = await cashierLogService.getDriverSummary(fromDate, toDate);
+      setDriverSummaryLogs(data);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch driver summary', 'error');
+    } finally {
+      setDriverLoading(false);
+    }
+  };
+
+  const fetchAllTransactionSummary = async () => {
+    if (!fromDate || !toDate) return;
+    setAllTransactionLoading(true);
+    try {
+      const data = await cashierLogService.getAllTransactionSummary(fromDate, toDate);
+      setAllTransactionLogs(data);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to fetch all transaction summary', 'error');
+    } finally {
+      setAllTransactionLoading(false);
+    }
+  };
+
+  const handlePrintVoidSummary = async (directPrint: boolean) => {
+    try {
+      const html = generateVoidOrderReportHtml(voidSummaryLogs, fromDate, toDate);
+      if (directPrint) {
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
+        const { printHtmlReceipt } = await import('../../../../services/qzService');
+        await printHtmlReceipt(html, defaultPrinter);
+        showToast('Printing Void Order Summary...', 'success');
+      } else {
+        setPreviewHtml(html);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate report', 'error');
+    }
+  };
+
+  const handlePrintVoidProductSummary = async (directPrint: boolean) => {
+    try {
+      const html = generateVoidProductReportHtml(voidProductSummaryLogs, fromDate, toDate);
+      if (directPrint) {
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
+        const { printHtmlReceipt } = await import('../../../../services/qzService');
+        await printHtmlReceipt(html, defaultPrinter);
+        showToast('Printing Void Product Summary...', 'success');
+      } else {
+        setPreviewHtml(html);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate report', 'error');
+    }
+  };
+
+  const handlePrintVoidInvoiceSummary = async (directPrint: boolean) => {
+    try {
+      const html = generateVoidInvoiceReportHtml(voidInvoiceSummaryLogs, fromDate, toDate);
+      if (directPrint) {
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
+        const { printHtmlReceipt } = await import('../../../../services/qzService');
+        await printHtmlReceipt(html, defaultPrinter);
+        showToast('Printing Cancelled Invoice Summary...', 'success');
+      } else {
+        setPreviewHtml(html);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate report', 'error');
+    }
+  };
+
+  const handlePrintInvoiceComplementarySummary = async (directPrint: boolean) => {
+    try {
+      const html = generateBillComplementaryReportHtml(invoiceComplementaryLogs, fromDate, toDate);
+      if (directPrint) {
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
+        const { printHtmlReceipt } = await import('../../../../services/qzService');
+        await printHtmlReceipt(html, defaultPrinter);
+        showToast('Printing Bill Complementary Summary...', 'success');
+      } else {
+        setPreviewHtml(html);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate report', 'error');
+    }
+  };
+
+  const handlePrintDriverSummary = async (directPrint: boolean) => {
+    try {
+      const html = generateDriverSummaryReportHtml(driverSummaryLogs, fromDate, toDate);
+      if (directPrint) {
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
+        const { printHtmlReceipt } = await import('../../../../services/qzService');
+        await printHtmlReceipt(html, defaultPrinter);
+        showToast('Printing Driver Summary...', 'success');
+      } else {
+        setPreviewHtml(html);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate report', 'error');
+    }
+  };
+
+  const handlePrintAllTransactionSummary = async (directPrint: boolean) => {
+    try {
+      const html = generateAllTransactionSummaryReportHtml(allTransactionLogs, fromDate, toDate);
+      if (directPrint) {
+        let defaultPrinter: string | undefined = undefined;
+        try {
+          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
+          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
+        } catch(e){}
+        const { printHtmlReceipt } = await import('../../../../services/qzService');
+        await printHtmlReceipt(html, defaultPrinter);
+        showToast('Printing All Transaction Summary...', 'success');
+      } else {
+        setPreviewHtml(html);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate report', 'error');
+    }
+  };
+
+  const handlePrintClosingLog = async (directPrint: boolean) => {
     if (activeTab === 'DAY_END' && !selectedDayId) {
       showToast('Please select a Day End record first.', 'warning');
       return;
@@ -92,28 +495,23 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const handleExportPDF = async () => {
-    if (!previewHtml) return;
     try {
       showToast('Generating PDF...', 'info');
-      // @ts-ignore
-      const html2pdf = (await import('html2pdf.js')).default;
-      
-      const iframe = document.getElementById('report-preview-iframe') as HTMLIFrameElement;
-      const elementToPrint = iframe?.contentDocument?.documentElement || iframe?.contentDocument?.body;
-
-      if (!elementToPrint) {
-        throw new Error("Could not find preview content");
-      }
-
-      const opt: any = {
-        margin:       0.5,
-        filename:     `${activeTab === 'DAY_END' ? 'Day_End' : 'Shift_End'}_Report_${asOnDate}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
-
-      html2pdf().set(opt).from(elementToPrint).save();
+      await exportReportToPdf(
+        selectedReport,
+        fromDate,
+        toDate,
+        asOnDate,
+        {
+          voidOrderLogs: voidSummaryLogs,
+          voidProductLogs: voidProductSummaryLogs,
+          voidInvoiceLogs: voidInvoiceSummaryLogs,
+          invoiceComplementaryLogs: invoiceComplementaryLogs,
+          driverLogs: driverSummaryLogs,
+          allTransactionLogs: allTransactionLogs,
+        },
+        previewHtml
+      );
     } catch (err: any) {
       console.error(err);
       showToast('Failed to generate PDF', 'error');
@@ -125,8 +523,22 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
     const d = new Date(dateString);
     return d.toLocaleString('en-GB', { 
       day: '2-digit', month: '2-digit', year: 'numeric', 
-      hour: '2-digit', minute: '2-digit', hour12: true 
+      hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  const handleCloseAll = () => {
+    setSelectedReport('HUB');
+    setPreviewHtml(null);
+    onClose();
+  };
+
+  const handleModalClose = () => {
+    if (selectedReport !== 'HUB') {
+      setSelectedReport('HUB');
+    } else {
+      handleCloseAll();
+    }
   };
 
   if (previewHtml) {
@@ -134,7 +546,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
       <Modal
         isOpen={isOpen}
         onClose={() => setPreviewHtml(null)}
-        title={`Preview: ${activeTab === 'DAY_END' ? 'DAY END REPORT' : 'SHIFT END REPORT'}`}
+        title="Preview Report"
         size="2xl"
       >
         <div className="flex flex-col h-[75vh]">
@@ -148,7 +560,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
           </div>
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <Button
-              className="flex items-center gap-2 h-11 px-6 bg-pos-orange hover:bg-pos-orange-hover text-white shadow-md font-bold transition-all hover:scale-105"
+              className="flex items-center gap-2 h-11 px-6 bg-pos-orange hover:bg-pos-orange-hover text-[#49293e] shadow-md font-bold transition-all hover:scale-105"
               onClick={handleExportPDF}
             >
               <Download className="h-4 w-4" />
@@ -170,182 +582,165 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title={activeTab === 'DAY_END' ? 'DAY END REPORT' : 'SHIFT END REPORT'}
+      onClose={handleModalClose}
+      title={
+        selectedReport === 'HUB' 
+          ? 'REPORTS HUB' 
+          : selectedReport === 'DAY_END'
+            ? 'DAY END REPORT'
+            : selectedReport === 'SHIFT_END'
+              ? 'SHIFT END REPORT'
+              : selectedReport === 'VOID_ORDER_SUMMARY'
+                ? 'VOID ORDER SUMMARY'
+                : selectedReport === 'VOID_PRODUCT_SUMMARY'
+                  ? 'VOID PRODUCT SUMMARY'
+                  : selectedReport === 'CANCELLED_INVOICE_SUMMARY'
+                    ? 'CANCELLED INVOICE SUMMARY'
+                    : selectedReport === 'BILL_COMPLEMENTARY_SUMMARY'
+                      ? 'BILL COMPLEMENTARY SUMMARY'
+                      : selectedReport === 'DRIVER_SUMMARY'
+                        ? 'DRIVER SUMMARY REPORT'
+                        : selectedReport === 'ALL_TRANSACTION_SUMMARY'
+                          ? 'ALL TRANSACTION SUMMARY'
+                          : REPORT_CARDS.find(c => c.id === selectedReport)?.title.toUpperCase() || 'REPORT'
+      }
       size="2xl"
     >
-      <div className="flex flex-col gap-4">
-        {/* Header Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div className="flex flex-1 items-center gap-2 w-full sm:w-auto">
-            <FormInput
-              type="date"
-              label=""
-              value={asOnDate}
-              onChange={(e: any) => setAsOnDate(e.target.value)}
-              inputClassName="w-40 h-[42px]"
-              inputMode="none"
-            />
-            <Button
-              onClick={fetchLogs}
-              loading={loading}
-              className="h-[42px] px-6"
-            >
-              <Search className="mr-2 h-4 w-4" />
-              Search
-            </Button>
-          </div>
+      {selectedReport === 'HUB' && (
+        <PosReportsHubView
+          reportCards={REPORT_CARDS}
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          onSelectReport={(id) => setSelectedReport(id)}
+        />
+      )}
 
-          <div className="flex bg-slate-200/50 p-1 rounded-lg w-full sm:w-auto">
-            <button
-              onClick={() => setActiveTab('DAY_END')}
-              className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
-                activeTab === 'DAY_END'
-                  ? 'bg-white text-[#49293e] shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Day End
-            </button>
-            <button
-              onClick={() => setActiveTab('SHIFT_END')}
-              className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
-                activeTab === 'SHIFT_END'
-                  ? 'bg-white text-[#49293e] shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Shift End
-            </button>
-          </div>
-        </div>
+      {(selectedReport === 'DAY_END' || selectedReport === 'SHIFT_END') && (
+        <ClosingLogReportView
+          reportType={selectedReport === 'DAY_END' ? 'DAY_END' : 'SHIFT_END'}
+          asOnDate={asOnDate}
+          onDateChange={handleToDateChange}
+          loading={loading}
+          dayLogs={dayLogs}
+          shiftLogs={shiftLogs}
+          selectedDayId={selectedDayId}
+          selectedShiftId={selectedShiftId}
+          onSelectDayId={(id) => setSelectedDayId(id)}
+          onSelectShiftId={(dayId, shiftId) => {
+            setSelectedDayId(dayId);
+            setSelectedShiftId(shiftId);
+          }}
+          onPrint={handlePrintClosingLog}
+          formatDate={formatDate}
+        />
+      )}
 
-        {/* Table Area */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white min-h-[300px] flex flex-col">
-          <div className="overflow-x-auto">
-            <table className="w-full text-center border-collapse">
-              <thead className="bg-[#49293e] text-white">
-                <tr>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Start Date</th>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">End Date</th>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Status</th>
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Day ID</th>
-                  {activeTab === 'SHIFT_END' && (
-                    <>
-                      <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Shift ID</th>
-                      <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b border-r border-[#49293e]/20">Counter</th>
-                    </>
-                  )}
-                  <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-center border-b">Branch</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={activeTab === 'SHIFT_END' ? 7 : 5} className="py-12 text-center text-slate-400 font-semibold text-sm">
-                      Loading data...
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                    {activeTab === 'DAY_END' && dayLogs.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-400 font-semibold text-sm">No Day End logs found for this date.</td>
-                      </tr>
-                    )}
-                    {activeTab === 'DAY_END' && dayLogs.map((log) => {
-                      const isSelected = selectedDayId === log.dayId;
-                      return (
-                        <tr
-                          key={log.dayId}
-                          onClick={() => setSelectedDayId(log.dayId)}
-                          className={`cursor-pointer transition-colors ${
-                            isSelected ? 'bg-[#49293e]/10 hover:bg-[#49293e]/15' : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{formatDate(log.startDate)}</td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{formatDate(log.endDate)}</td>
-                          <td className="py-2.5 px-4 text-xs font-semibold border-r border-slate-100">
-                            <span className={log.status === 'Opened' ? 'text-emerald-600' : 'text-slate-600'}>{log.status}</span>
-                          </td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{log.dayId}</td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600">{log.branch}</td>
-                        </tr>
-                      );
-                    })}
+      {selectedReport === 'VOID_ORDER_SUMMARY' && (
+        <VoidOrderSummaryView
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          loading={voidLoading}
+          logs={voidSummaryLogs}
+          onPrint={handlePrintVoidSummary}
+          formatDate={formatDate}
+        />
+      )}
 
-                    {activeTab === 'SHIFT_END' && shiftLogs.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400 font-semibold text-sm">No Shift End logs found for this date.</td>
-                      </tr>
-                    )}
-                    {activeTab === 'SHIFT_END' && shiftLogs.map((log) => {
-                      const isSelected = selectedDayId === log.dayId && selectedShiftId === log.shiftId;
-                      return (
-                        <tr
-                          key={`${log.dayId}-${log.shiftId}`}
-                          onClick={() => {
-                            setSelectedDayId(log.dayId);
-                            setSelectedShiftId(log.shiftId);
-                          }}
-                          className={`cursor-pointer transition-colors ${
-                            isSelected ? 'bg-[#49293e]/10 hover:bg-[#49293e]/15' : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{formatDate(log.startDate)}</td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{formatDate(log.endDate)}</td>
-                          <td className="py-2.5 px-4 text-xs font-semibold border-r border-slate-100">
-                            <span className={log.status === 'Opened' ? 'text-emerald-600' : 'text-slate-600'}>{log.status}</span>
-                          </td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{log.dayId}</td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{log.shiftId}</td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600 border-r border-slate-100">{log.counter}</td>
-                          <td className="py-2.5 px-4 text-xs text-slate-600">{log.branch}</td>
-                        </tr>
-                      );
-                    })}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {selectedReport === 'VOID_PRODUCT_SUMMARY' && (
+        <VoidProductSummaryView
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          loading={voidProductLoading}
+          logs={voidProductSummaryLogs}
+          onPrint={handlePrintVoidProductSummary}
+          formatDate={formatDate}
+        />
+      )}
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 mt-2">
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2 h-10"
-            onClick={() => showToast('Mail functionality not configured.', 'warning')}
-          >
-            <Mail className="w-4 h-4" />
-            Send Mail
-          </Button>
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2 h-10"
-            onClick={() => handlePrint(false)}
-          >
-            <Eye className="w-4 h-4" />
-            Preview
-          </Button>
-          <Button
-            className="flex items-center gap-2 h-10"
-            onClick={() => handlePrint(true)}
-          >
-            <Printer className="w-4 h-4" />
-            Print
-          </Button>
-          <Button
-            variant="danger"
-            className="flex items-center gap-2 h-10 ml-2"
-            onClick={onClose}
-          >
-            <X className="w-4 h-4" />
-            Close
-          </Button>
-        </div>
-      </div>
+      {selectedReport === 'CANCELLED_INVOICE_SUMMARY' && (
+        <CancelledInvoiceSummaryView
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          loading={voidInvoiceLoading}
+          logs={voidInvoiceSummaryLogs}
+          onPrint={handlePrintVoidInvoiceSummary}
+          formatDate={formatDate}
+        />
+      )}
+
+      {selectedReport === 'BILL_COMPLEMENTARY_SUMMARY' && (
+        <BillComplementarySummaryView
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          loading={invoiceComplementaryLoading}
+          logs={invoiceComplementaryLogs}
+          onPrint={handlePrintInvoiceComplementarySummary}
+          formatDate={formatDate}
+        />
+      )}
+
+      {selectedReport === 'DRIVER_SUMMARY' && (
+        <DriverSummaryView
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          loading={driverLoading}
+          logs={driverSummaryLogs}
+          onPrint={handlePrintDriverSummary}
+          formatDate={formatDate}
+        />
+      )}
+
+      {selectedReport === 'ALL_TRANSACTION_SUMMARY' && (
+        <AllTransactionSummaryView
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={handleFromDateChange}
+          onToDateChange={handleToDateChange}
+          loading={allTransactionLoading}
+          logs={allTransactionLogs}
+          onPrint={handlePrintAllTransactionSummary}
+          formatDate={formatDate}
+        />
+      )}
+
+      {selectedReport === 'SETTLED_ORDERS' && (
+        <GenericReportView
+          title="Settled Orders Report"
+          description="Detailed log of settled customer invoices & payments"
+          asOnDate={asOnDate}
+          onDateChange={setAsOnDate}
+        />
+      )}
+
+      {selectedReport === 'PAY_IN_OUT' && (
+        <GenericReportView
+          title="Pay In / Pay Out Log"
+          description="Petty cash drawer float and payout log"
+          asOnDate={asOnDate}
+          onDateChange={setAsOnDate}
+        />
+      )}
+
+      {selectedReport === 'CASHIER_SHIFT' && (
+        <GenericReportView
+          title="Cashier Shift Audit Log"
+          description="Shift opening balances, counted cash & drawer variances"
+          asOnDate={asOnDate}
+          onDateChange={setAsOnDate}
+        />
+      )}
     </Modal>
   );
 };

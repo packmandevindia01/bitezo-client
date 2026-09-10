@@ -1020,13 +1020,6 @@ export const PosTerminalPage = () => {
           tenderOptions={terminal.tenderOptions}
           onPrice={openPriceModal}
           onDiscount={discountFlow.openDiscountChoice}
-          onVoidOrder={() => {
-            requestAuthorization({
-              actionLabel: "Order Void",
-              permissionId: 17, // Order Void
-              onAuthorized: () => modals.setIsVoidModalOpen(true),
-            });
-          }}
           onMessage={() => {
             if (!selectedKey) {
               showToast("Please select an item in the cart first", "warning");

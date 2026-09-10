@@ -75,9 +75,32 @@ export const usePosSettled = () => {
     void fetchOrders({ OrderTypeId: 0, DeliveryOutStatus: false });
   }, [status?.dayId, fetchOrders]);
 
+  const cancelOrder = useCallback(async (orderId: number) => {
+    try {
+      setLoading(true);
+      const response = await settledOrdersApi.cancelSalesInvoice(orderId);
+      if (response && response.isSuccess) {
+        showToast(response.message || `Order #${orderId} cancelled successfully`, 'success');
+        await fetchOrders({ OrderTypeId: 0 });
+        return true;
+      } else {
+        showToast(response?.message || 'Failed to cancel order', 'error');
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Cancel settled order error:', error);
+      const errMsg = error?.response?.data?.message || error?.message || 'Failed to cancel settled order';
+      showToast(errMsg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchOrders, showToast]);
+
   return {
     orders,
     loading,
     fetchOrders,
+    cancelOrder,
   };
 };

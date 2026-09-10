@@ -98,6 +98,7 @@ export interface DayClosedLog {
   endDate: string;
   branch: string;
   status: string;
+  counter?: string;
 }
 
 export interface ShiftClosedLog {
@@ -174,5 +175,145 @@ export const cashierLogService = {
       return data.data;
     }
     throw new Error(data.message || "Failed to fetch Shift Closed Logs");
+  },
+
+  getVoidOrderSummary: async (fromDate: string, toDate: string, decimals?: number): Promise<VoidOrderSummaryItem[]> => {
+    const dec = decimals ?? 3;
+    const { data } = await axiosInstance.get<ApiResponse<VoidOrderSummaryItem[]>>(`/session-closings/void-order-summary`, {
+      params: {
+        FromDate: fromDate,
+        ToDate: toDate,
+        Decimals: dec
+      }
+    });
+    if (data.isSuccess && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
+  },
+
+  getVoidProductSummary: async (fromDate: string, toDate: string, decimals?: number): Promise<VoidProductSummaryItem[]> => {
+    const dec = decimals ?? 3;
+    const { data } = await axiosInstance.get<ApiResponse<VoidProductSummaryItem[]>>(`/session-closings/void-product-summary`, {
+      params: {
+        FromDate: fromDate,
+        ToDate: toDate,
+        Decimals: dec
+      }
+    });
+    if (data.isSuccess && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
+  },
+
+  getVoidInvoiceSummary: async (fromDate: string, toDate: string, decimals?: number): Promise<VoidInvoiceSummaryItem[]> => {
+    const dec = decimals ?? 3;
+    const { data } = await axiosInstance.get<ApiResponse<VoidInvoiceSummaryItem[]>>(`/session-closings/void-invoice-summary`, {
+      params: {
+        FromDate: fromDate,
+        ToDate: toDate,
+        Decimals: dec
+      }
+    });
+    if (data.isSuccess && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
+  },
+
+  getInvoiceComplementarySummary: async (fromDate: string, toDate: string, decimals?: number): Promise<InvoiceComplementarySummaryItem[]> => {
+    const dec = decimals ?? 3;
+    const { data } = await axiosInstance.get<ApiResponse<InvoiceComplementarySummaryItem[]>>(`/session-closings/invoice-complementory-summary`, {
+      params: {
+        FromDate: fromDate,
+        ToDate: toDate,
+        Decimals: dec
+      }
+    });
+    if (data.isSuccess && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
+  },
+
+  getDriverSummary: async (fromDate: string, toDate: string, decimals?: number): Promise<DriverSummaryItem[]> => {
+    const dec = decimals ?? 3;
+    const { data } = await axiosInstance.get<ApiResponse<DriverSummaryItem[]>>(`/session-closings/driver-summary`, {
+      params: {
+        FromDate: fromDate,
+        ToDate: toDate,
+        Decimals: dec
+      }
+    });
+    if (data.isSuccess && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
+  },
+
+  getAllTransactionSummary: async (fromDate: string, toDate: string, decimals?: number): Promise<AllTransactionSummaryItem[]> => {
+    const dec = decimals ?? 3;
+    const { data } = await axiosInstance.get<ApiResponse<AllTransactionSummaryItem[]>>(`/session-closings/all_transaction-summary`, {
+      params: {
+        FromDate: fromDate,
+        ToDate: toDate,
+        Decimals: dec
+      }
+    });
+    if (data.isSuccess && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
   }
 };
+
+export interface VoidOrderSummaryItem {
+  sNo: number;
+  orderNo: number;
+  orderType: string;
+  date: string;
+  employee: string;
+  reason: string;
+  amount: string | number;
+}
+
+export interface VoidProductSummaryItem {
+  sNo: number;
+  orderNo: number;
+  orderType: string;
+  voidDate: string;
+  employee: string;
+  product: string;
+  quantity: number;
+  unit: string;
+  amount: string | number;
+}
+
+export interface VoidInvoiceSummaryItem {
+  sNo: number;
+  billNo: string;
+  orderNo: number;
+  date: string;
+  orderType: string;
+  employee: string;
+  amount: string | number;
+}
+
+export interface InvoiceComplementarySummaryItem {
+  sNo: number;
+  billNo: string;
+  date: string;
+  customer: string;
+}
+
+export interface DriverSummaryItem {
+  sNo: number;
+  driver: string;
+  amount: string | number;
+}
+
+export interface AllTransactionSummaryItem {
+  particular: string;
+  amount: string | number;
+}

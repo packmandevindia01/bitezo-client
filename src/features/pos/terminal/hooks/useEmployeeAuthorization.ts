@@ -64,6 +64,10 @@ export const useEmployeeAuthorization = () => {
       // Password OK and has privilege — mark authorized and close the modal
       authorized = true;
       verifiedEmployeeId = employeeId;
+      if (employeeId > 0) {
+        localStorage.getItem("authorizedEmployeeId"); // Check existing
+        localStorage.setItem("authorizedEmployeeId", String(employeeId));
+      }
       setIsOpen(false);
       setIsAdminOverride(false);
       setPendingAuthorization(null);

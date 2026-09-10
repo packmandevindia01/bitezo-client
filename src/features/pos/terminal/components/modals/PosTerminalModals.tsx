@@ -181,21 +181,40 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
           modals.setIsMoreModalOpen(false);
           modals.setIsCashierSessionOpen(true);
         }}
-        onCustomerMaster={() => modals.setIsCustomerModalOpen(true)}
+        onCustomerMaster={() => {
+          modals.setIsMoreModalOpen(false);
+          modals.setIsCustomerModalOpen(true);
+        }}
         onItemComplimentary={props.handleItemComplimentary}
         onBillComplimentary={props.handleBillComplimentary}
         onSettledOrders={() => {
           props.requestAuthorization({
             actionLabel: "Settled order",
             permissionId: 20, // Settled order
-            onAuthorized: () => modals.setIsSettledModalOpen(true),
+            onAuthorized: () => {
+              modals.setIsMoreModalOpen(false);
+              modals.setIsSettledModalOpen(true);
+            },
           });
         }}
         onReport={() => {
           props.requestAuthorization({
             actionLabel: "Report",
             permissionId: 26, // Report
-            onAuthorized: () => modals.setIsReportModalOpen(true),
+            onAuthorized: () => {
+              modals.setIsMoreModalOpen(false);
+              modals.setIsReportModalOpen(true);
+            },
+          });
+        }}
+        onVoidOrder={() => {
+          props.requestAuthorization({
+            actionLabel: "Order Void",
+            permissionId: 17, // Order Void
+            onAuthorized: () => {
+              modals.setIsMoreModalOpen(false);
+              modals.setIsVoidModalOpen(true);
+            },
           });
         }}
         requestAuthorization={props.requestAuthorization}
@@ -266,13 +285,35 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
       {/* ── System / Heavy Modals (Lazy Loaded) ── */}
       <Suspense fallback={<ModalLoader />}>
         {modals.isReportModalOpen && (
-          <PosReportModal isOpen={modals.isReportModalOpen} onClose={() => modals.setIsReportModalOpen(false)} />
+          <PosReportModal
+            isOpen={modals.isReportModalOpen}
+            onClose={() => {
+              modals.setIsReportModalOpen(false);
+              modals.setIsMoreModalOpen(true);
+            }}
+          />
         )}
         {modals.isSettledModalOpen && (
-          <PosSettledModal isOpen={modals.isSettledModalOpen} onClose={() => modals.setIsSettledModalOpen(false)} onEditSuccess={() => modals.setIsSettledModalOpen(false)} />
+          <PosSettledModal
+            isOpen={modals.isSettledModalOpen}
+            onClose={() => {
+              modals.setIsSettledModalOpen(false);
+              modals.setIsMoreModalOpen(true);
+            }}
+            onEditSuccess={() => {
+              modals.setIsSettledModalOpen(false);
+              modals.setIsMoreModalOpen(true);
+            }}
+          />
         )}
         {modals.isCustomerModalOpen && (
-          <PosCustomerModal isOpen={modals.isCustomerModalOpen} onClose={() => modals.setIsCustomerModalOpen(false)} />
+          <PosCustomerModal
+            isOpen={modals.isCustomerModalOpen}
+            onClose={() => {
+              modals.setIsCustomerModalOpen(false);
+              modals.setIsMoreModalOpen(true);
+            }}
+          />
         )}
         {modals.isDeliveryModalOpen && (
           <PosDeliveryModal isOpen={modals.isDeliveryModalOpen} onClose={() => modals.setIsDeliveryModalOpen(false)} />

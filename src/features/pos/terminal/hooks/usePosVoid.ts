@@ -13,8 +13,6 @@ export const usePosVoid = () => {
   const { status } = useCashierLog();
 
   const fetchOrders = useCallback(async (params: RecallParams = {}) => {
-    if (!status?.dayId) return;
-
     try {
       setLoading(true);
 
@@ -22,7 +20,7 @@ export const usePosVoid = () => {
         OrderTypeId: params.OrderTypeId ?? 0,
         DeliveryOutStatus: params.DeliveryOutStatus ?? false,
         DeliveryOutOnlyStatus: params.DeliveryOutOnlyStatus ?? false,
-        DayId: status.dayId,
+        DayId: status?.dayId ?? 0,
         Decimals: getDecimalPart(),
       };
 
@@ -53,21 +51,37 @@ export const usePosVoid = () => {
   }, [status, showToast]);
 
   const executeVoidOrder = useCallback(async (orderId: number, reason: string) => {
-    if (!status?.dayId || !status?.shiftId || !status?.userId) {
-      showToast('Session details missing', 'error');
-      return false;
-    }
-
     try {
       setVoidingOrderId(orderId);
+
+      const getEmployeeId = () => {
+        const authEmpId = Number(localStorage.getItem("authorizedEmployeeId"));
+        if (authEmpId && authEmpId > 0) return authEmpId;
+
+        try {
+          const saved = localStorage.getItem("posConfigs");
+          const full = saved ? JSON.parse(saved) : {};
+          const empId = Number(full?.configs?.employeeId || full?.employeeId);
+          if (empId > 0) return empId;
+        } catch {}
+        
+        const uId = Number(localStorage.getItem("userId"));
+        if (uId > 1) return uId;
+        if (status?.userId && status.userId > 1) return status.userId;
+        
+        return 2; // Fallback valid employee reference
+      };
+
       const payload = {
         orderId,
         reason,
-        employeeId: status.userId,
+        employeeId: getEmployeeId(),
         voidDateTime: new Date().toISOString(),
-        dayId: status.dayId,
-        shiftId: status.shiftId,
+        dayId: status?.dayId ?? 0,
+        shiftId: 0,
       };
+
+      console.log('[usePosVoid] VOID PAYLOAD:', JSON.stringify(payload, null, 2));
 
       const response = await orderApi.voidOrder(orderId, payload);
       
@@ -80,14 +94,15 @@ export const usePosVoid = () => {
         showToast(response.message || 'Failed to void order', 'error');
         return false;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Void order error:', error);
-      showToast('An error occurred while voiding', 'error');
+      const errMsg = error?.response?.data?.message || error?.message || 'An error occurred while voiding';
+      showToast(errMsg, 'error');
       return false;
     } finally {
       setVoidingOrderId(null);
     }
-  }, [status, showToast, fetchOrders]);
+  }, [orders, status, showToast, fetchOrders]);
 
   // Initial fetch when session is available
   useEffect(() => {

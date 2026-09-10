@@ -3,10 +3,11 @@ import Modal from "../../../../../../components/common/Modal";
 import { Loader } from "../../../../../../components/common";
 import { Search, X, XCircle } from "lucide-react";
 import { usePosSettled } from "../../../hooks/usePosSettled";
-import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSettledSearchModal } from "./PosSettledSearchModal";
 import { PosSettledDetailsModal } from "./PosSettledDetailsModal";
 
+
+import { ConfirmDialog } from "../../../../../../components/common";
 
 interface PosSettledModalProps {
   isOpen: boolean;
@@ -25,8 +26,7 @@ const ORDER_TYPES = [
 ];
 
 export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClose, onEditSuccess }) => {
-  const { orders, loading, fetchOrders } = usePosSettled();
-  const { showToast } = useToast();
+  const { orders, loading, fetchOrders, cancelOrder } = usePosSettled();
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
   const [includeDeliveryOut] = useState(false);
@@ -35,6 +35,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("Order No");
+  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
 
   // Filter handlers
   useEffect(() => {
@@ -51,7 +52,12 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   }, [isOpen, activeTab, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
 
   const handleCancelOrder = (transId: number) => {
-    showToast(`Cancelling Order #${transId}...`, "success");
+    setCancelConfirmId(transId);
+  };
+
+  const executeCancel = async (transId: number) => {
+    setCancelConfirmId(null);
+    await cancelOrder(transId);
   };
 
   const handleApplySearch = (value: string, status: string) => {
@@ -234,6 +240,16 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
           onEditSuccess?.();
           onClose();
         }}
+      />
+      <ConfirmDialog
+        isOpen={!!cancelConfirmId}
+        title="Cancel Settled Order"
+        message={`Are you sure you want to cancel Settled Order #${cancelConfirmId}? This action cannot be undone.`}
+        confirmLabel="Yes, Cancel Order"
+        onConfirm={() => {
+          if (cancelConfirmId) executeCancel(cancelConfirmId);
+        }}
+        onCancel={() => setCancelConfirmId(null)}
       />
     </Modal>
   );

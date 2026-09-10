@@ -52,17 +52,12 @@ export const menuApi = {
     const now = new Date();
     const timeSpanString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
-    const [raw, allCategoriesRes] = await Promise.all([
-      unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data`, {
-        params: {
-          clientDb: localStorage.getItem("tenantId") || "",
-          currentTime: timeSpanString
-        }
-      })),
-      axiosInstance.get<ApiResponse<any[]>>(`/category/category-list`, {
-        params: { clientDb: localStorage.getItem("tenantId") || "" }
-      }).then(r => (Array.isArray(r.data?.data) ? r.data.data : (Array.isArray(r.data) ? r.data : []))).catch(() => [])
-    ]);
+    const raw = await unwrap(axiosInstance.get<ApiResponse<any>>(`/menu/master-data`, {
+      params: {
+        clientDb: localStorage.getItem("tenantId") || "",
+        currentTime: timeSpanString
+      }
+    }));
 
     const rawMenu = raw.menu ?? raw.groups ?? raw.group ?? [];
     const menu = rawMenu.map((m: any) => ({
@@ -77,23 +72,8 @@ export const menuApi = {
     }));
 
     const masterCategories = Array.isArray(raw.categories ?? raw.category) ? (raw.categories ?? raw.category) : [];
-    const allCatList = Array.isArray(allCategoriesRes) ? allCategoriesRes : [];
 
-    // Map all categories from database (ensuring unassigned categories are always available)
     const categoryMap = new Map<number, PosCategory>();
-
-    allCatList.forEach((c: any) => {
-      const id = Number(c.catId ?? c.categoryId ?? c.id ?? 0);
-      if (id > 0) {
-        categoryMap.set(id, {
-          id,
-          name: String(c.catName ?? c.categoryName ?? c.name ?? ""),
-          arabicName: String(c.arabic ?? c.arabicName ?? ""),
-          imageUrl: c.imageUrl ?? null,
-          colorCode: c.colorCode || "red",
-        });
-      }
-    });
 
     masterCategories.forEach((c: any) => {
       const id = Number(c.categoryId ?? c.id ?? 0);

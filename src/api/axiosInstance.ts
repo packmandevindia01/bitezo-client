@@ -44,8 +44,11 @@ axiosInstance.interceptors.request.use((config) => {
   const isCashierAction = normalizedUrl.includes("/cashier-log/") && !normalizedUrl.includes("iscashier-in");
   const isTokenResolvedOnly = normalizedUrl.includes("/change-password") || 
                               isCashierAction ||
+                              normalizedUrl.includes("/category/category-list") ||
+                              normalizedUrl.includes("/subcategory/subcategory-list") ||
                               normalizedUrl.includes("/category/category-image") ||
                               normalizedUrl.includes("/product/product-image") ||
+                              normalizedUrl.includes("/order/void") ||
                               normalizedUrl.includes("/provider") ||
                               normalizedUrl.includes("/lock-product") ||
                               normalizedUrl.includes("/employee/list-name");
@@ -98,7 +101,7 @@ import { clearAuthStorage } from "../utils/authUtils";
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    if (error.response && error.response.status === 401) {
       // Clear all tokens and auth data from BOTH sessionStorage and localStorage
       clearAuthStorage();
 
