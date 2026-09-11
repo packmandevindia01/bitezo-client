@@ -105,6 +105,7 @@ interface PosTerminalModalsProps {
   
   orderLoading: boolean;
   tenderOptions: any[];
+  selectedCustomerId?: number;
 }
 
 export const PosTerminalModals = React.memo(function PosTerminalModals(props: PosTerminalModalsProps) {
@@ -386,6 +387,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         />
         <PosMultiPayModal
           isOpen={modals.isMultiPayModalOpen}
+          customerId={props.selectedCustomerId}
           onClose={() => {
             modals.setIsMultiPayModalOpen(false);
             if (modals.returnToRecallOnCancel) {

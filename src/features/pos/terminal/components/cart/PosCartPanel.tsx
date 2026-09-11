@@ -36,6 +36,8 @@ interface PosCartPanelProps {
   setIsCashModalOpen: (open: boolean) => void;
   setIsDeliveryChargeModalOpen: (open: boolean) => void;
   tenderOptions: { id: string; label: string }[];
+  selectedCustomerId?: number;
+  selectedAddressId?: number;
   onPrice?: () => void;
   onDiscount?: () => void;
   onMessage?: () => void;
@@ -73,6 +75,8 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   setIsMultiPayModalOpen,
   setIsDeliveryChargeModalOpen,
   tenderOptions,
+  selectedCustomerId,
+  selectedAddressId,
   onPrice,
   onDiscount,
   onMessage,
@@ -142,9 +146,14 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
             isSettledEdit={isSettledEdit}
             selectedTender={selectedTender}
             tenderOptions={tenderOptions}
+            selectedCustomerId={selectedCustomerId}
             onSelectTender={(tenderId) => {
               setSelectedTender(tenderId);
               if (total > 0) {
+                if (isDelivery && (!selectedAddressId || Number(selectedAddressId) === 0)) {
+                  showToast("Please select a delivery address before settling.", "warning");
+                  return;
+                }
                 if (tenderId === '3') {
                   setIsMultiPayModalOpen(true);
                 }

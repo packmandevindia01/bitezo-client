@@ -334,22 +334,34 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
 
             {/* Action Buttons Wrapper */}
             <div className="flex shrink-0">
-              {order.details.toLowerCase().includes("(delivery)") && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedDriverOrderId(order.orderId);
-                  }}
-                  className={`
-                    w-[90px] h-full flex flex-col items-center justify-center gap-1 transition-all bg-gray-200 hover:bg-gray-300 text-gray-700
-                  `}
-                >
-                  <Truck size={18} strokeWidth={2.5} />
-                  <div className="font-black text-[10px] uppercase tracking-widest">
-                    Driver
-                  </div>
-                </button>
-              )}
+              {order.details.toLowerCase().includes("(delivery)") && (() => {
+                const driverName = order.driverName || order.allocatedDriverName || order.driver || order.driverEmployeeName || (() => {
+                  const match = typeof order.details === "string" && (order.details.match(/\(Driver:\s*([^)]+)\)/i) || order.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i));
+                  return match && match[1] ? match[1].trim() : null;
+                })();
+                const hasDriver = Boolean(driverName && driverName.trim() !== "");
+
+                return (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDriverOrderId(order.orderId);
+                    }}
+                    title={hasDriver ? `Assigned Driver: ${driverName}` : "Select Driver"}
+                    className={`
+                      px-3 min-w-[90px] h-full flex flex-col items-center justify-center gap-1 transition-all
+                      ${hasDriver 
+                        ? "bg-[#f48120] hover:bg-[#e06d10] text-white shadow-inner" 
+                        : "bg-gray-200 hover:bg-gray-300 text-gray-700"}
+                    `}
+                  >
+                    <Truck size={18} strokeWidth={2.5} />
+                    <div className="font-black text-[10px] uppercase tracking-widest text-center truncate max-w-[100px]">
+                      {hasDriver ? driverName : "Driver"}
+                    </div>
+                  </button>
+                );
+              })()}
               {/* Print Button Wrapper */}
               <div className="w-[100px] shrink-0">
                 <button

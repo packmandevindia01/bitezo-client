@@ -50,6 +50,7 @@ export const usePosCheckoutFlow = ({
   totalVat,
   total,
   deliveryCharge,
+  tenderOptions = [],
   decimalPart,
   waiterName,
   submitOrder,
@@ -143,6 +144,12 @@ export const usePosCheckoutFlow = ({
       providerOrderNo: activeProvider?.orderNo,
     });
 
+    const isDelivery = orderPayload.orderTypeId === 4;
+    if (isDelivery && (!orderPayload.addressId || Number(orderPayload.addressId) === 0)) {
+      showToast("Please select a delivery address before settling.", "warning");
+      return;
+    }
+
     const isOrderEdited = !editingOrderId ? true : isCartModified;
 
     try {
@@ -153,6 +160,17 @@ export const usePosCheckoutFlow = ({
       const resolvedCustomerId = (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0)
         ? activeProvider.provider.postAccountId
         : orderPayload.customerId;
+
+      // Rule: Block Credit Settlement if Customer ID is 1 (or default Cash Customer)
+      const isCreditPayment = payments.some(p => {
+        const tender = (tenderOptions || []).find((t: any) => String(t.id) === String(p.paymodeId));
+        const label = (tender?.label || "").toLowerCase();
+        return p.paymodeId === 3 || label.includes("credit");
+      });
+
+      if (isCreditPayment && (!resolvedCustomerId || Number(resolvedCustomerId) === 1)) {
+        return;
+      }
 
       const rootPaymodeId = payments.length > 1 ? 3 : (payments.length === 1 ? payments[0].paymodeId : 0);
       const salesPayload: any = {
@@ -219,7 +237,14 @@ export const usePosCheckoutFlow = ({
         paymodes: rootPaymodeId === 3 ? payments : []
       };
 
-      console.log("SENDING SALES PAYLOAD:", JSON.stringify(salesPayload, null, 2));
+      console.log("========== 🛒 POS SETTLEMENT DETAILS ==========");
+      console.log("Employee ID:", employeeId);
+      console.log("Resolved Customer ID:", resolvedCustomerId);
+      console.log("Order Type ID:", orderPayload.orderTypeId);
+      console.log("Payments:", payments);
+      console.log("Order Payload:", orderPayload);
+      console.log("Full Sales Payload (to API):", salesPayload);
+      console.log("===============================================");
 
       let success = false;
       let newSaleId: number | null = null;

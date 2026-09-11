@@ -416,6 +416,11 @@ export interface RecallOrder {
   orderId: number;
   details: string;
   isPrinted: boolean;
+  driverId?: number;
+  driverName?: string;
+  allocatedDriverName?: string;
+  driver?: string;
+  driverEmployeeName?: string;
 }
 
 export interface RecallResponse {

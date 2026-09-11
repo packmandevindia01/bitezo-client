@@ -60,6 +60,7 @@ interface PosOrderPanelProps {
   onSelectTender: (tender: string) => void;
   onDeliveryChargeDoubleClick?: () => void;
   tenderOptions: { id: string; label: string }[];
+  selectedCustomerId?: number;
 }
 
 export const PosOrderPanel = ({
@@ -95,6 +96,7 @@ export const PosOrderPanel = ({
   onSelectTender,
   onDeliveryChargeDoubleClick,
   tenderOptions,
+  selectedCustomerId,
 }: PosOrderPanelProps) => {
 
   const selectedItem = selectedKey
@@ -352,6 +354,7 @@ export const PosOrderPanel = ({
         selectedTender={selectedTender}
         onSelectTender={onSelectTender}
         tenderOptions={tenderOptions}
+        selectedCustomerId={selectedCustomerId}
         onDiscount={onDiscount}
         onCom={onCom}
       />

@@ -6,8 +6,16 @@ import type { InvoiceComplementarySummaryItem } from './types';
 interface BillComplementarySummaryViewProps {
   fromDate: string;
   toDate: string;
+  fromTime?: string;
+  toTime?: string;
+  isDayWiseChecked?: boolean;
+  isTimeWiseChecked?: boolean;
   onFromDateChange: (val: string) => void;
   onToDateChange: (val: string) => void;
+  onFromTimeChange?: (val: string) => void;
+  onToTimeChange?: (val: string) => void;
+  onDayWiseCheckChange?: (checked: boolean) => void;
+  onTimeWiseCheckChange?: (checked: boolean) => void;
   loading: boolean;
   logs: InvoiceComplementarySummaryItem[];
   onPrint: (directPrint: boolean) => void;
@@ -17,8 +25,16 @@ interface BillComplementarySummaryViewProps {
 export const BillComplementarySummaryView: React.FC<BillComplementarySummaryViewProps> = ({
   fromDate,
   toDate,
+  fromTime = "00:00",
+  toTime = "23:59",
+  isDayWiseChecked = true,
+  isTimeWiseChecked = false,
   onFromDateChange,
   onToDateChange,
+  onFromTimeChange,
+  onToTimeChange,
+  onDayWiseCheckChange,
+  onTimeWiseCheckChange,
   loading,
   logs,
   onPrint,
@@ -27,7 +43,7 @@ export const BillComplementarySummaryView: React.FC<BillComplementarySummaryView
   return (
     <div className="flex flex-col gap-4">
       {/* Header Filter Section */}
-      <div className="flex flex-wrap items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-200/80 gap-3">
+      <div className="flex flex-wrap items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 gap-3">
         <div>
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
             Bill Complementary Summary
@@ -37,26 +53,80 @@ export const BillComplementarySummaryView: React.FC<BillComplementarySummaryView
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="w-36">
-            <FormInput
-              type="date"
-              label="From Date"
-              value={fromDate}
-              onChange={(e: any) => onFromDateChange(e.target.value)}
-              inputClassName="h-[38px] text-xs font-bold"
-              inputMode="none"
-            />
+        <div className="flex items-end gap-3 flex-wrap">
+          {/* Search Mode Checkboxes */}
+          <div className="flex flex-col justify-end min-w-0 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0 truncate">
+              Filter Mode
+            </span>
+            <div className="flex items-center gap-2.5 bg-white h-9 px-3 rounded-md border border-gray-300 shadow-2xs select-none">
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 hover:text-[#49293e] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isDayWiseChecked}
+                  onChange={(e) => onDayWiseCheckChange?.(e.target.checked)}
+                  className="w-4 h-4 text-[#49293e] rounded border-gray-300 focus:ring-[#49293e] cursor-pointer"
+                />
+                <span className="whitespace-nowrap">Day Wise</span>
+              </label>
+              <div className="h-3.5 w-px bg-slate-200" />
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 hover:text-[#49293e] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isTimeWiseChecked}
+                  onChange={(e) => onTimeWiseCheckChange?.(e.target.checked)}
+                  className="w-4 h-4 text-[#49293e] rounded border-gray-300 focus:ring-[#49293e] cursor-pointer"
+                />
+                <span className="whitespace-nowrap">Time Wise</span>
+              </label>
+            </div>
           </div>
-          <div className="w-36">
-            <FormInput
-              type="date"
-              label="To Date"
-              value={toDate}
-              onChange={(e: any) => onToDateChange(e.target.value)}
-              inputClassName="h-[38px] text-xs font-bold"
-              inputMode="none"
-            />
+
+          <div className="flex items-end gap-2 flex-wrap">
+            <div className="w-32">
+              <FormInput
+                type="date"
+                label="From Date"
+                value={fromDate}
+                onChange={(e: any) => onFromDateChange(e.target.value)}
+                disabled={!isDayWiseChecked}
+                inputClassName={`h-[36px] text-xs font-bold ${!isDayWiseChecked ? 'cursor-not-allowed opacity-60' : ''}`}
+                inputMode="none"
+              />
+            </div>
+            <div className="w-28">
+              <FormInput
+                type="time"
+                label="Start Time"
+                value={!isTimeWiseChecked ? "00:00" : fromTime}
+                onChange={(e: any) => onFromTimeChange?.(e.target.value)}
+                disabled={!isTimeWiseChecked}
+                inputClassName={`h-[36px] text-xs font-bold ${!isTimeWiseChecked ? 'cursor-not-allowed opacity-60' : ''}`}
+                inputMode="none"
+              />
+            </div>
+            <div className="w-32">
+              <FormInput
+                type="date"
+                label="To Date"
+                value={toDate}
+                onChange={(e: any) => onToDateChange(e.target.value)}
+                disabled={!isDayWiseChecked}
+                inputClassName={`h-[36px] text-xs font-bold ${!isDayWiseChecked ? 'cursor-not-allowed opacity-60' : ''}`}
+                inputMode="none"
+              />
+            </div>
+            <div className="w-28">
+              <FormInput
+                type="time"
+                label="End Time"
+                value={!isTimeWiseChecked ? "23:59" : toTime}
+                onChange={(e: any) => onToTimeChange?.(e.target.value)}
+                disabled={!isTimeWiseChecked}
+                inputClassName={`h-[36px] text-xs font-bold ${!isTimeWiseChecked ? 'cursor-not-allowed opacity-60' : ''}`}
+                inputMode="none"
+              />
+            </div>
           </div>
         </div>
       </div>

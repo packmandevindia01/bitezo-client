@@ -254,7 +254,7 @@ export const cashierLogService = {
 
   getAllTransactionSummary: async (fromDate: string, toDate: string, decimals?: number): Promise<AllTransactionSummaryItem[]> => {
     const dec = decimals ?? 3;
-    const { data } = await axiosInstance.get<ApiResponse<AllTransactionSummaryItem[]>>(`/session-closings/all_transaction-summary`, {
+    const { data } = await axiosInstance.get<ApiResponse<AllTransactionSummaryItem[]>>(`/session-closings/all-transaction-summary`, {
       params: {
         FromDate: fromDate,
         ToDate: toDate,
@@ -265,6 +265,21 @@ export const cashierLogService = {
       return data.data;
     }
     return [];
+  },
+
+  getDayStartEndDate: async (date: string): Promise<any> => {
+    try {
+      const { data } = await axiosInstance.get(`/session-closings/day-start-end-date`, {
+        params: { date }
+      });
+      if (data && data.data) {
+        return data.data;
+      }
+      return null;
+    } catch (err: any) {
+      console.warn("Failed to fetch day-start-end-date:", err?.response?.data?.message || err.message);
+      return null;
+    }
   }
 };
 

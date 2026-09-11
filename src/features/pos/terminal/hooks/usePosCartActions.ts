@@ -367,17 +367,7 @@ export const usePosCartActions = () => {
       return;
     }
 
-    const isDelivery = selectedOrderTypeId === 4 || normalizedTypeName.includes("delivery");
-    if (isDelivery) {
-      if (!selectedCustomerId || selectedCustomerId <= 0) {
-        showToast("Please select a customer for Delivery orders.", "warning");
-        return;
-      }
-      if (!selectedAddressId || selectedAddressId <= 0) {
-        showToast("Please select a delivery address.", "warning");
-        return;
-      }
-    }
+
 
     setOrderLoading(true);
     setOrderError(null);

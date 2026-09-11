@@ -135,11 +135,26 @@ const REPORT_CARDS: ReportCardItem[] = [
   },
 ];
 
+const getTodayStr = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getCurrentTimeStr = (): string => {
+  const d = new Date();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
 export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose }) => {
   const { showToast } = useToast();
   const [selectedReport, setSelectedReport] = useState<ReportType>('HUB');
   const [activeTab, setActiveTab] = useState<TabType>('DAY_END');
-  const [asOnDate, setAsOnDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [asOnDate, setAsOnDate] = useState<string>(() => getTodayStr());
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
@@ -148,10 +163,26 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
 
   // Centralized report dates state
   const [fromDate, setFromDate] = useState<string>(() => {
-    return localStorage.getItem('reportFromDate') || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    return localStorage.getItem('reportFromDate') || getTodayStr();
   });
   const [toDate, setToDate] = useState<string>(() => {
-    return localStorage.getItem('reportToDate') || new Date().toISOString().split('T')[0];
+    return localStorage.getItem('reportToDate') || getTodayStr();
+  });
+  const [fromTime, setFromTime] = useState<string>(() => {
+    return localStorage.getItem('reportFromTime') || getCurrentTimeStr();
+  });
+  const [toTime, setToTime] = useState<string>(() => {
+    return localStorage.getItem('reportToTime') || getCurrentTimeStr();
+  });
+
+  const [isDayWiseChecked, setIsDayWiseChecked] = useState<boolean>(() => {
+    const saved = localStorage.getItem('reportIsDayWise');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const [isTimeWiseChecked, setIsTimeWiseChecked] = useState<boolean>(() => {
+    const saved = localStorage.getItem('reportIsTimeWise');
+    return saved !== null ? saved === 'true' : false;
   });
 
   const handleFromDateChange = (val: string) => {
@@ -163,6 +194,38 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
     setToDate(val);
     setAsOnDate(val);
     localStorage.setItem('reportToDate', val);
+  };
+
+  const handleFromTimeChange = (val: string) => {
+    setFromTime(val);
+    localStorage.setItem('reportFromTime', val);
+  };
+
+  const handleToTimeChange = (val: string) => {
+    setToTime(val);
+    localStorage.setItem('reportToTime', val);
+  };
+
+  const handleDayWiseCheckChange = (checked: boolean) => {
+    setIsDayWiseChecked(checked);
+    localStorage.setItem('reportIsDayWise', String(checked));
+  };
+
+  const handleTimeWiseCheckChange = (checked: boolean) => {
+    setIsTimeWiseChecked(checked);
+    localStorage.setItem('reportIsTimeWise', String(checked));
+  };
+
+  const getFullFromDate = () => {
+    if (!fromDate) return '';
+    const timePart = isTimeWiseChecked && fromTime ? `${fromTime}:00` : '00:00:00';
+    return `${fromDate}T${timePart}`;
+  };
+
+  const getFullToDate = () => {
+    if (!toDate) return '';
+    const timePart = isTimeWiseChecked && toTime ? `${toTime}:59` : '23:59:59';
+    return `${toDate}T${timePart}`;
   };
 
   // Void Order Summary state
@@ -193,6 +256,51 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
 
+  // Day End Checkbox & Day Start/End Date Time State
+  const [isDayEndChecked, setIsDayEndChecked] = useState<boolean>(false);
+  const [dayStartEndInfo, setDayStartEndInfo] = useState<{ startDate?: string; endDate?: string; dayStart?: string; dayEnd?: string } | null>(null);
+  const [dayStartEndLoading, setDayStartEndLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const today = getTodayStr();
+      const nowTime = getCurrentTimeStr();
+      if (!localStorage.getItem('reportFromDate')) {
+        setFromDate(today);
+      }
+      if (!localStorage.getItem('reportToDate')) {
+        setToDate(today);
+        setAsOnDate(today);
+      }
+      if (!localStorage.getItem('reportFromTime')) {
+        setFromTime(nowTime);
+      }
+      if (!localStorage.getItem('reportToTime')) {
+        setToTime(nowTime);
+      }
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (isOpen && isDayEndChecked) {
+      const targetDate = asOnDate || toDate || new Date().toISOString().split('T')[0];
+      setDayStartEndLoading(true);
+      cashierLogService.getDayStartEndDate(targetDate)
+        .then((data) => {
+          if (isMounted) {
+            setDayStartEndInfo(data);
+          }
+        })
+        .finally(() => {
+          if (isMounted) setDayStartEndLoading(false);
+        });
+    } else {
+      setDayStartEndInfo(null);
+    }
+    return () => { isMounted = false; };
+  }, [isOpen, isDayEndChecked, asOnDate, toDate]);
+
   useEffect(() => {
     if (isOpen && (selectedReport === 'DAY_END' || selectedReport === 'SHIFT_END')) {
       const targetTab: TabType = selectedReport === 'DAY_END' ? 'DAY_END' : 'SHIFT_END';
@@ -205,37 +313,37 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
     if (isOpen && selectedReport === 'VOID_ORDER_SUMMARY') {
       void fetchVoidSummary();
     }
-  }, [isOpen, selectedReport, fromDate, toDate]);
+  }, [isOpen, selectedReport, fromDate, toDate, fromTime, toTime, isDayWiseChecked, isTimeWiseChecked]);
 
   useEffect(() => {
     if (isOpen && selectedReport === 'VOID_PRODUCT_SUMMARY') {
       void fetchVoidProductSummary();
     }
-  }, [isOpen, selectedReport, fromDate, toDate]);
+  }, [isOpen, selectedReport, fromDate, toDate, fromTime, toTime, isDayWiseChecked, isTimeWiseChecked]);
 
   useEffect(() => {
     if (isOpen && selectedReport === 'CANCELLED_INVOICE_SUMMARY') {
       void fetchVoidInvoiceSummary();
     }
-  }, [isOpen, selectedReport, fromDate, toDate]);
+  }, [isOpen, selectedReport, fromDate, toDate, fromTime, toTime, isDayWiseChecked, isTimeWiseChecked]);
 
   useEffect(() => {
     if (isOpen && selectedReport === 'BILL_COMPLEMENTARY_SUMMARY') {
       void fetchInvoiceComplementarySummary();
     }
-  }, [isOpen, selectedReport, fromDate, toDate]);
+  }, [isOpen, selectedReport, fromDate, toDate, fromTime, toTime, isDayWiseChecked, isTimeWiseChecked]);
 
   useEffect(() => {
     if (isOpen && selectedReport === 'DRIVER_SUMMARY') {
       void fetchDriverSummary();
     }
-  }, [isOpen, selectedReport, fromDate, toDate]);
+  }, [isOpen, selectedReport, fromDate, toDate, fromTime, toTime, isDayWiseChecked, isTimeWiseChecked]);
 
   useEffect(() => {
     if (isOpen && selectedReport === 'ALL_TRANSACTION_SUMMARY') {
       void fetchAllTransactionSummary();
     }
-  }, [isOpen, selectedReport, fromDate, toDate]);
+  }, [isOpen, selectedReport, fromDate, toDate, fromTime, toTime, isDayWiseChecked, isTimeWiseChecked]);
 
   const fetchLogs = async (tabOverride?: TabType) => {
     const currentTab = tabOverride || activeTab;
@@ -260,10 +368,12 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchVoidSummary = async () => {
-    if (!fromDate || !toDate) return;
+    const fullFrom = getFullFromDate();
+    const fullTo = getFullToDate();
+    if (!fullFrom || !fullTo) return;
     setVoidLoading(true);
     try {
-      const data = await cashierLogService.getVoidOrderSummary(fromDate, toDate);
+      const data = await cashierLogService.getVoidOrderSummary(fullFrom, fullTo);
       setVoidSummaryLogs(data);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch void order summary', 'error');
@@ -273,10 +383,12 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchVoidProductSummary = async () => {
-    if (!fromDate || !toDate) return;
+    const fullFrom = getFullFromDate();
+    const fullTo = getFullToDate();
+    if (!fullFrom || !fullTo) return;
     setVoidProductLoading(true);
     try {
-      const data = await cashierLogService.getVoidProductSummary(fromDate, toDate);
+      const data = await cashierLogService.getVoidProductSummary(fullFrom, fullTo);
       setVoidProductSummaryLogs(data);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch void product summary', 'error');
@@ -286,10 +398,12 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchVoidInvoiceSummary = async () => {
-    if (!fromDate || !toDate) return;
+    const fullFrom = getFullFromDate();
+    const fullTo = getFullToDate();
+    if (!fullFrom || !fullTo) return;
     setVoidInvoiceLoading(true);
     try {
-      const data = await cashierLogService.getVoidInvoiceSummary(fromDate, toDate);
+      const data = await cashierLogService.getVoidInvoiceSummary(fullFrom, fullTo);
       setVoidInvoiceSummaryLogs(data);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch void invoice summary', 'error');
@@ -299,10 +413,12 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchInvoiceComplementarySummary = async () => {
-    if (!fromDate || !toDate) return;
+    const fullFrom = getFullFromDate();
+    const fullTo = getFullToDate();
+    if (!fullFrom || !fullTo) return;
     setInvoiceComplementaryLoading(true);
     try {
-      const data = await cashierLogService.getInvoiceComplementarySummary(fromDate, toDate);
+      const data = await cashierLogService.getInvoiceComplementarySummary(fullFrom, fullTo);
       setInvoiceComplementaryLogs(data);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch invoice complementary summary', 'error');
@@ -312,10 +428,12 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchDriverSummary = async () => {
-    if (!fromDate || !toDate) return;
+    const fullFrom = getFullFromDate();
+    const fullTo = getFullToDate();
+    if (!fullFrom || !fullTo) return;
     setDriverLoading(true);
     try {
-      const data = await cashierLogService.getDriverSummary(fromDate, toDate);
+      const data = await cashierLogService.getDriverSummary(fullFrom, fullTo);
       setDriverSummaryLogs(data);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch driver summary', 'error');
@@ -325,10 +443,12 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchAllTransactionSummary = async () => {
-    if (!fromDate || !toDate) return;
+    const fullFrom = getFullFromDate();
+    const fullTo = getFullToDate();
+    if (!fullFrom || !fullTo) return;
     setAllTransactionLoading(true);
     try {
-      const data = await cashierLogService.getAllTransactionSummary(fromDate, toDate);
+      const data = await cashierLogService.getAllTransactionSummary(fullFrom, fullTo);
       setAllTransactionLogs(data);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch all transaction summary', 'error');
@@ -519,8 +639,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString || dateString.startsWith('1900-')) return '—';
+    if (!dateString) return '—';
+    if (dateString.startsWith('1900-') || dateString.includes('1900-01-01')) {
+      const d = new Date();
+      return d.toLocaleString('en-GB', { 
+        day: '2-digit', month: '2-digit', year: 'numeric', 
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
     const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
     return d.toLocaleString('en-GB', { 
       day: '2-digit', month: '2-digit', year: 'numeric', 
       hour: '2-digit', minute: '2-digit'
@@ -611,8 +739,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
           reportCards={REPORT_CARDS}
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           onSelectReport={(id) => setSelectedReport(id)}
         />
       )}
@@ -634,6 +770,10 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
           }}
           onPrint={handlePrintClosingLog}
           formatDate={formatDate}
+          isDayEndChecked={isDayEndChecked}
+          onDayEndCheckChange={setIsDayEndChecked}
+          dayStartEndInfo={dayStartEndInfo}
+          dayStartEndLoading={dayStartEndLoading}
         />
       )}
 
@@ -641,8 +781,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         <VoidOrderSummaryView
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           loading={voidLoading}
           logs={voidSummaryLogs}
           onPrint={handlePrintVoidSummary}
@@ -654,8 +802,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         <VoidProductSummaryView
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           loading={voidProductLoading}
           logs={voidProductSummaryLogs}
           onPrint={handlePrintVoidProductSummary}
@@ -667,8 +823,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         <CancelledInvoiceSummaryView
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           loading={voidInvoiceLoading}
           logs={voidInvoiceSummaryLogs}
           onPrint={handlePrintVoidInvoiceSummary}
@@ -680,8 +844,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         <BillComplementarySummaryView
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           loading={invoiceComplementaryLoading}
           logs={invoiceComplementaryLogs}
           onPrint={handlePrintInvoiceComplementarySummary}
@@ -693,8 +865,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         <DriverSummaryView
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           loading={driverLoading}
           logs={driverSummaryLogs}
           onPrint={handlePrintDriverSummary}
@@ -706,8 +886,16 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         <AllTransactionSummaryView
           fromDate={fromDate}
           toDate={toDate}
+          fromTime={fromTime}
+          toTime={toTime}
+          isDayWiseChecked={isDayWiseChecked}
+          isTimeWiseChecked={isTimeWiseChecked}
           onFromDateChange={handleFromDateChange}
           onToDateChange={handleToDateChange}
+          onFromTimeChange={handleFromTimeChange}
+          onToTimeChange={handleToTimeChange}
+          onDayWiseCheckChange={handleDayWiseCheckChange}
+          onTimeWiseCheckChange={handleTimeWiseCheckChange}
           loading={allTransactionLoading}
           logs={allTransactionLogs}
           onPrint={handlePrintAllTransactionSummary}

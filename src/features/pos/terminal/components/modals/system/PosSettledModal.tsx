@@ -79,7 +79,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
       onClose={onClose}
       size="2xl"
       noPadding
-      className="bg-[#f8f9fa] border-none shadow-2xl"
+      className="bg-[#f8f9fa] border-none shadow-2xl h-[78vh] min-h-[540px] max-h-[720px]"
     >
       {/* HEADER SECTION */}
       <div className="flex flex-col shrink-0">
@@ -137,7 +137,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
       </div>
 
       {/* ORDERS LIST SECTION */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative min-h-[400px]">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative">
         {loading && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
             <Loader text="Retrieving Orders..." />
@@ -145,7 +145,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
         )}
 
         {!loading && orders.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400 gap-4">
+          <div className="flex flex-col items-center justify-center min-h-[300px] h-full py-16 text-slate-400 gap-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
               <Search size={32} />
             </div>

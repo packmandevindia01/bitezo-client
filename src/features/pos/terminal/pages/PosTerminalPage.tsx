@@ -400,8 +400,23 @@ export const PosTerminalPage = () => {
   });
 
   const handleSettle = (shouldPrint: boolean) => {
+    console.log("========== 🚀 POS SETTLE TRIGGERED ==========", {
+      shouldPrint,
+      itemCount: terminal.itemCount,
+      selectedTender,
+      selectedOrderTypeId: terminal.selectedOrderTypeId,
+      selectedOrderTypeName: terminal.selectedOrderTypeName,
+      selectedCustomerId: terminal.selectedCustomerId,
+      selectedAddressId: terminal.selectedAddressId,
+    });
+
     if (terminal.itemCount === 0) {
       showToast("Cart is empty", "warning");
+      return;
+    }
+
+    if (isDelivery && (!terminal.selectedAddressId || Number(terminal.selectedAddressId) === 0)) {
+      showToast("Please select a delivery address before settling.", "warning");
       return;
     }
     
@@ -870,6 +885,7 @@ export const PosTerminalPage = () => {
         orderTypes={terminal.orderTypes}
         selectedOrderTypeId={terminal.selectedOrderTypeId}
         onSelectOrderType={(type) => {
+          console.log("========== 🚚 ORDER TYPE SELECTED ==========", type);
           setActiveProvider(null);
           terminal.setSelectedOrderType(type.orderTypeId, type.orderType);
         }}
@@ -1018,6 +1034,8 @@ export const PosTerminalPage = () => {
           setIsCashModalOpen={modals.setIsCashModalOpen}
           setIsDeliveryChargeModalOpen={modals.setIsDeliveryChargeModalOpen}
           tenderOptions={terminal.tenderOptions}
+          selectedCustomerId={terminal.selectedCustomerId}
+          selectedAddressId={terminal.selectedAddressId}
           onPrice={openPriceModal}
           onDiscount={discountFlow.openDiscountChoice}
           onMessage={() => {
@@ -1082,6 +1100,7 @@ export const PosTerminalPage = () => {
         setSelectedProviderForOrder={setSelectedProviderForOrder}
         orderLoading={terminal.orderLoading}
         tenderOptions={terminal.tenderOptions}
+        selectedCustomerId={terminal.selectedCustomerId}
       />
     </div>
   );

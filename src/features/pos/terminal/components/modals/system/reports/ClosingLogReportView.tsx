@@ -2,6 +2,7 @@ import React from 'react';
 import { Eye, Printer } from 'lucide-react';
 import { Button, FormInput, Loader } from '../../../../../../../components/common';
 import type { DayClosedLog, ShiftClosedLog } from './types';
+import { DayEndInfoBanner } from './DayEndInfoBanner';
 
 interface ClosingLogReportViewProps {
   reportType: 'DAY_END' | 'SHIFT_END';
@@ -16,6 +17,10 @@ interface ClosingLogReportViewProps {
   onSelectShiftId: (dayId: number, shiftId: number) => void;
   onPrint: (directPrint: boolean) => void;
   formatDate: (dateStr: string) => string;
+  isDayEndChecked?: boolean;
+  onDayEndCheckChange?: (checked: boolean) => void;
+  dayStartEndInfo?: { startDate?: string; endDate?: string; dayStart?: string; dayEnd?: string } | null;
+  dayStartEndLoading?: boolean;
 }
 
 export const ClosingLogReportView: React.FC<ClosingLogReportViewProps> = ({
@@ -31,6 +36,10 @@ export const ClosingLogReportView: React.FC<ClosingLogReportViewProps> = ({
   onSelectShiftId,
   onPrint,
   formatDate,
+  isDayEndChecked = false,
+  onDayEndCheckChange,
+  dayStartEndInfo = null,
+  dayStartEndLoading = false,
 }) => {
   const isDayEnd = reportType === 'DAY_END';
 
@@ -49,15 +58,26 @@ export const ClosingLogReportView: React.FC<ClosingLogReportViewProps> = ({
           </p>
         </div>
 
-        <div className="w-44">
-          <FormInput
-            type="date"
-            label=""
-            value={asOnDate}
-            onChange={(e: any) => onDateChange(e.target.value)}
-            inputClassName="h-[38px] text-xs font-bold"
-            inputMode="none"
-          />
+        <div className="flex items-center gap-3 flex-wrap">
+          {isDayEnd && onDayEndCheckChange && (
+            <DayEndInfoBanner
+              isDayEndChecked={isDayEndChecked}
+              onDayEndCheckChange={onDayEndCheckChange}
+              dayStartEndInfo={dayStartEndInfo}
+              loading={dayStartEndLoading}
+            />
+          )}
+
+          <div className="w-44">
+            <FormInput
+              type="date"
+              label=""
+              value={asOnDate}
+              onChange={(e: any) => onDateChange(e.target.value)}
+              inputClassName="h-[38px] text-xs font-bold"
+              inputMode="none"
+            />
+          </div>
         </div>
       </div>
 

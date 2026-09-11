@@ -19,11 +19,12 @@ interface PosOrderSummaryProps {
   selectedTender: string;
   onSelectTender: (tender: string) => void;
   tenderOptions: { id: string; label: string }[];
+  selectedCustomerId?: number;
   onDiscount?: () => void;
   onCom?: () => void;
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, onDiscount, onCom }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, selectedCustomerId, onDiscount, onCom }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
   return (
     <div className="shrink-0 p-2 lg:p-2.5 [@media(max-height:800px)]:p-1 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2 [@media(max-height:800px)]:space-y-0.5">
@@ -107,20 +108,33 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
 
       {/* Payment Methods */}
       <div className="grid grid-cols-5 gap-1 md:gap-1.5">
-        {(tenderOptions || []).map((mode) => (
-          <button
-            key={mode.id}
-            onClick={() => onSelectTender(mode.id)}
-            className={`
-              h-8 md:h-9 lg:h-10 [@media(max-height:800px)]:h-7 rounded-xl border-2 text-[9px] md:text-[10px] lg:text-[11px] [@media(max-height:800px)]:text-[8px] font-extrabold transition-all shadow-sm active:scale-95 uppercase leading-tight px-0.5 break-words flex items-center justify-center text-center
-              ${selectedTender === mode.id
-                ? "border-pos-green bg-pos-green/10 text-pos-green-dark"
-                : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600"}
-            `}
-          >
-            {mode.label}
-          </button>
-        ))}
+        {(tenderOptions || []).map((mode) => {
+          const label = (mode.label || "").toLowerCase();
+          const isCredit = label.includes("credit") && !label.includes("multi");
+          const isCreditDisabled = isCredit && (!selectedCustomerId || Number(selectedCustomerId) === 1);
+          const isCartEmpty = subtotal <= 0;
+          const isDisabled = isCartEmpty || isCreditDisabled;
+          const isSelected = selectedTender === mode.id;
+
+          return (
+            <button
+              key={mode.id}
+              onClick={() => !isDisabled && onSelectTender(mode.id)}
+              disabled={isDisabled}
+              title={isCreditDisabled ? "Credit is disabled for Cash Customer" : isCartEmpty ? "Add products to cart first" : undefined}
+              className={`
+                h-8 md:h-9 lg:h-10 [@media(max-height:800px)]:h-7 rounded-xl border-2 text-[9px] md:text-[10px] lg:text-[11px] [@media(max-height:800px)]:text-[8px] font-black transition-all shadow-sm active:scale-95 uppercase leading-tight px-0.5 break-words flex items-center justify-center text-center
+                ${isDisabled
+                  ? "border-slate-200 bg-slate-100/90 text-slate-500 font-bold cursor-not-allowed"
+                  : isSelected
+                    ? "border-pos-green bg-pos-green/15 text-pos-green-dark shadow-md ring-1 ring-pos-green/30"
+                    : "border-slate-300 bg-white text-slate-800 hover:border-[#f48120] hover:text-[#f48120] hover:bg-orange-50/60 hover:shadow"}
+              `}
+            >
+              {mode.label}
+            </button>
+          );
+        })}
         <div className="h-8 md:h-9 lg:h-10 [@media(max-height:800px)]:h-7 rounded-xl border-2 border-dashed border-slate-200" />
       </div>
 

@@ -16,6 +16,7 @@ interface PosMultiPayModalProps {
   totalDue: number;
   onSubmit: (payments: PaymentLine[], change: number) => void;
   loading?: boolean;
+  customerId?: number;
 }
 
 const MODE_CONFIG = {
@@ -215,7 +216,8 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
   onClose,
   totalDue,
   onSubmit,
-  loading
+  loading,
+  customerId,
 }) => {
   const { formatAmount, currencySymbol, decimalPart } = useCurrency();
   const { showToast } = useToast();
@@ -243,6 +245,12 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
     if (amountModalMode) {
       const mode = amountModalMode;
       
+      if (mode === 'credit' && (!customerId || Number(customerId) === 1)) {
+        showToast("Credit is not allowed for Cash Customer", "warning");
+        setAmountModalMode(null);
+        return;
+      }
+
       // Validation Rule: Non-Cash methods cannot cause an overpayment
       if (mode !== 'cash') {
         const potentialTotal = totalPaid + amount;
@@ -333,22 +341,27 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
                 const paymentIdx = payments.findIndex(p => p.mode === mode);
                 const payment = payments[paymentIdx];
                 const hasPayment = !!payment;
+                const isCreditDisabled = mode === 'credit' && (!customerId || Number(customerId) === 1);
 
                 return (
                   <div key={mode} className="relative h-20">
                     <button
                       onClick={() => {
+                        if (isCreditDisabled) return;
                         if (remaining > 0) {
                           setAmountModalMode(mode);
                         }
                       }}
-                      disabled={remaining <= 0 && !hasPayment}
+                      disabled={isCreditDisabled || (remaining <= 0 && !hasPayment)}
+                      title={isCreditDisabled ? "Credit is disabled for Cash Customer" : undefined}
                       className={`w-full h-full flex flex-col items-center justify-center gap-1 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
-                        hasPayment
-                          ? `${cfg.border} ${cfg.bg} text-slate-800`
-                          : remaining <= 0
-                            ? 'border-slate-100 bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : `border-slate-300 bg-white hover:border-slate-400 active:scale-95 text-slate-600`
+                        isCreditDisabled
+                          ? 'border-slate-200 bg-slate-100/90 text-slate-500 font-bold cursor-not-allowed'
+                          : hasPayment
+                            ? `${cfg.border} ${cfg.bg} text-slate-800`
+                            : remaining <= 0
+                              ? 'border-slate-100 bg-slate-100 text-slate-400 cursor-not-allowed'
+                              : `border-slate-300 bg-white hover:border-slate-400 active:scale-95 text-slate-600`
                       }`}
                     >
                       {hasPayment ? (
