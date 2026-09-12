@@ -312,6 +312,7 @@ export interface VoidInvoiceSummaryItem {
   date: string;
   orderType: string;
   employee: string;
+  reason?: string;
   amount: string | number;
 }
 
@@ -320,15 +321,21 @@ export interface InvoiceComplementarySummaryItem {
   billNo: string;
   date: string;
   customer: string;
+  employee?: string;
+  amount?: string | number;
 }
 
 export interface DriverSummaryItem {
   sNo: number;
   driver: string;
+  totalOrders?: number;
   amount: string | number;
 }
 
 export interface AllTransactionSummaryItem {
+  sNo?: number;
   particular: string;
+  category?: string;
+  paymentType?: string;
   amount: string | number;
 }

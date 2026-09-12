@@ -9,9 +9,10 @@ import { ProductWisePrinterTab } from '../components/printer/ProductWisePrinterT
 import { SectionWisePrinterTab } from '../components/printer/SectionWisePrinterTab';
 import { OrderTypeWisePrinterTab } from '../components/printer/OrderTypeWisePrinterTab';
 import { CategoryWisePrinterTab } from '../components/printer/CategoryWisePrinterTab';
+import { PrinterIpMapTab } from '../components/printer/PrinterIpMapTab';
 import { usePrinterSettings } from '../hooks/usePrinterSettings';
 
-type PrinterTab = 'GENERAL' | 'CATEGORY' | 'PRODUCT' | 'SECTION' | 'ORDER_TYPE';
+type PrinterTab = 'GENERAL' | 'CATEGORY' | 'PRODUCT' | 'SECTION' | 'ORDER_TYPE' | 'IP_MAP';
 
 export const PosMorePage: React.FC = () => {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export const PosMorePage: React.FC = () => {
       case 'PRODUCT': return "Product-Specific Routing";
       case 'SECTION': return "Section-Specific Routing";
       case 'ORDER_TYPE': return "Order Type Master KOT Routing";
+      case 'IP_MAP': return "Printer IP Address Mapping";
       default: return "";
     }
   };
@@ -77,6 +79,7 @@ export const PosMorePage: React.FC = () => {
             { id: 'PRODUCT', label: 'Product' },
             { id: 'SECTION', label: 'Section' },
             { id: 'ORDER_TYPE', label: 'Order Type' },
+            { id: 'IP_MAP', label: 'IP Map' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -140,6 +143,9 @@ export const PosMorePage: React.FC = () => {
                   onSave={saveOrderTypeMappings}
                   loading={loading}
                 />
+              )}
+              {activeTab === 'IP_MAP' && (
+                <PrinterIpMapTab />
               )}
             </div>
           </div>

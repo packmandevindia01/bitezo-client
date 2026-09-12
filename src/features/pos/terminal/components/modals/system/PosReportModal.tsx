@@ -4,6 +4,16 @@ import { Modal, Button } from '../../../../../../components/common';
 import { cashierLogService } from '../../../../cashier/services/cashierLogService';
 import { useToast } from '../../../../../../app/providers/useToast';
 import { generateEndReportHtml } from '../../../../utils/endReportTemplate';
+import { 
+  generateEndReportMarkup,
+  generateVoidOrderReportMarkup,
+  generateVoidProductReportMarkup,
+  generateVoidInvoiceReportMarkup,
+  generateBillComplementaryReportMarkup,
+  generateDriverSummaryReportMarkup,
+  generateAllTransactionSummaryReportMarkup
+} from '../../../../utils/escPosGenerator';
+import { printPosReport } from '../../../../utils/reportPrinter';
 
 import type { 
   ReportType, 
@@ -143,13 +153,6 @@ const getTodayStr = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-const getCurrentTimeStr = (): string => {
-  const d = new Date();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
-
 export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose }) => {
   const { showToast } = useToast();
   const [selectedReport, setSelectedReport] = useState<ReportType>('HUB');
@@ -163,16 +166,18 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
 
   // Centralized report dates state
   const [fromDate, setFromDate] = useState<string>(() => {
-    return localStorage.getItem('reportFromDate') || getTodayStr();
+    return localStorage.getItem('reportFromDate') || '2026-01-01';
   });
   const [toDate, setToDate] = useState<string>(() => {
-    return localStorage.getItem('reportToDate') || getTodayStr();
+    const saved = localStorage.getItem('reportToDate');
+    const today = getTodayStr();
+    return saved && saved >= today ? saved : today;
   });
   const [fromTime, setFromTime] = useState<string>(() => {
-    return localStorage.getItem('reportFromTime') || getCurrentTimeStr();
+    return localStorage.getItem('reportFromTime') || '00:00';
   });
   const [toTime, setToTime] = useState<string>(() => {
-    return localStorage.getItem('reportToTime') || getCurrentTimeStr();
+    return localStorage.getItem('reportToTime') || '23:59';
   });
 
   const [isDayWiseChecked, setIsDayWiseChecked] = useState<boolean>(() => {
@@ -188,12 +193,21 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handleFromDateChange = (val: string) => {
     setFromDate(val);
     localStorage.setItem('reportFromDate', val);
+    if (toDate && val > toDate) {
+      setToDate(val);
+      setAsOnDate(val);
+      localStorage.setItem('reportToDate', val);
+    }
   };
 
   const handleToDateChange = (val: string) => {
     setToDate(val);
     setAsOnDate(val);
     localStorage.setItem('reportToDate', val);
+    if (fromDate && val < fromDate) {
+      setFromDate(val);
+      localStorage.setItem('reportFromDate', val);
+    }
   };
 
   const handleFromTimeChange = (val: string) => {
@@ -216,17 +230,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
     localStorage.setItem('reportIsTimeWise', String(checked));
   };
 
-  const getFullFromDate = () => {
-    if (!fromDate) return '';
-    const timePart = isTimeWiseChecked && fromTime ? `${fromTime}:00` : '00:00:00';
-    return `${fromDate}T${timePart}`;
-  };
 
-  const getFullToDate = () => {
-    if (!toDate) return '';
-    const timePart = isTimeWiseChecked && toTime ? `${toTime}:59` : '23:59:59';
-    return `${toDate}T${timePart}`;
-  };
 
   // Void Order Summary state
   const [voidSummaryLogs, setVoidSummaryLogs] = useState<VoidOrderSummaryItem[]>([]);
@@ -264,20 +268,22 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   useEffect(() => {
     if (isOpen) {
       const today = getTodayStr();
-      const nowTime = getCurrentTimeStr();
-      if (!localStorage.getItem('reportFromDate')) {
-        setFromDate(today);
+      let currentFrom = localStorage.getItem('reportFromDate') || '2026-01-01';
+      let currentTo = localStorage.getItem('reportToDate') || today;
+
+      if (currentTo < today) {
+        currentTo = today;
+        localStorage.setItem('reportToDate', currentTo);
       }
-      if (!localStorage.getItem('reportToDate')) {
-        setToDate(today);
-        setAsOnDate(today);
+
+      if (currentFrom > currentTo) {
+        currentTo = currentFrom;
+        localStorage.setItem('reportToDate', currentTo);
       }
-      if (!localStorage.getItem('reportFromTime')) {
-        setFromTime(nowTime);
-      }
-      if (!localStorage.getItem('reportToTime')) {
-        setToTime(nowTime);
-      }
+
+      setFromDate(currentFrom);
+      setToDate(currentTo);
+      setAsOnDate(currentTo);
     }
   }, [isOpen]);
 
@@ -367,10 +373,27 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
     }
   };
 
+  const getSanitizedDateRange = () => {
+    let fDate = isDayWiseChecked ? (fromDate || getTodayStr()) : '2000-01-01';
+    let tDate = isDayWiseChecked ? (toDate || getTodayStr()) : '2099-12-31';
+    let fTime = isTimeWiseChecked ? (fromTime || '00:00') : '00:00';
+    let tTime = isTimeWiseChecked ? (toTime || '23:59') : '23:59';
+
+    if (isDayWiseChecked && fDate > tDate) {
+      tDate = fDate;
+      setToDate(tDate);
+      setAsOnDate(tDate);
+      localStorage.setItem('reportToDate', tDate);
+    }
+
+    let fullFrom = isTimeWiseChecked ? `${fDate}T${fTime}:00` : fDate;
+    let fullTo = isTimeWiseChecked ? `${tDate}T${tTime}:59` : tDate;
+
+    return { fullFrom, fullTo };
+  };
+
   const fetchVoidSummary = async () => {
-    const fullFrom = getFullFromDate();
-    const fullTo = getFullToDate();
-    if (!fullFrom || !fullTo) return;
+    const { fullFrom, fullTo } = getSanitizedDateRange();
     setVoidLoading(true);
     try {
       const data = await cashierLogService.getVoidOrderSummary(fullFrom, fullTo);
@@ -383,9 +406,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchVoidProductSummary = async () => {
-    const fullFrom = getFullFromDate();
-    const fullTo = getFullToDate();
-    if (!fullFrom || !fullTo) return;
+    const { fullFrom, fullTo } = getSanitizedDateRange();
     setVoidProductLoading(true);
     try {
       const data = await cashierLogService.getVoidProductSummary(fullFrom, fullTo);
@@ -398,9 +419,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchVoidInvoiceSummary = async () => {
-    const fullFrom = getFullFromDate();
-    const fullTo = getFullToDate();
-    if (!fullFrom || !fullTo) return;
+    const { fullFrom, fullTo } = getSanitizedDateRange();
     setVoidInvoiceLoading(true);
     try {
       const data = await cashierLogService.getVoidInvoiceSummary(fullFrom, fullTo);
@@ -413,9 +432,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchInvoiceComplementarySummary = async () => {
-    const fullFrom = getFullFromDate();
-    const fullTo = getFullToDate();
-    if (!fullFrom || !fullTo) return;
+    const { fullFrom, fullTo } = getSanitizedDateRange();
     setInvoiceComplementaryLoading(true);
     try {
       const data = await cashierLogService.getInvoiceComplementarySummary(fullFrom, fullTo);
@@ -428,9 +445,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchDriverSummary = async () => {
-    const fullFrom = getFullFromDate();
-    const fullTo = getFullToDate();
-    if (!fullFrom || !fullTo) return;
+    const { fullFrom, fullTo } = getSanitizedDateRange();
     setDriverLoading(true);
     try {
       const data = await cashierLogService.getDriverSummary(fullFrom, fullTo);
@@ -443,9 +458,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const fetchAllTransactionSummary = async () => {
-    const fullFrom = getFullFromDate();
-    const fullTo = getFullToDate();
-    if (!fullFrom || !fullTo) return;
+    const { fullFrom, fullTo } = getSanitizedDateRange();
     setAllTransactionLoading(true);
     try {
       const data = await cashierLogService.getAllTransactionSummary(fullFrom, fullTo);
@@ -460,14 +473,9 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintVoidSummary = async (directPrint: boolean) => {
     try {
       const html = generateVoidOrderReportHtml(voidSummaryLogs, fromDate, toDate);
+      const markup = generateVoidOrderReportMarkup(voidSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: 'Void Order Summary' });
         showToast('Printing Void Order Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -480,14 +488,9 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintVoidProductSummary = async (directPrint: boolean) => {
     try {
       const html = generateVoidProductReportHtml(voidProductSummaryLogs, fromDate, toDate);
+      const markup = generateVoidProductReportMarkup(voidProductSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: 'Void Product Summary' });
         showToast('Printing Void Product Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -500,14 +503,9 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintVoidInvoiceSummary = async (directPrint: boolean) => {
     try {
       const html = generateVoidInvoiceReportHtml(voidInvoiceSummaryLogs, fromDate, toDate);
+      const markup = generateVoidInvoiceReportMarkup(voidInvoiceSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: 'Cancelled Invoice Summary' });
         showToast('Printing Cancelled Invoice Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -520,14 +518,9 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintInvoiceComplementarySummary = async (directPrint: boolean) => {
     try {
       const html = generateBillComplementaryReportHtml(invoiceComplementaryLogs, fromDate, toDate);
+      const markup = generateBillComplementaryReportMarkup(invoiceComplementaryLogs, fromDate, toDate);
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: 'Bill Complementary Summary' });
         showToast('Printing Bill Complementary Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -540,14 +533,9 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintDriverSummary = async (directPrint: boolean) => {
     try {
       const html = generateDriverSummaryReportHtml(driverSummaryLogs, fromDate, toDate);
+      const markup = generateDriverSummaryReportMarkup(driverSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: 'Driver Summary' });
         showToast('Printing Driver Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -560,14 +548,9 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintAllTransactionSummary = async (directPrint: boolean) => {
     try {
       const html = generateAllTransactionSummaryReportHtml(allTransactionLogs, fromDate, toDate);
+      const markup = generateAllTransactionSummaryReportMarkup(allTransactionLogs, fromDate, toDate);
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: 'All Transaction Summary' });
         showToast('Printing All Transaction Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -589,22 +572,20 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
 
     try {
       let html = '';
+      let markup = '';
+      const reportTitle = activeTab === 'DAY_END' ? 'Day End Report' : 'Shift End Report';
       if (activeTab === 'DAY_END') {
         const reportData = await cashierLogService.getDayEndReport(selectedDayId!);
         html = await generateEndReportHtml(reportData, 'DAYEND', !directPrint);
+        markup = generateEndReportMarkup(reportData, 'DAYEND');
       } else {
         const reportData = await cashierLogService.getShiftEndReport(selectedDayId!, selectedShiftId!);
         html = await generateEndReportHtml(reportData, 'SHIFTEND', !directPrint);
+        markup = generateEndReportMarkup(reportData, 'SHIFTEND');
       }
 
       if (directPrint) {
-        let defaultPrinter: string | undefined = undefined;
-        try {
-          const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
-          defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-        } catch(e){}
-        const { printHtmlReceipt } = await import('../../../../services/qzService');
-        await printHtmlReceipt(html, defaultPrinter);
+        await printPosReport({ html, markup, directPrint: true, title: reportTitle });
         showToast('Printing report...', 'success');
       } else {
         setPreviewHtml(html);

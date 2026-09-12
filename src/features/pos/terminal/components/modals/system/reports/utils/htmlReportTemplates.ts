@@ -8,19 +8,42 @@ import type {
   AllTransactionSummaryItem 
 } from '../types';
 
+const COMMON_80MM_STYLES = `
+  @page { size: 80mm auto; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: #000 !important;
+    width: 72mm;
+    max-width: 72mm;
+    margin: 0 auto;
+    padding: 6px 2px;
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .header { text-align: center; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+  .title { font-size: 16px; font-weight: 900; text-transform: uppercase; color: #000 !important; letter-spacing: 0.5px; }
+  .sub { font-size: 11px; font-weight: 800; margin-top: 3px; color: #000 !important; }
+  .card { border-bottom: 1px dashed #000; padding: 7px 0; }
+  .flex-row { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; font-size: 13px; color: #000 !important; }
+  .details { font-size: 11px; font-weight: 800; color: #000 !important; margin-top: 3px; line-height: 1.4; }
+  .total-box { border-top: 2px solid #000; border-bottom: 3px double #000; margin-top: 10px; padding: 8px 0; font-weight: 900; font-size: 13px; display: flex; justify-content: space-between; color: #000 !important; }
+`;
+
 export const generateVoidOrderReportHtml = (logs: VoidOrderSummaryItem[], fromDate: string, toDate: string): string => {
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
-  const rowsHtml = logs.map(item => `
-    <tr>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center;">${item.sNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center;">#${item.orderNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.orderType || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.date ? new Date(item.date).toLocaleString('en-GB') : '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.employee || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.reason || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${formatCurrency(item.amount)}</td>
-    </tr>
+  const cardsHtml = logs.map((item, idx) => `
+    <div class="card">
+      <div class="flex-row">
+        <span><b>#${item.sNo || (idx + 1)}. Order #${item.orderNo} (${item.orderType || '-'})</b></span>
+        <span><b>${formatCurrency(item.amount)}</b></span>
+      </div>
+      <div class="details"><b>Date:</b> ${item.date ? new Date(item.date).toLocaleString('en-GB') : '-'}</div>
+      <div class="details"><b>Emp:</b> ${item.employee || '-'} &nbsp;|&nbsp; <b>Reason:</b> ${item.reason || '-'}</div>
+    </div>
   `).join('');
 
   return `
@@ -29,43 +52,18 @@ export const generateVoidOrderReportHtml = (logs: VoidOrderSummaryItem[], fromDa
       <head>
         <meta charset="utf-8" />
         <title>Void Order Summary Report</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; margin: 20px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #49293e; padding-bottom: 12px; }
-          .title { font-size: 18px; font-weight: 800; color: #49293e; text-transform: uppercase; letter-spacing: 1px; }
-          .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #f8fafc; color: #49293e; text-align: left; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          .tot { background: #f8fafc; font-weight: 800; font-size: 13px; color: #49293e; }
-        </style>
+        <style>${COMMON_80MM_STYLES}</style>
       </head>
       <body>
         <div class="header">
-          <div class="title">Void Order Summary Report</div>
+          <div class="title">VOID ORDER SUMMARY</div>
           <div class="sub">Period: ${fromDate} to ${toDate}</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center;">S.No</th>
-              <th style="text-align: center;">Order No</th>
-              <th>Order Type</th>
-              <th>Date & Time</th>
-              <th>Employee</th>
-              <th>Reason</th>
-              <th style="text-align: right;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="7" style="text-align:center; padding: 30px; color: #94a3b8;">No void orders found for selected period</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr class="tot">
-              <td colspan="6" style="padding: 12px 8px; text-align: right;">Total Void Amount:</td>
-              <td style="padding: 12px 8px; text-align: right;">${formatCurrency(totalAmount)}</td>
-            </tr>
-          </tfoot>
-        </table>
+        ${cardsHtml.length > 0 ? cardsHtml : '<div style="text-align:center; padding: 15px; font-weight: 800;">No void orders found for selected period</div>'}
+        <div class="total-box">
+          <span><b>TOTAL RECORDS: ${logs.length}</b></span>
+          <span><b>TOTAL: ${formatCurrency(totalAmount)}</b></span>
+        </div>
       </body>
     </html>
   `;
@@ -75,17 +73,15 @@ export const generateVoidProductReportHtml = (logs: VoidProductSummaryItem[], fr
   const totalQty = logs.reduce((sum, item) => sum + (parseFloat(String(item.quantity)) || 0), 0);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
-  const rowsHtml = logs.map(item => `
-    <tr>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center;">${item.sNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center;">#${item.orderNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.orderType || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.voidDate ? new Date(item.voidDate).toLocaleString('en-GB') : '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.employee || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; color: #e11d48;">${item.product || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${item.quantity} ${item.unit || ''}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${formatCurrency(item.amount)}</td>
-    </tr>
+  const cardsHtml = logs.map((item, idx) => `
+    <div class="card">
+      <div class="flex-row">
+        <span><b>#${item.sNo || (idx + 1)}. ${item.product || '-'}</b></span>
+        <span><b>${formatCurrency(item.amount)}</b></span>
+      </div>
+      <div class="details"><b>Order #${item.orderNo} (${item.orderType || '-'})</b> &nbsp;|&nbsp; <b>Qty: ${item.quantity} ${item.unit || ''}</b></div>
+      <div class="details"><b>Emp:</b> ${item.employee || '-'} &nbsp;|&nbsp; <b>Void Date:</b> ${item.voidDate ? new Date(item.voidDate).toLocaleString('en-GB') : '-'}</div>
+    </div>
   `).join('');
 
   return `
@@ -94,45 +90,18 @@ export const generateVoidProductReportHtml = (logs: VoidProductSummaryItem[], fr
       <head>
         <meta charset="utf-8" />
         <title>Void Product Summary Report</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; margin: 20px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e11d48; padding-bottom: 12px; }
-          .title { font-size: 18px; font-weight: 800; color: #e11d48; text-transform: uppercase; letter-spacing: 1px; }
-          .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #fff1f2; color: #9f1239; text-align: left; padding: 10px 8px; border-bottom: 2px solid #fecdd3; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          .tot { background: #fff1f2; font-weight: 800; font-size: 13px; color: #9f1239; }
-        </style>
+        <style>${COMMON_80MM_STYLES}</style>
       </head>
       <body>
         <div class="header">
-          <div class="title">Void Product Summary Report</div>
+          <div class="title">VOID PRODUCT SUMMARY</div>
           <div class="sub">Period: ${fromDate} to ${toDate}</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center;">S.No</th>
-              <th style="text-align: center;">Order No</th>
-              <th>Order Type</th>
-              <th>Void Date</th>
-              <th>Employee</th>
-              <th>Product</th>
-              <th style="text-align: center;">Qty</th>
-              <th style="text-align: right;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="8" style="text-align:center; padding: 30px; color: #94a3b8;">No voided products found for selected period</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr class="tot">
-              <td colspan="6" style="padding: 12px 8px; text-align: right;">Total Void Quantity & Amount:</td>
-              <td style="padding: 12px 8px; text-align: center;">${totalQty}</td>
-              <td style="padding: 12px 8px; text-align: right;">${formatCurrency(totalAmount)}</td>
-            </tr>
-          </tfoot>
-        </table>
+        ${cardsHtml.length > 0 ? cardsHtml : '<div style="text-align:center; padding: 15px; font-weight: 800;">No voided products found for selected period</div>'}
+        <div class="total-box">
+          <span><b>TOTAL QTY: ${totalQty}</b></span>
+          <span><b>TOTAL: ${formatCurrency(totalAmount)}</b></span>
+        </div>
       </body>
     </html>
   `;
@@ -141,16 +110,15 @@ export const generateVoidProductReportHtml = (logs: VoidProductSummaryItem[], fr
 export const generateVoidInvoiceReportHtml = (logs: VoidInvoiceSummaryItem[], fromDate: string, toDate: string): string => {
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
-  const rowsHtml = logs.map(item => `
-    <tr>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center;">${item.sNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center; color: #7e22ce;">${item.billNo || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center;">#${item.orderNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.orderType || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.date ? new Date(item.date).toLocaleString('en-GB') : '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.employee || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${formatCurrency(item.amount)}</td>
-    </tr>
+  const cardsHtml = logs.map((item, idx) => `
+    <div class="card">
+      <div class="flex-row">
+        <span><b>#${item.sNo || (idx + 1)}. Bill: ${item.billNo || '-'} (#${item.orderNo})</b></span>
+        <span><b>${formatCurrency(item.amount)}</b></span>
+      </div>
+      <div class="details"><b>Type:</b> ${item.orderType || '-'} &nbsp;|&nbsp; <b>Date:</b> ${item.date ? new Date(item.date).toLocaleString('en-GB') : '-'}</div>
+      <div class="details"><b>Emp:</b> ${item.employee || '-'} &nbsp;|&nbsp; <b>Reason:</b> ${item.reason || '-'}</div>
+    </div>
   `).join('');
 
   return `
@@ -159,56 +127,35 @@ export const generateVoidInvoiceReportHtml = (logs: VoidInvoiceSummaryItem[], fr
       <head>
         <meta charset="utf-8" />
         <title>Cancelled Invoice Summary Report</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; margin: 20px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #7e22ce; padding-bottom: 12px; }
-          .title { font-size: 18px; font-weight: 800; color: #7e22ce; text-transform: uppercase; letter-spacing: 1px; }
-          .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #faf5ff; color: #6b21a8; text-align: left; padding: 10px 8px; border-bottom: 2px solid #e9d5ff; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          .tot { background: #faf5ff; font-weight: 800; font-size: 13px; color: #6b21a8; }
-        </style>
+        <style>${COMMON_80MM_STYLES}</style>
       </head>
       <body>
         <div class="header">
-          <div class="title">Cancelled Invoice Summary Report</div>
+          <div class="title">CANCELLED INVOICE SUMMARY</div>
           <div class="sub">Period: ${fromDate} to ${toDate}</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center;">S.No</th>
-              <th style="text-align: center;">Bill No</th>
-              <th style="text-align: center;">Order No</th>
-              <th>Order Type</th>
-              <th>Date & Time</th>
-              <th>Employee</th>
-              <th style="text-align: right;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="7" style="text-align:center; padding: 30px; color: #94a3b8;">No cancelled invoices found for selected period</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr class="tot">
-              <td colspan="6" style="padding: 12px 8px; text-align: right;">Total Cancelled Invoice Amount:</td>
-              <td style="padding: 12px 8px; text-align: right;">${formatCurrency(totalAmount)}</td>
-            </tr>
-          </tfoot>
-        </table>
+        ${cardsHtml.length > 0 ? cardsHtml : '<div style="text-align:center; padding: 15px; font-weight: 800;">No cancelled invoices found for selected period</div>'}
+        <div class="total-box">
+          <span><b>TOTAL INVOICES: ${logs.length}</b></span>
+          <span><b>TOTAL: ${formatCurrency(totalAmount)}</b></span>
+        </div>
       </body>
     </html>
   `;
 };
 
 export const generateBillComplementaryReportHtml = (logs: InvoiceComplementarySummaryItem[], fromDate: string, toDate: string): string => {
-  const rowsHtml = logs.map(item => `
-    <tr>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center;">${item.sNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; text-align: center; color: #059669;">${item.billNo || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.date ? new Date(item.date).toLocaleString('en-GB') : '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold;">${item.customer || '-'}</td>
-    </tr>
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  const cardsHtml = logs.map((item, idx) => `
+    <div class="card">
+      <div class="flex-row">
+        <span><b>#${item.sNo || (idx + 1)}. Bill: ${item.billNo || '-'}</b></span>
+        <span><b>${formatCurrency(item.amount || 0)}</b></span>
+      </div>
+      <div class="details"><b>Customer:</b> ${item.customer || '-'}</div>
+      <div class="details"><b>Emp:</b> ${item.employee || '-'} &nbsp;|&nbsp; <b>Date:</b> ${item.date ? new Date(item.date).toLocaleString('en-GB') : '-'}</div>
+    </div>
   `).join('');
 
   return `
@@ -217,39 +164,18 @@ export const generateBillComplementaryReportHtml = (logs: InvoiceComplementarySu
       <head>
         <meta charset="utf-8" />
         <title>Bill Complementary Summary Report</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; margin: 20px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #059669; padding-bottom: 12px; }
-          .title { font-size: 18px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 1px; }
-          .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #ecfdf5; color: #065f46; text-align: left; padding: 10px 8px; border-bottom: 2px solid #a7f3d0; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          .tot { background: #ecfdf5; font-weight: 800; font-size: 13px; color: #065f46; }
-        </style>
+        <style>${COMMON_80MM_STYLES}</style>
       </head>
       <body>
         <div class="header">
-          <div class="title">Bill Complementary Summary Report</div>
+          <div class="title">BILL COMPLEMENTARY SUMMARY</div>
           <div class="sub">Period: ${fromDate} to ${toDate}</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center;">S.No</th>
-              <th style="text-align: center;">Bill No</th>
-              <th>Date & Time</th>
-              <th>Customer</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="4" style="text-align:center; padding: 30px; color: #94a3b8;">No complementary bills found for selected period</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr class="tot">
-              <td colspan="4" style="padding: 12px 8px; text-align: left;">Total Complementary Bills: ${logs.length}</td>
-            </tr>
-          </tfoot>
-        </table>
+        ${cardsHtml.length > 0 ? cardsHtml : '<div style="text-align:center; padding: 15px; font-weight: 800;">No complementary bills found for selected period</div>'}
+        <div class="total-box">
+          <span><b>TOTAL BILLS: ${logs.length}</b></span>
+          <span><b>TOTAL: ${formatCurrency(totalAmount)}</b></span>
+        </div>
       </body>
     </html>
   `;
@@ -258,12 +184,13 @@ export const generateBillComplementaryReportHtml = (logs: InvoiceComplementarySu
 export const generateDriverSummaryReportHtml = (logs: DriverSummaryItem[], fromDate: string, toDate: string): string => {
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
-  const rowsHtml = logs.map(item => `
-    <tr>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center;">${item.sNo}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; color: #0891b2;">${item.driver || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${formatCurrency(item.amount)}</td>
-    </tr>
+  const cardsHtml = logs.map((item, idx) => `
+    <div class="card">
+      <div class="flex-row">
+        <span><b>#${item.sNo || (idx + 1)}. ${item.driver || 'Unknown'}${item.totalOrders ? ` (${item.totalOrders} Orders)` : ''}</b></span>
+        <span><b>${formatCurrency(item.amount)}</b></span>
+      </div>
+    </div>
   `).join('');
 
   return `
@@ -272,39 +199,18 @@ export const generateDriverSummaryReportHtml = (logs: DriverSummaryItem[], fromD
       <head>
         <meta charset="utf-8" />
         <title>Driver Summary Report</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; margin: 20px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0891b2; padding-bottom: 12px; }
-          .title { font-size: 18px; font-weight: 800; color: #0891b2; text-transform: uppercase; letter-spacing: 1px; }
-          .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #ecfeff; color: #155e75; text-align: left; padding: 10px 8px; border-bottom: 2px solid #a5f3fc; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          .tot { background: #ecfeff; font-weight: 800; font-size: 13px; color: #155e75; }
-        </style>
+        <style>${COMMON_80MM_STYLES}</style>
       </head>
       <body>
         <div class="header">
-          <div class="title">Driver Summary Report</div>
+          <div class="title">DRIVER SUMMARY REPORT</div>
           <div class="sub">Period: ${fromDate} to ${toDate}</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center;">S.No</th>
-              <th>Driver / Waiter Name</th>
-              <th style="text-align: right;">Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="text-align:center; padding: 30px; color: #94a3b8;">No driver summary records found for selected period</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr class="tot">
-              <td colspan="2" style="padding: 12px 8px; text-align: right;">Total Amount:</td>
-              <td style="padding: 12px 8px; text-align: right;">${formatCurrency(totalAmount)}</td>
-            </tr>
-          </tfoot>
-        </table>
+        ${cardsHtml.length > 0 ? cardsHtml : '<div style="text-align:center; padding: 15px; font-weight: 800;">No driver summary records found for selected period</div>'}
+        <div class="total-box">
+          <span><b>TOTAL DRIVERS: ${logs.length}</b></span>
+          <span><b>TOTAL: ${formatCurrency(totalAmount)}</b></span>
+        </div>
       </body>
     </html>
   `;
@@ -313,12 +219,14 @@ export const generateDriverSummaryReportHtml = (logs: DriverSummaryItem[], fromD
 export const generateAllTransactionSummaryReportHtml = (logs: AllTransactionSummaryItem[], fromDate: string, toDate: string): string => {
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
-  const rowsHtml = logs.map((item, idx) => `
-    <tr>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center;">${idx + 1}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; font-weight: bold; color: #4338ca;">${item.particular || '-'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">${formatCurrency(item.amount)}</td>
-    </tr>
+  const cardsHtml = logs.map((item, idx) => `
+    <div class="card">
+      <div class="flex-row">
+        <span><b>#${item.sNo || (idx + 1)}. ${item.particular || '-'}</b></span>
+        <span><b>${formatCurrency(item.amount)}</b></span>
+      </div>
+      ${(item.category || item.paymentType) ? `<div class="details"><b>Cat:</b> ${item.category || '-'} &nbsp;|&nbsp; <b>Pay:</b> ${item.paymentType || '-'}</div>` : ''}
+    </div>
   `).join('');
 
   return `
@@ -327,39 +235,18 @@ export const generateAllTransactionSummaryReportHtml = (logs: AllTransactionSumm
       <head>
         <meta charset="utf-8" />
         <title>All Transaction Summary Report</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; margin: 20px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #4338ca; padding-bottom: 12px; }
-          .title { font-size: 18px; font-weight: 800; color: #4338ca; text-transform: uppercase; letter-spacing: 1px; }
-          .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #eef2ff; color: #3730a3; text-align: left; padding: 10px 8px; border-bottom: 2px solid #c7d2fe; font-size: 11px; text-transform: uppercase; font-weight: 800; }
-          .tot { background: #eef2ff; font-weight: 800; font-size: 13px; color: #3730a3; }
-        </style>
+        <style>${COMMON_80MM_STYLES}</style>
       </head>
       <body>
         <div class="header">
-          <div class="title">All Transaction Summary Report</div>
+          <div class="title">ALL TRANSACTION SUMMARY</div>
           <div class="sub">Period: ${fromDate} to ${toDate}</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center;">S.No</th>
-              <th>Particulars</th>
-              <th style="text-align: right;">Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="text-align:center; padding: 30px; color: #94a3b8;">No transaction summary records found for selected period</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr class="tot">
-              <td colspan="2" style="padding: 12px 8px; text-align: right;">Total Amount:</td>
-              <td style="padding: 12px 8px; text-align: right;">${formatCurrency(totalAmount)}</td>
-            </tr>
-          </tfoot>
-        </table>
+        ${cardsHtml.length > 0 ? cardsHtml : '<div style="text-align:center; padding: 15px; font-weight: 800;">No transaction summary records found for selected period</div>'}
+        <div class="total-box">
+          <span><b>TOTAL TRANSACTIONS: ${logs.length}</b></span>
+          <span><b>TOTAL: ${formatCurrency(totalAmount)}</b></span>
+        </div>
       </body>
     </html>
   `;

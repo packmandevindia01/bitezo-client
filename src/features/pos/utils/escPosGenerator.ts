@@ -42,12 +42,15 @@ const trunc = (s: string, max: number): string =>
 /**
  * Format a two-column line: left text + right text flush to LINE_WIDTH.
  * If left + right > LINE_WIDTH, left text is truncated.
+ * If widthOrBold is true, the entire two-column line is wrapped in <b> tags for bold thermal printing.
  */
-const twoCol = (left: string, right: string, width = LINE_WIDTH): string => {
+const twoCol = (left: string, right: string, widthOrBold?: number | boolean): string => {
+  const width = typeof widthOrBold === 'number' ? widthOrBold : LINE_WIDTH;
+  const isBold = typeof widthOrBold === 'boolean' ? widthOrBold : false;
   const r = String(right);
-  const maxLeft = width - r.length - 1;
+  const maxLeft = Math.max(1, width - r.length - 1);
   const l = trunc(String(left), maxLeft).padEnd(maxLeft);
-  return `[L]${l} ${r}`;
+  return isBold ? `[L]<b>${l} ${r}</b>` : `[L]${l} ${r}`;
 };
 
 /**
@@ -74,8 +77,53 @@ const totalsLine = (label: string, value: string, bold = false): string => {
   return bold ? `[L]<b>${l}${v}</b>` : `[L]${l}${v}`;
 };
 
-/** Get company name + address from localStorage */
-const getCompanyHeader = (): string => {
+/** Get active branch custom line items from localStorage / session */
+export const getActiveBranchLines = (): any[] => {
+  try {
+    const sessionStr = localStorage.getItem("posSession") || localStorage.getItem("activeBranch");
+    if (sessionStr) {
+      const parsed = JSON.parse(sessionStr);
+      if (parsed.lines && Array.isArray(parsed.lines)) return parsed.lines;
+      if (parsed.activeBranch?.lines && Array.isArray(parsed.activeBranch.lines)) return parsed.activeBranch.lines;
+    }
+  } catch (e) {
+    // Ignore JSON parse errors
+  }
+  return [];
+};
+
+/** Convert dynamic line items to ESC/POS markup tags */
+export const buildEscPosLines = (lines: any[], section: "header" | "footer" | "dayEndHeader"): string => {
+  const sectionLines = lines.filter(l => l.section === section && l.value && l.value.trim() !== "");
+  if (sectionLines.length === 0) return "";
+
+  let markup = "";
+  sectionLines.forEach(l => {
+    let text = l.value.trim();
+    if (l.fontStyle === "Bold") text = `<b>${text}</b>`;
+    if (l.fontSize === "Large") text = `<font size='big'>${text}</font>`;
+
+    let alignTag = "[L]";
+    if (l.offsetX === 50) alignTag = "[C]";
+    else if (l.offsetX >= 85) alignTag = "[R]";
+    else if (l.offsetX > 0) {
+      const indentSpaces = Math.min(15, Math.floor((l.offsetX / 100) * 20));
+      text = " ".repeat(indentSpaces) + text;
+    }
+
+    markup += `${alignTag}${text}\n`;
+  });
+  return markup;
+};
+
+/** Get company name + address from dynamic branch lines or fallback to localStorage */
+export const getCompanyHeader = (): string => {
+  const activeLines = getActiveBranchLines();
+  const headerLines = activeLines.filter(l => l.section === "header" && l.value && l.value.trim() !== "");
+  if (headerLines.length > 0) {
+    return buildEscPosLines(activeLines, "header");
+  }
+
   const name    = localStorage.getItem("companyName") || "RESTAURANT";
   const address = localStorage.getItem("companyAddress") || "";
   const crNo    = localStorage.getItem("crNo") || "";
@@ -88,6 +136,26 @@ const getCompanyHeader = (): string => {
   if (vatNo)   markup += `[C]VAT NO: ${vatNo}\n`;
   if (tel)     markup += `[C]Tel: ${tel}\n`;
   return markup;
+};
+
+/** Get dynamic End-of-Day report header (EH1..EH7) or fallback to company header */
+export const getEndReportHeader = (): string => {
+  const activeLines = getActiveBranchLines();
+  const dayEndLines = activeLines.filter(l => l.section === "dayEndHeader" && l.value && l.value.trim() !== "");
+  if (dayEndLines.length > 0) {
+    return buildEscPosLines(activeLines, "dayEndHeader");
+  }
+  return getCompanyHeader();
+};
+
+/** Get dynamic receipt footer lines (F1..F7) */
+export const getCompanyFooter = (): string => {
+  const activeLines = getActiveBranchLines();
+  const footerLines = activeLines.filter(l => l.section === "footer" && l.value && l.value.trim() !== "");
+  if (footerLines.length > 0) {
+    return buildEscPosLines(activeLines, "footer");
+  }
+  return "";
 };
 
 const now = () => {
@@ -283,6 +351,10 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
   markup += `[C]<b>Order No: #${data.orderNo}</b>\n`;
   markup += `[L]Print Time: ${dateStr} ${timeStr}\n`;
+  const dynamicFooterMarkup = getCompanyFooter();
+  if (dynamicFooterMarkup) {
+    markup += dynamicFooterMarkup;
+  }
   markup += `[L]\n[L]\n[L]\n`; // feed before cut
 
   return markup;
@@ -446,7 +518,7 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   const cf = data.cashFlow || {} as any;
 
   let markup = "";
-  markup += getCompanyHeader();
+  markup += getEndReportHeader();
   markup += `[C]${SEPARATOR}\n`;
   markup += `[C]<b><font size='big'>${reportType === 'DAYEND' ? 'DAYEND REPORT' : 'SHIFTEND REPORT'}</font></b>\n`;
   markup += `[L]${SEPARATOR}\n`;
@@ -538,6 +610,225 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   markup += `[L]${SEPARATOR}\n`;
   markup += `[L]\n[L]\n[L]\n`;
 
+  return markup;
+};
+
+// ── Void Order Summary 80mm ESC/POS Markup ─────────────────────────────
+export const generateVoidOrderReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  let markup = "";
+  markup += getCompanyHeader();
+  markup += `[C]${SEPARATOR}\n`;
+  markup += `[C]<b><font size='big'>VOID ORDER SUMMARY</font></b>\n`;
+  markup += `[C]Period: ${fromDate} to ${toDate}\n`;
+  markup += `[L]${SEPARATOR}\n`;
+
+  if (logs.length === 0) {
+    markup += `[C]No void orders found\n`;
+  } else {
+    logs.forEach((item, index) => {
+      const sNo = item.sNo || (index + 1);
+      const orderType = item.orderType || '-';
+      const dt = item.date ? new Date(item.date).toLocaleString('en-GB') : '-';
+      const emp = item.employee || '-';
+      const reason = item.reason || '-';
+      
+      markup += twoCol(`<b>#${sNo} Order #${item.orderNo}</b> (${orderType})`, fmt(item.amount), true) + "\n";
+      markup += `[L]Date: ${dt}\n`;
+      markup += `[L]Employee: ${emp} | Reason: ${reason}\n`;
+      markup += `[L]${DASH_SEP}\n`;
+    });
+  }
+
+  markup += twoCol("TOTAL RECORDS:", String(logs.length)) + "\n";
+  markup += twoCol("TOTAL VOID AMOUNT:", fmt(totalAmount), true) + "\n";
+  markup += `[L]${SEPARATOR}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
+  return markup;
+};
+
+// ── Void Product Summary 80mm ESC/POS Markup ────────────────────────────
+export const generateVoidProductReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const totalQty = logs.reduce((sum, item) => sum + (parseFloat(String(item.quantity)) || 0), 0);
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  let markup = "";
+  markup += getCompanyHeader();
+  markup += `[C]${SEPARATOR}\n`;
+  markup += `[C]<b><font size='big'>VOID PRODUCT SUMMARY</font></b>\n`;
+  markup += `[C]Period: ${fromDate} to ${toDate}\n`;
+  markup += `[L]${SEPARATOR}\n`;
+
+  if (logs.length === 0) {
+    markup += `[C]No voided products found\n`;
+  } else {
+    logs.forEach((item, index) => {
+      const sNo = item.sNo || (index + 1);
+      const orderType = item.orderType || '-';
+      const dt = item.voidDate ? new Date(item.voidDate).toLocaleString('en-GB') : '-';
+      const emp = item.employee || '-';
+      const product = item.product || '-';
+      const qtyStr = `${item.quantity} ${item.unit || ''}`.trim();
+
+      markup += `[L]<b>#${sNo} ${product}</b>\n`;
+      markup += twoCol(`Order #${item.orderNo} (${orderType}) Qty: ${qtyStr}`, fmt(item.amount), true) + "\n";
+      markup += `[L]Employee: ${emp} | Void Date: ${dt}\n`;
+      markup += `[L]${DASH_SEP}\n`;
+    });
+  }
+
+  markup += twoCol("TOTAL ITEMS:", String(logs.length)) + "\n";
+  markup += twoCol("TOTAL VOID QTY:", String(totalQty)) + "\n";
+  markup += twoCol("TOTAL VOID AMOUNT:", fmt(totalAmount), true) + "\n";
+  markup += `[L]${SEPARATOR}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
+  return markup;
+};
+
+// ── Cancelled Invoice Summary 80mm ESC/POS Markup ──────────────────────
+export const generateVoidInvoiceReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  let markup = "";
+  markup += getCompanyHeader();
+  markup += `[C]${SEPARATOR}\n`;
+  markup += `[C]<b><font size='big'>CANCELLED INVOICE SUMMARY</font></b>\n`;
+  markup += `[C]Period: ${fromDate} to ${toDate}\n`;
+  markup += `[L]${SEPARATOR}\n`;
+
+  if (logs.length === 0) {
+    markup += `[C]No cancelled invoices found\n`;
+  } else {
+    logs.forEach((item, index) => {
+      const sNo = item.sNo || (index + 1);
+      const billNo = item.billNo || '-';
+      const orderType = item.orderType || '-';
+      const dt = item.date ? new Date(item.date).toLocaleString('en-GB') : '-';
+      const emp = item.employee || '-';
+      const reason = item.reason || '-';
+
+      markup += twoCol(`<b>#${sNo} Bill: ${billNo}</b> (#${item.orderNo})`, fmt(item.amount), true) + "\n";
+      markup += `[L]Type: ${orderType} | Date: ${dt}\n`;
+      markup += `[L]Employee: ${emp} | Reason: ${reason}\n`;
+      markup += `[L]${DASH_SEP}\n`;
+    });
+  }
+
+  markup += twoCol("TOTAL INVOICES:", String(logs.length)) + "\n";
+  markup += twoCol("TOTAL CANCELLED AMOUNT:", fmt(totalAmount), true) + "\n";
+  markup += `[L]${SEPARATOR}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
+  return markup;
+};
+
+// ── Bill Complementary Summary 80mm ESC/POS Markup ─────────────────────
+export const generateBillComplementaryReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  let markup = "";
+  markup += getCompanyHeader();
+  markup += `[C]${SEPARATOR}\n`;
+  markup += `[C]<b><font size='big'>BILL COMPLEMENTARY SUMMARY</font></b>\n`;
+  markup += `[C]Period: ${fromDate} to ${toDate}\n`;
+  markup += `[L]${SEPARATOR}\n`;
+
+  if (logs.length === 0) {
+    markup += `[C]No complementary bills found\n`;
+  } else {
+    logs.forEach((item, index) => {
+      const sNo = item.sNo || (index + 1);
+      const billNo = item.billNo || '-';
+      const customer = item.customer || '-';
+      const emp = item.employee || '-';
+      const dt = item.date ? new Date(item.date).toLocaleString('en-GB') : '-';
+
+      markup += twoCol(`<b>#${sNo} Bill: ${billNo}</b>`, fmt(item.amount || 0), true) + "\n";
+      markup += `[L]Customer: ${customer}\n`;
+      markup += `[L]Employee: ${emp} | Date: ${dt}\n`;
+      markup += `[L]${DASH_SEP}\n`;
+    });
+  }
+
+  markup += twoCol("TOTAL COMPLEMENTARY BILLS:", String(logs.length)) + "\n";
+  markup += twoCol("TOTAL AMOUNT:", fmt(totalAmount), true) + "\n";
+  markup += `[L]${SEPARATOR}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
+  return markup;
+};
+
+// ── Driver Summary 80mm ESC/POS Markup ─────────────────────────────────
+export const generateDriverSummaryReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  let markup = "";
+  markup += getCompanyHeader();
+  markup += `[C]${SEPARATOR}\n`;
+  markup += `[C]<b><font size='big'>DRIVER SUMMARY REPORT</font></b>\n`;
+  markup += `[C]Period: ${fromDate} to ${toDate}\n`;
+  markup += `[L]${SEPARATOR}\n`;
+
+  if (logs.length === 0) {
+    markup += `[C]No driver records found\n`;
+  } else {
+    logs.forEach((item, index) => {
+      const sNo = item.sNo || (index + 1);
+      const driver = item.driver || 'Unknown Driver';
+      const totalOrders = item.totalOrders ? ` (${item.totalOrders} Orders)` : '';
+
+      markup += twoCol(`<b>#${sNo} ${driver}${totalOrders}</b>`, fmt(item.amount), true) + "\n";
+      markup += `[L]${DASH_SEP}\n`;
+    });
+  }
+
+  markup += twoCol("TOTAL DRIVERS:", String(logs.length)) + "\n";
+  markup += twoCol("TOTAL AMOUNT:", fmt(totalAmount), true) + "\n";
+  markup += `[L]${SEPARATOR}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
+  return markup;
+};
+
+// ── All Transaction Summary 80mm ESC/POS Markup ────────────────────────
+export const generateAllTransactionSummaryReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
+
+  let markup = "";
+  markup += getCompanyHeader();
+  markup += `[C]${SEPARATOR}\n`;
+  markup += `[C]<b><font size='big'>ALL TRANSACTION SUMMARY</font></b>\n`;
+  markup += `[C]Period: ${fromDate} to ${toDate}\n`;
+  markup += `[L]${SEPARATOR}\n`;
+
+  if (logs.length === 0) {
+    markup += `[C]No transaction summary records found\n`;
+  } else {
+    logs.forEach((item, index) => {
+      const sNo = item.sNo || (index + 1);
+      const particular = item.particular || '-';
+      const category = item.category ? ` [${item.category}]` : '';
+      const payType = item.paymentType ? ` (${item.paymentType})` : '';
+
+      markup += twoCol(`<b>#${sNo} ${particular}${category}${payType}</b>`, fmt(item.amount), true) + "\n";
+      markup += `[L]${DASH_SEP}\n`;
+    });
+  }
+
+  markup += twoCol("TOTAL TRANSACTIONS:", String(logs.length)) + "\n";
+  markup += twoCol("TOTAL AMOUNT:", fmt(totalAmount), true) + "\n";
+  markup += `[L]${SEPARATOR}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
   return markup;
 };
 

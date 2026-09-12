@@ -73,5 +73,11 @@ export const printerSettingsApi = {
   saveOrderTypes: async (orderTypePrinters: OrderTypePrinterSetting[]) => {
     const { data } = await axiosInstance.post<ApiResponse<any>>("/pos-printer-settings/order-type", { orderTypePrinters }, getTerminalHeaders());
     return data;
+  },
+
+  // Printer IP Map
+  savePrinterIpMap: async (payload: { ipAddress: string; printerName: string }) => {
+    const { data } = await axiosInstance.post<ApiResponse<any>>("/pos-printer-settings/printer-ip-map", payload, getTerminalHeaders());
+    return data;
   }
 };
