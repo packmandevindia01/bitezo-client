@@ -33,9 +33,11 @@ const GroupForm = ({
   onDelete,
 }: Props) => {
   const [form, setForm] = useState<GroupFormState>(() => buildInitialForm(initialData));
+  const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
 
   useEffect(() => {
     setForm(buildInitialForm(initialData));
+    setErrors({});
     
     if (!initialData) {
       groupService.getNextGroupCode()
@@ -46,15 +48,27 @@ const GroupForm = ({
 
   const handleChange = <K extends keyof GroupFormState>(key: K, value: GroupFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key as keyof typeof errors]) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
   };
 
   const handleClear = () => {
     setForm(buildInitialForm(null));
+    setErrors({});
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!form.code.trim() || !form.name.trim()) return;
+    const newErrors: { code?: string; name?: string } = {};
+    if (!form.code.trim()) newErrors.code = "Code is required";
+    if (!form.name.trim()) newErrors.name = "Name is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     onSubmit(form);
   };
 
@@ -79,27 +93,31 @@ const GroupForm = ({
   }
 
   return (
-    <>
+    <form noValidate onSubmit={handleSubmit}>
       <div className="space-y-3 mb-4">
         <FormInput
           id="grp-code"
           label="Code"
+          required
           tabIndex={1}
           maxLength={50}
           value={form.code}
           disabled={saving}
           readOnly
+          error={errors.code}
           className="uppercase font-mono cursor-not-allowed text-slate-500 bg-slate-50"
         />
 
         <FormInput
           id="grp-name"
           label="Name"
+          required
           autoFocus
           tabIndex={2}
           maxLength={50}
           value={form.name}
           disabled={saving}
+          error={errors.name}
           onChange={(e) => handleChange("name", e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, "grp-arabic")}
         />
@@ -129,6 +147,7 @@ const GroupForm = ({
 
       <div className="flex flex-wrap justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
         <Button 
+          type="button"
           variant="secondary" 
           tabIndex={-1} 
           onClick={handleClear} 
@@ -139,9 +158,9 @@ const GroupForm = ({
           Clear
         </Button>
         <Button 
+          type="submit"
           tabIndex={5}
-          onClick={handleSubmit} 
-          disabled={saving || !form.code.trim() || !form.name.trim()}
+          disabled={saving}
           isAction
           loading={saving}
           icon={<Save size={18} />}
@@ -161,7 +180,7 @@ const GroupForm = ({
           </Button>
         )}
       </div>
-    </>
+    </form>
   );
 };
 

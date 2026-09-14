@@ -30,13 +30,21 @@ export const getBranchList = async () => {
   return unwrap(response);
 };
 
-export const getProductList = async () => {
+export const getProductList = async (branchId?: number) => {
+  const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+  const activeBranchId = isBackofficeMode
+    ? Number(sessionStorage.getItem("backoffice_activeBranchId")) || null
+    : Number(localStorage.getItem("activeBranchId")) || null;
+
+  const finalBranchId = branchId ?? (activeBranchId || undefined);
+
   const response = await axiosInstance.get("/product/product-list", {
     params: {
       productCode: "",
       productName: "",
       categoryId: 0,
       groupId: 0,
+      ...(finalBranchId ? { branchId: finalBranchId } : {}),
     }
   });
   return unwrap(response);

@@ -125,7 +125,7 @@ const CategoryModal = ({
         </div>
       }
     >
-      <div className="flex flex-col gap-6">
+      <form noValidate onSubmit={(e) => { e.preventDefault(); onSave(); }} className="flex flex-col gap-6">
         {/* Custom Tab Navigation */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex w-fit gap-2 rounded-xl bg-gray-50 p-1.5 border border-gray-100">
@@ -319,7 +319,7 @@ const CategoryModal = ({
             </div>
           )}
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };

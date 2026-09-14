@@ -39,24 +39,11 @@ const ProductMasterForm = ({
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"product" | "alternatives" | "openingStocks" | "colors">("product");
   
-  const handleTabSwitch = (tab: "product" | "alternatives" | "openingStocks" | "colors") => {
+  const handleTabSwitch = async (tab: "product" | "alternatives" | "openingStocks" | "colors") => {
     if (tab !== "product") {
-      const { code, name, categoryId, groupId, unitId, pVatId, sVatId, typeId } = form.getValues();
-      const required = [
-        { val: name, label: "Name" },
-        { val: code, label: "Code" },
-        { val: categoryId, label: "Category" },
-        { val: groupId, label: "Group" },
-        { val: unitId, label: "Unit" },
-        { val: pVatId, label: "Purchase VAT" },
-        { val: sVatId, label: "Sales VAT" },
-        { val: typeId, label: "Type" },
-      ];
-
-      const missing = required.filter(f => !f.val);
-      
-      if (missing.length > 0) {
-        showToast(`Please fill all required fields: ${missing.map(m => m.label).join(", ")}.`, "warning");
+      const isValid = await form.trigger(["name", "code", "categoryId", "groupId", "unitId", "pVatId", "sVatId", "typeId"]);
+      if (!isValid) {
+        showToast("Please fill all mandatory fields before switching tabs.", "warning");
         return;
       }
     }

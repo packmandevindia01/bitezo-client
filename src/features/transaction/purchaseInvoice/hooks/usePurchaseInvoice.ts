@@ -207,18 +207,13 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   // Recalculate global discount amount when items change, if a percentage was set
   useEffect(() => {
     const discPct = toNumber(watchedGlobalDiscPercent);
-    if (discPct > 0 && watchedItems.length > 0) {
+    if (discPct > 0 && watchedItems.length > 0 && grossTotal > 0) {
       const newDiscAmt = formatAmount(grossTotal * (discPct / 100));
       if (newDiscAmt !== watchedDiscAmount) {
         setValue("discAmount", newDiscAmt);
       }
-    } else if (watchedGlobalDiscPercent === "" || discPct === 0) {
-      const zeroAmount = formatAmount(0);
-      if (watchedDiscAmount && watchedDiscAmount !== "0" && watchedDiscAmount !== zeroAmount) {
-        setValue("discAmount", zeroAmount);
-      }
     }
-  }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount, decimalPart, grossTotal]);
+  }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount, grossTotal]);
 
   // Fetch products by branch to allow local combobox search by name and code
   useEffect(() => {

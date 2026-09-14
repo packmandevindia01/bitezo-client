@@ -36,7 +36,7 @@ export const QuickAddSubCategoryModal = ({
 
   return (
     <Modal isOpen={isOpen} onClose={() => { form.reset(); onClose(); }} title="Quick Add Sub Category" size="sm">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 pb-2">
+      <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-3 pb-2">
         <FormInput
           id="q-sub-code"
           label="Code"

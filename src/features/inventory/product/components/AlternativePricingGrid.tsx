@@ -57,8 +57,9 @@ export const AlternativePricingGrid = ({
 
     const key = `${focusPos.r}-${focusPos.c}`;
     let el: HTMLElement | null = (cellRefs.current.get(key) as HTMLElement) ?? null;
-    if (!el && focusPos.c === 0) {
-      el = document.getElementById(`alt-unit-${focusPos.r}`);
+    if (!el) {
+      if (focusPos.c === 0) el = document.getElementById(`alt-branch-${focusPos.r}`);
+      if (focusPos.c === 2) el = document.getElementById(`alt-unit-${focusPos.r}`);
     }
     if (el && document.activeElement !== el && !el.contains(document.activeElement)) {
       el.focus();
@@ -314,6 +315,7 @@ export const AlternativePricingGrid = ({
                         className="px-0.5 py-0"
                       >
                         <SearchableSelect
+                          ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-2`, el); }}
                           key={`unit-select-${rIdx}-${alt.id}`}
                           id={`alt-unit-${rIdx}`}
                           options={altUnitOptions}

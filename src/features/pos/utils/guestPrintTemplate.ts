@@ -108,8 +108,12 @@ export const generateGuestPrintHtml = async (
     }
     
     let baseAmt = (item as any).lineTotal;
-    if (baseAmt !== undefined) {
+    const itemVat = (item as any).vatAmount || 0;
+    if (baseAmt !== undefined && baseAmt > 0) {
       baseAmt -= extrasSum;
+      if (itemVat > 0 && baseAmt > itemVat && Math.abs(baseAmt - ((item.price || item.product?.price || 0) * item.quantity)) > 0.001) {
+        baseAmt -= itemVat;
+      }
     } else {
       baseAmt = (item.price || item.product?.price || 0) * item.quantity;
     }

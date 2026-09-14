@@ -262,7 +262,7 @@ const PurchaseReturnFormPage = () => {
             {/* ── Header Fields ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 mb-2 items-end">
               <Controller name="series" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pr-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pr-purchaseDate")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
               )} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo", { onChange: () => methods.trigger("purchaseNo") })} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate", { onChange: () => methods.trigger("purchaseDate") })} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
@@ -308,7 +308,7 @@ const PurchaseReturnFormPage = () => {
                 />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
           </div>
@@ -427,6 +427,13 @@ const PurchaseReturnFormPage = () => {
                                       const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
                                       qtyInputs[0]?.focus();
                                     }, 100);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                      qtyInputs[0]?.focus();
+                                    }
                                   }}
                                   disabled={!canSave}
                                   placeholder="Unit"
@@ -635,6 +642,7 @@ const PurchaseReturnFormPage = () => {
                         setTimeout(() => document.getElementById("pr-save-btn")?.focus(), 150);
                       }
                     }}
+                    onKeyDown={(e) => hk(e, "pr-save-btn")}
                     placeholder="Paymode"
                     options={(paymodeList || []).map((p: any) => ({ label: p.paymodeName, value: String(p.paymodeId) }))}
                     disabled={!canSave || saving}

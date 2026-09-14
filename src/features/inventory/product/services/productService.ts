@@ -77,10 +77,19 @@ export const productService = {
     productName?: string;
     categoryId?: number;
     groupId?: number;
+    branchId?: number;
   }): Promise<ProductListItem[]> {
     const url = `${BASE}/product-list`;
+    const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+    const activeBranchId = isBackofficeMode
+      ? Number(sessionStorage.getItem("backoffice_activeBranchId")) || null
+      : Number(localStorage.getItem("activeBranchId")) || null;
+
+    const finalBranchId = params?.branchId ?? (activeBranchId || undefined);
+
     const finalParams = {
       ...(params || {}),
+      ...(finalBranchId ? { branchId: finalBranchId } : {}),
       clientDb: localStorage.getItem("tenantId") || "",
     };
     return unwrap(

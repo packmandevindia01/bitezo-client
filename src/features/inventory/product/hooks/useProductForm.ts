@@ -245,6 +245,63 @@ export const useProductForm = (productId?: number) => {
     }
   }, [existingData, form, currentBranchId]);
 
+  const handleResetForm = async () => {
+    const dec = parseInt(localStorage.getItem("decimalPart") || "3", 10);
+    const boConfig = backofficeConfigList && backofficeConfigList.length > 0 ? backofficeConfigList[0] : null;
+
+    let defaultTypeId = "";
+    if (boConfig?.productType) {
+      defaultTypeId = String(boConfig.productType);
+    }
+    let defaultVatId = "";
+    if (boConfig?.vatId) {
+      defaultVatId = String(boConfig.vatId);
+    }
+    let defaultUnitId = "";
+    if (masterData?.unit) {
+      const nosUnit = masterData.unit.find(u => u.name.toLowerCase() === 'nos' || u.name.toLowerCase().includes('nos'));
+      if (nosUnit) {
+        defaultUnitId = String(nosUnit.id);
+      }
+    }
+
+    let nextBarcode = "";
+    try {
+      nextBarcode = await productService.getNextBarcode();
+    } catch (err) {
+      console.error("Failed to generate next barcode on reset", err);
+    }
+
+    form.reset({
+      productId: undefined,
+      code: nextBarcode,
+      name: "",
+      arabicName: "",
+      categoryId: "",
+      subCatId: "",
+      branchId: String(currentBranchId),
+      groupId: "",
+      typeId: defaultTypeId,
+      unitId: defaultUnitId,
+      pVatId: defaultVatId,
+      sVatId: defaultVatId,
+      cost: (0).toFixed(dec),
+      price: (0).toFixed(dec),
+      barcode: nextBarcode,
+      colorCode: "#49293e",
+      isActive: true,
+      priceIsIncl: false,
+      fileName: "",
+      fileUrl: "",
+      filePath: "",
+      altProducts: [],
+      productColors: [],
+      openingStocks: []
+    });
+    setImageFile(null);
+    setImagePreview("");
+  };
+
   // Save Mutation
   const saveMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
@@ -323,13 +380,18 @@ export const useProductForm = (productId?: number) => {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       showToast("Product saved successfully!", "success", "Success");
       queryClient.invalidateQueries({ queryKey: ["productsList"] });
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
-      navigate("/dashboard/product");
+
+      if (productId) {
+        navigate("/dashboard/products");
+      } else {
+        await handleResetForm();
+      }
     },
     onError: (error: any) => {
       showToast(error.message || "Failed to save product", "error", "Error");
@@ -344,7 +406,7 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
-      navigate("/dashboard/product");
+      navigate("/dashboard/products");
     },
     onError: (error: any) => {
       showToast(error.message || "Failed to delete product", "error", "Error");
@@ -386,6 +448,7 @@ export const useProductForm = (productId?: number) => {
     saveMutation,
     deleteMutation,
     handleAddAltProduct,
+    handleResetForm,
     currentBranchId
   };
 };

@@ -26,6 +26,7 @@ const createInitialForm = (initialData?: UnitDetail | null): UnitFormState => ({
 
 const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDelete, onClear }: Props) => {
   const [form, setForm] = useState<UnitFormState>(() => createInitialForm(initialData));
+  const [errors, setErrors] = useState<{ name?: string; category?: string; conversion?: string }>({});
   const [parentOptions, setParentOptions] = useState<UnitNameListItem[]>([]);
   const [loadingParents, setLoadingParents] = useState(false);
 
@@ -56,9 +57,6 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
     const selectedParent = parentOptions.find(p => p.unitId === form.parentId);
     const parentVal = selectedParent?.currentValue ?? 1; // Default to 1 if no parent (base unit)
     
-    // If we have no parent selected but there are options, we might be a base unit.
-    // If the user selection is explicit, we use that.
-    
     setForm(prev => ({
       ...prev,
       currentValue: prev.conversion * parentVal
@@ -67,22 +65,29 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
 
   const handleChange = <K extends keyof UnitFormState>(key: K, value: UnitFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key as keyof typeof errors]) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
   };
 
   const handleClear = () => {
     setForm(createInitialForm(null));
+    setErrors({});
     if (onClear) onClear();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.category) return;
-    if (form.conversion <= 0) {
-      // Logic would normally use a validation state, but here we can just return or rely on 'required'
-      // Since 'error' is passed as a prop, the hook handles most errors, but we can prevent submission here.
-      alert("Conversion factor must be greater than zero.");
+    const newErrors: { name?: string; category?: string; conversion?: string } = {};
+    if (!form.name.trim()) newErrors.name = "Unit name is required";
+    if (!form.category) newErrors.category = "Category is required";
+    if (form.conversion <= 0) newErrors.conversion = "Must be greater than 0";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+    setErrors({});
 
     onSubmit({
       ...form,
@@ -105,7 +110,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form noValidate onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-600 border border-amber-100">
           {error}
@@ -126,6 +131,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           required
           autoFocus
           disableAutoOpenOnFocus
+          error={errors.category}
         />
 
         <FormInput
@@ -136,6 +142,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           onKeyDown={(e) => handleKeyDown(e, "unit-conversion")}
           placeholder="e.g. Box, Dozen"
           required
+          error={errors.name}
         />
 
         <FormInput
@@ -152,6 +159,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           onKeyDown={(e) => handleKeyDown(e, "unit-parent")}
           placeholder="e.g. 12"
           required
+          error={errors.conversion}
         />
 
         <SearchableSelect

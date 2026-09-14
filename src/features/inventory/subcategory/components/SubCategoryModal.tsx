@@ -65,7 +65,7 @@ const SubCategoryModal = ({
       title={editingId ? "Edit Sub Category" : "Add Sub Category"}
       size="xl"
     >
-      <div className="flex flex-col gap-6 lg:flex-row">
+      <form noValidate onSubmit={(e) => { e.preventDefault(); onSave(); }} className="flex flex-col gap-6 lg:flex-row">
         <div className="shrink-0">
           <ImageUploadPanel preview={image} onSelect={onImageSelect} />
         </div>
@@ -160,7 +160,7 @@ const SubCategoryModal = ({
             )}
           </div>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };

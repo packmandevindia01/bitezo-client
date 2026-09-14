@@ -25,6 +25,7 @@ const ProductFormPage = () => {
     setImageFile,
     saveMutation,
     deleteMutation,
+    handleResetForm,
     currentBranchId
   } = useProductForm(id ? parseInt(id) : undefined);
 
@@ -99,36 +100,7 @@ const ProductFormPage = () => {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => {
-              const currentBarcode = form.getValues("barcode");
-              const dec = parseInt(localStorage.getItem("decimalPart") || "3", 10);
-              form.reset({
-                productId: id ? Number(id) : undefined,
-                code: "",
-                name: "",
-                arabicName: "",
-                categoryId: "",
-                subCatId: "",
-                branchId: String(currentBranchId),
-                groupId: "",
-                typeId: "",
-                unitId: "",
-                pVatId: "",
-                sVatId: "",
-                cost: (0).toFixed(dec),
-                price: (0).toFixed(dec),
-                barcode: currentBarcode,
-                colorCode: "#49293e",
-                isActive: true,
-                priceIsIncl: false,
-                fileName: "",
-                fileUrl: "",
-                filePath: "",
-                altProducts: [],
-                productColors: []
-              });
-              setImageFile(null);
-            }}
+            onClick={handleResetForm}
             disabled={isSaving || isDeleting || isLoading}
             icon={<Ban size={18} />}
           >
@@ -154,9 +126,7 @@ const ProductFormPage = () => {
             variant="primary"
             onClick={form.handleSubmit(
               (data) => {
-                saveMutation.mutate(data, {
-                  onSuccess: () => navigate("/dashboard/products")
-                });
+                saveMutation.mutate(data);
               },
               () => {
                 showToast("Please fill in all mandatory fields.", "error");

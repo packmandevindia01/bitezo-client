@@ -697,12 +697,33 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           } else {
             balance = Number(balanceData) || 0;
           }
+
+          // Calculate baseQty already used by OTHER rows for this product
+          const currentItems = getValues("items") || [];
+          let otherRowsBaseQty = 0;
+          currentItems.forEach((it: any, i: number) => {
+            if (i !== index && String(it.product) === String(productId)) {
+              const uVal = (() => {
+                for (const units of Object.values(categoryUnits)) {
+                  const found = units.find(u => String(u.value) === String(it.unit));
+                  if (found && !isNaN(found.currentValue)) return found.currentValue;
+                }
+                return 1;
+              })();
+              otherRowsBaseQty += (toNumber(it.qty) + toNumber(it.foc)) * uVal;
+            }
+          });
+
+          const remainingBalance = Math.max(0, balance - otherRowsBaseQty);
           
           if (balance <= 0) {
             showToast(`Cannot return ${opt.label}. It has already been fully returned.`, "error");
             setValue(`items.${index}.qty`, "0");
+          } else if (remainingBalance <= 0) {
+            showToast(`Cannot return ${opt.label}. Available balance of ${balance} is already used in other rows.`, "error");
+            setValue(`items.${index}.qty`, "0");
           } else {
-            setValue(`items.${index}.qty`, String(balance));
+            setValue(`items.${index}.qty`, String(remainingBalance));
           }
         } catch (err) {
           console.error("Failed to fetch balance qty", err);
@@ -888,6 +909,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     
     // Balance validation for Invoice Returns
     if (purchaseId > 0) {
+      // Group total baseQty by productId across all valid items
+      const totalBaseQtyByProduct: Record<number, number> = {};
+      const productItemMap: Record<number, any> = {};
+
       for (const item of validItems) {
         const unitCurrentValue = (() => {
           for (const units of Object.values(categoryUnits)) {
@@ -898,7 +923,18 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         })();
         const baseQty = (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue;
         const productId = parseInt(item.product) || 0;
-        
+        if (productId > 0) {
+          totalBaseQtyByProduct[productId] = (totalBaseQtyByProduct[productId] || 0) + baseQty;
+          if (!productItemMap[productId]) {
+            productItemMap[productId] = item;
+          }
+        }
+      }
+
+      for (const [prodIdStr, totalBaseQty] of Object.entries(totalBaseQtyByProduct)) {
+        const productId = parseInt(prodIdStr);
+        const item = productItemMap[productId];
+
         try {
           let balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, productId, invoiceId);
           let balance = 0;
@@ -907,16 +943,16 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           } else {
             balance = Number(balanceData) || 0;
           }
-          
-          if (baseQty > balance) {
-            let prodName = productOptions.find(p => p.value === item.product)?.label || item.product;
+
+          if (totalBaseQty > balance) {
+            let prodName = productOptions.find(p => p.value === String(productId))?.label || item.product;
             // Remove the [CODE] prefix if it exists
             prodName = prodName.replace(/^\[.*?\]\s*/, '');
-            
+
             if (balance <= 0) {
               showToast(`Cannot return ${prodName}. It has already been fully returned.`, "error");
             } else {
-              showToast(`Cannot return ${prodName}. Only ${balance} left to return.`, "error");
+              showToast(`Cannot return ${prodName}. Total return quantity (${totalBaseQty}) exceeds available balance (${balance}).`, "error");
             }
             setSaving(false);
             return false;

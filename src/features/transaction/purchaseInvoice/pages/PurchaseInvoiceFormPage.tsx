@@ -575,8 +575,10 @@ const PurchaseInvoiceFormPage = () => {
                     onChange: (e) => {
                       const val = e.target.value;
                       if (!val || val === "0" || Number(val) === 0) {
+                        methods.setValue("globalDiscPercent", "");
                         methods.setValue("discAmount", formatAmount(0));
                       } else {
+                        methods.setValue("globalDiscPercent", val);
                         const total = watchedItems.reduce((acc: number, item: any) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0);
                         const newDiscAmt = formatAmount(total * (Number(val) / 100));
                         methods.setValue("discAmount", newDiscAmt);
@@ -597,7 +599,14 @@ const PurchaseInvoiceFormPage = () => {
                   type="number"
                   step="any"
                   maxLength={12}
-                  {...register("discAmount")}
+                  {...register("discAmount", {
+                    onChange: (e) => {
+                      const val = e.target.value;
+                      // Entering a manual discount amount clears the percentage field so both are not set simultaneously
+                      methods.setValue("globalDiscPercent", "");
+                      methods.setValue("discAmount", val);
+                    }
+                  })}
                   min="0"
                   onFocus={(e) => e.target.select()}
                   onKeyDown={(e) => hk(e, "pi-other-chg")}
