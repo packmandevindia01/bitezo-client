@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Save, Trash2, Ban, X } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
 import { useProductForm } from "../hooks/useProductForm";
@@ -12,6 +13,7 @@ const ProductFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isNative = Capacitor.isNativePlatform();
   
   const {
     form,
@@ -60,10 +62,62 @@ const ProductFormPage = () => {
 
   useBarcodeScanner(handleScan);
 
+  const actionButtons = (
+    <div
+      className={`flex items-center justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50/50 ${
+        isNative ? "mt-6 rounded-xl border border-gray-200" : "shrink-0 rounded-b-2xl"
+      }`}
+    >
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={handleResetForm}
+        disabled={isSaving || isDeleting || isLoading}
+        icon={<Ban size={18} />}
+      >
+        Clear
+      </Button>
+      
+      {id && (
+        <Button
+          type="button"
+          variant="danger"
+          onClick={() => setPendingDelete(true)}
+          disabled={isSaving || isDeleting || isLoading}
+          loading={isDeleting}
+          icon={<Trash2 size={18} />}
+        >
+          Delete
+        </Button>
+      )}
+
+      <Button
+        id="prod-save-btn"
+        type="button"
+        variant="primary"
+        onClick={form.handleSubmit(
+          (data) => {
+            saveMutation.mutate(data);
+          },
+          () => {
+            showToast("Please fill in all mandatory fields.", "error");
+          }
+        )}
+        disabled={isSaving || isDeleting || isLoading}
+        loading={isSaving}
+        icon={<Save size={18} />}
+      >
+        Save Product
+      </Button>
+    </div>
+  );
+
   return (
     <PageShell title={id ? "Edit Product" : "Add Product"}>
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col relative" style={{ height: "calc(100vh - 120px)" }}>
-        
+      <div
+        className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col relative"
+        style={isNative ? undefined : { height: "calc(100vh - 120px)" }}
+      >
         {/* Close Button */}
         <button
           type="button"
@@ -74,71 +128,54 @@ const ProductFormPage = () => {
           <X size={20} />
         </button>
 
-        {/* Scrollable content */}
-        <div className="flex-1 p-6 h-[calc(100vh-140px)] overflow-hidden flex flex-col">
-          {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#49293e]" />
-            </div>
-          ) : (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ProductMasterForm
-                form={form}
-                imagePreview={imagePreview}
-                masterData={masterData || { unit: [], group: [], category: [], vat: [], type: [] }}
-                branches={branches}
-                subCategories={subCategories}
-                onImageSelect={setImageFile}
-                currentBranchId={currentBranchId}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Fixed Footer */}
-        <div className="shrink-0 flex items-center justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleResetForm}
-            disabled={isSaving || isDeleting || isLoading}
-            icon={<Ban size={18} />}
-          >
-            Clear
-          </Button>
-          
-          {id && (
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => setPendingDelete(true)}
-              disabled={isSaving || isDeleting || isLoading}
-              loading={isDeleting}
-              icon={<Trash2 size={18} />}
-            >
-              Delete
-            </Button>
-          )}
-
-          <Button
-            id="prod-save-btn"
-            type="button"
-            variant="primary"
-            onClick={form.handleSubmit(
-              (data) => {
-                saveMutation.mutate(data);
-              },
-              () => {
-                showToast("Please fill in all mandatory fields.", "error");
-              }
+        {/* Content area */}
+        {isNative ? (
+          /* Native layout: Non-sticky footer inside normal scrollable content */
+          <div className="p-4 sm:p-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center min-h-[300px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#49293e]" />
+              </div>
+            ) : (
+              <div>
+                <ProductMasterForm
+                  form={form}
+                  imagePreview={imagePreview}
+                  masterData={masterData || { unit: [], group: [], category: [], vat: [], type: [] }}
+                  branches={branches}
+                  subCategories={subCategories}
+                  onImageSelect={setImageFile}
+                  currentBranchId={currentBranchId}
+                />
+                {actionButtons}
+              </div>
             )}
-            disabled={isSaving || isDeleting || isLoading}
-            loading={isSaving}
-            icon={<Save size={18} />}
-          >
-            Save Product
-          </Button>
-        </div>
+          </div>
+        ) : (
+          /* Desktop layout: Sticky footer at bottom of viewport-constrained card */
+          <>
+            <div className="flex-1 p-6 h-[calc(100vh-140px)] overflow-hidden flex flex-col">
+              {isLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#49293e]" />
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <ProductMasterForm
+                    form={form}
+                    imagePreview={imagePreview}
+                    masterData={masterData || { unit: [], group: [], category: [], vat: [], type: [] }}
+                    branches={branches}
+                    subCategories={subCategories}
+                    onImageSelect={setImageFile}
+                    currentBranchId={currentBranchId}
+                  />
+                </div>
+              )}
+            </div>
+            {actionButtons}
+          </>
+        )}
       </div>
 
       <ConfirmDialog

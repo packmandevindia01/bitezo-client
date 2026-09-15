@@ -182,7 +182,11 @@ export const usePosConfiguration = () => {
         }
 
         if (posConfigRes?.data) {
-          setForm(mapApiToState(posConfigRes.data));
+          const stateData = mapApiToState(posConfigRes.data);
+          setForm(stateData);
+          if (stateData.kotHeader) {
+            localStorage.setItem("kotHeader", stateData.kotHeader);
+          }
         }
       } catch (error) {
         console.error("Failed to load POS configuration", error);
@@ -243,11 +247,18 @@ export const usePosConfiguration = () => {
       
       const res = await posConfigApi.updatePosConfig(payload);
       
+      if (payload.kotHeader) {
+        localStorage.setItem("kotHeader", payload.kotHeader);
+      }
+
       // Update local storage runtime posConfigs
       try {
         const saved = localStorage.getItem("posConfigs");
         const parsed = saved ? JSON.parse(saved) : {};
         if (parsed.configs) {
+          parsed.configs.kotHeader = payload.kotHeader;
+          parsed.configs.kotPrint = payload.kotPrint;
+          parsed.configs.masterKot = payload.masterKot;
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
           parsed.configs.isRecipeEnable = payload.isRecipeEnable;
           parsed.configs.isDayDateEnable = payload.isDayDateEnable;
@@ -258,6 +269,9 @@ export const usePosConfiguration = () => {
           parsed.configs.packagerPrint = payload.packagerPrint;
           parsed.configs.packagerHeader = payload.packagerHeader;
         }
+        parsed.kotHeader = payload.kotHeader;
+        parsed.kotPrint = payload.kotPrint;
+        parsed.masterKot = payload.masterKot;
         parsed.deliveryCharge = payload.deliveryCharge;
         parsed.defaultDeliveryCharge = payload.deliveryCharge;
         parsed.deliverycharges = payload.deliveryCharges;
@@ -275,9 +289,9 @@ export const usePosConfiguration = () => {
       } else {
         throw new Error(res.message || "Save failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast("Failed to save POS configuration", "error");
+      showToast(error?.message || "Failed to save POS configuration", "error");
     } finally {
       setSaving(false);
     }

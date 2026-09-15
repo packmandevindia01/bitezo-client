@@ -21,6 +21,7 @@ export const usePrinterSettings = () => {
     masterKOT: 'No Printer',
     masterKOTCount: 1,
     masterKOTBillCount: 1,
+    androidPrint: false,
     androidBillPrinter: 'No Printer',
     androidKOTPrinter: 'No Printer',
     androidPackagerPrinter: 'No Printer'
@@ -38,7 +39,7 @@ export const usePrinterSettings = () => {
       if (res.isSuccess && res.data) {
         setGeneral(res.data.generalPrinter || {
           billPrinter: 'No Printer', kotPrinter: 'No Printer', packagerPrinter: 'No Printer', 
-          masterKOT: 'No Printer', masterKOTCount: 1, masterKOTBillCount: 1, 
+          masterKOT: 'No Printer', masterKOTCount: 1, masterKOTBillCount: 1, androidPrint: false,
           androidBillPrinter: 'No Printer', androidKOTPrinter: 'No Printer', androidPackagerPrinter: 'No Printer'
         });
         setCategories(res.data.categoryPrinter || []);
@@ -63,6 +64,7 @@ export const usePrinterSettings = () => {
       const res = await printerSettingsApi.updateGeneral(data);
       if (res.isSuccess) {
         setGeneral(data);
+        localStorage.setItem('androidPrint', String(!!data.androidPrint));
         showToast("General printer settings updated", "success");
         return true;
       }

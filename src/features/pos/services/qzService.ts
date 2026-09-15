@@ -37,27 +37,50 @@ export const connectQZ = async (): Promise<void> => {
  * Used on Capacitor (tablet/phone) for ALL POS print jobs:
  * bill receipts, KOT slips, cashier reports, reprints.
  *
- * @param markup  dantsu-formatted markup string (from escPosGenerator.ts)
+ * @param markup            dantsu-formatted markup string (from escPosGenerator.ts)
+ * @param targetPrinterName optional target printer name to resolve IP address
  */
-export const printEscPosMarkup = async (markup: string): Promise<void> => {
+export const printEscPosMarkup = async (markup: string, targetPrinterName?: string): Promise<void> => {
   if (!Capacitor.isNativePlatform()) {
     console.warn("[printEscPosMarkup] Called on non-native platform — skipping.");
     return;
   }
 
-  const nativePrinterType    = localStorage.getItem('nativePrinterType') || 'tcp';
-  const nativePrinterAddress = localStorage.getItem('nativePrinterAddress');
+  let targetIp = "";
+  const targetName = targetPrinterName || localStorage.getItem('cachedBillPrinter') || "";
 
-  if (!nativePrinterAddress) {
-    throw new Error("No native printer configured. Please go to POS Settings → Printer Settings.");
+  if (targetName && targetName !== 'No Printer') {
+    try {
+      const { printerSettingsApi } = await import("./printerSettingsApi");
+      const ipMapRes = await printerSettingsApi.getPrinterIpMap();
+      if (ipMapRes?.isSuccess && Array.isArray(ipMapRes.data)) {
+        const found = ipMapRes.data.find(item => item.printerName.toLowerCase() === targetName.toLowerCase());
+        if (found && found.ipAddress) {
+          targetIp = found.ipAddress;
+        }
+      }
+    } catch (e) {
+      console.error("[Native ESC/POS] Failed to fetch printer IP map:", e);
+    }
   }
 
-  console.log(`[Native ESC/POS] Sending markup to ${nativePrinterType} printer at ${nativePrinterAddress}`);
+  if (!targetIp) {
+    targetIp = localStorage.getItem('printerIpAddress') || "";
+  }
+
+  if (!targetIp) {
+    const errorMsg = targetName 
+      ? `IP address not found for printer "${targetName}". Please configure IP mapping in Printer Settings.`
+      : "No printer IP address mapped. Please configure Printer IP Mapping in POS Settings.";
+    throw new Error(errorMsg);
+  }
+
+  console.log(`[Native ESC/POS] Sending markup for printer "${targetName}" to IP ${targetIp}`);
 
   await BitezoPrinter.printEscPos({
     markup,
-    type: nativePrinterType,
-    address: nativePrinterAddress,
+    type: 'tcp',
+    address: targetIp,
     port: 9100,
   });
 
@@ -83,7 +106,7 @@ export const getAvailablePrinters = async (): Promise<string[]> => {
 
 /**
  * Prints HTML content via QZ Tray — WEB / DESKTOP path only.
- * On native Capacitor, use printEscPosMarkup() instead.
+ * Routes HTML receipts to local installed Windows printer drivers via QZ Tray.
  */
 export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
   if (Capacitor.isNativePlatform()) {
@@ -115,6 +138,8 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
     if (!targetPrinter) {
       throw new Error("No default printer found on this system.");
     }
+
+    console.log(`[QZ Tray Local Driver] Printing to local driver "${targetPrinter}"`);
 
     const config = qz.configs.create(targetPrinter, {
       margins: 0,

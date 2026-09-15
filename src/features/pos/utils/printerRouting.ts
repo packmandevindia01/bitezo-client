@@ -14,9 +14,9 @@ export const executeKotRouting = async (
 
   // On native, we use the fast ESC/POS path instead of html
   const printFn = isNative
-    ? async (htmlOrMarkup: string, _printerName?: string) => {
+    ? async (htmlOrMarkup: string, printerName?: string) => {
         const { printEscPosMarkup } = await import("../services/qzService");
-        await printEscPosMarkup(htmlOrMarkup);
+        await printEscPosMarkup(htmlOrMarkup, printerName);
       }
     : printHtmlReceipt;
 
@@ -51,36 +51,39 @@ export const executeKotRouting = async (
       printerGroups.get(printerName)!.push(item);
     };
 
+    const routeRule = (firstPrinter: string, secondPrinter: string, item: PosCartItem): boolean => {
+      const targetPrinters = new Set<string>();
+      if (firstPrinter && firstPrinter !== "No Printer") targetPrinters.add(firstPrinter);
+      if (secondPrinter && secondPrinter !== "No Printer") targetPrinters.add(secondPrinter);
+      
+      targetPrinters.forEach(printerName => routeItem(printerName, item));
+      return targetPrinters.size > 0;
+    };
+
     items.forEach(item => {
       let routed = false;
       
       // 1. Product Level
       if (productPrinter) {
         const prodRule = productPrinter.find((p: any) => p.productId === item.productId);
-        if (prodRule && (prodRule.firstPrinter !== "No Printer" || prodRule.secondPrinter !== "No Printer")) {
-          if (prodRule.firstPrinter !== "No Printer") routeItem(prodRule.firstPrinter, item);
-          if (prodRule.secondPrinter !== "No Printer") routeItem(prodRule.secondPrinter, item);
-          routed = true;
+        if (prodRule) {
+          routed = routeRule(prodRule.firstPrinter, prodRule.secondPrinter, item);
         }
       }
       
       // 2. Section Level
       if (!routed && selectedSectionId && sectionPrinter) {
         const secRule = sectionPrinter.find((s: any) => s.sectionId === selectedSectionId);
-        if (secRule && (secRule.firstPrinter !== "No Printer" || secRule.secondPrinter !== "No Printer")) {
-          if (secRule.firstPrinter !== "No Printer") routeItem(secRule.firstPrinter, item);
-          if (secRule.secondPrinter !== "No Printer") routeItem(secRule.secondPrinter, item);
-          routed = true;
+        if (secRule) {
+          routed = routeRule(secRule.firstPrinter, secRule.secondPrinter, item);
         }
       }
       
       // 3. Category Level
       if (!routed && item.product?.categoryId && categoryPrinter) {
         const catRule = categoryPrinter.find((c: any) => c.categoryId === item.product?.categoryId);
-        if (catRule && (catRule.firstPrinter !== "No Printer" || catRule.secondPrinter !== "No Printer")) {
-          if (catRule.firstPrinter !== "No Printer") routeItem(catRule.firstPrinter, item);
-          if (catRule.secondPrinter !== "No Printer") routeItem(catRule.secondPrinter, item);
-          routed = true;
+        if (catRule) {
+          routed = routeRule(catRule.firstPrinter, catRule.secondPrinter, item);
         }
       }
       
@@ -93,18 +96,38 @@ export const executeKotRouting = async (
       }
     });
 
-    // Dispatch routed jobs
-    for (const [printerName, groupedItems] of printerGroups.entries()) {
-      const kotOutput = await generateFn(groupedItems, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
-      // On native, printerName is ignored (single native printer from localStorage)
-      await printFn(kotOutput, isNative ? undefined : printerName)
-        .catch((err: any) => console.error(`[Print Error: ${printerName}]`, err));
+    // Read POS Configuration toggles from cached posConfigs
+    let isStandardKotEnabled = true;
+    let isMasterKotEnabled = false;
+    try {
+      const posConfigsStr = localStorage.getItem("posConfigs");
+      if (posConfigsStr) {
+        const parsed = JSON.parse(posConfigsStr);
+        const configsObj = parsed?.configs || parsed;
+        if (configsObj?.kotPrint !== undefined) {
+          isStandardKotEnabled = configsObj.kotPrint === "Enable";
+        }
+        if (configsObj?.masterKot !== undefined) {
+          isMasterKotEnabled = configsObj.masterKot === "Enable";
+        }
+      }
+    } catch (e) {
+      console.error("[Printer Routing] Error parsing cached posConfigs:", e);
     }
 
-    // Master KOT
-    if (generalPrinter && generalPrinter.masterKOT && generalPrinter.masterKOT !== "No Printer") {
+    // Dispatch standard KOT jobs if Standard KOT Print is enabled
+    if (isStandardKotEnabled) {
+      for (const [printerName, groupedItems] of printerGroups.entries()) {
+        const kotOutput = await generateFn(groupedItems, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT" });
+        await printFn(kotOutput, printerName)
+          .catch((err: any) => console.error(`[Print Error: ${printerName}]`, err));
+      }
+    }
+
+    // Dispatch Master KOT if Master KOT is enabled in POS Configuration AND printer is assigned
+    if (isMasterKotEnabled && generalPrinter && generalPrinter.masterKOT && generalPrinter.masterKOT !== "No Printer") {
        const masterOutput = await generateFn(items, { ...basePrintOptions, headerTitle: isUpdate ? "UPDATE KOT" : "KOT", isMaster: true });
-       await printFn(masterOutput, isNative ? undefined : generalPrinter.masterKOT)
+       await printFn(masterOutput, generalPrinter.masterKOT)
          .catch((err: any) => console.error("[Print Error: Master]", err));
     }
     
@@ -126,19 +149,7 @@ export const executePackagerPrint = async (
 ) => {
   const isNative = Capacitor.isNativePlatform();
 
-  if (isNative) {
-    const { printEscPosMarkup } = await import("../services/qzService");
-    const { generateBillMarkup } = await import("./escPosGenerator");
-    const markup = generateBillMarkup({
-      cartDetails: items,
-      data: { ...printData, isPackager: true },
-      customHeaderLines
-    });
-    await printEscPosMarkup(markup);
-    return;
-  }
-
-  // Desktop (QZ Tray)
+  // Desktop (QZ Tray) or Native lookup
   let targetPrinter = localStorage.getItem("cachedPackagerPrinter") || "";
   if (!targetPrinter || targetPrinter === "No Printer") {
     try {
@@ -154,6 +165,18 @@ export const executePackagerPrint = async (
   // Fallback to bill printer or default if packager printer not explicitly selected
   if (!targetPrinter || targetPrinter === "No Printer") {
     targetPrinter = localStorage.getItem("cachedBillPrinter") || "";
+  }
+
+  if (isNative) {
+    const { printEscPosMarkup } = await import("../services/qzService");
+    const { generateBillMarkup } = await import("./escPosGenerator");
+    const markup = generateBillMarkup({
+      cartDetails: items,
+      data: { ...printData, isPackager: true },
+      customHeaderLines
+    });
+    await printEscPosMarkup(markup, targetPrinter);
+    return;
   }
 
   console.log(`[Packager Print] Routing to printer: "${targetPrinter || 'Default Printer'}" for ${items.length} items`);

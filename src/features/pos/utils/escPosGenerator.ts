@@ -414,8 +414,17 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   if (data.vehicleNo)   markup += `[L]Vehicle No: ${data.vehicleNo}\n`;
   if (data.customerName) markup += `[L]Customer: ${data.customerName}\n`;
 
+  const rawKotHeader = data.kotHeader || localStorage.getItem("kotHeader") || "QTY,DESCRIPTION,AMT";
+  const kotHeaderStyle = rawKotHeader.toUpperCase().replace(/\s+/g, "");
+
   markup += `[L]${SEPARATOR}\n`;
-  markup += `[L]<b>${padRight("Item", LINE_WIDTH - 6)}${padLeft("Qty", 6)}</b>\n`;
+  if (kotHeaderStyle === "QTY,DESCRIPTION") {
+    markup += `[L]<b>${padRight("Qty", 6)} ${padRight("Description", LINE_WIDTH - 7)}</b>\n`;
+  } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+    markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)}${padLeft("Qty", 5)} ${padLeft("Amount", 10)}</b>\n`;
+  } else {
+    markup += `[L]<b>${padLeft("Qty", 5)} ${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Amount", 10)}</b>\n`;
+  }
   markup += `[L]${SEPARATOR}\n`;
 
   // ── KOT Items ───────────────────────────────────────────────────────────────
@@ -424,19 +433,47 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     if (item.variantName && item.variantName.toLowerCase().trim() !== "main") {
       name += ` - ${item.variantName.toUpperCase()}`;
     }
+    const qty = item.quantity;
+    let extrasSum = 0;
+    if (item.extras && item.extras.length > 0) {
+      item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
+    }
 
-    const qtyStr = padLeft(String(item.quantity), 6);
-    const maxName = LINE_WIDTH - qtyStr.length;
-    const nameStr = padRight(trunc(name, maxName), maxName);
-    markup += `[L]<b>${nameStr}${qtyStr}</b>\n`;
+    let baseAmt = (item as any).lineTotal;
+    if (baseAmt !== undefined) baseAmt -= extrasSum;
+    else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
+    const amtStr = baseAmt.toFixed(3);
+
+    if (kotHeaderStyle === "QTY,DESCRIPTION") {
+      const qtyStr = padRight(`x${qty}`, 5);
+      const maxName = LINE_WIDTH - qtyStr.length - 1;
+      const nameStr = padRight(trunc(name, maxName), maxName);
+      markup += `[L]<b>${qtyStr} ${nameStr}</b>\n`;
+    } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+      const aStr = padLeft(amtStr, 10);
+      const qStr = padLeft(String(qty), 5);
+      const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
+      const nameStr = padRight(trunc(name, maxName), maxName);
+      markup += `[L]<b>${nameStr} ${qStr} ${aStr}</b>\n`;
+    } else {
+      const aStr = padLeft(amtStr, 10);
+      const qStr = padRight(`x${qty}`, 5);
+      const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
+      const nameStr = padRight(trunc(name, maxName), maxName);
+      markup += `[L]<b>${qStr}${nameStr} ${aStr}</b>\n`;
+    }
 
     // Extras
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach(ex => {
         const exName = `  + ${(ex.name || "EXTRA").toUpperCase()}`;
-        const exQty = padLeft(String(ex.qty || 1), 6);
-        const maxEx = LINE_WIDTH - exQty.length;
-        markup += `[L]${padRight(trunc(exName, maxEx), maxEx)}${exQty}\n`;
+        const exQty = padLeft(String(ex.qty || 1), 5);
+        if (kotHeaderStyle === "QTY,DESCRIPTION") {
+          markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
+        } else {
+          const exAmt = (ex.price * (ex.qty || 1)).toFixed(3);
+          markup += itemLine(exName, ex.qty || 1, exAmt) + "\n";
+        }
       });
     }
 

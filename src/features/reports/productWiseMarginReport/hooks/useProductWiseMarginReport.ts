@@ -48,8 +48,8 @@ export const useProductWiseMarginReport = () => {
 
   // Fetch products
   const { data: pData = [] } = useQuery({
-    queryKey: ["products-for-pwm-report"],
-    queryFn: getProductList,
+    queryKey: ["products-for-pwm-report", branchId],
+    queryFn: () => getProductList(branchId ? Number(branchId) : undefined),
   });
   const products = pData as ProductOption[];
 

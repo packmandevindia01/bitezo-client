@@ -52,23 +52,25 @@ export const generateGuestPrintHtml = async (
         ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
         : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
       
-      let branchId = 1;
+      let branchId = 0;
       if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
         branchId = Number(branchIdStr);
       }
-      const branch = await branchApi.fetchBranchById(branchId);
-      
-      if (branch && branch.lines) {
-        const headers = branch.lines.filter(l => l.section === 'header' && l.value);
-        if (headers.length > 0) {
-          customHeadersHtml = headers.map(l => {
-            const styleObj = getLineStyle(l) as any;
-            const styleStr = Object.entries(styleObj).map(([k, v]) => {
-              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-              return `${kebab}:${v}`;
-            }).join(";");
-            return `<div style="${styleStr}">${l.value}</div>`;
-          }).join("");
+      if (branchId > 0) {
+        const branch = await branchApi.fetchBranchById(branchId);
+        
+        if (branch && branch.lines) {
+          const headers = branch.lines.filter(l => l.section === 'header' && l.value);
+          if (headers.length > 0) {
+            customHeadersHtml = headers.map(l => {
+              const styleObj = getLineStyle(l) as any;
+              const styleStr = Object.entries(styleObj).map(([k, v]) => {
+                const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+                return `${kebab}:${v}`;
+              }).join(";");
+              return `<div style="${styleStr}">${l.value}</div>`;
+            }).join("");
+          }
         }
       }
     } catch {

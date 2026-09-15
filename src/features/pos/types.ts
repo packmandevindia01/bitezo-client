@@ -141,9 +141,16 @@ export interface GeneralPrinterSettings {
   masterKOT: string;
   masterKOTCount: number;
   masterKOTBillCount: number;
-  androidBillPrinter: string;
-  androidKOTPrinter: string;
-  androidPackagerPrinter: string;
+  androidPrint?: boolean;
+  androidBillPrinter?: string;
+  androidKOTPrinter?: string;
+  androidPackagerPrinter?: string;
+}
+
+export interface PrinterIpMapItem {
+  id?: number;
+  ipAddress: string;
+  printerName: string;
 }
 
 export interface CategoryPrinterSetting {

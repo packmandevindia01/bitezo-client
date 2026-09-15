@@ -27,7 +27,7 @@ const AddButton = ({ onClick, title }: { onClick: () => void; title: string }) =
     type="button"
     onClick={onClick}
     title={title}
-    className="shrink-0 mb-1 h-10.5 w-9 flex items-center justify-center rounded-lg border border-[#49293e] bg-[#49293e] text-white hover:bg-[#3c2232] hover:border-[#3c2232] transition-colors"
+    className="shrink-0 mb-1 h-9 w-9 flex items-center justify-center rounded-md border border-[#49293e] bg-[#49293e] text-white hover:bg-[#3c2232] hover:border-[#3c2232] transition-colors"
   >
     <Plus size={16} />
   </button>
@@ -228,10 +228,10 @@ export const ProductDetailsSection = ({
           required
           error={errors.cost?.message as string}
         />
-        <div className="flex flex-col">
-          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest mb-1 px-1">
-            <label htmlFor="prod-price" className="text-slate-600">
-              Price <span className="text-red-500 font-bold">*</span>
+        <div className="flex flex-col justify-end gap-1 mb-1 min-w-0 relative h-full">
+          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest h-4 mb-0.5">
+            <label htmlFor="prod-price" className="text-slate-600 flex items-center">
+              Price <span className="text-red-500 font-bold ml-1">*</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer group text-slate-500 select-none">
               <input
@@ -246,15 +246,16 @@ export const ProductDetailsSection = ({
                     handleKeyDown(e, "prod-price");
                   }
                 }}
-                className="h-3.5 w-3.5 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] transition-all cursor-pointer"
+                className="h-3 w-3 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] transition-all cursor-pointer"
               />
-              <span>INCL.</span>
+              <span className="leading-none">INCL.</span>
             </label>
           </div>
           <FormInput
             id="prod-price"
             label="price"
             hideLabel
+            wrapperClassName="h-auto mb-0 gap-0"
             type="number"
             step={Math.pow(10, -decimalPart).toString()}
             inputClassName="text-right"
@@ -293,10 +294,10 @@ export const ProductDetailsSection = ({
           onKeyDown={(e) => handleKeyDown(e, "prod-color")}
           error={errors.typeId?.message as string}
         />
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Product Color</label>
-          <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/30 px-3 py-1 h-10.5">
-            <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+        <div className="flex flex-col justify-end gap-1 mb-1 min-w-0 relative h-full">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 h-4 mb-0.5 flex items-center">Product Color</label>
+          <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/30 px-3 py-1 h-9">
+            <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
               <input
                 type="color"
                 value={colorValue}
