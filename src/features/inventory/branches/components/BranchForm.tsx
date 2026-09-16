@@ -61,7 +61,7 @@ const BranchForm = ({
   const [fontModal, setFontModal] = useState<FontModalState>({
     open: false,
     lineId: "",
-    temp: { fontFamily: "Inter", fontStyle: "Regular", fontSize: "12" },
+    temp: { fontFamily: "Courier", fontStyle: "Regular", fontSize: "Medium" },
   });
 
   const openFontModal = (id: string) => {

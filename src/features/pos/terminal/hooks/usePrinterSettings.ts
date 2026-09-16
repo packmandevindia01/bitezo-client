@@ -14,18 +14,18 @@ export const usePrinterSettings = () => {
   const [loading, setLoading] = useState(false);
   
   // Initial empty states that match the Swagger/Backend structure
-  const [general, setGeneral] = useState<GeneralPrinterSettings>({
+  const [general, setGeneral] = useState<GeneralPrinterSettings>(() => ({
     billPrinter: 'No Printer',
     kotPrinter: 'No Printer',
     packagerPrinter: 'No Printer',
     masterKOT: 'No Printer',
     masterKOTCount: 1,
     masterKOTBillCount: 1,
-    androidPrint: false,
+    androidPrint: localStorage.getItem('androidPrint') === 'true',
     androidBillPrinter: 'No Printer',
     androidKOTPrinter: 'No Printer',
     androidPackagerPrinter: 'No Printer'
-  });
+  }));
   
   const [categories, setCategories] = useState<CategoryPrinterSetting[]>([]);
   const [products, setProducts] = useState<ProductPrinterSetting[]>([]);
@@ -37,11 +37,25 @@ export const usePrinterSettings = () => {
     try {
       const res = await printerSettingsApi.getPrinterData();
       if (res.isSuccess && res.data) {
-        setGeneral(res.data.generalPrinter || {
-          billPrinter: 'No Printer', kotPrinter: 'No Printer', packagerPrinter: 'No Printer', 
-          masterKOT: 'No Printer', masterKOTCount: 1, masterKOTBillCount: 1, androidPrint: false,
-          androidBillPrinter: 'No Printer', androidKOTPrinter: 'No Printer', androidPackagerPrinter: 'No Printer'
-        });
+        const storedAndroid = localStorage.getItem('androidPrint') === 'true';
+        const gen = res.data.generalPrinter;
+        if (gen) {
+          const resolvedAndroid = gen.androidPrint !== undefined && gen.androidPrint !== null 
+            ? Boolean(gen.androidPrint) 
+            : storedAndroid;
+          setGeneral({
+            ...gen,
+            androidPrint: resolvedAndroid,
+          });
+          localStorage.setItem('androidPrint', String(resolvedAndroid));
+        } else {
+          setGeneral({
+            billPrinter: 'No Printer', kotPrinter: 'No Printer', packagerPrinter: 'No Printer', 
+            masterKOT: 'No Printer', masterKOTCount: 1, masterKOTBillCount: 1, 
+            androidPrint: storedAndroid,
+            androidBillPrinter: 'No Printer', androidKOTPrinter: 'No Printer', androidPackagerPrinter: 'No Printer'
+          });
+        }
         setCategories(res.data.categoryPrinter || []);
         setProducts(res.data.productPrinter || []);
         setSections(res.data.sectionPrinter || []);
@@ -138,6 +152,18 @@ export const usePrinterSettings = () => {
     }
   };
 
+  const toggleAndroidPrint = async (enabled: boolean) => {
+    localStorage.setItem('androidPrint', String(enabled));
+    setGeneral((prev) => {
+      const updated = { ...prev, androidPrint: enabled };
+      printerSettingsApi.updateGeneral(updated).catch((err) => {
+        console.error("Failed to update androidPrint setting in backend:", err);
+      });
+      return updated;
+    });
+    showToast(`Android printer option ${enabled ? 'enabled' : 'disabled'}`, "info");
+  };
+
   return {
     loading,
     general,
@@ -146,6 +172,7 @@ export const usePrinterSettings = () => {
     sections,
     orderTypes,
     saveGeneral,
+    toggleAndroidPrint,
     saveCategoryMappings,
     saveProductMappings,
     saveSectionMappings,

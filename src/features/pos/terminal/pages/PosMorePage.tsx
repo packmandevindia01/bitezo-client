@@ -26,6 +26,7 @@ export const PosMorePage: React.FC = () => {
     sections, 
     orderTypes,
     saveGeneral,
+    toggleAndroidPrint,
     saveCategoryMappings,
     saveProductMappings,
     saveSectionMappings,
@@ -114,6 +115,7 @@ export const PosMorePage: React.FC = () => {
                   data={general} 
                   onSave={saveGeneral} 
                   loading={loading}
+                  onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
               {activeTab === 'CATEGORY' && (
@@ -121,6 +123,8 @@ export const PosMorePage: React.FC = () => {
                   initialData={categories} 
                   onSave={saveCategoryMappings}
                   loading={loading}
+                  isAndroidPrinter={!!general.androidPrint}
+                  onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
               {activeTab === 'PRODUCT' && (
@@ -128,6 +132,8 @@ export const PosMorePage: React.FC = () => {
                   initialData={products} 
                   onSave={saveProductMappings}
                   loading={loading}
+                  isAndroidPrinter={!!general.androidPrint}
+                  onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
               {activeTab === 'SECTION' && (
@@ -135,6 +141,8 @@ export const PosMorePage: React.FC = () => {
                   initialData={sections} 
                   onSave={saveSectionMappings}
                   loading={loading}
+                  isAndroidPrinter={!!general.androidPrint}
+                  onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
               {activeTab === 'ORDER_TYPE' && (
@@ -142,6 +150,8 @@ export const PosMorePage: React.FC = () => {
                   initialData={orderTypes} 
                   onSave={saveOrderTypeMappings}
                   loading={loading}
+                  isAndroidPrinter={!!general.androidPrint}
+                  onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
               {activeTab === 'IP_MAP' && (

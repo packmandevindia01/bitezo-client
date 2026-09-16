@@ -11,9 +11,15 @@ interface PrinterSettingsTabProps {
   data: GeneralPrinterSettings;
   onSave: (data: GeneralPrinterSettings) => void;
   loading?: boolean;
+  onToggleAndroidPrinter?: (enabled: boolean) => void;
 }
 
-export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, onSave, loading }) => {
+export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ 
+  data, 
+  onSave, 
+  loading,
+  onToggleAndroidPrinter,
+}) => {
   const [settings, setSettings] = useState<GeneralPrinterSettings>(data);
   const [livePrinters, setLivePrinters] = useState<string[]>([]);
   const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>([]);
@@ -74,6 +80,11 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({ data, on
 
   const handleChange = (field: keyof GeneralPrinterSettings, value: string | number | boolean) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
+    if (field === 'androidPrint') {
+      const boolVal = !!value;
+      localStorage.setItem('androidPrint', String(boolVal));
+      onToggleAndroidPrinter?.(boolVal);
+    }
   };
 
   const Row = ({ label, field, options, isNumeric }: { label: string; field: keyof GeneralPrinterSettings; options: any[]; isNumeric?: boolean }) => (

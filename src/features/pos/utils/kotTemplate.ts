@@ -33,30 +33,52 @@ export const generateKotHtml = async (
 
   let customHeadersHtml = "";
   try {
-    const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-    const branchIdStr = isBackoffice
-      ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
-      : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
-    
-    let branchId = 0;
-    if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
-      branchId = Number(branchIdStr);
+    let branchLines: any[] = [];
+    const cached = localStorage.getItem("branchPrintData");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) branchLines = parsed;
+        else if (Array.isArray(parsed?.data)) branchLines = parsed.data;
+      } catch {}
     }
-    if (branchId > 0) {
-      const branch = await branchApi.fetchBranchById(branchId);
-      
-      if (branch && branch.lines) {
-        const headers = branch.lines.filter(l => l.section === 'header' && l.value);
-        if (headers.length > 0) {
-          customHeadersHtml = headers.map(l => {
-            const styleObj = getLineStyle(l) as any;
-            const styleStr = Object.entries(styleObj).map(([k, v]) => {
-              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-              return `${kebab}:${v}`;
-            }).join(";");
-            return `<div style="${styleStr}">${l.value}</div>`;
-          }).join("");
+
+    if (branchLines.length === 0) {
+      try {
+        branchLines = await branchApi.fetchBranchPrintData();
+        if (branchLines && branchLines.length > 0) {
+          localStorage.setItem("branchPrintData", JSON.stringify(branchLines));
         }
+      } catch {
+        const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+        const branchIdStr = isBackoffice
+          ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+          : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+        
+        let branchId = 0;
+        if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+          branchId = Number(branchIdStr);
+        }
+        if (branchId > 0) {
+          const branch = await branchApi.fetchBranchById(branchId);
+          if (branch && branch.lines) {
+            branchLines = branch.lines;
+          }
+        }
+      }
+    }
+
+    if (branchLines && branchLines.length > 0) {
+      const headers = branchLines.filter(l => l.section === 'header' && l.value);
+      if (headers.length > 0) {
+        customHeadersHtml = headers.map(l => {
+          const styleObj = getLineStyle(l) as any;
+          const styleStr = Object.entries(styleObj).map(([k, v]) => {
+            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+            return `${kebab}:${v}`;
+          }).join(";");
+          return `<div style="${styleStr}">${l.value}</div>`;
+        }).join("");
       }
     }
   } catch {

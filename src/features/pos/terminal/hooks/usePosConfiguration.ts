@@ -5,6 +5,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { getEmployeeNames } from "../../../general/employee/services/employeeService";
 import { posConfigApi } from "../../services/posConfigApi";
 import type { PosConfigResponseData, PosConfigUpdatePayload } from "../../services/posConfigApi";
+import { branchApi } from "../../../inventory/branches/services/branchApi";
 
 export interface ConfigurationEmployeeOption {
   label: string;
@@ -148,12 +149,17 @@ export const usePosConfiguration = () => {
         setLoading(true);
         const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
         
-        // Fetch employees, order types, and pos config concurrently
-        const [employees, orderTypesRes, posConfigRes] = await Promise.all([
+        // Fetch employees, order types, pos config, and branch print layout concurrently
+        const [employees, orderTypesRes, posConfigRes, printLinesRes] = await Promise.all([
           getEmployeeNames(branchId).catch((e) => { console.error(e); return []; }),
           posConfigApi.getOrderTypeList().catch((e) => { console.error(e); return []; }),
-          posConfigApi.getPosConfig(branchId).catch(() => null)
+          posConfigApi.getPosConfig(branchId).catch(() => null),
+          branchApi.fetchBranchPrintData().catch(() => null)
         ]);
+
+        if (printLinesRes && Array.isArray(printLinesRes) && printLinesRes.length > 0) {
+          localStorage.setItem("branchPrintData", JSON.stringify(printLinesRes));
+        }
 
         if (!active) return;
 
@@ -268,6 +274,16 @@ export const usePosConfiguration = () => {
           parsed.configs.levy = payload.levy;
           parsed.configs.packagerPrint = payload.packagerPrint;
           parsed.configs.packagerHeader = payload.packagerHeader;
+
+          parsed.configs.categoryDayend = payload.categoryDayend;
+          parsed.configs.voucherEntryDayend = payload.voucherEntryDayend;
+          parsed.configs.orderTypeDayend = payload.orderTypeDayend;
+          parsed.configs.employeeDayend = payload.employeeDayend;
+          parsed.configs.voidItemDayend = payload.voidItemDayend;
+          parsed.configs.denominationDayend = payload.denominationDayend;
+          parsed.configs.productDayend = payload.productDayend;
+          parsed.configs.groupDayend = payload.groupDayend;
+          parsed.configs.driverDayend = payload.driverDayend;
         }
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
@@ -279,6 +295,17 @@ export const usePosConfiguration = () => {
         parsed.levy = payload.levy;
         parsed.packagerPrint = payload.packagerPrint;
         parsed.packagerHeader = payload.packagerHeader;
+
+        parsed.categoryDayend = payload.categoryDayend;
+        parsed.voucherEntryDayend = payload.voucherEntryDayend;
+        parsed.orderTypeDayend = payload.orderTypeDayend;
+        parsed.employeeDayend = payload.employeeDayend;
+        parsed.voidItemDayend = payload.voidItemDayend;
+        parsed.denominationDayend = payload.denominationDayend;
+        parsed.productDayend = payload.productDayend;
+        parsed.groupDayend = payload.groupDayend;
+        parsed.driverDayend = payload.driverDayend;
+
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
       } catch (e) {
         console.error("Failed to update cached posConfigs:", e);

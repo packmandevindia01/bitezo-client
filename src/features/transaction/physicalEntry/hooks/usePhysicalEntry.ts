@@ -33,6 +33,15 @@ export const usePhysicalEntry = (id?: string | null) => {
   const [saving, setSaving] = useState(false);
   const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
+  // Always clear cached branchData (refNo + employees) on Add-mode mount so the
+  // ref number is fetched fresh from the API, never served from stale cache.
+  useEffect(() => {
+    if (!id) {
+      queryClient.removeQueries({ queryKey: ["physicalEntryBranchData"] });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
     setCategoryUnits(prev => {
@@ -100,25 +109,47 @@ export const usePhysicalEntry = (id?: string | null) => {
     queryKey: ["physicalEntryBranches"],
     queryFn: async () => {
       const res = await physicalEntryApi.getBranchList();
-      return res.map(b => ({ label: b.branchName, value: String(b.branchId) }));
+      return (res || []).map((b: any) => ({ label: b.branchName, value: String(b.branchId) }));
     }
   });
 
+  // Determine effective branch ID for API calls
+  const effectiveBranchId = useMemo(() => {
+    if (branches.length === 0) return watchedBranch;
+    // When top navbar has a locked branch, prefer initialBranchId
+    if (!watchedBranch) {
+      if (isBranchLocked && initialBranchId) {
+        const lockedExists = branches.some((b: any) => b.value === String(initialBranchId));
+        if (lockedExists) return String(initialBranchId);
+      }
+      return branches[0].value;
+    }
+    const exists = branches.some((b: any) => b.value === watchedBranch);
+    return exists ? watchedBranch : branches[0].value;
+  }, [watchedBranch, branches, isBranchLocked, initialBranchId]);
+
   const { data: branchData = { employees: [], refNo: "" }, isLoading: loadingBranchDetails } = useQuery({
-    queryKey: ["physicalEntryBranchData", watchedBranch],
+    queryKey: ["physicalEntryBranchData", effectiveBranchId],
     queryFn: async () => {
-      if (!watchedBranch) return { employees: [], refNo: "" };
-      const branchIdNum = parseInt(watchedBranch, 10);
-      const [empRes, refRes] = await Promise.all([
+      if (!effectiveBranchId) return { employees: [], refNo: "" };
+      const branchIdNum = parseInt(effectiveBranchId, 10);
+      const [empRes, refRes]: [any[], any] = await Promise.all([
         physicalEntryApi.getEmployeeList(branchIdNum),
         !id ? physicalEntryApi.getRefNumber(branchIdNum) : Promise.resolve({ refNo: "" })
       ]);
+      const rawRef = typeof refRes === "object" && refRes !== null 
+        ? (refRes.refNo ?? refRes.data?.refNo ?? refRes) 
+        : refRes;
+      const refNoStr = rawRef !== undefined && rawRef !== null && rawRef !== "" ? String(rawRef) : "";
+
       return {
-        employees: empRes.map((e: any) => ({ label: e.empName, value: String(e.empId) })),
-        refNo: String(refRes.refNo || ""),
+        employees: (empRes || []).map((e: any) => ({ label: e.empName, value: String(e.empId) })),
+        refNo: refNoStr,
       };
     },
-    enabled: !!watchedBranch,
+    enabled: !!effectiveBranchId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Load Existing Record
@@ -126,78 +157,106 @@ export const usePhysicalEntry = (id?: string | null) => {
     queryKey: ["physicalEntryRecord", id],
     queryFn: async () => {
       if (!id) return null;
-      const responseData = await physicalEntryApi.getPhysicalEntryById(Number(id));
-      const master = responseData.masterData || responseData;
-      const details = responseData.detailsData || responseData.details || [];
+      try {
+        const responseData: any = await physicalEntryApi.getPhysicalEntryById(Number(id));
+        const raw = responseData?.data || responseData || {};
+        const master = raw?.masterData || raw?.MasterData || raw?.master || raw?.Master || raw || {};
+        const details = raw?.detailsData || raw?.DetailsData || raw?.details || raw?.Details || raw?.items || raw?.Items || [];
 
-      const formPayload: PhysicalEntryForm = {
-        refNo: master.refNo?.toString() || "",
-        date: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
-        branch: master.branchId?.toString() || "",
-        salesman: master.employeeId?.toString() || "",
-        narration: master.narration || "",
-        items: []
-      };
+        const refNo = (master.refNo ?? master.RefNo ?? id ?? "").toString();
+        const transDate = master.transDate ?? master.TransDate;
+        const date = transDate ? String(transDate).split("T")[0] : new Date().toISOString().split("T")[0];
+        const branch = (master.branchId ?? master.BranchId ?? "").toString();
+        const salesman = (master.employeeId ?? master.EmployeeId ?? "").toString();
+        const narration = (master.narration ?? master.Narration ?? "").toString();
 
-      if (details && details.length > 0) {
-        const mappedItems = [];
-        for (const i of details) {
-          let uCat = i.unitCategory || "";
-          const itemCode = i.barcode || i.code || i.productCode || "";
-          
-          if (!uCat && itemCode) {
-            try {
-              const costData = await physicalEntryApi.getPurchaseCostData(itemCode);
-              uCat = costData.unitCategory || "";
-            } catch (e) {
-              console.warn("Could not fetch unitCategory for item code", itemCode);
-            }
+        const detailsList = Array.isArray(details) ? details : [];
+        const mappedItems: PhysicalEntryLineItem[] = [];
+        const newCategoryUnits: Record<string, { label: string; value: string; currentValue: number }[]> = {};
+        const options: SearchableOption[] = [];
+        const seenIds = new Set<string>();
+
+        for (const i of detailsList) {
+          const productId = String(i.productId ?? i.ProductId ?? i.product ?? "");
+          const itemCode = String(i.barcode || i.Barcode || i.code || i.Code || i.productCode || i.ProductCode || "");
+          const prodName = String(i.productName || i.ProductName || i.itemName || i.ItemName || (productId ? `Product ${productId}` : ""));
+          const unitId = String(i.unitId ?? i.UnitId ?? i.unit ?? "");
+          const unitName = String(i.unitName || i.UnitName || (unitId ? "Unit" : ""));
+          const uCat = String(i.unitCategory || i.UnitCategory || (unitId ? `cat_${unitId}` : ""));
+          const qty = String(i.qty ?? i.Qty ?? "1");
+          const cost = formatAmount(i.price ?? i.Price ?? i.cost ?? i.Cost ?? 0);
+
+          if (unitId && uCat) {
+            newCategoryUnits[uCat] = [
+              { label: unitName || "Unit", value: unitId, currentValue: Number(i.baseQty || 1) }
+            ];
           }
 
-          if (uCat) loadCategoryUnits(uCat);
-          
+          if (productId && !seenIds.has(productId)) {
+            seenIds.add(productId);
+            options.push({
+              label: itemCode ? `[${itemCode}] ${prodName}` : prodName,
+              value: productId,
+              code: itemCode,
+              barcode: itemCode,
+            });
+          }
+
           mappedItems.push({
             id: generateUUID(),
-            product: i.productId?.toString() || "",
-            productName: i.productName || "",
+            product: productId,
+            productName: prodName,
             code: itemCode,
-            unit: i.unitId?.toString() || "",
-            unitId: i.unitId,
+            unit: unitId,
+            unitId: Number(unitId) || undefined,
             unitCategory: uCat,
-            qty: i.qty?.toString() || "0",
-            cost: i.price?.toString() || "0",
-            stock: "-", // Do not show real-time stock when editing past records
+            qty,
+            cost,
+            stock: "-",
           });
         }
-        formPayload.items = mappedItems;
-      } else {
-        formPayload.items = [];
-      }
 
-      // Pre-populate product options for existing items
-      const productIds = Array.from(new Set(details.map((i: any) => i.productId)));
-      const options: SearchableOption[] = [];
-      for (const pId of productIds) {
-        if (!pId) continue;
-        const searchRes = await physicalEntryApi.getProductListByName("");
-        const pData = searchRes.find(r => r.productId === pId);
-        if (pData) {
-          options.push({
-            label: pData.code ? `[${pData.code}] ${pData.productName}` : pData.productName,
-            value: pData.productId.toString(),
-            code: pData.code || "",
-            barcode: pData.barcode || ""
-          });
-        }
+        const formPayload: PhysicalEntryForm = {
+          refNo,
+          date,
+          branch,
+          salesman,
+          narration,
+          items: mappedItems.length > 0 ? mappedItems : [{
+            id: generateUUID(),
+            product: "",
+            code: "",
+            unit: "",
+            qty: "1",
+            cost: "0",
+          }],
+        };
+
+        const employeeName = master.employeeName || master.EmployeeName || master.salesmanName || master.salesman || master.empName || "";
+
+        return {
+          rawData: responseData,
+          formPayload,
+          productOptions: options,
+          employeeName,
+          newCategoryUnits,
+        };
+      } catch (err) {
+        console.error("Failed to load physical entry record for editing:", err);
+        throw err;
       }
-      return { rawData: responseData, formPayload, productOptions: options };
     },
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Apply fetched record data to form
   useEffect(() => {
     if (id && recordData) {
+      if (recordData.newCategoryUnits && Object.keys(recordData.newCategoryUnits).length > 0) {
+        setCategoryUnits(prev => ({ ...prev, ...recordData.newCategoryUnits }));
+      }
       reset(recordData.formPayload);
       setProductOptions(recordData.productOptions);
     } else if (!id) {
@@ -208,22 +267,24 @@ export const usePhysicalEntry = (id?: string | null) => {
 
   // Pre-select first branch when branches finish loading (Add Mode)
   useEffect(() => {
-    if (!id && branches.length > 0 && !getValues("branch")) {
-      if (isBranchLocked && initialBranchId) {
-        setValue("branch", String(initialBranchId));
-      } else {
-        setValue("branch", branches[0].value);
+    if (!id && branches.length > 0) {
+      if (effectiveBranchId && getValues("branch") !== effectiveBranchId) {
+        setValue("branch", effectiveBranchId);
       }
     }
-  }, [branches, id, setValue, getValues, isBranchLocked, initialBranchId]);
+  }, [branches, id, effectiveBranchId, setValue, getValues]);
 
   // Set refNo and salesman when branch details finish loading (Add Mode)
   useEffect(() => {
     if (!id && branchData.refNo) {
       setValue("refNo", branchData.refNo);
     }
-    if (!id && branchData.employees.length > 0 && !getValues("salesman")) {
-      setValue("salesman", branchData.employees[0].value);
+    if (!id && branchData.employees.length > 0) {
+      const currentSalesman = getValues("salesman");
+      const exists = branchData.employees.some((e: any) => e.value === currentSalesman);
+      if (!currentSalesman || !exists) {
+        setValue("salesman", branchData.employees[0].value);
+      }
     }
   }, [branchData, id, setValue, getValues]);
 
@@ -234,13 +295,19 @@ export const usePhysicalEntry = (id?: string | null) => {
   const employees = useMemo(() => {
     const list = [...branchData.employees];
     if (id && recordData) {
-      const master = (recordData.rawData as any).masterData || recordData.rawData;
-      const empId = String(master.employeeId || "");
+      const master = (recordData.rawData as any)?.masterData || (recordData.rawData as any)?.data?.masterData || (recordData as any).master || recordData.rawData;
+      const empId = String(recordData.formPayload?.salesman || master?.employeeId || master?.EmployeeId || "");
+      const empName = (recordData as any).employeeName || master?.employeeName || master?.EmployeeName || master?.salesmanName || master?.empName || master?.salesman;
       if (empId && !list.find(e => e.value === empId)) {
         list.push({
-          label: master.employeeName || master.empName || master.salesmanName || `[${empId}] Unknown`,
+          label: empName || `[${empId}] Unknown`,
           value: empId
         });
+      } else if (empId && empName) {
+        const existing = list.find(e => e.value === empId);
+        if (existing && (existing.label.includes("Unknown") || existing.label === empId)) {
+          existing.label = empName;
+        }
       }
     }
     return list;
@@ -263,12 +330,12 @@ export const usePhysicalEntry = (id?: string | null) => {
     setSearchingProducts(true);
     try {
       // When query is empty, fetch all products so the dropdown is populated on first click
-      const [nameResults, costDetail] = await Promise.all([
+      const [nameResults, costDetail]: [any[], any] = await Promise.all([
         physicalEntryApi.getProductListByName(query).catch(() => []),
         query ? physicalEntryApi.getPurchaseCostData(query).catch(() => null) : Promise.resolve(null)
       ]);
 
-      let mapped = nameResults.map((r) => ({
+      let mapped = (nameResults || []).map((r: any) => ({
         label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
         value: r.productId.toString(),
         code: r.code || "",
@@ -287,7 +354,7 @@ export const usePhysicalEntry = (id?: string | null) => {
       }
       
       const seenIds = new Set<string>();
-      mapped = mapped.filter(item => {
+      mapped = mapped.filter((item: any) => {
         if (seenIds.has(item.value)) return false;
         seenIds.add(item.value);
         return true;
@@ -322,7 +389,7 @@ export const usePhysicalEntry = (id?: string | null) => {
 
     try {
       const barcodeToUse = option?.barcode || option?.code || valStr;
-      const details = await physicalEntryApi.getPurchaseCostData(barcodeToUse);
+      const details: any = await physicalEntryApi.getPurchaseCostData(barcodeToUse);
       if (details) {
         setValue(`items.${index}.unitCategory`, details.unitCategory || "");
         setValue(`items.${index}.unitId`, details.baseUnitId);
@@ -339,7 +406,7 @@ export const usePhysicalEntry = (id?: string | null) => {
         const asOnDate = getValues("date");
         if (branchIdStr && valStr) {
           physicalEntryApi.getAsOnDateStock(Number(valStr), Number(branchIdStr), asOnDate)
-            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .then((res: any) => setValue(`items.${index}.stock`, res.stock || "0"))
             .catch(() => setValue(`items.${index}.stock`, "Error"));
         }
       } else {
@@ -355,11 +422,11 @@ export const usePhysicalEntry = (id?: string | null) => {
     try {
       setValue(`items.${index}.stock`, "...");
       // Try barcode/code via cost-data endpoint first
-      let details = await physicalEntryApi.getPurchaseCostData(barcode).catch(() => null);
+      let details: any = await physicalEntryApi.getPurchaseCostData(barcode).catch(() => null);
 
       // Fallback: search by name/code if cost-data returns nothing
       if (!details) {
-        const nameResults = await physicalEntryApi.getProductListByName(barcode).catch(() => []);
+        const nameResults: any[] = await physicalEntryApi.getProductListByName(barcode).catch(() => []);
         if (nameResults && nameResults.length > 0) {
           // Use the first match, then fetch its cost data using its barcode
           const first = nameResults[0];
@@ -368,7 +435,7 @@ export const usePhysicalEntry = (id?: string | null) => {
           // If still no cost data, create a minimal details object
           if (!details) {
             setProductOptions(prev => {
-              if (prev.find(o => o.value === String(first.productId))) return prev;
+              if (prev.find((o: any) => o.value === String(first.productId))) return prev;
               const lbl = first.code ? `[${first.code}] ${first.productName}` : first.productName;
               return [...prev, { label: lbl, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
             });
@@ -381,7 +448,7 @@ export const usePhysicalEntry = (id?: string | null) => {
               const asOnDate = getValues("date");
               if (branchIdStr && first.productId) {
                 physicalEntryApi.getAsOnDateStock(first.productId, Number(branchIdStr), asOnDate)
-                  .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+                  .then((res: any) => setValue(`items.${index}.stock`, res.stock || "0"))
                   .catch(() => setValue(`items.${index}.stock`, "Error"));
               }
             } else {
@@ -395,7 +462,7 @@ export const usePhysicalEntry = (id?: string | null) => {
       if (details) {
         const labelWithCode = details.productCode ? `[${details.productCode}] ${details.productName}` : details.productName;
         setProductOptions(prev => {
-          if (prev.find(o => o.value === String(details!.productId))) return prev;
+          if (prev.find((o: any) => o.value === String(details!.productId))) return prev;
           return [...prev, { label: labelWithCode, value: String(details!.productId), code: details!.productCode || "", barcode }];
         });
         setValue(`items.${index}.product`, String(details.productId));
@@ -414,7 +481,7 @@ export const usePhysicalEntry = (id?: string | null) => {
           const asOnDate = getValues("date");
           if (branchIdStr && details.productId) {
             physicalEntryApi.getAsOnDateStock(details.productId, Number(branchIdStr), asOnDate)
-              .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+              .then((res: any) => setValue(`items.${index}.stock`, res.stock || "0"))
               .catch(() => setValue(`items.${index}.stock`, "Error"));
           }
         } else {
@@ -435,8 +502,8 @@ export const usePhysicalEntry = (id?: string | null) => {
     const productId = getValues(`items.${index}.product`);
     if (!productId || !unitId) return;
     try {
-      const result = await physicalEntryApi.getUnitCost(Number(productId), Number(unitId));
-      if (result.cost !== undefined && result.cost !== null) {
+      const result: any = await physicalEntryApi.getUnitCost(Number(productId), Number(unitId));
+      if (result && result.cost !== undefined && result.cost !== null) {
         setValue(`items.${index}.cost`, formatAmount(result.cost));
       }
 
@@ -445,7 +512,7 @@ export const usePhysicalEntry = (id?: string | null) => {
         const asOnDate = getValues("date");
         if (branchIdStr && productId) {
           physicalEntryApi.getAsOnDateStock(Number(productId), Number(branchIdStr), asOnDate)
-            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+            .then((res: any) => setValue(`items.${index}.stock`, res.stock || "0"))
             .catch(() => setValue(`items.${index}.stock`, "Error"));
         }
       }
@@ -532,6 +599,11 @@ export const usePhysicalEntry = (id?: string | null) => {
 
       queryClient.invalidateQueries({ queryKey: ["physicalEntryList"] });
       queryClient.invalidateQueries({ queryKey: ["physicalEntryBranchData"] });
+      queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productWiseStockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productTransactionLogReport"] });
       
       return true;
     } catch (error: any) {
@@ -556,6 +628,7 @@ export const usePhysicalEntry = (id?: string | null) => {
     searchingProducts,
     loadingMaster,
     saving,
+    isBranchLocked,
     handleProductSearch,
     handleItemProductChange,
     handleBarcodeScan,

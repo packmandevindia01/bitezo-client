@@ -1,6 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../product/types";
-import type { BranchPayload, BranchRecord } from "../types";
+import type { BranchPayload, BranchRecord, LineItem } from "../types";
 import { 
   buildRequestBody, 
   mapResponseToBranch, 
@@ -114,9 +114,35 @@ export const fetchBranchById = async (branchId: number): Promise<BranchRecord> =
   return mapResponseToBranch(branchId, data.data);
 };
 
+export const fetchBranchPrintData = async (): Promise<LineItem[]> => {
+  const { data } = await axiosInstance.get<any>("/Branch/print-data");
+
+  const rawList: any[] = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.data)
+    ? data.data
+    : [];
+
+  return rawList.map((item) => {
+    const code = String(item.code || item.id || "").trim();
+    const section = (item.section || (code.startsWith("H") ? "header" : code.startsWith("F") ? "footer" : "dayEndHeader")) as "header" | "footer" | "dayEndHeader";
+    return {
+      id: code || `${section}-${Math.random()}`,
+      code: code || undefined,
+      value: String(item.value ?? item.lineValue ?? ""),
+      fontFamily: item.fontFamily || "Courier",
+      fontStyle: item.fontStyle || "Regular",
+      fontSize: item.fontSize || "Medium",
+      offsetX: typeof item.offsetX === "number" ? Math.max(0, Math.min(100, item.offsetX)) : 0,
+      section,
+    };
+  });
+};
+
 export const branchApi = {
   fetchBranchNames,
   fetchBranchById,
+  fetchBranchPrintData,
   createBranch,
   updateBranch,
   deleteBranch,

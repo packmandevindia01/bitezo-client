@@ -74,6 +74,7 @@ export const useProductWiseStockAdjustmentReport = () => {
         ToDate: toDate,
         Decimals: decimalPart,
       }),
+    refetchOnMount: "always",
   });
 
   // ── Client-side search filter ───────────────────────────────────────────────

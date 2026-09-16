@@ -30,6 +30,7 @@ import { POS_CONFIGS_STORAGE_KEY, posConfigApi, type RuntimePosConfig } from "..
 import { useEmployeeAuthorization } from "../hooks/useEmployeeAuthorization";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { clearAllPosCache, alternativesCache, productDataCache } from "../hooks/usePosProducts";
+import { branchApi } from "../../../inventory/branches/services/branchApi";
 
 export const PosTerminalPage = () => {
   const location = useLocation();
@@ -184,6 +185,19 @@ export const PosTerminalPage = () => {
     setAlternatives([]);
     setSelectedProduct(null);
   }, [terminal.activeGroupId, terminal.activeCategoryId, terminal.activeSubCategoryId, terminal.search]);
+
+  // Load and cache branch print layout lines on POS terminal mount
+  useEffect(() => {
+    branchApi.fetchBranchPrintData()
+      .then((lines) => {
+        if (lines && lines.length > 0) {
+          localStorage.setItem("branchPrintData", JSON.stringify(lines));
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load branch print data:", err);
+      });
+  }, []);
 
   const resetTerminalState = () => {
     terminal.clearCart();

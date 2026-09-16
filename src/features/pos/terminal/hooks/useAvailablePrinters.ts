@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import qz from "qz-tray";
 import { connectQZ } from "../../services/qzService";
+import { printerSettingsApi } from "../../services/printerSettingsApi";
+import type { PrinterIpMapItem } from "../../types";
 
 const ESCPOSPlugin = registerPlugin<any>("ESCPOSPlugin");
 
@@ -10,17 +12,36 @@ export interface PrinterOption {
   value: string;
 }
 
-export const useAvailablePrinters = () => {
+export interface UseAvailablePrintersProps {
+  isAndroid?: boolean;
+  onToggleAndroid?: (val: boolean) => void;
+}
+
+export const useAvailablePrinters = (props?: UseAvailablePrintersProps) => {
   const [printers, setPrinters] = useState<string[]>([]);
+  const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingIpMap, setLoadingIpMap] = useState<boolean>(false);
+  const [isAndroidPrinter, setIsAndroidPrinter] = useState<boolean>(() => {
+    if (props?.isAndroid !== undefined) return props.isAndroid;
+    return localStorage.getItem("androidPrint") === "true";
+  });
+
+  // Keep in sync if prop changes from parent
+  useEffect(() => {
+    if (props?.isAndroid !== undefined) {
+      setIsAndroidPrinter(props.isAndroid);
+    }
+  }, [props?.isAndroid]);
 
   useEffect(() => {
     let isMounted = true;
 
+    // 1. Fetch live desktop/native printers
     const loadPrinters = async () => {
       const foundSet = new Set<string>();
 
-      // 1. Load saved printers from general config in localStorage
+      // Load saved printers from general config in localStorage
       try {
         const savedGen = localStorage.getItem("generalPrinterSettings");
         if (savedGen) {
@@ -37,7 +58,7 @@ export const useAvailablePrinters = () => {
         // Ignore JSON parse errors
       }
 
-      // 2. Fetch live system printers via QZ Tray (Desktop/Web) or Native plugin (Android/iOS)
+      // Live system printers via QZ Tray (Desktop/Web) or Native plugin (Android/iOS)
       if (Capacitor.isNativePlatform()) {
         try {
           const res = await ESCPOSPlugin.listPrinters({ type: "bluetooth" });
@@ -63,16 +84,58 @@ export const useAvailablePrinters = () => {
       }
     };
 
+    // 2. Fetch IP Map printers from backend
+    const loadIpMaps = async () => {
+      setLoadingIpMap(true);
+      try {
+        const res = await printerSettingsApi.getPrinterIpMap();
+        if (isMounted && res?.isSuccess && Array.isArray(res.data)) {
+          setIpMapList(res.data);
+        }
+      } catch (e) {
+        console.error("[useAvailablePrinters] Failed to fetch printer IP maps:", e);
+      } finally {
+        if (isMounted) setLoadingIpMap(false);
+      }
+    };
+
     loadPrinters();
+    loadIpMaps();
+
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const printerOptions: PrinterOption[] = [
-    { label: "No Printer", value: "No Printer" },
-    ...printers.map((p) => ({ label: p, value: p })),
-  ];
+  const toggleAndroidPrinter = (enabled: boolean) => {
+    setIsAndroidPrinter(enabled);
+    localStorage.setItem("androidPrint", String(enabled));
+    if (props?.onToggleAndroid) {
+      props.onToggleAndroid(enabled);
+    }
+  };
 
-  return { printers, printerOptions, loading };
+  const printerOptions: PrinterOption[] = isAndroidPrinter
+    ? [
+        { label: "No Printer", value: "No Printer" },
+        ...ipMapList.map((item) => ({
+          label: `${item.printerName} (${item.ipAddress})`,
+          value: item.printerName,
+        })),
+      ]
+    : [
+        { label: "No Printer", value: "No Printer" },
+        ...printers.map((p) => ({ label: p, value: p })),
+      ];
+
+  return {
+    printers,
+    printerOptions,
+    ipMapList,
+    loading,
+    loadingIpMap,
+    isAndroidPrinter,
+    setIsAndroidPrinter,
+    toggleAndroidPrinter,
+  };
 };

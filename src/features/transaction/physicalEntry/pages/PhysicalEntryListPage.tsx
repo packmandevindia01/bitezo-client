@@ -5,9 +5,11 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { physicalEntryApi } from "../services/physicalEntryApi";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PhysicalEntryListPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { formatAmount } = useCurrency();
   const {
     records,
@@ -31,6 +33,11 @@ const PhysicalEntryListPage = () => {
     try {
       await physicalEntryApi.cancelPhysicalEntry(deleteId);
       fetchList();
+      queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productWiseStockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productTransactionLogReport"] });
     } catch (err: any) {
       setError(err.message || "Failed to cancel physical entry");
     } finally {
@@ -38,7 +45,7 @@ const PhysicalEntryListPage = () => {
     }
   };
 
-  const filteredRecords = records.filter(row => {
+  const filteredRecords = records.filter((row: any) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -111,10 +118,10 @@ const PhysicalEntryListPage = () => {
           rowKey="transId"
           loading={loading}
           columns={[
-            { header: "Sl No", accessor: "sNo" as any, render: (row, index) => row.sNo || (index !== undefined ? index + 1 : "-") },
-            { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString() },
-            { header: "Ref No", accessor: "refNo" },
-            { header: "Branch", accessor: "branch" },
+            { header: "Sl No", accessor: "sl" as any, render: (_, index) => (index !== undefined ? index + 1 : "-"), align: "center" },
+            { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString(), align: "center" },
+            { header: "Ref No", accessor: "refNo", align: "center" },
+            { header: "Branch", accessor: "branch", align: "center" },
             { header: "Total Amount", accessor: "netAmount", render: (row) => formatAmount(Number(row.netAmount)), align: "right" },
             {
               header: "Actions",

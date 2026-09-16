@@ -1,6 +1,6 @@
 import { Modal, Button } from "../../../../components/common";
 import { X, Check } from "lucide-react";
-import { FONT_FAMILIES, FONT_STYLES, FONT_SIZES } from "../utils/lineHelpers";
+import { FONT_FAMILIES, FONT_STYLES, FONT_SIZES, resolveFontSizePx } from "../utils/lineHelpers";
 import type { FontModalState } from "../types";
 
 interface Props {
@@ -107,10 +107,10 @@ const FontModal = ({ state, sampleText, onChange, onApply, onClose }: Props) => 
       <p className="text-xs text-gray-400 mb-1">Sample</p>
       <p
         style={{
-          fontFamily: state.temp.fontFamily,
-          fontWeight: state.temp.fontStyle.includes("Bold") ? "bold" : "normal",
-          fontStyle: state.temp.fontStyle.includes("Italic") ? "italic" : "normal",
-          fontSize: `${state.temp.fontSize}px`,
+          fontFamily: state.temp.fontFamily || "Courier",
+          fontWeight: String(state.temp.fontStyle || "").toLowerCase().includes("bold") ? "bold" : "normal",
+          fontStyle: String(state.temp.fontStyle || "").toLowerCase().includes("italic") ? "italic" : "normal",
+          fontSize: `${resolveFontSizePx(state.temp.fontSize)}px`,
         }}
       >
         {sampleText}

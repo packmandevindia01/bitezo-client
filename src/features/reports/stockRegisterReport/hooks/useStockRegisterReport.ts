@@ -68,6 +68,7 @@ export const useStockRegisterReport = () => {
   const { data: products = [], isLoading: productsLoading } = useQuery({
     queryKey: ["productList"],
     queryFn: getProductList,
+    refetchOnMount: "always",
   });
 
   // Report query
@@ -88,6 +89,7 @@ export const useStockRegisterReport = () => {
 
       return getStockRegisterReport(params);
     },
+    refetchOnMount: "always",
   });
 
   // Client-side filtering fallback

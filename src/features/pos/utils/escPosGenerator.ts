@@ -19,6 +19,7 @@ import type { PosCartItem } from "../types";
 import type { GuestPrintData } from "./guestPrintTemplate";
 import type { KotPrintData } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
+import { getDayEndReportConfig } from "../services/posConfigApi";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // chars per line on 80mm paper
@@ -80,6 +81,13 @@ const totalsLine = (label: string, value: string, bold = false): string => {
 /** Get active branch custom line items from localStorage / session */
 export const getActiveBranchLines = (): any[] => {
   try {
+    const cachedPrintData = localStorage.getItem("branchPrintData");
+    if (cachedPrintData) {
+      const parsed = JSON.parse(cachedPrintData);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed?.data) && parsed.data.length > 0) return parsed.data;
+    }
+
     const sessionStr = localStorage.getItem("posSession") || localStorage.getItem("activeBranch");
     if (sessionStr) {
       const parsed = JSON.parse(sessionStr);
@@ -94,20 +102,48 @@ export const getActiveBranchLines = (): any[] => {
 
 /** Convert dynamic line items to ESC/POS markup tags */
 export const buildEscPosLines = (lines: any[], section: "header" | "footer" | "dayEndHeader"): string => {
-  const sectionLines = lines.filter(l => l.section === section && l.value && l.value.trim() !== "");
+  const target = section.toLowerCase();
+  const sectionLines = lines.filter(l => {
+    if (!l.value || String(l.value).trim() === "") return false;
+    const sec = String(l.section || "").toLowerCase();
+    const code = String(l.code || l.id || "").toUpperCase();
+    if (target === "header") {
+      return sec === "header" || (code.startsWith("H") && !code.startsWith("EH"));
+    }
+    if (target === "footer") {
+      return sec === "footer" || code.startsWith("F");
+    }
+    if (target === "dayendheader") {
+      return sec === "dayendheader" || sec === "dayend" || code.startsWith("EH");
+    }
+    return false;
+  });
+
   if (sectionLines.length === 0) return "";
 
   let markup = "";
   sectionLines.forEach(l => {
-    let text = l.value.trim();
-    if (l.fontStyle === "Bold") text = `<b>${text}</b>`;
-    if (l.fontSize === "Large") text = `<font size='big'>${text}</font>`;
+    let text = String(l.value).trim();
+    const isBold = String(l.fontStyle || "").toLowerCase().includes("bold");
+    const isLarge = String(l.fontSize || "").toLowerCase() === "large";
 
+    if (isBold) text = `<b>${text}</b>`;
+    if (isLarge) text = `<font size='big'>${text}</font>`;
+
+    const offset = typeof l.offsetX === "number" ? Math.max(0, Math.min(100, Math.round(l.offsetX))) : 0;
     let alignTag = "[L]";
-    if (l.offsetX === 50) alignTag = "[C]";
-    else if (l.offsetX >= 85) alignTag = "[R]";
-    else if (l.offsetX > 0) {
-      const indentSpaces = Math.min(15, Math.floor((l.offsetX / 100) * 20));
+
+    if (offset === 0) {
+      alignTag = "[L]";
+    } else if (offset === 50) {
+      alignTag = "[C]";
+    } else if (offset === 100) {
+      alignTag = "[R]";
+    } else {
+      // Custom percentage-based left indentation margin (1% to 49% or intermediate)
+      alignTag = "[L]";
+      const maxCols = isLarge ? Math.floor(LINE_WIDTH / 2) : LINE_WIDTH;
+      const indentSpaces = Math.max(1, Math.min(maxCols - 4, Math.floor((offset / 100) * maxCols)));
       text = " ".repeat(indentSpaces) + text;
     }
 
@@ -119,10 +155,8 @@ export const buildEscPosLines = (lines: any[], section: "header" | "footer" | "d
 /** Get company name + address from dynamic branch lines or fallback to localStorage */
 export const getCompanyHeader = (): string => {
   const activeLines = getActiveBranchLines();
-  const headerLines = activeLines.filter(l => l.section === "header" && l.value && l.value.trim() !== "");
-  if (headerLines.length > 0) {
-    return buildEscPosLines(activeLines, "header");
-  }
+  const dynamicMarkup = buildEscPosLines(activeLines, "header");
+  if (dynamicMarkup) return dynamicMarkup;
 
   const name    = localStorage.getItem("companyName") || "RESTAURANT";
   const address = localStorage.getItem("companyAddress") || "";
@@ -141,21 +175,15 @@ export const getCompanyHeader = (): string => {
 /** Get dynamic End-of-Day report header (EH1..EH7) or fallback to company header */
 export const getEndReportHeader = (): string => {
   const activeLines = getActiveBranchLines();
-  const dayEndLines = activeLines.filter(l => l.section === "dayEndHeader" && l.value && l.value.trim() !== "");
-  if (dayEndLines.length > 0) {
-    return buildEscPosLines(activeLines, "dayEndHeader");
-  }
+  const dynamicMarkup = buildEscPosLines(activeLines, "dayEndHeader");
+  if (dynamicMarkup) return dynamicMarkup;
   return getCompanyHeader();
 };
 
 /** Get dynamic receipt footer lines (F1..F7) */
 export const getCompanyFooter = (): string => {
   const activeLines = getActiveBranchLines();
-  const footerLines = activeLines.filter(l => l.section === "footer" && l.value && l.value.trim() !== "");
-  if (footerLines.length > 0) {
-    return buildEscPosLines(activeLines, "footer");
-  }
-  return "";
+  return buildEscPosLines(activeLines, "footer");
 };
 
 const now = () => {
@@ -534,6 +562,8 @@ export const generateCashierReportMarkup = (input: CashierReportMarkupInput): st
 // ── End Report Markup (Day End & Shift End) ───────────────────────────────────
 
 export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND'): string => {
+  const config = getDayEndReportConfig();
+  console.log(`[ESC/POS ${reportType} Report Data Received from Backend]:`, data);
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
   const fmt = (val: number | undefined | null) => Number(val || 0).toFixed(decimalPart);
 
@@ -571,8 +601,8 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   markup += twoCol("End Time:", formatTime(gs.endDate)) + "\n";
   markup += `[L]${DASH_SEP}\n`;
 
-  // Order Summary
-  if (data.orderTypes && data.orderTypes.length > 0) {
+  // Order Summary (Order Type)
+  if (config.showOrderType && data.orderTypes && data.orderTypes.length > 0) {
     markup += `[C]<b>ORDER SUMMARY</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     let orderSummaryTotal = 0;
@@ -584,26 +614,128 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
     markup += `[L]${DASH_SEP}\n`;
   }
 
-  // Waiter Summary
-  if (data.waiters && data.waiters.length > 0) {
+  // Waiter Summary (Employee)
+  const waitersList = data.waiters || (data as any).employees || [];
+  if (config.showEmployee && waitersList.length > 0) {
     markup += `[C]<b>WAITER SUMMARY</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     let waiterTotal = 0;
-    data.waiters.forEach(w => {
-      waiterTotal += w.total;
-      markup += twoCol(w.waiter, fmt(w.total)) + "\n";
+    waitersList.forEach((w: any) => {
+      const name = w.waiter || w.employeeName || w.employee || "Unknown";
+      waiterTotal += (w.total || 0);
+      markup += twoCol(name, fmt(w.total)) + "\n";
     });
     markup += twoCol("Total:", fmt(waiterTotal)) + "\n";
     markup += `[L]${DASH_SEP}\n`;
   }
 
   // Sales by Category
-  if (data.categories && data.categories.length > 0) {
+  if (config.showCategory && data.categories && data.categories.length > 0) {
     markup += `[C]<b>SALES BY CATEGORY</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     data.categories.forEach(c => {
       markup += twoCol(`${c.categoryName} (x${c.qty})`, fmt(c.total)) + "\n";
     });
+    markup += `[L]${DASH_SEP}\n`;
+  }
+
+  // Sales by Product
+  const prodList = (data as any).products || (data as any).productSummary || [];
+  if (config.showProduct && prodList.length > 0) {
+    markup += `[C]<b>SALES BY PRODUCT</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+    let prodTotal = 0;
+    prodList.forEach((p: any) => {
+      const name = p.productName || p.product || "Unknown";
+      const qty = p.qty || p.quantity || 0;
+      const total = p.total || p.amount || 0;
+      prodTotal += Number(total) || 0;
+      markup += twoCol(`${name} (x${qty})`, fmt(total)) + "\n";
+    });
+    markup += twoCol("Total:", fmt(prodTotal)) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
+  }
+
+  // Sales by Group
+  const groupList = (data as any).groups || (data as any).groupSummary || [];
+  if (config.showGroup && groupList.length > 0) {
+    markup += `[C]<b>SALES BY GROUP</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+    let groupTotal = 0;
+    groupList.forEach((g: any) => {
+      const name = g.groupName || g.group || "Unknown";
+      const qty = g.qty || g.quantity || 0;
+      const total = g.total || g.amount || 0;
+      groupTotal += Number(total) || 0;
+      markup += twoCol(`${name} (x${qty})`, fmt(total)) + "\n";
+    });
+    markup += twoCol("Total:", fmt(groupTotal)) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
+  }
+
+  // Driver Summary
+  const driverList = (data as any).drivers || (data as any).driverSummary || [];
+  if (config.showDriver && driverList.length > 0) {
+    markup += `[C]<b>DRIVER SUMMARY</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+    let driverTotal = 0;
+    driverList.forEach((d: any) => {
+      const name = d.driverName || d.driver || "Unknown";
+      const count = d.count || d.totalOrders || 0;
+      const total = d.total || d.amount || 0;
+      driverTotal += Number(total) || 0;
+      markup += twoCol(`${name} (${count} orders)`, fmt(total)) + "\n";
+    });
+    markup += twoCol("Total:", fmt(driverTotal)) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
+  }
+
+  // Voucher Entries
+  const voucherList = (data as any).voucherEntries || (data as any).vouchers || [];
+  if (config.showVoucherEntry && voucherList.length > 0) {
+    markup += `[C]<b>VOUCHER ENTRIES</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+    let voucherTotal = 0;
+    voucherList.forEach((v: any) => {
+      const num = v.voucherNo || v.voucherNumber || v.billNo || "-";
+      const amt = v.amount || 0;
+      voucherTotal += Number(amt) || 0;
+      markup += twoCol(num, fmt(amt)) + "\n";
+    });
+    markup += twoCol("Total:", fmt(voucherTotal)) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
+  }
+
+  // Void Items
+  const voidList = data.voidProducts || (data as any).voidItems || [];
+  if (config.showVoidItem && voidList.length > 0) {
+    markup += `[C]<b>VOID ITEMS</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+    let voidTotal = 0;
+    voidList.forEach((v: any) => {
+      const amt = v.amount || 0;
+      voidTotal += amt;
+      const pName = v.productName || v.product || "Unknown";
+      markup += twoCol(`${pName} (x${v.qty || 1})`, fmt(amt)) + "\n";
+    });
+    markup += twoCol("Total Void:", fmt(voidTotal)) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
+  }
+
+  // Denominations
+  const denomList = (data as any).denominations || (data as any).cashDenominations || [];
+  if (config.showDenomination && denomList.length > 0) {
+    markup += `[C]<b>DENOMINATIONS</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+    let denomTotal = 0;
+    denomList.forEach((d: any) => {
+      const count = d.count ?? d.cashCount ?? 0;
+      const value = d.denomination ?? d.denominationValue ?? d.name ?? 0;
+      const total = d.total ?? (Number(value) * Number(count));
+      denomTotal += Number(total) || 0;
+      markup += twoCol(`${value} x ${count}`, fmt(total)) + "\n";
+    });
+    markup += twoCol("Total:", fmt(denomTotal)) + "\n";
     markup += `[L]${DASH_SEP}\n`;
   }
 

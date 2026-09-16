@@ -115,3 +115,59 @@ export const posConfigApi = {
     return res.data;
   },
 };
+
+export interface DayEndReportConfig {
+  showCategory: boolean;
+  showVoucherEntry: boolean;
+  showOrderType: boolean;
+  showEmployee: boolean;
+  showVoidItem: boolean;
+  showDenomination: boolean;
+  showProduct: boolean;
+  showGroup: boolean;
+  showDriver: boolean;
+}
+
+const checkDayEndFlag = (val: any, fallback: boolean): boolean => {
+  if (val === undefined || val === null || val === "") return fallback;
+  if (typeof val === "boolean") return val;
+  const s = String(val).trim().toLowerCase();
+  if (s === "enable" || s === "true" || s === "1") return true;
+  if (s === "disable" || s === "false" || s === "0") return false;
+  return fallback;
+};
+
+export const getDayEndReportConfig = (): DayEndReportConfig => {
+  try {
+    const raw = localStorage.getItem(POS_CONFIGS_STORAGE_KEY) || localStorage.getItem("posConfig");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const c = parsed?.configs || parsed || {};
+      return {
+        showCategory: checkDayEndFlag(c.categoryDayend, true),
+        showVoucherEntry: checkDayEndFlag(c.voucherEntryDayend, false),
+        showOrderType: checkDayEndFlag(c.orderTypeDayend, true),
+        showEmployee: checkDayEndFlag(c.employeeDayend, true),
+        showVoidItem: checkDayEndFlag(c.voidItemDayend, true),
+        showDenomination: checkDayEndFlag(c.denominationDayend, false),
+        showProduct: checkDayEndFlag(c.productDayend, false),
+        showGroup: checkDayEndFlag(c.groupDayend, false),
+        showDriver: checkDayEndFlag(c.driverDayend, false),
+      };
+    }
+  } catch (e) {
+    console.error("Error reading Day End config:", e);
+  }
+
+  return {
+    showCategory: true,
+    showVoucherEntry: false,
+    showOrderType: true,
+    showEmployee: true,
+    showVoidItem: true,
+    showDenomination: false,
+    showProduct: false,
+    showGroup: false,
+    showDriver: false,
+  };
+};

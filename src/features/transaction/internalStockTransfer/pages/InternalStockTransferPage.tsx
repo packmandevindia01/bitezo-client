@@ -426,11 +426,12 @@ const InternalStockTransferPage = () => {
                               control={control}
                               render={({ field: selectField }) => (
                                 <SearchableSelect
-                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded cursor-not-allowed bg-gray-50"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
                                   onChange={(val) => handleUnitChange(index, val)}
-                                  disabled={!canSave}
+                                  disabled={true}
+                                  tabIndex={-1}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />

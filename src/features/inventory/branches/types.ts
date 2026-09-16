@@ -27,18 +27,19 @@ export interface BranchFormData {
 
 export interface LineItem {
   id: string;
+  code?: string;
   value: string;
   fontFamily: string;
-  fontStyle: string;
-  fontSize: string;
+  fontStyle: "Bold" | "Regular" | string;
+  fontSize: "Small" | "Medium" | "Large" | string;
   offsetX: number;
   section: "header" | "footer" | "dayEndHeader";
 }
 
 export interface FontSettings {
   fontFamily: string;
-  fontStyle: string;
-  fontSize: string;
+  fontStyle: "Bold" | "Regular" | string;
+  fontSize: "Small" | "Medium" | "Large" | string;
 }
 
 export interface FontModalState {

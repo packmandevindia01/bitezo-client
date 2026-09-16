@@ -37,6 +37,8 @@ const PhysicalEntryPage = () => {
     categoryUnits,
     searchingProducts,
     saving,
+    isBranchLocked,
+    loadingMaster,
     handleProductSearch,
     handleItemProductChange,
     handleBarcodeScan,
@@ -190,13 +192,13 @@ const PhysicalEntryPage = () => {
             {/* ── Header Fields ── Extremely dense padding to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
               <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pe-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pe-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "pe-branch")} readOnly={!canSave} error={errors.date?.message as string} max={new Date().toISOString().split("T")[0]} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pe-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "pe-branch")} readOnly={!canSave || loadingMaster} error={errors.date?.message as string} max={new Date().toISOString().split("T")[0]} />
               
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-branch" label="Branch" value={field.value} options={branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "pe-salesman")} disabled={!canSave || isEditMode || branches.length <= 1 || hasProductsAdded} error={errors.branch?.message as string} />
+                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-branch" label="Branch" value={field.value} options={branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "pe-salesman")} disabled={!canSave || loadingMaster || isEditMode || isBranchLocked || hasProductsAdded} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-salesman" label="Salesman" value={field.value} options={employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave} error={errors.salesman?.message as string} />
+                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-salesman" label="Salesman" value={field.value} options={employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
 
@@ -218,11 +220,26 @@ const PhysicalEntryPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {items.map((field, index) => {
+                    {loadingMaster && isEditMode ? (
+                      <tr>
+                        <td colSpan={9} className="py-8 text-center text-xs text-gray-500">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="w-4 h-4 border-2 border-[#49293e] border-t-transparent rounded-full animate-spin" />
+                            <span>Loading entry details...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      items.map((field, index) => {
                       const itemWatch = watch(`items.${index}`);
                       const lineAmount = calculateLine(itemWatch as PhysicalEntryLineItem).amount;
                       const rowOptions = getRowOptions(index);
-                      const unitOptions = categoryUnits[watch(`items.${index}.unitCategory`)] || [];
+                      const unitCat = watch(`items.${index}.unitCategory`);
+                      const rawUnitList = categoryUnits[unitCat] || [];
+                      const curUnit = watch(`items.${index}.unit`);
+                      const unitOptions = (curUnit && !rawUnitList.some(u => u.value === curUnit))
+                        ? [{ label: (itemWatch as any)?.unitName || "Unit", value: curUnit, currentValue: 1 }, ...rawUnitList]
+                        : rawUnitList;
 
                       return (
                         <tr key={field.id} className="hover:bg-gray-50/30 transition-colors group">
@@ -240,7 +257,7 @@ const PhysicalEntryPage = () => {
                                   loading={searchingProducts}
                                   onChange={(val) => {
                                     handleItemProductChange(index, val);
-                                    if (val) setTimeout(() => document.getElementById(`unit-select-${index}`)?.focus(), 50);
+                                    if (val) setTimeout(() => document.getElementById(`qty-input-${index}`)?.focus(), 50);
                                   }}
                                   onBarcodeScan={async (barcode) => {
                                     const success = await handleBarcodeScan(index, barcode);
@@ -267,8 +284,9 @@ const PhysicalEntryPage = () => {
                                 <select
                                   id={`unit-select-${index}`}
                                   {...f}
-                                  className="w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs outline-none cursor-pointer focus:border-blue-500 focus:ring-0"
-                                  disabled={!canSave || !unitOptions.length}
+                                  className="w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs outline-none cursor-not-allowed text-gray-500 bg-gray-50"
+                                  disabled={true}
+                                  tabIndex={-1}
                                   onChange={(e) => {
                                     handleUnitChange(index, e.target.value);
                                     setTimeout(() => document.getElementById(`qty-input-${index}`)?.focus(), 50);
@@ -343,7 +361,7 @@ const PhysicalEntryPage = () => {
                           </td>
                         </tr>
                       );
-                    })}
+                    }))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50/90 font-bold text-xs">

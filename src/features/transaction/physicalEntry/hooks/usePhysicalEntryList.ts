@@ -3,6 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { physicalEntryApi } from "../services/physicalEntryApi";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+const toYYYYMMDD = (val?: string): string | undefined => {
+  if (!val) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const parts = val.split(/[-/]/);
+  if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  } catch {}
+  return val;
+};
+
 export const usePhysicalEntryList = () => {
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const [filters, setFilters] = useState({
@@ -16,7 +30,7 @@ export const usePhysicalEntryList = () => {
     queryKey: ["physicalEntryBranches"],
     queryFn: async () => {
       const res = await physicalEntryApi.getBranchList();
-      return res.map(b => ({ label: b.branchName, value: String(b.branchId) }));
+      return (res || []).map((b: any) => ({ label: b.branchName, value: String(b.branchId) }));
     }
   });
 
@@ -25,11 +39,12 @@ export const usePhysicalEntryList = () => {
     queryFn: async () => {
       const data = await physicalEntryApi.getPhysicalEntryDetails({
         BranchId: filters.branchId ? parseInt(filters.branchId, 10) : undefined,
-        FromDate: filters.fromDate || undefined,
-        ToDate: filters.toDate || undefined,
+        FromDate: toYYYYMMDD(filters.fromDate),
+        ToDate: toYYYYMMDD(filters.toDate),
         Decimals: 3
       });
-      return (data || []).sort((a: any, b: any) => {
+      const list: any[] = Array.isArray(data) ? data : ((data as any)?.data || []);
+      return [...list].sort((a: any, b: any) => {
         const dateA = new Date(a.transDate).getTime();
         const dateB = new Date(b.transDate).getTime();
         if (dateA !== dateB) return dateB - dateA;

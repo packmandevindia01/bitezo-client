@@ -4,6 +4,7 @@ import { Type } from "lucide-react";
 import { DragHandle, PositionSlider } from "../../../../components/common";
 
 import type { LineItem } from "../types";
+import { resolveFontSizePx } from "../utils/lineHelpers";
 
 interface Props {
   item: LineItem;
@@ -21,6 +22,10 @@ const SortableRow = ({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
 
+  const slotLabel = item.code || (
+    item.section === "header" ? `H${index + 1}` : item.section === "footer" ? `F${index + 1}` : `EH${index + 1}`
+  );
+
   return (
     <div
       ref={setNodeRef}
@@ -31,8 +36,8 @@ const SortableRow = ({
       <DragHandle listeners={listeners} attributes={attributes} />
 
       {/* Label */}
-      <span className="text-[10px] text-gray-400 font-bold w-5 shrink-0">
-        {item.section === "header" ? "H" : "F"}{index + 1}
+      <span className="text-[10px] text-gray-400 font-bold w-6 shrink-0 text-center">
+        {slotLabel}
       </span>
 
       {/* Input */}
@@ -44,10 +49,10 @@ const SortableRow = ({
         onKeyDown={onKeyDown}
         placeholder="Enter text..."
         style={{
-          fontFamily: item.fontFamily,
-          fontWeight: item.fontStyle.includes("Bold") ? "bold" : "normal",
-          fontStyle: item.fontStyle.includes("Italic") ? "italic" : "normal",
-          fontSize: `${item.fontSize}px`,
+          fontFamily: item.fontFamily || "Courier",
+          fontWeight: String(item.fontStyle || "").toLowerCase().includes("bold") ? "bold" : "normal",
+          fontStyle: String(item.fontStyle || "").toLowerCase().includes("italic") ? "italic" : "normal",
+          fontSize: `${resolveFontSizePx(item.fontSize)}px`,
         }}
       />
 

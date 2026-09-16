@@ -44,33 +44,79 @@ export const generateGuestPrintHtml = async (
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
 
   let customHeadersHtml = "";
+  let customFootersHtml = "";
   const allowCompanyHeader = data.showCompanyHeader !== false;
   if (allowCompanyHeader) {
     try {
-      const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-      const branchIdStr = isBackoffice
-        ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
-        : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
-      
-      let branchId = 0;
-      if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
-        branchId = Number(branchIdStr);
+      let branchLines: any[] = [];
+      const cached = localStorage.getItem("branchPrintData");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) branchLines = parsed;
+          else if (Array.isArray(parsed?.data)) branchLines = parsed.data;
+        } catch {}
       }
-      if (branchId > 0) {
-        const branch = await branchApi.fetchBranchById(branchId);
-        
-        if (branch && branch.lines) {
-          const headers = branch.lines.filter(l => l.section === 'header' && l.value);
-          if (headers.length > 0) {
-            customHeadersHtml = headers.map(l => {
-              const styleObj = getLineStyle(l) as any;
-              const styleStr = Object.entries(styleObj).map(([k, v]) => {
-                const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-                return `${kebab}:${v}`;
-              }).join(";");
-              return `<div style="${styleStr}">${l.value}</div>`;
-            }).join("");
+
+      if (branchLines.length === 0) {
+        try {
+          branchLines = await branchApi.fetchBranchPrintData();
+          if (branchLines && branchLines.length > 0) {
+            localStorage.setItem("branchPrintData", JSON.stringify(branchLines));
           }
+        } catch {
+          const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+          const branchIdStr = isBackoffice
+            ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+            : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+          
+          let branchId = 0;
+          if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+            branchId = Number(branchIdStr);
+          }
+          if (branchId > 0) {
+            const branch = await branchApi.fetchBranchById(branchId);
+            if (branch && branch.lines) {
+              branchLines = branch.lines;
+            }
+          }
+        }
+      }
+
+      if (branchLines && branchLines.length > 0) {
+        const isHeader = (l: any) => {
+          const sec = String(l.section || "").toLowerCase();
+          const code = String(l.code || l.id || "").toUpperCase();
+          return sec === "header" || (code.startsWith("H") && !code.startsWith("EH"));
+        };
+        const isFooter = (l: any) => {
+          const sec = String(l.section || "").toLowerCase();
+          const code = String(l.code || l.id || "").toUpperCase();
+          return sec === "footer" || code.startsWith("F");
+        };
+
+        const headers = branchLines.filter(l => isHeader(l) && l.value && String(l.value).trim() !== "");
+        if (headers.length > 0) {
+          customHeadersHtml = headers.map(l => {
+            const styleObj = getLineStyle(l) as any;
+            const styleStr = Object.entries(styleObj).map(([k, v]) => {
+              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+              return `${kebab}:${v}`;
+            }).join(";");
+            return `<div style="${styleStr}">${l.value}</div>`;
+          }).join("");
+        }
+
+        const footers = branchLines.filter(l => isFooter(l) && l.value && String(l.value).trim() !== "");
+        if (footers.length > 0) {
+          customFootersHtml = footers.map(l => {
+            const styleObj = getLineStyle(l) as any;
+            const styleStr = Object.entries(styleObj).map(([k, v]) => {
+              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+              return `${kebab}:${v}`;
+            }).join(";");
+            return `<div style="${styleStr}">${l.value}</div>`;
+          }).join("");
         }
       }
     } catch {
@@ -245,7 +291,7 @@ export const generateGuestPrintHtml = async (
       </head>
       <body>
           ${allowCompanyHeader ? (customHeadersHtml ? `
-            <div style="text-align: center; margin-bottom: 10px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+            <div style="margin-bottom: 10px; padding: 0 4px; width: 100%; box-sizing: border-box;">
               ${customHeadersHtml}
             </div>
           ` : `
@@ -397,6 +443,12 @@ export const generateGuestPrintHtml = async (
         <div class="barcode-container">*${data.orderNo}*</div>
         
         <div style="font-size: 11px; margin-top: 5px;">Print Time : ${dateStr} ${timeStr}</div>
+
+        ${customFootersHtml ? `
+        <div style="margin-top: 10px; padding: 0 4px; width: 100%; box-sizing: border-box;">
+          ${customFootersHtml}
+        </div>
+        ` : ''}
       </body>
     </html>
   `;

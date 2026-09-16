@@ -565,6 +565,11 @@ export const useStockAdjustment = (id?: string | null) => {
 
       queryClient.invalidateQueries({ queryKey: ["stockAdjustmentList"] });
       queryClient.invalidateQueries({ queryKey: ["branchData"] });
+      queryClient.invalidateQueries({ queryKey: ["productWiseStockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productTransactionLogReport"] });
+      queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       return true;
     } catch (err: any) {
       console.error("Save error:", err);

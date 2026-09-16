@@ -279,7 +279,8 @@ const StockAdjustmentPage = () => {
                                           methods.setValue(`items.${index}.type`, "");
                                         }
                                       setTimeout(() => {
-                                        document.getElementById(`unit-select-${index}`)?.focus();
+                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                        qtyInputs[0]?.focus();
                                       }, 100);
                                     }}
                                     onKeyDown={async (e) => {
@@ -287,7 +288,8 @@ const StockAdjustmentPage = () => {
                                         if (productSelectedRef.current) {
                                           productSelectedRef.current = false;
                                           setTimeout(() => {
-                                            document.getElementById(`unit-select-${index}`)?.focus();
+                                            const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                            qtyInputs[0]?.focus();
                                           }, 100);
                                           return;
                                         }
@@ -299,7 +301,8 @@ const StockAdjustmentPage = () => {
                                           const success = await handleBarcodeScan(index, rawValue.trim());
                                           if (success) {
                                             setTimeout(() => {
-                                              document.getElementById(`unit-select-${index}`)?.focus();
+                                              const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                              qtyInputs[0]?.focus();
                                             }, 100);
                                           }
                                           return;
@@ -311,7 +314,8 @@ const StockAdjustmentPage = () => {
                                         } else {
                                           e.preventDefault();
                                           setTimeout(() => {
-                                            document.getElementById(`unit-select-${index}`)?.focus();
+                                            const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                            qtyInputs[0]?.focus();
                                           }, 100);
                                         }
                                       }
@@ -330,7 +334,7 @@ const StockAdjustmentPage = () => {
                               control={control}
                               render={({ field: selectField }) => (
                                 <SearchableSelect
-                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded cursor-not-allowed bg-gray-50"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
                                   onChange={(val) => {
@@ -347,7 +351,8 @@ const StockAdjustmentPage = () => {
                                       qtyInputs[0]?.focus();
                                     }
                                   }}
-                                  disabled={!canSave}
+                                  disabled={true}
+                                  tabIndex={-1}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />

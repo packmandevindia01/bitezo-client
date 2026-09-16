@@ -4,10 +4,12 @@ import { useStockAdjustmentList } from "../hooks/useStockAdjustmentList";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
 
 const StockAdjustmentListPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { formatAmount } = useCurrency();
   const {
     records,
@@ -30,6 +32,12 @@ const StockAdjustmentListPage = () => {
     if (!deleteId) return;
     try {
       await stockAdjustmentApi.cancelStockAdjustment(deleteId);
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentList"] });
+      queryClient.invalidateQueries({ queryKey: ["productWiseStockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productTransactionLogReport"] });
+      queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
+      queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       fetchList();
     } catch (err: any) {
       setError(err.message || "Failed to cancel stock adjustment");

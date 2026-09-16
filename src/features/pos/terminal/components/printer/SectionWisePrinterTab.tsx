@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { SelectInput, Button, RecordTableCard, ConfirmDialog } from "../../../../../components/common";
-import { Trash2 } from "lucide-react";
+import { Trash2, AlertTriangle } from "lucide-react";
 import type { SectionPrinterSetting } from "../../../types";
 import { dineInApi } from "../../../services/dineInApi";
 import { useAvailablePrinters } from "../../hooks/useAvailablePrinters";
@@ -9,14 +9,27 @@ interface SectionWisePrinterTabProps {
   initialData: SectionPrinterSetting[];
   onSave: (data: SectionPrinterSetting[]) => void;
   loading?: boolean;
+  isAndroidPrinter?: boolean;
+  onToggleAndroidPrinter?: (enabled: boolean) => void;
 }
 
 export const SectionWisePrinterTab: React.FC<SectionWisePrinterTabProps> = ({
   initialData,
   onSave,
   loading,
+  isAndroidPrinter,
+  onToggleAndroidPrinter,
 }) => {
-  const { printerOptions } = useAvailablePrinters();
+  const {
+    printerOptions,
+    isAndroidPrinter: isAndroid,
+    toggleAndroidPrinter,
+    ipMapList,
+    loadingIpMap,
+  } = useAvailablePrinters({
+    isAndroid: isAndroidPrinter,
+    onToggleAndroid: onToggleAndroidPrinter,
+  });
   const [items, setItems] = useState<SectionPrinterSetting[]>(initialData);
   const [form, setForm] = useState({
     sectionId: "",
@@ -31,11 +44,20 @@ export const SectionWisePrinterTab: React.FC<SectionWisePrinterTabProps> = ({
   }, [initialData]);
 
   useEffect(() => {
-    if (printerOptions.length > 1 && form.firstPrinter === "No Printer") {
-      setForm((prev) => ({
-        ...prev,
-        firstPrinter: printerOptions[1].value,
-      }));
+    if (printerOptions.length > 1) {
+      const exists = printerOptions.some((p) => p.value === form.firstPrinter);
+      if (!exists || form.firstPrinter === "No Printer") {
+        setForm((prev) => ({
+          ...prev,
+          firstPrinter: printerOptions[1].value,
+        }));
+      }
+      if (form.secondPrinter !== "No Printer") {
+        const secondExists = printerOptions.some((p) => p.value === form.secondPrinter);
+        if (!secondExists) {
+          setForm((prev) => ({ ...prev, secondPrinter: "No Printer" }));
+        }
+      }
     }
   }, [printerOptions]);
 
@@ -76,6 +98,38 @@ export const SectionWisePrinterTab: React.FC<SectionWisePrinterTabProps> = ({
   return (
     <div className="flex flex-col h-full gap-6">
       <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.2em] flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-[#49293e] rounded-full" />
+            Section Routing
+          </h3>
+
+          {/* Android Printer Toggle */}
+          <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-[#49293e]/30 transition-colors">
+            <input
+              type="checkbox"
+              checked={isAndroid}
+              onChange={(e) => toggleAndroidPrinter(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-[#49293e] focus:ring-[#49293e] cursor-pointer"
+            />
+            <span>Enable Android Printer Option</span>
+          </label>
+        </div>
+
+        {/* Warning banner when androidPrint is enabled but no printer IP mappings exist */}
+        {isAndroid && !loadingIpMap && ipMapList.length === 0 && (
+          <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 flex items-start gap-3 text-amber-800 mb-4">
+            <AlertTriangle className="shrink-0 mt-0.5 text-amber-600" size={18} />
+            <div className="text-xs">
+              <p className="font-bold">No Printer IP Mappings Saved</p>
+              <p className="text-amber-700 mt-0.5">
+                Android Direct Printing is enabled, but no printer IP addresses are currently saved.
+                Please navigate to the <strong>IP MAP</strong> tab to configure your thermal printer IP mappings.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
           <div className="flex items-center gap-3 min-w-[280px]">
             <label className="text-[11px] font-black text-[#49293e] uppercase tracking-[0.15em] whitespace-nowrap">

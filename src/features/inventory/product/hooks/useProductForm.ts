@@ -386,6 +386,8 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
+      queryClient.invalidateQueries({ queryKey: ["productList"] });
+      queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
 
       if (productId) {
         navigate("/dashboard/products");
@@ -406,6 +408,8 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
+      queryClient.invalidateQueries({ queryKey: ["productList"] });
+      queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
       navigate("/dashboard/products");
     },
     onError: (error: any) => {
