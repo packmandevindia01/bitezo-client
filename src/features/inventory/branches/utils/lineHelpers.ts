@@ -40,10 +40,11 @@ export const getLineStyle = (item: LineItem): React.CSSProperties => {
 
   const baseStyle: React.CSSProperties = {
     fontFamily: item.fontFamily ? `${item.fontFamily}, 'Courier New', monospace` : "'Courier New', monospace",
-    fontWeight: isBold ? "bold" : 500,
+    fontWeight: isBold ? "bold" : 600,
     fontStyle: isItalic ? "italic" : "normal",
     fontSize: `${fontSizePx}px`,
     color: "#000000",
+    WebkitTextStroke: isBold ? "0.22px #000000" : "0.15px #000000",
     wordBreak: "break-word",
     boxSizing: "border-box",
     lineHeight: 1.35,

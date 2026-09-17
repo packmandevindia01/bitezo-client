@@ -284,6 +284,72 @@ const PurchaseInvoiceFormPage = () => {
     }
   };
 
+  const handleLimitKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    maxChars: number,
+    onEnter?: () => void
+  ) => {
+    if (e.key === "Enter") {
+      if (onEnter) {
+        e.preventDefault();
+        onEnter();
+      }
+      return;
+    }
+    if (e.key === "-" || e.key === "+" || e.key === "e" || e.key === "E") {
+      e.preventDefault();
+      return;
+    }
+    if (
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey ||
+      [
+        "Backspace",
+        "Delete",
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowUp",
+        "ArrowDown",
+        "Tab",
+        "Home",
+        "End",
+        "Escape",
+      ].includes(e.key)
+    ) {
+      return;
+    }
+    const target = e.currentTarget;
+    if (
+      target.selectionStart !== null &&
+      target.selectionEnd !== null &&
+      target.selectionStart !== target.selectionEnd
+    ) {
+      return;
+    }
+    if (target.value.length >= maxChars) {
+      e.preventDefault();
+    }
+  };
+
+  const handleLimitPaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    field: string,
+    maxChars: number
+  ) => {
+    const paste = e.clipboardData.getData("text");
+    const target = e.currentTarget;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const newVal = target.value.slice(0, start) + paste + target.value.slice(end);
+    if (newVal.length > maxChars) {
+      e.preventDefault();
+      const truncated = newVal.slice(0, maxChars);
+      target.value = truncated;
+      methods.setValue(field as any, truncated, { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
   useEffect(() => { setTimeout(() => { document.getElementById("pi-series")?.focus(); }, 200); }, []);
 
   return (
@@ -361,7 +427,7 @@ const PurchaseInvoiceFormPage = () => {
                       const itemWatch = watchedItems[index] || {};
                       const lineTotals = calculateLine(itemWatch as any, grossTotal, Number(watchedDiscAmount) || 0);
                       return (
-                        <tr key={field.id} onFocusCapture={() => setActiveRowIndex(index)} className="hover:bg-blue-50/30 transition-colors group">
+                        <tr key={field.id} onFocusCapture={() => setActiveRowIndex(index)} onClick={() => setActiveRowIndex(index)} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
                           <td className="p-0.5 border-r border-gray-100 min-w-[200px] bg-white">
                             <Controller
@@ -473,28 +539,71 @@ const PurchaseInvoiceFormPage = () => {
                           </td>
                           
                           <td className="p-0 border-r border-gray-100 w-20">
-                            <input {...register(`items.${index}.qty`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
+                            <input
+                              {...register(`items.${index}.qty`, {
+                                onChange: (e) => {
+                                  if (e.target.value && e.target.value.length > 7) {
+                                    const sliced = e.target.value.slice(0, 7);
+                                    e.target.value = sliced;
+                                    methods.setValue(`items.${index}.qty`, sliced, { shouldValidate: true, shouldDirty: true });
+                                  }
+                                },
+                              })}
+                              type="number"
+                              min="0"
+                              step="any"
+                              maxLength={7}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => handleLimitKeyDown(e, 7, () => handleGridNav(e, index))}
+                              onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                if (e.currentTarget.value.length > 7) {
+                                  e.currentTarget.value = e.currentTarget.value.slice(0, 7);
+                                }
+                              }}
+                              onPaste={(e) => handleLimitPaste(e, `items.${index}.qty`, 7)}
+                              className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none"
+                              readOnly={!canSave}
+                            />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-16">
                             <input {...register(`items.${index}.foc`)} type="number" min="0" onFocus={(e) => e.target.select()} onKeyDown={(e) => handleGridNav(e, index)} className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none" readOnly={!canSave} />
                           </td>
                           <td className="p-0 border-r border-gray-100 w-24">
                             <input
-                              {...register(`items.${index}.price`)}
-                              type="number" min="0" step="0.001"
+                              {...register(`items.${index}.price`, {
+                                onChange: (e) => {
+                                  if (e.target.value && e.target.value.length > 10) {
+                                    const sliced = e.target.value.slice(0, 10);
+                                    e.target.value = sliced;
+                                    methods.setValue(`items.${index}.price`, sliced, { shouldValidate: true, shouldDirty: true });
+                                  }
+                                },
+                              })}
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              maxLength={10}
                               onFocus={(e) => e.target.select()}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
+                              onKeyDown={(e) =>
+                                handleLimitKeyDown(e, 10, () => {
                                   const rowProduct = methods.getValues(`items.${index}.product`);
                                   if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-                                    append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" }, { shouldFocus: false });
+                                    append(
+                                      { id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" },
+                                      { shouldFocus: false }
+                                    );
                                     setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
                                   } else {
                                     handleGridNav(e, index);
                                   }
+                                })
+                              }
+                              onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                if (e.currentTarget.value.length > 10) {
+                                  e.currentTarget.value = e.currentTarget.value.slice(0, 10);
                                 }
                               }}
+                              onPaste={(e) => handleLimitPaste(e, `items.${index}.price`, 10)}
                               className="w-full h-7 text-right bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 rounded px-1 py-0 text-xs outline-none font-mono"
                               readOnly={!canSave}
                             />

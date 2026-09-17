@@ -154,7 +154,7 @@ export const usePosConfiguration = () => {
           getEmployeeNames(branchId).catch((e) => { console.error(e); return []; }),
           posConfigApi.getOrderTypeList().catch((e) => { console.error(e); return []; }),
           posConfigApi.getPosConfig(branchId).catch(() => null),
-          branchApi.fetchBranchPrintData().catch(() => null)
+          branchApi.fetchBranchPrintData(branchId).catch(() => null)
         ]);
 
         if (printLinesRes && Array.isArray(printLinesRes) && printLinesRes.length > 0) {

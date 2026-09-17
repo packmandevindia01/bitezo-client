@@ -107,6 +107,11 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
         if (formattedTransDate) {
           localStorage.setItem("transDate", formattedTransDate);
         }
+        // Default closing date to session's transDate (not today) so the
+        // backend close-shift / close-day matches the session that was opened
+        if (formattedTransDate) {
+          setSelectedDate(formattedTransDate);
+        }
         setCloseTab("SHIFT");
       } else {
         localStorage.removeItem("activeShift");

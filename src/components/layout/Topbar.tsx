@@ -2,7 +2,7 @@ import { Menu } from "lucide-react";
 import TopbarBreadcrumbs from "./topbar/TopbarBreadcrumbs";
 import TopbarShiftIndicator from "./topbar/TopbarShiftIndicator";
 import TopbarProfileMenu from "./topbar/TopbarProfileMenu";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";
 import { selectBranchId, selectActiveBranchId, selectIsMaster, setActiveBranchId } from "../../features/auth/store/authSlice";
 import { branchApi } from "../../features/inventory/branches/services/branchApi";
@@ -26,10 +26,10 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
   // IF BRANCH ID IS 1 THEN ALLOW THE USER TO CHANGE THE BRANCH, IF BRANCH IS NOT 1, DISABLE THE BRANCH SELECTION
   const canSwitchBranch = userBranchId === 1 || isMaster;
 
-  useEffect(() => {
+  const loadBranches = useCallback(() => {
     branchApi.fetchBranchNames(true)
-      .then(data => {
-        const branchList = data.map(b => ({ id: b.id, name: b.branchName }));
+      .then((data) => {
+        const branchList = data.map((b) => ({ id: b.id, name: b.branchName }));
         setBranches(branchList);
 
         // Auto-set default active branch from user's login payload or first available branch if none set
@@ -46,6 +46,21 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
       })
       .catch(console.error);
   }, [userBranchId, activeBranchId, isBackofficeMode, dispatch]);
+
+  useEffect(() => {
+    loadBranches();
+
+    // Auto-refresh branches when window gains focus (e.g. switching back from Swagger/other tab)
+    window.addEventListener("focus", loadBranches);
+
+    // Auto-refresh when branches are added/edited/deleted in the app
+    window.addEventListener("branches:updated", loadBranches);
+
+    return () => {
+      window.removeEventListener("focus", loadBranches);
+      window.removeEventListener("branches:updated", loadBranches);
+    };
+  }, [loadBranches]);
 
   const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     dispatch(setActiveBranchId(Number(e.target.value)));

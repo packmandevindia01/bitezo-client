@@ -66,6 +66,27 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
+  getAllUnits: async () => {
+    try {
+      const response = await axiosInstance.get<{
+        data: {
+          unitId: number;
+          name: string;
+          category: string;
+          currentValue: number;
+        }[];
+        isSuccess: boolean;
+        message: string;
+      }>("/unit/unit-list");
+      if (response.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
   searchProductsByName: async (branchId: number, productName: string, purchaseId?: number) => {
     const params: any = { branchId, productName };
     if (purchaseId && purchaseId > 0) {

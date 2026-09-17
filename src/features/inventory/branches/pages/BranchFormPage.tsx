@@ -40,6 +40,7 @@ const BranchFormPage = () => {
         await createBranch(payload);
         showToast("Branch Master created successfully", "success");
       }
+      window.dispatchEvent(new CustomEvent("branches:updated"));
       navigate("/dashboard/branches");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save branch";
@@ -52,6 +53,7 @@ const BranchFormPage = () => {
      try {
        await deleteBranch(Number(id));
        showToast("Branch deleted successfully", "success");
+       window.dispatchEvent(new CustomEvent("branches:updated"));
        navigate("/dashboard/branches");
      } catch {
        showToast("Failed to delete branch", "error");

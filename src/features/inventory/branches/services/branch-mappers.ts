@@ -1,4 +1,5 @@
-import type { BranchPayload, BranchRecord, LineItem } from "../types";
+import type { BranchPayload, BranchPrintDesignDto, BranchRecord, LineItem } from "../types";
+import { getSectionPrefix, makeLines } from "../utils/lineHelpers";
 
 export interface BranchLineDto {
   id: string;
@@ -17,6 +18,7 @@ export interface BranchRequestBody {
   isActive: boolean | string;
   createdAt?: string;
   updatedAt?: string;
+  printDesigns: BranchPrintDesignDto[];
   lines?: BranchLineDto[];
   header1?: string; headerLeftAlign1?: number; headerFont1?: string;
   header2?: string; headerLeftAlign2?: number; headerFont2?: string;
@@ -88,13 +90,25 @@ export const buildRequestBody = (payload: BranchPayload, branchId?: number): Bra
     };
   });
 
+  const printDesigns: BranchPrintDesignDto[] = formattedLines.map((l) => ({
+    code: l.code || l.id,
+    section: l.section,
+    value: l.value,
+    fontFamily: l.fontFamily,
+    fontStyle: l.fontStyle,
+    fontSize: l.fontSize,
+    offsetX: l.offsetX,
+  }));
+
+  const isUpdate = typeof branchId === "number" && branchId > 0;
+
   return {
-    ...(branchId !== undefined ? { branchId } : { branchId: 0 }),
+    ...(isUpdate
+      ? { branchId, updatedAt: new Date().toISOString() }
+      : { createdAt: new Date().toISOString() }),
     branchName: payload.branchName,
     isActive: payload.isActive,
-    ...(branchId !== undefined
-      ? { updatedAt: new Date().toISOString() }
-      : { createdAt: new Date().toISOString() }),
+    printDesigns,
     lines: formattedLines,
     header1: h[0]?.value ?? "", headerLeftAlign1: Math.round(h[0]?.offsetX ?? 0), headerFont1: serializeFont(h[0]),
     header2: h[1]?.value ?? "", headerLeftAlign2: Math.round(h[1]?.offsetX ?? 0), headerFont2: serializeFont(h[1]),
@@ -122,82 +136,155 @@ export const buildRequestBody = (payload: BranchPayload, branchId?: number): Bra
 };
 
 export const mapResponseToBranch = (branchId: number, b: any): BranchRecord => {
+  if (!b) {
+    return {
+      id: branchId,
+      branchName: "",
+      isActive: true,
+      lines: [
+        ...makeLines("header", 7),
+        ...makeLines("footer", 7),
+        ...makeLines("dayEndHeader", 7),
+      ],
+      detailsLoaded: true,
+    };
+  }
+
+  // Support both nested structure { branchData, printDesigns } and legacy flat structure
+  const branchInfo = b.branchData || b.data?.branchData || b.data || b || {};
+  const branchName = String(branchInfo.branchName || b.branchName || "");
+  const rawActive = branchInfo.isActive ?? b.isActive;
+  const isActive = typeof rawActive === "boolean"
+    ? rawActive
+    : String(rawActive).toLowerCase() === "active" || rawActive === 1 || rawActive === "true";
+
+  // Check if server returned modern printDesigns or lines array
+  const rawDesigns = Array.isArray(b.printDesigns)
+    ? b.printDesigns
+    : Array.isArray(b.data?.printDesigns)
+    ? b.data.printDesigns
+    : Array.isArray(branchInfo.printDesigns)
+    ? branchInfo.printDesigns
+    : Array.isArray(b.lines)
+    ? b.lines
+    : Array.isArray(b.data?.lines)
+    ? b.data.lines
+    : null;
+
   let lines: LineItem[] = [];
 
-  // Check if server returned modern lines array
-  if (Array.isArray(b.lines) && b.lines.length > 0) {
-    lines = b.lines.map((l: any) => {
-      const code = String(l.code || l.id || "");
-      const section = (l.section || (code.startsWith("H") ? "header" : code.startsWith("F") ? "footer" : "dayEndHeader")) as "header" | "footer" | "dayEndHeader";
+  if (rawDesigns && rawDesigns.length > 0) {
+    const parsedDesigns: LineItem[] = rawDesigns.map((l: any, idx: number) => {
+      const code = String(l.code || l.id || "").trim();
+      let section: "header" | "footer" | "dayEndHeader" = "header";
+      const secLower = String(l.section || "").toLowerCase();
+      if (secLower === "footer" || code.toUpperCase().startsWith("F")) {
+        section = "footer";
+      } else if (
+        secLower === "dayendheader" ||
+        secLower === "dayend" ||
+        secLower === "end" ||
+        code.toUpperCase().startsWith("EH")
+      ) {
+        section = "dayEndHeader";
+      } else {
+        section = "header";
+      }
+
       return {
-        id: code || l.id,
+        id: code || `${section}-${idx + 1}`,
         code: code || undefined,
         section,
         value: String(l.value ?? l.lineValue ?? ""),
         fontFamily: l.fontFamily || "Courier",
         fontStyle: l.fontStyle || "Regular",
         fontSize: l.fontSize || "Medium",
-        offsetX: typeof l.offsetX === "number" ? l.offsetX : 0,
+        offsetX: typeof l.offsetX === "number" ? Math.max(0, Math.min(100, l.offsetX)) : 0,
       };
     });
+
+    // Ensure all 3 sections have 7 complete rows (H1..H7, F1..F7, EH1..EH7)
+    const sections: Array<"header" | "footer" | "dayEndHeader"> = ["header", "footer", "dayEndHeader"];
+    for (const sec of sections) {
+      const prefix = getSectionPrefix(sec);
+      const existingInSec = parsedDesigns.filter((l) => l.section === sec);
+
+      for (let i = 1; i <= 7; i++) {
+        const slotCode = `${prefix}${i}`;
+        const match = existingInSec.find(
+          (l) => (l.code && l.code.toUpperCase() === slotCode) || l.id.toUpperCase() === slotCode
+        );
+
+        if (match) {
+          lines.push(match);
+        } else if (existingInSec[i - 1]) {
+          lines.push({
+            ...existingInSec[i - 1],
+            id: slotCode,
+            code: slotCode,
+          });
+        } else {
+          lines.push({
+            id: slotCode,
+            code: slotCode,
+            value: "",
+            fontFamily: "Courier",
+            fontStyle: "Regular",
+            fontSize: "Medium",
+            offsetX: 0,
+            section: sec,
+          });
+        }
+      }
+    }
   } else {
-    // Map header fields back to LineItem array
+    // Map legacy flat fields back to LineItem array
+    const raw = (branchInfo || b) as Record<string, unknown>;
+
     for (let i = 1; i <= 7; i++) {
-      const raw = b as unknown as Record<string, unknown>;
       const val = raw[`header${i}`];
-      if (val !== undefined && val !== null) {
-        lines.push({
-          id: `H${i}`,
-          code: `H${i}`,
-          section: "header",
-          value: String(val),
-          offsetX: Number(raw[`headerLeftAlign${i}`] ?? 0),
-          ...parseFont(raw[`headerFont${i}`] as string | undefined),
-        });
-      }
+      lines.push({
+        id: `H${i}`,
+        code: `H${i}`,
+        section: "header",
+        value: val !== undefined && val !== null ? String(val) : "",
+        offsetX: Number(raw[`headerLeftAlign${i}`] ?? 0),
+        ...parseFont(raw[`headerFont${i}`] as string | undefined),
+      });
     }
 
-    // Map footer fields back to LineItem array
     for (let i = 1; i <= 7; i++) {
-      const raw = b as unknown as Record<string, unknown>;
       const val = raw[`footer${i}`];
-      if (val !== undefined && val !== null) {
-        lines.push({
-          id: `F${i}`,
-          code: `F${i}`,
-          section: "footer",
-          value: String(val),
-          offsetX: Number(raw[`footerLeftAlign${i}`] ?? 0),
-          ...parseFont(raw[`footerFont${i}`] as string | undefined),
-        });
-      }
+      lines.push({
+        id: `F${i}`,
+        code: `F${i}`,
+        section: "footer",
+        value: val !== undefined && val !== null ? String(val) : "",
+        offsetX: Number(raw[`footerLeftAlign${i}`] ?? 0),
+        ...parseFont(raw[`footerFont${i}`] as string | undefined),
+      });
     }
 
-    // Map day end header fields back to LineItem array (7 lines)
     for (let i = 1; i <= 7; i++) {
-      const raw = b as unknown as Record<string, unknown>;
       const val = raw[`dayEndHeader${i}`];
-      if (val !== undefined && val !== null) {
-        lines.push({
-          id: `EH${i}`,
-          code: `EH${i}`,
-          section: "dayEndHeader",
-          value: String(val),
-          offsetX: Number(raw[`dayEndHeaderLeftAlign${i}`] ?? 0),
-          ...parseFont(raw[`dayEndHeaderFont${i}`] as string | undefined),
-        });
-      }
+      lines.push({
+        id: `EH${i}`,
+        code: `EH${i}`,
+        section: "dayEndHeader",
+        value: val !== undefined && val !== null ? String(val) : "",
+        offsetX: Number(raw[`dayEndHeaderLeftAlign${i}`] ?? 0),
+        ...parseFont(raw[`dayEndHeaderFont${i}`] as string | undefined),
+      });
     }
   }
 
   return {
-    id: branchId,
-    branchName: b.branchName || "",
-    isActive: typeof b.isActive === "boolean" 
-      ? b.isActive 
-      : String(b.isActive).toLowerCase() === "active",
+    id: branchId || Number(branchInfo.branchId || 0),
+    branchName,
+    isActive,
     lines,
     detailsLoaded: true,
   };
 };
+
 

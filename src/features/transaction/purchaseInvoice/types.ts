@@ -9,10 +9,18 @@ export const getPurchaseInvoiceItemSchema = (decimalPart: number) => {
     unit: z.string().optional(),
     unitCategory: z.string().optional(),
     stock: z.string().optional(),
-    avgCost: z.union([z.string(), z.number()]).optional(),
-    qty: z.string().regex(posAmountRegex, "Invalid amount").refine(val => Number(val) > 0, "Qty > 0").default("1"),
+    avgCost: z.union([z.number(), z.string()]).optional(),
+    qty: z.string()
+      .max(7, "Quantity cannot exceed 7 characters")
+      .regex(posAmountRegex, "Invalid amount")
+      .refine(val => Number(val) > 0, "Qty > 0")
+      .default("1"),
     foc: z.string().regex(posAmountRegex, "Invalid amount").refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
-    price: z.string().regex(posAmountRegex, "Invalid amount").refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
+    price: z.string()
+      .max(10, "Price cannot exceed 10 characters")
+      .regex(posAmountRegex, "Invalid amount")
+      .refine(val => Number(val) >= 0, "Cannot be negative")
+      .default("0"),
     vatId: z.string().default("0"),
     vatPercent: z.string().regex(posAmountRegex, "Invalid amount").refine(val => Number(val) >= 0, "Cannot be negative").default("0"),
     discPercent: z.string().regex(posAmountRegex, "Invalid amount").refine(val => Number(val) >= 0, "Cannot be negative").default("0"),

@@ -414,13 +414,24 @@ const PurchaseReturnFormPage = () => {
                                   id={`unit-select-${index}`}
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={(() => {
-                                    const baseOpts = (itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : ((masterData as any)?.units || []);
-                                    if (itemWatch.unit && itemWatch.unitName && !baseOpts.some((o: any) => o.value === itemWatch.unit)) {
-                                      return [...baseOpts, { label: itemWatch.unitName, value: itemWatch.unit }];
-                                    }
-                                    return baseOpts;
-                                  })()}
+                                   options={(() => {
+                                     let baseOpts = (itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : [];
+                                     if (baseOpts.length === 0 && itemWatch.unit) {
+                                       for (const list of Object.values(categoryUnits)) {
+                                         if (list.some(u => String(u.value) === String(itemWatch.unit))) {
+                                           baseOpts = list;
+                                           break;
+                                         }
+                                       }
+                                     }
+                                     if (baseOpts.length === 0) {
+                                       baseOpts = (masterData as any)?.units || [];
+                                     }
+                                     if (itemWatch.unit && itemWatch.unitName && !baseOpts.some((o: any) => o.value === itemWatch.unit)) {
+                                       return [...baseOpts, { label: itemWatch.unitName, value: itemWatch.unit }];
+                                     }
+                                     return baseOpts;
+                                   })()}
                                   onChange={(val) => {
                                     handleUnitChange(index, val);
                                     setTimeout(() => {

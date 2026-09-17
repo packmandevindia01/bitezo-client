@@ -67,20 +67,77 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [searchingSuppliers, setSearchingSuppliers] = useState(false);
   const [searchingInvoices, setSearchingInvoices] = useState(false);
   const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
+  const [masterUnits, setMasterUnits] = useState<{ label: string; value: string; category?: string; currentValue: number }[]>([]);
+
+  // Load all system units on mount to ensure conversion factors are always available
+  useEffect(() => {
+    purchaseReturnApi.getAllUnits().then(units => {
+      if (units && units.length > 0) {
+        const mapped = units.map((u: any) => ({
+          label: u.name,
+          value: String(u.unitId),
+          category: u.category,
+          currentValue: Number(u.currentValue ?? 1)
+        }));
+        setMasterUnits(mapped);
+        setCategoryUnits(prev => {
+          const updated = { ...prev };
+          mapped.forEach((u: any) => {
+            const cat = u.category || "Quantity";
+            if (!updated[cat]) updated[cat] = [];
+            if (!updated[cat].some((x: any) => x.value === u.value)) {
+              updated[cat].push(u);
+            }
+          });
+          return updated;
+        });
+      }
+    }).catch(err => console.error("Failed to load all units", err));
+  }, []);
+
+  const getUnitCurrentValue = useCallback((unitId: string | number, loadedUnits?: { value: string, currentValue: number }[]): number => {
+    const uStr = String(unitId);
+    if (!uStr || uStr === "0") return 1;
+
+    if (loadedUnits && loadedUnits.length > 0) {
+      const found = loadedUnits.find(u => String(u.value) === uStr);
+      if (found && !isNaN(found.currentValue) && found.currentValue > 0) return found.currentValue;
+    }
+
+    const foundMaster = masterUnits.find(u => String(u.value) === uStr);
+    if (foundMaster && !isNaN(foundMaster.currentValue) && foundMaster.currentValue > 0) return foundMaster.currentValue;
+
+    for (const units of Object.values(categoryUnits)) {
+      const found = units.find(u => String(u.value) === uStr);
+      if (found && !isNaN(found.currentValue) && found.currentValue > 0) return found.currentValue;
+    }
+
+    return 1;
+  }, [masterUnits, categoryUnits]);
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
-    if (!unitCategory) return;
-    setCategoryUnits(prev => {
-      if (prev[unitCategory]) return prev;
-      purchaseReturnApi.getUnitsByCategory(unitCategory).then(res => {
-        setCategoryUnits(current => ({
-          ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
-        }));
-      }).catch(console.error);
-      return prev;
-    });
-  }, []);
+    if (!unitCategory) return [];
+    if (categoryUnits[unitCategory] && categoryUnits[unitCategory].length > 0) {
+      return categoryUnits[unitCategory];
+    }
+    try {
+      const res = await purchaseReturnApi.getUnitsByCategory(unitCategory);
+      const mapped = (res || []).map((u: any) => ({
+        label: u.name,
+        value: String(u.unitId),
+        category: unitCategory,
+        currentValue: Number(u.currentValue ?? u.currentvalue ?? 1)
+      }));
+      setCategoryUnits(current => ({
+        ...current,
+        [unitCategory]: mapped
+      }));
+      return mapped;
+    } catch (e) {
+      console.error("Failed to load category units", e);
+      return [];
+    }
+  }, [categoryUnits]);
 
   const [invoiceOptions, setInvoiceOptions] = useState<{label: string, value: string}[]>([]);
 
@@ -670,22 +727,29 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         setValue(`items.${index}.discPercent`, discPercentVal);
       }
 
+      let unitCategoryVal = "";
+      let loadedUnits: { label: string; value: string; currentValue: number }[] = [];
+
       if (barcodeVal) {
         try {
           const details = await purchaseReturnApi.getProductCostData(barcodeVal, purchaseId);
-          if (!invoiceItem) {
-            setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-            setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
-            setValue(`items.${index}.price`, formatAmount(details.cost));
-            setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
-            setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
-          }
-          if (details.unitCategory) {
-            loadCategoryUnits(details.unitCategory);
+          if (details) {
+            unitCategoryVal = details.unitCategory || "";
+            setValue(`items.${index}.unitCategory`, unitCategoryVal);
+            if (!invoiceItem) {
+              setValue(`items.${index}.unit`, details.baseUnitId?.toString() || "");
+              setValue(`items.${index}.price`, formatAmount(details.cost));
+              setValue(`items.${index}.vatId`, details.vatId?.toString() || "0");
+              setValue(`items.${index}.vatPercent`, details.vatValue?.toString() || "0");
+            }
           }
         } catch (e) {
           console.error("Failed to load cost data", e);
         }
+      }
+
+      if (unitCategoryVal) {
+        loadedUnits = await loadCategoryUnits(unitCategoryVal);
       }
 
       if (purchaseId && productId) {
@@ -703,27 +767,31 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           let otherRowsBaseQty = 0;
           currentItems.forEach((it: any, i: number) => {
             if (i !== index && String(it.product) === String(productId)) {
-              const uVal = (() => {
-                for (const units of Object.values(categoryUnits)) {
-                  const found = units.find(u => String(u.value) === String(it.unit));
-                  if (found && !isNaN(found.currentValue)) return found.currentValue;
-                }
-                return 1;
-              })();
+              const uVal = getUnitCurrentValue(it.unit, loadedUnits);
               otherRowsBaseQty += (toNumber(it.qty) + toNumber(it.foc)) * uVal;
             }
           });
 
-          const remainingBalance = Math.max(0, balance - otherRowsBaseQty);
+          const remainingBaseBalance = Math.max(0, balance - otherRowsBaseQty);
+          
+          // Get the current row's unit conversion factor
+          const currentRowUnit = getValues(`items.${index}.unit`) || invoiceItem?.unitId || "1";
+          const currentUnitValue = getUnitCurrentValue(currentRowUnit, loadedUnits);
+
+          // Convert the base balance into the row's selected unit
+          const unitRemainingQty = currentUnitValue > 0 ? (remainingBaseBalance / currentUnitValue) : remainingBaseBalance;
           
           if (balance <= 0) {
             showToast(`Cannot return ${opt.label}. It has already been fully returned.`, "error");
             setValue(`items.${index}.qty`, "0");
-          } else if (remainingBalance <= 0) {
+          } else if (remainingBaseBalance <= 0) {
             showToast(`Cannot return ${opt.label}. Available balance of ${balance} is already used in other rows.`, "error");
             setValue(`items.${index}.qty`, "0");
           } else {
-            setValue(`items.${index}.qty`, String(remainingBalance));
+            const formattedQty = Number.isInteger(unitRemainingQty)
+              ? String(unitRemainingQty)
+              : parseFloat(unitRemainingQty.toFixed(4)).toString();
+            setValue(`items.${index}.qty`, formattedQty);
           }
         } catch (err) {
           console.error("Failed to fetch balance qty", err);
@@ -751,8 +819,30 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
-  // When user changes unit on a line — fetch updated cost for that product+unit combination
+  // When user changes unit on a line — dynamically convert qty/foc and fetch updated cost for that product+unit combination
   const handleUnitChange = useCallback(async (index: number, unitId: string) => {
+    const oldUnitId = methods.getValues(`items.${index}.unit`);
+    const currentQty = toNumber(methods.getValues(`items.${index}.qty`));
+    const currentFoc = toNumber(methods.getValues(`items.${index}.foc`));
+
+    const oldUnitValue = getUnitCurrentValue(oldUnitId);
+    const newUnitValue = getUnitCurrentValue(unitId);
+
+    if (currentQty > 0 && oldUnitValue > 0 && newUnitValue > 0 && String(oldUnitId) !== String(unitId)) {
+      const convertedQty = (currentQty * oldUnitValue) / newUnitValue;
+      const formattedQty = Number.isInteger(convertedQty)
+        ? String(convertedQty)
+        : parseFloat(convertedQty.toFixed(4)).toString();
+      setValue(`items.${index}.qty`, formattedQty);
+    }
+    if (currentFoc > 0 && oldUnitValue > 0 && newUnitValue > 0 && String(oldUnitId) !== String(unitId)) {
+      const convertedFoc = (currentFoc * oldUnitValue) / newUnitValue;
+      const formattedFoc = Number.isInteger(convertedFoc)
+        ? String(convertedFoc)
+        : parseFloat(convertedFoc.toFixed(4)).toString();
+      setValue(`items.${index}.foc`, formattedFoc);
+    }
+
     setValue(`items.${index}.unit`, unitId);
     const productId = methods.getValues(`items.${index}.product`);
     if (!productId || !unitId) return;
@@ -775,7 +865,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       console.error("Failed to fetch unit cost", error);
       setValue(`items.${index}.avgCost`, "Error");
     }
-  }, [methods, setValue, formatAmount]);
+  }, [methods, setValue, formatAmount, getUnitCurrentValue]);
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
@@ -914,13 +1004,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       const productItemMap: Record<number, any> = {};
 
       for (const item of validItems) {
-        const unitCurrentValue = (() => {
-          for (const units of Object.values(categoryUnits)) {
-            const found = units.find(u => String(u.value) === String(item.unit));
-            if (found && !isNaN(found.currentValue)) return found.currentValue;
-          }
-          return 1;
-        })();
+        const unitCurrentValue = getUnitCurrentValue(item.unit);
         const baseQty = (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue;
         const productId = parseInt(item.product) || 0;
         if (productId > 0) {
@@ -989,14 +1073,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         createdAt: new Date().toISOString(),
         details: validItems.map((item: any) => {
           const l = calculateLine(item as PurchaseReturnLineItem, decimalPart, grossTotal, toNumber(data.discAmount));
-          // Find the unit's currentValue from loaded categoryUnits
-          const unitCurrentValue = (() => {
-            for (const units of Object.values(categoryUnits)) {
-              const found = units.find(u => String(u.value) === String(item.unit));
-              if (found && !isNaN(found.currentValue)) return found.currentValue;
-            }
-            return 1; // default to 1 (base unit)
-          })();
+          const unitCurrentValue = getUnitCurrentValue(item.unit);
           return {
             productId: parseInt(item.product) || 0,
             unitId: parseInt(item.unit) || 0,

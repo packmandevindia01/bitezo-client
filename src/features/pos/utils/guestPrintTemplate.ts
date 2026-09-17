@@ -256,6 +256,8 @@ export const generateGuestPrintHtml = async (
             width: 100%;
             max-width: 576px;
             background-color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }

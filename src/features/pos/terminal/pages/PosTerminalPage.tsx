@@ -93,10 +93,25 @@ export const PosTerminalPage = () => {
   }, [activeProvider, dispatch]);
 
   useEffect(() => {
-    if (terminal.tenderOptions.length > 0 && !selectedTender) {
-      setSelectedTender(terminal.tenderOptions[0].id);
+    if (terminal.tenderOptions.length > 0) {
+      // Prioritize Cash by paymodeId 1, then by label "cash", never by array index
+      const cashTender = 
+        terminal.tenderOptions.find(t => String(t.id) === "1") ||
+        terminal.tenderOptions.find(t => t.label.toLowerCase().includes("cash")) ||
+        terminal.tenderOptions[0];
+
+      if (!selectedTender) {
+        setSelectedTender(cashTender.id);
+      } else {
+        // If current selected tender is Credit but customer is Cash/General customer (1), auto-switch to Cash!
+        const currentTenderObj = terminal.tenderOptions.find(t => String(t.id) === String(selectedTender));
+        const isCredit = (currentTenderObj?.label || "").toLowerCase().includes("credit") && !(currentTenderObj?.label || "").toLowerCase().includes("multi");
+        if (isCredit && (!terminal.selectedCustomerId || Number(terminal.selectedCustomerId) === 1)) {
+          setSelectedTender(cashTender.id);
+        }
+      }
     }
-  }, [terminal.tenderOptions, selectedTender]);
+  }, [terminal.tenderOptions, selectedTender, terminal.selectedCustomerId]);
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
   const { productCache } = useAppSelector((state) => state.pos);
@@ -215,6 +230,10 @@ export const PosTerminalPage = () => {
     resetTerminalState();
     setActiveProvider(null);
     dispatch(setCustomerId(1));
+    const cashTender = terminal.tenderOptions.find(t => String(t.id) === "1") || terminal.tenderOptions.find(t => t.label.toLowerCase().includes("cash"));
+    if (cashTender) {
+      setSelectedTender(cashTender.id);
+    }
     void applyDefaultOrderType(true);
   };
 
@@ -441,10 +460,25 @@ export const PosTerminalPage = () => {
       return;
     }
 
-    if (selectedTender === "3") {
+    const currentTenderObj = terminal.tenderOptions.find(t => String(t.id) === String(selectedTender));
+    const currentTenderLabel = (currentTenderObj?.label || "").toLowerCase();
+    const isMultiPayTender = currentTenderLabel.includes("multi") || selectedTender === "3";
+    const isCreditTender = currentTenderLabel.includes("credit") && !isMultiPayTender;
+    if (isCreditTender && (!terminal.selectedCustomerId || Number(terminal.selectedCustomerId) === 1)) {
+      showToast("Credit payment is not allowed for Cash Customer. Please select a customer first.", "warning");
+      return;
+    }
+
+    let paymodeIdToSend = Number(selectedTender);
+    if (!paymodeIdToSend || isNaN(paymodeIdToSend) || paymodeIdToSend <= 0) {
+      const cashTender = terminal.tenderOptions.find(t => t.label.toLowerCase().includes("cash"));
+      paymodeIdToSend = cashTender ? Number(cashTender.id) : 1;
+    }
+
+    if (isMultiPayTender) {
       modals.setIsMultiPayModalOpen(true);
     } else {
-      checkoutFlow.handleCardCreditSettlement(Number(selectedTender));
+      checkoutFlow.handleCardCreditSettlement(paymodeIdToSend);
     }
   };
 

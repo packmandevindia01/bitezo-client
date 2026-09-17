@@ -489,18 +489,43 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       const master = res.masterData;
       const rootPaymodeId = res.masterData.paymodeId || 1;
       
-      const mappedItems = (res.detailsData || []).map((d: any) => ({
-        id: generateUUID(),
-        product: d.productId?.toString() || "",
-        code: d.productId?.toString() || "",
-        unit: d.unitId?.toString() || "",
-        unitName: d.unitName || "",
-        qty: d.qty?.toString() || "1",
-        foc: d.foc?.toString() || "0",
-        price: d.price?.toString() || "0",
-        discPercent: d.discPer?.toString() || "0",
-        vatId: d.vatId?.toString() || "0",
-        vatPercent: d.vatValue?.toString() || "0",
+      const branchId = Number(master.branchId) || 0;
+      
+      const mappedItems = await Promise.all((res.detailsData || []).map(async (d: any) => {
+        let stock = "0.000";
+        let avgCost: number | string = 0;
+        if (d.productId && branchId) {
+          try {
+            const [stockRes, costRes] = await Promise.allSettled([
+              productService.getClosingStock(Number(d.productId), branchId),
+              productService.getAverageCost(Number(d.productId), Number(d.unitId || 1), branchId)
+            ]);
+            if (stockRes.status === "fulfilled") {
+              stock = parseStockValue(stockRes.value);
+            }
+            if (costRes.status === "fulfilled") {
+              avgCost = Number((costRes.value as any)?.avgCost) || 0;
+            }
+          } catch (e) {
+            console.error("Failed to fetch stock/cost for item", d.productId, e);
+          }
+        }
+
+        return {
+          id: generateUUID(),
+          product: d.productId?.toString() || "",
+          code: d.barcode || d.productId?.toString() || "",
+          unit: d.unitId?.toString() || "",
+          unitName: d.unitName || "",
+          qty: d.qty?.toString() || "1",
+          foc: d.foc?.toString() || "0",
+          price: d.price?.toString() || "0",
+          discPercent: d.discPer?.toString() || "0",
+          vatId: d.vatId?.toString() || "0",
+          vatPercent: d.vatValue?.toString() || "0",
+          stock,
+          avgCost,
+        };
       }));
 
       // Do not auto-append empty row in edit mode

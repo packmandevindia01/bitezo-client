@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { 
-  POS_TENDER_OPTIONS, 
   POS_INITIAL_CART 
 } from '../../constants';
 import type { 
@@ -88,7 +87,7 @@ const initialState: PosState = {
   orderTypes: [],
   selectedOrderTypeId: initialOT.id,
   selectedOrderTypeName: initialOT.name,
-  selectedTender: POS_TENDER_OPTIONS[0]?.id ?? '',
+  selectedTender: '1',
   
   billDiscountValue: 0,
   billDiscountType: 'percentage',

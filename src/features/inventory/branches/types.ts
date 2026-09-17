@@ -61,3 +61,13 @@ export interface BranchRecord {
   isActive: boolean;
   detailsLoaded: boolean;
 }
+
+export interface BranchPrintDesignDto {
+  code: string;
+  section: "header" | "footer" | "dayEndHeader" | string;
+  value: string;
+  fontFamily: string;
+  fontStyle: string;
+  fontSize: string;
+  offsetX: number;
+}

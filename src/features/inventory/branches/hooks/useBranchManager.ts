@@ -61,6 +61,7 @@ export const useBranchManager = () => {
     }
     // Refresh global master data so other modules (Modifier, Product, etc.) see the changes
     dispatch(fetchGlobalMasterData());
+    window.dispatchEvent(new CustomEvent("branches:updated"));
     setOpen(false);
     setEditingBranch(null);
   };
@@ -73,6 +74,7 @@ export const useBranchManager = () => {
       setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
       showToast("Branch deleted successfully", "success");
       dispatch(fetchGlobalMasterData());
+      window.dispatchEvent(new CustomEvent("branches:updated"));
       setDeleteCandidate(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete branch";

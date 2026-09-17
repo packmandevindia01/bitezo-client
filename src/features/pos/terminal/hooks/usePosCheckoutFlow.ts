@@ -153,7 +153,10 @@ export const usePosCheckoutFlow = ({
     const isOrderEdited = !editingOrderId ? true : isCartModified;
 
     try {
-      const systemSeriesId = Number(localStorage.getItem("systemSeriesId")) || 1;
+      let systemSeriesId = Number(localStorage.getItem("systemSeriesId")) || Number(localStorage.getItem("seriesId")) || 1;
+      if (!systemSeriesId || isNaN(systemSeriesId) || systemSeriesId <= 0 || systemSeriesId > 6) {
+        systemSeriesId = 1;
+      }
       const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
       const activeTransDate = rawTransDate.split("T")[0];
       const activeDriverId = (orderPayload as any).driverId || Number(localStorage.getItem("selectedDriverId") || 0);
@@ -161,18 +164,31 @@ export const usePosCheckoutFlow = ({
         ? activeProvider.provider.postAccountId
         : orderPayload.customerId;
 
+      // Ensure each payment has a valid positive paymodeId
+      const validPayments = payments.map(p => {
+        let pid = Number(p.paymodeId);
+        if (!pid || isNaN(pid) || pid <= 0) {
+          const cashTender = (tenderOptions || []).find((t: any) => (t.label || "").toLowerCase().includes("cash"));
+          pid = cashTender ? Number(cashTender.id) : 1;
+        }
+        return { ...p, paymodeId: pid };
+      });
+
       // Rule: Block Credit Settlement if Customer ID is 1 (or default Cash Customer)
-      const isCreditPayment = payments.some(p => {
+      const isCreditPayment = validPayments.some(p => {
         const tender = (tenderOptions || []).find((t: any) => String(t.id) === String(p.paymodeId));
         const label = (tender?.label || "").toLowerCase();
-        return p.paymodeId === 3 || label.includes("credit");
+        return label.includes("credit") && !label.includes("multi");
       });
 
       if (isCreditPayment && (!resolvedCustomerId || Number(resolvedCustomerId) === 1)) {
+        showToast("Credit payment is not allowed for Cash Customer. Please select a customer first.", "warning");
         return;
       }
 
-      const rootPaymodeId = payments.length > 1 ? 3 : (payments.length === 1 ? payments[0].paymodeId : 0);
+      const rootPaymodeId = validPayments.length > 1 
+        ? 3 
+        : (validPayments.length === 1 && validPayments[0].paymodeId > 0 ? validPayments[0].paymodeId : 1);
       const salesPayload: any = {
         seriesId: systemSeriesId,
         prefix: "",
@@ -234,7 +250,7 @@ export const usePosCheckoutFlow = ({
           mapId: d.mapId,
           complimentaryStatus: d.complimentaryStatus || false
         })),
-        paymodes: rootPaymodeId === 3 ? payments : []
+        paymodes: rootPaymodeId === 3 ? validPayments : []
       };
 
       console.log("========== 🛒 POS SETTLEMENT DETAILS ==========");
@@ -370,6 +386,12 @@ export const usePosCheckoutFlow = ({
     setChange("");
     if (!status) return;
 
+    let resolvedPaymodeId = Number(selectedPaymodeId);
+    if (!resolvedPaymodeId || isNaN(resolvedPaymodeId) || resolvedPaymodeId <= 0) {
+      const cashTender = (tenderOptions || []).find((t: any) => (t.label || "").toLowerCase().includes("cash"));
+      resolvedPaymodeId = cashTender ? Number(cashTender.id) : 1;
+    }
+
     let config: any = null;
     try {
       config = await getRuntimePosConfig();
@@ -380,7 +402,7 @@ export const usePosCheckoutFlow = ({
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const payments = [{ paymodeId: selectedPaymodeId, amount: total }];
+    const payments = [{ paymodeId: resolvedPaymodeId, amount: total }];
 
     if (defaultEmployeeEnabled) {
       if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
