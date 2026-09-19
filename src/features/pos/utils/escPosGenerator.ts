@@ -20,6 +20,7 @@ import type { GuestPrintData } from "./guestPrintTemplate";
 import type { KotPrintData } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
+import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // chars per line on 80mm paper
@@ -203,6 +204,12 @@ export interface BillMarkupInput {
 
 export const generateBillMarkup = (input: BillMarkupInput): string => {
   const { cartDetails, data, customHeaderLines } = input;
+  const isBillArabic = data.billArabic ?? isBillArabicEnabled();
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => {
+    const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
+    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+  };
   const { date: dateStr, time: timeStr } = now();
 
   const isTakeOut  = data.orderType?.toLowerCase().includes("take");
@@ -221,7 +228,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     let baseAmt = (item as any).lineTotal;
     if (baseAmt !== undefined) baseAmt -= extrasSum;
     else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
-    displaySubTotal += parseFloat(baseAmt.toFixed(3));
+    displaySubTotal += parseFloat(fmt(baseAmt));
   });
 
   const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
@@ -291,15 +298,25 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
       baseAmt = (item.price || item.product?.price || 0) * item.quantity;
     }
 
-    const amt = baseAmt.toFixed(3);
+    const amt = fmt(baseAmt);
     displaySubTotal += parseFloat(amt);
     markup += itemLine(name, qty, amt) + "\n";
+
+    const altArabicName = isBillArabic ? getAlternativeArabicName(item) : "";
+    if (altArabicName) {
+      markup += `[L]${altArabicName}\n`;
+    }
+
+    const itemDisc = Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
+    if (itemDisc > 0) {
+      markup += `[L]  * DISC: -${fmt(itemDisc)}\n`;
+    }
 
     // Extras
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach(ex => {
         const exName  = `  + ${(ex.name || "EXTRA").toUpperCase()}`;
-        const exAmt   = (ex.price * (ex.qty || 1)).toFixed(3);
+        const exAmt   = fmt(ex.price * (ex.qty || 1));
         displaySubTotal += parseFloat(exAmt);
         markup += itemLine(exName, ex.qty || 1, exAmt) + "\n";
       });
@@ -323,34 +340,47 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Totals ──────────────────────────────────────────────────────────────────
-  displaySubTotal = parseFloat(displaySubTotal.toFixed(3));
-  let subTotal = displaySubTotal;
+  const cartTotalDiscounts = cartDetails.reduce((sum, item: any) => {
+    return sum + Number(item.itemDiscount ?? item.discAmount ?? 0);
+  }, 0);
+  const totalDiscount = (data.discount && data.discount > 0) ? data.discount : cartTotalDiscounts;
+
+  displaySubTotal = parseFloat(fmt(displaySubTotal));
+  const hasAuthoritativeTotals = data.subTotal !== undefined && Number(data.subTotal) > 0;
+  const authoritativeSubTotal = hasAuthoritativeTotals ? Number(data.subTotal) : displaySubTotal;
+  const authoritativeVatAmount = (data.vatAmount !== undefined && Number(data.vatAmount) > 0) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+
+  let subTotal = authoritativeSubTotal;
   let vatAmount = 0;
   if (isVatActive) {
-    vatAmount  = parseFloat((rawVat > 0 ? rawVat : (data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))).toFixed(3));
-    subTotal   = parseFloat((data.netAmount - vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)).toFixed(3));
+    vatAmount  = parseFloat(fmt(authoritativeVatAmount > 0 ? authoritativeVatAmount : (data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
+    subTotal   = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : (data.netAmount - vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
   }
 
-  markup += totalsLine("Sub Total", subTotal.toFixed(3)) + "\n";
-  if ((data.serviceCharge || 0) > 0) markup += totalsLine("Service Charge", (data.serviceCharge).toFixed(3)) + "\n";
-  if ((data.levy || 0) > 0) markup += totalsLine("Levy (5%)", (data.levy).toFixed(3)) + "\n";
-  if ((isDelivery || (data.deliveryCharge && data.deliveryCharge > 0))) {
-    markup += totalsLine("Delivery Charge", (data.deliveryCharge || 0).toFixed(3)) + "\n";
+  const subTotalBeforeDiscount = subTotal + (totalDiscount > 0 ? totalDiscount : 0);
+  markup += totalsLine("Sub Total", fmt(subTotalBeforeDiscount)) + "\n";
+  if (totalDiscount > 0) {
+    markup += totalsLine("Discount", `-${fmt(totalDiscount)}`) + "\n";
   }
-  if (isVatActive || vatAmount > 0) markup += totalsLine("VAT Amount", vatAmount.toFixed(3)) + "\n";
+  if ((data.serviceCharge || 0) > 0) markup += totalsLine("Service Charge", fmt(data.serviceCharge)) + "\n";
+  if ((data.levy || 0) > 0) markup += totalsLine("Levy (5%)", fmt(data.levy)) + "\n";
+  if ((isDelivery || (data.deliveryCharge && data.deliveryCharge > 0))) {
+    markup += totalsLine("Delivery Charge", fmt(data.deliveryCharge || 0)) + "\n";
+  }
+  if (isVatActive || vatAmount > 0) markup += totalsLine("VAT Amount", fmt(vatAmount)) + "\n";
 
   markup += `[L]${DASH_SEP}\n`;
-  markup += `[L]<b><font size='big'>${padRight("GRAND TOTAL", LINE_WIDTH - 10)}${padLeft(data.netAmount.toFixed(3), 10)}</font></b>\n`;
+  markup += `[L]<b><font size='big'>${padRight("GRAND TOTAL", LINE_WIDTH - 10)}${padLeft(fmt(data.netAmount), 10)}</font></b>\n`;
 
   // ── Payments ─────────────────────────────────────────────────────────────────
   if (data.payments && data.payments.length > 0) {
     markup += `[L]${DASH_SEP}\n`;
     data.payments.forEach(p => {
-      markup += totalsLine(p.name, p.amount.toFixed(3)) + "\n";
+      markup += totalsLine(p.name, fmt(p.amount)) + "\n";
     });
   }
   if (data.changeAmount !== undefined && data.changeAmount > 0) {
-    markup += totalsLine("Change", data.changeAmount.toFixed(3), true) + "\n";
+    markup += totalsLine("Change", fmt(data.changeAmount), true) + "\n";
   }
 
   // ── VAT table (if enabled) ────────────────────────────────────────────────
@@ -358,8 +388,8 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     markup += `[L]${DASH_SEP}\n`;
     markup += `[L]<b>${padRight("VAT Code", 14)}${padRight("Excl Amt", 12)}${padRight("VAT Amt", 10)}${padLeft("Net Amt", 12)}</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
-    const exclAmt = (data.netAmount - vatAmount).toFixed(3);
-    markup += `[L]${padRight("10%", 14)}${padRight(exclAmt, 12)}${padRight(vatAmount.toFixed(3), 10)}${padLeft(data.netAmount.toFixed(3), 12)}\n`;
+    const exclAmt = fmt(data.netAmount - vatAmount);
+    markup += `[L]${padRight("10%", 14)}${padRight(exclAmt, 12)}${padRight(fmt(vatAmount), 10)}${padLeft(fmt(data.netAmount), 12)}\n`;
     markup += `[L]${DASH_SEP}\n`;
   }
 
@@ -401,6 +431,7 @@ export interface KotMarkupInput {
 
 export const generateKotMarkup = (input: KotMarkupInput): string => {
   const { cartDetails, data } = input;
+  const isKotArabic = data.kotArabic ?? isKotArabicEnabled();
   const { date: dateStr, time: timeStr } = now();
 
   const orderTypeIdMap: Record<number, string> = {
@@ -423,6 +454,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
   const isDineIn = orderTypeStr === "DINE IN";
   const headerTitle = (data.headerTitle || "KOT").toUpperCase();
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
 
   let markup = "";
 
@@ -470,7 +502,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     let baseAmt = (item as any).lineTotal;
     if (baseAmt !== undefined) baseAmt -= extrasSum;
     else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
-    const amtStr = baseAmt.toFixed(3);
+    const amtStr = Number(baseAmt || 0).toFixed(decimalPart);
 
     if (kotHeaderStyle === "QTY,DESCRIPTION") {
       const qtyStr = padRight(`x${qty}`, 5);
@@ -491,6 +523,11 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
       markup += `[L]<b>${qStr}${nameStr} ${aStr}</b>\n`;
     }
 
+    const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
+    if (altArabicName) {
+      markup += `[L]${altArabicName}\n`;
+    }
+
     // Extras
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach(ex => {
@@ -499,7 +536,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
         if (kotHeaderStyle === "QTY,DESCRIPTION") {
           markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
         } else {
-          const exAmt = (ex.price * (ex.qty || 1)).toFixed(3);
+          const exAmt = Number(ex.price * (ex.qty || 1)).toFixed(decimalPart);
           markup += itemLine(exName, ex.qty || 1, exAmt) + "\n";
         }
       });
@@ -1004,4 +1041,82 @@ export const generateAllTransactionSummaryReportMarkup = (logs: any[], fromDate:
   markup += `[L]\n[L]\n[L]\n`;
   return markup;
 };
+
+// ── Delivery / Driver Settle 80mm ESC/POS Markup ─────────────────────────────
+export const generateDeliverySettleMarkup = (
+  data: import("./deliverySettlePrintTemplate").DeliverySettlePrintData
+): string => {
+  const decimalPart = parseInt(localStorage.getItem("decimalPart") || "3", 10);
+  const fmt = (val: any) => {
+    const n = typeof val === "string" ? parseFloat(val) : Number(val || 0);
+    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+  };
+  const nowObj = new Date();
+  const dateStr = data.date || nowObj.toLocaleDateString("en-GB");
+  const timeStr = data.time || nowObj.toLocaleTimeString("en-US");
+  const dateTimeStr = `${dateStr} ${timeStr}`;
+  const printTimeStr =
+    data.printTime || `${nowObj.toLocaleDateString("en-GB")} ${nowObj.toLocaleTimeString("en-US")}`;
+
+  let markup = "";
+  if (data.showCompanyHeader !== false) {
+    markup += getCompanyHeader();
+  }
+
+  // Meta Section
+  markup += twoCol("Driver", data.driverName) + "\n";
+  markup += twoCol("Date", dateTimeStr) + "\n";
+  markup += twoCol("Settle By", data.settleBy) + "\n";
+  markup += `[L]${DASH_SEP}\n`;
+
+  // Group by Paymode
+  const defaultPaymode = (data.paymodeName || "CARD").toUpperCase();
+  const groupedMap = new Map<string, import("./deliverySettlePrintTemplate").DeliverySettleOrderItem[]>();
+  data.items.forEach((item) => {
+    const mode = (item.paymodeName || defaultPaymode).toUpperCase();
+    if (!groupedMap.has(mode)) groupedMap.set(mode, []);
+    groupedMap.get(mode)!.push(item);
+  });
+
+  let grandTotal = 0;
+
+  groupedMap.forEach((items, paymode) => {
+    markup += `[L]<b>${paymode}</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+
+    // Table Header: SNo (4) Token (7) Customer Address (24) Amount (13) = 48
+    const hSNo = padRight("SNo", 4);
+    const hToken = padRight("Token", 7);
+    const hAddr = padRight("Customer Address", 24);
+    const hAmt = padLeft("Amount", 13);
+    markup += `[L]<b>${hSNo}${hToken}${hAddr}${hAmt}</b>\n`;
+    markup += `[L]${DASH_SEP}\n`;
+
+    let subtotal = 0;
+    items.forEach((item, idx) => {
+      const sNo = padRight(String(item.sNo || idx + 1), 4);
+      const token = padRight(trunc(String(item.token || "-"), 6), 7);
+      const addr = padRight(trunc(String(item.customerAddress || "-"), 23), 24);
+      const amtStr = padLeft(fmt(item.amount), 13);
+      subtotal += Number(item.amount) || 0;
+
+      markup += `[L]${sNo}${token}${addr}${amtStr}\n`;
+    });
+
+    grandTotal += subtotal;
+    markup += `[L]${DASH_SEP}\n`;
+    markup += totalsLine("Total", fmt(subtotal)) + "\n";
+  });
+
+  const finalGrandTotal =
+    data.grandTotal !== undefined && data.grandTotal > 0 ? data.grandTotal : grandTotal;
+  markup += `[L]${DASH_SEP}\n`;
+  markup += totalsLine("Grand Total", fmt(finalGrandTotal), true) + "\n";
+  markup += `[L]${DASH_SEP}\n`;
+  markup += `[L]Print Time : ${printTimeStr}\n`;
+  markup += `[L]\n[L]\n[L]\n`;
+
+  return markup;
+};
+
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import LoginForm from "../components/LoginForm";
 import { AutoScaleWrapper } from "../../../components/common";
@@ -7,6 +8,17 @@ const LoginPage = () => {
   const onboardingState = location.state as
     | { username?: string; password?: string; message?: string }
     | undefined;
+
+  const [noticeMessage] = useState<string | null>(() => {
+    const msg = sessionStorage.getItem("loginNoticeMessage");
+    if (msg) {
+      sessionStorage.removeItem("loginNoticeMessage");
+      return msg;
+    }
+    return null;
+  });
+
+  const displayMessage = onboardingState?.message || noticeMessage;
 
   const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
   const isPos = systemType === "pos";
@@ -28,10 +40,10 @@ const LoginPage = () => {
       <div className="flex items-center justify-center bg-gray-50/50 px-6 py-10 md:px-12">
         <AutoScaleWrapper className="w-full max-w-lg flex flex-col justify-center items-center">
           <div className="w-full">
-          {onboardingState?.message && (
+          {displayMessage && (
             <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-base text-emerald-800 shadow-sm">
-              {onboardingState.message}
-              {onboardingState.username && (
+              {displayMessage}
+              {onboardingState?.username && (
                 <div className="mt-2 font-medium">
                   Username: {onboardingState.username} | Password: {onboardingState.password || "1"}
                 </div>

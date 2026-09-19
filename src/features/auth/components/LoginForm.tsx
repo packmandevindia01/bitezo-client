@@ -61,6 +61,9 @@ const LoginForm = () => {
         const decimalPart = data.company?.decimalPart ?? 2;
         const currencySymbol = data.company?.currencySymbol ?? "BHD";
 
+        localStorage.setItem("decimalPart", String(decimalPart));
+        localStorage.setItem("currencySymbol", currencySymbol);
+
         // Let authSlice handle the correct storage (sessionStorage for Backoffice, localStorage for POS)
 
         dispatch(

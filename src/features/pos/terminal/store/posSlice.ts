@@ -148,6 +148,7 @@ const posSlice = createSlice({
       uniqueId: string; 
       productId: number; 
       variantName?: string; 
+      variantArabic?: string;
       price?: number; 
       isIncl?: boolean;
       discountValue?: number;
@@ -155,7 +156,7 @@ const posSlice = createSlice({
       unitId?: number;
     }>) => {
       state.isCartModified = true;
-      const { uniqueId, productId, variantName, price, isIncl, discountValue, discountType, unitId } = action.payload;
+      const { uniqueId, productId, variantName, variantArabic, price, isIncl, discountValue, discountType, unitId } = action.payload;
       
       const matchVariant = (a?: string, b?: string) => {
         const getNormalizedVariant = (name?: string) => {
@@ -183,12 +184,16 @@ const posSlice = createSlice({
           existing.discountValue = discountValue;
           existing.discountType = discountType;
         }
+        if (variantArabic && !existing.variantArabic) {
+          existing.variantArabic = variantArabic;
+        }
       } else {
         state.cartItems.push({
           uniqueId,
           productId,
           quantity: 1,
           variantName,
+          variantArabic,
           price: price ?? 0,
           isIncl,
           discountValue,

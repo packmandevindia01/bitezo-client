@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { Building2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput, Loader, PageShell, SelectInput } from "../../../components/common";
 import { useCompanyForm } from "../hooks/useCompanyForm";
+import { CompanyLogoutModal } from "../components/CompanyLogoutModal";
 
 const CompanyPage = () => {
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -16,6 +17,9 @@ const CompanyPage = () => {
     countries = [],
     isLoading,
     isSaving,
+    showLogoutNotice,
+    logoutCountdown,
+    handlePerformLogout,
     onSubmit,
     handleReset,
   } = useCompanyForm();
@@ -358,6 +362,12 @@ const CompanyPage = () => {
           </Button>
         </div>
       </form>
+
+      <CompanyLogoutModal
+        isOpen={showLogoutNotice}
+        countdown={logoutCountdown}
+        onProceed={handlePerformLogout}
+      />
     </PageShell>
   );
 };

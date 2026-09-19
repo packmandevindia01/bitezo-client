@@ -1,56 +1,23 @@
-import React, { Suspense } from 'react';
-import type { MenuProvider } from '../../../types';
-import { ConfirmDialog } from '../../../../../components/common';
-import { PosDiscountChoiceModal } from './cart/PosDiscountChoiceModal';
-import { PosDiscountKeypadModal } from './cart/PosDiscountKeypadModal';
-import { PosPriceKeypadModal } from './cart/PosPriceKeypadModal';
-import { PosQtyKeypadModal } from './cart/PosQtyKeypadModal';
-import { PosExtrasModifierModal } from './product/PosExtrasModifierModal';
-import { PosMessageModal } from './product/PosMessageModal';
-import { PosMoreModal } from './system/PosMoreModal';
-import { PosDeliveryChargeModal } from './payment/PosDeliveryChargeModal';
-import { PosCashTenderModal } from './payment/PosCashTenderModal';
-import { PosMultiPayModal } from './payment/PosMultiPayModal';
-import { PosProviderOrderModal } from './providers/PosProviderOrderModal';
-import { EmployeePasswordModal } from './system/EmployeePasswordModal';
-import { PosCashierSessionModal } from './system/PosCashierSessionModal';
-import { setCustomerId, setOrderType } from '../../store/posSlice';
+import React from "react";
+import type { MenuProvider } from "../../../types";
+import { CartModals } from "./CartModals";
+import { PaymentModals } from "./PaymentModals";
+import { OrderModals } from "./OrderModals";
+import { SystemModals } from "./SystemModals";
 
-// Lazy loaded modals
-const PosReportModal = React.lazy(() => import('./system/PosReportModal').then(m => ({ default: m.PosReportModal })));
-const PosSettledModal = React.lazy(() => import('./system/PosSettledModal').then(m => ({ default: m.PosSettledModal })));
-const PosCustomerModal = React.lazy(() => import('../../../customer/components/PosCustomerModal').then(m => ({ default: m.PosCustomerModal })));
-const PosDeliveryModal = React.lazy(() => import('../../../customer/components/PosDeliveryModal').then(m => ({ default: m.PosDeliveryModal })));
-const PosDriveThroughModal = React.lazy(() => import('../../../customer/components/PosDriveThroughModal').then(m => ({ default: m.PosDriveThroughModal })));
-const PosRecallModal = React.lazy(() => import('./order/PosRecallModal').then(m => ({ default: m.PosRecallModal })));
-const PosVoidModal = React.lazy(() => import('./order/PosVoidModal').then(m => ({ default: m.PosVoidModal })));
-const PosCombineModal = React.lazy(() => import('./order/PosCombineModal').then(m => ({ default: m.PosCombineModal })));
-const PosSplitModal = React.lazy(() => import('./order/PosSplitModal').then(m => ({ default: m.PosSplitModal })));
-const PosProviderModal = React.lazy(() => import('./providers/PosProviderModal').then(m => ({ default: m.PosProviderModal })));
-const LockItemModal = React.lazy(() => import('../../../lockItem/components/LockItemModal').then(m => ({ default: m.default })));
+export interface PosTerminalModalsProps {
+  modals: any;
 
-// Loading Fallback
-const ModalLoader = () => (
-  <div className="flex justify-center items-center p-4">
-    <div className="w-6 h-6 border-2 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin"></div>
-  </div>
-);
-
-// We define a massive props interface to pass everything in for now.
-// In later phases, this component could consume hooks directly.
-interface PosTerminalModalsProps {
-  modals: any; // Return type of usePosModals
-  
   // App state
   dispatch: any;
   navigate: any;
   showToast: any;
-  
+
   // Auth
-  authorizationModalKey: string;
-  authorizationModalProps: any;
+  authorizationModalKey?: string;
+  authorizationModalProps?: any;
   requestAuthorization: (options: any) => void;
-  
+
   // Cart & Pricing
   cartDetails: any[];
   selectedKey: string | null;
@@ -61,9 +28,9 @@ interface PosTerminalModalsProps {
   total: number;
   deliveryCharge: number;
   billDiscountValue: number;
-  
+
   // Handlers
-  openDiscountInput: (type: 'bill'|'item') => void;
+  openDiscountInput: (type: "bill" | "item") => void;
   handleApplyDiscount: (value: string) => void;
   handlePriceModalClose: () => void;
   handleApplyPrice: (val: string) => void;
@@ -76,351 +43,114 @@ interface PosTerminalModalsProps {
   resetTerminalState: () => void;
   setActiveProvider: (data: any) => void;
   refreshLockedProducts: () => void;
-  
+
   // Specific States
-  discountStep: 'none' | 'choice' | 'value';
-  setDiscountStep: (step: 'none' | 'choice' | 'value') => void;
-  discountType: 'bill' | 'item';
-  discountMode: 'percentage' | 'amount';
-  setDiscountMode: (mode: 'percentage' | 'amount') => void;
-  
-  extrasModifierType: 'none' | 'extras' | 'modifiers';
-  setExtrasModifierType: (type: 'none' | 'extras' | 'modifiers') => void;
-  
+  discountStep: "none" | "choice" | "value";
+  setDiscountStep: (step: "none" | "choice" | "value") => void;
+  discountType: "bill" | "item";
+  discountMode: "percentage" | "amount";
+  setDiscountMode: (mode: "percentage" | "amount") => void;
+
+  extrasModifierType: "none" | "extras" | "modifiers";
+  setExtrasModifierType: (type: "none" | "extras" | "modifiers") => void;
+
   voidConfirmState: { isOpen: boolean; uniqueId: string; productName: string; onConfirmed: () => void };
   setVoidConfirmState: React.Dispatch<React.SetStateAction<any>>;
-  
-  billDiscountConfirmState: { isOpen: boolean; value: number; mode: 'percentage' | 'amount' };
+
+  billDiscountConfirmState: { isOpen: boolean; value: number; mode: "percentage" | "amount" };
   setBillDiscountConfirmState: React.Dispatch<React.SetStateAction<any>>;
-  setBillDiscount: (val: number, mode: 'percentage'|'amount') => void;
+  setBillDiscount: (val: number, mode: "percentage" | "amount") => void;
   clearAllItemDiscounts: () => any;
   setCustomDeliveryCharge: (val: number) => any;
-  
+
   isClearConfirmOpen: boolean;
   setIsClearConfirmOpen: (open: boolean) => void;
-  
+
   editingOrderId: number | null;
   selectedProviderForOrder: MenuProvider | null;
   setSelectedProviderForOrder: (p: MenuProvider | null) => void;
-  
+
   orderLoading: boolean;
   tenderOptions: any[];
   selectedCustomerId?: number;
 }
 
+/**
+ * Modular Sub-Domain Modal Orchestrator.
+ * Delegates rendering to specialized sub-containers for cart, payment, order, and system modals.
+ */
 export const PosTerminalModals = React.memo(function PosTerminalModals(props: PosTerminalModalsProps) {
   const { modals } = props;
 
   return (
     <>
-      {/* ── Cart & Pricing Modals (Eager) ── */}
-      <PosDiscountChoiceModal
-        isOpen={props.discountStep === 'choice'}
-        onClose={() => props.setDiscountStep('none')}
-        billDiscountValue={props.billDiscountValue}
-        selectedKey={props.selectedKey}
-        openDiscountInput={props.openDiscountInput}
-        showToast={props.showToast}
-      />
-      <PosDiscountKeypadModal
-        isOpen={props.discountStep === 'value'}
-        onClose={() => props.setDiscountStep('none')}
+      <CartModals
+        modals={modals}
+        discountStep={props.discountStep}
+        setDiscountStep={props.setDiscountStep}
         discountType={props.discountType}
         discountMode={props.discountMode}
         setDiscountMode={props.setDiscountMode}
+        billDiscountValue={props.billDiscountValue}
+        selectedKey={props.selectedKey}
+        setSelectedKey={props.setSelectedKey}
+        openDiscountInput={props.openDiscountInput}
+        showToast={props.showToast}
         subtotal={props.subtotal}
         currentItem={props.currentItem}
+        currentSelectedItem={props.currentSelectedItem}
+        cartDetails={props.cartDetails}
         handleApplyDiscount={props.handleApplyDiscount}
-      />
-      <PosPriceKeypadModal
-        isOpen={modals.isPriceModalOpen}
-        onClose={props.handlePriceModalClose}
-        currentSelectedItem={props.currentSelectedItem}
+        handlePriceModalClose={props.handlePriceModalClose}
         handleApplyPrice={props.handleApplyPrice}
-      />
-      <PosQtyKeypadModal
-        isOpen={modals.isQtyModalOpen}
-        onClose={() => modals.setIsQtyModalOpen(false)}
-        currentSelectedItem={props.currentSelectedItem}
         handleApplyQty={props.handleApplyQty}
+        extrasModifierType={props.extrasModifierType}
+        setExtrasModifierType={props.setExtrasModifierType}
+        setItemCustomizations={props.setItemCustomizations}
+        voidConfirmState={props.voidConfirmState}
+        setVoidConfirmState={props.setVoidConfirmState}
+        billDiscountConfirmState={props.billDiscountConfirmState}
+        setBillDiscountConfirmState={props.setBillDiscountConfirmState}
+        setBillDiscount={props.setBillDiscount}
+        clearAllItemDiscounts={props.clearAllItemDiscounts}
+        dispatch={props.dispatch}
+        isClearConfirmOpen={props.isClearConfirmOpen}
+        setIsClearConfirmOpen={props.setIsClearConfirmOpen}
+        handleClearCart={props.handleClearCart}
       />
-      <PosExtrasModifierModal
-        isOpen={props.extrasModifierType !== 'none'}
-        onClose={() => props.setExtrasModifierType('none')}
-        type={props.extrasModifierType === 'extras' ? 'extras' : 'modifiers'}
-        cartItems={props.cartDetails}
-        selectedKey={props.selectedKey}
-        onSelectRow={props.setSelectedKey}
-        initialExtras={props.currentSelectedItem?.extras || []}
-        initialModifiers={props.currentSelectedItem?.modifiers || []}
-        initialMessages={props.currentSelectedItem?.messages || []}
-        onDone={(extras, modifiers, messages) => {
-          if (!props.selectedKey) return;
-          props.setItemCustomizations(props.selectedKey, extras, modifiers, messages);
-          props.setExtrasModifierType('none');
-        }}
+
+      <PaymentModals
+        modals={modals}
+        deliveryCharge={props.deliveryCharge}
+        setCustomDeliveryCharge={props.setCustomDeliveryCharge}
+        dispatch={props.dispatch}
+        total={props.total}
+        selectedCustomerId={props.selectedCustomerId}
+        tenderOptions={props.tenderOptions}
+        orderLoading={props.orderLoading}
+        handleCompleteSettlement={props.handleCompleteSettlement}
+        handleClearCart={props.handleClearCart}
       />
-      <PosMessageModal
-        isOpen={modals.isMessageModalOpen}
-        onClose={() => modals.setIsMessageModalOpen(false)}
-        cartItems={props.cartDetails}
-        selectedKey={props.selectedKey}
-        onSelectRow={props.setSelectedKey}
-        initialExtras={props.currentSelectedItem?.extras || []}
-        initialModifiers={props.currentSelectedItem?.modifiers || []}
-        initialMessages={props.currentSelectedItem?.messages || []}
-        onDone={(extras, modifiers, messages) => {
-          if (!props.selectedKey) return;
-          props.setItemCustomizations(props.selectedKey, extras, modifiers, messages);
-          modals.setIsMessageModalOpen(false);
-        }}
+
+      <OrderModals
+        modals={modals}
+        dispatch={props.dispatch}
+        showToast={props.showToast}
+        editingOrderId={props.editingOrderId}
+        selectedProviderForOrder={props.selectedProviderForOrder}
+        setSelectedProviderForOrder={props.setSelectedProviderForOrder}
+        resetTerminalState={props.resetTerminalState}
+        setActiveProvider={props.setActiveProvider}
+        handleClearCart={props.handleClearCart}
       />
-      <PosMoreModal 
-        isOpen={modals.isMoreModalOpen} 
-        onClose={() => modals.setIsMoreModalOpen(false)} 
-        onCashierOut={() => {
-          modals.setIsMoreModalOpen(false);
-          modals.setIsCashierSessionOpen(true);
-        }}
-        onCustomerMaster={() => {
-          modals.setIsMoreModalOpen(false);
-          modals.setIsCustomerModalOpen(true);
-        }}
-        onItemComplimentary={props.handleItemComplimentary}
-        onBillComplimentary={props.handleBillComplimentary}
-        onSettledOrders={() => {
-          props.requestAuthorization({
-            actionLabel: "Settled order",
-            permissionId: 20, // Settled order
-            onAuthorized: () => {
-              modals.setIsMoreModalOpen(false);
-              modals.setIsSettledModalOpen(true);
-            },
-          });
-        }}
-        onReport={() => {
-          props.requestAuthorization({
-            actionLabel: "Report",
-            permissionId: 26, // Report
-            onAuthorized: () => {
-              modals.setIsMoreModalOpen(false);
-              modals.setIsReportModalOpen(true);
-            },
-          });
-        }}
-        onVoidOrder={() => {
-          props.requestAuthorization({
-            actionLabel: "Order Void",
-            permissionId: 17, // Order Void
-            onAuthorized: () => {
-              modals.setIsMoreModalOpen(false);
-              modals.setIsVoidModalOpen(true);
-            },
-          });
-        }}
+
+      <SystemModals
+        modals={modals}
         requestAuthorization={props.requestAuthorization}
+        handleItemComplimentary={props.handleItemComplimentary}
+        handleBillComplimentary={props.handleBillComplimentary}
+        refreshLockedProducts={props.refreshLockedProducts}
       />
-      <PosDeliveryChargeModal
-        isOpen={modals.isDeliveryChargeModalOpen}
-        onClose={() => modals.setIsDeliveryChargeModalOpen(false)}
-        currentCharge={props.deliveryCharge}
-        onSelect={(charge) => props.dispatch(props.setCustomDeliveryCharge(charge))}
-      />
-
-      <PosProviderOrderModal
-        isOpen={!!props.selectedProviderForOrder}
-        onClose={() => props.setSelectedProviderForOrder(null)}
-        provider={props.selectedProviderForOrder}
-        onSubmit={(orderNo) => {
-          if (props.selectedProviderForOrder) {
-            const provider = props.selectedProviderForOrder;
-            props.resetTerminalState();
-            props.setActiveProvider({ provider, orderNo });
-            props.dispatch(setOrderType({ orderTypeId: provider.providerId, orderType: provider.providerName }));
-            props.showToast(`${provider.providerName} order #${orderNo} started`, 'success');
-          }
-          props.setSelectedProviderForOrder(null);
-        }}
-      />
-      <EmployeePasswordModal key={props.authorizationModalKey} {...props.authorizationModalProps} />
-
-      <ConfirmDialog
-        isOpen={props.voidConfirmState.isOpen}
-        onCancel={() => props.setVoidConfirmState((prev: any) => ({ ...prev, isOpen: false }))}
-        onConfirm={() => {
-          props.voidConfirmState.onConfirmed();
-          props.setVoidConfirmState((prev: any) => ({ ...prev, isOpen: false }));
-        }}
-        title="Confirm Void"
-        message={`Are you sure you want to void "${props.voidConfirmState.productName}"?`}
-        confirmLabel="Void"
-        confirmVariant="danger"
-      />
-      <ConfirmDialog
-        isOpen={props.billDiscountConfirmState.isOpen}
-        title="Override Item Discounts?"
-        message="Applying a bill-level discount will remove all existing item-level discounts. Do you want to proceed?"
-        onConfirm={() => {
-          props.dispatch(props.clearAllItemDiscounts());
-          props.setBillDiscount(props.billDiscountConfirmState.value, props.billDiscountConfirmState.mode);
-          props.setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' });
-        }}
-        onCancel={() => props.setBillDiscountConfirmState({ isOpen: false, value: 0, mode: 'percentage' })}
-        confirmLabel="Override"
-        confirmVariant="danger"
-      />
-      <ConfirmDialog
-        isOpen={props.isClearConfirmOpen}
-        title="Clear Order Data?"
-        message="Are you sure you want to clear all items from the current order? This action cannot be undone."
-        confirmLabel="Clear"
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        onConfirm={() => {
-          props.handleClearCart();
-          props.setIsClearConfirmOpen(false);
-        }}
-        onCancel={() => props.setIsClearConfirmOpen(false)}
-      />
-
-      {/* ── System / Heavy Modals (Lazy Loaded) ── */}
-      <Suspense fallback={<ModalLoader />}>
-        {modals.isReportModalOpen && (
-          <PosReportModal
-            isOpen={modals.isReportModalOpen}
-            onClose={() => {
-              modals.setIsReportModalOpen(false);
-              modals.setIsMoreModalOpen(true);
-            }}
-          />
-        )}
-        {modals.isSettledModalOpen && (
-          <PosSettledModal
-            isOpen={modals.isSettledModalOpen}
-            onClose={() => {
-              modals.setIsSettledModalOpen(false);
-              modals.setIsMoreModalOpen(true);
-            }}
-            onEditSuccess={() => {
-              modals.setIsSettledModalOpen(false);
-              modals.setIsMoreModalOpen(true);
-            }}
-          />
-        )}
-        {modals.isCustomerModalOpen && (
-          <PosCustomerModal
-            isOpen={modals.isCustomerModalOpen}
-            onClose={() => {
-              modals.setIsCustomerModalOpen(false);
-              modals.setIsMoreModalOpen(true);
-            }}
-          />
-        )}
-        {modals.isDeliveryModalOpen && (
-          <PosDeliveryModal isOpen={modals.isDeliveryModalOpen} onClose={() => modals.setIsDeliveryModalOpen(false)} />
-        )}
-        {modals.isDriveThroughModalOpen && (
-          <PosDriveThroughModal isOpen={modals.isDriveThroughModalOpen} onClose={() => modals.setIsDriveThroughModalOpen(false)} />
-        )}
-        {modals.isRecallModalOpen && (
-          <PosRecallModal
-            isOpen={modals.isRecallModalOpen}
-            onClose={() => modals.setIsRecallModalOpen(false)}
-            onSettleSuccess={() => {
-              modals.setReturnToRecallOnCancel(true);
-              modals.setIsMultiPayModalOpen(true);
-            }}
-          />
-        )}
-        {modals.isVoidModalOpen && (
-          <PosVoidModal isOpen={modals.isVoidModalOpen} onClose={() => modals.setIsVoidModalOpen(false)} />
-        )}
-        {modals.isCombineOpen && (
-          <PosCombineModal isOpen={modals.isCombineOpen} onClose={() => modals.setIsCombineOpen(false)} />
-        )}
-        {modals.isSplitOpen && (
-          <PosSplitModal
-            isOpen={modals.isSplitOpen}
-            onClose={() => modals.setIsSplitOpen(false)}
-            orderId={props.editingOrderId || 0}
-            onSuccess={() => {
-              modals.setIsSplitOpen(false);
-              props.handleClearCart();
-            }}
-          />
-        )}
-        {modals.isProviderModalOpen && (
-          <PosProviderModal
-            isOpen={modals.isProviderModalOpen}
-            onClose={() => modals.setIsProviderModalOpen(false)}
-            onSelect={(provider) => {
-              modals.setIsProviderModalOpen(false);
-              props.setSelectedProviderForOrder(provider);
-            }}
-            onClear={() => {
-              props.setActiveProvider(null);
-              props.dispatch(setCustomerId(1));
-            }}
-          />
-        )}
-        {modals.isLockItemModalOpen && (
-          <LockItemModal
-            isOpen={modals.isLockItemModalOpen}
-            onClose={() => {
-              modals.setIsLockItemModalOpen(false);
-              props.refreshLockedProducts();
-            }}
-            initialProductId={modals.selectedProductToLock}
-            onSuccess={() => props.refreshLockedProducts()}
-          />
-        )}
-        <PosCashTenderModal
-          isOpen={modals.isCashModalOpen}
-          onClose={() => modals.setIsCashModalOpen(false)}
-          totalDue={props.total}
-          onSubmit={(_, changeAmount) => {
-            modals.setIsCashModalOpen(false);
-            const cashPaymodeId = props.tenderOptions.find(t => t.label.toLowerCase().includes('cash'))?.id || props.tenderOptions[0]?.id;
-            props.handleCompleteSettlement([{ paymodeId: Number(cashPaymodeId), amount: props.total }], changeAmount);
-          }}
-          loading={props.orderLoading}
-        />
-        <PosMultiPayModal
-          isOpen={modals.isMultiPayModalOpen}
-          customerId={props.selectedCustomerId}
-          onClose={() => {
-            modals.setIsMultiPayModalOpen(false);
-            if (modals.returnToRecallOnCancel) {
-              props.handleClearCart();
-              modals.setReturnToRecallOnCancel(false);
-            }
-          }}
-          totalDue={props.total}
-          onSubmit={(payments, changeAmount) => {
-            modals.setIsMultiPayModalOpen(false);
-            if (modals.returnToRecallOnCancel) {
-              modals.setIsRecallModalOpen(false);
-              modals.setReturnToRecallOnCancel(false);
-            }
-            const mappedPayments = payments.map((p: any) => {
-              const matchedTender = props.tenderOptions.find(t => t.label.toLowerCase().includes(p.mode.toLowerCase()));
-              const id = matchedTender ? Number(matchedTender.id) : (p.mode === 'cash' ? 1 : p.mode === 'card' ? 2 : 3);
-              return {
-                paymodeId: id,
-                amount: p.amount
-              };
-            });
-            props.handleCompleteSettlement(mappedPayments, changeAmount);
-          }}
-          loading={props.orderLoading}
-        />
-
-        <PosCashierSessionModal
-          isOpen={props.modals.isCashierSessionOpen}
-          onClose={() => props.modals.closeModal('cashierSession')}
-          onSessionReady={() => props.modals.closeModal('cashierSession')}
-        />
-      </Suspense>
     </>
   );
 });

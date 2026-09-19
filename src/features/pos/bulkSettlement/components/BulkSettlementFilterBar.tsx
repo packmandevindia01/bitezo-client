@@ -10,6 +10,7 @@ interface BulkSettlementFilterBarProps {
   selectedEntityId: number | null;
   isAllSelected: boolean;
   hasOrders: boolean;
+  isSearching?: boolean;
   onEntityTypeChange: (type: EntityType) => void;
   onEntityChange: (id: number | null) => void;
   onSearch: () => void;
@@ -23,6 +24,7 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
   selectedEntityId,
   isAllSelected,
   hasOrders,
+  isSearching = false,
   onEntityTypeChange,
   onEntityChange,
   onSearch,
@@ -51,8 +53,8 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
             id="bulk-entity-id"
             label={entityType === "driver" ? "Driver Name" : "Provider Name"}
             autoFocus
-            value={selectedEntityId ? String(selectedEntityId) : ""}
-            onChange={(e) => onEntityChange(e.target.value ? Number(e.target.value) : null)}
+            value={selectedEntityId !== null && selectedEntityId !== undefined ? String(selectedEntityId) : ""}
+            onChange={(e) => onEntityChange(e.target.value !== "" ? Number(e.target.value) : null)}
             options={entities.map((ent) => ({
               label: ent.name,
               value: String(ent.id),
@@ -71,10 +73,12 @@ export const BulkSettlementFilterBar: React.FC<BulkSettlementFilterBarProps> = (
           <Button
             type="button"
             onClick={onSearch}
+            loading={isSearching}
+            disabled={isSearching || selectedEntityId === null || selectedEntityId === undefined}
             icon={<Search size={16} />}
             className="bg-[#49293e] hover:bg-[#382030] text-white h-9 px-5 text-xs font-black uppercase tracking-wider"
           >
-            SEARCH
+            {isSearching ? "Searching..." : "SEARCH"}
           </Button>
         </div>
       </div>

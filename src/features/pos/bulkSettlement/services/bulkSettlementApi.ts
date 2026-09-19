@@ -64,36 +64,112 @@ export const bulkSettlementApi = {
     counterId: number,
     decimals: number = 3
   ): Promise<UnsettledOrder[]> => {
-    const activeDayId = dayId ?? 0;
-    const activeCounterId = counterId && counterId > 0 ? counterId : 1;
+    let activeDayId = dayId && dayId > 0 ? dayId : (
+      Number(localStorage.getItem("pos_dayId")) ||
+      Number(localStorage.getItem("systemDayId")) ||
+      Number(localStorage.getItem("dayId")) || 0
+    );
+    if (!activeDayId) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("activeShift") || "{}");
+        if (parsed?.dayId) activeDayId = Number(parsed.dayId);
+      } catch {}
+    }
+    if (!activeDayId) activeDayId = 1;
 
-    const endpoint =
-      entityType === "driver"
-        ? `/sales-invoices/${activeDayId}/${activeCounterId}/${entityId}/driver-pending-orders`
-        : `/sales-invoices/${activeDayId}/${activeCounterId}/${entityId}/provider-pending-orders`;
+    let activeCounterId = counterId && counterId > 0 ? counterId : (
+      Number(localStorage.getItem("systemCounterId")) ||
+      Number(localStorage.getItem("counterId")) ||
+      Number(localStorage.getItem("activeCounterId")) || 1
+    );
+    if (!activeCounterId || activeCounterId < 1) activeCounterId = 1;
 
-    try {
-      const res = await axiosInstance.get(endpoint, {
-        params: { decimals },
-      });
-      const data = res.data;
+    const parseOrderList = (data: any): any[] => {
       let list: any[] = [];
       if (Array.isArray(data)) {
         list = data;
-      } else if (data && Array.isArray(data.data)) {
-        list = data.data;
+      } else if (data && typeof data === "object") {
+        if (Array.isArray(data.data)) list = data.data;
+        else if (Array.isArray(data.items)) list = data.items;
+        else if (Array.isArray(data.result)) list = data.result;
+        else if (Array.isArray(data.orders)) list = data.orders;
+        else if (Array.isArray(data.records)) list = data.records;
+        else if (data.data && typeof data.data === "object") {
+          if (Array.isArray(data.data.items)) list = data.data.items;
+          else if (Array.isArray(data.data.records)) list = data.data.records;
+          else if (Array.isArray(data.data.orders)) list = data.data.orders;
+          else if (Array.isArray(data.data.result)) list = data.data.result;
+        }
+      }
+      return list;
+    };
+
+    const fetchEndpoint = async (dId: number, cId: number) => {
+      const validCounterId = Math.max(1, cId);
+      const endpoint =
+        entityType === "driver"
+          ? `/sales-invoices/${dId}/${validCounterId}/${entityId}/driver-pending-orders`
+          : `/sales-invoices/${dId}/${validCounterId}/${entityId}/provider-pending-orders`;
+
+      console.log(`[bulkSettlementApi] Fetching: ${endpoint} (decimals=${decimals})`);
+      const res = await axiosInstance.get(endpoint, {
+        params: { decimals },
+      });
+      const parsed = parseOrderList(res.data);
+      console.log(`[bulkSettlementApi] Result for ${endpoint}:`, parsed);
+      return { list: parsed, endpoint };
+    };
+
+    try {
+      // Primary attempt: active day and active counter
+      let { list, endpoint } = await fetchEndpoint(activeDayId, activeCounterId);
+
+      // Fallback: If empty on counter 1, check counter 2 (or vice-versa)
+      if (list.length === 0) {
+        const altCounterId = activeCounterId === 1 ? 2 : 1;
+        try {
+          const fallbackRes = await fetchEndpoint(activeDayId, altCounterId);
+          if (fallbackRes.list.length > 0) {
+            console.log(`[bulkSettlementApi] Found ${fallbackRes.list.length} orders using counter=${altCounterId} fallback!`);
+            list = fallbackRes.list;
+          }
+        } catch (e) {
+          console.debug(`[bulkSettlementApi] counter=${altCounterId} check skipped:`, e);
+        }
       }
 
       return list.map((o: any) => {
         const detailsStr = o.details || "";
 
         // Parse orderNo from details if not directly provided
-        let orderNo = o.orderNo ?? o.voucherNo;
+        let orderNo = o.orderNo ?? o.voucherNo ?? o.invoiceNo;
         if (!orderNo && detailsStr) {
           const match = detailsStr.match(/Order\s*:\s*(\w+)/i);
           if (match) orderNo = match[1];
         }
-        if (!orderNo) orderNo = `ORD-${o.orderId ?? o.sNo ?? 1}`;
+        if (!orderNo) orderNo = `ORD-${o.orderId ?? o.saleId ?? o.salesInvoiceId ?? o.sNo ?? 1}`;
+
+        // Parse token / ticket
+        let tokenNo = o.tokenNo ?? o.ticketNo ?? o.token ?? o.ticket;
+        if (!tokenNo && detailsStr) {
+          const match = detailsStr.match(/(?:Token|Ticket)\s*:\s*(\w+)/i);
+          if (match) tokenNo = match[1];
+        }
+        if (!tokenNo) tokenNo = String(orderNo).replace(/^ORD-/, "");
+
+        // Parse customer address (flatNo/buildingNo/roadNo/blockNo or direct address field)
+        let customerAddress = o.customerAddress ?? o.deliveryAddress ?? o.address;
+        if (!customerAddress && (o.flatNo || o.buildingNo || o.roadNo || o.blockNo)) {
+          customerAddress = [o.flatNo, o.buildingNo, o.roadNo, o.blockNo]
+            .filter((v) => v !== undefined && v !== null && String(v).trim() !== "")
+            .join("/");
+        }
+        if (!customerAddress && detailsStr) {
+          const match =
+            detailsStr.match(/Address\s*:\s*([^,\n]+)/i) ||
+            detailsStr.match(/Addr\s*:\s*([^,\n]+)/i);
+          if (match) customerAddress = match[1].trim();
+        }
 
         // Parse customerName from details if not directly provided
         let customerName = o.customerName ?? o.customer;
@@ -111,8 +187,10 @@ export const bulkSettlementApi = {
         }
 
         return {
-          orderId: o.orderId ?? o.id ?? 0,
+          orderId: o.orderId ?? o.saleId ?? o.salesInvoiceId ?? o.id ?? 0,
           orderNo: String(orderNo),
+          tokenNo: String(tokenNo || orderNo),
+          customerAddress: String(customerAddress || "-"),
           orderDate: o.orderDate ?? o.createdAt ?? o.transDate ?? new Date().toLocaleTimeString(),
           customerName: String(customerName),
           orderType: o.orderType ?? o.type ?? (entityType === "driver" ? "Delivery" : "Provider"),
@@ -122,6 +200,7 @@ export const bulkSettlementApi = {
           driverId: o.driverId,
           providerId: o.providerId,
           details: detailsStr,
+          raw: o,
         };
       });
     } catch (err: any) {

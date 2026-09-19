@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import type { PosProduct, MenuSubCategory, PosAlternative } from "../../../types";
 import { PosProductCard } from "./PosProductCard";
 import { useCurrency } from "../../../../../hooks/useCurrency";
+import { sortAlternatives } from "../../../utils/alternativeHelpers";
 
 interface PosProductGridProps {
   products: PosProduct[];
@@ -103,11 +104,16 @@ const PosProductGrid = ({
     if (showAlternatives && selectedProduct) segments.push(selectedProduct.name);
     return segments;
   }, [categoryName, subCategoryName, showAlternatives, selectedProduct]);
+  const sortedAlternatives = useMemo(() => {
+    if (!showAlternatives) return alternatives;
+    return sortAlternatives(alternatives);
+  }, [showAlternatives, alternatives]);
+
   const allItems = useMemo(() => {
-    if (showAlternatives) return alternatives;
+    if (showAlternatives) return sortedAlternatives;
     if (showSubCategories) return [...subCategories, ...products];
     return products;
-  }, [showAlternatives, showSubCategories, alternatives, subCategories, products]);
+  }, [showAlternatives, showSubCategories, sortedAlternatives, subCategories, products]);
 
   const rows = useMemo(() => {
     const r = [];
@@ -202,7 +208,7 @@ const PosProductGrid = ({
                       );
                     } else if (showAlternatives) {
                       const alt = item as PosAlternative;
-                      const isFirstAlt = alternatives.indexOf(alt) === 0;
+                      const isFirstAlt = sortedAlternatives.indexOf(alt) === 0;
                       
                       // Create a robust unique key from alternative properties
                       const uniqueAltKey = `alt-${alt.altName}-${alt.unitId}-${alt.price}`;

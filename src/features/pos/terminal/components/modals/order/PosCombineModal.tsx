@@ -137,7 +137,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             id: m.modifierId,
             name: m.modifierName,
             price: m.price || 0,
-            qty: (m.qty || 1) / (detail.qty || 1),
+            qty: m.qty || 1,
             typeId: m.typeId
           }));
 

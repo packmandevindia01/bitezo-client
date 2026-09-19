@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Printer } from "lucide-react";
 import { PageShell, Button } from "../../../../components/common";
 import { useBulkSettlement } from "../hooks/useBulkSettlement";
 import { BulkSettlementFilterBar } from "../components/BulkSettlementFilterBar";
@@ -17,12 +17,15 @@ export const BulkSettlementPage: React.FC = () => {
     entities,
     isEntitiesLoading,
     selectedEntityId,
+    selectedEntity,
     orders,
     isOrdersLoading,
     selectedOrderIds,
     isAllSelected,
     totalSelectedAmount,
     isSubmitting,
+    lastSettledPrintData,
+    handleReprintLastSettlement,
     handleEntityTypeChange,
     handleEntityChange,
     handleSearch,
@@ -55,6 +58,16 @@ export const BulkSettlementPage: React.FC = () => {
                 </p>
               </div>
             </div>
+            {lastSettledPrintData && (
+              <Button
+                type="button"
+                onClick={handleReprintLastSettlement}
+                icon={<Printer size={14} />}
+                className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold h-8 px-3"
+              >
+                Reprint Settle Slip
+              </Button>
+            )}
           </div>
         )}
 
@@ -66,6 +79,7 @@ export const BulkSettlementPage: React.FC = () => {
           selectedEntityId={selectedEntityId}
           isAllSelected={isAllSelected}
           hasOrders={orders.length > 0}
+          isSearching={isOrdersLoading}
           onEntityTypeChange={handleEntityTypeChange}
           onEntityChange={handleEntityChange}
           onSearch={handleSearch}
@@ -78,6 +92,10 @@ export const BulkSettlementPage: React.FC = () => {
             orders={orders}
             isOrdersLoading={isOrdersLoading}
             selectedOrderIds={selectedOrderIds}
+            selectedEntityName={selectedEntity?.name}
+            entityType={entityType}
+            hasSearched={selectedEntityId !== null && selectedEntityId !== undefined}
+            onRefresh={handleSearch}
             onToggleOrderSelection={toggleOrderSelection}
           />
         </div>
@@ -107,16 +125,28 @@ export const BulkSettlementPage: React.FC = () => {
               </div>
             </div>
 
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={selectedOrderIds.length === 0 || isSubmitting}
-              loading={isSubmitting}
-              icon={<CheckCircle2 size={16} />}
-              className="bg-[#49293e] hover:bg-[#382030] text-white px-6 py-2.5 text-xs font-black uppercase tracking-wider w-full sm:w-auto h-10 shadow-sm"
-            >
-              {isSubmitting ? "Submitting..." : `Settle Selected (${selectedOrderIds.length})`}
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {lastSettledPrintData && (
+                <Button
+                  type="button"
+                  onClick={handleReprintLastSettlement}
+                  icon={<Printer size={16} />}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 text-xs font-black uppercase tracking-wider w-full sm:w-auto h-10 shadow-sm border border-slate-200"
+                >
+                  Reprint Slip
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={selectedOrderIds.length === 0 || isSubmitting}
+                loading={isSubmitting}
+                icon={<CheckCircle2 size={16} />}
+                className="bg-[#49293e] hover:bg-[#382030] text-white px-6 py-2.5 text-xs font-black uppercase tracking-wider w-full sm:w-auto h-10 shadow-sm"
+              >
+                {isSubmitting ? "Submitting..." : `Settle Selected (${selectedOrderIds.length})`}
+              </Button>
+            </div>
           </div>
         )}
       </div>

@@ -2,10 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchCompany, updateCompany, fetchCurrencyList, fetchCompanyMasterload } from "../services/companyApi";
 import { useToast } from "../../../app/providers/useToast";
 import type { CompanyFormData } from "../types";
+import { useAppDispatch } from "../../../app/hooks";
+import { logout } from "../../auth/store/authSlice";
 
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 
@@ -99,8 +101,8 @@ const cleanPhoneNumber = (mob: string, countryId: string, countriesList: any[]):
 type CompanySchemaType = z.infer<typeof companySchema>;
 
 export const useCompanyForm = () => {
+  const dispatch = useAppDispatch();
   const { showToast } = useToast();
-  const queryClient = useQueryClient();
   const [comId, setComId] = useState<number>(0);
 
   const form = useForm<CompanySchemaType>({
@@ -223,6 +225,30 @@ export const useCompanyForm = () => {
     }
   }, [raw, countries, currencies, reset]);
 
+  const [showLogoutNotice, setShowLogoutNotice] = useState(false);
+  const [logoutCountdown, setLogoutCountdown] = useState(5);
+
+  const handlePerformLogout = () => {
+    dispatch(logout());
+    sessionStorage.setItem("tempSystemType", "backoffice");
+    window.location.href = "/";
+  };
+
+  useEffect(() => {
+    if (!showLogoutNotice) return;
+
+    if (logoutCountdown <= 0) {
+      handlePerformLogout();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setLogoutCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [showLogoutNotice, logoutCountdown]);
+
   const mutation = useMutation({
     mutationFn: (data: CompanySchemaType) => {
       // Cast data back to CompanyFormData for the API structure
@@ -234,11 +260,14 @@ export const useCompanyForm = () => {
         comId
       );
     },
-    onSuccess: (_, variables) => {
-      showToast("Company updated successfully", "success");
-      queryClient.invalidateQueries({ queryKey: ["company-details"] });
-      // Update form pristine state manually by resetting with current form values
-      form.reset(variables);
+    onSuccess: () => {
+      sessionStorage.setItem(
+        "loginNoticeMessage",
+        "Company information was updated successfully. Please log in again to apply the new settings."
+      );
+      showToast("Company updated successfully. Logging out to apply changes...", "success");
+      setShowLogoutNotice(true);
+      setLogoutCountdown(5);
     },
     onError: (error: any) => {
       showToast(error?.message || "Failed to update company", "error");
@@ -276,6 +305,9 @@ export const useCompanyForm = () => {
     countries,
     isLoading: companyLoading || currenciesLoading || masterLoading,
     isSaving: mutation.isPending,
+    showLogoutNotice,
+    logoutCountdown,
+    handlePerformLogout,
     onSubmit,
     handleReset,
   };

@@ -6,6 +6,7 @@ import { getEmployeeNames } from "../../../general/employee/services/employeeSer
 import { posConfigApi } from "../../services/posConfigApi";
 import type { PosConfigResponseData, PosConfigUpdatePayload } from "../../services/posConfigApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
+import { clearAllPosCache } from "./usePosProducts";
 
 export interface ConfigurationEmployeeOption {
   label: string;
@@ -189,6 +190,16 @@ export const usePosConfiguration = () => {
 
         if (posConfigRes?.data) {
           const stateData = mapApiToState(posConfigRes.data);
+          try {
+            const overrideRaw = localStorage.getItem("posDefaultEmployeeOverride");
+            if (overrideRaw) {
+              const override = JSON.parse(overrideRaw);
+              if (override?.defaultEmployee === "Enable" && override?.employeeId) {
+                stateData.defaultEmployee = true;
+                stateData.employeeId = String(override.employeeId);
+              }
+            }
+          } catch {}
           setForm(stateData);
           if (stateData.kotHeader) {
             localStorage.setItem("kotHeader", stateData.kotHeader);
@@ -257,6 +268,24 @@ export const usePosConfiguration = () => {
         localStorage.setItem("kotHeader", payload.kotHeader);
       }
 
+      // ─── Frontend override for default employee ───────────────────────────────
+      // The backend does not persist defaultEmployee/employeeId to the DB.
+      // We store them locally and merge them into the config at runtime.
+      if (form.defaultEmployee && form.employeeId) {
+        const match = employeeOptions.find(e => e.value === form.employeeId);
+        localStorage.setItem("posDefaultEmployeeOverride", JSON.stringify({
+          defaultEmployee: "Enable",
+          employeeId: Number(form.employeeId),
+          employeeName: match?.label || ""
+        }));
+        if (match) {
+          localStorage.setItem("defaultEmployeeName", match.label);
+        }
+      } else {
+        localStorage.removeItem("posDefaultEmployeeOverride");
+        localStorage.removeItem("defaultEmployeeName");
+      }
+
       // Update local storage runtime posConfigs
       try {
         const saved = localStorage.getItem("posConfigs");
@@ -264,6 +293,8 @@ export const usePosConfiguration = () => {
         if (parsed.configs) {
           parsed.configs.kotHeader = payload.kotHeader;
           parsed.configs.kotPrint = payload.kotPrint;
+          parsed.configs.kotArabic = payload.kotArabic;
+          parsed.configs.billArabic = payload.billArabic;
           parsed.configs.masterKot = payload.masterKot;
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
           parsed.configs.isRecipeEnable = payload.isRecipeEnable;
@@ -284,9 +315,14 @@ export const usePosConfiguration = () => {
           parsed.configs.productDayend = payload.productDayend;
           parsed.configs.groupDayend = payload.groupDayend;
           parsed.configs.driverDayend = payload.driverDayend;
+          parsed.configs.alternativeOrder = payload.alternativeOrder;
+          parsed.configs.defaultEmployee = payload.defaultEmployee;
+          parsed.configs.employeeId = payload.employeeId;
         }
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
+        parsed.kotArabic = payload.kotArabic;
+        parsed.billArabic = payload.billArabic;
         parsed.masterKot = payload.masterKot;
         parsed.deliveryCharge = payload.deliveryCharge;
         parsed.defaultDeliveryCharge = payload.deliveryCharge;
@@ -305,8 +341,10 @@ export const usePosConfiguration = () => {
         parsed.productDayend = payload.productDayend;
         parsed.groupDayend = payload.groupDayend;
         parsed.driverDayend = payload.driverDayend;
+        parsed.alternativeOrder = payload.alternativeOrder;
 
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
+        clearAllPosCache();
       } catch (e) {
         console.error("Failed to update cached posConfigs:", e);
       }

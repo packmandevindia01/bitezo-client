@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { getBillingConfig, calculateLineItem } from "../utils/billing";
+import { calculateOrder } from "../utils/billing";
 
 export interface SplitCartItem {
   mapId: number;
@@ -43,33 +43,40 @@ export const useSplitBuckets = (originalOrder: any | null, showToast: any) => {
   };
 
   const calculateBucketTotal = (bucket: SplitBucket) => {
-    let total = 0;
-    const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-
-    bucket.items.forEach(item => {
-      let extrasTotal = 0;
-      
-      if (ownsModifiers(bucket, item.mapId)) {
-        item.modifiers.forEach(m => {
-          if (m.price > 0) {
-            extrasTotal += (m.price * (m.qty || 1));
-          }
-        });
-      }
-      
-      const calcs = calculateLineItem(
-        item.currentQty,
-        item.price,
-        0,
-        extrasTotal,
-        config,
-        item.detail.vatValue,
-        item.isIncl
-      );
-      
-      total += calcs.lineNetAmount;
+    const cartItems = bucket.items.map(item => {
+      const extras = ownsModifiers(bucket, item.mapId)
+        ? (item.modifiers || []).filter(m => m.price > 0).map(m => ({
+            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+            name: m.modifierName || m.name || "Extra",
+            price: m.price,
+            qty: m.qty || 1,
+            typeId: m.typeId || 1
+          }))
+        : [];
+      return {
+        uniqueId: String(item.mapId),
+        productId: item.detail?.productId ?? item.detail?.ProductId ?? 1,
+        quantity: item.currentQty,
+        price: item.price,
+        isIncl: item.isIncl,
+        discountValue: item.detail?.discPer || 0,
+        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        extras,
+        product: {
+          id: item.detail?.productId ?? 1,
+          name: item.name,
+          price: item.price,
+          categoryId: 0,
+          vatValue: item.detail?.vatValue,
+          sVatId: item.detail?.vatId
+        }
+      };
     });
-    return total;
+
+    const result = calculateOrder(cartItems, {
+      orderType: originalOrder?.orderTypeName || "DineIn"
+    });
+    return result.summary.total;
   };
 
   const handleAddSplit = () => {

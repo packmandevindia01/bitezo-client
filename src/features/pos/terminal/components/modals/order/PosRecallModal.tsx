@@ -13,6 +13,7 @@ import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus } from "../../../utils/billing";
+import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { Capacitor } from "@capacitor/core";
 
 
@@ -130,11 +131,17 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
           productId: d.productId || d.itemId || 0,
           quantity: d.qty || 1,
           price: d.price || 0,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          product: { 
+            name: d.productName || d.ProductName || `Product #${d.productId || 0}`, 
+            price: d.price || 0,
+            arabicName: d.arabicName || d.ArabicName
+          },
           extras,
           modifiers,
           messages,
-          lineTotal: lineBase
+          itemDiscount: d.discAmount || 0,
+          lineTotal: d.netAmount || d.amount || lineBase
         };
       });
 
@@ -159,12 +166,14 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
         area: master.area,
         providerNo: master.providerNo,
         subTotal: calculatedSubTotal,
+        discount: master.discAmount || master.discount || 0,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: master.vatAmount || calculatedVatTotal || 0,
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
-        enableVat
+        enableVat,
+        billArabic: isBillArabicEnabled()
       };
 
       if (Capacitor.isNativePlatform()) {

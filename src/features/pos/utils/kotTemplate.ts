@@ -1,6 +1,8 @@
 import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
+import { isKotArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
+import { getDecimalPart } from "../../../utils/currency";
 
 export interface KotPrintData {
   orderNo: string;
@@ -17,6 +19,7 @@ export interface KotPrintData {
   vehicleNo?: string;
   customerName?: string;
   kotHeader?: string;
+  kotArabic?: boolean;
 }
 
 export const generateKotHtml = async (
@@ -106,10 +109,16 @@ export const generateKotHtml = async (
     || (rawOrderType ? rawOrderType.replace(/([A-Z])/g, " $1").trim().toUpperCase() : "DINE IN");
   const isDineIn = orderTypeStr === "DINE IN";
 
+  const isKotArabic = data.kotArabic ?? isKotArabicEnabled();
+
   let itemsHtml = "";
   let totalVat = 0;
   let grandTotal = 0;
-  let serialNo = 0;
+  const decimalPart = getDecimalPart();
+  const fmt = (val: number | string | undefined | null) => {
+    const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
+    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+  };
 
   cartDetails.forEach((item) => {
     // Determine the product name
@@ -119,6 +128,11 @@ export const generateKotHtml = async (
     }
     const qty = item.quantity;
     
+    const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
+    const nameDisplayHtml = altArabicName
+      ? `<div>${name}</div><div dir="rtl" style="font-size:10px; font-weight:bold; text-align:left; font-family:Arial, Tahoma, sans-serif; line-height:1.2; margin-top:1px;">${altArabicName}</div>`
+      : name;
+
     let extrasSum = 0;
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach(ex => extrasSum += (ex.price * (ex.qty || 1)));
@@ -131,34 +145,29 @@ export const generateKotHtml = async (
     } else {
       baseAmt = (item.price || item.product?.price || 0) * item.quantity;
     }
-    const amt = baseAmt.toFixed(3);
-
-    serialNo++;
+    const amt = fmt(baseAmt);
 
     if (kotHeaderStyle === "QTY,DESCRIPTION") {
       itemsHtml += `
         <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-          <div style="flex: 0 0 30px; min-width:30px; text-align:center; font-weight:bold; font-size:11px;">${serialNo}</div>
-          <div style="flex: 0 0 40px; min-width:40px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${name}</div>
+          <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
+          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${nameDisplayHtml}</div>
         </div>
       `;
     } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       itemsHtml += `
         <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-          <div style="flex: 0 0 30px; min-width:30px; text-align:center; font-weight:bold; font-size:11px;">${serialNo}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${name}</div>
-          <div style="flex: 0 0 40px; min-width:40px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
+          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${nameDisplayHtml}</div>
+          <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
           <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:11px;">${amt}</div>
         </div>
       `;
     } else {
       itemsHtml += `
         <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-          <div style="flex: 0 0 30px; min-width:30px; text-align:center; font-weight:bold; font-size:11px;">${serialNo}</div>
-          <div style="flex: 0 0 36px; min-width:36px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${name}</div>
-          <div style="flex: 0 0 48px; min-width:48px; text-align:right; font-weight:bold; font-size:11px;">${amt}</div>
+          <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
+          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${nameDisplayHtml}</div>
+          <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:11px;">${amt}</div>
         </div>
       `;
     }
@@ -167,15 +176,24 @@ export const generateKotHtml = async (
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach((ex) => {
           const exName = (ex.name || "EXTRA").toUpperCase();
-          const exAmt = (ex.price * ex.qty).toFixed(3);
-          itemsHtml += `
-            <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-              <div style="flex: 0 0 30px;"></div>
-              <div style="flex: 0 0 36px;"></div>
-              <div style="flex: 1 1 auto; text-align:left; font-size:10px; padding-left:6px;">+ ${exName}</div>
-              ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 48px; min-width:48px; text-align:right; font-weight:bold; font-size:10px;">${exAmt}</div>`}
-            </div>
-          `;
+          const exAmt = fmt(ex.price * ex.qty);
+          if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+            itemsHtml += `
+              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+                <div style="flex: 1 1 auto; text-align:left; font-size:10px; padding-left:6px;">+ ${exName}</div>
+                <div style="flex: 0 0 45px;"></div>
+                <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">${exAmt}</div>
+              </div>
+            `;
+          } else {
+            itemsHtml += `
+              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+                <div style="flex: 0 0 45px;"></div>
+                <div style="flex: 1 1 auto; text-align:left; font-size:10px; padding-left:6px;">+ ${exName}</div>
+                ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">${exAmt}</div>`}
+              </div>
+            `;
+          }
         });
     }
 
@@ -183,14 +201,23 @@ export const generateKotHtml = async (
     if (item.modifiers && item.modifiers.length > 0) {
       item.modifiers.forEach((mod) => {
           const modName = (mod.name || "MODIFIER").toUpperCase();
-          itemsHtml += `
-            <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-              <div style="flex: 0 0 30px;"></div>
-              <div style="flex: 0 0 36px;"></div>
-              <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px;">* ${modName}</div>
-              ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 48px; min-width:48px;"></div>`}
-            </div>
-          `;
+          if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+            itemsHtml += `
+              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px;">* ${modName}</div>
+                <div style="flex: 0 0 45px;"></div>
+                <div style="flex: 0 0 55px; min-width:55px;"></div>
+              </div>
+            `;
+          } else {
+            itemsHtml += `
+              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+                <div style="flex: 0 0 45px;"></div>
+                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px;">* ${modName}</div>
+                ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 55px; min-width:55px;"></div>`}
+              </div>
+            `;
+          }
         });
     }
 
@@ -198,14 +225,23 @@ export const generateKotHtml = async (
     if (item.messages && item.messages.length > 0) {
       item.messages.forEach((msg) => {
           const msgName = (msg.name || "NOTE").toUpperCase();
-          itemsHtml += `
-            <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-              <div style="flex: 0 0 30px;"></div>
-              <div style="flex: 0 0 36px;"></div>
-              <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px; color:#d97706;">NOTE: ${msgName}</div>
-              ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 48px; min-width:48px;"></div>`}
-            </div>
-          `;
+          if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+            itemsHtml += `
+              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px; color:#d97706;">NOTE: ${msgName}</div>
+                <div style="flex: 0 0 45px;"></div>
+                <div style="flex: 0 0 55px; min-width:55px;"></div>
+              </div>
+            `;
+          } else {
+            itemsHtml += `
+              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
+                <div style="flex: 0 0 45px;"></div>
+                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px; color:#d97706;">NOTE: ${msgName}</div>
+                ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 55px; min-width:55px;"></div>`}
+              </div>
+            `;
+          }
         });
     }
     
@@ -221,6 +257,7 @@ export const generateKotHtml = async (
 
   const styles = `
       <head>
+        <meta charset="UTF-8" />
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
@@ -285,27 +322,24 @@ export const generateKotHtml = async (
   if (kotHeaderStyle === "QTY,DESCRIPTION") {
     tableHeaderHtml = `
       <div style="display:flex; width:100%; align-items:center; padding-bottom:3px;">
-        <div style="flex: 0 0 30px; min-width:30px; text-align:center; font-weight:bold; font-size:10px;">SNo</div>
-        <div style="flex: 0 0 40px; min-width:40px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
+        <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
         <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:10px;">DESCRIPTION</div>
       </div>
     `;
   } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
     tableHeaderHtml = `
       <div style="display:flex; width:100%; align-items:center; padding-bottom:3px;">
-        <div style="flex: 0 0 30px; min-width:30px; text-align:center; font-weight:bold; font-size:10px;">SNo</div>
         <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:10px;">DESCRIPTION</div>
-        <div style="flex: 0 0 40px; min-width:40px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
+        <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
         <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">AMT</div>
       </div>
     `;
   } else {
     tableHeaderHtml = `
       <div style="display:flex; width:100%; align-items:center; padding-bottom:3px;">
-        <div style="flex: 0 0 30px; min-width:30px; text-align:center; font-weight:bold; font-size:10px;">SNo</div>
-        <div style="flex: 0 0 36px; min-width:36px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
+        <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
         <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:10px;">DESCRIPTION</div>
-        <div style="flex: 0 0 48px; min-width:48px; text-align:right; font-weight:bold; font-size:10px;">AMT</div>
+        <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">AMT</div>
       </div>
     `;
   }
@@ -327,12 +361,12 @@ export const generateKotHtml = async (
       ${totalVat > 0 ? `
       <tr>
         <td style="text-align: right; padding: 3px 8px 3px 0; font-size: 13px; font-weight: bold;">VAT Amount:</td>
-        <td style="text-align: right; width: 30%; padding: 3px 0; font-size: 13px; font-weight: bold;">${totalVat.toFixed(3)}</td>
+        <td style="text-align: right; width: 30%; padding: 3px 0; font-size: 13px; font-weight: bold;">${fmt(totalVat)}</td>
       </tr>
       ` : ''}
       <tr>
         <td style="text-align: right; padding: 3px 8px 3px 0; font-size: 14px; font-weight: bold;">Total:</td>
-        <td style="text-align: right; width: 30%; padding: 3px 0; font-size: 14px; font-weight: bold;">${grandTotal.toFixed(3)}</td>
+        <td style="text-align: right; width: 30%; padding: 3px 0; font-size: 14px; font-weight: bold;">${fmt(grandTotal)}</td>
       </tr>
     </table>
   ` : '';

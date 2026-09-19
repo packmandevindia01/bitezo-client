@@ -157,13 +157,13 @@ const CashierInPage = () => {
 
         // Load POS Master Data in the background
         const terminalId = localStorage.getItem("terminalId") || "";
-        let decimalPart = 2;
-        let currencySymbol = "BHD";
+        let decimalPart = data.company?.decimalPart ?? 2;
+        let currencySymbol = data.company?.currencySymbol ?? "BHD";
         
         try {
           const masterData = await fetchPosMasterDataApi(terminalId, seriesId);
-          decimalPart = masterData.company?.decimalPart ?? 2;
-          currencySymbol = masterData.company?.currencySymbol ?? "BHD";
+          decimalPart = masterData.company?.decimalPart ?? data.company?.decimalPart ?? 2;
+          currencySymbol = masterData.company?.currencySymbol ?? data.company?.currencySymbol ?? "BHD";
 
           if (masterData.configs) {
             localStorage.setItem("posConfigs", JSON.stringify(masterData.configs));

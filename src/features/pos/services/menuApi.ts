@@ -7,6 +7,7 @@ import type {
   PosAlternative,
   PosOrderType
 } from "../types";
+import { sortAlternatives } from "../utils/alternativeHelpers";
 
 export interface ApiResponse<T> {
   data: T;
@@ -251,17 +252,23 @@ export const menuApi = {
         currentDateTime
       }
     }));
-    return raw.map((a: any) => ({
-      altName: a.altName ?? a.altname ?? a.name,
-      price: a.price,
+    const mapped = raw.map((a: any) => ({
+      ...a,
+      id: a.id ?? a.altId ?? a.altProductId ?? a.productId ?? a.unitId,
+      unitId: a.unitId ?? a.id,
+      altName: a.altName ?? a.altname ?? a.name ?? "",
+      altArabic: a.altArabic ?? a.altarabic ?? "",
+      price: Number(a.price) || 0,
       isIncl: a.isIncl !== undefined ? Boolean(a.isIncl) :
               a.priceIsIncl !== undefined ? Boolean(a.priceIsIncl) :
               a.isincl !== undefined ? Boolean(a.isincl) :
               a.priceView !== undefined ? (a.priceView === 'Inclusive') :
-              undefined,
+              false,
       promoPrice: a.promoPrice !== undefined ? Number(a.promoPrice) : undefined,
       promoIsIncl: a.promoIsIncl !== undefined ? Boolean(a.promoIsIncl) : undefined,
     })) as PosAlternative[];
+
+    return sortAlternatives(mapped);
   },
 
   /** GET /api/menu/products/{productId}/data */

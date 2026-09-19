@@ -76,6 +76,17 @@ export const useCompanyOnboardingForm = ({
     }
   }, [initialValues, form]);
 
+  const countries = masterDataPayload?.masterData?.data?.country ||
+    masterDataPayload?.masterData?.data?.countries ||
+    masterDataPayload?.masterData?.data?.countryList || [];
+    
+  const rawMasterCurrencies = masterDataPayload?.masterData?.data?.currency ||
+    masterDataPayload?.masterData?.data?.currencies ||
+    masterDataPayload?.masterData?.data?.currencyList || [];
+  const currencies = rawMasterCurrencies.length > 0
+    ? rawMasterCurrencies.map((c) => ({ currencyId: c.id, currencyName: c.name }))
+    : masterDataPayload?.currencyData || [];
+
   const onSubmit = (data: CompanyFormValues) => {
     createCompanyMutation.mutate(
       { data, clientDb, tempToken },
@@ -90,17 +101,6 @@ export const useCompanyOnboardingForm = ({
       }
     );
   };
-
-  const countries = masterDataPayload?.masterData?.data?.country ||
-    masterDataPayload?.masterData?.data?.countries ||
-    masterDataPayload?.masterData?.data?.countryList || [];
-    
-  const rawMasterCurrencies = masterDataPayload?.masterData?.data?.currency ||
-    masterDataPayload?.masterData?.data?.currencies ||
-    masterDataPayload?.masterData?.data?.currencyList || [];
-  const currencies = rawMasterCurrencies.length > 0
-    ? rawMasterCurrencies.map((c) => ({ currencyId: c.id, currencyName: c.name }))
-    : masterDataPayload?.currencyData || [];
 
   return {
     form,

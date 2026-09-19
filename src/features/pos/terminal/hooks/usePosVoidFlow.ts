@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
+import { roundCalc } from '../utils/billing';
 
 interface UsePosVoidFlowProps {
   cartDetails: any[];
@@ -12,7 +13,7 @@ interface UsePosVoidFlowProps {
   selectedKey: string | null;
   setSelectedKey: (key: string | null) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
-  decimalPart: number;
+  decimalPart?: number;
 }
 
 export const usePosVoidFlow = ({
@@ -26,7 +27,6 @@ export const usePosVoidFlow = ({
   selectedKey,
   setSelectedKey,
   showToast,
-  decimalPart,
 }: UsePosVoidFlowProps) => {
   const [voidConfirmState, setVoidConfirmState] = useState<{
     isOpen: boolean;
@@ -61,7 +61,7 @@ export const usePosVoidFlow = ({
                 productName: item.product?.name || `Product #${item.productId}`,
                 unitId,
                 qty: item.quantity,
-                amount: Number(((item.price || 0) * item.quantity).toFixed(decimalPart)),
+                amount: roundCalc((item.price || 0) * item.quantity),
                 mapId,
               });
 
@@ -77,7 +77,7 @@ export const usePosVoidFlow = ({
                   mapId,
                   modifierId: mod.id,
                   qty: mod.qty,
-                  amount: Number((modPrice * mod.qty).toFixed(decimalPart)),
+                  amount: roundCalc(modPrice * mod.qty),
                   typeId: mod.typeId || 1
                 });
               });
@@ -121,7 +121,7 @@ export const usePosVoidFlow = ({
             productName: item.product?.name || `Product #${item.productId}`,
             unitId,
             qty: 1,
-            amount: Number((item.price || 0).toFixed(decimalPart)),
+            amount: roundCalc(item.price || 0),
             mapId,
           });
 

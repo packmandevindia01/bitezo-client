@@ -10,6 +10,8 @@ export interface EntityOption {
 export interface UnsettledOrder {
   orderId: number;
   orderNo: string;
+  tokenNo?: string;
+  customerAddress?: string;
   orderDate: string;
   customerName?: string;
   orderType: string;
@@ -18,6 +20,7 @@ export interface UnsettledOrder {
   totalAmount: number;
   driverId?: number;
   providerId?: number;
+  raw?: any;
 }
 
 export interface DriverPaymodeItem {

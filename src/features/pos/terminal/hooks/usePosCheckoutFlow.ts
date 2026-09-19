@@ -2,7 +2,10 @@ import { useState, useRef } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
+import { settledOrdersApi } from '../../services/settledOrdersApi';
 import { getVatStatus } from '../utils/billing';
+import { isBillArabicEnabled } from '../../utils/alternativeHelpers';
+import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -45,6 +48,7 @@ export const usePosCheckoutFlow = ({
   editingSaleId,
   isCartModified,
   subtotal,
+  totalDiscountAmount,
   totalServiceCharge,
   totalLevy,
   totalVat,
@@ -153,13 +157,6 @@ export const usePosCheckoutFlow = ({
     const isOrderEdited = !editingOrderId ? true : isCartModified;
 
     try {
-      let systemSeriesId = Number(localStorage.getItem("systemSeriesId")) || Number(localStorage.getItem("seriesId")) || 1;
-      if (!systemSeriesId || isNaN(systemSeriesId) || systemSeriesId <= 0 || systemSeriesId > 6) {
-        systemSeriesId = 1;
-      }
-      const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
-      const activeTransDate = rawTransDate.split("T")[0];
-      const activeDriverId = (orderPayload as any).driverId || Number(localStorage.getItem("selectedDriverId") || 0);
       const resolvedCustomerId = (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0)
         ? activeProvider.provider.postAccountId
         : orderPayload.customerId;
@@ -186,72 +183,18 @@ export const usePosCheckoutFlow = ({
         return;
       }
 
-      const rootPaymodeId = validPayments.length > 1 
-        ? 3 
-        : (validPayments.length === 1 && validPayments[0].paymodeId > 0 ? validPayments[0].paymodeId : 1);
-      const salesPayload: any = {
-        seriesId: systemSeriesId,
-        prefix: "",
-        customerId: resolvedCustomerId,
-        paymodeId: rootPaymodeId,
-        employeeId: employeeId,
+      const salesPayload = buildSalesInvoicePayload({
+        orderPayload,
+        payments: validPayments,
+        employeeId,
         dayId: status.dayId,
         shiftId: status.shiftId,
-        transDate: activeTransDate,
-        orderTypeId: orderPayload.orderTypeId,
-        androidStatus: false,
-        saleId: editingSaleId || 0,
-        orderId: orderPayload.orderId,
-        orderMaster: {
-          isOrderEdited,
-          sectionId: orderPayload.sectionId,
-          tableId: orderPayload.tableId,
-          guestNo: orderPayload.guestNo,
-          vehicleCustomerName: orderPayload.vehicleCustomerName,
-          vehicleNo: orderPayload.vehicleNo,
-          addressId: orderPayload.addressId,
-          missedCall: orderPayload.missedCall,
-          contactNo: orderPayload.contactNo,
-          note: orderPayload.note,
-          change: orderPayload.change || "0.00",
-          isComing: orderPayload.isComing,
-          comingTime: orderPayload.comingTime,
-          providerNo: orderPayload.providerNo,
-          driverId: activeDriverId,
-          transDate: activeTransDate,
-        },
-        combinedOrderIds: orderPayload.combinedOrderIds,
-        modifiers: orderPayload.modifiers,
-        voidProducts: orderPayload.voidProducts,
-        voidModifiers: orderPayload.voidModifiers,
-        voucherDate: new Date().toISOString(),
-        discAmount: orderPayload.discAmount,
-        discPer: orderPayload.discPer,
-        serviceCharge: orderPayload.serviceCharge,
-        levy: orderPayload.levy,
-        vatExclAmount: orderPayload.vatExclAmount,
-        vatAmount: orderPayload.vatAmount,
-        netAmount: orderPayload.netAmount,
-        deliveryCharge: orderPayload.deliveryCharge,
-        createdAt: new Date().toISOString(),
-        details: orderPayload.details.map((d: any) => ({
-          productId: d.productId,
-          unitId: d.unitId,
-          vatId: d.vatId,
-          qty: d.qty,
-          price: d.price,
-          discPer: d.discPer,
-          discAmount: d.discAmount,
-          serviceCharge: d.serviceCharge,
-          levy: d.levy,
-          vatAmount: d.vatAmount,
-          netAmount: d.netAmount,
-          baseQty: d.baseQty,
-          mapId: d.mapId,
-          complimentaryStatus: d.complimentaryStatus || false
-        })),
-        paymodes: rootPaymodeId === 3 ? validPayments : []
-      };
+        transDate: status?.transDate || localStorage.getItem("transDate") || new Date().toISOString(),
+        editingSaleId,
+        isOrderEdited,
+        tenderOptions,
+        activeProviderPostAccountId: activeProvider?.provider?.postAccountId,
+      });
 
       console.log("========== 🛒 POS SETTLEMENT DETAILS ==========");
       console.log("Employee ID:", employeeId);
@@ -285,19 +228,51 @@ export const usePosCheckoutFlow = ({
         
         let orderNoStr = finalSaleId.toString();
         let ticketNoStr = finalSaleId.toString();
-        let waiterStr = waiterName || localStorage.getItem("employeeName") || "Waiter";
+        let waiterStr = waiterName || localStorage.getItem("defaultEmployeeName") || localStorage.getItem("employeeName") || "Waiter";
         let sectionStr = orderPayload.sectionId ? String(orderPayload.sectionId) : "DINE IN";
         let tableStr = orderPayload.tableNo ? orderPayload.tableNo : (orderPayload.tableId ? String(orderPayload.tableId) : "");
+        let masterData: any = null;
+        let detailsData: any[] | null = null;
+        let modifiersData: any[] = [];
 
         try {
           const targetOrderId = orderPayload.orderId || editingOrderId || 0;
-          let masterData: any = null;
+          let saleRes: any = null;
+
           if (finalSaleId > 0 && targetOrderId > 0) {
-            const saleRes = await salesInvoiceApi.getSalesInvoiceData(finalSaleId, targetOrderId);
-            masterData = saleRes?.masterData || saleRes?.master || saleRes?.data?.masterData || saleRes?.data?.master || saleRes;
-          } else if (targetOrderId > 0) {
-            const orderRes = await orderApi.getOrderDetails(targetOrderId);
-            masterData = orderRes?.data?.masterData || orderRes?.masterData || orderRes?.data?.master || orderRes?.master;
+            try {
+              saleRes = await salesInvoiceApi.getSalesInvoiceData(finalSaleId, targetOrderId);
+            } catch (err) {
+              console.warn("getSalesInvoiceData failed, attempting fallback:", err);
+            }
+          }
+
+          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && targetOrderId > 0) {
+            try {
+              const settledRes = await settledOrdersApi.getSettledOrderDetails(targetOrderId);
+              if (settledRes && settledRes.data) {
+                saleRes = settledRes.data;
+              }
+            } catch (err) {
+              console.warn("getSettledOrderDetails failed, attempting orderApi:", err);
+            }
+          }
+
+          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && targetOrderId > 0) {
+            try {
+              const orderRes = await orderApi.getOrderDetails(targetOrderId);
+              if (orderRes) {
+                saleRes = orderRes?.data || orderRes;
+              }
+            } catch (err) {
+              console.warn("getOrderDetails fallback failed:", err);
+            }
+          }
+
+          if (saleRes) {
+            masterData = saleRes.masterData || saleRes.master || saleRes.data?.masterData || saleRes.data?.master || saleRes;
+            detailsData = saleRes.detailsData || saleRes.details || saleRes.data?.detailsData || saleRes.data?.details || null;
+            modifiersData = saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData || saleRes.data?.modifiers || [];
           }
 
           if (masterData) {
@@ -311,8 +286,70 @@ export const usePosCheckoutFlow = ({
           console.warn("Failed to fetch invoice metadata for print:", e);
         }
 
+        let mappedPrintItems = cartDetails;
+        if (detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
+          try {
+            const preMapped = detailsData.map((d: any) => {
+              const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
+              const extras = itemMods
+                .filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0))
+                .map((m: any) => ({
+                  id: m.modifierId,
+                  name: m.modifierName,
+                  price: m.price || 0,
+                  qty: m.qty || 1,
+                  typeId: m.typeId
+                }));
+              const modifiers = itemMods
+                .filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0))
+                .map((m: any) => ({
+                  id: m.modifierId,
+                  name: m.modifierName,
+                  qty: m.qty || 1,
+                  typeId: m.typeId
+                }));
+              const messages = itemMods
+                .filter((m: any) => (m.status || "").toLowerCase() === "message")
+                .map((m: any) => ({
+                  id: m.modifierId,
+                  name: m.modifierName || m.name || ""
+                }));
+
+              let lineBase = (d.price || 0) * (d.qty || 1);
+              extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+
+              return { ...d, extras, modifiers, messages, lineBase };
+            });
+
+            mappedPrintItems = preMapped.map((d: any) => {
+              const qty = d.qty ?? d.Qty ?? 1;
+              const price = d.price ?? d.Price ?? 0;
+              return {
+                productId: d.productId || d.itemId || 0,
+                quantity: qty,
+                price: price,
+                variantName: d.variantName || d.VariantName,
+                variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+                product: {
+                  name: d.productName || d.ProductName || `Product #${d.productId || 0}`,
+                  price: price,
+                  arabicName: d.arabicName || d.ArabicName
+                },
+                extras: d.extras,
+                modifiers: d.modifiers,
+                messages: d.messages || [],
+                itemDiscount: d.discAmount || 0,
+                lineTotal: d.netAmount ?? d.amount ?? d.lineBase ?? (price * qty)
+              };
+            });
+          } catch (err) {
+            console.warn("Failed to map API details for printing, falling back to cartDetails:", err);
+            mappedPrintItems = cartDetails;
+          }
+        }
+
         const printPayloadObj = {
-          mappedItems: cartDetails,
+          mappedItems: mappedPrintItems,
           printData: {
             orderNo: orderNoStr,
             ticketNo: ticketNoStr,
@@ -328,14 +365,17 @@ export const usePosCheckoutFlow = ({
               name: paymentNames[p.paymodeId] || "Other",
               amount: p.amount
             })),
-            subTotal: subtotal,
-            serviceCharge: totalServiceCharge,
-            levy: totalLevy,
-            vatAmount: totalVat,
-            deliveryCharge: deliveryCharge,
-            netAmount: total,
+            subTotal: masterData?.vatExclAmount ?? masterData?.subTotal ?? subtotal,
+            discount: masterData?.discAmount ?? masterData?.discount ?? (totalDiscountAmount || 0),
+            serviceCharge: masterData?.serviceCharge ?? totalServiceCharge,
+            levy: masterData?.levyAmt ?? masterData?.levy ?? totalLevy,
+            vatAmount: masterData?.vatAmount ?? totalVat,
+            deliveryCharge: masterData?.deliveryCharge ?? deliveryCharge,
+            // Prefer the server-stored net amount to avoid frontend rounding accumulation errors
+            netAmount: masterData?.netAmount ?? total,
             changeAmount: Number(orderPayload.change) || 0,
-            isSettlement: true
+            isSettlement: true,
+            billArabic: isBillArabicEnabled()
           }
         };
 
@@ -366,12 +406,13 @@ export const usePosCheckoutFlow = ({
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
 
-    if (defaultEmployeeEnabled) {
-      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
-        showToast("Default employee is not configured", "error");
-        return;
-      }
+    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
       submitSettlementForEmployee(defaultEmployeeId, payments);
+      return;
+    }
+
+    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
+      showToast("Default employee is enabled but not selected in settings", "error");
       return;
     }
 
@@ -404,12 +445,13 @@ export const usePosCheckoutFlow = ({
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
     const payments = [{ paymodeId: resolvedPaymodeId, amount: total }];
 
-    if (defaultEmployeeEnabled) {
-      if (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0) {
-        showToast("Default employee is not configured", "error");
-        return;
-      }
+    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
       submitSettlementForEmployee(defaultEmployeeId, payments);
+      return;
+    }
+
+    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
+      showToast("Default employee is enabled but not selected in settings", "error");
       return;
     }
 

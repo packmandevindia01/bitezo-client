@@ -10,6 +10,7 @@ import { getCurrencySymbol } from "../../../../../../utils/currency";
 import { generateEndReportHtml } from "../../../../utils/endReportTemplate";
 import { useQueryClient } from "@tanstack/react-query";
 import { bulkSettlementApi } from "../../../../bulkSettlement/services/bulkSettlementApi";
+import { roundCalc } from "../../../utils/billing";
 
 
 interface Props {
@@ -77,18 +78,35 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
 
   const cfg = mode ? MODE_CONFIG[mode] : null;
 
+  const resetSessionModalState = useCallback(() => {
+    hasFetched.current = false;
+    setManualAmount("");
+    setCounts({});
+    setEntryMode("MANUAL");
+    setViewScreen("MANUAL");
+    setActiveField("TOTAL");
+    setPrintState(null);
+    setSubmitting(false);
+    setShowCloseBothConfirm(false);
+    setShowLogoutConfirm(false);
+    setShowOpenCancelConfirm(false);
+    setShowPendingSettleModal(false);
+  }, []);
+
   const handleModalClose = () => {
     if (submitting) return;
     if (mode === "OPEN_DAY" || mode === "OPEN_SHIFT") {
       setShowOpenCancelConfirm(true);
     } else {
+      resetSessionModalState();
       onClose();
     }
   };
 
   const totalAmount = useMemo(() => {
-    if (entryMode === "MANUAL") return Number(manualAmount) || 0;
-    return denoms.reduce((sum, d) => sum + (counts[d.id ?? 0] ?? 0) * d.value, 0);
+    if (entryMode === "MANUAL") return roundCalc(Number(manualAmount) || 0);
+    const sum = denoms.reduce((acc, d) => acc + (counts[d.id ?? 0] ?? 0) * d.value, 0);
+    return roundCalc(sum);
   }, [denoms, counts, entryMode, manualAmount]);
 
   const loadAll = useCallback(async () => {
@@ -152,16 +170,13 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
 
   useEffect(() => { 
     if (isOpen) {
+      resetSessionModalState();
       setSelectedDate(new Date().toISOString().split("T")[0]);
       void loadAll();
     } else {
-      hasFetched.current = false;
-      setManualAmount("");
-      setPrintState(null);
-      setActiveField("TOTAL");
-      setViewScreen("MANUAL");
+      resetSessionModalState();
     }
-  }, [isOpen, loadAll]);
+  }, [isOpen, loadAll, resetSessionModalState]);
 
   const handleCountChange = (id: number, val: string) => {
     if (val.length > 5) return;
@@ -944,7 +959,10 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                       <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setCloseTab("SHIFT")}
+                        onClick={() => {
+                          setCloseTab("SHIFT");
+                          resetSessionModalState();
+                        }}
                         className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-all ${closeTab === "SHIFT" ? "bg-white text-[#49293e] shadow-xs font-extrabold" : "text-slate-500 hover:text-slate-700"}`}
                       >
                         {cashierStatus?.isShiftClosed ? "Open Shift" : "Close Shift"}
@@ -952,7 +970,10 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                       <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setCloseTab("DAY")}
+                        onClick={() => {
+                          setCloseTab("DAY");
+                          resetSessionModalState();
+                        }}
                         className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-all ${closeTab === "DAY" ? "bg-white text-[#49293e] shadow-xs font-extrabold" : "text-slate-500 hover:text-slate-700"}`}
                       >
                         Close Day

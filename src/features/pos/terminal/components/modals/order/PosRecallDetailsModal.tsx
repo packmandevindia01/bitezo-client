@@ -13,6 +13,7 @@ import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus } from "../../../utils/billing";
+import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { Capacitor } from "@capacitor/core";
 
 import { usePosProducts } from "../../../hooks/usePosProducts";
@@ -205,10 +206,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           categoryId: d.categoryId || matchedProduct?.categoryId || 0,
           quantity: d.qty || 1,
           price: d.price || 0,
+          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
           product: { 
             name: d.productName || d.ProductName || matchedProduct?.name || `Product #${pId}`, 
             price: d.price || 0,
-            categoryId: d.categoryId || matchedProduct?.categoryId || 0
+            categoryId: d.categoryId || matchedProduct?.categoryId || 0,
+            arabicName: d.arabicName || d.ArabicName || matchedProduct?.arabicName
           },
           extras,
           modifiers,
@@ -228,7 +231,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         table: master.tableNo || "",
         orderType: orderTypeName,
         vehicleNo: master.vehicleNo || "",
-        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || ""
+        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
+        kotArabic: isKotArabicEnabled()
       };
 
       await executeKotRouting(
@@ -322,7 +326,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           extras: d.extras,
           modifiers: d.modifiers,
           messages: d.messages || [],
-          lineTotal: d.lineBase || ((d.price || 0) * (d.qty || 1))
+          itemDiscount: d.discAmount || 0,
+          lineTotal: d.netAmount || d.amount || d.lineBase || ((d.price || 0) * (d.qty || 1))
         };
       });
 
@@ -348,12 +353,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         area: master.area,
         providerNo: master.providerNo,
         subTotal: calculatedSubTotal,
+        discount: master.discAmount || master.discount || 0,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: calculatedVatTotal,
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
-        enableVat
+        enableVat,
+        billArabic: isBillArabicEnabled()
       };
 
       if (Capacitor.isNativePlatform()) {
@@ -478,6 +485,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           isExisting: true,
           mapId: detail.mapId,
           originalQty: detail.qty || 1,
+          variantName: detail.variantName || detail.altName || detail.VariantName || detail.AltName,
+          variantArabic: detail.variantArabic || detail.altArabic || detail.VariantArabic || detail.AltArabic,
           product: {
             id: pId,
             name: detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`,

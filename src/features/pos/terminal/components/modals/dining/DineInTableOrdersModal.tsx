@@ -12,6 +12,7 @@ import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
 import { getVatStatus } from '../../../utils/billing';
+import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
 import { Capacitor } from '@capacitor/core';
 import type {
   DineInTable,
@@ -172,9 +173,12 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         rawVatAmount: detail.vatAmount || 0,
         mapId: detail.mapId,
         originalQty: detail.qty || 1,
+        variantName: detail.variantName || detail.altName || detail.VariantName || detail.AltName,
+        variantArabic: detail.variantArabic || detail.altArabic || detail.VariantArabic || detail.AltArabic,
         product: {
           id: detail.productId,
           name: detail.productName || `Product #${detail.productId}`,
+          arabicName: detail.arabicName || detail.ArabicName,
           price: detail.price || 0,
           categoryId: 1,
           unitId: detail.unitId || 1,
@@ -257,7 +261,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const enableVat = getVatStatus();
 
       // Prepare print data
-      const printData = {
+      const printData: any = {
         orderNo: master.orderNo ?? String(master.orderId),
         ticketNo: master.ticketNo ?? "1",
         waiter: master.employeeName ?? "Waiter",
@@ -268,12 +272,14 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         date: master.voucherDate ? new Date(master.voucherDate).toLocaleDateString('en-GB') : undefined,
         time: master.voucherDate ? new Date(master.voucherDate).toLocaleTimeString('en-US') : undefined,
         subTotal: master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0),
+        discount: master.discAmount || master.discount || 0,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || 0,
         vatAmount: master.vatAmount || 0,
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
-        enableVat
+        enableVat,
+        billArabic: isBillArabicEnabled()
       };
 
       // Since the backend might not provide subTotal explicitly, recalculate from items
@@ -295,13 +301,16 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           ...item,
           price: item.price,
           extras: item.extras,
-          lineTotal: item.lineBase || ((item.price || 0) * (item.quantity || 1)),
+          itemDiscount: item.discAmount || item.discountValue || 0,
+          lineTotal: item.netAmount || item.rawAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1)),
           product: { ...item.product, price: item.price }
         };
       });
 
       printData.subTotal = calculatedSubTotal;
+      (printData as any).discount = master.discAmount || master.discount || 0;
       printData.vatAmount = master.vatAmount || 0;
+      printData.billArabic = isBillArabicEnabled();
 
       if (Capacitor.isNativePlatform()) {
         const { generateBillMarkup } = await import('../../../../utils/escPosGenerator');

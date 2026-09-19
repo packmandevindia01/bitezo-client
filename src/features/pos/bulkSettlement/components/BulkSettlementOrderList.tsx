@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckSquare, Square, Tag, CreditCard, ShoppingBag, Clock, User } from "lucide-react";
+import { CheckSquare, Square, Tag, CreditCard, ShoppingBag, Clock, User, RefreshCw } from "lucide-react";
 import type { UnsettledOrder } from "../types";
 import { formatCurrency } from "../../../../utils/currency";
 import { Loader } from "../../../../components/common";
@@ -8,6 +8,10 @@ interface BulkSettlementOrderListProps {
   orders: UnsettledOrder[];
   isOrdersLoading: boolean;
   selectedOrderIds: number[];
+  selectedEntityName?: string;
+  entityType?: "driver" | "provider";
+  hasSearched?: boolean;
+  onRefresh?: () => void;
   onToggleOrderSelection: (orderId: number) => void;
 }
 
@@ -15,26 +19,47 @@ export const BulkSettlementOrderList: React.FC<BulkSettlementOrderListProps> = (
   orders,
   isOrdersLoading,
   selectedOrderIds,
+  selectedEntityName,
+  entityType = "driver",
+  hasSearched = false,
+  onRefresh,
   onToggleOrderSelection,
 }) => {
   if (isOrdersLoading) {
     return (
-      <div className="bg-white rounded-2xl p-12 border border-slate-200/80 shadow-xs flex items-center justify-center h-48">
-        <Loader text="Loading unsettled orders..." />
+      <div className="bg-white rounded-2xl p-12 border border-slate-200/80 shadow-xs flex items-center justify-center h-56">
+        <Loader text={`Fetching unsettled orders${selectedEntityName ? ` for ${selectedEntityName}` : ""}...`} />
       </div>
     );
   }
 
   if (orders.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-slate-200/80 shadow-xs flex flex-col items-center justify-center text-center h-56">
-        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mb-2 border border-slate-100">
-          <ShoppingBag size={22} />
+      <div className="bg-white rounded-2xl p-8 border border-slate-200/80 shadow-xs flex flex-col items-center justify-center text-center min-h-[16rem]">
+        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mb-3 border border-slate-100">
+          <ShoppingBag size={26} />
         </div>
-        <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight">No Unsettled Orders</h3>
-        <p className="text-[11px] text-slate-400 max-w-sm mt-0.5 font-medium">
-          Select a driver or provider and click SEARCH to view pending orders.
+        <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+          {hasSearched && selectedEntityName
+            ? `No Pending Orders for ${selectedEntityName}`
+            : "No Unsettled Orders"}
+        </h3>
+        <p className="text-[11.5px] text-slate-500 max-w-md mt-1 font-medium leading-relaxed">
+          {hasSearched && selectedEntityName
+            ? `All delivery orders assigned to ${selectedEntityName} have already been settled, or no orders are currently assigned to this ${entityType}.`
+            : `Select a ${entityType === "driver" ? "driver" : "provider"} from the dropdown above to view unsettled orders.`}
         </p>
+
+        {hasSearched && onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-[#49293e] bg-[#49293e]/10 hover:bg-[#49293e]/15 transition-colors cursor-pointer"
+          >
+            <RefreshCw size={13} />
+            <span>Re-check Orders</span>
+          </button>
+        )}
       </div>
     );
   }

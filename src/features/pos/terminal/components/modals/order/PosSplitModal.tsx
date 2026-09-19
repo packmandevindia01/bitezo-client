@@ -7,7 +7,7 @@ import { orderApi } from "../../../../services/orderApi";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
-import { getBillingConfig, calculateLineItem } from "../../../utils/billing";
+import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc } from "../../../utils/billing";
 import { useCashierLog } from "../../../../cashier";
 
 interface PosSplitModalProps {
@@ -181,35 +181,40 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   };
 
   const calculateBucketTotal = (bucket: SplitBucket) => {
-    let total = 0;
-    const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-
-    bucket.items.forEach(item => {
-      let extrasTotal = 0;
-      
-      if (ownsModifiers(bucket, item.mapId)) {
-        item.modifiers.forEach(m => {
-          if (m.price > 0) {
-            extrasTotal += (m.price * (m.qty || 1));
-          }
-        });
-      }
-      
-
-      
-      const calcs = calculateLineItem(
-        item.currentQty,
-        item.price,
-        0,
-        extrasTotal,
-        config,
-        item.detail.vatValue,
-        item.isIncl
-      );
-      
-      total += calcs.lineNetAmount;
+    const cartItems = bucket.items.map(item => {
+      const extras = ownsModifiers(bucket, item.mapId)
+        ? (item.modifiers || []).filter(m => m.price > 0).map(m => ({
+            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+            name: m.modifierName || m.name || "Extra",
+            price: m.price,
+            qty: m.qty || 1,
+            typeId: m.typeId || 1
+          }))
+        : [];
+      return {
+        uniqueId: String(item.mapId),
+        productId: item.detail?.productId ?? item.detail?.ProductId ?? 1,
+        quantity: item.currentQty,
+        price: item.price,
+        isIncl: item.isIncl,
+        discountValue: item.detail?.discPer || 0,
+        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        extras,
+        product: {
+          id: item.detail?.productId ?? 1,
+          name: item.name,
+          price: item.price,
+          categoryId: 0,
+          vatValue: item.detail?.vatValue,
+          sVatId: item.detail?.vatId
+        }
+      };
     });
-    return total;
+
+    const result = calculateOrder(cartItems, {
+      orderType: originalOrder?.orderTypeName || "DineIn"
+    });
+    return result.summary.total;
   };
 
   const handleAddSplit = () => {
@@ -377,68 +382,57 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   };
 
   const generateBucketData = (bucket: SplitBucket, tableId?: number, sectionId?: number) => {
-    const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
-    // Recalculate totals for this bucket
-    let vatExclAmount = 0;
-    let vatAmount = 0;
-    let netAmount = 0;
-    
+    const cartItems = bucket.items.map(item => {
+      const extras = ownsModifiers(bucket, item.mapId)
+        ? (item.modifiers || []).filter(m => m.price > 0).map(m => ({
+            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+            name: m.modifierName || m.name || "Extra",
+            price: m.price,
+            qty: m.qty || 1,
+            typeId: m.typeId || 1
+          }))
+        : [];
+      return {
+        uniqueId: String(item.mapId),
+        productId: item.detail?.productId ?? item.detail?.ProductId ?? 1,
+        quantity: item.currentQty,
+        price: item.price,
+        isIncl: item.isIncl,
+        discountValue: item.detail?.discPer || 0,
+        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        extras,
+        product: {
+          id: item.detail?.productId ?? 1,
+          name: item.name,
+          price: item.price,
+          categoryId: 0,
+          vatValue: item.detail?.vatValue,
+          sVatId: item.detail?.vatId
+        }
+      };
+    });
+
+    const result = calculateOrder(cartItems, {
+      orderType: originalOrder?.orderTypeName || "DineIn"
+    });
+
     const details = bucket.items.map((item, index) => {
       const newMapId = index + 1;
-      
-      let extrasTotal = 0;
-      if (ownsModifiers(bucket, item.mapId)) {
-        item.modifiers.forEach(m => {
-          if (m.price > 0) {
-            extrasTotal += (m.price * (m.qty || 1));
-          }
-        });
-      }
+      const lineCalc = result.lines[index];
+      const pId = item.detail?.productId ?? item.detail?.ProductId ?? item.detail?.itemId ?? item.detail?.ItemId;
 
-      const activeVatRate = item.detail.vatValue !== undefined ? (item.detail.vatValue / 100) : config.vatRate;
-
-      const calcs = calculateLineItem(
-        item.currentQty,
-        item.price,
-        0,
-        extrasTotal,
-        config,
-        item.detail.vatValue,
-        item.isIncl
-      );
-
-      let mainNetAmount = calcs.lineNetAmount;
-      let mainVatAmount = calcs.vatAmount;
-      
-      // Subtract extras from main detail like usePosCartActions does, so backend sums it perfectly
-      if (ownsModifiers(bucket, item.mapId)) {
-        item.modifiers.forEach(m => {
-          if (m.price > 0) {
-            const actualExtraPrice = m.price / (1 + activeVatRate);
-            const extraBase = actualExtraPrice * (m.qty || 1);
-            const proportion = calcs.amount > 0 ? (extraBase / calcs.amount) : 0;
-            const extraNet = calcs.lineNetAmount * proportion;
-            const extraVat = calcs.vatAmount * proportion;
-            
-            mainNetAmount -= extraNet;
-            mainVatAmount -= extraVat;
-          }
-        });
-      }
-
-      // Add to bucket totals
-      netAmount += calcs.lineNetAmount;
-      vatAmount += calcs.vatAmount;
-      vatExclAmount += (calcs.lineNetAmount - calcs.vatAmount);
-
-      const pId = item.detail.productId ?? item.detail.ProductId ?? item.detail.itemId ?? item.detail.ItemId;
       return {
         ...item.detail,
         mapId: newMapId,
         productId: pId,
         qty: item.currentQty,
-        netAmount: Number(mainNetAmount.toFixed(3)),
-        vatAmount: Number(mainVatAmount.toFixed(3))
+        price: roundCalc(item.price),
+        netAmount: roundCalc(lineCalc?.mainNetAmount ?? lineCalc?.lineTotal ?? 0),
+        vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
+        serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
+        levy: roundCalc(lineCalc?.mainLevy ?? lineCalc?.levy ?? 0),
+        discPer: item.detail?.discPer || 0,
+        discAmount: roundCalc(lineCalc?.effectiveDiscountAmount ?? (item.detail?.discAmount || 0)),
       };
     });
 
@@ -454,7 +448,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
             mapId: newMapId,
             modifierId: mId,
             qty: m.qty || 1,
-            amount: m.amount || 0
+            amount: roundCalc(m.amount || (m.price * (m.qty || 1)))
           });
         });
       }
@@ -465,11 +459,11 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         sectionId: sectionId || originalOrder?.sectionId || 0,
         tableId: tableId || originalOrder?.tableId || 0,
         guestNo: originalOrder?.guestNo || 0,
-        serviceCharge: 0,
-        levy: 0,
-        vatExclAmount: Number(vatExclAmount.toFixed(3)),
-        vatAmount: Number(vatAmount.toFixed(3)),
-        netAmount: Number(netAmount.toFixed(3))
+        serviceCharge: roundCalc(result.summary.totalServiceCharge),
+        levy: roundCalc(result.summary.totalLevy),
+        vatExclAmount: roundCalc(result.summary.subtotal),
+        vatAmount: roundCalc(result.summary.tax),
+        netAmount: roundCalc(result.summary.total)
       },
       details,
       modifiers

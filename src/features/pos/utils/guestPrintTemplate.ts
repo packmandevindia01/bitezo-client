@@ -1,6 +1,8 @@
 import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
+import { isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
+import { getDecimalPart } from "../../../utils/currency";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -22,6 +24,7 @@ export interface GuestPrintData {
   area?: string;
   providerNo?: string;
   subTotal: number;
+  discount?: number;
   serviceCharge: number;
   levy: number;
   vatAmount: number;
@@ -33,6 +36,7 @@ export interface GuestPrintData {
   isSettlement?: boolean;
   isPackager?: boolean;
   showCompanyHeader?: boolean;
+  billArabic?: boolean;
 }
 
 export const generateGuestPrintHtml = async (
@@ -141,6 +145,13 @@ export const generateGuestPrintHtml = async (
     ? `SIMPLIFIED TAX INVOICE<br/>${orderTypeLabel}` 
     : `SIMPLIFIED INVOICE<br/>${orderTypeLabel}`;
 
+  const isBillArabic = data.billArabic ?? isBillArabicEnabled();
+  const decimalPart = getDecimalPart();
+  const fmt = (val: number | string | undefined | null) => {
+    const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
+    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+  };
+
   let itemsHtml = "";
   let displaySubTotal = 0; // Sum of rounded display amounts for consistency
   cartDetails.forEach((item) => {
@@ -150,30 +161,58 @@ export const generateGuestPrintHtml = async (
     }
     const qty = item.quantity;
     
+    const altArabicName = isBillArabic ? getAlternativeArabicName(item) : "";
+
     let extrasSum = 0;
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach(ex => extrasSum += (ex.price * (ex.qty || 1)));
     }
-    
-    let baseAmt = (item as any).lineTotal;
-    const itemVat = (item as any).vatAmount || 0;
-    if (baseAmt !== undefined && baseAmt > 0) {
-      baseAmt -= extrasSum;
-      if (itemVat > 0 && baseAmt > itemVat && Math.abs(baseAmt - ((item.price || item.product?.price || 0) * item.quantity)) > 0.001) {
-        baseAmt -= itemVat;
-      }
-    } else {
-      baseAmt = (item.price || item.product?.price || 0) * item.quantity;
-    }
-    
-    const rate = (baseAmt / qty).toFixed(3);
-    const amt = baseAmt.toFixed(3);
-    displaySubTotal += parseFloat(amt);
+
+    const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
+    // Shape A (calculateOrder): has baseAmount = exclusive base (product only, no extras)
+    // Shape B (API direct):     no baseAmount, item.price is already the exclusive price
+    const itemBaseAmount: number | undefined = (item as any).baseAmount;
+    const itemLineTotal: number | undefined = (item as any).lineTotal;
+
+    // ── RATE: always the exclusive (pre-VAT) unit price ────────────────────────
+    // Shape A: baseAmount = qty × exclusiveUnitPrice → divide to get exclusive unit price
+    //          This correctly handles inclusive items (calculateOrder already reverses VAT into baseAmount)
+    // Shape B: item.price is already exclusive from API → use directly
+    const exclusiveUnitPrice =
+      itemBaseAmount !== undefined && qty > 0
+        ? Math.max(0, itemBaseAmount / qty)
+        : origUnitPrice;
+
+    // ── AMT: always the VAT-inclusive line total ────────────────────────────────
+    // lineTotal from calculateOrder = inclusive total for the whole line (product + extras).
+    // lineTotal from API direct = inclusive netAmount per line.
+    // Deduct extras since they are printed as separate rows below.
+    // IMPORTANT: No VAT stripping — lineTotal is already the correct inclusive total.
+    const lineInclusiveAmt =
+      itemLineTotal !== undefined && itemLineTotal > 0
+        ? Math.max(0, itemLineTotal - extrasSum)
+        : origUnitPrice * qty;
+
+    // displaySubTotal accumulates exclusive amounts as a fallback for the Sub Total row
+    // (only used when data.subTotal is not provided by the caller)
+    const exclusiveBase =
+      itemBaseAmount !== undefined
+        ? Math.max(0, itemBaseAmount)
+        : origUnitPrice * qty;
+    displaySubTotal += parseFloat(fmt(exclusiveBase));
+
+    let totalItemDisc = Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
+    const rate = fmt(exclusiveUnitPrice);
+    const amt = fmt(lineInclusiveAmt);
 
     itemsHtml += `
       <tr>
         <td style="width: 10%; text-align: left; vertical-align: top; padding: 2px 0;">${qty}</td>
-        <td style="width: 45%; text-align: left; vertical-align: top; padding: 2px 0;">${name}</td>
+        <td style="width: 45%; text-align: left; vertical-align: top; padding: 2px 0;">
+          <div>${name}</div>
+          ${altArabicName ? `<div dir="rtl" style="font-size:9.5px; font-weight:bold; text-align:left; font-family:Arial, Tahoma, sans-serif; line-height:1.2; margin-top:1px;">${altArabicName}</div>` : ''}
+          ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
+        </td>
         <td style="width: 20%; text-align: right; vertical-align: top; padding: 2px 0;">${rate}</td>
         <td style="width: 25%; text-align: right; vertical-align: top; padding: 2px 0;">${amt}</td>
       </tr>
@@ -182,8 +221,8 @@ export const generateGuestPrintHtml = async (
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach((ex) => {
         const exName = (ex.name || "EXTRA").toUpperCase();
-        const exRate = ex.price.toFixed(3);
-        const exAmt = (ex.price * (ex.qty || 1)).toFixed(3);
+        const exRate = fmt(ex.price);
+        const exAmt = fmt(ex.price * (ex.qty || 1));
         displaySubTotal += parseFloat(exAmt);
         itemsHtml += `
           <tr>
@@ -229,23 +268,33 @@ export const generateGuestPrintHtml = async (
   const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
   const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
 
-  displaySubTotal = parseFloat(displaySubTotal.toFixed(3));
+  displaySubTotal = parseFloat(fmt(displaySubTotal));
   
   // Show VAT if explicitly enabled OR if vatAmount / cartVatSum / netAmount difference indicates VAT presence
   const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
 
+  const cartTotalDiscounts = cartDetails.reduce((sum, item: any) => {
+    return sum + Number(item.itemDiscount ?? item.discAmount ?? 0);
+  }, 0);
+  const totalDiscount = (data.discount && data.discount > 0) ? data.discount : cartTotalDiscounts;
+
+  const hasAuthoritativeTotals = data.subTotal !== undefined && Number(data.subTotal) > 0;
+  const authoritativeSubTotal = hasAuthoritativeTotals ? Number(data.subTotal) : displaySubTotal;
+  const authoritativeVatAmount = (data.vatAmount !== undefined && Number(data.vatAmount) > 0) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+
   if (isVatActive) {
     data.enableVat = true;
-    data.vatAmount = parseFloat((rawVat > 0 ? rawVat : (data.netAmount - displaySubTotal)).toFixed(3));
-    data.subTotal = parseFloat((data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)).toFixed(3));
+    data.vatAmount = parseFloat(fmt(authoritativeVatAmount > 0 ? authoritativeVatAmount : (data.netAmount - displaySubTotal)));
+    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : (data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
   } else {
-    data.subTotal = displaySubTotal;
+    data.subTotal = parseFloat(fmt(authoritativeSubTotal));
     data.vatAmount = 0;
   }
 
   return `
     <html>
       <head>
+        <meta charset="UTF-8" />
         <style>
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -336,7 +385,7 @@ export const generateGuestPrintHtml = async (
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width: 10%;">SNo</th>
+              <th style="width: 10%;">Qty</th>
               <th style="width: 45%;">Description</th>
               <th style="width: 20%; text-align: right;">Rate</th>
               <th style="width: 25%; text-align: right;">Amt</th>
@@ -353,49 +402,55 @@ export const generateGuestPrintHtml = async (
         <table class="totals-table">
           <tr>
             <td class="totals-label">Sub Total</td>
-            <td class="totals-value">${data.subTotal.toFixed(3)}</td>
+            <td class="totals-value">${fmt(data.subTotal + (totalDiscount > 0 ? totalDiscount : 0))}</td>
           </tr>
+          ${totalDiscount > 0 ? `
+          <tr>
+            <td class="totals-label">Discount</td>
+            <td class="totals-value">-${fmt(totalDiscount)}</td>
+          </tr>
+          ` : ''}
           ${data.serviceCharge > 0 ? `
           <tr>
             <td class="totals-label">Service Charge</td>
-            <td class="totals-value">${data.serviceCharge.toFixed(3)}</td>
+            <td class="totals-value">${fmt(data.serviceCharge)}</td>
           </tr>
           ` : ''}
           ${data.levy > 0 ? `
           <tr>
             <td class="totals-label">Levy(5%)</td>
-            <td class="totals-value">${data.levy.toFixed(3)}</td>
+            <td class="totals-value">${fmt(data.levy)}</td>
           </tr>
           ` : ''}
           ${(isDelivery || (data.deliveryCharge && data.deliveryCharge > 0)) ? `
           <tr>
             <td class="totals-label">Delivery Charge</td>
-            <td class="totals-value">${(data.deliveryCharge || 0).toFixed(3)}</td>
+            <td class="totals-value">${fmt(data.deliveryCharge || 0)}</td>
           </tr>
           ` : ''}
           ${isVatActive ? `
           <tr>
             <td class="totals-label">VAT Amount</td>
-            <td class="totals-value">${data.vatAmount.toFixed(3)}</td>
+            <td class="totals-value">${fmt(data.vatAmount)}</td>
           </tr>
           ` : ''}
           <tr>
             <td class="totals-label grand-total">Grand Total</td>
-            <td class="totals-value grand-total">${data.netAmount.toFixed(3)}</td>
+            <td class="totals-value grand-total">${fmt(data.netAmount)}</td>
           </tr>
           ${data.payments && data.payments.length > 0 ? `
           <tr><td colspan="2"><div class="dashed-hr" style="margin: 5px 0;"></div></td></tr>
           ${data.payments.map(p => `
           <tr>
             <td class="totals-label">${p.name}</td>
-            <td class="totals-value">${p.amount.toFixed(3)}</td>
+            <td class="totals-value">${fmt(p.amount)}</td>
           </tr>
           `).join('')}
           ` : ''}
           ${data.changeAmount !== undefined && data.changeAmount > 0 ? `
           <tr>
             <td class="totals-label font-bold">Change</td>
-            <td class="totals-value font-bold">${data.changeAmount.toFixed(3)}</td>
+            <td class="totals-value font-bold">${fmt(data.changeAmount)}</td>
           </tr>
           ` : ''}
         </table>
@@ -415,9 +470,9 @@ export const generateGuestPrintHtml = async (
             <tr><td colspan="4"><div class="dashed-hr" style="margin: 0px 0 6px 0;"></div></td></tr>
             <tr>
               <td style="font-weight: normal;">10%</td>
-              <td style="font-weight: normal;">${(data.netAmount - data.vatAmount).toFixed(3)}</td>
-              <td style="font-weight: normal;">${data.vatAmount.toFixed(3)}</td>
-              <td style="font-weight: normal;">${data.netAmount.toFixed(3)}</td>
+              <td style="font-weight: normal;">${fmt(data.netAmount - data.vatAmount)}</td>
+              <td style="font-weight: normal;">${fmt(data.vatAmount)}</td>
+              <td style="font-weight: normal;">${fmt(data.netAmount)}</td>
             </tr>
             <tr><td colspan="4"><div class="dashed-hr" style="margin: 6px 0 0px 0;"></div></td></tr>
           </tbody>
