@@ -117,12 +117,12 @@ export const bulkSettlementApi = {
       });
       const parsed = parseOrderList(res.data);
       console.log(`[bulkSettlementApi] Result for ${endpoint}:`, parsed);
-      return { list: parsed, endpoint };
+      return { list: parsed };
     };
 
     try {
       // Primary attempt: active day and active counter
-      let { list, endpoint } = await fetchEndpoint(activeDayId, activeCounterId);
+      let { list } = await fetchEndpoint(activeDayId, activeCounterId);
 
       // Fallback: If empty on counter 1, check counter 2 (or vice-versa)
       if (list.length === 0) {

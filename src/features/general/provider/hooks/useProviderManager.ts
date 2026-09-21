@@ -8,6 +8,7 @@ import { paymodeService } from "../../paymode/services/paymodeService";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../../inventory/shared/store/masterDataSlice";
+import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 
 export const useProviderManager = () => {
   const { showToast } = useToast();
@@ -20,7 +21,7 @@ export const useProviderManager = () => {
   const [allocationOpen, setAllocationOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
 
-  // Global Master Data (for branches)
+  // Global Master Data (for branches fallback)
   const { branches, loading: masterLoading } = useAppSelector((state) => state.masterData);
   
   useEffect(() => {
@@ -39,21 +40,38 @@ export const useProviderManager = () => {
     },
   });
 
+  const { data: branchList = [] } = useQuery({
+    queryKey: ["branchNames"],
+    queryFn: async () => {
+      try {
+        const data = await fetchBranchNames(true);
+        return data.map((b) => ({ id: b.id, name: b.branchName }));
+      } catch (err) {
+        console.warn("Failed to fetch branch names directly:", err);
+        return [];
+      }
+    },
+  });
+
   const { data: paymodes = [], isLoading: paymodesLoading } = useQuery({
     queryKey: ["paymodes"],
-    queryFn: async () => {
-      const data = await paymodeService.list();
-      return data.map((pm) => ({ id: pm.paymodeId, name: pm.paymodeName }));
-    },
+    queryFn: () => paymodeService.list(),
+    select: (data) =>
+      (data || []).map((pm: any) => ({
+        id: pm.paymodeId ?? pm.id,
+        name: pm.paymodeName ?? pm.name,
+        paymodeId: pm.paymodeId ?? pm.id,
+        paymodeName: pm.paymodeName ?? pm.name,
+      })),
   });
 
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ["providerAccounts"],
     queryFn: async () => {
       const data = await fetchProviderAccounts();
-      return data.map((acc) => ({
-        id: acc.customerId,
-        name: acc.customerName ? `${acc.code ? `${acc.code} - ` : ""}${acc.customerName}` : String(acc.customerId),
+      return (data || []).map((acc: any) => ({
+        id: acc.customerId ?? acc.id,
+        name: acc.customerName ? `${acc.code ? `${acc.code} - ` : ""}${acc.customerName}` : String(acc.name || acc.customerId || acc.id),
         code: acc.code,
         customerName: acc.customerName,
       }));
@@ -187,7 +205,7 @@ export const useProviderManager = () => {
     },
     (errs) => {
       if (errs.branchIds) {
-        setAllocationOpen(true);
+        document.getElementById("prov-branch-select")?.focus();
       }
     }
   );
@@ -238,7 +256,7 @@ export const useProviderManager = () => {
     loading: recordsLoading || masterLoading || paymodesLoading || accountsLoading,
     saving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    branchOptions: branches,
+    branchOptions: branchList.length > 0 ? branchList : branches.map((b: any) => ({ id: b.id ?? b.branchId, name: b.name ?? b.branchName })),
     paymodeOptions: paymodes,
     accountOptions: accounts,
     allocationOpen,

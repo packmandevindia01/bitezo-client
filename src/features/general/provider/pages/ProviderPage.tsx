@@ -20,11 +20,8 @@ const ProviderPage = () => {
     branchOptions,
     paymodeOptions,
     accountOptions,
-    allocationOpen,
     imagePreview,
-    setAllocationOpen,
     setSearch,
-    toggleBranchSelection,
     handleImageChange,
     resetForm,
     closeModal,
@@ -119,15 +116,12 @@ const ProviderPage = () => {
         editingId={editingId}
         form={form}
         saving={saving}
-        allocationOpen={allocationOpen}
         selectedBranchIds={form.watch("branchIds")}
         branchOptions={branchOptions}
         paymodeOptions={paymodeOptions}
         accountOptions={accountOptions}
         imagePreview={imagePreview}
         onClose={closeModal}
-        onToggleAllocation={() => setAllocationOpen(!allocationOpen)}
-        onToggleBranch={toggleBranchSelection}
         onImageChange={handleImageChange}
         onClear={resetForm}
         onSave={handleSave}

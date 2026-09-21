@@ -1,5 +1,6 @@
-import { Building2, Save, RotateCcw, Trash2 } from "lucide-react";
+import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, FormInput, Modal, Checkbox } from "../../../../components/common";
+import { CounterAllocationSelect } from "./CounterAllocationSelect";
 import type { CounterOption } from "../types";
 import type { UseFormReturn } from "react-hook-form";
 
@@ -8,12 +9,9 @@ interface Props {
   editingId: number | null;
   form: UseFormReturn<any>; // from usePaymodeManager
   saving: boolean;
-  counterAllocOpen: boolean;
   selectedCounterIds: number[];
   counterOptions: CounterOption[];
   onClose: () => void;
-  onToggleCounterAlloc: () => void;
-  onToggleCounter: (counterId: number) => void;
   onClear: () => void;
   onSave: () => void;
   onDelete?: () => void;
@@ -24,12 +22,9 @@ const PaymodeModal = ({
   editingId,
   form,
   saving,
-  counterAllocOpen,
   selectedCounterIds,
   counterOptions,
   onClose,
-  onToggleCounterAlloc,
-  onToggleCounter,
   onClear,
   onSave,
   onDelete,
@@ -44,17 +39,6 @@ const PaymodeModal = ({
       size="xl"
       footer={
         <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            className="bg-[#f0e8ed] text-[#49293e] hover:bg-[#e7dbe2]"
-            onClick={onToggleCounterAlloc}
-            disabled={saving}
-            isAction
-            icon={<Building2 size={18} />}
-          >
-            Counters
-          </Button>
           <Button 
             type="button"
             variant="secondary" 
@@ -130,55 +114,30 @@ const PaymodeModal = ({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  document.getElementById("pm-save-btn")?.focus();
+                  document.getElementById("pm-counter-select")?.focus();
                 }
               }}
               placeholder="Enter paymode name"
               error={errors.paymodeName?.message as string}
             />
 
+            {/* Counter Allocation Dropdown */}
+            <CounterAllocationSelect
+              id="pm-counter-select"
+              counterOptions={counterOptions}
+              selectedIds={selectedCounterIds}
+              disabled={saving}
+              onChange={(ids) => form.setValue("counterIds", ids, { shouldDirty: true, shouldValidate: true })}
+            />
+
             {/* Active toggle */}
             <Checkbox
               label="Active"
-              tabIndex={3}
+              tabIndex={4}
               checked={form.watch("isActive")}
               onChange={(e) => form.setValue("isActive", e.target.checked, { shouldDirty: true, shouldValidate: true })}
             />
           </div>
-
-          {/* Counter allocation panel */}
-          {counterAllocOpen && (
-            <div className="rounded-2xl border border-[#49293e]/15 bg-[#49293e]/3 p-5">
-              <p className="text-sm font-semibold text-gray-800">Counter Allocation</p>
-              <p className="mt-1 text-xs text-gray-500">
-                Choose which counters can use this payment mode.
-              </p>
-
-              {counterOptions.length === 0 ? (
-                <p className="mt-4 text-xs text-gray-400 italic">No counters available.</p>
-              ) : (
-                <div className="mt-4 flex flex-wrap gap-2.5">
-                  {counterOptions.map((counter) => {
-                    const active = selectedCounterIds.includes(counter.counterId);
-                    return (
-                      <button
-                        key={counter.counterId}
-                        type="button"
-                        onClick={() => onToggleCounter(counter.counterId)}
-                        className={`rounded-full border px-5 py-2 text-sm font-medium transition ${
-                          active
-                            ? "border-[#49293e] bg-[#49293e] text-white shadow-sm"
-                            : "border-gray-200 bg-white text-gray-600 hover:border-[#49293e]/30 hover:bg-gray-50"
-                        }`}
-                      >
-                        {counter.counterName}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </form>
     </Modal>

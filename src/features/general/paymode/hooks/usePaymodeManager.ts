@@ -199,15 +199,26 @@ export const usePaymodeManager = () => {
   };
 
   const filteredRecords = useMemo(() => {
-    let result = records.slice().reverse();
-    const query = search.trim().toLowerCase();
-    if (!query) return result;
+    // FIFO (First In, First Out) ascending order
+    const result = records.slice().sort((a, b) => {
+      const codeA = Number(a.code) || a.paymodeId;
+      const codeB = Number(b.code) || b.paymodeId;
+      return codeA - codeB;
+    });
 
-    return result.filter((item) =>
-      [String(item.paymodeId), item.paymodeName, String(item.code)].some((value) =>
-        value.toLowerCase().includes(query)
-      )
-    );
+    const query = search.trim().toLowerCase();
+    const filtered = query
+      ? result.filter((item) =>
+          [String(item.paymodeId), item.paymodeName, String(item.code)].some((value) =>
+            value.toLowerCase().includes(query)
+          )
+        )
+      : result;
+
+    return filtered.map((item, index) => ({
+      ...item,
+      sNo: index + 1,
+    }));
   }, [records, search]);
 
   return {

@@ -80,9 +80,34 @@ export const useUserForm = ({ initialData, onSuccess }: UseUserFormProps) => {
     },
   });
 
-  const handleSubmit = form.handleSubmit((data) => {
-    saveMutation.mutate(data as any);
-  });
+  const handleSubmit = form.handleSubmit(
+    (data) => {
+      saveMutation.mutate(data as any);
+    },
+    (errors) => {
+      const fieldOrder = ["name", "branchId", "roleId", "password", "confirmPassword"];
+      const firstErrorKey = fieldOrder.find((k) => (errors as any)[k]);
+      if (firstErrorKey) {
+        const idMap: Record<string, string> = {
+          name: "user-name",
+          branchId: "user-branch",
+          roleId: "user-role",
+          password: "user-password",
+          confirmPassword: "user-confirm-pwd",
+        };
+        const elId = idMap[firstErrorKey] || `user-${firstErrorKey}`;
+        const el = document.getElementById(elId);
+        if (el) {
+          el.focus();
+          if (el.tagName === "SELECT" && typeof (el as any).showPicker === "function") {
+            try {
+              (el as any).showPicker();
+            } catch {}
+          }
+        }
+      }
+    }
+  );
 
   return {
     form,

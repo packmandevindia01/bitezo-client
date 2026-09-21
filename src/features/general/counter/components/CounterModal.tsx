@@ -97,6 +97,7 @@ const CounterModal = ({
           }}
           placeholder="Enter counter name"
           autoFocus
+          maxLength={25}
         />
 
         {/* BRANCH FIELD */}
@@ -110,12 +111,25 @@ const CounterModal = ({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              document.getElementById("counter-save-btn")?.focus();
+              const val = form.branchId || e.currentTarget.value;
+              if (val) {
+                document.getElementById("counter-save-btn")?.focus();
+              } else {
+                const select = e.currentTarget;
+                select.focus();
+                try {
+                  if (typeof select.showPicker === "function") {
+                    select.showPicker();
+                  }
+                } catch {
+                  // Fallback
+                }
+              }
             }
           }}
-          options={branches.map((b) => ({
-            label: b.branchName,
-            value: String(b.id),
+          options={branches.map((b: any) => ({
+            label: b.branchName || b.name || `Branch #${b.id ?? b.branchId}`,
+            value: String(b.id ?? b.branchId),
           }))}
           placeholder="Select a branch"
         />

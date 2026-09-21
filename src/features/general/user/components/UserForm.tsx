@@ -112,12 +112,20 @@ export const UserForm = ({
     }
     setConfirmAllBranchOpen(false);
     setPendingBranchId(null);
+    setTimeout(() => {
+      const branchInput = document.getElementById("user-branch") as HTMLSelectElement | null;
+      branchInput?.focus();
+    }, 50);
   };
 
   const handleCancelAllBranch = () => {
     form.setValue("branchId", prevBranchId, { shouldValidate: true });
     setConfirmAllBranchOpen(false);
     setPendingBranchId(null);
+    setTimeout(() => {
+      const branchInput = document.getElementById("user-branch") as HTMLSelectElement | null;
+      branchInput?.focus();
+    }, 50);
   };
 
   const handleClear = () => {
@@ -153,6 +161,7 @@ export const UserForm = ({
           id="user-branch"
           label="Branch"
           required
+          ref={register("branchId").ref}
           value={form.watch("branchId") ?? ""}
           onChange={handleBranchChange}
           disabled={branchesLoading}
@@ -169,13 +178,29 @@ export const UserForm = ({
               })),
           ]}
           placeholder={branchesLoading ? "Loading..." : "Select a branch"}
-          onKeyDown={(e) => handleKeyDown(e, "user-role")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const nextEl = document.getElementById("user-role") as HTMLElement | null;
+              if (nextEl) {
+                nextEl.focus();
+                if (nextEl.tagName === "SELECT" && typeof (nextEl as any).showPicker === "function") {
+                  try {
+                    (nextEl as any).showPicker();
+                  } catch {}
+                }
+              }
+            } else {
+              handleKeyDown(e, "user-role");
+            }
+          }}
         />
 
         <SelectInput
           id="user-role"
           label="User Role"
           required
+          ref={register("roleId").ref}
           value={form.watch("roleId") ?? ""}
           onChange={(e) => form.setValue("roleId", e.target.value, { shouldValidate: true })}
           disabled={rolesLoading}

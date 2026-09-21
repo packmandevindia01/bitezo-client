@@ -103,12 +103,30 @@ const SectionModal = ({
           required
           value={form.counterId}
           onChange={(e) => onChange("counterId", e.target.value)}
-          options={counters.map((c) => ({
-            label: c.counterName,
-            value: String(c.counterId),
+          options={counters.map((c: any) => ({
+            label: c.counterName || c.name || `Counter #${c.counterId ?? c.id}`,
+            value: String(c.counterId ?? c.id),
           }))}
           placeholder="Select a counter"
-          onKeyDown={(e) => handleEnter(e, "section-save")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const val = form.counterId || e.currentTarget.value;
+              if (val) {
+                document.getElementById("section-save")?.focus();
+              } else {
+                const select = e.currentTarget;
+                select.focus();
+                try {
+                  if (typeof select.showPicker === "function") {
+                    select.showPicker();
+                  }
+                } catch {
+                  // Fallback
+                }
+              }
+            }
+          }}
           error={errors?.counterId}
         />
       </div>

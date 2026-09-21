@@ -1,7 +1,8 @@
 import { useRef } from "react";
-import { Building2, Save, RotateCcw, Trash2, Camera, X } from "lucide-react";
+import { Save, RotateCcw, Trash2, Camera, X } from "lucide-react";
 import { handleFocusNextInput } from "../../../../utils/keyboard";
 import { Button, FormInput, Modal, Checkbox, SearchableSelect } from "../../../../components/common";
+import { BranchAllocationSelect } from "./BranchAllocationSelect";
 import type { UseFormReturn } from "react-hook-form";
 import type { ProviderFormType } from "../types";
 
@@ -10,15 +11,12 @@ interface Props {
   editingId: number | null;
   form: UseFormReturn<ProviderFormType>;
   saving: boolean;
-  allocationOpen: boolean;
   selectedBranchIds: number[];
   branchOptions: { id: number; name: string }[];
   paymodeOptions: { id: number; name: string }[];
   accountOptions: { id: number; name: string }[];
   imagePreview: string;
   onClose: () => void;
-  onToggleAllocation: () => void;
-  onToggleBranch: (branchId: number) => void;
   onImageChange: (file: File | null) => void;
   onClear: () => void;
   onSave: () => void;
@@ -30,15 +28,12 @@ const ProviderModal = ({
   editingId,
   form,
   saving,
-  allocationOpen,
   selectedBranchIds,
   branchOptions,
   paymodeOptions,
   accountOptions,
   imagePreview,
   onClose,
-  onToggleAllocation,
-  onToggleBranch,
   onImageChange,
   onClear,
   onSave,
@@ -63,17 +58,6 @@ const ProviderModal = ({
       size="2xl"
       footer={
         <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            className={`text-[#49293e] hover:bg-[#e7dbe2] ${errors.branchIds ? "border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500" : "bg-[#f0e8ed]"}`}
-            onClick={onToggleAllocation}
-            disabled={saving}
-            isAction
-            icon={<Building2 size={18} />}
-          >
-            Branches {errors.branchIds ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
-          </Button>
           <Button 
             type="button"
             variant="secondary" 
@@ -147,7 +131,10 @@ const ProviderModal = ({
               onChange={(val) => form.setValue("paymodeId", Number(val), { shouldDirty: true, shouldValidate: true })}
               error={errors.paymodeId?.message}
               placeholder="Select Paymode"
-              options={paymodeOptions.map((pm) => ({ value: String(pm.id), label: pm.name }))}
+              options={paymodeOptions.map((pm: any) => ({
+                value: String(pm.id ?? pm.paymodeId ?? ""),
+                label: String(pm.name ?? pm.paymodeName ?? ""),
+              }))}
             />
 
             {/* Post Account */}
@@ -159,7 +146,21 @@ const ProviderModal = ({
               onChange={(val) => form.setValue("postAccountId", Number(val) || 0, { shouldDirty: true, shouldValidate: true })}
               error={errors.postAccountId?.message}
               placeholder="Select Post Account"
-              options={accountOptions.map((acc) => ({ value: String(acc.id), label: acc.name }))}
+              options={accountOptions.map((acc: any) => ({
+                value: String(acc.id ?? acc.customerId ?? ""),
+                label: String(acc.name ?? acc.customerName ?? ""),
+              }))}
+            />
+
+            {/* Branch Allocation Dropdown */}
+            <BranchAllocationSelect
+              id="prov-branch-select"
+              branchOptions={branchOptions}
+              selectedIds={selectedBranchIds}
+              disabled={saving}
+              error={errors.branchIds?.message}
+              tabIndex={4}
+              onChange={(ids) => form.setValue("branchIds", ids, { shouldDirty: true, shouldValidate: true })}
             />
 
             {/* Delivery Status */}
@@ -169,7 +170,7 @@ const ProviderModal = ({
               </span>
               <div className="flex items-center h-10">
                 <Checkbox
-                  tabIndex={4}
+                  tabIndex={5}
                   checked={form.watch("deliveryStatus")}
                   onChange={(e) => form.setValue("deliveryStatus", e.target.checked, { shouldDirty: true, shouldValidate: true })}
                   label={form.watch("deliveryStatus") ? "Delivery Enabled" : "Delivery Disabled"}
@@ -219,49 +220,6 @@ const ProviderModal = ({
             )}
           </div>
         </div>
-
-        {/* Branch allocation panel */}
-        {allocationOpen && (
-          <div className={`mt-6 rounded-2xl border p-5 animate-in fade-in slide-in-from-top-2 duration-300 ${errors.branchIds ? "border-red-300 bg-red-50/20" : "border-[#49293e]/15 bg-[#49293e]/3"}`}>
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">
-                Branch Allocation <span className="text-red-500 font-bold">*</span>
-              </p>
-              {errors.branchIds?.message && (
-                <span className="text-xs font-semibold text-red-500">
-                  {errors.branchIds.message}
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-xs text-gray-500">
-              Select the branches where this provider is available.
-            </p>
-
-            {branchOptions.length === 0 ? (
-              <p className="mt-4 text-xs text-gray-400 italic">No branches available.</p>
-            ) : (
-              <div className="mt-4 flex flex-wrap gap-2.5">
-                {branchOptions.map((branch) => {
-                  const active = selectedBranchIds.includes(branch.id);
-                  return (
-                    <button
-                      key={branch.id}
-                      type="button"
-                      onClick={() => onToggleBranch(branch.id)}
-                      className={`rounded-full border px-5 py-2 text-sm font-medium transition ${
-                        active
-                          ? "border-[#49293e] bg-[#49293e] text-white shadow-sm"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-[#49293e]/30 hover:bg-gray-50"
-                      }`}
-                    >
-                      {branch.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
       </form>
     </Modal>
   );

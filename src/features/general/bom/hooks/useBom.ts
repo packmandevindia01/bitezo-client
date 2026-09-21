@@ -356,11 +356,66 @@ export const useBom = (initialTransId?: number) => {
 
   const onSubmit = handleSubmit((data) => {
     saveMutation.mutate(data);
-  }, (errors) => {
+  }, (errors: any) => {
     console.error("Validation errors:", errors);
     const hasMainErrors = errors.bomName || errors.branchId || errors.finishedProduct || errors.finishedProductUnit || errors.finishedProductQty;
     if (!hasMainErrors && errors.items) {
       showToast("Please add at least one raw material.", "warning");
+    }
+
+    // Determine the first invalid field in visual order
+    let targetId: string | undefined;
+
+    if (errors.bomName) {
+      targetId = "bom-name";
+    } else if (errors.branchId) {
+      targetId = "bom-branch";
+    } else if (errors.finishedProduct) {
+      targetId = "bom-finProduct";
+    } else if (errors.finishedProductUnit) {
+      targetId = "bom-finUnit";
+    } else if (errors.finishedProductQty) {
+      targetId = "bom-finQty";
+    } else if (errors.items) {
+      if (Array.isArray(errors.items)) {
+        for (let i = 0; i < errors.items.length; i++) {
+          const itemErr = errors.items[i];
+          if (itemErr) {
+            if (itemErr.product) {
+              targetId = `product-select-${i}`;
+              break;
+            } else if (itemErr.unit) {
+              targetId = `item-unit-${i}`;
+              break;
+            } else if (itemErr.qty) {
+              targetId = `item-qty-${i}`;
+              break;
+            }
+          }
+        }
+      }
+      if (!targetId) {
+        targetId = "product-select-0";
+      }
+    }
+
+    if (targetId) {
+      setTimeout(() => {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        el.focus();
+        if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+          el.select?.();
+        } else {
+          const label = document.querySelector<HTMLElement>(`label[for="${targetId}"]`);
+          if (label) {
+            label.click();
+          } else {
+            el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+          }
+        }
+      }, 50);
     }
   });
 

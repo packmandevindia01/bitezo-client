@@ -51,17 +51,17 @@ const TaxPage = () => {
         onAdd={openCreateModal}
       />
 
-      {/* Error banner */}
-      {(listError || mutationError) && (
+      {/* Error banner for initial list loading */}
+      {listError && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{mutationError || listError}</span>
+          <span className="flex-1">{listError}</span>
           <button
             type="button"
-            onClick={mutationError ? clearMutationError : fetchTaxes}
+            onClick={fetchTaxes}
             className="shrink-0 rounded p-0.5 hover:bg-amber-100"
           >
-            {mutationError ? <X size={14} /> : <span className="underline">Retry</span>}
+            <span className="underline">Retry</span>
           </button>
         </div>
       )}
@@ -72,7 +72,11 @@ const TaxPage = () => {
         data={filteredTaxes}
         loading={listLoading}
         columns={[
-          { header: "#", accessor: "sNo" },
+          { 
+            header: "#", 
+            accessor: "sNo",
+            render: (_, index) => index + 1,
+          },
           { header: "Name", accessor: "name" },
           { 
             header: "Value (%)", 

@@ -69,9 +69,17 @@ export const useTaxManager = () => {
         closeModal();
         await fetchTaxes();
       } catch (err: unknown) {
-        const axErr = err as { response?: { data?: { message?: string; errors?: { message?: string }[] } }; message?: string };
-        const apiMsg = axErr.response?.data?.message || axErr.response?.data?.errors?.[0]?.message;
-        const msg = apiMsg || (err instanceof Error ? err.message : "Save failed.");
+        const axErr = err as { response?: { data?: { message?: string; errors?: any } } };
+        const rawErrors = axErr.response?.data?.errors;
+        let apiMsg = axErr.response?.data?.message;
+        if (Array.isArray(rawErrors) && rawErrors.length > 0) {
+          const first = rawErrors[0];
+          apiMsg = typeof first === "object" ? (first.message || first.field) : String(first);
+        }
+        const rawMsg = apiMsg || (err instanceof Error ? err.message : undefined);
+        const msg = (rawMsg && rawMsg !== "Operation failed")
+          ? rawMsg
+          : "Failed to save tax.";
         setMutationError(msg);
         showToast(msg, "error");
       } finally {
@@ -97,16 +105,23 @@ export const useTaxManager = () => {
 
     try {
       await taxService.remove(deleteCandidate.id);
-      setTaxes((prev) => prev.filter((t) => t.id !== deleteCandidate.id));
+      setTaxes((prev) => 
+        prev
+          .filter((t) => t.id !== deleteCandidate.id)
+          .map((t, idx) => ({ ...t, sNo: idx + 1 }))
+      );
       showToast("Tax deleted successfully", "success");
       setDeleteCandidate(null);
   
       if (modal.mode === "edit" && modal.vatId === deleteCandidate.id) {
         closeModal();
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed.";
-      setMutationError(message);
+      await fetchTaxes();
+    } catch (err: any) {
+      const rawMsg = err?.response?.data?.message || (err instanceof Error ? err.message : undefined);
+      const message = (rawMsg && rawMsg !== "Operation failed")
+        ? rawMsg
+        : "Failed to delete tax. This record may be in use by products or transactions.";
       showToast(message, "error");
       await fetchTaxes();
     } finally {

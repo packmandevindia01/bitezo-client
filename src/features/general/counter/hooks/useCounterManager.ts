@@ -48,7 +48,11 @@ export const useCounterManager = () => {
   }, [fetchData]);
 
   const setField = <K extends keyof CounterForm>(key: K, value: CounterForm[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    let finalVal = value;
+    if (key === "name" && typeof finalVal === "string" && finalVal.length > 25) {
+      finalVal = finalVal.slice(0, 25) as CounterForm[K];
+    }
+    setForm((prev) => ({ ...prev, [key]: finalVal }));
     if (errors[key as keyof CounterError]) {
       setErrors((prev) => ({ ...prev, [key]: undefined }));
     }
@@ -71,12 +75,14 @@ export const useCounterManager = () => {
   };
 
   const handleSave = async (): Promise<{ success: boolean; firstInvalidField?: "name" | "branchId" }> => {
-    const name = form.name.trim();
+    const name = form.name.trim().slice(0, 25);
     const branchId = Number(form.branchId);
     const newErrors: CounterError = {};
 
     if (!name) {
       newErrors.name = "required";
+    } else if (name.length > 25) {
+      newErrors.name = "Max 25 characters";
     }
     if (!branchId) {
       newErrors.branchId = "required";

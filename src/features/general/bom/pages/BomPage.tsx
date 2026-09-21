@@ -317,6 +317,7 @@ const BomPage = () => {
                               control={control}
                               render={({ field: selectField }) => (
                                 <SearchableSelect
+                                  id={`item-unit-${index}`}
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
@@ -330,6 +331,7 @@ const BomPage = () => {
                           </td>
                           <td className="p-0 border-r border-gray-100">
                             <input
+                              id={`item-qty-${index}`}
                               {...register(`items.${index}.qty`)}
                               type="number"
                               min="0"

@@ -17,10 +17,7 @@ const PaymodePage = () => {
     loading,
     saving,
     counterOptions,
-    counterAllocOpen,
-    setCounterAllocOpen,
     setSearch,
-    toggleCounterSelection,
     resetForm,
     closeModal,
     openCreateModal,
@@ -51,7 +48,11 @@ const PaymodePage = () => {
         data={filteredRecords}
         loading={loading}
         columns={[
-          { header: "S No", accessor: "sNo" },
+          { 
+            header: "#", 
+            accessor: "sNo",
+            render: (_, index) => index + 1,
+          },
           { header: "Code", accessor: "code" },
           { header: "Paymode", accessor: "paymodeName" },
           { 
@@ -103,12 +104,9 @@ const PaymodePage = () => {
         editingId={editingId}
         form={form}
         saving={saving}
-        counterAllocOpen={counterAllocOpen}
         selectedCounterIds={form.watch("counterIds")}
         counterOptions={counterOptions}
         onClose={closeModal}
-        onToggleCounterAlloc={() => setCounterAllocOpen(!counterAllocOpen)}
-        onToggleCounter={toggleCounterSelection}
         onClear={resetForm}
         onSave={handleSave}
         onDelete={() => {

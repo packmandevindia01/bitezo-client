@@ -79,6 +79,14 @@ export const useSectionManager = () => {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      const targetId = validationErrors.name ? "section-name" : "section-counter";
+      setTimeout(() => {
+        const el = document.getElementById(targetId);
+        el?.focus();
+        if (el instanceof HTMLInputElement) {
+          el.select?.();
+        }
+      }, 50);
       return;
     }
 
