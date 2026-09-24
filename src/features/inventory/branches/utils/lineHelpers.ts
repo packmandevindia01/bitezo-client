@@ -39,7 +39,7 @@ export const getLineStyle = (item: LineItem): React.CSSProperties => {
   const fontSizePx = resolveFontSizePx(item.fontSize, false);
 
   const baseStyle: React.CSSProperties = {
-    fontFamily: item.fontFamily ? `${item.fontFamily}, 'Courier New', monospace` : "'Courier New', monospace",
+    fontFamily: item.fontFamily ? `${item.fontFamily}, Tahoma, Arial, 'Courier New', sans-serif` : "Tahoma, Arial, 'Courier New', monospace",
     fontWeight: isBold ? "bold" : 600,
     fontStyle: isItalic ? "italic" : "normal",
     fontSize: `${fontSizePx}px`,

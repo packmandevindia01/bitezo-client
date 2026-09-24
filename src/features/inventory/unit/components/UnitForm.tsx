@@ -78,13 +78,39 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: { name?: string; category?: string; conversion?: string } = {};
-    if (!form.name.trim()) newErrors.name = "Unit name is required";
+    const newErrors: { category?: string; name?: string; conversion?: string } = {};
     if (!form.category) newErrors.category = "Category is required";
+    if (!form.name.trim()) newErrors.name = "Unit name is required";
     if (form.conversion <= 0) newErrors.conversion = "Must be greater than 0";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+
+      const fieldOrder: (keyof typeof newErrors)[] = ["category", "name", "conversion"];
+      const firstErrorKey = fieldOrder.find((k) => newErrors[k]);
+      if (firstErrorKey) {
+        const idMap: Record<keyof typeof newErrors, string> = {
+          category: "unit-category",
+          name: "unit-name",
+          conversion: "unit-conversion",
+        };
+        setTimeout(() => {
+          const el = document.getElementById(idMap[firstErrorKey]);
+          if (el) {
+            el.focus();
+            if (el.getAttribute("role") === "combobox") {
+              el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+            } else if (el instanceof HTMLInputElement) {
+              el.select?.();
+            } else if (el.tagName === "SELECT" && typeof (el as any).showPicker === "function") {
+              try {
+                (el as any).showPicker();
+              } catch {}
+            }
+          }
+        }, 50);
+      }
+
       return;
     }
     setErrors({});
@@ -104,7 +130,17 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextFieldId) {
-        document.getElementById(nextFieldId)?.focus();
+        const targetElement = document.getElementById(nextFieldId) as HTMLElement | null;
+        if (targetElement) {
+          targetElement.focus();
+          if (targetElement.getAttribute("role") === "combobox") {
+            targetElement.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+          } else if (targetElement.tagName === "SELECT" && typeof (targetElement as any).showPicker === "function") {
+            try {
+              (targetElement as any).showPicker();
+            } catch {}
+          }
+        }
       }
     }
   };
@@ -132,6 +168,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           autoFocus
           disableAutoOpenOnFocus
           error={errors.category}
+          onKeyDown={(e) => handleKeyDown(e, "unit-name")}
         />
 
         <FormInput
@@ -175,6 +212,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           placeholder="Select parent unit"
           required
           disableAutoOpenOnFocus
+          onKeyDown={(e) => handleKeyDown(e, "unit-save-btn")}
         />
 
         <div className="md:col-span-2">
@@ -212,6 +250,7 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
           Clear
         </Button>
         <Button 
+          id="unit-save-btn"
           type="submit" 
           loading={saving}
           isAction

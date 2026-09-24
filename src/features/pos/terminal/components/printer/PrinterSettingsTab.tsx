@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import qz from "qz-tray";
-import { connectQZ } from '../../../services/qzService';
+import { getAvailablePrinters } from '../../../services/qzService';
 import { printerSettingsApi } from '../../../services/printerSettingsApi';
 import { SelectInput, Button } from '../../../../../components/common';
 import type { GeneralPrinterSettings, PrinterIpMapItem } from '../../../types';
@@ -28,18 +27,17 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({
   useEffect(() => {
     setSettings(data);
 
-    // 1. Fetch live installed printers from QZ Tray for Desktop Web mode
-    const loadQzPrinters = async () => {
+    // 1. Fetch live installed printers from PrintAgent for Desktop Web mode
+    const loadDesktopPrinters = async () => {
       if (Capacitor.isNativePlatform()) return;
       try {
-        await connectQZ();
-        const foundPrinters = await qz.printers.find();
+        const foundPrinters = await getAvailablePrinters();
         setLivePrinters(foundPrinters);
       } catch (e) {
-        console.error("[PrinterSettings] Failed to fetch live QZ printers:", e);
+        console.error("[PrinterSettings] Failed to fetch live PrintAgent printers:", e);
       }
     };
-    loadQzPrinters();
+    loadDesktopPrinters();
 
     // 2. Fetch Printer IP Map data from backend
     const loadIpMaps = async () => {

@@ -107,7 +107,7 @@ export const generateGuestPrintHtml = async (
               const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
               return `${kebab}:${v}`;
             }).join(";");
-            return `<div style="${styleStr}">${l.value}</div>`;
+            return `<div dir="auto" style="${styleStr}">${l.value}</div>`;
           }).join("");
         }
 
@@ -119,7 +119,7 @@ export const generateGuestPrintHtml = async (
               const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
               return `${kebab}:${v}`;
             }).join(";");
-            return `<div style="${styleStr}">${l.value}</div>`;
+            return `<div dir="auto" style="${styleStr}">${l.value}</div>`;
           }).join("");
         }
       }
@@ -210,7 +210,7 @@ export const generateGuestPrintHtml = async (
         <td style="width: 10%; text-align: left; vertical-align: top; padding: 2px 0;">${qty}</td>
         <td style="width: 45%; text-align: left; vertical-align: top; padding: 2px 0;">
           <div>${name}</div>
-          ${altArabicName ? `<div dir="rtl" style="font-size:9.5px; font-weight:bold; text-align:left; font-family:Arial, Tahoma, sans-serif; line-height:1.2; margin-top:1px;">${altArabicName}</div>` : ''}
+          ${altArabicName ? `<div dir="rtl" style="font-size:12px; font-weight:bold; text-align:left; font-family:Tahoma, Arial, sans-serif; line-height:1.25; margin-top:2px;">${altArabicName}</div>` : ''}
           ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
         <td style="width: 20%; text-align: right; vertical-align: top; padding: 2px 0;">${rate}</td>
@@ -297,7 +297,7 @@ export const generateGuestPrintHtml = async (
         <meta charset="UTF-8" />
         <style>
           body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Courier New', Courier, Tahoma, Arial, monospace, sans-serif;
             font-size: 14px;
             color: #000;
             margin: 0 auto;
@@ -505,7 +505,12 @@ export const generateGuestPrintHtml = async (
         <div style="margin-top: 10px; padding: 0 4px; width: 100%; box-sizing: border-box;">
           ${customFootersHtml}
         </div>
-        ` : ''}
+        ` : `
+        <div style="text-align: center; margin-top: 12px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.4;">
+          <div>Thank you For Visiting</div>
+          <div>HAVE A GOOD DAY</div>
+        </div>
+        `}
       </body>
     </html>
   `;

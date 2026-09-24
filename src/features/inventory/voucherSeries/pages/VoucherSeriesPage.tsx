@@ -108,6 +108,7 @@ const VoucherSeriesPage = () => {
               Clear
             </Button>
             <Button 
+              id="vs-save-btn"
               onClick={handleSave} 
               loading={saving}
               isAction

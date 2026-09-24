@@ -98,6 +98,36 @@ export const useVoucherSeriesManager = () => {
       if (Object.values(newErrors).some((msg) => msg === "Maximum character limit exceeded.")) {
         showToast("Maximum character limit exceeded.", "warning");
       }
+
+      const fieldOrder: (keyof VoucherSeriesForm)[] = [
+        "voucherType",
+        "name",
+        "prefix",
+        "startNo",
+        "branchId",
+      ];
+      const firstErrorKey = fieldOrder.find((k) => newErrors[k]);
+      if (firstErrorKey) {
+        const idMap: Record<keyof VoucherSeriesForm, string> = {
+          voucherType: "vs-voucher-type",
+          name: "vs-name",
+          prefix: "vs-prefix",
+          startNo: "vs-start-no",
+          branchId: "vs-branch-name",
+        };
+        setTimeout(() => {
+          const el = document.getElementById(idMap[firstErrorKey]);
+          if (el) {
+            el.focus();
+            if (el.tagName === "SELECT" && typeof (el as any).showPicker === "function") {
+              try {
+                (el as any).showPicker();
+              } catch {}
+            }
+          }
+        }, 50);
+      }
+
       return;
     }
 

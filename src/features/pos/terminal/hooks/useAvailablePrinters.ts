@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import qz from "qz-tray";
-import { connectQZ } from "../../services/qzService";
+import { getAvailablePrinters } from "../../services/qzService";
 import { printerSettingsApi } from "../../services/printerSettingsApi";
 import type { PrinterIpMapItem } from "../../types";
 
@@ -58,7 +57,7 @@ export const useAvailablePrinters = (props?: UseAvailablePrintersProps) => {
         // Ignore JSON parse errors
       }
 
-      // Live system printers via QZ Tray (Desktop/Web) or Native plugin (Android/iOS)
+      // Live system printers via PrintAgent (Desktop/Web) or Native plugin (Android/iOS)
       if (Capacitor.isNativePlatform()) {
         try {
           const res = await ESCPOSPlugin.listPrinters({ type: "bluetooth" });
@@ -70,11 +69,10 @@ export const useAvailablePrinters = (props?: UseAvailablePrintersProps) => {
         }
       } else {
         try {
-          await connectQZ();
-          const qzPrinters: string[] = await qz.printers.find();
-          qzPrinters.forEach((p) => foundSet.add(p));
+          const livePrinters = await getAvailablePrinters();
+          livePrinters.forEach((p) => foundSet.add(p));
         } catch (e) {
-          console.warn("[useAvailablePrinters] QZ Tray live lookup fallback:", e);
+          console.warn("[useAvailablePrinters] PrintAgent live lookup fallback:", e);
         }
       }
 

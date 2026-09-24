@@ -80,7 +80,7 @@ export const generateKotHtml = async (
             const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
             return `${kebab}:${v}`;
           }).join(";");
-          return `<div style="${styleStr}">${l.value}</div>`;
+          return `<div dir="auto" style="${styleStr}">${l.value}</div>`;
         }).join("");
       }
     }
@@ -130,8 +130,8 @@ export const generateKotHtml = async (
     
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
     const nameDisplayHtml = altArabicName
-      ? `<div>${name}</div><div dir="rtl" style="font-size:10px; font-weight:bold; text-align:left; font-family:Arial, Tahoma, sans-serif; line-height:1.2; margin-top:1px;">${altArabicName}</div>`
-      : name;
+      ? `<div style="line-height: 1.3;">${name}</div><div dir="rtl" style="font-size:13px; font-weight:bold; text-align:left; font-family:Tahoma, Arial, sans-serif; line-height:1.6; padding: 2px 0 3px 0; word-break:break-word;">${altArabicName}</div>`
+      : `<div style="line-height: 1.3;">${name}</div>`;
 
     let extrasSum = 0;
     if (item.extras && item.extras.length > 0) {
@@ -149,25 +149,25 @@ export const generateKotHtml = async (
 
     if (kotHeaderStyle === "QTY,DESCRIPTION") {
       itemsHtml += `
-        <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-          <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${nameDisplayHtml}</div>
+        <div style="display:flex; width:100%; align-items:flex-start; padding: 2px 0;">
+          <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:13px;">${qty}</div>
+          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:13px; min-width:0; word-break:break-word;">${nameDisplayHtml}</div>
         </div>
       `;
     } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       itemsHtml += `
-        <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${nameDisplayHtml}</div>
-          <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
-          <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:11px;">${amt}</div>
+        <div style="display:flex; width:100%; align-items:flex-start; padding: 2px 0;">
+          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:13px; min-width:0; word-break:break-word;">${nameDisplayHtml}</div>
+          <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:13px;">${qty}</div>
+          <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:13px;">${amt}</div>
         </div>
       `;
     } else {
       itemsHtml += `
-        <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-          <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:11px;">${qty}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:11px; overflow:hidden;">${nameDisplayHtml}</div>
-          <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:11px;">${amt}</div>
+        <div style="display:flex; width:100%; align-items:flex-start; padding: 2px 0;">
+          <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:13px;">${qty}</div>
+          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:13px; min-width:0; word-break:break-word;">${nameDisplayHtml}</div>
+          <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:13px;">${amt}</div>
         </div>
       `;
     }
@@ -261,31 +261,37 @@ export const generateKotHtml = async (
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 11px;
-            color: #000;
+            font-family: 'Courier New', Courier, Tahoma, Arial, monospace, sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+            color: #000000;
             margin: 0;
-            padding: 4px;
+            padding: 2px 4px;
             width: 100%;
+            -webkit-font-smoothing: antialiased;
           }
           table { border-collapse: collapse; width: 100%; table-layout: fixed; }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .dashed-line { border: none; border-top: 1px dashed #000; margin: 5px 0; }
-          .solid-line { border: none; border-top: 2px solid #000; margin: 5px 0; }
+          .dashed-line { border: none; border-top: 1px dashed #000000; margin: 4px 0; }
+          .solid-line { border: none; border-top: 2px solid #000000; margin: 4px 0; }
         </style>
       </head>
   `;
 
   // ─── Build meta rows (label : value pairs in a 2-column grid) ──────
+  const metaCell = (label: string, val: string) => {
+    if (!label && !val) return '<td style="width: 50%;"></td>';
+    return `
+      <td style="width: 50%; padding: 1px 0; font-size: 11px;">
+        ${label ? `<span style="font-weight: bold;">${label} :</span>` : ""} ${val}
+      </td>
+    `;
+  };
   const metaRow = (label1: string, val1: string, label2: string, val2: string) => `
     <tr>
-      <td style="width: 50%; padding: 1px 0; font-size: 11px;">
-        <span style="font-weight: bold;">${label1} :</span> ${val1}
-      </td>
-      <td style="width: 50%; padding: 1px 0; font-size: 11px;">
-        <span style="font-weight: bold;">${label2} :</span> ${val2}
-      </td>
+      ${metaCell(label1, val1)}
+      ${metaCell(label2, val2)}
     </tr>
   `;
 
@@ -322,24 +328,24 @@ export const generateKotHtml = async (
   if (kotHeaderStyle === "QTY,DESCRIPTION") {
     tableHeaderHtml = `
       <div style="display:flex; width:100%; align-items:center; padding-bottom:3px;">
-        <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
-        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:10px;">DESCRIPTION</div>
+        <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:12px;">QTY</div>
+        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:12px;">DESCRIPTION</div>
       </div>
     `;
   } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
     tableHeaderHtml = `
       <div style="display:flex; width:100%; align-items:center; padding-bottom:3px;">
-        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:10px;">DESCRIPTION</div>
-        <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
-        <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">AMT</div>
+        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:12px;">DESCRIPTION</div>
+        <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:12px;">QTY</div>
+        <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:12px;">AMT</div>
       </div>
     `;
   } else {
     tableHeaderHtml = `
       <div style="display:flex; width:100%; align-items:center; padding-bottom:3px;">
-        <div style="flex: 0 0 45px; min-width:45px; text-align:center; font-weight:bold; font-size:10px;">QTY</div>
-        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:10px;">DESCRIPTION</div>
-        <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">AMT</div>
+        <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:12px;">QTY</div>
+        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:12px;">DESCRIPTION</div>
+        <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:12px;">AMT</div>
       </div>
     `;
   }
@@ -378,7 +384,7 @@ export const generateKotHtml = async (
         ${styles}
         <body>
           ${customHeadersHtml ? `
-            <div style="text-align: center; margin-bottom: 8px; padding: 0 4px; width: 100%; overflow-x: hidden;">
+            <div style="text-align: center; margin-bottom: 8px; padding: 0 4px; width: 100%; word-break: break-word;">
               ${customHeadersHtml}
             </div>
           ` : ''}
@@ -413,7 +419,7 @@ export const generateKotHtml = async (
       ${styles}
       <body>
         ${customHeadersHtml ? `
-            <div style="text-align: center; margin-bottom: 8px; padding: 0 4px; width: 100%; overflow-x: hidden;">
+            <div style="text-align: center; margin-bottom: 8px; padding: 0 4px; width: 100%; word-break: break-word;">
               ${customHeadersHtml}
             </div>
           ` : ''}
