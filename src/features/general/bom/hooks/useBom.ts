@@ -405,8 +405,14 @@ export const useBom = (initialTransId?: number) => {
         if (!el) return;
         el.scrollIntoView({ behavior: "smooth", block: "nearest" });
         el.focus();
-        if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
           el.select?.();
+        } else if (el instanceof HTMLSelectElement) {
+          if (typeof (el as any).showPicker === "function") {
+            try {
+              (el as any).showPicker();
+            } catch {}
+          }
         } else {
           const label = document.querySelector<HTMLElement>(`label[for="${targetId}"]`);
           if (label) {

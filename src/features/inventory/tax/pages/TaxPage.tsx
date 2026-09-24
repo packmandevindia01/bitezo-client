@@ -1,4 +1,4 @@
-import { AlertCircle, Pencil, Trash2, X } from "lucide-react";
+import { AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
 import TaxForm from "../components/TaxForm";
 import { useTaxManager } from "../hooks/useTaxManager";
@@ -23,7 +23,6 @@ const TaxPage = () => {
     saving,
     deleting,
     mutationError,
-    clearMutationError,
 
     openCreateModal,
     openEditModal,
