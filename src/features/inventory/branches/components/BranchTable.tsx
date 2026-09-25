@@ -29,7 +29,7 @@ const BranchTable = ({ branches, loading, search, onSearchChange, onAdd, onEdit,
         rowKey="id"
         data={branches}
         columns={[
-        { header: "#", accessor: "id", render: (_, index) => index + 1 },
+        { header: "S.No", accessor: "id", render: (_, index) => index + 1 },
         { header: "Branch Name", accessor: "branchName" },
         {
           header: "Actions",

@@ -8,18 +8,33 @@ import { ExtrasTypeQuickAddModal } from "../../../extrasType/components/ExtrasTy
 
 interface ExtrasBasicFieldsProps {
   form: UseFormReturn<ExtrasMasterForm>;
+  onSave?: () => void;
 }
 
-const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
+const ExtrasBasicFields = ({ form, onSave }: ExtrasBasicFieldsProps) => {
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const { register, control, formState: { errors } } = form;
   const { data: extrasTypes = [], isLoading: isLoadingTypes } = useExtrasTypes();
 
-  const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (nextId) {
-        document.getElementById(nextId)?.focus();
+      if (nextFieldId) {
+        setTimeout(() => {
+          const target = document.getElementById(nextFieldId);
+          if (target) {
+            target.focus();
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+              try {
+                target.setSelectionRange(0, target.value.length);
+              } catch {
+                target.select?.();
+              }
+            }
+          }
+        }, 10);
+      } else {
+        onSave?.();
       }
     }
   };
@@ -33,7 +48,7 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
         placeholder="e.g. Extra Mayo"
         error={errors.name?.message}
         {...register("name")}
-        onKeyDown={(e) => handleEnter(e, "ext-arabic")}
+        onKeyDown={(e) => handleKeyDown(e, "ext-arabic")}
         autoFocus
       />
 
@@ -43,7 +58,7 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabic?.message}
         {...register("arabic")}
-        onKeyDown={(e) => handleEnter(e, "ext-type")}
+        onKeyDown={(e) => handleKeyDown(e, "ext-type")}
       />
 
       <Controller
@@ -63,9 +78,18 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
                 onChange={(val) => {
                   field.onChange(Number(val));
                   // Focus next field
-                  document.getElementById("ext-price")?.focus();
+                  setTimeout(() => {
+                    const priceInput = document.getElementById("ext-price");
+                    if (priceInput) {
+                      priceInput.focus();
+                      if (priceInput instanceof HTMLInputElement) {
+                        try {
+                          priceInput.select();
+                        } catch {}
+                      }
+                    }
+                  }, 10);
                 }}
-                onKeyDown={(e) => handleEnter(e, "ext-price")}
               />
             </div>
             <button
@@ -91,7 +115,7 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
         inputClassName="text-right"
         error={errors.price?.message}
         {...register("price")}
-        onKeyDown={(e) => handleEnter(e, "ext-color")}
+        onKeyDown={(e) => handleKeyDown(e)}
       />
 
       <div className="flex flex-col gap-1.5">
@@ -101,12 +125,7 @@ const ExtrasBasicFields = ({ form }: ExtrasBasicFieldsProps) => {
             id="ext-color"
             type="color"
             {...register("color")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                // Optionally save or nothing
-              }
-            }}
+            onKeyDown={(e) => handleKeyDown(e)}
             className="h-7 w-10 cursor-pointer rounded border-none bg-transparent p-0"
           />
           <span className="text-xs font-mono uppercase text-gray-500">{form.watch("color")}</span>

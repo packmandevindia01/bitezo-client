@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { menuApi } from "../../../../services/menuApi";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
+import { useAppSelector } from "../../../../../../app/hooks";
 
 interface CartItem {
   uniqueId: string;
   productId: number;
   variantName?: string;
   quantity?: number;
-  product: { name: string };
+  categoryId?: number;
+  product?: { name: string; categoryId?: number };
 }
 
 export type ExtrasItem    = { id: number; name: string; price: number; qty: number; typeId: number };
@@ -57,8 +59,13 @@ export const PosExtrasModifierModal = ({
   const [selectedSummaryId,   setSelectedSummaryId]   = useState<string | null>(null);
   const [selectedSummaryType, setSelectedSummaryType] = useState<'extras' | 'modifiers' | null>(null);
 
+  const productCache = useAppSelector((state: any) => state.pos?.productCache || {});
   const prevRef = useRef<{ key: string | null; type: string | null }>({ key: null, type: null });
   const currentItem = cartItems.find(item => item.uniqueId === selectedKey);
+  const currentCategoryId = currentItem?.product?.categoryId 
+    || (currentItem?.productId ? productCache[currentItem.productId]?.categoryId : undefined)
+    || (currentItem as any)?.categoryId 
+    || undefined;
 
   // ── Init on open ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -87,7 +94,7 @@ export const PosExtrasModifierModal = ({
 
   useEffect(() => {
     if (isOpen) fetchItems();
-  }, [isOpen, type, activeTypeId]);
+  }, [isOpen, type, activeTypeId, currentCategoryId]);
 
   // ── API fetchers ────────────────────────────────────────────────────────────
   const fetchTypes = async () => {
@@ -112,9 +119,26 @@ export const PosExtrasModifierModal = ({
         obj.ExtraName || obj.ModifierName || obj.Name ||
         Object.entries(obj).find(([k]) => k.toLowerCase().includes("name"))?.[1] || "Unknown";
 
+      const validCategoryId = currentCategoryId && Number(currentCategoryId) > 0 ? Number(currentCategoryId) : undefined;
+
       if (type === 'extras') {
-        const res = await menuApi.getExtras(activeTypeId || undefined);
-        setItems((res.extras || []).map((e: any) => ({
+        const res = await menuApi.getExtras(activeTypeId || undefined, validCategoryId);
+        let list = res.extras || [];
+        if (validCategoryId && list.length > 0) {
+          list = list.filter((e: any) => {
+            if (Array.isArray(e.categoryIds) && e.categoryIds.length > 0) {
+              return e.categoryIds.some((c: any) => (typeof c === 'object' ? Number(c.id) : Number(c)) === validCategoryId);
+            }
+            if (Array.isArray(e.categories) && e.categories.length > 0) {
+              return e.categories.some((c: any) => (typeof c === 'object' ? Number(c.id) : Number(c)) === validCategoryId);
+            }
+            if (e.categoryId !== undefined && e.categoryId !== null && Number(e.categoryId) > 0) {
+              return Number(e.categoryId) === validCategoryId;
+            }
+            return true;
+          });
+        }
+        setItems(list.map((e: any) => ({
           ...e,
           id:    e.extrasId ?? e.extraId ?? e.id ?? e.extraID ?? e.ID ?? Math.random(),
           name:  getName(e),
@@ -122,8 +146,23 @@ export const PosExtrasModifierModal = ({
           typeId: activeTypeId || 0,
         })));
       } else {
-        const res = await menuApi.getModifiers(undefined);
-        setItems((res.modifier || []).map((m: any) => ({
+        const res = await menuApi.getModifiers(activeTypeId || undefined, validCategoryId);
+        let list = res.modifier || [];
+        if (validCategoryId && list.length > 0) {
+          list = list.filter((m: any) => {
+            if (Array.isArray(m.categoryIds) && m.categoryIds.length > 0) {
+              return m.categoryIds.some((c: any) => (typeof c === 'object' ? Number(c.id) : Number(c)) === validCategoryId);
+            }
+            if (Array.isArray(m.categories) && m.categories.length > 0) {
+              return m.categories.some((c: any) => (typeof c === 'object' ? Number(c.id) : Number(c)) === validCategoryId);
+            }
+            if (m.categoryId !== undefined && m.categoryId !== null && Number(m.categoryId) > 0) {
+              return Number(m.categoryId) === validCategoryId;
+            }
+            return true;
+          });
+        }
+        setItems(list.map((m: any) => ({
           ...m,
           id:    m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
           name:  getName(m),
@@ -236,7 +275,7 @@ export const PosExtrasModifierModal = ({
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50 leading-none mb-1">Editing Product</span>
             <span className="text-sm font-black uppercase text-white leading-none truncate">
-              {currentItem?.product.name || "Unknown Product"}
+              {currentItem?.product?.name || "Unknown Product"}
             </span>
           </div>
           <h2 className="text-base sm:text-lg font-black uppercase tracking-[0.15em] text-white/90 shrink-0">
@@ -370,7 +409,7 @@ export const PosExtrasModifierModal = ({
               <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40 leading-none mb-1">Editing</p>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[12px] font-black uppercase text-white leading-tight truncate tracking-wide flex-1">
-                  {currentItem?.product.name || "Unknown Product"}
+                  {currentItem?.product?.name || "Unknown Product"}
                 </p>
                 {currentItem?.quantity !== undefined && (
                   <div className="shrink-0 flex flex-col items-center bg-white/15 border border-white/20 rounded-lg px-2 py-1 min-w-[36px]">

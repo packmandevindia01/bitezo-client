@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader, Button } from "../../../../../../components/common";
-import { Printer, X, Edit } from "lucide-react";
+import { Printer, X } from "lucide-react";
 import { settledOrdersApi } from "../../../../services/settledOrdersApi";
 import { useToast } from "../../../../../../app/providers/useToast";
-import { useAppDispatch } from "../../../../../../app/hooks";
-import { loadRecalledOrder } from "../../../store/posSlice";
-import { usePosProducts } from "../../../hooks/usePosProducts";
 import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
@@ -14,18 +11,6 @@ import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus } from "../../../utils/billing";
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { Capacitor } from "@capacitor/core";
-import { useEmployeeAuthorization } from "../../../hooks/useEmployeeAuthorization";
-import { EmployeePasswordModal } from "./EmployeePasswordModal";
-
-const getPriceView = (): string => {
-  try {
-    const saved = localStorage.getItem('posConfigs');
-    const full = saved ? JSON.parse(saved) : {};
-    return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-  } catch {
-    return 'Exclusive';
-  }
-};
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -38,29 +23,10 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   isOpen,
   onClose,
   orderId,
-  onEditSuccess,
 }) => {
   const { showToast } = useToast();
-  const dispatch = useAppDispatch();
-  const { authorizationModalKey, authorizationModalProps, requestAuthorization } = useEmployeeAuthorization();
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<any>(null);
-  const { products } = usePosProducts();
-  const [confirmAction, setConfirmAction] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmLabel: string;
-    cancelLabel: string;
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    confirmLabel: "",
-    cancelLabel: "",
-    onConfirm: () => {},
-  });
 
   useEffect(() => {
     if (isOpen && orderId) {
@@ -95,101 +61,6 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       return true;
     });
   }, [order?.modifiersData]);
-
-  const handleEditOrder = async () => {
-    if (!order) return;
-    
-    try {
-      const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
-
-      const priceView = getPriceView();
-      const isIncl = priceView === 'Inclusive';
-
-      const mappedCartItems = details.map((detail: any, idx: number) => {
-        const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
-        
-        const qty = detail.qty ?? detail.Qty ?? 1;
-        const amount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
-        const price = detail.price ?? detail.Price ?? (qty > 0 ? amount / qty : 0);
-
-        let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
-        
-        if (!pId && detail.productName) {
-          const matched = products.find((p: any) => p.name === detail.productName || p.name === detail.ProductName);
-          if (matched) pId = matched.id;
-        }
-
-        if (!pId) {
-          console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
-        }
-
-        return {
-          uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
-          productId: pId,
-          quantity: qty,
-          price: price,
-          isIncl: isIncl,
-          discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
-          discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
-          extras: itemModifiers.filter((m: any) => m.price > 0),
-          modifiers: itemModifiers.filter((m: any) => m.price === 0),
-          isExisting: true,
-          mapId: detail.mapId,
-          originalQty: qty,
-          product: {
-            id: pId,
-            name: detail.productName || detail.ProductName || `Product #${pId}`,
-            price: price,
-            categoryId: 1,
-            unitId: detail.unitId || 1,
-          }
-        };
-      });
-
-      const orderTypeNameMap: Record<string, number> = {
-        "DineIn": 1,
-        "TakeOut": 2,
-        "DriveThru": 3,
-        "Delivery": 4,
-        "Providers": 5,
-        "Coming": 6
-      };
-
-      const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
-      const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
-
-      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
-      const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
-      const saleId = !isNaN(parsedVoucher) ? parsedVoucher : orderId;
-
-      dispatch(loadRecalledOrder({
-        editingOrderId: orderId,
-        editingSaleId: saleId,
-        cartItems: mappedCartItems,
-        orderTypeId: orderTypeId,
-        orderTypeName: orderTypeName,
-        customerId: master.customerId || 1,
-        addressId: master.addressId || 0,
-        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
-        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
-        sectionId: master.sectionId || 0,
-        tableId: master.tableId || 0,
-        deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
-        contactNo: master.mobileNo || master.contactNo,
-        note: master.note,
-        isSettling: false,
-        isSettledEdit: true
-      }));
-
-      showToast(`Order #${orderId} loaded for editing`, "success");
-      onClose();
-      onEditSuccess?.();
-    } catch (err: any) {
-      console.error("Failed to edit:", err);
-      showToast(err.message || "Failed to load order for editing", "error");
-    }
-  };
 
   const handlePrint = async () => {
     if (!orderId || !order) return;
@@ -275,9 +146,12 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       // Determine enableVat dynamically based on configs
       const enableVat = getVatStatus();
 
+      const invoiceNo = master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo || (master.saleId ? String(master.saleId) : (orderId ? String(orderId) : undefined));
+
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
+        invoiceNo,
         waiter: master.employeeName ?? "Waiter",
         counter: "Main",
         section: master.sectionName || "DINE IN",
@@ -320,25 +194,6 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       console.error(e);
       showToast("Failed to print receipt", "error");
     }
-  };
-
-  const handleEditClick = () => {
-    if (!orderId) return;
-    setConfirmAction({
-      isOpen: true,
-      title: "Edit Settled Order",
-      message: `This will load Sales Invoice #${orderId} into the POS for editing. Do you wish to continue?`,
-      confirmLabel: "Yes, Edit Order",
-      cancelLabel: "No",
-      onConfirm: () => {
-        setConfirmAction(prev => ({ ...prev, isOpen: false }));
-        requestAuthorization({
-          actionLabel: "Edit Settled order",
-          permissionId: 21, // Edit Settled order
-          onAuthorized: () => handleEditOrder(),
-        });
-      }
-    });
   };
 
   if (!isOpen) return null;
@@ -384,8 +239,11 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 <div className="text-sm font-black uppercase">BITEZO POS</div>
               </div>
               <div className="grid grid-cols-2 gap-y-1 border-b border-dashed border-stone-400 pb-3 mb-3">
+                {(master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo) && (
+                  <div><span className="text-stone-500">Invoice: </span><span className="font-bold">{master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo}</span></div>
+                )}
                 <div><span className="text-stone-500">Order: </span><span className="font-bold">{orderNo}</span></div>
-                <div className="text-right"><span className="text-stone-500">Type: </span><span className="font-bold">{orderTypeName}</span></div>
+                <div className="text-right col-span-2 sm:col-span-1"><span className="text-stone-500">Type: </span><span className="font-bold">{orderTypeName}</span></div>
               </div>
               <div className="grid grid-cols-[24px_1fr_60px_60px] gap-2 border-b border-dashed border-stone-400 pb-2 mb-2 text-[10px] font-bold text-stone-500 uppercase">
                 <div>Qty</div>
@@ -428,15 +286,6 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               PRINT
             </Button>
 
-            <Button
-              variant="primary"
-              onClick={handleEditClick}
-              disabled={loading || !order}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-[#f48120] hover:bg-[#e06d10] active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
-            >
-              <Edit size={18} strokeWidth={2.5} />
-              EDIT
-            </Button>
 
             <button
               onClick={onClose}
@@ -455,40 +304,6 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           <p className="text-xs font-bold uppercase tracking-widest">No Order Data Available</p>
         </div>
       )}
-
-      {confirmAction.isOpen && (
-        <Modal
-          isOpen={true}
-          onClose={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
-          title={confirmAction.title}
-          size="sm"
-          className="bg-white border-none shadow-xl"
-        >
-          <div className="flex flex-col gap-6 p-2 text-center">
-            <p className="text-sm font-bold text-gray-700 leading-relaxed">
-              {confirmAction.message}
-            </p>
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              <Button
-                variant="secondary"
-                onClick={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
-                className="py-3 uppercase tracking-widest font-black text-xs"
-              >
-                {confirmAction.cancelLabel}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={confirmAction.onConfirm}
-                className="bg-red-600 hover:bg-red-700 text-white py-3 uppercase tracking-widest font-black text-xs"
-              >
-                {confirmAction.confirmLabel}
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      <EmployeePasswordModal key={authorizationModalKey} {...authorizationModalProps} />
     </Modal>
   );
 };

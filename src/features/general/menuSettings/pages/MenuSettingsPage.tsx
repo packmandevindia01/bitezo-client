@@ -54,7 +54,7 @@ const MenuSettingsPage = () => {
         data={filteredList}
         loading={listLoading}
         columns={[
-          { header: "#", accessor: "sNo" },
+          { header: "S.No", accessor: "sNo" },
           { header: "Code", accessor: "code" },
           { header: "Name", accessor: "name" },
           {

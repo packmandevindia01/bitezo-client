@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Trash2, Save, RotateCcw } from "lucide-react";
 import { Button, Checkbox, FormInput } from "../../../../components/common";
 import { groupService } from "../services/groupService";
+import { handleFocusNextInput } from "../../../../utils/keyboard";
 import type { GroupDetail, GroupForm as GroupFormState } from "../types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,8 +55,22 @@ const GroupForm = ({
   };
 
   const handleClear = () => {
-    setForm(buildInitialForm(null));
+    const preservedCode = initialData?.code || form.code;
+    setForm({
+      code: preservedCode,
+      name: "",
+      arabicName: "",
+      isActive: true,
+    });
     setErrors({});
+
+    if (!initialData) {
+      groupService.getNextGroupCode()
+        .then((code) => setForm((prev) => ({ ...prev, code })))
+        .catch(() => {});
+    }
+
+    document.getElementById("grp-name")?.focus();
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -76,7 +91,23 @@ const GroupForm = ({
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextFieldId) {
-        document.getElementById(nextFieldId)?.focus();
+        setTimeout(() => {
+          const target = document.getElementById(nextFieldId);
+          if (target) {
+            target.focus();
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+              try {
+                target.setSelectionRange(0, target.value.length);
+              } catch {
+                target.select?.();
+              }
+            }
+          } else {
+            handleFocusNextInput(e.currentTarget as HTMLElement);
+          }
+        }, 10);
+      } else {
+        handleSubmit();
       }
     }
   };
@@ -106,6 +137,7 @@ const GroupForm = ({
           readOnly
           error={errors.code}
           className="uppercase font-mono cursor-not-allowed text-slate-500 bg-slate-50"
+          onKeyDown={(e) => handleKeyDown(e, "grp-name")}
         />
 
         <FormInput
@@ -134,7 +166,15 @@ const GroupForm = ({
           onKeyDown={(e) => handleKeyDown(e)}
         />
 
-        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <div 
+          className="p-3 bg-slate-50 rounded-xl border border-slate-200"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+        >
           <Checkbox
             label="Active Status"
             tabIndex={4}
@@ -158,6 +198,7 @@ const GroupForm = ({
           Clear
         </Button>
         <Button 
+          id="grp-save-btn"
           type="submit"
           tabIndex={5}
           disabled={saving}

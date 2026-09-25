@@ -7,6 +7,7 @@ import { getDecimalPart } from "../../../utils/currency";
 export interface GuestPrintData {
   orderNo: string;
   ticketNo: string;
+  invoiceNo?: string;
   waiter: string;
   counter: string;
   section: string;
@@ -38,6 +39,21 @@ export interface GuestPrintData {
   showCompanyHeader?: boolean;
   billArabic?: boolean;
 }
+
+const formatOrderNo = (orderNo: any): string => {
+  if (!orderNo) return "";
+  const str = String(orderNo).trim();
+  if (str.includes(",")) {
+    return str
+      .split(",")
+      .map(s => {
+        const trimmed = s.trim();
+        return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+      })
+      .join(", ");
+  }
+  return str.startsWith("#") ? str : `#${str}`;
+};
 
 export const generateGuestPrintHtml = async (
   cartDetails: PosCartItem[],
@@ -207,14 +223,14 @@ export const generateGuestPrintHtml = async (
 
     itemsHtml += `
       <tr>
-        <td style="width: 10%; text-align: left; vertical-align: top; padding: 2px 0;">${qty}</td>
-        <td style="width: 45%; text-align: left; vertical-align: top; padding: 2px 0;">
+        <td style="width: 10%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
+        <td style="width: 45%; text-align: left; vertical-align: top; padding: 0.5px 0;">
           <div>${name}</div>
-          ${altArabicName ? `<div dir="rtl" style="font-size:12px; font-weight:bold; text-align:left; font-family:Tahoma, Arial, sans-serif; line-height:1.25; margin-top:2px;">${altArabicName}</div>` : ''}
+          ${altArabicName ? `<div dir="rtl" style="font-size:12px; font-weight:normal; text-align:left; font-family:Tahoma, Arial, sans-serif; line-height:1.15; margin-top:1px;">${altArabicName}</div>` : ''}
           ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
-        <td style="width: 20%; text-align: right; vertical-align: top; padding: 2px 0;">${rate}</td>
-        <td style="width: 25%; text-align: right; vertical-align: top; padding: 2px 0;">${amt}</td>
+        <td style="width: 20%; text-align: right; vertical-align: top; padding: 0.5px 0;">${rate}</td>
+        <td style="width: 25%; text-align: right; vertical-align: top; padding: 0.5px 0;">${amt}</td>
       </tr>
     `;
 
@@ -226,10 +242,10 @@ export const generateGuestPrintHtml = async (
         displaySubTotal += parseFloat(exAmt);
         itemsHtml += `
           <tr>
-            <td style="text-align: left; vertical-align: top; padding: 2px 0;">${ex.qty || 1}</td>
-            <td style="text-align: left; vertical-align: top; padding: 2px 0;">${exName}</td>
-            <td style="text-align: right; vertical-align: top; padding: 2px 0;">${exRate}</td>
-            <td style="text-align: right; vertical-align: top; padding: 2px 0;">${exAmt}</td>
+            <td style="text-align: left; vertical-align: top; padding: 0.5px 0;">${ex.qty || 1}</td>
+            <td style="text-align: left; vertical-align: top; padding: 0.5px 0;">${exName}</td>
+            <td style="text-align: right; vertical-align: top; padding: 0.5px 0;">${exRate}</td>
+            <td style="text-align: right; vertical-align: top; padding: 0.5px 0;">${exAmt}</td>
           </tr>
         `;
       });
@@ -297,7 +313,7 @@ export const generateGuestPrintHtml = async (
         <meta charset="UTF-8" />
         <style>
           body {
-            font-family: 'Courier New', Courier, Tahoma, Arial, monospace, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 14px;
             color: #000;
             margin: 0 auto;
@@ -310,34 +326,50 @@ export const generateGuestPrintHtml = async (
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .header-title { font-size: 18px; margin-bottom: 15px; letter-spacing: 1px; }
+          .header-title { font-size: 16px; margin-bottom: 12px; letter-spacing: 0.5px; font-weight: normal; }
           
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
           
-          .dashed-hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
-          .solid-hr { border: none; border-top: 1px solid #000; margin: 5px 0; }
+          .dashed-hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+          .solid-hr { border: none; border-top: 1px solid #000; margin: 4px 0; }
           
+          table.items-table {
+            font-weight: normal;
+            line-height: 1.15;
+          }
           table.items-table th {
             text-align: left;
-            font-weight: bold;
+            font-weight: normal;
             text-transform: capitalize;
-            padding-bottom: 5px;
+            padding-bottom: 3px;
+            line-height: 1.15;
+          }
+          table.items-table td {
+            font-weight: normal;
+            padding: 0.5px 0;
+            line-height: 1.15;
+          }
+          table.items-table div {
+            font-weight: normal !important;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
           }
 
           .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold;}
           
-          .totals-table { margin-top: 5px; font-size: 13px; }
-          .totals-table td { padding: 2px 0; }
-          .totals-label { text-align: left; }
-          .totals-value { text-align: right; }
+          .totals-table { margin-top: 4px; font-size: 13px; font-weight: normal; }
+          .totals-table td { padding: 1.5px 0; font-weight: normal; }
+          .totals-label { text-align: left; font-weight: normal; }
+          .totals-value { text-align: right; font-weight: normal; }
           
-          .grand-total { font-size: 18px; font-weight: bold; }
+          .grand-total { font-size: 18px; font-weight: bold !important; }
 
-          .vat-table { margin-top: 8px; font-weight: bold; font-size: 12px; }
-          .vat-table th { text-align: left; padding-bottom: 5px; }
-          .vat-table td { padding: 3px 0; }
+          .vat-table { margin-top: 6px; font-weight: normal; font-size: 12px; }
+          .vat-table th { text-align: left; padding-bottom: 5px; font-weight: normal; }
+          .vat-table td { padding: 3px 0; font-weight: normal; }
           
-          .barcode-container { text-align: center; margin-top: 15px; margin-bottom: 5px; font-family: 'Libre Barcode 39', 'Courier New', Courier, monospace; font-size: 40px;}
+          .barcode-container { text-align: center; margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 32px; font-weight: bold; letter-spacing: 2px; }
         </style>
       </head>
       <body>
@@ -361,8 +393,32 @@ export const generateGuestPrintHtml = async (
         
         <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
 
+        ${data.invoiceNo ? `
         <div class="meta-row">
-          <div style="width: 50%;">Order No &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.orderNo}</span></div>
+          <div style="width: 50%;">Invoice No &nbsp; <span style="font-size: 16px; font-weight: bold;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></div>
+          <div style="width: 50%;">Order No &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></div>
+        </div>
+        <div class="meta-row">
+          <div style="width: 50%;">Ticket No &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></div>
+          <div style="width: 50%;">Date &nbsp; <span style="font-weight: normal">${dateStr}</span></div>
+        </div>
+        <div class="meta-row">
+          <div style="width: 50%;">Time &nbsp; <span style="font-weight: normal">${timeStr}</span></div>
+          <div style="width: 50%;">Employee &nbsp; <span style="font-weight: normal">${data.waiter}</span></div>
+        </div>
+        <div class="meta-row">
+          <div style="width: 50%;">Counter &nbsp; <span style="font-weight: normal">${data.counter}</span></div>
+          ${isDineIn ? `<div style="width: 50%;">Section &nbsp; <span style="font-weight: normal">${data.section}</span></div>` : '<div style="width: 50%;"></div>'}
+        </div>
+        ${isDineIn ? `
+        <div class="meta-row">
+          <div style="width: 50%;">Table &nbsp; <span style="font-weight: normal">${data.table}</span></div>
+          <div style="width: 50%;"></div>
+        </div>
+        ` : ''}
+        ` : `
+        <div class="meta-row">
+          <div style="width: 50%;">Order No &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></div>
           <div style="width: 50%;">Ticket No &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></div>
         </div>
         <div class="meta-row">
@@ -379,6 +435,7 @@ export const generateGuestPrintHtml = async (
           <div style="width: 50%;">Table &nbsp; <span style="font-weight: normal">${data.table}</span></div>
         </div>
         ` : ''}
+        `}
         
         <div class="dashed-hr"></div>
         
@@ -392,7 +449,6 @@ export const generateGuestPrintHtml = async (
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="4"><div class="dashed-hr" style="margin: 2px 0 8px 0;"></div></td></tr>
             ${itemsHtml}
           </tbody>
         </table>
@@ -449,32 +505,30 @@ export const generateGuestPrintHtml = async (
           ` : ''}
           ${data.changeAmount !== undefined && data.changeAmount > 0 ? `
           <tr>
-            <td class="totals-label font-bold">Change</td>
-            <td class="totals-value font-bold">${fmt(data.changeAmount)}</td>
+            <td class="totals-label">Change</td>
+            <td class="totals-value">${fmt(data.changeAmount)}</td>
           </tr>
           ` : ''}
         </table>
 
         ${isVatActive ? `
         <div class="dashed-hr"></div>
-        <table class="vat-table">
+        <table class="vat-table" style="margin-top: 4px; width: 100%;">
           <thead>
             <tr>
-              <th>VAT Code</th>
-              <th>Excl Amt</th>
-              <th>VAT Amt</th>
-              <th>Net Amt</th>
+              <th style="text-align: left; width: 25%;">VAT Code</th>
+              <th style="text-align: right; width: 25%;">Excl Amt</th>
+              <th style="text-align: right; width: 25%;">VAT Amt</th>
+              <th style="text-align: right; width: 25%;">Net Amt</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="4"><div class="dashed-hr" style="margin: 0px 0 6px 0;"></div></td></tr>
             <tr>
-              <td style="font-weight: normal;">10%</td>
-              <td style="font-weight: normal;">${fmt(data.netAmount - data.vatAmount)}</td>
-              <td style="font-weight: normal;">${fmt(data.vatAmount)}</td>
-              <td style="font-weight: normal;">${fmt(data.netAmount)}</td>
+              <td style="text-align: left; font-weight: normal;">10%</td>
+              <td style="text-align: right; font-weight: normal;">${fmt(data.netAmount - data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal;">${fmt(data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal;">${fmt(data.netAmount)}</td>
             </tr>
-            <tr><td colspan="4"><div class="dashed-hr" style="margin: 6px 0 0px 0;"></div></td></tr>
           </tbody>
         </table>
         ` : '<div class="dashed-hr"></div>'}
@@ -497,7 +551,7 @@ export const generateGuestPrintHtml = async (
         </div>
         ` : ''}
 
-        <div class="barcode-container">*${data.orderNo}*</div>
+        <div class="barcode-container">*${String(data.orderNo || '').split(',')[0].trim()}*</div>
         
         <div style="font-size: 11px; margin-top: 5px;">Print Time : ${dateStr} ${timeStr}</div>
 

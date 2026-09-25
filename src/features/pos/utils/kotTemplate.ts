@@ -261,7 +261,7 @@ export const generateKotHtml = async (
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
-            font-family: 'Courier New', Courier, Tahoma, Arial, monospace, sans-serif;
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
             font-size: 13px;
             font-weight: bold;
             color: #000000;

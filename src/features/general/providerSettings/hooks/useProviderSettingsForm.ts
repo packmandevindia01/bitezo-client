@@ -17,6 +17,7 @@ import type {
   ProviderSettingEntry,
   ProviderSettingsData,
   ProviderSettingsPayload,
+  ProviderSettingsProduct,
 } from "../types";
 import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 
@@ -47,8 +48,23 @@ export const useProviderSettingsForm = (
     new Date().toISOString().split("T")[0]
   );
   const [selectedBranch, setSelectedBranch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
+
+  const handleAddCategory = (categoryId: number) => {
+    if (!selectedCategoryIds.includes(categoryId)) {
+      setSelectedCategoryIds((prev) => [...prev, categoryId]);
+    }
+  };
+
+  const handleRemoveCategory = (categoryId: number) => {
+    setSelectedCategoryIds((prev) => prev.filter((id) => id !== categoryId));
+  };
+
+  const handleClearCategories = () => {
+    setSelectedCategoryIds([]);
+    setSelectedSubCategory("");
+  };
 
   // ─── Entry row ────────────────────────────────────────────────────────────
   const [selectedProductKey, setSelectedProductKey] = useState("");
@@ -142,7 +158,7 @@ export const useProviderSettingsForm = (
 
   // ─── Sub-categories when category changes ─────────────────────────────────
   useEffect(() => {
-    if (!selectedCategory) {
+    if (selectedCategoryIds.length === 0) {
       setSubCategories([]);
       setSelectedSubCategory("");
       return;
@@ -150,27 +166,50 @@ export const useProviderSettingsForm = (
     void (async () => {
       try {
         setLoadingSubs(true);
-        const data = await subCategoryApi.getSubCategories(
-          undefined, undefined, Number(selectedCategory)
+        const subArrays = await Promise.all(
+          selectedCategoryIds.map((catId) =>
+            subCategoryApi.getSubCategories(undefined, undefined, catId)
+          )
         );
-        setSubCategories(data);
+        const uniqueSubs: SubCategoryListItem[] = [];
+        const seenSubIds = new Set<number>();
+        subArrays.flat().forEach((s) => {
+          if (!seenSubIds.has(s.id)) {
+            seenSubIds.add(s.id);
+            uniqueSubs.push(s);
+          }
+        });
+        setSubCategories(uniqueSubs);
       } catch {
         showToast("Failed to load sub categories", "error");
       } finally {
         setLoadingSubs(false);
       }
     })();
-  }, [selectedCategory, showToast]);
+  }, [selectedCategoryIds, showToast]);
 
   // ─── Products when Category or Sub-Category changes ───────────────────────
   useEffect(() => {
     let active = true;
     const fetchCategoryProducts = async () => {
       try {
-        const prodsData = await loadProducts({
-          categoryId: selectedCategory ? Number(selectedCategory) : undefined,
-          subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
-        });
+        let prodsData: ProviderSettingsProduct[] = [];
+        if (selectedCategoryIds.length > 0) {
+          const prodsArrays = await Promise.all(
+            selectedCategoryIds.map((catId) =>
+              loadProducts({
+                categoryId: catId,
+                subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
+              })
+            )
+          );
+          prodsData = prodsArrays.flat();
+        } else {
+          prodsData = await loadProducts({
+            subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
+          });
+        }
+
         if (!active) return;
         const uniqueProds: ProductSearchItem[] = [];
         const seenKeys = new Set<string>();
@@ -208,7 +247,7 @@ export const useProviderSettingsForm = (
     return () => {
       active = false;
     };
-  }, [selectedCategory, selectedSubCategory]);
+  }, [selectedCategoryIds, selectedSubCategory]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleLoad = async () => {
@@ -218,10 +257,23 @@ export const useProviderSettingsForm = (
     }
     try {
       setLoading(true);
-      const data = await loadProducts({
-        categoryId: selectedCategory ? Number(selectedCategory) : undefined,
-        subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
-      });
+      let data: ProviderSettingsProduct[] = [];
+      if (selectedCategoryIds.length > 0) {
+        const prodsArrays = await Promise.all(
+          selectedCategoryIds.map((catId) =>
+            loadProducts({
+              categoryId: catId,
+              subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
+            })
+          )
+        );
+        data = prodsArrays.flat();
+      } else {
+        data = await loadProducts({
+          subCategoryId: selectedSubCategory ? Number(selectedSubCategory) : undefined,
+        });
+      }
+
       const uniqueLoadedEntries: ProviderSettingEntry[] = [];
       const seenLoadedKeys = new Set<string>();
 
@@ -243,7 +295,13 @@ export const useProviderSettingsForm = (
         }
       });
       
-      setEntries(uniqueLoadedEntries);
+      setEntries((prev) => {
+        const existingKeys = new Set(prev.map((e) => `${e.productId}-${e.unitId}`));
+        const newItems = uniqueLoadedEntries.filter(
+          (e) => !existingKeys.has(`${e.productId}-${e.unitId}`)
+        );
+        return [...prev, ...newItems];
+      });
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to load settings", "error");
     } finally {
@@ -397,7 +455,7 @@ export const useProviderSettingsForm = (
   const handleReset = () => {
     setSelectedProvider("");
     setSelectedBranch("");
-    setSelectedCategory("");
+    setSelectedCategoryIds([]);
     setSelectedSubCategory("");
     setEntries([]);
     setSelectedProductKey("");
@@ -448,7 +506,10 @@ export const useProviderSettingsForm = (
     selectedProvider, setSelectedProvider,
     selectedDate, setSelectedDate,
     selectedBranch, setSelectedBranch,
-    selectedCategory, setSelectedCategory,
+    selectedCategoryIds,
+    handleAddCategory,
+    handleRemoveCategory,
+    handleClearCategories,
     selectedSubCategory, setSelectedSubCategory,
     // entry row
     selectedProductKey,

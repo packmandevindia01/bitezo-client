@@ -49,7 +49,7 @@ const PaymodePage = () => {
         loading={loading}
         columns={[
           { 
-            header: "#", 
+            header: "S.No", 
             accessor: "sNo",
             render: (_, index) => index + 1,
           },

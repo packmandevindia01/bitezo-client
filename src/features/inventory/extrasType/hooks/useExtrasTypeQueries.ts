@@ -79,7 +79,10 @@ export function useDeleteExtrasType() {
       showToast("Extras type deleted successfully", "success");
     },
     onError: (err: Error) => {
-      showToast(err.message || "Failed to delete extras type", "error");
+      const msg = (err.message && !err.message.toLowerCase().includes("failed to delete"))
+        ? err.message
+        : "The specified reference cannot be deleted because it has related logs..";
+      showToast(msg, "error");
     },
   });
 }

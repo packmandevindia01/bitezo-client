@@ -1,4 +1,7 @@
 import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAppDispatch } from "../../../../app/hooks";
+import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { groupService } from "../services/groupService";
 import { useToast } from "../../../../app/providers/useToast";
 import type { GroupForm } from "../types";
@@ -7,6 +10,8 @@ import { useGroupModal } from "./useGroupModal";
 
 export const useGroupManager = () => {
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
 
   // Compose specialized hooks
   const { 
@@ -73,6 +78,8 @@ export const useGroupManager = () => {
         }
 
         await fetchGroups();
+        void queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+        void dispatch(fetchGlobalMasterData());
         showToast(modal.mode === "edit" ? "Group updated successfully" : "Group created successfully", "success");
         closeModal();
       } catch (err) {
@@ -83,7 +90,7 @@ export const useGroupManager = () => {
         setSaving(false);
       }
     },
-    [modal, closeModal, fetchGroups, showToast]
+    [modal, closeModal, fetchGroups, showToast, queryClient, dispatch]
   );
 
   const requestDelete = useCallback((record: { grpId: number; name: string }) => {
@@ -103,6 +110,8 @@ export const useGroupManager = () => {
     try {
       await groupService.remove(deleteCandidate.grpId);
       setGroups((prev) => prev.filter((g) => g.grpId !== deleteCandidate.grpId));
+      void queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      void dispatch(fetchGlobalMasterData());
       showToast("Group deleted successfully", "success");
       setDeleteCandidate(null);
 
@@ -117,7 +126,7 @@ export const useGroupManager = () => {
     } finally {
       setDeleting(null);
     }
-  }, [deleteCandidate, modal, closeModal, fetchGroups, setGroups, showToast]);
+  }, [deleteCandidate, modal, closeModal, fetchGroups, setGroups, showToast, queryClient, dispatch]);
 
   return {
     // List

@@ -33,10 +33,15 @@ const unwrap = <T = any>(promise: Promise<{ data: any }>): Promise<ApiResponse<T
       if (Array.isArray(body.data)) {
         dataList = body.data;
       } else if (body.data && typeof body.data === 'object') {
-        dataList = Array.isArray(body.data.items) ? body.data.items :
-                   Array.isArray(body.data.records) ? body.data.records :
-                   Array.isArray(body.data.orders) ? body.data.orders :
-                   Array.isArray(body.data.result) ? body.data.result : [];
+        const list = Array.isArray(body.data.items) ? body.data.items :
+                     Array.isArray(body.data.records) ? body.data.records :
+                     Array.isArray(body.data.orders) ? body.data.orders :
+                     Array.isArray(body.data.result) ? body.data.result : null;
+        if (list !== null) {
+          dataList = list;
+        } else {
+          return { isSuccess: true, data: body.data as unknown as T, statusCode: body.statusCode || 200, message: body.message || null };
+        }
       } else if (Array.isArray(body.result)) {
         dataList = body.result;
       }

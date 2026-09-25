@@ -71,7 +71,7 @@ const UnitPage = () => {
         data={filteredUnits}
         loading={listLoading}
         columns={[
-          { header: "#", accessor: "sNo" },
+          { header: "S.No", accessor: "sNo" },
           { header: "Name", accessor: "name" },
           { header: "Category", accessor: "category" },
           { 

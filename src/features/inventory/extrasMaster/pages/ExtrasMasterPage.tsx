@@ -27,14 +27,17 @@ import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { categoryApi } from "../../category";
+import { useToast } from "../../../../app/providers/useToast";
 
 
 const ExtrasMasterPage = () => {
 
   const { hasPermission } = usePermissions();
+  const { showToast } = useToast();
   
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"general" | "categories" | "branches">("general");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<ExtrasMasterRecord | null>(null);
 
@@ -102,6 +105,8 @@ const ExtrasMasterPage = () => {
   const closeModal = () => {
     setOpen(false);
     setEditingId(null);
+    setActiveTab("general");
+    form.clearErrors();
     form.reset({
       name: "",
       arabic: "",
@@ -115,6 +120,8 @@ const ExtrasMasterPage = () => {
 
   const openCreateModal = () => {
     setEditingId(null);
+    setActiveTab("general");
+    form.clearErrors();
     form.reset({
       name: "",
       arabic: "",
@@ -129,6 +136,8 @@ const ExtrasMasterPage = () => {
 
   const handleEdit = (record: ExtrasMasterRecord) => {
     setEditingId(record.id);
+    setActiveTab("general");
+    form.clearErrors();
     setOpen(true);
   };
 
@@ -154,6 +163,37 @@ const ExtrasMasterPage = () => {
     }
   };
 
+  const onInvalid = (errors: any) => {
+    if (errors.name || errors.typeId || errors.price || errors.arabic || errors.color) {
+      setActiveTab("general");
+      const firstMsg = errors.name?.message || errors.typeId?.message || errors.price?.message;
+      if (firstMsg) {
+        showToast(String(firstMsg), "error");
+      }
+      setTimeout(() => {
+        if (errors.name) {
+          document.getElementById("ext-name")?.focus();
+        } else if (errors.typeId) {
+          document.getElementById("ext-type")?.focus();
+        } else if (errors.price) {
+          document.getElementById("ext-price")?.focus();
+        }
+      }, 50);
+    } else if (errors.branchIds) {
+      setActiveTab("branches");
+      if (errors.branchIds?.message) {
+        showToast(String(errors.branchIds.message), "error");
+      }
+    } else {
+      const firstError = Object.values(errors)[0] as any;
+      if (firstError?.message) {
+        showToast(String(firstError.message), "error");
+      }
+    }
+  };
+
+  const handleSave = form.handleSubmit(onSubmit as any, onInvalid);
+
   return (
     <PageShell title="Extras Master">
       <ListHeader
@@ -171,7 +211,7 @@ const ExtrasMasterPage = () => {
         data={records}
         loading={isLoading}
         columns={[
-          { header: "#", accessor: "sNo" },
+          { header: "S.No", accessor: "sNo" },
           { header: "Name", accessor: "name" },
           {
             header: "Actions",
@@ -213,9 +253,16 @@ const ExtrasMasterPage = () => {
           <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
-              onClick={() => form.reset({
-                name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [], categoryIds: []
-              })} 
+              onClick={() => {
+                form.reset({
+                  name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [], categoryIds: []
+                });
+                form.clearErrors();
+                setActiveTab("general");
+                setTimeout(() => {
+                  document.getElementById("ext-name")?.focus();
+                }, 10);
+              }} 
               disabled={isSaving || isDetailLoading} 
               tabIndex={-1}
               isAction
@@ -224,7 +271,7 @@ const ExtrasMasterPage = () => {
               Clear
             </Button>
             <Button 
-              onClick={form.handleSubmit(onSubmit as any)} 
+              onClick={handleSave} 
               loading={isSaving}
               disabled={isDetailLoading}
               isAction
@@ -258,6 +305,9 @@ const ExtrasMasterPage = () => {
           loading={isDetailLoading}
           branches={branches}
           categories={categories}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onSave={handleSave}
         />
       </Modal>
 

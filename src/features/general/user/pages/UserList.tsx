@@ -169,7 +169,7 @@ export const UserList = () => {
           rowKey="id"
           data={filteredUsers}
           columns={[
-            { header: "#", accessor: "id", align: "center" },
+            { header: "S.No", accessor: "id", align: "center", render: (_, index) => index + 1 },
             { header: "User Name", accessor: "name", align: "center" },
             {
               header: "Branch",

@@ -329,9 +329,103 @@ export const getAvailablePrinters = async (): Promise<string[]> => {
 import jsPDF from 'jspdf';
 
 /**
+ * Checks if a target printer name corresponds to an ESC/POS thermal receipt printer.
+ * Returns true for all POS receipt printers (POS-80C, Epson, Xprinter, etc.).
+ * Returns false only for known non-thermal printers like Microsoft Print to PDF, XPS, Fax.
+ */
+export function isThermalPosPrinter(printerName: string): boolean {
+  if (!printerName) return true;
+  const lower = printerName.toLowerCase();
+  const nonPosPrinters = [
+    "pdf",
+    "onenote",
+    "fax",
+    "xps",
+    "document writer",
+    "snagit",
+  ];
+  if (nonPosPrinters.some((p) => lower.includes(p))) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Encodes a 576-pixel wide canvas directly into 1:1 ESC/POS raster bit image commands (GS v 0).
+ * Every bit directly drives one physical heating pin on the 203 DPI thermal print head.
+ * Bypasses Windows GDI scaling and driver halftoning completely for razor-sharp vector clarity!
+ */
+export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
+  let srcCanvas = canvas;
+  if (canvas.width !== 576) {
+    const fixedCanvas = document.createElement("canvas");
+    fixedCanvas.width = 576;
+    fixedCanvas.height = Math.round((canvas.height * 576) / canvas.width);
+    const fCtx = fixedCanvas.getContext("2d");
+    if (fCtx) {
+      fCtx.fillStyle = "#ffffff";
+      fCtx.fillRect(0, 0, 576, fixedCanvas.height);
+      fCtx.drawImage(canvas, 0, 0, 576, fixedCanvas.height);
+      srcCanvas = fixedCanvas;
+    }
+  }
+
+  const width = 576;
+  const height = srcCanvas.height;
+  const bytesPerLine = width / 8; // 72 bytes per row
+
+  // ESC/POS raster header:
+  // ESC @: 0x1B 0x40 (Initialize)
+  // GS v 0 m xL xH yL yH: 0x1D 0x76 0x30 0x00 xL xH yL yH
+  const xL = bytesPerLine & 0xff;
+  const xH = (bytesPerLine >> 8) & 0xff;
+  const yL = height & 0xff;
+  const yH = (height >> 8) & 0xff;
+
+  const header = [0x1b, 0x40, 0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH];
+  // Post-print: ESC d 4 (feed 4 lines), GS V 66 0 (feed to cutter & partial cut)
+  const footer = [0x1b, 0x64, 0x04, 0x1d, 0x56, 0x42, 0x00];
+
+  const totalBytes = header.length + bytesPerLine * height + footer.length;
+  const result = new Uint8Array(totalBytes);
+  result.set(header, 0);
+
+  const ctx = srcCanvas.getContext("2d", { willReadFrequently: true });
+  if (ctx) {
+    const imgData = ctx.getImageData(0, 0, width, height).data;
+    let offset = header.length;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < bytesPerLine; x++) {
+        let byte = 0;
+        for (let b = 0; b < 8; b++) {
+          const pixelX = x * 8 + b;
+          const pixelIndex = (y * width + pixelX) * 4;
+          const r = imgData[pixelIndex];
+          const g = imgData[pixelIndex + 1];
+          const bl = imgData[pixelIndex + 2];
+          const lum = 0.299 * r + 0.587 * g + 0.114 * bl;
+
+          // Thermal pin rule: 1 = heat pin (burn black), 0 = no heat (white paper)
+          // Threshold 165 captures crisp authentic font stems without artificially expanding anti-aliasing into bold text
+          if (lum < 165) {
+            byte |= 1 << (7 - b);
+          }
+        }
+        result[offset++] = byte;
+      }
+    }
+  }
+
+  result.set(footer, header.length + bytesPerLine * height);
+  return result;
+}
+
+/**
  * Prints HTML content via Printer Agent — WEB / DESKTOP path only.
  * Renders HTML inside an isolated iframe, sanitizes away all Tailwind v4 oklch styles,
- * generates a crisp 80mm PDF via jsPDF, and dispatches to PrinterAgent.exe.
+ * generates 1:1 hardware ESC/POS raster for thermal printers (100% razor sharp),
+ * or falls back to printImage for non-thermal document printers.
  */
 export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
   if (Capacitor.isNativePlatform()) {
@@ -375,7 +469,7 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
   iframe.style.position = "fixed";
   iframe.style.left = "-9999px";
   iframe.style.top = "0";
-  iframe.style.width = "285px"; // 285px * 2 = 570 dots, perfectly fills full 72mm printable width of 80mm roll
+  iframe.style.width = "288px"; // 288px * 2 = 576 dots, exactly 1:1 hardware match for 576-dot 80mm thermal print head
   iframe.style.height = "auto";
   iframe.style.border = "none";
   iframe.style.opacity = "0";
@@ -398,11 +492,11 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
     const renderTarget = doc.body;
 
     const canvas = await html2canvas(renderTarget, {
-      scale: 2, // 2x resolution: 285px * 2 = 570 dots (1:1 dot precision on 576-dot thermal head)
+      scale: 2, // 2x resolution: 288px * 2 = 576 dots (exact 1:1 dot precision on 576-dot thermal head)
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
-      windowWidth: 285,
+      windowWidth: 288,
       onclone: (clonedDoc) => {
         // 1. Wipe out any adopted stylesheets from modern browser/bundler
         try {
@@ -439,51 +533,54 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       },
     });
 
-    // High-Contrast Solid Black Binarization:
-    // Thermal printers cannot print anti-aliased gray pixels (they dither them into fuzzy dots).
-    // Converting all stroke pixels (< 235) to 100% solid jet-black preserves thin Arabic cursive and bold English text!
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (ctx) {
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const d = imgData.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const v = lum < 235 ? 0 : 255;
-        d[i] = v;
-        d[i + 1] = v;
-        d[i + 2] = v;
-        d[i + 3] = 255;
+    // 1:1 Hardware Dot-Precision Dispatch:
+    // If target printer is a POS thermal printer (like POS-80C), send 1:1 hardware ESC/POS raster via printRaw.
+    // This completely bypasses Windows GDI scaling and driver halftoning, delivering 100% razor-sharp TrueType edges!
+    if (isThermalPosPrinter(targetPrinter)) {
+      console.log(`[PrintAgent] Dispatching 1:1 hardware ESC/POS raster to "${targetPrinter}" (100% razor sharp, zero GDI scaling)...`);
+      const rasterBytes = canvasToEscPosRaster(canvas);
+      const base64Raster = arrayBufferToBase64(rasterBytes);
+      await printAgent.printRaw(targetPrinter, base64Raster);
+      console.log(`[PrintAgent] Successfully printed 1:1 hardware raster on ${targetPrinter}`);
+    } else {
+      // Non-thermal document printer fallback (e.g. PDF/XPS printer):
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (ctx) {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          const v = lum < 210 ? 0 : 255;
+          d[i] = v;
+          d[i + 1] = v;
+          d[i + 2] = v;
+          d[i + 3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
       }
-      ctx.putImageData(imgData, 0, 0);
+
+      let finalCanvas: HTMLCanvasElement = canvas;
+      const cutterFeedMargin = 160;
+      const finalHeight = Math.max(canvas.height + cutterFeedMargin, Math.round(canvas.width * 1.05));
+      const padded = document.createElement("canvas");
+      padded.width = canvas.width;
+      padded.height = finalHeight;
+      const padCtx = padded.getContext("2d");
+      if (padCtx) {
+        padCtx.fillStyle = "#ffffff";
+        padCtx.fillRect(0, 0, padded.width, padded.height);
+        padCtx.drawImage(canvas, 0, 0);
+        finalCanvas = padded;
+      }
+
+      const dataUrl = finalCanvas.toDataURL("image/png");
+      const rawBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+      const dpiInjectedBase64 = injectPngDpi(rawBase64, 203);
+
+      console.log(`[PrintAgent] Dispatching image to non-thermal printer "${targetPrinter}"...`);
+      await printAgent.printImage(targetPrinter, dpiInjectedBase64, { landscape: false });
+      console.log(`[PrintAgent] Successfully printed receipt on ${targetPrinter}`);
     }
-
-    // Auto-Cutter Clearance Margin & Aspect Protection:
-    // Thermal receipt printers physically place the auto-cut knife ~15-25mm (120-160 dots at 203 DPI) below the thermal print head.
-    // Padding the bottom with white ensures the paper feeds completely past the cutter blade so footers are never sliced off!
-    let finalCanvas: HTMLCanvasElement = canvas;
-    const cutterFeedMargin = 160;
-    const finalHeight = Math.max(canvas.height + cutterFeedMargin, Math.round(canvas.width * 1.05));
-    const padded = document.createElement("canvas");
-    padded.width = canvas.width;
-    padded.height = finalHeight;
-    const padCtx = padded.getContext("2d");
-    if (padCtx) {
-      padCtx.fillStyle = "#ffffff";
-      padCtx.fillRect(0, 0, padded.width, padded.height);
-      padCtx.drawImage(canvas, 0, 0);
-      finalCanvas = padded;
-    }
-
-    const dataUrl = finalCanvas.toDataURL("image/png");
-    const rawBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
-
-    // Inject 203 DPI (8000 pixels/meter) pHYs chunk into PNG so Windows GDI sees 203 DPI and never auto-rotates to Landscape!
-    const dpiInjectedBase64 = injectPngDpi(rawBase64, 203);
-
-    // Dispatch print job via PrinterAgent:
-    console.log(`[PrintAgent] Dispatching crisp 203-DPI portrait thermal receipt to "${targetPrinter}"...`);
-    await printAgent.printImage(targetPrinter, dpiInjectedBase64, { landscape: false });
-    console.log(`[PrintAgent] Successfully printed receipt on ${targetPrinter}`);
   } catch (err) {
     console.error("[PrintAgent] Print failed:", err);
     throw err;

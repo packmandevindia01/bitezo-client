@@ -62,7 +62,10 @@ export const useDeleteModifierType = () => {
       queryClient.invalidateQueries({ queryKey: ["modifierTypes"] });
     },
     onError: (error: Error) => {
-      showToast(error.message || "Failed to delete Modifier Type", "error");
+      const msg = (error.message && !error.message.toLowerCase().includes("failed to delete"))
+        ? error.message
+        : "The specified reference cannot be deleted because it has related logs..";
+      showToast(msg, "error");
     },
   });
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Building2, Save, RotateCcw, Trash2, LayoutGrid, Clock } from "lucide-react";
 import { Button, Checkbox, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
 import type { BranchOption } from "../types";
@@ -36,6 +36,20 @@ const CategoryModal = ({
   const [searchMenu, setSearchMenu] = useState("");
   const [searchBranch, setSearchBranch] = useState("");
 
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab("general");
+      setSearchMenu("");
+      setSearchBranch("");
+      form.clearErrors();
+    }
+  }, [isOpen, editingId, form]);
+
+  const handleTabChange = (tab: "general" | "menuTimes" | "branches") => {
+    form.clearErrors();
+    setActiveTab(tab);
+  };
+
   const { register, watch, setValue, formState: { errors } } = form;
 
   const image = watch("image");
@@ -48,7 +62,24 @@ const CategoryModal = ({
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextFieldId) {
-        document.getElementById(nextFieldId)?.focus();
+        setTimeout(() => {
+          const target = document.getElementById(nextFieldId);
+          if (target) {
+            target.focus();
+            if (target instanceof HTMLInputElement) {
+              target.select?.();
+            }
+          }
+        }, 10);
+      } else {
+        const nameVal = form.getValues("name")?.trim();
+        if (nameVal) {
+          onSave();
+        } else {
+          setTimeout(() => {
+            document.getElementById("cat-arabic")?.focus();
+          }, 10);
+        }
       }
     }
   };
@@ -130,7 +161,8 @@ const CategoryModal = ({
         <div className="flex items-center justify-between gap-4">
           <div className="flex w-fit gap-2 rounded-xl bg-gray-50 p-1.5 border border-gray-100">
             <button
-              onClick={() => setActiveTab("general")}
+              type="button"
+              onClick={() => handleTabChange("general")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
                 activeTab === "general"
                   ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
@@ -141,7 +173,8 @@ const CategoryModal = ({
               General
             </button>
             <button
-              onClick={() => setActiveTab("menuTimes")}
+              type="button"
+              onClick={() => handleTabChange("menuTimes")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
                 activeTab === "menuTimes"
                   ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
@@ -152,7 +185,8 @@ const CategoryModal = ({
               Menu Time Allocation
             </button>
             <button
-              onClick={() => setActiveTab("branches")}
+              type="button"
+              onClick={() => handleTabChange("branches")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
                 activeTab === "branches"
                   ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
@@ -193,7 +227,7 @@ const CategoryModal = ({
                     maxLength={50}
                     error={errors.name?.message}
                     {...register("name")}
-                    onKeyDown={(e) => handleKeyDown(e, "cat-arabic")}
+                    onKeyDown={(e) => handleKeyDown(e)}
                     placeholder="Enter name"
                     required
                     autoFocus
@@ -205,6 +239,7 @@ const CategoryModal = ({
                     maxLength={50}
                     error={errors.arabic?.message}
                     {...register("arabic")}
+                    onKeyDown={(e) => handleKeyDown(e)}
                     placeholder="Enter arabic name"
                     dir="rtl"
                   />

@@ -166,10 +166,10 @@ export const generateDeliverySettlePrintHtml = async (
 
           return `
             <tr>
-              <td style="width: 10%; text-align: left; vertical-align: top; padding: 2px 0;">${sNo}</td>
-              <td style="width: 18%; text-align: left; vertical-align: top; padding: 2px 0;">${token}</td>
-              <td style="width: 44%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-all;">${addr}</td>
-              <td style="width: 28%; text-align: right; vertical-align: top; padding: 2px 0;">${amt}</td>
+              <td style="width: 10%; text-align: left; vertical-align: top; padding: 0.5px 0;">${sNo}</td>
+              <td style="width: 18%; text-align: left; vertical-align: top; padding: 0.5px 0;">${token}</td>
+              <td style="width: 44%; text-align: left; vertical-align: top; padding: 0.5px 0; word-break: break-all;">${addr}</td>
+              <td style="width: 28%; text-align: right; vertical-align: top; padding: 0.5px 0;">${amt}</td>
             </tr>
           `;
         })
@@ -242,12 +242,19 @@ export const generateDeliverySettlePrintHtml = async (
           .meta-label { width: 26%; font-weight: bold; }
           .meta-value { width: 74%; }
           
+          .items-table { line-height: 1.15; }
           .items-table th {
             font-weight: bold;
             font-size: 12px;
+            padding-bottom: 2px;
+            line-height: 1.15;
+          }
+          .items-table td {
+            padding: 0.5px 0;
+            line-height: 1.15;
           }
           
-          .totals-table { width: 100%; font-size: 13px; }
+          .totals-table { width: 100%; font-size: 13px; margin-top: 3px; }
           .totals-label { width: 72%; text-align: right; padding-right: 12px; font-weight: bold; }
           .totals-value { width: 28%; text-align: right; font-weight: bold; }
           

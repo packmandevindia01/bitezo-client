@@ -17,6 +17,7 @@ import type { RootState } from "../../../../app/store";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { useQuery } from "@tanstack/react-query";
 import { categoryApi } from "../../category";
+import { useToast } from "../../../../app/providers/useToast";
 
 import { 
   useModifiers, 
@@ -29,9 +30,11 @@ import { modifierFormSchema, type ModifierForm as ModifierFormType, type Modifie
 
 const ModifierPage = () => {
   const { hasPermission } = usePermissions();
+  const { showToast } = useToast();
   
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"general" | "categories" | "branches">("general");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<ModifierRecord | null>(null);
 
@@ -96,6 +99,8 @@ const ModifierPage = () => {
   const closeModal = () => {
     setOpen(false);
     setEditingId(null);
+    setActiveTab("general");
+    form.clearErrors();
     form.reset({
       name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
     });
@@ -103,6 +108,8 @@ const ModifierPage = () => {
 
   const openCreateModal = () => {
     setEditingId(null);
+    setActiveTab("general");
+    form.clearErrors();
     form.reset({
       name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
     });
@@ -111,6 +118,8 @@ const ModifierPage = () => {
 
   const handleEdit = (record: ModifierRecord) => {
     setEditingId(record.id);
+    setActiveTab("general");
+    form.clearErrors();
     setOpen(true);
   };
 
@@ -118,6 +127,7 @@ const ModifierPage = () => {
     if (deleteRecord) {
       deleteMutation.mutate(deleteRecord.id, {
         onSuccess: () => setDeleteRecord(null),
+        onError: () => setDeleteRecord(null),
       });
     }
   };
@@ -136,6 +146,33 @@ const ModifierPage = () => {
     }
   };
 
+  const onInvalid = (errors: any) => {
+    if (errors.name || errors.arabic || errors.color || errors.typeId) {
+      setActiveTab("general");
+      const firstMsg = errors.name?.message;
+      if (firstMsg) {
+        showToast(String(firstMsg), "error");
+      }
+      setTimeout(() => {
+        if (errors.name) {
+          document.getElementById("mod-name")?.focus();
+        }
+      }, 50);
+    } else if (errors.branchIds) {
+      setActiveTab("branches");
+      if (errors.branchIds?.message) {
+        showToast(String(errors.branchIds.message), "error");
+      }
+    } else {
+      const firstError = Object.values(errors)[0] as any;
+      if (firstError?.message) {
+        showToast(String(firstError.message), "error");
+      }
+    }
+  };
+
+  const handleSave = form.handleSubmit(onSubmit as any, onInvalid);
+
   return (
     <PageShell title="Modifier Master">
       <ListHeader
@@ -153,7 +190,7 @@ const ModifierPage = () => {
         data={records}
         loading={isLoading}
         columns={[
-          { header: "#", accessor: "sNo" },
+          { header: "S.No", accessor: "sNo" },
           { header: "Name", accessor: "name" },
           {
             header: "Actions",
@@ -195,9 +232,16 @@ const ModifierPage = () => {
           <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
             <Button 
               variant="secondary" 
-              onClick={() => form.reset({
-                name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
-              })} 
+              onClick={() => {
+                form.reset({
+                  name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+                });
+                form.clearErrors();
+                setActiveTab("general");
+                setTimeout(() => {
+                  document.getElementById("mod-name")?.focus();
+                }, 10);
+              }} 
               disabled={isSaving || isDetailLoading} 
               tabIndex={-1}
               isAction
@@ -206,7 +250,7 @@ const ModifierPage = () => {
               Clear
             </Button>
             <Button 
-              onClick={form.handleSubmit(onSubmit as any)} 
+              onClick={handleSave} 
               loading={isSaving}
               disabled={isDetailLoading}
               isAction
@@ -240,6 +284,9 @@ const ModifierPage = () => {
           saving={isSaving}
           branches={branches}
           categories={categories}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onSave={handleSave}
         />
       </Modal>
 

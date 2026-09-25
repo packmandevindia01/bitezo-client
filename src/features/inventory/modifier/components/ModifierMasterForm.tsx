@@ -12,6 +12,9 @@ interface ModifierMasterFormProps {
   saving?: boolean;
   branches: { id: number; name: string }[];
   categories: CategoryListItem[];
+  activeTab?: "general" | "categories" | "branches";
+  onTabChange?: (tab: "general" | "categories" | "branches") => void;
+  onSave?: () => void;
 }
 
 const ModifierMasterForm = ({
@@ -20,10 +23,17 @@ const ModifierMasterForm = ({
   saving = false,
   branches,
   categories,
+  activeTab: controlledActiveTab,
+  onTabChange,
+  onSave,
 }: ModifierMasterFormProps) => {
-  const [activeTab, setActiveTab] = useState<"general" | "categories" | "branches">("general");
+  const [localActiveTab, setLocalActiveTab] = useState<"general" | "categories" | "branches">("general");
+  const activeTab = controlledActiveTab ?? localActiveTab;
+  const setActiveTab = onTabChange ?? setLocalActiveTab;
   const [categorySearch, setCategorySearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
+
+  const hasGeneralError = Boolean(form.formState.errors.name);
 
   const filteredCategories = useMemo(() => {
     if (!categorySearch) return categories;
@@ -67,7 +77,14 @@ const ModifierMasterForm = ({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave?.();
+      }}
+      className="flex flex-col gap-6"
+    >
       <div className="flex items-center justify-between gap-4">
         <div className="flex w-fit gap-2 rounded-xl bg-gray-50 p-1.5 border border-gray-100">
           <button
@@ -76,11 +93,16 @@ const ModifierMasterForm = ({
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
               activeTab === "general"
                 ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
+                : hasGeneralError
+                ? "bg-red-50 text-red-600 border-red-200"
                 : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
             }`}
           >
             <LayoutGrid size={14} />
             General
+            {hasGeneralError && (
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+            )}
           </button>
           <button
             type="button"
@@ -100,11 +122,16 @@ const ModifierMasterForm = ({
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border ${
               activeTab === "branches"
                 ? "bg-white text-[#49293e] border-[#49293e]/20 shadow-sm"
+                : form.formState.errors.branchIds
+                ? "bg-red-50 text-red-600 border-red-200"
                 : "bg-transparent text-slate-500 border-transparent hover:bg-gray-100"
             }`}
           >
             <Building2 size={14} />
             Branch Allocation
+            {form.formState.errors.branchIds && (
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+            )}
           </button>
         </div>
       </div>
@@ -112,7 +139,7 @@ const ModifierMasterForm = ({
       <div className="flex-1 min-h-[350px]">
         {activeTab === "general" && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <ModifierBasicFields form={form} />
+            <ModifierBasicFields form={form} onSave={onSave} />
           </div>
         )}
 
@@ -207,7 +234,7 @@ const ModifierMasterForm = ({
           </div>
         )}
       </div>
-    </div>
+    </form>
   );
 };
 

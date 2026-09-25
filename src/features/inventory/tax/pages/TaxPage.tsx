@@ -72,7 +72,7 @@ const TaxPage = () => {
         loading={listLoading}
         columns={[
           { 
-            header: "#", 
+            header: "S.No", 
             accessor: "sNo",
             render: (_, index) => index + 1,
           },

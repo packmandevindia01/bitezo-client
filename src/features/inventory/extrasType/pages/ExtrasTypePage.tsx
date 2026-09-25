@@ -83,6 +83,7 @@ const ExtrasTypePage = () => {
     if (deleteRecord) {
       deleteMutation.mutate(deleteRecord.typeId, {
         onSuccess: () => setDeleteRecord(null),
+        onError: () => setDeleteRecord(null),
       });
     }
   };
@@ -117,7 +118,7 @@ const ExtrasTypePage = () => {
         data={records}
         loading={isLoading}
         columns={[
-          { header: "#", accessor: "typeId" },
+          { header: "S.No", accessor: "sNo" as any, render: (row: any, index: number) => row.sNo ?? (index + 1) },
           { header: "Name", accessor: "name" },
           {
             header: "Actions",

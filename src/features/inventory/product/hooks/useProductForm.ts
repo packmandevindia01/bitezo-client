@@ -28,7 +28,7 @@ export const useProductForm = (productId?: number) => {
 
   // Global Master Data (branches, etc.)
   const dispatch = useAppDispatch();
-  const { masterData: globalMasterData, branches } = useAppSelector((state: any) => state.masterData);
+  const { data: globalMasterData, branches } = useAppSelector((state: any) => state.masterData);
 
   let currentBranchId = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId"));
   if (!currentBranchId || Number(currentBranchId) === 0) {
@@ -80,7 +80,9 @@ export const useProductForm = (productId?: number) => {
   // Product Master Data
   const { data: masterData, isLoading: isLoadingMaster } = useQuery({
     queryKey: ["productMasterData"],
-    queryFn: () => productService.loadMasterData()
+    queryFn: () => productService.loadMasterData(),
+    staleTime: 0,
+    refetchOnMount: "always"
   });
 
   // Dynamic Subcategories based on Category selection

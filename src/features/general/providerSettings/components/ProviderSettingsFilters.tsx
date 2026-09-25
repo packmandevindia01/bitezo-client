@@ -1,4 +1,4 @@
-import { RefreshCcw } from "lucide-react";
+import { RefreshCcw, X } from "lucide-react";
 import { Button, FormInput, SearchableSelect } from "../../../../components/common";
 import type { 
   ProviderMasterItem, 
@@ -15,7 +15,7 @@ interface Props {
   selectedProvider: string;
   selectedDate: string;
   selectedBranch: string;
-  selectedCategory: string;
+  selectedCategoryIds: number[];
   selectedSubCategory: string;
   loading: boolean;
   loadingSubs: boolean;
@@ -23,7 +23,9 @@ interface Props {
   onProviderChange: (val: string) => void;
   onDateChange: (val: string) => void;
   onBranchChange: (val: string) => void;
-  onCategoryChange: (val: string) => void;
+  onAddCategory: (categoryId: number) => void;
+  onRemoveCategory: (categoryId: number) => void;
+  onClearCategories: () => void;
   onSubCategoryChange: (val: string) => void;
   onLoad: () => void;
 }
@@ -36,7 +38,7 @@ const ProviderSettingsFilters = ({
   selectedProvider,
   selectedDate,
   selectedBranch,
-  selectedCategory,
+  selectedCategoryIds,
   selectedSubCategory,
   loading,
   loadingSubs,
@@ -44,7 +46,9 @@ const ProviderSettingsFilters = ({
   onProviderChange,
   onDateChange,
   onBranchChange,
-  onCategoryChange,
+  onAddCategory,
+  onRemoveCategory,
+  onClearCategories,
   onSubCategoryChange,
   onLoad,
 }: Props) => {
@@ -93,10 +97,14 @@ const ProviderSettingsFilters = ({
         <SearchableSelect
           id="ps-category"
           label="Category"
-          value={selectedCategory}
-          onChange={onCategoryChange}
-          placeholder="Select Category"
-          options={categories.map(c => ({ value: String(c.categoryId), label: c.categoryName }))}
+          value=""
+          onChange={(val) => {
+            if (val) onAddCategory(Number(val));
+          }}
+          placeholder={selectedCategoryIds.length > 0 ? "Add category..." : "Select Category"}
+          options={categories
+            .filter((c) => !selectedCategoryIds.includes(c.categoryId))
+            .map((c) => ({ value: String(c.categoryId), label: c.categoryName }))}
         />
 
         <SearchableSelect
@@ -104,7 +112,7 @@ const ProviderSettingsFilters = ({
           label="Sub Category"
           value={selectedSubCategory}
           onChange={onSubCategoryChange}
-          disabled={loadingSubs || !selectedCategory}
+          disabled={loadingSubs || selectedCategoryIds.length === 0}
           placeholder={loadingSubs ? "Loading..." : "Select Sub Category"}
           options={subCategories.map(s => ({ value: String(s.id), label: s.name }))}
         />
@@ -122,6 +130,40 @@ const ProviderSettingsFilters = ({
           </Button>
         </div>
       </div>
+
+      {selectedCategoryIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 px-1 border-t border-gray-100 mt-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+            Selected Categories ({selectedCategoryIds.length}):
+          </span>
+          {selectedCategoryIds.map((catId) => {
+            const cat = categories.find((c) => c.categoryId === catId);
+            return (
+              <span
+                key={catId}
+                className="inline-flex items-center gap-1 rounded-md bg-[#49293e]/10 px-2.5 py-1 text-xs font-semibold text-[#49293e]"
+              >
+                {cat?.categoryName || `Category #${catId}`}
+                <button
+                  type="button"
+                  onClick={() => onRemoveCategory(catId)}
+                  className="p-0.5 rounded-full hover:bg-[#49293e]/20 text-[#49293e] hover:text-red-500 transition-colors"
+                  title="Remove category"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            );
+          })}
+          <button
+            type="button"
+            onClick={onClearCategories}
+            className="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-wider ml-1"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
     </section>
   );
 };

@@ -79,6 +79,21 @@ const totalsLine = (label: string, value: string, bold = false): string => {
   return bold ? `[L]<b>${l}${v}</b>` : `[L]${l}${v}`;
 };
 
+const formatOrderNo = (orderNo: any): string => {
+  if (!orderNo) return "";
+  const str = String(orderNo).trim();
+  if (str.includes(",")) {
+    return str
+      .split(",")
+      .map(s => {
+        const trimmed = s.trim();
+        return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+      })
+      .join(", ");
+  }
+  return str.startsWith("#") ? str : `#${str}`;
+};
+
 /** Get active branch custom line items from localStorage / session */
 export const getActiveBranchLines = (): any[] => {
   try {
@@ -260,11 +275,20 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${SEPARATOR}\n`;
 
   // ── Meta rows ───────────────────────────────────────────────────────────────
-  markup += twoCol(`Order No #${data.orderNo}`, `Ticket No #${data.ticketNo}`) + "\n";
-  markup += twoCol(`Date: ${dateStr}`, `Time: ${timeStr}`) + "\n";
-  markup += twoCol(`Employee: ${data.waiter}`, `Counter: ${data.counter}`) + "\n";
-  if (isDineIn) {
-    markup += twoCol(`Section: ${data.section}`, `Table: ${data.table}`) + "\n";
+  if (data.invoiceNo) {
+    const invDisplay = data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo);
+    markup += twoCol(`Inv No: ${invDisplay}`, `Order No ${formatOrderNo(data.orderNo)}`) + "\n";
+    markup += twoCol(`Ticket No #${data.ticketNo}`, `Date: ${dateStr}`) + "\n";
+    markup += twoCol(`Time: ${timeStr}`, `Employee: ${data.waiter}`) + "\n";
+    if (data.counter) markup += twoCol(`Counter: ${data.counter}`, isDineIn ? `Section: ${data.section}` : "") + "\n";
+    if (isDineIn && data.table) markup += `[L]Table: ${data.table}\n`;
+  } else {
+    markup += twoCol(`Order No ${formatOrderNo(data.orderNo)}`, `Ticket No #${data.ticketNo}`) + "\n";
+    markup += twoCol(`Date: ${dateStr}`, `Time: ${timeStr}`) + "\n";
+    markup += twoCol(`Employee: ${data.waiter}`, `Counter: ${data.counter}`) + "\n";
+    if (isDineIn) {
+      markup += twoCol(`Section: ${data.section}`, `Table: ${data.table}`) + "\n";
+    }
   }
   markup += `[L]${DASH_SEP}\n`;
 
@@ -411,7 +435,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
   // ── Footer ────────────────────────────────────────────────────────────────
   markup += `[L]${DASH_SEP}\n`;
-  markup += `[C]<b>Order No: #${data.orderNo}</b>\n`;
+  markup += `[C]<b>Order No: ${formatOrderNo(data.orderNo)}</b>\n`;
   markup += `[L]Print Time: ${dateStr} ${timeStr}\n`;
   const dynamicFooterMarkup = getCompanyFooter();
   if (dynamicFooterMarkup) {
@@ -464,7 +488,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   markup += `[C]${orderTypeStr}\n`;
   markup += `[L]${SEPARATOR}\n`;
 
-  markup += twoCol(`Order: #${data.orderNo}`, `Ticket: #${data.ticketNo}`) + "\n";
+  markup += twoCol(`Order: ${formatOrderNo(data.orderNo)}`, `Ticket: #${data.ticketNo}`) + "\n";
   markup += twoCol(`Date: ${dateStr}`, `Time: ${timeStr}`) + "\n";
   markup += twoCol(`Waiter: ${data.waiter}`, `Counter: ${data.counter}`) + "\n";
 

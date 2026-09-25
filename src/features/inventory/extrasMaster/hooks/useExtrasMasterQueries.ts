@@ -95,7 +95,10 @@ export function useDeleteExtrasMaster() {
       queryClient.invalidateQueries({ queryKey: EXTRAS_MASTER_KEYS.lists() });
     },
     onError: (err: any) => {
-      showToast(err.message || "Failed to delete extras", "error");
+      const msg = (err.message && !err.message.toLowerCase().includes("failed to delete"))
+        ? err.message
+        : "The specified reference cannot be deleted because it has related logs..";
+      showToast(msg, "error");
     },
   });
 }

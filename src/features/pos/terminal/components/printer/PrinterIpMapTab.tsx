@@ -116,7 +116,7 @@ export const PrinterIpMapTab: React.FC = () => {
               <table className="w-full text-xs text-center border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-gray-100">
-                    <th className="py-3 px-4 text-center w-12">#</th>
+                    <th className="py-3 px-4 text-center w-12">S.No</th>
                     <th className="py-3 px-4 text-center">Printer Name</th>
                     <th className="py-3 px-4 text-center">Network IP Address</th>
                     <th className="py-3 px-4 text-center w-16">Action</th>

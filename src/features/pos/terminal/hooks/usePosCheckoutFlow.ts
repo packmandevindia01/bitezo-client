@@ -207,10 +207,18 @@ export const usePosCheckoutFlow = ({
 
       let success = false;
       let newSaleId: number | null = null;
+      let invoiceNoStr: string | undefined = undefined;
       if (editingSaleId) {
         success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
       } else {
-        newSaleId = await salesInvoiceApi.createSalesInvoice(salesPayload);
+        const createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
+        if (typeof createRes === 'number') {
+          newSaleId = createRes;
+        } else if (createRes && typeof createRes === 'object') {
+          newSaleId = createRes.id ?? createRes.saleId ?? null;
+          const vNo = createRes.voucherNo ?? createRes.invoiceNo ?? createRes.voucherNumber ?? createRes.saleNo;
+          if (vNo) invoiceNoStr = String(vNo);
+        }
         success = !!newSaleId;
       }
 
@@ -226,6 +234,10 @@ export const usePosCheckoutFlow = ({
         };
         const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || "DINE IN";
         
+        const isCombinedOrder = Boolean(
+          orderPayload.combinedOrderIds && orderPayload.combinedOrderIds.length > 0
+        );
+
         let orderNoStr = finalSaleId.toString();
         let ticketNoStr = finalSaleId.toString();
         let waiterStr = waiterName || localStorage.getItem("defaultEmployeeName") || localStorage.getItem("employeeName") || "Waiter";
@@ -275,19 +287,37 @@ export const usePosCheckoutFlow = ({
             modifiersData = saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData || saleRes.data?.modifiers || [];
           }
 
-          if (masterData) {
+          if (isCombinedOrder) {
+            const primaryNo = masterData?.orderNo
+              ? String(masterData.orderNo)
+              : String(orderPayload.orderId || editingOrderId || "");
+            const otherNos = (orderPayload.combinedOrderIds || []).map(String);
+            const allNos = [primaryNo, ...otherNos].filter(Boolean);
+            const uniqueNos = Array.from(new Set(allNos));
+            orderNoStr = uniqueNos.join(", ");
+            ticketNoStr = masterData?.ticketNo ? String(masterData.ticketNo) : (uniqueNos[0] || ticketNoStr);
+            waiterStr = masterData?.employeeName || waiterStr;
+            sectionStr = masterData?.sectionName || sectionStr;
+            tableStr = masterData?.tableNo || masterData?.tableName || tableStr;
+          } else if (masterData) {
             orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
             ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
             waiterStr = masterData.employeeName || waiterStr;
             sectionStr = masterData.sectionName || sectionStr;
             tableStr = masterData.tableNo || masterData.tableName || tableStr;
           }
+
+          const rawVoucherNo = masterData?.voucherNo || masterData?.invoiceNo || masterData?.voucherNumber || masterData?.saleNo
+            || saleRes?.voucherNo || saleRes?.invoiceNo || saleRes?.data?.voucherNo || saleRes?.data?.invoiceNo;
+          if (rawVoucherNo) {
+            invoiceNoStr = String(rawVoucherNo);
+          }
         } catch (e) {
           console.warn("Failed to fetch invoice metadata for print:", e);
         }
 
         let mappedPrintItems = cartDetails;
-        if (detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
+        if (!isCombinedOrder && detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
           try {
             const preMapped = detailsData.map((d: any) => {
               const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
@@ -353,6 +383,7 @@ export const usePosCheckoutFlow = ({
           printData: {
             orderNo: orderNoStr,
             ticketNo: ticketNoStr,
+            invoiceNo: invoiceNoStr || (finalSaleId > 0 ? String(finalSaleId) : undefined),
             waiter: waiterStr,
             counter: "Main",
             section: sectionStr,
@@ -365,14 +396,14 @@ export const usePosCheckoutFlow = ({
               name: paymentNames[p.paymodeId] || "Other",
               amount: p.amount
             })),
-            subTotal: masterData?.vatExclAmount ?? masterData?.subTotal ?? subtotal,
-            discount: masterData?.discAmount ?? masterData?.discount ?? (totalDiscountAmount || 0),
-            serviceCharge: masterData?.serviceCharge ?? totalServiceCharge,
-            levy: masterData?.levyAmt ?? masterData?.levy ?? totalLevy,
-            vatAmount: masterData?.vatAmount ?? totalVat,
-            deliveryCharge: masterData?.deliveryCharge ?? deliveryCharge,
+            subTotal: isCombinedOrder ? subtotal : (masterData?.vatExclAmount ?? masterData?.subTotal ?? subtotal),
+            discount: isCombinedOrder ? (totalDiscountAmount || 0) : (masterData?.discAmount ?? masterData?.discount ?? (totalDiscountAmount || 0)),
+            serviceCharge: isCombinedOrder ? totalServiceCharge : (masterData?.serviceCharge ?? totalServiceCharge),
+            levy: isCombinedOrder ? totalLevy : (masterData?.levyAmt ?? masterData?.levy ?? totalLevy),
+            vatAmount: isCombinedOrder ? totalVat : (masterData?.vatAmount ?? totalVat),
+            deliveryCharge: isCombinedOrder ? deliveryCharge : (masterData?.deliveryCharge ?? deliveryCharge),
             // Prefer the server-stored net amount to avoid frontend rounding accumulation errors
-            netAmount: masterData?.netAmount ?? total,
+            netAmount: isCombinedOrder ? total : (masterData?.netAmount ?? total),
             changeAmount: Number(orderPayload.change) || 0,
             isSettlement: true,
             billArabic: isBillArabicEnabled()

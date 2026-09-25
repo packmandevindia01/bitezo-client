@@ -84,10 +84,10 @@ export interface SalesInvoicePayload {
 }
 
 export const salesInvoiceApi = {
-  createSalesInvoice: async (payload: SalesInvoicePayload): Promise<number | null> => {
+  createSalesInvoice: async (payload: SalesInvoicePayload): Promise<any> => {
     try {
-      const data = await unwrap<{ id: number }>(axiosInstance.post<ApiResponse<{ id: number }>>('/sales-invoices', payload));
-      return data?.id ?? null;
+      const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', payload));
+      return data ?? null;
     } catch (e: any) {
       console.error("Sales invoice creation failed:", e);
       throw e;

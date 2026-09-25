@@ -4,16 +4,31 @@ import type { ModifierForm } from "../../schemas";
 
 interface ModifierBasicFieldsProps {
   form: UseFormReturn<ModifierForm>;
+  onSave?: () => void;
 }
 
-const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
+const ModifierBasicFields = ({ form, onSave }: ModifierBasicFieldsProps) => {
   const { register, formState: { errors } } = form;
 
-  const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (nextId) {
-        document.getElementById(nextId)?.focus();
+      if (nextFieldId) {
+        setTimeout(() => {
+          const target = document.getElementById(nextFieldId);
+          if (target) {
+            target.focus();
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+              try {
+                target.setSelectionRange(0, target.value.length);
+              } catch {
+                target.select?.();
+              }
+            }
+          }
+        }, 10);
+      } else {
+        onSave?.();
       }
     }
   };
@@ -27,7 +42,7 @@ const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
         placeholder="e.g. Extra Mayo"
         error={errors.name?.message}
         {...register("name")}
-        onKeyDown={(e) => handleEnter(e, "mod-arabic")}
+        onKeyDown={(e) => handleKeyDown(e, "mod-arabic")}
         autoFocus
       />
 
@@ -37,7 +52,7 @@ const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabic?.message}
         {...register("arabic")}
-        onKeyDown={(e) => handleEnter(e, "mod-color")}
+        onKeyDown={(e) => handleKeyDown(e)}
       />
 
       <div className="flex flex-col gap-1.5">
@@ -47,11 +62,7 @@ const ModifierBasicFields = ({ form }: ModifierBasicFieldsProps) => {
             id="mod-color"
             type="color"
             {...register("color")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-              }
-            }}
+            onKeyDown={(e) => handleKeyDown(e)}
             className="h-7 w-10 cursor-pointer rounded border-none bg-transparent p-0"
           />
           <span className="text-xs font-mono uppercase text-gray-500">{form.watch("color")}</span>
