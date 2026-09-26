@@ -6,6 +6,11 @@ export interface ProviderAccountItem {
   customerName: string;
 }
 
+export interface ProviderPaymodeItem {
+  paymodeId: number;
+  paymodeName: string;
+}
+
 export interface ProviderListItem {
   providerId: number;
   sNo: number;

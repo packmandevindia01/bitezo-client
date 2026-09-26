@@ -39,9 +39,16 @@ const ModifierBasicFields = ({ form, onSave }: ModifierBasicFieldsProps) => {
         id="mod-name"
         label="Name"
         required
+        maxLength={20}
         placeholder="e.g. Extra Mayo"
         error={errors.name?.message}
-        {...register("name")}
+        {...register("name", {
+          onChange: (e) => {
+            if (e.target.value && e.target.value.length > 20) {
+              e.target.value = e.target.value.slice(0, 20);
+            }
+          },
+        })}
         onKeyDown={(e) => handleKeyDown(e, "mod-arabic")}
         autoFocus
       />

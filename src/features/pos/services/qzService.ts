@@ -487,6 +487,11 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
     doc.close();
 
     // Give iframe DOM and custom fonts a moment to layout
+    try {
+      if ((doc as any).fonts?.ready) {
+        await (doc as any).fonts.ready;
+      }
+    } catch {}
     await new Promise((r) => setTimeout(r, 200));
 
     const renderTarget = doc.body;

@@ -225,7 +225,8 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           billDiscountValue: billDiscountValue,
           billDiscountType: billDiscountType,
           sectionId: selectedSectionId,
-          tableId: selectedTableId
+          tableId: selectedTableId,
+          isCartModified: true,
         }));
 
         // Set the extra combined IDs in the store to be sent during submitOrder

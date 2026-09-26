@@ -1,7 +1,16 @@
 import type { PosAlternative, PosCartItem } from "../types";
 import { POS_CONFIGS_STORAGE_KEY } from "../services/posConfigApi";
+import { store } from "../../../app/store";
 
 export type AlternativeOrderOption = "Id" | "Name" | "Price";
+
+/**
+ * Checks whether the given text contains Arabic characters.
+ */
+export const containsArabic = (text?: string | null): boolean => {
+  if (!text) return false;
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(String(text));
+};
 
 /**
  * Checks if KOT Arabic is enabled in runtime configuration.
@@ -96,17 +105,34 @@ export const getItemArabicName = (item?: PosCartItem | null): string => {
     (item as any).altArabic || 
     (item as any).altArabicName || 
     (item as any).variant_arabic || 
+    (item as any).VariantArabic ||
+    (item as any).AltArabic ||
+    (item as any).alt_arabic ||
     ""
   ).trim();
 
-  const prodArabic = (
+  let prodArabic = (
     item.product?.arabicName || 
     (item as any).arabicName || 
     (item as any).productArabicName || 
     (item as any).product?.arabic_name || 
     (item as any).arabic_name || 
+    (item as any).product?.arabic ||
+    (item as any).arabic ||
+    (item as any).ArabicName ||
+    (item as any).productArabic ||
     ""
   ).trim();
+
+  // If product Arabic not present directly, attempt lookup from Redux productCache by productId
+  if (!prodArabic && item.productId) {
+    try {
+      const cached = (store.getState() as any)?.pos?.productCache?.[item.productId];
+      if (cached?.arabicName) {
+        prodArabic = String(cached.arabicName).trim();
+      }
+    } catch {}
+  }
 
   // If both product Arabic and variant Arabic exist
   if (prodArabic && altArabic) {

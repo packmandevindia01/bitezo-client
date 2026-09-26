@@ -94,6 +94,14 @@ const formatOrderNo = (orderNo: any): string => {
   return str.startsWith("#") ? str : `#${str}`;
 };
 
+const getPaymodeArabic = (name: string): string => {
+  const lower = (name || "").toLowerCase().trim();
+  if (lower === "cash") return "نقد";
+  if (lower === "card") return "بطاقة";
+  if (lower === "credit") return "آجل";
+  return "";
+};
+
 /** Get active branch custom line items from localStorage / session */
 export const getActiveBranchLines = (): any[] => {
   try {
@@ -249,6 +257,9 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
 
   let invoiceTitle = isVatActive ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
+  if (isBillArabic) {
+    invoiceTitle += isVatActive ? "\n[C]<b>فاتورة ضريبية مبسطة</b>" : "\n[C]<b>فاتورة مبسطة</b>";
+  }
   const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
 
   let orderLabel = modePrefix;
@@ -294,6 +305,9 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
   // ── Column headers ───────────────────────────────────────────────────────────
   markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)}${padLeft("Qty", 5)} ${padLeft("Amount", 10)}</b>\n`;
+  if (isBillArabic) {
+    markup += `[L]<b>${padRight("الوصف", LINE_WIDTH - 16)}${padLeft("الكمية", 5)} ${padLeft("المبلغ", 10)}</b>\n`;
+  }
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Items ───────────────────────────────────────────────────────────────────
@@ -328,7 +342,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
     const altArabicName = isBillArabic ? getAlternativeArabicName(item) : "";
     if (altArabicName) {
-      markup += `[L]${altArabicName}\n`;
+      markup += `[R]${altArabicName}\n`;
     }
 
     const itemDisc = Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
@@ -382,29 +396,31 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   }
 
   const subTotalBeforeDiscount = subTotal + (totalDiscount > 0 ? totalDiscount : 0);
-  markup += totalsLine("Sub Total", fmt(subTotalBeforeDiscount)) + "\n";
+  markup += totalsLine(isBillArabic ? "Sub Total (المجموع الفرعي)" : "Sub Total", fmt(subTotalBeforeDiscount)) + "\n";
   if (totalDiscount > 0) {
-    markup += totalsLine("Discount", `-${fmt(totalDiscount)}`) + "\n";
+    markup += totalsLine(isBillArabic ? "Discount (الخصم)" : "Discount", `-${fmt(totalDiscount)}`) + "\n";
   }
-  if ((data.serviceCharge || 0) > 0) markup += totalsLine("Service Charge", fmt(data.serviceCharge)) + "\n";
-  if ((data.levy || 0) > 0) markup += totalsLine("Levy (5%)", fmt(data.levy)) + "\n";
+  if ((data.serviceCharge || 0) > 0) markup += totalsLine(isBillArabic ? "Service Charge (رسوم الخدمة)" : "Service Charge", fmt(data.serviceCharge)) + "\n";
+  if ((data.levy || 0) > 0) markup += totalsLine(isBillArabic ? "Levy (5%) (الضريبة الانتقائية)" : "Levy (5%)", fmt(data.levy)) + "\n";
   if ((isDelivery || (data.deliveryCharge && data.deliveryCharge > 0))) {
-    markup += totalsLine("Delivery Charge", fmt(data.deliveryCharge || 0)) + "\n";
+    markup += totalsLine(isBillArabic ? "Delivery Charge (رسوم التوصيل)" : "Delivery Charge", fmt(data.deliveryCharge || 0)) + "\n";
   }
-  if (isVatActive || vatAmount > 0) markup += totalsLine("VAT Amount", fmt(vatAmount)) + "\n";
+  if (isVatActive || vatAmount > 0) markup += totalsLine(isBillArabic ? "VAT Amount (مبلغ الضريبة)" : "VAT Amount", fmt(vatAmount)) + "\n";
 
   markup += `[L]${DASH_SEP}\n`;
-  markup += `[L]<b><font size='big'>${padRight("GRAND TOTAL", LINE_WIDTH - 10)}${padLeft(fmt(data.netAmount), 10)}</font></b>\n`;
+  const grandTotalLabel = isBillArabic ? "GRAND TOTAL (المجموع الكلي)" : "GRAND TOTAL";
+  markup += `[L]<b><font size='big'>${padRight(grandTotalLabel, LINE_WIDTH - 10)}${padLeft(fmt(data.netAmount), 10)}</font></b>\n`;
 
   // ── Payments ─────────────────────────────────────────────────────────────────
   if (data.payments && data.payments.length > 0) {
     markup += `[L]${DASH_SEP}\n`;
     data.payments.forEach(p => {
-      markup += totalsLine(p.name, fmt(p.amount)) + "\n";
+      const pAr = isBillArabic && getPaymodeArabic(p.name) ? ` (${getPaymodeArabic(p.name)})` : "";
+      markup += totalsLine(`${p.name}${pAr}`, fmt(p.amount)) + "\n";
     });
   }
   if (data.changeAmount !== undefined && data.changeAmount > 0) {
-    markup += totalsLine("Change", fmt(data.changeAmount), true) + "\n";
+    markup += totalsLine(isBillArabic ? "Change (المبلغ المتبقي)" : "Change", fmt(data.changeAmount), true) + "\n";
   }
 
   // ── VAT table (if enabled) ────────────────────────────────────────────────
@@ -476,16 +492,29 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     || rawOrderType.toUpperCase()
     || "DINE IN";
 
+  const orderTypeArabicMap: Record<string, string> = {
+    "DINE IN": "محلي",
+    "TAKE OUT": "سفري",
+    "DELIVERY": "توصيل",
+    "DRIVE THRU": "طلبات السيارات",
+    "PROVIDERS": "مزودي الخدمة",
+    "COMING": "قادم",
+  };
+  const orderTypeAr = orderTypeArabicMap[orderTypeStr] || "";
+
   const isDineIn = orderTypeStr === "DINE IN";
   const headerTitle = (data.headerTitle || "KOT").toUpperCase();
+  const kotTitleDisplay = headerTitle + (isKotArabic && headerTitle === "KOT" ? " / طلب المطبخ" : "");
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
 
   let markup = "";
+  let totalVat = 0;
+  let grandTotal = 0;
 
   // ── KOT Header ──────────────────────────────────────────────────────────────
   markup += `[C]${SEPARATOR}\n`;
-  markup += `[C]<b><font size='big'>${headerTitle}</font></b>\n`;
-  markup += `[C]${orderTypeStr}\n`;
+  markup += `[C]<b><font size='big'>${kotTitleDisplay}</font></b>\n`;
+  markup += `[C]${orderTypeStr}${isKotArabic && orderTypeAr ? ` (${orderTypeAr})` : ''}\n`;
   markup += `[L]${SEPARATOR}\n`;
 
   markup += twoCol(`Order: ${formatOrderNo(data.orderNo)}`, `Ticket: #${data.ticketNo}`) + "\n";
@@ -504,10 +533,19 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   markup += `[L]${SEPARATOR}\n`;
   if (kotHeaderStyle === "QTY,DESCRIPTION") {
     markup += `[L]<b>${padRight("Qty", 6)} ${padRight("Description", LINE_WIDTH - 7)}</b>\n`;
+    if (isKotArabic) {
+      markup += `[L]<b>${padRight("الكمية", 6)} ${padRight("الصنف", LINE_WIDTH - 7)}</b>\n`;
+    }
   } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
     markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)}${padLeft("Qty", 5)} ${padLeft("Amount", 10)}</b>\n`;
+    if (isKotArabic) {
+      markup += `[L]<b>${padRight("الصنف", LINE_WIDTH - 16)}${padLeft("الكمية", 5)} ${padLeft("المبلغ", 10)}</b>\n`;
+    }
   } else {
     markup += `[L]<b>${padLeft("Qty", 5)} ${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Amount", 10)}</b>\n`;
+    if (isKotArabic) {
+      markup += `[L]<b>${padLeft("الكمية", 5)} ${padRight("الصنف", LINE_WIDTH - 16)} ${padLeft("المبلغ", 10)}</b>\n`;
+    }
   }
   markup += `[L]${SEPARATOR}\n`;
 
@@ -549,7 +587,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
     if (altArabicName) {
-      markup += `[L]${altArabicName}\n`;
+      markup += `[R]${altArabicName}\n`;
     }
 
     // Extras
@@ -579,7 +617,25 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
         markup += `[L]  NOTE: ${(msg.name || "").toUpperCase()}\n`;
       });
     }
+
+    // Accumulate totals
+    const itemVat = (item as any).vatAmount || 0;
+    let itemNet = (item as any).lineTotal;
+    if (itemNet === undefined) {
+      itemNet = baseAmt + extrasSum + itemVat;
+    }
+    totalVat += itemVat;
+    grandTotal += itemNet;
   });
+
+  const showTotals = kotHeaderStyle.includes("AMT");
+  if (showTotals && grandTotal > 0) {
+    markup += `[L]${DASH_SEP}\n`;
+    if (totalVat > 0) {
+      markup += totalsLine(isKotArabic ? "VAT Amount (الضريبة)" : "VAT Amount", Number(totalVat).toFixed(decimalPart), true) + "\n";
+    }
+    markup += totalsLine(isKotArabic ? "Total (المجموع)" : "Total", Number(grandTotal).toFixed(decimalPart), true) + "\n";
+  }
 
   markup += `[L]${SEPARATOR}\n`;
   markup += `[L]\n[L]\n[L]\n`; // feed before cut

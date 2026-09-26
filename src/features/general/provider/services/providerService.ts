@@ -1,5 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
-import type { ProviderListItem, ProviderDetail, ProviderPayload, ProviderAccountItem } from "../types";
+import type { ProviderListItem, ProviderDetail, ProviderPayload, ProviderAccountItem, ProviderPaymodeItem } from "../types";
 import type { ApiResponse } from "../../../inventory/product/types";
 
 const BASE = "/provider";
@@ -50,6 +50,12 @@ export const fetchProviderAccounts = async (accountName: string = ""): Promise<P
   const params = accountName ? `?accountName=${encodeURIComponent(accountName)}` : "";
   return unwrap(
     axiosInstance.get<ApiResponse<ProviderAccountItem[]>>(`${BASE}/account-list${params}`)
+  );
+};
+
+export const fetchProviderPaymodes = async (): Promise<ProviderPaymodeItem[]> => {
+  return unwrap(
+    axiosInstance.get<ApiResponse<ProviderPaymodeItem[]>>(`${BASE}/paymode-list`)
   );
 };
 

@@ -37,18 +37,25 @@ export const getLineStyle = (item: LineItem): React.CSSProperties => {
   const isBold = String(item.fontStyle || "").toLowerCase().includes("bold");
   const isItalic = String(item.fontStyle || "").toLowerCase().includes("italic");
   const fontSizePx = resolveFontSizePx(item.fontSize, false);
+  const isArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(String(item.value || ""));
+
+  const arabicFont = "'Cairo', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif";
+  const defaultFont = item.fontFamily ? `${item.fontFamily}, Tahoma, Arial, 'Courier New', sans-serif` : "Tahoma, Arial, 'Courier New', monospace";
 
   const baseStyle: React.CSSProperties = {
-    fontFamily: item.fontFamily ? `${item.fontFamily}, Tahoma, Arial, 'Courier New', sans-serif` : "Tahoma, Arial, 'Courier New', monospace",
+    fontFamily: isArabic ? arabicFont : defaultFont,
     fontWeight: isBold ? "bold" : 600,
     fontStyle: isItalic ? "italic" : "normal",
     fontSize: `${fontSizePx}px`,
     color: "#000000",
     WebkitTextStroke: isBold ? "0.22px #000000" : "0.15px #000000",
-    wordBreak: "break-word",
+    wordBreak: isArabic ? "normal" : "break-word",
+    overflowWrap: isArabic ? "break-word" : undefined,
     boxSizing: "border-box",
     lineHeight: 1.35,
-    letterSpacing: "0.2px",
+    letterSpacing: isArabic ? "normal" : "0.2px",
+    direction: isArabic ? "rtl" : undefined,
+    unicodeBidi: isArabic ? "embed" : undefined,
   };
 
   const offset = typeof item.offsetX === "number" ? Math.max(0, Math.min(100, item.offsetX)) : 0;

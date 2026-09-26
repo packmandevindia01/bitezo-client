@@ -328,6 +328,9 @@ const posSlice = createSlice({
     },
     setCombinedOrderIds: (state, action: PayloadAction<number[]>) => {
       state.combinedOrderIds = action.payload;
+      if (action.payload && action.payload.length > 0) {
+        state.isCartModified = true;
+      }
     },
     setTenderOption: (state, action: PayloadAction<string>) => {
       state.selectedTender = action.payload;
@@ -471,6 +474,7 @@ const posSlice = createSlice({
       comingTime?: string;
       vehicleCustomerName?: string;
       vehicleNo?: string;
+      isCartModified?: boolean;
     }>) => {
       const { 
         editingOrderId, 
@@ -495,14 +499,15 @@ const posSlice = createSlice({
         isComing,
         comingTime,
         vehicleCustomerName,
-        vehicleNo
+        vehicleNo,
+        isCartModified
       } = action.payload;
       state.editingOrderId = editingOrderId ?? null;
       state.editingSaleId = editingSaleId ?? null;
       state.isSettling = isSettling ?? false;
       state.isSettledEdit = isSettledEdit ?? false;
       state.waiterName = waiterName ?? null;
-      state.isCartModified = false;
+      state.isCartModified = isCartModified ?? false;
       state.voidProducts = [];
       state.voidModifiers = [];
       state.cartItems = cartItems;

@@ -3,8 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { providerSchema, type ProviderFormType, type ProviderListItem } from "../types";
-import { fetchProviders, fetchProviderById, createProvider, updateProvider, deleteProvider, fetchProviderAccounts } from "../services/providerService";
-import { paymodeService } from "../../paymode/services/paymodeService";
+import { fetchProviders, fetchProviderById, createProvider, updateProvider, deleteProvider, fetchProviderAccounts, fetchProviderPaymodes } from "../services/providerService";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../../inventory/shared/store/masterDataSlice";
@@ -54,14 +53,14 @@ export const useProviderManager = () => {
   });
 
   const { data: paymodes = [], isLoading: paymodesLoading } = useQuery({
-    queryKey: ["paymodes"],
-    queryFn: () => paymodeService.list(),
+    queryKey: ["providerPaymodes"],
+    queryFn: () => fetchProviderPaymodes(),
     select: (data) =>
-      (data || []).map((pm: any) => ({
-        id: pm.paymodeId ?? pm.id,
-        name: pm.paymodeName ?? pm.name,
-        paymodeId: pm.paymodeId ?? pm.id,
-        paymodeName: pm.paymodeName ?? pm.name,
+      (data || []).map((pm) => ({
+        id: pm.paymodeId,
+        name: pm.paymodeName,
+        paymodeId: pm.paymodeId,
+        paymodeName: pm.paymodeName,
       })),
   });
 

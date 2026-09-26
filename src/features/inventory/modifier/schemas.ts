@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const modifierFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required").max(20, "Name cannot exceed 20 characters"),
   arabic: z.string().optional(),
   typeId: z.coerce.number().optional(),
   color: z.string().optional(),

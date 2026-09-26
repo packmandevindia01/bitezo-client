@@ -318,11 +318,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let calculatedVatTotal = master.vatAmount || details.reduce((sum: number, d: any) => sum + (d.vatAmount || 0), 0);
 
       const mappedItems = preMapped.map((d: any) => {
+        const pId = d.productId || d.itemId || 0;
         return {
-          productId: d.productId || d.itemId || 0,
+          productId: pId,
           quantity: d.qty || 1,
           price: d.price || 0,
-          product: { name: d.productName || d.ProductName || `Product #${d.productId || 0}`, price: d.price || 0 },
+          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          product: { 
+            name: d.productName || d.ProductName || `Product #${pId}`, 
+            price: d.price || 0,
+            arabicName: d.arabicName || d.ArabicName
+          },
           extras: d.extras,
           modifiers: d.modifiers,
           messages: d.messages || [],

@@ -154,7 +154,10 @@ export const usePosCheckoutFlow = ({
       return;
     }
 
-    const isOrderEdited = !editingOrderId ? true : isCartModified;
+    const isCombinedOrder = Boolean(
+      orderPayload.combinedOrderIds && orderPayload.combinedOrderIds.length > 0
+    );
+    const isOrderEdited = !editingOrderId ? true : (isCartModified || isCombinedOrder);
 
     try {
       const resolvedCustomerId = (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0)
@@ -234,9 +237,7 @@ export const usePosCheckoutFlow = ({
         };
         const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || "DINE IN";
         
-        const isCombinedOrder = Boolean(
-          orderPayload.combinedOrderIds && orderPayload.combinedOrderIds.length > 0
-        );
+
 
         let orderNoStr = finalSaleId.toString();
         let ticketNoStr = finalSaleId.toString();
@@ -354,16 +355,17 @@ export const usePosCheckoutFlow = ({
             mappedPrintItems = preMapped.map((d: any) => {
               const qty = d.qty ?? d.Qty ?? 1;
               const price = d.price ?? d.Price ?? 0;
+              const cartMatch = cartDetails.find(c => c.productId === (d.productId || d.itemId));
               return {
                 productId: d.productId || d.itemId || 0,
                 quantity: qty,
                 price: price,
-                variantName: d.variantName || d.VariantName,
-                variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+                variantName: d.variantName || d.VariantName || cartMatch?.variantName,
+                variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic || cartMatch?.variantArabic,
                 product: {
-                  name: d.productName || d.ProductName || `Product #${d.productId || 0}`,
+                  name: d.productName || d.ProductName || cartMatch?.product?.name || `Product #${d.productId || 0}`,
                   price: price,
-                  arabicName: d.arabicName || d.ArabicName
+                  arabicName: d.arabicName || d.ArabicName || (d as any).productArabicName || cartMatch?.product?.arabicName
                 },
                 extras: d.extras,
                 modifiers: d.modifiers,

@@ -13,7 +13,7 @@ export interface ConfigurationEmployeeOption {
   value: string;
 }
 
-const mapApiToState = (data: PosConfigResponseData): ConfigurationState => {
+export const mapApiToState = (data: PosConfigResponseData): ConfigurationState => {
   const configs = data?.configs || {};
   return {
     ...INITIAL_CONFIG,
@@ -75,7 +75,7 @@ const mapApiToState = (data: PosConfigResponseData): ConfigurationState => {
   };
 };
 
-const mapStateToApi = (state: ConfigurationState, branchId: number): PosConfigUpdatePayload => {
+export const mapStateToApi = (state: ConfigurationState, branchId: number): PosConfigUpdatePayload => {
   return {
     branchId,
     discountCalc: state.discCalc,
@@ -266,6 +266,12 @@ export const usePosConfiguration = () => {
       
       if (payload.kotHeader) {
         localStorage.setItem("kotHeader", payload.kotHeader);
+      }
+      if (payload.kotArabic) {
+        localStorage.setItem("kotArabic", payload.kotArabic);
+      }
+      if (payload.billArabic) {
+        localStorage.setItem("billArabic", payload.billArabic);
       }
 
       // ─── Frontend override for default employee ───────────────────────────────

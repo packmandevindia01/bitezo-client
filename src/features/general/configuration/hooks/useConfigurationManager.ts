@@ -5,6 +5,8 @@ import type { ConfigurationState, DeliveryCharge, BackofficeConfigState } from "
 import { useToast } from "../../../../app/providers/useToast";
 import { employeeService } from "../../employee/services/employeeService";
 import { backofficeConfigApi } from "../services/backofficeConfigApi";
+import { posConfigApi } from "../../../pos/services/posConfigApi";
+import { mapApiToState, mapStateToApi } from "../../../pos/terminal/hooks/usePosConfiguration";
 import axiosInstance from "../../../../api/axiosInstance";
 
 export interface ConfigurationEmployeeOption {
@@ -55,6 +57,11 @@ export const useConfigurationManager = () => {
         const branches = await backofficeConfigApi.getBranches();
         if (!active) return;
         setBackofficeBranches(branches.map(b => ({ label: b.branchName, value: String(b.branchId) })));
+        if (branches.length > 0 && !selectedBranch) {
+          const activeBranchId = localStorage.getItem("activeBranchId") || localStorage.getItem("branchId") || localStorage.getItem("systemBranchId") || "";
+          const found = branches.find(b => String(b.branchId) === activeBranchId);
+          setSelectedBranch(found ? String(found.branchId) : String(branches[0].branchId));
+        }
       } catch (err: any) {
         console.error("Failed to load backoffice branches", err);
         showToast(err.message || "Failed to load branches", "error");
@@ -213,13 +220,71 @@ export const useConfigurationManager = () => {
     }));
   };
 
+  useEffect(() => {
+    let active = true;
+
+    const loadPosConfig = async () => {
+      const branchId = Number(selectedBranch) || Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
+      if (branchId > 0) {
+        try {
+          const res = await posConfigApi.getPosConfig(branchId);
+          if (active && res?.isSuccess && res?.data) {
+            setForm(mapApiToState(res.data));
+          }
+        } catch (e) {
+          console.warn("Failed to load POS configuration in Backoffice:", e);
+        }
+      }
+    };
+
+    void loadPosConfig();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedBranch]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const branchId = Number(selectedBranch) || Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
+      const payload = mapStateToApi(form, branchId);
+      await posConfigApi.updatePosConfig(payload);
+
+      if (payload.kotHeader) {
+        localStorage.setItem("kotHeader", payload.kotHeader);
+      }
+      if (payload.kotArabic) {
+        localStorage.setItem("kotArabic", payload.kotArabic);
+      }
+      if (payload.billArabic) {
+        localStorage.setItem("billArabic", payload.billArabic);
+      }
+
+      // Update runtime posConfigs in localStorage
+      try {
+        const saved = localStorage.getItem("posConfigs");
+        const parsed = saved ? JSON.parse(saved) : {};
+        if (parsed.configs) {
+          parsed.configs.kotHeader = payload.kotHeader;
+          parsed.configs.kotPrint = payload.kotPrint;
+          parsed.configs.kotArabic = payload.kotArabic;
+          parsed.configs.billArabic = payload.billArabic;
+          parsed.configs.masterKot = payload.masterKot;
+          parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
+        }
+        parsed.kotHeader = payload.kotHeader;
+        parsed.kotPrint = payload.kotPrint;
+        parsed.kotArabic = payload.kotArabic;
+        parsed.billArabic = payload.billArabic;
+        localStorage.setItem("posConfigs", JSON.stringify(parsed));
+      } catch {}
+
       showToast("POS Configuration saved successfully", "success");
-    } catch (error) {
-      showToast("Failed to save POS configuration", "error");
+      return true;
+    } catch (error: any) {
+      showToast(error.message || "Failed to save POS configuration", "error");
+      return false;
     } finally {
       setSaving(false);
     }
