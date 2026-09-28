@@ -105,22 +105,27 @@ export const usePosCheckoutFlow = ({
 
         const enableVat = getVatStatus();
         payload.printData.enableVat = enableVat;
+        const { isBillArabicEnabled } = await import("../../utils/alternativeHelpers");
+        const billArabic = isBillArabicEnabled() || payload.mappedItems.some((it: any) => 
+          Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
+        );
+        payload.printData.billArabic = billArabic;
 
-        if (Capacitor.isNativePlatform()) {
-          // ── FAST PATH: Native ESC/POS (no html2canvas, no API call) ──────────
+        const targetPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+
+        if (Capacitor.isNativePlatform() && !billArabic) {
+          // ── FAST PATH: Native ESC/POS (no html2canvas, no API call) when English only ──
           const { printEscPosMarkup } = await import("../../services/qzService");
           const { generateBillMarkup } = await import("../../utils/escPosGenerator");
           const markup = generateBillMarkup({
             cartDetails: payload.mappedItems,
             data: payload.printData,
           });
-          await printEscPosMarkup(markup);
+          await printEscPosMarkup(markup, targetPrinter);
         } else {
-          // ── DESKTOP PATH: QZ Tray (unchanged) ───────────────────────────────
+          // ── HTML GRAPHIC PATH: Used on Desktop OR on Mobile when Arabic is present ──
           const { printHtmlReceipt } = await import("../../services/qzService");
           const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
-          // Read bill printer from cache (set by PrinterSettingsTab on save)
-          const targetPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
           const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
           await printHtmlReceipt(html, targetPrinter);
         }

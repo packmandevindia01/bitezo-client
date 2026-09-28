@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { 
   ChevronLeft,
 } from 'lucide-react';
@@ -123,7 +124,7 @@ export const PosMorePage: React.FC = () => {
                   initialData={categories} 
                   onSave={saveCategoryMappings}
                   loading={loading}
-                  isAndroidPrinter={!!general.androidPrint}
+                  isAndroidPrinter={Capacitor.isNativePlatform()}
                   onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
@@ -132,7 +133,7 @@ export const PosMorePage: React.FC = () => {
                   initialData={products} 
                   onSave={saveProductMappings}
                   loading={loading}
-                  isAndroidPrinter={!!general.androidPrint}
+                  isAndroidPrinter={Capacitor.isNativePlatform()}
                   onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
@@ -141,7 +142,7 @@ export const PosMorePage: React.FC = () => {
                   initialData={sections} 
                   onSave={saveSectionMappings}
                   loading={loading}
-                  isAndroidPrinter={!!general.androidPrint}
+                  isAndroidPrinter={Capacitor.isNativePlatform()}
                   onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}
@@ -150,7 +151,7 @@ export const PosMorePage: React.FC = () => {
                   initialData={orderTypes} 
                   onSave={saveOrderTypeMappings}
                   loading={loading}
-                  isAndroidPrinter={!!general.androidPrint}
+                  isAndroidPrinter={Capacitor.isNativePlatform()}
                   onToggleAndroidPrinter={toggleAndroidPrint}
                 />
               )}

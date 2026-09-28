@@ -310,9 +310,12 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       printData.subTotal = calculatedSubTotal;
       (printData as any).discount = master.discAmount || master.discount || 0;
       printData.vatAmount = master.vatAmount || 0;
-      printData.billArabic = isBillArabicEnabled();
+      const billArabic = isBillArabicEnabled() || printMappedItems.some((it: any) => 
+        Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
+      );
+      printData.billArabic = billArabic;
 
-      if (Capacitor.isNativePlatform()) {
+      if (Capacitor.isNativePlatform() && !billArabic) {
         const { generateBillMarkup } = await import('../../../../utils/escPosGenerator');
         const { printEscPosMarkup } = await import('../../../../services/qzService');
         const markup = generateBillMarkup({ cartDetails: printMappedItems as any, data: printData as any });
@@ -320,7 +323,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       } else {
         const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
         const settingsRes = await printerSettingsApi.getGeneral();
-        const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+        const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
         await printHtmlReceipt(htmlContent, billPrinter);
       }
       showToast("Guest receipt sent to printer!", "success");

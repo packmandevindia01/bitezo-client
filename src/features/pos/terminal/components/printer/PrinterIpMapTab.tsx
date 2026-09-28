@@ -5,25 +5,61 @@ import { useToast } from '../../../../../app/providers/useToast';
 import type { PrinterIpMapItem } from '../../../types';
 import { Plus, RefreshCw, Printer, Trash2 } from 'lucide-react';
 
+const getCachedIpMap = (): PrinterIpMapItem[] => {
+  try {
+    const cached = localStorage.getItem('printerIpMap');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+    const singleIp = localStorage.getItem('printerIpAddress');
+    const singleName = localStorage.getItem('printerMapName') || 'POS Printer';
+    if (singleIp) {
+      return [{ printerName: singleName, ipAddress: singleIp }];
+    }
+  } catch (e) {
+    // Ignore JSON error
+  }
+  return [{ printerName: '', ipAddress: '' }];
+};
+
 export const PrinterIpMapTab: React.FC = () => {
   const { showToast } = useToast();
-  const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>([]);
+  const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>(() => getCachedIpMap());
   const [loadingList, setLoadingList] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
 
   const fetchIpMaps = async () => {
+    // 1. Immediately hydrate from device local storage
+    const localCached = getCachedIpMap();
+    if (localCached.some(item => item.printerName || item.ipAddress)) {
+      setIpMapList(localCached);
+    }
+
     setLoadingList(true);
     try {
       const res = await printerSettingsApi.getPrinterIpMap();
       if (res?.isSuccess && Array.isArray(res.data) && res.data.length > 0) {
         setIpMapList(res.data);
+        localStorage.setItem('printerIpMap', JSON.stringify(res.data));
+        if (res.data[0]?.ipAddress) {
+          localStorage.setItem('printerIpAddress', res.data[0].ipAddress);
+          localStorage.setItem('printerMapName', res.data[0].printerName);
+        }
       } else {
-        // Default with 1 empty row for immediate editing if list is empty
-        setIpMapList([{ printerName: '', ipAddress: '' }]);
+        // If backend returned empty, only reset if we don't already have local storage
+        if (!localCached.some(item => item.printerName || item.ipAddress)) {
+          setIpMapList([{ printerName: '', ipAddress: '' }]);
+        }
       }
     } catch (err) {
-      console.error('Failed to load printer IP maps:', err);
-      setIpMapList([{ printerName: '', ipAddress: '' }]);
+      console.warn('Failed to load printer IP maps from server, using local device storage:', err);
+      // Keep local cached mappings if server is unreachable
+      if (!localCached.some(item => item.printerName || item.ipAddress)) {
+        setIpMapList([{ printerName: '', ipAddress: '' }]);
+      }
     } finally {
       setLoadingList(false);
     }
@@ -40,7 +76,14 @@ export const PrinterIpMapTab: React.FC = () => {
   const handleRemoveRow = (index: number) => {
     setIpMapList(prev => {
       const updated = prev.filter((_, i) => i !== index);
-      return updated.length > 0 ? updated : [{ printerName: '', ipAddress: '' }];
+      const finalList = updated.length > 0 ? updated : [{ printerName: '', ipAddress: '' }];
+      const validToSave = finalList.filter(item => item.printerName.trim() !== '' || item.ipAddress.trim() !== '');
+      localStorage.setItem('printerIpMap', JSON.stringify(validToSave));
+      if (validToSave[0]?.ipAddress) {
+        localStorage.setItem('printerIpAddress', validToSave[0].ipAddress);
+        localStorage.setItem('printerMapName', validToSave[0].printerName);
+      }
+      return finalList;
     });
   };
 
@@ -74,15 +117,27 @@ export const PrinterIpMapTab: React.FC = () => {
       }
     }
 
+    // 1. Persist immediately to tablet's local storage (Offline-first guarantee)
+    try {
+      localStorage.setItem('printerIpMap', JSON.stringify(validRows));
+      localStorage.setItem('printerIpAddress', validRows[0].ipAddress.trim());
+      localStorage.setItem('printerMapName', validRows[0].printerName.trim());
+      if (!localStorage.getItem('cachedBillPrinterIp')) {
+        localStorage.setItem('cachedBillPrinterIp', validRows[0].ipAddress.trim());
+      }
+    } catch (e) {
+      console.error('Failed to cache printer IP map in localStorage:', e);
+    }
+
     setSaving(true);
     try {
       const res = await printerSettingsApi.savePrinterIpMap(validRows);
       showToast(res?.message || 'Printer IP mappings saved successfully!', 'success');
       fetchIpMaps();
     } catch (err: any) {
-      console.error('Failed to save Printer IP Maps:', err);
-      const errMsg = err?.response?.data?.message || err?.message || 'Failed to save Printer IP Maps';
-      showToast(errMsg, 'error');
+      console.warn('Backend save failed, but IP mappings saved locally on this device:', err);
+      showToast('Printer IP mappings saved locally on this tablet!', 'success');
+      setIpMapList(validRows);
     } finally {
       setSaving(false);
     }

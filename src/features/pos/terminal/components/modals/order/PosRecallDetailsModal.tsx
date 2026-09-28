@@ -366,10 +366,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
-        billArabic: isBillArabicEnabled()
+        billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
+          Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
+        )
       };
 
-      if (Capacitor.isNativePlatform()) {
+      if (Capacitor.isNativePlatform() && !printData.billArabic) {
         const { printEscPosMarkup } = await import("../../../../services/qzService");
         const { generateBillMarkup } = await import("../../../../utils/escPosGenerator");
         const markup = generateBillMarkup({ cartDetails: mappedItems as any, data: printData as any });
@@ -379,7 +381,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         try {
           const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
           const settingsRes = await printerSettingsApi.getGeneral();
-          const billPrinter = settingsRes.data?.billPrinter || "No Printer";
+          const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
           
           await printHtmlReceipt(htmlContent, billPrinter);
           showToast("Guest receipt sent to printer!", "success");

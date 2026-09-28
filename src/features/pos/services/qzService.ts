@@ -6,6 +6,8 @@ export interface BitezoPrinterPlugin {
   printImage(options: { base64: string; type: string; address: string; port?: number }): Promise<void>;
   /** Fast ESC/POS text print — uses dantsu markup, no image conversion */
   printEscPos(options: { markup: string; type: string; address: string; port?: number }): Promise<void>;
+  /** Direct 1:1 hardware ESC/POS raster print over raw TCP/Bluetooth socket — ultra-fast */
+  printRaw(options: { data: string; type?: string; address: string; port?: number }): Promise<void>;
 }
 const BitezoPrinter = registerPlugin<BitezoPrinterPlugin>('BitezoPrinter');
 
@@ -263,8 +265,108 @@ export const connectQZ = async (): Promise<void> => {
 export const connectPrinterAgent = connectQZ;
 
 /**
+ * Resolves the target printer IP address synchronously from local storage caches,
+ * or asynchronously via the backend API.
+ */
+export const resolveTargetIp = async (targetPrinterName?: string): Promise<string> => {
+  let targetIp = "";
+  const targetName = (targetPrinterName || localStorage.getItem('cachedBillPrinter') || "").trim();
+
+  // 1. Direct IP Check: if targetName itself is an IP address (e.g. "192.168.1.100")
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(targetName)) {
+    return targetName;
+  }
+
+  // 2. Direct Station-Specific Cache Check
+  if (!targetIp && targetName) {
+    const billName = (localStorage.getItem('cachedBillPrinter') || '').trim().toLowerCase();
+    const kotName = (localStorage.getItem('cachedKotPrinter') || '').trim().toLowerCase();
+    const packagerName = (localStorage.getItem('cachedPackagerPrinter') || '').trim().toLowerCase();
+    const masterKotName = (localStorage.getItem('cachedMasterKotPrinter') || '').trim().toLowerCase();
+
+    if (billName && targetName.toLowerCase() === billName) {
+      targetIp = localStorage.getItem('cachedBillPrinterIp') || "";
+    } else if (kotName && targetName.toLowerCase() === kotName) {
+      targetIp = localStorage.getItem('cachedKotPrinterIp') || "";
+    } else if (packagerName && targetName.toLowerCase() === packagerName) {
+      targetIp = localStorage.getItem('cachedPackagerPrinterIp') || "";
+    } else if (masterKotName && targetName.toLowerCase() === masterKotName) {
+      targetIp = localStorage.getItem('cachedMasterKotPrinterIp') || "";
+    }
+  }
+
+  // 3. Local Storage printerIpMap Lookup (Immediate & Synchronous)
+  if (!targetIp && targetName && targetName !== 'No Printer') {
+    try {
+      const cached = localStorage.getItem('printerIpMap');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const found = parsed.find((item: any) => 
+            (item.printerName && item.printerName.toLowerCase() === targetName.toLowerCase()) ||
+            item.ipAddress === targetName
+          );
+          if (found && found.ipAddress) {
+            targetIp = found.ipAddress.trim();
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[Native IP Lookup] Error reading local printerIpMap:", e);
+    }
+  }
+
+  // 4. Fallback to API if not found locally
+  if (!targetIp && targetName && targetName !== 'No Printer') {
+    try {
+      const { printerSettingsApi } = await import("./printerSettingsApi");
+      const ipMapRes = await printerSettingsApi.getPrinterIpMap();
+      if (ipMapRes?.isSuccess && Array.isArray(ipMapRes.data)) {
+        const found = ipMapRes.data.find((item: any) => 
+          (item.printerName && item.printerName.toLowerCase() === targetName.toLowerCase()) ||
+          item.ipAddress === targetName
+        );
+        if (found && found.ipAddress) {
+          targetIp = found.ipAddress.trim();
+          localStorage.setItem('printerIpMap', JSON.stringify(ipMapRes.data));
+        }
+      }
+    } catch (e) {
+      console.warn("[Native IP Lookup] Fallback API lookup for printer IP map failed:", e);
+    }
+  }
+
+  // 5. Global Default / Fallback IP
+  if (!targetIp) {
+    targetIp = localStorage.getItem('cachedBillPrinterIp') || localStorage.getItem('printerIpAddress') || "";
+  }
+
+  // 6. If still no IP, check if any entry in printerIpMap has an IP
+  if (!targetIp) {
+    try {
+      const cached = localStorage.getItem('printerIpMap');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed[0]?.ipAddress) {
+          targetIp = parsed[0].ipAddress.trim();
+        }
+      }
+    } catch {}
+  }
+
+  if (!targetIp) {
+    const errorMsg = targetName && targetName !== 'No Printer'
+      ? `IP address not found for printer "${targetName}". Please configure IP mapping in Printer Settings.`
+      : "No printer IP address mapped. Please configure Printer IP Mapping in POS Settings.";
+    throw new Error(errorMsg);
+  }
+
+  return targetIp;
+};
+
+/**
  * Fast ESC/POS native print using dantsu markup.
- * Used on Capacitor (tablet/phone) for ALL POS print jobs:
+ * Used on Capacitor (tablet/phone) for ALL pure ASCII/English POS print jobs:
  * bill receipts, KOT slips, cashier reports, reprints.
  */
 export const printEscPosMarkup = async (markup: string, targetPrinterName?: string): Promise<void> => {
@@ -273,36 +375,9 @@ export const printEscPosMarkup = async (markup: string, targetPrinterName?: stri
     return;
   }
 
-  let targetIp = "";
-  const targetName = targetPrinterName || localStorage.getItem('cachedBillPrinter') || "";
+  const targetIp = await resolveTargetIp(targetPrinterName);
 
-  if (targetName && targetName !== 'No Printer') {
-    try {
-      const { printerSettingsApi } = await import("./printerSettingsApi");
-      const ipMapRes = await printerSettingsApi.getPrinterIpMap();
-      if (ipMapRes?.isSuccess && Array.isArray(ipMapRes.data)) {
-        const found = ipMapRes.data.find(item => item.printerName.toLowerCase() === targetName.toLowerCase());
-        if (found && found.ipAddress) {
-          targetIp = found.ipAddress;
-        }
-      }
-    } catch (e) {
-      console.error("[Native ESC/POS] Failed to fetch printer IP map:", e);
-    }
-  }
-
-  if (!targetIp) {
-    targetIp = localStorage.getItem('printerIpAddress') || "";
-  }
-
-  if (!targetIp) {
-    const errorMsg = targetName 
-      ? `IP address not found for printer "${targetName}". Please configure IP mapping in Printer Settings.`
-      : "No printer IP address mapped. Please configure Printer IP Mapping in POS Settings.";
-    throw new Error(errorMsg);
-  }
-
-  console.log(`[Native ESC/POS] Sending markup for printer "${targetName}" to IP ${targetIp}`);
+  console.log(`[Native ESC/POS] Sending markup for printer "${targetPrinterName || targetIp}" to IP ${targetIp}:9100`);
 
   await BitezoPrinter.printEscPos({
     markup,
@@ -407,8 +482,8 @@ export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
           const lum = 0.299 * r + 0.587 * g + 0.114 * bl;
 
           // Thermal pin rule: 1 = heat pin (burn black), 0 = no heat (white paper)
-          // Threshold 165 captures crisp authentic font stems without artificially expanding anti-aliasing into bold text
-          if (lum < 165) {
+          // Threshold 195 captures full font stems and anti-aliased curves with dark, crisp clarity
+          if (lum < 195) {
             byte |= 1 << (7 - b);
           }
         }
@@ -421,46 +496,28 @@ export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
   return result;
 }
 
+export const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+  let binary = '';
+  const len = bytes.byteLength;
+  const chunkSize = 8192;
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
+};
+
 /**
  * Prints HTML content via Printer Agent — WEB / DESKTOP path only.
  * Renders HTML inside an isolated iframe, sanitizes away all Tailwind v4 oklch styles,
  * generates 1:1 hardware ESC/POS raster for thermal printers (100% razor sharp),
  * or falls back to printImage for non-thermal document printers.
  */
-export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
-  if (Capacitor.isNativePlatform()) {
-    throw new Error("[Native] printHtmlReceipt() is not supported on mobile. Use printEscPosMarkup() instead.");
-  }
-
-  console.log("[Web Browser] Routing print job to Printer Agent...");
-  await printAgent.connect();
-
-  let targetPrinter: string | null = null;
-  const available = await printAgent.listPrinters();
-
-  if (printerName && printerName !== "No Printer") {
-    const exactMatch = available.find((p) => p.toLowerCase() === printerName.toLowerCase());
-    if (exactMatch) {
-      targetPrinter = exactMatch;
-    } else {
-      console.warn(`[PrintAgent] Printer "${printerName}" not found in list (${available.join(', ')}). Falling back to default.`);
-    }
-  }
-
-  if (!targetPrinter) {
-    targetPrinter = await printAgent.getDefaultPrinter();
-  }
-
-  if (!targetPrinter && available.length > 0) {
-    targetPrinter = available[0];
-  }
-
-  if (!targetPrinter) {
-    throw new Error("No printer available on this system. Please check PrinterAgent.exe.");
-  }
-
-  console.log(`[PrintAgent] Rendering HTML receipt for target printer "${targetPrinter}"`);
-
+/**
+ * Renders HTML content inside an isolated iframe, sanitizes away Tailwind v4 oklch styles,
+ * and captures it to a high-resolution 576-dot canvas (1:1 matching 80mm thermal printers).
+ */
+export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanvasElement> => {
   // Strip any inline oklch strings before writing
   const sanitizedHtml = htmlContent.replace(/oklch\([^)]+\)/gi, "#000000");
 
@@ -538,6 +595,100 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       },
     });
 
+    return canvas;
+  } finally {
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe);
+    }
+  }
+};
+
+/**
+ * Prints HTML content via Printer Agent (Web / Desktop) OR native BitezoPrinter (Mobile / Tablet).
+ * On mobile/tablet: renders HTML to 576-dot canvas (with Cairo font, RTL Arabic, and crisp formatting)
+ * and dispatches it directly to the printer over TCP port 9100.
+ */
+export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
+  if (Capacitor.isNativePlatform()) {
+    console.log(`[Native Print] Rendering HTML receipt to 1:1 ESC/POS raster for "${printerName || 'default'}"`);
+    const targetIp = await resolveTargetIp(printerName);
+    const canvas = await renderHtmlToCanvas(htmlContent);
+    const rasterBytes = canvasToEscPosRaster(canvas);
+    const base64Data = uint8ArrayToBase64(rasterBytes);
+
+    try {
+      await BitezoPrinter.printRaw({
+        data: base64Data,
+        type: "tcp",
+        address: targetIp,
+        port: 9100,
+      });
+      console.log(`[Native Print] 1:1 ESC/POS raster job sent to ${targetIp}:9100 successfully.`);
+      return;
+    } catch (rawErr: any) {
+      console.warn("[Native Print] printRaw failed, falling back to printImage:", rawErr);
+      const dataUrl = canvas.toDataURL("image/png");
+      await BitezoPrinter.printImage({
+        base64: dataUrl,
+        type: "tcp",
+        address: targetIp,
+        port: 9100,
+      });
+      return;
+    }
+  }
+
+  console.log("[Web Browser] Routing print job to Printer Agent...");
+  await printAgent.connect();
+
+  let targetPrinter: string | null = null;
+  const available = await printAgent.listPrinters();
+
+  if (printerName && printerName !== "No Printer" && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(printerName.trim())) {
+    const exactMatch = available.find((p) => p.toLowerCase() === printerName.toLowerCase());
+    if (exactMatch) {
+      targetPrinter = exactMatch;
+    } else {
+      console.warn(`[PrintAgent] Printer "${printerName}" not found in list (${available.join(', ')}). Falling back to default.`);
+    }
+  }
+
+  // If no targetPrinter resolved, check cachedBillPrinter if it's a valid Windows printer name
+  if (!targetPrinter) {
+    const cachedBill = localStorage.getItem('cachedBillPrinter');
+    if (cachedBill && cachedBill !== 'No Printer' && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(cachedBill.trim())) {
+      targetPrinter = available.find(p => p.toLowerCase() === cachedBill.toLowerCase()) || null;
+    }
+  }
+
+  // Look for any standard POS thermal printer first (like POS-80C) before arbitrary Windows default
+  if (!targetPrinter) {
+    const posThermal = available.find(p => {
+      const l = p.toLowerCase();
+      return (l.includes("pos") || l.includes("80") || l.includes("thermal") || l.includes("receipt") || l.includes("tm-t") || l.includes("xprinter")) && isThermalPosPrinter(p);
+    });
+    if (posThermal) {
+      targetPrinter = posThermal;
+    }
+  }
+
+  if (!targetPrinter) {
+    targetPrinter = await printAgent.getDefaultPrinter();
+  }
+
+  if (!targetPrinter && available.length > 0) {
+    targetPrinter = available[0];
+  }
+
+  if (!targetPrinter) {
+    throw new Error("No printer available on this system. Please check PrinterAgent.exe.");
+  }
+
+  console.log(`[PrintAgent] Rendering HTML receipt for target printer "${targetPrinter}"`);
+
+  try {
+    const canvas = await renderHtmlToCanvas(htmlContent);
+
     // 1:1 Hardware Dot-Precision Dispatch:
     // If target printer is a POS thermal printer (like POS-80C), send 1:1 hardware ESC/POS raster via printRaw.
     // This completely bypasses Windows GDI scaling and driver halftoning, delivering 100% razor-sharp TrueType edges!
@@ -589,10 +740,6 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
   } catch (err) {
     console.error("[PrintAgent] Print failed:", err);
     throw err;
-  } finally {
-    if (iframe.parentNode) {
-      document.body.removeChild(iframe);
-    }
   }
 };
 

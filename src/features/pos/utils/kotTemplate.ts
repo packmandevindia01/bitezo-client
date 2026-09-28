@@ -195,7 +195,7 @@ export const generateKotHtml = async (
           const exName = (ex.name || "EXTRA").toUpperCase();
           const exArabic = isKotArabic ? (ex.arabicName || ex.arabic || "") : "";
           const exDisplay = exArabic
-            ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px;">(${exArabic})</span>`
+            ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; margin-left:4px; color:#000000;">(${exArabic})</span>`
             : `+ ${exName}`;
           const exAmt = fmt(ex.price * ex.qty);
           if (kotHeaderStyle.startsWith("DESCRIPTION")) {
@@ -224,7 +224,7 @@ export const generateKotHtml = async (
           const modName = (mod.name || "MODIFIER").toUpperCase();
           const modArabic = isKotArabic ? (mod.arabicName || mod.arabic || "") : "";
           const modDisplay = modArabic
-            ? `* ${modName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
+            ? `* ${modName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; margin-left:4px; color:#000000;">(${modArabic})</span>`
             : `* ${modName}`;
           if (kotHeaderStyle.startsWith("DESCRIPTION")) {
             itemsHtml += `
@@ -288,10 +288,9 @@ export const generateKotHtml = async (
       <head>
         <meta charset="UTF-8" />
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
-            font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, Helvetica, sans-serif;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, Helvetica, sans-serif;
             font-size: 13px;
             font-weight: bold;
             color: #000000;
@@ -308,7 +307,10 @@ export const generateKotHtml = async (
           .arabic-text {
             direction: rtl;
             text-align: right;
-            font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: 700 !important;
+            font-size: 13px !important;
+            color: #000000 !important;
             unicode-bidi: embed;
             text-rendering: optimizeLegibility;
             font-feature-settings: 'liga' 1, 'kern' 1;

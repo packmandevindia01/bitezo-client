@@ -6,6 +6,26 @@ import type { PrinterIpMapItem } from "../../types";
 
 const ESCPOSPlugin = registerPlugin<any>("ESCPOSPlugin");
 
+const getCachedIpMap = (): PrinterIpMapItem[] => {
+  try {
+    const cached = localStorage.getItem('printerIpMap');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+    const singleIp = localStorage.getItem('printerIpAddress');
+    const singleName = localStorage.getItem('printerMapName') || 'POS Printer';
+    if (singleIp) {
+      return [{ printerName: singleName, ipAddress: singleIp }];
+    }
+  } catch (e) {
+    // Ignore JSON error
+  }
+  return [];
+};
+
 export interface PrinterOption {
   label: string;
   value: string;
@@ -18,16 +38,21 @@ export interface UseAvailablePrintersProps {
 
 export const useAvailablePrinters = (props?: UseAvailablePrintersProps) => {
   const [printers, setPrinters] = useState<string[]>([]);
-  const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>([]);
+  const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>(() => getCachedIpMap());
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingIpMap, setLoadingIpMap] = useState<boolean>(false);
   const [isAndroidPrinter, setIsAndroidPrinter] = useState<boolean>(() => {
+    if (!Capacitor.isNativePlatform()) return false;
     if (props?.isAndroid !== undefined) return props.isAndroid;
     return localStorage.getItem("androidPrint") === "true";
   });
 
   // Keep in sync if prop changes from parent
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      setIsAndroidPrinter(false);
+      return;
+    }
     if (props?.isAndroid !== undefined) {
       setIsAndroidPrinter(props.isAndroid);
     }
@@ -82,16 +107,21 @@ export const useAvailablePrinters = (props?: UseAvailablePrintersProps) => {
       }
     };
 
-    // 2. Fetch IP Map printers from backend
+    // 2. Fetch IP Map printers from local storage and backend
     const loadIpMaps = async () => {
+      const localCached = getCachedIpMap();
+      if (isMounted && localCached.length > 0) {
+        setIpMapList(localCached);
+      }
       setLoadingIpMap(true);
       try {
         const res = await printerSettingsApi.getPrinterIpMap();
-        if (isMounted && res?.isSuccess && Array.isArray(res.data)) {
+        if (isMounted && res?.isSuccess && Array.isArray(res.data) && res.data.length > 0) {
           setIpMapList(res.data);
+          localStorage.setItem('printerIpMap', JSON.stringify(res.data));
         }
       } catch (e) {
-        console.error("[useAvailablePrinters] Failed to fetch printer IP maps:", e);
+        console.warn("[useAvailablePrinters] Failed to fetch printer IP maps from server, using local storage:", e);
       } finally {
         if (isMounted) setLoadingIpMap(false);
       }
@@ -117,13 +147,17 @@ export const useAvailablePrinters = (props?: UseAvailablePrintersProps) => {
     ? [
         { label: "No Printer", value: "No Printer" },
         ...ipMapList.map((item) => ({
-          label: `${item.printerName} (${item.ipAddress})`,
-          value: item.printerName,
+          label: `${item.printerName || 'Printer'} (${item.ipAddress})`,
+          value: item.printerName || item.ipAddress,
         })),
       ]
     : [
         { label: "No Printer", value: "No Printer" },
         ...printers.map((p) => ({ label: p, value: p })),
+        ...ipMapList.filter(item => !printers.includes(item.printerName || item.ipAddress)).map((item) => ({
+          label: `Network: ${item.printerName || 'Printer'} (${item.ipAddress})`,
+          value: item.printerName || item.ipAddress,
+        })),
       ];
 
   return {

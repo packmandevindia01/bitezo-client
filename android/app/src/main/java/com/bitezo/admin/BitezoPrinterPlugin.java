@@ -10,6 +10,10 @@ import com.dantsu.escposprinter.EscPosPrinter;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.escposprinter.connection.tcp.TcpConnection;
 import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
+
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -49,7 +53,7 @@ public class BitezoPrinterPlugin extends Plugin {
                     if (type.equals("tcp") || type.equals("bluetooth")) {
                         if (type.equals("tcp")) {
                             TcpConnection tcpConnection = new TcpConnection(address, port, 15000);
-                            printer = new EscPosPrinter(tcpConnection, 203, 72f, 48);
+                            printer = new EscPosPrinter(tcpConnection, 203, 72f, 42);
                         } else {
                             BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
                             if (adapter == null || !adapter.isEnabled()) {
@@ -57,7 +61,7 @@ public class BitezoPrinterPlugin extends Plugin {
                                 return;
                             }
                             BluetoothDevice device = adapter.getRemoteDevice(address);
-                            printer = new EscPosPrinter(new BluetoothConnection(device), 203, 72f, 48);
+                            printer = new EscPosPrinter(new BluetoothConnection(device), 203, 72f, 42);
                         }
 
                         int chunkHeight = 255;
@@ -68,14 +72,14 @@ public class BitezoPrinterPlugin extends Plugin {
                             int currentHeight = Math.min(chunkHeight, bmpHeight - y);
                             Bitmap chunk = Bitmap.createBitmap(bitmap, 0, y, bmpWidth, currentHeight);
                             String hexImage = PrinterTextParserImg.bitmapToHexadecimalString(printer, chunk);
-                            printer.printFormattedText("[C]<img>" + hexImage + "</img>\n");
-                            try { Thread.sleep(250); } catch (Exception ignore) {}
+                            printer.printFormattedText("[C]<img>" + hexImage + "</img>");
+                            try { Thread.sleep(50); } catch (Exception ignore) {}
                         }
                         
                         printer.printFormattedTextAndCut("");
 
                         if (type.equals("tcp")) {
-                            try { Thread.sleep(1000); } catch (Exception ignore) {}
+                            try { Thread.sleep(500); } catch (Exception ignore) {}
                         }
                         printer.disconnectPrinter();
                     } else {
@@ -125,7 +129,7 @@ public class BitezoPrinterPlugin extends Plugin {
 
                 if (type.equals("tcp")) {
                     printer = new EscPosPrinter(
-                        new TcpConnection(address, port, 15000), 203, 72f, 48
+                        new TcpConnection(address, port, 15000), 203, 72f, 42
                     );
                 } else if (type.equals("bluetooth")) {
                     BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -135,7 +139,7 @@ public class BitezoPrinterPlugin extends Plugin {
                     }
                     BluetoothDevice device = adapter.getRemoteDevice(address);
                     printer = new EscPosPrinter(
-                        new BluetoothConnection(device), 203, 72f, 48
+                        new BluetoothConnection(device), 203, 72f, 42
                     );
                 } else {
                     call.reject("Invalid connection type: " + type);
@@ -144,11 +148,70 @@ public class BitezoPrinterPlugin extends Plugin {
 
                 // Single call — no chunking, no sleep(), no image conversion
                 printer.printFormattedTextAndCut(markup);
+                try { Thread.sleep(200); } catch (Exception ignore) {}
                 printer.disconnectPrinter();
                 call.resolve();
 
             } catch (Exception e) {
                 call.reject("ESC/POS print failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    /**
+     * Direct 1:1 ESC/POS hardware raster print over raw TCP socket.
+     * Receives base64-encoded ESC/POS bytes (GS v 0 raster + feed + cut)
+     * and streams them directly to the printer in milliseconds!
+     */
+    @PluginMethod
+    public void printRaw(PluginCall call) {
+        String base64Data = call.getString("data");
+        String type = call.getString("type", "tcp");
+        String address = call.getString("address");
+        int port = call.getInt("port", 9100);
+
+        if (base64Data == null || address == null) {
+            call.reject("Missing required parameters: data, address");
+            return;
+        }
+
+        new Thread(() -> {
+            Socket socket = null;
+            OutputStream out = null;
+            try {
+                byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+
+                if ("tcp".equalsIgnoreCase(type)) {
+                    socket = new Socket();
+                    socket.connect(new InetSocketAddress(address, port), 8000);
+                    out = socket.getOutputStream();
+                    out.write(bytes);
+                    out.flush();
+                    try { Thread.sleep(250); } catch (Exception ignore) {}
+                    call.resolve();
+                } else if ("bluetooth".equalsIgnoreCase(type)) {
+                    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                    if (adapter == null || !adapter.isEnabled()) {
+                        call.reject("Bluetooth is not enabled");
+                        return;
+                    }
+                    BluetoothDevice device = adapter.getRemoteDevice(address);
+                    BluetoothConnection conn = new BluetoothConnection(device);
+                    conn.connect();
+                    conn.write(bytes);
+                    conn.send();
+                    conn.disconnect();
+                    call.resolve();
+                } else {
+                    call.reject("Unsupported connection type: " + type);
+                }
+            } catch (Exception e) {
+                call.reject("Raw print failed: " + e.getMessage());
+            } finally {
+                try {
+                    if (out != null) out.close();
+                    if (socket != null) socket.close();
+                } catch (Exception ignore) {}
             }
         }).start();
     }

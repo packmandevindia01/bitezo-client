@@ -64,7 +64,26 @@ export const printerSettingsApi = {
     return data;
   },
   updateGeneral: async (settings: GeneralPrinterSettings) => {
-    const { data } = await axiosInstance.put<ApiResponse<any>>("/pos-printer-settings/general", settings, getTerminalHeaders());
+    // Resolve printer values
+    const billPrinter = settings.billPrinter || settings.androidBillPrinter || "No Printer";
+    const kotPrinter = settings.kotPrinter || settings.androidKOTPrinter || "No Printer";
+    const packagerPrinter = settings.packagerPrinter || settings.androidPackagerPrinter || "No Printer";
+    const masterKOT = settings.masterKOT || "No Printer";
+
+    // Strictly match CreateGeneralPrinterSettingDto (no androidPrint property because additionalProperties: false)
+    const payload = {
+      billPrinter,
+      kotPrinter,
+      packagerPrinter,
+      masterKOT,
+      masterKOTCount: Number(settings.masterKOTCount) || 1,
+      masterKOTBillCount: Number(settings.masterKOTBillCount) || 1,
+      androidBillPrinter: settings.androidBillPrinter || billPrinter,
+      androidKOTPrinter: settings.androidKOTPrinter || kotPrinter,
+      androidPackagerPrinter: settings.androidPackagerPrinter || packagerPrinter
+    };
+
+    const { data } = await axiosInstance.put<ApiResponse<any>>("/pos-printer-settings/general", payload, getTerminalHeaders());
     return data;
   },
 

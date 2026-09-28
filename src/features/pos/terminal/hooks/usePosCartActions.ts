@@ -179,6 +179,24 @@ export const usePosCartActions = () => {
     return buildDirectSettleOrderPayload(getFormContext(), session);
   };
 
+  const isKotPrintEnabledInConfig = () => {
+    try {
+      for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const configsObj = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
+          const val = configsObj?.kotPrint ?? configsObj?.KotPrint;
+          if (val !== undefined && val !== null) {
+            const str = String(val).trim().toLowerCase();
+            return str === "enable" || str === "true" || str === "1" || val === true;
+          }
+        }
+      }
+    } catch {}
+    return true; // Default to true so KOT is not silently lost
+  };
+
   const submitOrder = async (session: OrderSessionParams, shouldPrint: boolean = true) => {
     if (cartDetails.length === 0) {
       showToast("Cart is empty", "warning");
@@ -223,8 +241,9 @@ export const usePosCartActions = () => {
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
 
-          if (shouldPrint) {
-            await handleOrderPrinting(editingOrderId, session, true);
+          const shouldPrintKot = shouldPrint || isKotPrintEnabledInConfig();
+          if (shouldPrintKot) {
+            await handleOrderPrinting(editingOrderId, session, true, shouldPrint);
           }
 
           dispatch(clearCart());
@@ -243,8 +262,9 @@ export const usePosCartActions = () => {
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
 
-        if (shouldPrint) {
-          await handleOrderPrinting(response.data.id, session, false);
+        const shouldPrintKot = shouldPrint || isKotPrintEnabledInConfig();
+        if (shouldPrintKot) {
+          await handleOrderPrinting(response.data.id, session, false, shouldPrint);
         }
 
         dispatch(clearCart());
@@ -281,7 +301,12 @@ export const usePosCartActions = () => {
     }
   };
 
-  const handleOrderPrinting = async (orderId: number, session: OrderSessionParams, isUpdate: boolean) => {
+  const handleOrderPrinting = async (
+    orderId: number, 
+    session: OrderSessionParams, 
+    isUpdate: boolean, 
+    forcedPrint: boolean = false
+  ) => {
     try {
       let orderNoStr = String(orderId);
       let ticketNoStr = String(orderId);
@@ -344,6 +369,7 @@ export const usePosCartActions = () => {
         providerNo: (masterData as any)?.providerOrderNo || session.providerOrderNo || "",
         kotArabic: isKotArabicEnabled(),
         billArabic: isBillArabicEnabled(),
+        forcedPrint,
       };
 
       if (isUpdate) {

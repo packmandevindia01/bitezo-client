@@ -23,7 +23,7 @@ import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const LINE_WIDTH = 48; // chars per line on 80mm paper
+const LINE_WIDTH = 42; // standard 42 chars per line on 80mm thermal paper (prevents line wrapping on all 42/48-col printers)
 const SEPARATOR  = "-".repeat(LINE_WIDTH);
 const DASH_SEP   = "-".repeat(LINE_WIDTH);
 
@@ -57,11 +57,13 @@ const twoCol = (left: string, right: string, widthOrBold?: number | boolean): st
 
 /**
  * Format an item line: name | qty | amount
- * Width breakdown (48 chars):
- *   name   = 30 chars (left, truncated)
- *   qty    =  5 chars (e.g. " x 2 ")
+ * Width breakdown (42 chars):
+ *   name   = 26 chars (left, truncated)
+ *   gap    =  1 char
+ *   qty    =  4 chars (e.g. " x 2")
+ *   gap    =  1 char
  *   amount = 10 chars (right-aligned)
- *   gap    =  3 chars
+ *   Total  = 26 + 1 + 4 + 1 + 10 = 42 chars
  */
 const itemLine = (name: string, qty: number, amount: string): string => {
   const amtStr  = padLeft(amount, 10);
@@ -71,9 +73,9 @@ const itemLine = (name: string, qty: number, amount: string): string => {
   return `[L]${nameStr} ${qtyStr} ${amtStr}`;
 };
 
-/** Format a totals row: label on left, value right-aligned */
+/** Format a totals row: label on left, value right-aligned (42 chars) */
 const totalsLine = (label: string, value: string, bold = false): string => {
-  const v = padLeft(value, 12);
+  const v = padLeft(value, 11);
   const maxL = LINE_WIDTH - v.length;
   const l = padRight(trunc(label, maxL), maxL);
   return bold ? `[L]<b>${l}${v}</b>` : `[L]${l}${v}`;
@@ -304,9 +306,9 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Column headers ───────────────────────────────────────────────────────────
-  markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)}${padLeft("Qty", 5)} ${padLeft("Amount", 10)}</b>\n`;
+  markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Qty", 4)} ${padLeft("Amount", 10)}</b>\n`;
   if (isBillArabic) {
-    markup += `[L]<b>${padRight("الوصف", LINE_WIDTH - 16)}${padLeft("الكمية", 5)} ${padLeft("المبلغ", 10)}</b>\n`;
+    markup += `[L]<b>${padRight("الوصف", LINE_WIDTH - 16)} ${padLeft("الكمية", 4)} ${padLeft("المبلغ", 10)}</b>\n`;
   }
   markup += `[L]${DASH_SEP}\n`;
 
@@ -426,10 +428,10 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   // ── VAT table (if enabled) ────────────────────────────────────────────────
   if (isVatActive || vatAmount > 0) {
     markup += `[L]${DASH_SEP}\n`;
-    markup += `[L]<b>${padRight("VAT Code", 14)}${padRight("Excl Amt", 12)}${padRight("VAT Amt", 10)}${padLeft("Net Amt", 12)}</b>\n`;
+    markup += `[L]<b>${padRight("VAT Code", 10)}${padLeft("Excl Amt", 11)}${padLeft("VAT Amt", 10)}${padLeft("Net Amt", 11)}</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     const exclAmt = fmt(data.netAmount - vatAmount);
-    markup += `[L]${padRight("10%", 14)}${padRight(exclAmt, 12)}${padRight(fmt(vatAmount), 10)}${padLeft(fmt(data.netAmount), 12)}\n`;
+    markup += `[L]${padRight("10%", 10)}${padLeft(exclAmt, 11)}${padLeft(fmt(vatAmount), 10)}${padLeft(fmt(data.netAmount), 11)}\n`;
     markup += `[L]${DASH_SEP}\n`;
   }
 
@@ -457,7 +459,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   if (dynamicFooterMarkup) {
     markup += dynamicFooterMarkup;
   }
-  markup += `[L]\n[L]\n[L]\n`; // feed before cut
+  markup += `[L] \n[L] \n`; // feed before cut
 
   return markup;
 };
@@ -517,12 +519,12 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   markup += `[C]${orderTypeStr}${isKotArabic && orderTypeAr ? ` (${orderTypeAr})` : ''}\n`;
   markup += `[L]${SEPARATOR}\n`;
 
-  markup += twoCol(`Order: ${formatOrderNo(data.orderNo)}`, `Ticket: #${data.ticketNo}`) + "\n";
-  markup += twoCol(`Date: ${dateStr}`, `Time: ${timeStr}`) + "\n";
-  markup += twoCol(`Waiter: ${data.waiter}`, `Counter: ${data.counter}`) + "\n";
+  markup += twoCol(`Order: ${formatOrderNo(data.orderNo || "")}`, `Ticket: #${data.ticketNo || ""}`) + "\n";
+  markup += twoCol(`Date: ${dateStr || ""}`, `Time: ${timeStr || ""}`) + "\n";
+  markup += twoCol(`Waiter: ${data.waiter || "Cashier"}`, `Counter: ${data.counter || "Main"}`) + "\n";
 
   if (isDineIn) {
-    markup += twoCol(`Section: ${data.section}`, `Table: ${data.table}`) + "\n";
+    markup += twoCol(`Section: ${data.section || "Main"}`, `Table: ${data.table || "T1"}`) + "\n";
   }
   if (data.vehicleNo)   markup += `[L]Vehicle No: ${data.vehicleNo}\n`;
   if (data.customerName) markup += `[L]Customer: ${data.customerName}\n`;
@@ -532,19 +534,19 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
   markup += `[L]${SEPARATOR}\n`;
   if (kotHeaderStyle === "QTY,DESCRIPTION") {
-    markup += `[L]<b>${padRight("Qty", 6)} ${padRight("Description", LINE_WIDTH - 7)}</b>\n`;
+    markup += `[L]<b>${padRight("Qty", 5)} ${padRight("Description", LINE_WIDTH - 6)}</b>\n`;
     if (isKotArabic) {
-      markup += `[L]<b>${padRight("الكمية", 6)} ${padRight("الصنف", LINE_WIDTH - 7)}</b>\n`;
+      markup += `[L]<b>${padRight("الكمية", 5)} ${padRight("الصنف", LINE_WIDTH - 6)}</b>\n`;
     }
   } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-    markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)}${padLeft("Qty", 5)} ${padLeft("Amount", 10)}</b>\n`;
+    markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Qty", 4)} ${padLeft("Amount", 10)}</b>\n`;
     if (isKotArabic) {
-      markup += `[L]<b>${padRight("الصنف", LINE_WIDTH - 16)}${padLeft("الكمية", 5)} ${padLeft("المبلغ", 10)}</b>\n`;
+      markup += `[L]<b>${padRight("الصنف", LINE_WIDTH - 16)} ${padLeft("الكمية", 4)} ${padLeft("المبلغ", 10)}</b>\n`;
     }
   } else {
-    markup += `[L]<b>${padLeft("Qty", 5)} ${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Amount", 10)}</b>\n`;
+    markup += `[L]<b>${padRight("Qty", 4)} ${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Amount", 10)}</b>\n`;
     if (isKotArabic) {
-      markup += `[L]<b>${padLeft("الكمية", 5)} ${padRight("الصنف", LINE_WIDTH - 16)} ${padLeft("المبلغ", 10)}</b>\n`;
+      markup += `[L]<b>${padRight("الكمية", 4)} ${padRight("الصنف", LINE_WIDTH - 16)} ${padLeft("المبلغ", 10)}</b>\n`;
     }
   }
   markup += `[L]${SEPARATOR}\n`;
@@ -567,22 +569,22 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     const amtStr = Number(baseAmt || 0).toFixed(decimalPart);
 
     if (kotHeaderStyle === "QTY,DESCRIPTION") {
-      const qtyStr = padRight(`x${qty}`, 5);
+      const qtyStr = padRight(`x${qty}`, 4);
       const maxName = LINE_WIDTH - qtyStr.length - 1;
       const nameStr = padRight(trunc(name, maxName), maxName);
       markup += `[L]<b>${qtyStr} ${nameStr}</b>\n`;
     } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       const aStr = padLeft(amtStr, 10);
-      const qStr = padLeft(String(qty), 5);
+      const qStr = padLeft(String(qty), 4);
       const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
       const nameStr = padRight(trunc(name, maxName), maxName);
       markup += `[L]<b>${nameStr} ${qStr} ${aStr}</b>\n`;
     } else {
       const aStr = padLeft(amtStr, 10);
-      const qStr = padRight(`x${qty}`, 5);
+      const qStr = padRight(`x${qty}`, 4);
       const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
       const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]<b>${qStr}${nameStr} ${aStr}</b>\n`;
+      markup += `[L]<b>${qStr} ${nameStr} ${aStr}</b>\n`;
     }
 
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
@@ -638,7 +640,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   }
 
   markup += `[L]${SEPARATOR}\n`;
-  markup += `[L]\n[L]\n[L]\n`; // feed before cut
+  markup += `[L] \n[L] \n`; // feed before cut
 
   return markup;
 };
@@ -663,7 +665,7 @@ export const generateCashierReportMarkup = (input: CashierReportMarkupInput): st
 
   reportLines.forEach(line => {
     if (!line.trim()) {
-      markup += `[L]\n`;
+      markup += `[L] \n`;
     } else if (line.startsWith("===") || line.startsWith("---")) {
       markup += `[L]${SEPARATOR}\n`;
     } else {
@@ -672,7 +674,7 @@ export const generateCashierReportMarkup = (input: CashierReportMarkupInput): st
   });
 
   markup += `[L]${SEPARATOR}\n`;
-  markup += `[L]\n[L]\n[L]\n`;
+  markup += `[L] \n[L] \n`;
   return markup;
 };
 

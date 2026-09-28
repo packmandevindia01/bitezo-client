@@ -239,7 +239,7 @@ export const generateGuestPrintHtml = async (
         <td style="width: 10%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
         <td style="width: 45%; text-align: left; vertical-align: top; padding: 0.5px 0;">
           <div>${name}</div>
-          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:normal; line-height:1.25; margin-top:1px;">${altArabicName}</div>` : ''}
+          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:700; line-height:1.25; margin-top:1px; color:#000000;">${altArabicName}</div>` : ''}
           ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
         <td style="width: 20%; text-align: right; vertical-align: top; padding: 0.5px 0;">${rate}</td>
@@ -252,7 +252,7 @@ export const generateGuestPrintHtml = async (
         const exName = (ex.name || "EXTRA").toUpperCase();
         const exArabic = isBillArabic ? (ex.arabicName || ex.arabic || "") : "";
         const exDisplay = exArabic
-          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; margin-left:4px;">(${exArabic})</span>`
+          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:700; margin-left:4px; color:#000000;">(${exArabic})</span>`
           : `+ ${exName}`;
         const exRate = fmt(ex.price);
         const exAmt = fmt(ex.price * (ex.qty || 1));
@@ -337,11 +337,11 @@ export const generateGuestPrintHtml = async (
       <head>
         <meta charset="UTF-8" />
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
           body {
-            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 14px;
-            color: #000;
+            font-weight: 600;
+            color: #000000;
             margin: 0 auto;
             padding: 0;
             width: 100%;
@@ -353,7 +353,10 @@ export const generateGuestPrintHtml = async (
           .arabic-text {
             direction: rtl;
             text-align: right;
-            font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: 700 !important;
+            font-size: 13px !important;
+            color: #000000 !important;
             unicode-bidi: embed;
             text-rendering: optimizeLegibility;
             font-feature-settings: 'liga' 1, 'kern' 1;
@@ -364,50 +367,58 @@ export const generateGuestPrintHtml = async (
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .header-title { font-size: 16px; margin-bottom: 12px; letter-spacing: 0.5px; font-weight: normal; }
+          .header-title { font-size: 16px; margin-bottom: 12px; letter-spacing: 0.5px; font-weight: 800; color: #000000; }
           
-          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
           
-          .dashed-hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
-          .solid-hr { border: none; border-top: 1px solid #000; margin: 4px 0; }
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 5px 0; }
+          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; }
           
           table.items-table {
-            font-weight: normal;
+            font-weight: 600;
             line-height: 1.15;
+            color: #000000;
           }
           table.items-table th {
-            text-align: left;
-            font-weight: normal;
+            font-weight: 700;
+            color: #000000;
             text-transform: capitalize;
             padding-bottom: 3px;
             line-height: 1.15;
+            text-align: left;
+          }
+          table.items-table th.col-rate,
+          table.items-table th.col-amt {
+            text-align: right;
           }
           table.items-table td {
-            font-weight: normal;
-            padding: 0.5px 0;
+            font-weight: 600;
+            color: #000000;
+            padding: 1px 0;
             line-height: 1.15;
           }
           table.items-table div {
-            font-weight: normal !important;
+            font-weight: 600 !important;
+            color: #000000;
             margin: 0;
             padding: 0;
             line-height: 1.15;
           }
 
-          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold;}
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
           
-          .totals-table { margin-top: 4px; font-size: 13px; font-weight: normal; }
-          .totals-table td { padding: 1.5px 0; font-weight: normal; }
-          .totals-label { text-align: left; font-weight: normal; }
-          .totals-value { text-align: right; font-weight: normal; }
+          .totals-table { margin-top: 4px; font-size: 13px; font-weight: 600; color: #000000; }
+          .totals-table td { padding: 1.5px 0; font-weight: 600; color: #000000; }
+          .totals-label { text-align: left; font-weight: 600; color: #000000; }
+          .totals-value { text-align: right; font-weight: 700; color: #000000; }
           
-          .grand-total { font-size: 18px; font-weight: bold !important; }
+          .grand-total { font-size: 18px; font-weight: 800 !important; color: #000000; }
 
-          .vat-table { margin-top: 6px; font-weight: normal; font-size: 12px; }
-          .vat-table th { text-align: left; padding-bottom: 5px; font-weight: normal; }
-          .vat-table td { padding: 3px 0; font-weight: normal; }
+          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; }
+          .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; }
+          .vat-table td { padding: 3px 0; font-weight: 600; color: #000000; }
           
-          .barcode-container { text-align: center; margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 32px; font-weight: bold; letter-spacing: 2px; }
+          .barcode-container { text-align: center; margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 32px; font-weight: bold; letter-spacing: 2px; color: #000000; }
         </style>
       </head>
       <body>
@@ -482,8 +493,8 @@ export const generateGuestPrintHtml = async (
             <tr>
               <th style="width: 10%;">Qty${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">الكمية</span>' : ''}</th>
               <th style="width: 45%;">Description${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">الوصف</span>' : ''}</th>
-              <th style="width: 20%; text-align: right;">Rate${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">السعر</span>' : ''}</th>
-              <th style="width: 25%; text-align: right;">Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">المبلغ</span>' : ''}</th>
+              <th class="col-rate" style="width: 20%; text-align: right;">Rate${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">السعر</span>' : ''}</th>
+              <th class="col-amt" style="width: 25%; text-align: right;">Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">المبلغ</span>' : ''}</th>
             </tr>
           </thead>
           <tbody>
