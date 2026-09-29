@@ -147,7 +147,7 @@ export const generateKotHtml = async (
     
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
     const nameDisplayHtml = altArabicName
-      ? `<div style="line-height: 1.3;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:bold; line-height:1.4; padding: 2px 0 1px 0;">${altArabicName}</div>`
+      ? `<div style="line-height: 1.3;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0;">${altArabicName}</div>`
       : `<div style="line-height: 1.3;">${name}</div>`;
 
     let extrasSum = 0;
@@ -164,114 +164,91 @@ export const generateKotHtml = async (
     }
     const amt = fmt(baseAmt);
 
+    let subRowsHtml = "";
+
+    // Sub-items: extras
+    if (item.extras && item.extras.length > 0) {
+      item.extras.forEach((ex: any) => {
+        const exName = (ex.name || "EXTRA").toUpperCase();
+        const exArabic = isKotArabic ? (ex.arabicName || ex.arabic || "") : "";
+        const exDisplay = exArabic
+          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
+          : `+ ${exName}`;
+        const exAmt = fmt(ex.price * (ex.qty || 1));
+        const showAmt = kotHeaderStyle.includes("AMT");
+        subRowsHtml += `
+          <div style="font-size: 11px; padding: 1px 0 1px 6px; color: #000000; display: flex; justify-content: space-between;">
+            <span>${exDisplay} ${ex.qty > 1 ? `(x${ex.qty})` : ''}</span>
+            ${showAmt ? `<span style="font-size: 10px; font-weight: normal;">${exAmt}</span>` : ''}
+          </div>
+        `;
+      });
+    }
+
+    // Sub-items: modifiers
+    if (item.modifiers && item.modifiers.length > 0) {
+      item.modifiers.forEach((mod: any) => {
+        const modName = (mod.name || "MODIFIER").toUpperCase();
+        const modArabic = isKotArabic ? (mod.arabicName || mod.arabic || "") : "";
+        const modDisplay = modArabic
+          ? `* ${modName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; margin-left:4px; color:#000000;">(${modArabic})</span>`
+          : `* ${modName}`;
+        subRowsHtml += `
+          <div style="font-size: 11px; font-style: italic; padding: 1px 0 1px 6px; color: #000000;">
+            ${modDisplay}
+          </div>
+        `;
+      });
+    }
+
+    // Sub-items: messages / notes
+    if (item.messages && item.messages.length > 0) {
+      item.messages.forEach((msg: any) => {
+        const rawName = msg.name || "NOTE";
+        const isMsgArabic = containsArabic(rawName);
+        const msgDisplay = isMsgArabic
+          ? `NOTE: <span dir="rtl" lang="ar" class="arabic-text">${rawName}</span>`
+          : `NOTE: ${rawName.toUpperCase()}`;
+        subRowsHtml += `
+          <div style="font-size: 11px; font-style: italic; padding: 1px 0 1px 6px; color: #d97706;">
+            ${msgDisplay}
+          </div>
+        `;
+      });
+    }
+
     if (kotHeaderStyle === "QTY,DESCRIPTION") {
       itemsHtml += `
-        <div style="display:flex; width:100%; align-items:flex-start; padding: 2px 0;">
-          <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:13px;">${qty}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:13px; min-width:0; word-break:break-word;">${nameDisplayHtml}</div>
-        </div>
+        <tr class="item-font" style="border-bottom: 0.5px solid #eee;">
+          <td style="width: 18%; text-align: center; vertical-align: top; padding: 3px 0; font-weight: bold; font-size: 13px;">${qty}</td>
+          <td style="width: 82%; text-align: left; vertical-align: top; padding: 3px 0;">
+            ${nameDisplayHtml}
+            ${subRowsHtml}
+          </td>
+        </tr>
       `;
     } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       itemsHtml += `
-        <div style="display:flex; width:100%; align-items:flex-start; padding: 2px 0;">
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:13px; min-width:0; word-break:break-word;">${nameDisplayHtml}</div>
-          <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:13px;">${qty}</div>
-          <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:13px;">${amt}</div>
-        </div>
+        <tr class="item-font" style="border-bottom: 0.5px solid #eee;">
+          <td style="width: 55%; text-align: left; vertical-align: top; padding: 3px 0;">
+            ${nameDisplayHtml}
+            ${subRowsHtml}
+          </td>
+          <td style="width: 15%; text-align: center; vertical-align: top; padding: 3px 0; font-weight: bold; font-size: 13px;">${qty}</td>
+          <td style="width: 30%; text-align: right; vertical-align: top; padding: 3px 0; font-size: 12px;">${amt}</td>
+        </tr>
       `;
     } else {
       itemsHtml += `
-        <div style="display:flex; width:100%; align-items:flex-start; padding: 2px 0;">
-          <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:13px;">${qty}</div>
-          <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:13px; min-width:0; word-break:break-word;">${nameDisplayHtml}</div>
-          <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:13px;">${amt}</div>
-        </div>
+        <tr class="item-font" style="border-bottom: 0.5px solid #eee;">
+          <td style="width: 15%; text-align: center; vertical-align: top; padding: 3px 0; font-weight: bold; font-size: 13px;">${qty}</td>
+          <td style="width: 55%; text-align: left; vertical-align: top; padding: 3px 0;">
+            ${nameDisplayHtml}
+            ${subRowsHtml}
+          </td>
+          <td style="width: 30%; text-align: right; vertical-align: top; padding: 3px 0; font-size: 12px;">${amt}</td>
+        </tr>
       `;
-    }
-
-    // Print extras
-    if (item.extras && item.extras.length > 0) {
-      item.extras.forEach((ex: any) => {
-          const exName = (ex.name || "EXTRA").toUpperCase();
-          const exArabic = isKotArabic ? (ex.arabicName || ex.arabic || "") : "";
-          const exDisplay = exArabic
-            ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; margin-left:4px; color:#000000;">(${exArabic})</span>`
-            : `+ ${exName}`;
-          const exAmt = fmt(ex.price * ex.qty);
-          if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-            itemsHtml += `
-              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-                <div style="flex: 1 1 auto; text-align:left; font-size:10px; padding-left:6px;">${exDisplay}</div>
-                <div style="flex: 0 0 45px;"></div>
-                <div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">${exAmt}</div>
-              </div>
-            `;
-          } else {
-            itemsHtml += `
-              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-                <div style="flex: 0 0 45px;"></div>
-                <div style="flex: 1 1 auto; text-align:left; font-size:10px; padding-left:6px;">${exDisplay}</div>
-                ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 55px; min-width:55px; text-align:right; font-weight:bold; font-size:10px;">${exAmt}</div>`}
-              </div>
-            `;
-          }
-        });
-    }
-
-    // Print modifiers
-    if (item.modifiers && item.modifiers.length > 0) {
-      item.modifiers.forEach((mod: any) => {
-          const modName = (mod.name || "MODIFIER").toUpperCase();
-          const modArabic = isKotArabic ? (mod.arabicName || mod.arabic || "") : "";
-          const modDisplay = modArabic
-            ? `* ${modName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; margin-left:4px; color:#000000;">(${modArabic})</span>`
-            : `* ${modName}`;
-          if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-            itemsHtml += `
-              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px;">${modDisplay}</div>
-                <div style="flex: 0 0 45px;"></div>
-                <div style="flex: 0 0 55px; min-width:55px;"></div>
-              </div>
-            `;
-          } else {
-            itemsHtml += `
-              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-                <div style="flex: 0 0 45px;"></div>
-                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px;">${modDisplay}</div>
-                ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 55px; min-width:55px;"></div>`}
-              </div>
-            `;
-          }
-        });
-    }
-
-    // Print messages / notes
-    if (item.messages && item.messages.length > 0) {
-      item.messages.forEach((msg: any) => {
-          const rawName = msg.name || "NOTE";
-          const isMsgArabic = containsArabic(rawName);
-          const msgDisplay = isMsgArabic
-            ? `NOTE: <span dir="rtl" lang="ar" class="arabic-text">${rawName}</span>`
-            : `NOTE: ${rawName.toUpperCase()}`;
-          if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-            itemsHtml += `
-              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px; color:#d97706;">${msgDisplay}</div>
-                <div style="flex: 0 0 45px;"></div>
-                <div style="flex: 0 0 55px; min-width:55px;"></div>
-              </div>
-            `;
-          } else {
-            itemsHtml += `
-              <div style="display:flex; width:100%; align-items:flex-start; padding: 1px 0;">
-                <div style="flex: 0 0 45px;"></div>
-                <div style="flex: 1 1 auto; text-align:left; font-style:italic; font-size:10px; padding-left:6px; color:#d97706;">${msgDisplay}</div>
-                ${kotHeaderStyle === "QTY,DESCRIPTION" ? "" : `<div style="flex: 0 0 55px; min-width:55px;"></div>`}
-              </div>
-            `;
-          }
-        });
     }
     
     // Accumulate totals
@@ -304,15 +281,26 @@ export const generateKotHtml = async (
           .font-bold { font-weight: bold; }
           .dashed-line { border: none; border-top: 1px dashed #000000; margin: 4px 0; }
           .solid-line { border: none; border-top: 2px solid #000000; margin: 4px 0; }
+          .item-font {
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-size: 8pt !important;
+            font-weight: normal !important;
+          }
+          .grand-total-font {
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+          }
           .arabic-text {
             direction: rtl;
             text-align: right;
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
-            font-weight: 700 !important;
-            font-size: 13px !important;
+            font-weight: 700;
+            font-size: 13px;
             color: #000000 !important;
             unicode-bidi: embed;
             text-rendering: optimizeLegibility;
+            line-height: 1.4;
             font-feature-settings: 'liga' 1, 'kern' 1;
             -webkit-font-feature-settings: 'liga' 1, 'kern' 1;
             word-wrap: normal;
@@ -345,16 +333,17 @@ export const generateKotHtml = async (
   if (isDineIn) {
     metaHtml += metaRow("Section", data.section, "Table", data.table);
   }
-  if (data.vehicleNo || data.customerName) {
-    metaHtml += metaRow(
-      data.vehicleNo ? "Vehicle" : "", data.vehicleNo || "",
-      data.customerName ? "Customer" : "", data.customerName || ""
-    );
+  if (data.vehicleNo && data.customerName) {
+    metaHtml += metaRow("Vehicle", data.vehicleNo, "Customer", data.customerName);
+  } else if (data.customerName) {
+    metaHtml += metaRow("Customer", data.customerName, "", "");
+  } else if (data.vehicleNo) {
+    metaHtml += metaRow("Vehicle", data.vehicleNo, "", "");
   }
 
   // ─── Order No / Ticket No row ──────
   const orderTicketHtml = `
-    <table>
+    <table style="width: 100%; border-collapse: collapse;">
       <tr>
         <td style="width: 50%; text-align: left; padding: 4px 0; font-size: 12px;">
           <span style="font-weight: bold;">Order No</span>&nbsp;
@@ -371,52 +360,79 @@ export const generateKotHtml = async (
   let tableHeaderHtml = "";
   if (kotHeaderStyle === "QTY,DESCRIPTION") {
     tableHeaderHtml = `
-      <div style="display:flex; width:100%; align-items:flex-end; padding-bottom:3px;">
-        <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:12px;">QTY${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:center;">الكمية</div>' : ''}</div>
-        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:12px;">DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:left;">الصنف</div>' : ''}</div>
-      </div>
+      <thead>
+        <tr style="border-bottom: 1px dashed #000000;">
+          <th style="width: 18%; text-align: center; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            QTY${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:center;">الكمية</div>' : ''}
+          </th>
+          <th style="width: 82%; text-align: left; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:left;">الصنف</div>' : ''}
+          </th>
+        </tr>
+      </thead>
     `;
   } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
     tableHeaderHtml = `
-      <div style="display:flex; width:100%; align-items:flex-end; padding-bottom:3px;">
-        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:12px;">DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:left;">الصنف</div>' : ''}</div>
-        <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:12px;">QTY${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:center;">الكمية</div>' : ''}</div>
-        <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:12px;">AMT${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:right;">المبلغ</div>' : ''}</div>
-      </div>
+      <thead>
+        <tr style="border-bottom: 1px dashed #000000;">
+          <th style="width: 55%; text-align: left; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:left;">الصنف</div>' : ''}
+          </th>
+          <th style="width: 15%; text-align: center; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            QTY${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:center;">الكمية</div>' : ''}
+          </th>
+          <th style="width: 30%; text-align: right; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            AMT${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:right;">المبلغ</div>' : ''}
+          </th>
+        </tr>
+      </thead>
     `;
   } else {
     tableHeaderHtml = `
-      <div style="display:flex; width:100%; align-items:flex-end; padding-bottom:3px;">
-        <div style="flex: 0 0 50px; min-width:50px; text-align:center; font-weight:bold; font-size:12px;">QTY${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:center;">الكمية</div>' : ''}</div>
-        <div style="flex: 1 1 auto; text-align:left; font-weight:bold; font-size:12px;">DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:left;">الصنف</div>' : ''}</div>
-        <div style="flex: 0 0 60px; min-width:60px; text-align:right; font-weight:bold; font-size:12px;">AMT${isKotArabic ? '<div class="arabic-text" style="font-size:10px; font-weight:normal; text-align:right;">المبلغ</div>' : ''}</div>
-      </div>
+      <thead>
+        <tr style="border-bottom: 1px dashed #000000;">
+          <th style="width: 15%; text-align: center; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            QTY${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:center;">الكمية</div>' : ''}
+          </th>
+          <th style="width: 55%; text-align: left; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:left;">الصنف</div>' : ''}
+          </th>
+          <th style="width: 30%; text-align: right; padding-bottom: 4px; font-size: 12px; font-weight: bold;">
+            AMT${isKotArabic ? '<div class="arabic-text" style="font-size:10px !important; font-weight:normal !important; text-align:right;">المبلغ</div>' : ''}
+          </th>
+        </tr>
+      </thead>
     `;
   }
 
-  // ─── Items section (flex-based for reliable column separation on thermal printers) ──────
+  // ─── Items section (solid table layout for 100% precision on thermal printers) ──────
   const itemsTableHtml = `
-    <div>
+    <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
       ${tableHeaderHtml}
-      <hr class="dashed-line" style="margin: 2px 0 4px 0;" />
-      ${itemsHtml}
-    </div>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+    </table>
   `;
 
   // ─── Totals ──────
   const showTotals = kotHeaderStyle.includes("AMT");
   const totalsHtml = (showTotals && grandTotal > 0) ? `
-    <hr class="dashed-line" />
-    <table>
+    <hr class="dashed-line" style="margin: 6px 0 4px 0;" />
+    <table style="width: 100%; border-collapse: collapse;">
       ${totalVat > 0 ? `
       <tr>
-        <td style="text-align: right; padding: 3px 8px 3px 0; font-size: 13px; font-weight: bold;">VAT Amount${isKotArabic ? ' <span class="arabic-text" style="font-size: 11px; font-weight: normal;">(الضريبة)</span>' : ''}:</td>
-        <td style="text-align: right; width: 30%; padding: 3px 0; font-size: 13px; font-weight: bold;">${fmt(totalVat)}</td>
+        <td style="text-align: left; padding: 2px 0; font-size: 12px; font-weight: bold;">
+          VAT Amount${isKotArabic ? ' <span class="arabic-text" style="font-size: 11px; font-weight: normal;">(الضريبة)</span>' : ''}:
+        </td>
+        <td style="text-align: right; width: 35%; padding: 2px 0; font-size: 12px; font-weight: bold;">${fmt(totalVat)}</td>
       </tr>
       ` : ''}
-      <tr>
-        <td style="text-align: right; padding: 3px 8px 3px 0; font-size: 14px; font-weight: bold;">Total${isKotArabic ? ' <span class="arabic-text" style="font-size: 12px; font-weight: normal;">(المجموع)</span>' : ''}:</td>
-        <td style="text-align: right; width: 30%; padding: 3px 0; font-size: 14px; font-weight: bold;">${fmt(grandTotal)}</td>
+      <tr class="grand-total-font">
+        <td style="text-align: left; padding: 3px 0; font-family: 'Tahoma','Segoe UI',sans-serif; font-size: 12pt; font-weight: bold;">
+          Total${isKotArabic ? ' <span class="arabic-text" style="font-size: 11px; font-weight: normal;">(المجموع)</span>' : ''}:
+        </td>
+        <td style="text-align: right; width: 35%; padding: 3px 0; font-family: 'Tahoma','Segoe UI',sans-serif; font-size: 12pt; font-weight: bold;">${fmt(grandTotal)}</td>
       </tr>
     </table>
   ` : '';

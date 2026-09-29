@@ -5,7 +5,7 @@ import { generateUUID } from '../../../utils/uuid';
 export interface BitezoPrinterPlugin {
   printImage(options: { base64: string; type: string; address: string; port?: number }): Promise<void>;
   /** Fast ESC/POS text print — uses dantsu markup, no image conversion */
-  printEscPos(options: { markup: string; type: string; address: string; port?: number }): Promise<void>;
+  printEscPos(options: { markup: string; type: string; address: string; port?: number; charsPerLine?: number }): Promise<void>;
   /** Direct 1:1 hardware ESC/POS raster print over raw TCP/Bluetooth socket — ultra-fast */
   printRaw(options: { data: string; type?: string; address: string; port?: number }): Promise<void>;
 }
@@ -384,6 +384,7 @@ export const printEscPosMarkup = async (markup: string, targetPrinterName?: stri
     type: 'tcp',
     address: targetIp,
     port: 9100,
+    charsPerLine: 48,
   });
 
   console.log("[Native ESC/POS] Print job sent successfully.");

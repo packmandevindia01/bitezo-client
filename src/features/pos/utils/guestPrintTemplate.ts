@@ -239,7 +239,7 @@ export const generateGuestPrintHtml = async (
         <td style="width: 10%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
         <td style="width: 45%; text-align: left; vertical-align: top; padding: 0.5px 0;">
           <div>${name}</div>
-          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:700; line-height:1.25; margin-top:1px; color:#000000;">${altArabicName}</div>` : ''}
+          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.25; margin-top:1px; color:#000000;">${altArabicName}</div>` : ''}
           ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
         <td style="width: 20%; text-align: right; vertical-align: top; padding: 0.5px 0;">${rate}</td>
@@ -252,7 +252,7 @@ export const generateGuestPrintHtml = async (
         const exName = (ex.name || "EXTRA").toUpperCase();
         const exArabic = isBillArabic ? (ex.arabicName || ex.arabic || "") : "";
         const exDisplay = exArabic
-          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:700; margin-left:4px; color:#000000;">(${exArabic})</span>`
+          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
           : `+ ${exName}`;
         const exRate = fmt(ex.price);
         const exAmt = fmt(ex.price * (ex.qty || 1));
@@ -383,8 +383,8 @@ export const generateGuestPrintHtml = async (
             font-weight: 700;
             color: #000000;
             text-transform: capitalize;
-            padding-bottom: 3px;
-            line-height: 1.15;
+            padding-bottom: 5px;
+            line-height: 1.3;
             text-align: left;
           }
           table.items-table th.col-rate,
@@ -392,13 +392,17 @@ export const generateGuestPrintHtml = async (
             text-align: right;
           }
           table.items-table td {
-            font-weight: 600;
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-size: 8pt !important;
+            font-weight: normal !important;
             color: #000000;
             padding: 1px 0;
-            line-height: 1.15;
+            line-height: 1.2;
           }
           table.items-table div {
-            font-weight: 600 !important;
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-size: 8pt !important;
+            font-weight: normal !important;
             color: #000000;
             margin: 0;
             padding: 0;
@@ -407,12 +411,42 @@ export const generateGuestPrintHtml = async (
 
           .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
           
-          .totals-table { margin-top: 4px; font-size: 13px; font-weight: 600; color: #000000; }
-          .totals-table td { padding: 1.5px 0; font-weight: 600; color: #000000; }
-          .totals-label { text-align: left; font-weight: 600; color: #000000; }
-          .totals-value { text-align: right; font-weight: 700; color: #000000; }
+          .totals-table {
+            width: 100%;
+            table-layout: auto !important;
+            margin-top: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+          }
+          .totals-table td {
+            padding: 1.5px 0;
+            font-weight: 600;
+            color: #000000;
+            vertical-align: middle;
+          }
+          .totals-label {
+            width: 65%;
+            text-align: left;
+            font-weight: 600;
+            color: #000000;
+            white-space: nowrap;
+          }
+          .totals-value {
+            width: 35%;
+            text-align: right;
+            font-weight: 700;
+            color: #000000;
+            white-space: nowrap;
+          }
           
-          .grand-total { font-size: 18px; font-weight: 800 !important; color: #000000; }
+          .grand-total {
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            color: #000000;
+            white-space: nowrap;
+          }
 
           .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; }
           .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; }
@@ -540,8 +574,8 @@ export const generateGuestPrintHtml = async (
           </tr>
           ` : ''}
           <tr>
-            <td class="totals-label grand-total">Grand Total${isBillArabic ? ' <span class="arabic-text" style="font-size:12px; font-weight:bold;">(المجموع الكلي)</span>' : ''}</td>
-            <td class="totals-value grand-total">${fmt(data.netAmount)}</td>
+            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total${isBillArabic ? ' <span class="arabic-text" style="font-size:12px; font-weight:bold;">(المجموع الكلي)</span>' : ''}</td>
+            <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">${fmt(data.netAmount)}</td>
           </tr>
           ${data.payments && data.payments.length > 0 ? `
           <tr><td colspan="2"><div class="dashed-hr" style="margin: 5px 0;"></div></td></tr>

@@ -101,8 +101,6 @@ export const usePosCheckoutFlow = ({
     if (shouldPrint && payload) {
       showToast("Printing receipt...", "info");
       try {
-        const { Capacitor } = await import("@capacitor/core");
-
         const enableVat = getVatStatus();
         payload.printData.enableVat = enableVat;
         const { isBillArabicEnabled } = await import("../../utils/alternativeHelpers");
@@ -113,22 +111,11 @@ export const usePosCheckoutFlow = ({
 
         const targetPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
 
-        if (Capacitor.isNativePlatform() && !billArabic) {
-          // ── FAST PATH: Native ESC/POS (no html2canvas, no API call) when English only ──
-          const { printEscPosMarkup } = await import("../../services/qzService");
-          const { generateBillMarkup } = await import("../../utils/escPosGenerator");
-          const markup = generateBillMarkup({
-            cartDetails: payload.mappedItems,
-            data: payload.printData,
-          });
-          await printEscPosMarkup(markup, targetPrinter);
-        } else {
-          // ── HTML GRAPHIC PATH: Used on Desktop OR on Mobile when Arabic is present ──
-          const { printHtmlReceipt } = await import("../../services/qzService");
-          const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
-          const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
-          await printHtmlReceipt(html, targetPrinter);
-        }
+        // ── UNIFIED HTML GRAPHIC PATH: Identical typography, alignment, and formatting on both Web and Android ──
+        const { printHtmlReceipt } = await import("../../services/qzService");
+        const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
+        const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
+        await printHtmlReceipt(html, targetPrinter);
 
         showToast("Sales saved successfully", "success");
       } catch (printErr: any) {

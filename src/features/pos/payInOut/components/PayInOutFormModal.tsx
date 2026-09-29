@@ -10,7 +10,16 @@ import { usePayInOutVoucherNumber } from '../hooks/usePayInOutQueries';
 const payInOutSchema = z.object({
   type: z.enum(['IN', 'OUT']),
   vchNo: z.string().optional(),
-  date: z.string().min(1, "Date is required"),
+  date: z.string()
+    .min(1, "Date is required")
+    .refine((val) => {
+      if (!val) return true;
+      const [year, month, day] = val.split('-').map(Number);
+      const selected = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return selected <= today;
+    }, { message: "Future dates are not allowed" }),
   description: z.string().min(1, "Description is required").max(100, "Max 100 characters"),
   amount: z.string()
     .min(1, "Amount is required")
@@ -240,6 +249,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
                 type="date"
                 label="Date"
                 required
+                max={new Date().toLocaleDateString('en-CA')}
                 {...register('date')}
                 error={errors.date?.message}
               />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, RotateCcw, Trash2, LayoutGrid, Clock } from "lucide-react";
+import { Building2, Save, RotateCcw, Trash2, LayoutGrid, Clock, AlertCircle, X } from "lucide-react";
 import { Button, Checkbox, FormInput, ImageUploadPanel, Modal } from "../../../../components/common";
 import type { BranchOption } from "../types";
 import type { MenuSettingsListItem } from "../../../general/menuSettings/types";
@@ -14,11 +14,32 @@ interface Props {
   saving: boolean;
   branchOptions: BranchOption[];
   menuTimes: MenuSettingsListItem[];
+  error?: string | null;
+  onClearError?: () => void;
   onClose: () => void;
   onClear: () => void;
   onSave: () => void;
   onDelete?: () => void;
 }
+
+const normalizeHexColor = (val?: string) => {
+  if (!val) return "#49293e";
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) return val;
+  const named: Record<string, string> = {
+    red: "#ef4444",
+    blue: "#3b82f6",
+    green: "#10b981",
+    orange: "#f97316",
+    amber: "#f59e0b",
+    purple: "#a855f7",
+    pink: "#ec4899",
+    teal: "#14b8a6",
+    indigo: "#6366f1",
+    slate: "#64748b",
+    burgundy: "#49293e",
+  };
+  return named[val.toLowerCase()] || "#49293e";
+};
 
 const CategoryModal = ({
   isOpen,
@@ -27,6 +48,8 @@ const CategoryModal = ({
   saving,
   branchOptions,
   menuTimes,
+  error,
+  onClearError,
   onClose,
   onClear,
   onSave,
@@ -53,6 +76,7 @@ const CategoryModal = ({
   const { register, watch, setValue, formState: { errors } } = form;
 
   const image = watch("image");
+  const colorCode = watch("colorCode");
   const branchAllocations = watch("branchAllocations") || [];
   const menuIds = watch("menuIds") || [];
   const isActive = watch("isActive");
@@ -93,16 +117,23 @@ const CategoryModal = ({
   };
 
   const onToggleBranch = (branchId: number) => {
-    const isAllocated = branchAllocations.some((b) => b.branchId === branchId);
+    const isAllocated = branchAllocations.some((b) => Number(b.branchId) === Number(branchId));
     if (isAllocated) {
-      setValue("branchAllocations", branchAllocations.filter((b) => b.branchId !== branchId), { shouldValidate: true, shouldDirty: true });
+      setValue("branchAllocations", branchAllocations.filter((b) => Number(b.branchId) !== Number(branchId)), { shouldValidate: true, shouldDirty: true });
     } else {
-      setValue("branchAllocations", [...branchAllocations, { branchId, colorCode: "red" }], { shouldValidate: true, shouldDirty: true });
+      const defaultColor = colorCode || "red";
+      setValue("branchAllocations", [...branchAllocations, { branchId: Number(branchId), colorCode: defaultColor }], { shouldValidate: true, shouldDirty: true });
     }
+  };
+
+  const handleUpdateBranchColor = (branchId: number, color: string) => {
+    const next = branchAllocations.map(b => Number(b.branchId) === Number(branchId) ? { ...b, colorCode: color } : b);
+    setValue("branchAllocations", next, { shouldValidate: true, shouldDirty: true });
   };
 
   const onImageSelect = (file: File | null) => {
     setValue("imageFile", file, { shouldDirty: true });
+    setValue("isImageChanged", true, { shouldDirty: true });
     if (file) {
       const url = URL.createObjectURL(file);
       setValue("image", url);
@@ -157,6 +188,23 @@ const CategoryModal = ({
       }
     >
       <form noValidate onSubmit={(e) => { e.preventDefault(); onSave(); }} className="flex flex-col gap-6">
+        {/* Server Error Alert */}
+        {error && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-500" />
+            <span className="flex-1 font-medium">{error}</span>
+            {onClearError && (
+              <button
+                type="button"
+                onClick={onClearError}
+                className="shrink-0 rounded p-0.5 hover:bg-red-100 text-red-500"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Custom Tab Navigation */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex w-fit gap-2 rounded-xl bg-gray-50 p-1.5 border border-gray-100">
@@ -243,6 +291,32 @@ const CategoryModal = ({
                     placeholder="Enter arabic name"
                     dir="rtl"
                   />
+
+                  {/* Category Color matching Product Master */}
+                  <div className="flex flex-col justify-end gap-1 mb-1 min-w-0 relative h-full">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 h-4 mb-0.5 flex items-center">
+                      Category Color
+                    </label>
+                    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/30 px-3 py-1 h-[42px]">
+                      <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-[#49293e]/20 transition-all">
+                        <input
+                          type="color"
+                          value={normalizeHexColor(colorCode)}
+                          onChange={(e) => setValue("colorCode", e.target.value, { shouldValidate: true, shouldDirty: true })}
+                          className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
+                        />
+                      </div>
+                      <input
+                        id="cat-color"
+                        type="text"
+                        value={normalizeHexColor(colorCode)}
+                        onChange={(e) => setValue("colorCode", e.target.value, { shouldValidate: true, shouldDirty: true })}
+                        className="w-full rounded-md border-none bg-transparent text-xs font-mono outline-none focus:ring-0 uppercase font-semibold text-slate-700"
+                        placeholder="#000000"
+                        maxLength={7}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-4 flex items-center gap-6 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -329,17 +403,41 @@ const CategoryModal = ({
                   <p className="text-[10px] text-gray-400">No branches available.</p>
                 ) : (
                   filteredBranches.map((branch) => {
-                    const allocation = branchAllocations.find((b) => b.branchId === branch.id);
+                    const allocation = branchAllocations.find((b) => Number(b.branchId) === Number(branch.id));
                     const active = !!allocation;
+                    const branchColorHex = normalizeHexColor(allocation?.colorCode || colorCode);
+
                     return (
                       <div key={branch.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
-                        <span className="text-sm font-medium text-gray-700">{branch.name}</span>
+                        <div className="flex items-center gap-3 min-w-0">
+                          {active && (
+                            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/50 px-2 py-0.5 shrink-0">
+                              <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-md border border-gray-200 shadow-sm cursor-pointer">
+                                <input
+                                  type="color"
+                                  value={branchColorHex}
+                                  onChange={(e) => handleUpdateBranchColor(branch.id, e.target.value)}
+                                  className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                value={branchColorHex}
+                                onChange={(e) => handleUpdateBranchColor(branch.id, e.target.value)}
+                                className="w-16 p-0 rounded-md border-none bg-transparent text-[10px] font-mono outline-none focus:ring-0 uppercase font-semibold text-slate-600"
+                                placeholder="#000000"
+                                maxLength={7}
+                              />
+                            </div>
+                          )}
+                          <span className="text-sm font-medium text-gray-700 truncate">{branch.name}</span>
+                        </div>
                         <button
                           type="button"
                           onClick={() => onToggleBranch(branch.id)}
-                          className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
+                          className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition shrink-0 ${
                             active
-                              ? "bg-[#49293e] text-white"
+                              ? "bg-[#49293e] text-white shadow-sm"
                               : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
                           }`}
                           tabIndex={-1}

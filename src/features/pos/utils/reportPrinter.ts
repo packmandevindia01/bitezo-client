@@ -1,9 +1,9 @@
 import { Capacitor } from '@capacitor/core';
-import { printEscPosMarkup, printHtmlReceipt } from '../services/qzService';
+import { printHtmlReceipt } from '../services/qzService';
 
 export interface PrintReportOptions {
   html: string;
-  markup: string;
+  markup?: string;
   directPrint: boolean;
   title: string;
 }
@@ -15,24 +15,22 @@ export interface PrintReportOptions {
  * - Provides window print preview fallback when direct print server is unavailable.
  */
 export const printPosReport = async (options: PrintReportOptions): Promise<boolean> => {
-  const { html, markup, directPrint } = options;
+  const { html, directPrint } = options;
 
   if (!directPrint) {
     return false;
   }
 
-  // 1. Native Capacitor (Android/iOS Tablet/Mobile Hardware)
-  if (Capacitor.isNativePlatform()) {
-    await printEscPosMarkup(markup);
-    return true;
-  }
-
-  // 2. Web / Desktop (QZ Tray / Network Printer)
   let defaultPrinter: string | undefined = undefined;
   try {
     const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
     defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
   } catch (e) {}
+
+  if (Capacitor.isNativePlatform()) {
+    await printHtmlReceipt(html, defaultPrinter);
+    return true;
+  }
 
   try {
     await printHtmlReceipt(html, defaultPrinter);

@@ -23,7 +23,7 @@ import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const LINE_WIDTH = 42; // standard 42 chars per line on 80mm thermal paper (prevents line wrapping on all 42/48-col printers)
+const LINE_WIDTH = 48; // standard 48 chars per line on 80mm thermal paper
 const SEPARATOR  = "-".repeat(LINE_WIDTH);
 const DASH_SEP   = "-".repeat(LINE_WIDTH);
 
@@ -411,7 +411,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
   markup += `[L]${DASH_SEP}\n`;
   const grandTotalLabel = isBillArabic ? "GRAND TOTAL (المجموع الكلي)" : "GRAND TOTAL";
-  markup += `[L]<b><font size='big'>${padRight(grandTotalLabel, LINE_WIDTH - 10)}${padLeft(fmt(data.netAmount), 10)}</font></b>\n`;
+  markup += totalsLine(grandTotalLabel, fmt(data.netAmount), true) + "\n";
 
   // ── Payments ─────────────────────────────────────────────────────────────────
   if (data.payments && data.payments.length > 0) {
@@ -428,10 +428,10 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   // ── VAT table (if enabled) ────────────────────────────────────────────────
   if (isVatActive || vatAmount > 0) {
     markup += `[L]${DASH_SEP}\n`;
-    markup += `[L]<b>${padRight("VAT Code", 10)}${padLeft("Excl Amt", 11)}${padLeft("VAT Amt", 10)}${padLeft("Net Amt", 11)}</b>\n`;
+    markup += `[L]<b>${padRight("VAT Code", 12)}${padLeft("Excl Amt", 12)}${padLeft("VAT Amt", 12)}${padLeft("Net Amt", 12)}</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     const exclAmt = fmt(data.netAmount - vatAmount);
-    markup += `[L]${padRight("10%", 10)}${padLeft(exclAmt, 11)}${padLeft(fmt(vatAmount), 10)}${padLeft(fmt(data.netAmount), 11)}\n`;
+    markup += `[L]${padRight("10%", 12)}${padLeft(exclAmt, 12)}${padLeft(fmt(vatAmount), 12)}${padLeft(fmt(data.netAmount), 12)}\n`;
     markup += `[L]${DASH_SEP}\n`;
   }
 
@@ -454,7 +454,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   // ── Footer ────────────────────────────────────────────────────────────────
   markup += `[L]${DASH_SEP}\n`;
   markup += `[C]<b>Order No: ${formatOrderNo(data.orderNo)}</b>\n`;
-  markup += `[L]Print Time: ${dateStr} ${timeStr}\n`;
+  markup += `[C]Print Time: ${dateStr} ${timeStr}\n`;
   const dynamicFooterMarkup = getCompanyFooter();
   if (dynamicFooterMarkup) {
     markup += dynamicFooterMarkup;
@@ -572,19 +572,19 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
       const qtyStr = padRight(`x${qty}`, 4);
       const maxName = LINE_WIDTH - qtyStr.length - 1;
       const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]<b>${qtyStr} ${nameStr}</b>\n`;
+      markup += `[L]${qtyStr} ${nameStr}\n`;
     } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       const aStr = padLeft(amtStr, 10);
       const qStr = padLeft(String(qty), 4);
       const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
       const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]<b>${nameStr} ${qStr} ${aStr}</b>\n`;
+      markup += `[L]${nameStr} ${qStr} ${aStr}\n`;
     } else {
       const aStr = padLeft(amtStr, 10);
       const qStr = padRight(`x${qty}`, 4);
       const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
       const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]<b>${qStr} ${nameStr} ${aStr}</b>\n`;
+      markup += `[L]${qStr} ${nameStr} ${aStr}\n`;
     }
 
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";

@@ -15,10 +15,13 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
     const { data: envelope } = await promise;
 
     if (!envelope.isSuccess) {
+      console.error("[categoryApi] API reported failure:", JSON.stringify(envelope, null, 2));
       let msg: string | undefined;
       if (Array.isArray(envelope.errors) && envelope.errors.length > 0) {
         const firstError = envelope.errors[0] as any;
-        msg = typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError;
+        msg = typeof firstError === 'object'
+          ? (firstError.message || firstError.description || firstError.error || firstError.detail || firstError.field || JSON.stringify(firstError))
+          : String(firstError);
       } else if (envelope.errors && typeof envelope.errors === 'object') {
         const entries = Object.entries(envelope.errors);
         if (entries.length > 0) {
@@ -33,11 +36,15 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
     return envelope.data;
   } catch (error: any) {
     if (error.response?.data) {
+      console.error("[categoryApi] Server error status:", error.response.status);
+      console.error("[categoryApi] Server error payload:", JSON.stringify(error.response.data, null, 2));
       const envelope = error.response.data as any;
       let msg: string | undefined;
       if (Array.isArray(envelope.errors) && envelope.errors.length > 0) {
         const firstError = envelope.errors[0] as any;
-        msg = typeof firstError === 'object' ? (firstError.message || firstError.field) : firstError;
+        msg = typeof firstError === 'object'
+          ? (firstError.message || firstError.description || firstError.error || firstError.detail || firstError.field || JSON.stringify(firstError))
+          : String(firstError);
       } else if (envelope.errors && typeof envelope.errors === 'object') {
         const entries = Object.entries(envelope.errors);
         if (entries.length > 0) {
@@ -46,14 +53,14 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
           msg = firstMsg ? `${field ? field + ": " : ""}${firstMsg}` : undefined;
         }
       }
-      throw new Error(msg || envelope.message || error.message);
+      throw new Error(msg || envelope.message || envelope.title || error.message);
     }
     throw error;
   }
 }
 
-// â”€â”€ Category endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// ──────────────────────────────────────────────────────────────────────────────────────────────────
+// ── Category endpoints ────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────────
 
 export const getCategories = async (
   catCode?: string,
@@ -68,12 +75,13 @@ export const getCategories = async (
   );
   
   return ((data as any[]) ?? []).map((item: any) => ({
-    id: item.catId,
-    code: item.catCode,
-    name: item.catName,
+    id: item.catId ?? item.id,
+    code: item.catCode ?? item.code,
+    name: item.catName ?? item.name,
     isActive: item.isActive === "Active" || item.isActive === true,
     arabic: item.arabic || "",
     colorCode: item.colorCode || "red",
+    imageUrl: item.imageUrl || item.imagePath || item.categoryImage || item.fileUrl || item.filePath || item.image || "",
     branches: [],
   }));
 };
@@ -101,16 +109,53 @@ export const uploadCategoryImage = async (id: number, imageFile: File, oldPath: 
 };
 
 export const createCategory = async (
-  payload: CreateCategoryPayload & { imageFile?: File }
+  payload: CreateCategoryPayload
 ): Promise<ApiResponse<{ id: number }>> => {
-  const { imageFile, ...jsonData } = payload;
-  
-  // 1. Create category as JSON
+  const formData = new FormData();
+  formData.append("Code", payload.code || "");
+  formData.append("Name", payload.name || "");
+  formData.append("Arabic", payload.arabic || "");
+  formData.append("IsActive", String(payload.isActive ?? true));
+  formData.append("ColorCode", payload.colorCode || "red");
+  formData.append("PosStatus", String(payload.posStatus ?? true));
+  formData.append("CreatedAt", payload.createdAt || new Date().toISOString());
+
+  if (payload.imageFile instanceof File) {
+    formData.append("ImageFile", payload.imageFile);
+  } else {
+    const dummyFile = new File([""], "empty.bin", { type: "application/octet-stream" });
+    formData.append("ImageFile", dummyFile);
+  }
+
+  const branchList = Array.isArray(payload.branchIds)
+    ? payload.branchIds.map((branch) => ({
+        branchId: Number(branch.branchId),
+        colorCode: branch.colorCode || "red",
+      }))
+    : [];
+  formData.append("BranchIdsJson", JSON.stringify(branchList));
+
+  if (Array.isArray(payload.menuIds) && payload.menuIds.length > 0) {
+    payload.menuIds.forEach((menuId) => {
+      formData.append("MenuIds", String(menuId));
+    });
+  }
+
+  // Detailed Console Logging for Create Category
+  console.group("[categoryApi] POST /category Create Payload");
+  console.log("Original Payload Object:", payload);
+  const createDataSummary: Record<string, any> = {};
+  for (const [key, value] of (formData as any).entries()) {
+    createDataSummary[key] = value instanceof File ? `File (name: ${value.name}, size: ${value.size}B)` : value;
+  }
+  console.table(createDataSummary);
+  console.groupEnd();
+
   const data = await unwrap(
-    axiosInstance.post<ApiResponse<{ id: number }>>("/category", jsonData)
+    axiosInstance.post<ApiResponse<{ id: number }>>("/category", formData)
   );
   
-  const response: ApiResponse<{ id: number }> = {
+  return {
     data,
     isSuccess: true,
     message: "Category created successfully",
@@ -118,32 +163,64 @@ export const createCategory = async (
     correlationId: "",
     errors: []
   };
-
-  // 2. If image exists, upload it
-  if ((data as any)?.id && imageFile) {
-    try {
-      await uploadCategoryImage((data as any).id, imageFile);
-    } catch (error) {
-      console.error("Category image upload failed:", error);
-    }
-  }
-  
-  return response;
 };
 
 export const updateCategory = async (
   id: number,
-  payload: UpdateCategoryPayload & { imageFile?: File }
+  payload: UpdateCategoryPayload
 ): Promise<ApiResponse<{ id: number }>> => {
-  const { imageFile, ...jsonData } = payload;
-  const url = `/category/${id}`;
+  const formData = new FormData();
+  formData.append("Id", String(id));
+  formData.append("Code", payload.code || "");
+  formData.append("Name", payload.name || "");
+  formData.append("Arabic", payload.arabic || "");
+  formData.append("IsActive", String(payload.isActive ?? true));
+  formData.append("ColorCode", payload.colorCode || "red");
+  formData.append("PosStatus", String(payload.posStatus ?? true));
+  formData.append("UpdatedAt", payload.updatedAt || new Date().toISOString());
   
-  // 1. Update category as JSON
+  const isImageChanged = Boolean(payload.isImageChanged ?? payload.isImageChaged ?? false);
+  formData.append("IsImageChanged", String(isImageChanged));
+  formData.append("IsImageChaged", String(isImageChanged));
+
+  if (isImageChanged && payload.imageFile instanceof File) {
+    formData.append("ImageFile", payload.imageFile);
+  } else {
+    // Backend model binder requires an ImageFile part in multipart/form-data even when IsImageChanged=false
+    const dummyFile = new File([""], "empty.bin", { type: "application/octet-stream" });
+    formData.append("ImageFile", dummyFile);
+  }
+
+  const branchList = Array.isArray(payload.branchIds)
+    ? payload.branchIds.map((branch) => ({
+        branchId: Number(branch.branchId),
+        colorCode: branch.colorCode || "red",
+      }))
+    : [];
+  formData.append("BranchIdsJson", JSON.stringify(branchList));
+
+  if (Array.isArray(payload.menuIds) && payload.menuIds.length > 0) {
+    payload.menuIds.forEach((menuId) => {
+      formData.append("MenuIds", String(menuId));
+    });
+  }
+
+  // Detailed Console Logging for Update Category
+  console.group(`[categoryApi] PUT /category/${id} Update Payload`);
+  console.log("Original Payload Object:", payload);
+  const formDataSummary: Record<string, any> = {};
+  for (const [key, value] of (formData as any).entries()) {
+    formDataSummary[key] = value instanceof File ? `File (name: ${value.name}, size: ${value.size}B)` : value;
+  }
+  console.table(formDataSummary);
+  console.groupEnd();
+
+  const url = `/category/${id}`;
   const data = await unwrap(
-    axiosInstance.put<ApiResponse<{ id: number }>>(url, jsonData)
+    axiosInstance.put<ApiResponse<{ id: number }>>(url, formData)
   );
   
-  const response: ApiResponse<{ id: number }> = {
+  return {
     data,
     isSuccess: true,
     message: "Category updated successfully",
@@ -151,17 +228,6 @@ export const updateCategory = async (
     correlationId: "",
     errors: []
   };
-
-  // 2. If image exists, upload it
-  if (imageFile) {
-    try {
-      await uploadCategoryImage(id, imageFile);
-    } catch (error) {
-      console.error("Category image upload failed:", error);
-    }
-  }
-  
-  return response;
 };
 
 export const deleteCategory = async (id: number): Promise<unknown> => {
@@ -169,6 +235,8 @@ export const deleteCategory = async (id: number): Promise<unknown> => {
     axiosInstance.delete<ApiResponse<unknown>>(`/category/${id}`)
   );
 };
+
+
 
 // â”€â”€ Branch endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

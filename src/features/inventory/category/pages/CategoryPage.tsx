@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AlertCircle, X } from "lucide-react";
 import { ConfirmDialog, PageShell } from "../../../../components/common";
 import CategoryModal from "../components/CategoryModal";
 import CategoryTable from "../components/CategoryTable";
@@ -19,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { menuSettingsApi } from "../../../general/menuSettings/services/menuSettingsApi";
 import { categoryApi } from "../api";
 import type { CategoryListItem } from "../types";
+import { resolveImageUrl } from "../../../../utils/imageUtils";
 
 const CategoryPage = () => {
   const { hasPermission } = usePermissions();
@@ -66,26 +66,40 @@ const CategoryPage = () => {
       colorCode: "red",
       branchAllocations: [],
       menuIds: [],
+      isImageChanged: false,
     },
   });
 
   const resetForm = () => {
+    const currentCode = form.getValues("code"); // preserve auto-generated code
+    let defaultBranches: { branchId: number; colorCode: string }[] = [];
+    if (branchOptions.length > 0) {
+      const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || branchOptions[0].id;
+      const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
+      if (targetBranch) {
+        defaultBranches = [{ branchId: Number(targetBranch.id), colorCode: "red" }];
+      }
+    }
+    const defaultMenus = menuTimes.length > 0 ? [menuTimes[0].menuId] : [];
+
     form.reset({
-      code: "",
+      code: currentCode,
       name: "",
       arabic: "",
       isActive: true,
       posStatus: true,
       colorCode: "red",
-      branchAllocations: [],
-      menuIds: [],
+      branchAllocations: defaultBranches,
+      menuIds: defaultMenus,
       imageFile: undefined,
       image: undefined,
+      isImageChanged: false,
     });
   };
 
   const handleOpenCreate = async () => {
     resetForm();
+    setError(null);
     setEditingId(null);
     setOpen(true);
     
@@ -101,6 +115,43 @@ const CategoryPage = () => {
     try {
       setEditingId(cat.id);
       const detail = await categoryApi.getCategoryById(cat.id);
+      
+      const rawImage = detail.category?.fileUrl ||
+                       detail.category?.filePath ||
+                       detail.category?.image ||
+                       (detail.category as any)?.imageUrl ||
+                       (detail.category as any)?.imagePath ||
+                       (detail.category as any)?.categoryImage ||
+                       cat.imageUrl ||
+                       cat.imagePath ||
+                       "";
+      const resolvedImage = resolveImageUrl(rawImage);
+
+      // Extract branch allocations
+      let existingBranches = ((detail.branch || (detail as any).branches || []) as any[]).map((b: any) => ({
+        branchId: Number(b.id ?? b.branchId),
+        colorCode: b.colorCode || "red",
+      }));
+
+      // If backend returned null/empty branches for an existing category (legacy data created before fix),
+      // auto-default to active branch so the user is never asked/blocked on update!
+      if (existingBranches.length === 0 && branchOptions.length > 0) {
+        const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || branchOptions[0].id;
+        const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
+        if (targetBranch) {
+          existingBranches = [{
+            branchId: Number(targetBranch.id),
+            colorCode: detail.category?.colorCode || "red",
+          }];
+        }
+      }
+
+      // Extract menu allocations
+      let existingMenus = ((detail.menu || (detail as any).menus || []) as any[]).map((m: any) => Number(m.id ?? m.menuId));
+      if (existingMenus.length === 0 && menuTimes.length > 0) {
+        existingMenus = [menuTimes[0].menuId];
+      }
+
       form.reset({
         code: detail.category?.code || "",
         name: detail.category?.name || "",
@@ -108,12 +159,24 @@ const CategoryPage = () => {
         isActive: detail.category?.isActive ?? true,
         posStatus: detail.category?.posStatus ?? true,
         colorCode: detail.category?.colorCode || "red",
-        branchAllocations: detail.branch?.map((b: any) => ({
-          branchId: b.id,
-          colorCode: b.colorCode || "red",
-        })) || [],
-        menuIds: detail.menu?.map((m: any) => m.id ?? m.menuId) || [],
+        branchAllocations: existingBranches,
+        menuIds: existingMenus,
+        imageFile: undefined,
+        image: resolvedImage || undefined,
+        isImageChanged: false,
       });
+
+      // If backend provided an image URL, verify it loads; if 404 on server, clear preview to prevent broken image icon
+      if (resolvedImage) {
+        const testImg = new Image();
+        testImg.onerror = () => {
+          if (form.getValues("image") === resolvedImage) {
+            form.setValue("image", undefined);
+          }
+        };
+        testImg.src = resolvedImage;
+      }
+
       setOpen(true);
     } catch (err: any) {
       showToast(err.message || "Failed to fetch category details", "error");
@@ -177,21 +240,6 @@ const CategoryPage = () => {
 
   return (
     <PageShell title="Category Master">
-      {/* Error banner */}
-      {error && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="shrink-0 rounded p-0.5 hover:bg-amber-100"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
       <CategoryTable
         categories={filteredCategories}
         loading={isLoading}
@@ -209,7 +257,12 @@ const CategoryPage = () => {
         saving={saving}
         branchOptions={branchOptions}
         menuTimes={menuTimes}
-        onClose={() => setOpen(false)}
+        error={error}
+        onClearError={() => setError(null)}
+        onClose={() => {
+          setError(null);
+          setOpen(false);
+        }}
         onClear={resetForm}
         onSave={handleSave}
         onDelete={canDelete && editingId ? () => setDeleteCandidate(categories.find(c => c.id === editingId) || null) : undefined}

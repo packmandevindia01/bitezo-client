@@ -9,6 +9,20 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
   const fmt = (val: number | undefined | null) => Number(val || 0).toFixed(decimalPart);
 
+  // Text-character dash separator — 38 chars fills 276px (288px body - 12px padding) in Courier New 11px
+  // Using text chars instead of CSS border-top:dashed avoids the "dots" artifact on thermal printers
+  const SEP = '-'.repeat(38);
+
+  // Normalize unicode superscript/special characters to plain ASCII (e.g. ᵀᴱᴸ → TEL)
+  const sanitizeHeaderText = (text: string): string => {
+    const map: Record<string, string> = {
+      'ᵀ': 'T', 'ᴱ': 'E', 'ᴸ': 'L', 'ᴺ': 'N', 'ᶠ': 'F', 'ᴬ': 'A', 'ˢ': 'S',
+      'ᴵ': 'I', 'ᴼ': 'O', 'ᴮ': 'B', 'ᴿ': 'R', 'ᴳ': 'G', 'ᴴ': 'H', 'ᴾ': 'P',
+      '·': ':', '•': ':', '‧': '.', '⋅': '.',
+    };
+    return text.replace(/[\u0100-\u036F\u1D00-\u1DBF\u00B7\u2022\u00B7\u22C5]/g, (ch) => map[ch] || ch);
+  };
+
   const formatDate = (isoStr: string) => {
     if (!isoStr || isoStr.includes('1900-01-01')) return '';
     try {
@@ -91,7 +105,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
             const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
             return `${kebab}:${v}`;
           }).join(";");
-          return `<div style="${styleStr}">${l.value}</div>`;
+          return `<div style="${styleStr}">${sanitizeHeaderText(l.value)}</div>`;
         }).join("");
       }
     }
@@ -141,25 +155,29 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     `;
   }
 
+  const reportTypeLabel = reportType === 'DAYEND' ? 'DAY END REPORT' : 'SHIFT END REPORT';
   const headerHtml = customHeadersHtml ? `
-    <div style="text-align: center; margin-bottom: 6px; padding: 0 10px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+    <div style="text-align: center; margin-bottom: 4px; padding: 0 6px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
       ${customHeadersHtml}
-      <div style="font-size: 14px; margin-top: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-        ${reportType === 'DAYEND' ? 'DAYEND REPORT' : 'SHIFTEND REPORT'}
-      </div>
     </div>
+    <div class="sep">${SEP}</div>
+    <div style="text-align: center; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; padding: 3px 0;">
+      ${reportTypeLabel}
+    </div>
+    <div class="sep">${SEP}</div>
   ` : `
-    <div style="text-align: center; margin-bottom: 6px;">
+    <div style="text-align: center; margin-bottom: 4px;">
       ${fallbackHeaderContent}
-      <div style="font-size: 14px; margin-top: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-        ${reportType === 'DAYEND' ? 'DAYEND REPORT' : 'SHIFTEND REPORT'}
-      </div>
     </div>
+    <div class="sep">${SEP}</div>
+    <div style="text-align: center; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; padding: 3px 0;">
+      ${reportTypeLabel}
+    </div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Start / End Dates — two-column label:value layout matching model
   const datesHtml = `
-    <div class="dashed-line"></div>
     <table style="width: 100%; margin: 4px 0;">
       <tbody>
         <tr><td style="width: 45%;">Start Date</td><td>${formatDate(gs.startDate)}</td></tr>
@@ -170,7 +188,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     </table>
   `;
 
-  // Order Summary — bordered box per order type with Amount/Tax/Charge/Disc/Total row
+  // Order Summary — flat clean rows, no nested border boxes
   let orderSummaryHtml = '';
   if (config.showOrderType && data.orderTypes && data.orderTypes.length > 0) {
     let grandOrderTotal = 0;
@@ -185,49 +203,44 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
       const disc = (o as any).disc ?? (o as any).discount ?? 0;
       orderRowsHtml += `
         <tr>
-          <td colspan="5" style="padding: 3px 0 1px 0;">
-            <table style="width: 100%; border: 1px solid #000; border-collapse: collapse; margin-bottom: 2px;">
-              <tr>
-                <td style="font-weight: bold; padding: 2px 4px; border-right: 1px solid #000; width: 40%;">${o.orderType}</td>
-                <td style="padding: 2px 4px; border-right: 1px solid #000; text-align: center;">Count : ${o.count || 0}</td>
-                <td style="padding: 2px 4px; text-align: right; font-weight: bold;">Total : ${fmt(o.total)}</td>
-              </tr>
-            </table>
-          </td>
+          <td class="font-bold">${o.orderType}</td>
+          <td colspan="3"></td>
+          <td class="tr">Cnt: ${o.count || 0}</td>
         </tr>
         <tr class="sub-header-row">
-          <td>Amount</td>
-          <td class="tc">Tax</td>
-          <td class="tc">Charge</td>
-          <td class="tc">Disc</td>
+          <td>Amt</td>
+          <td class="tr">Tax</td>
+          <td class="tr">Chg</td>
+          <td class="tr">Disc</td>
           <td class="tr">Total</td>
         </tr>
         <tr>
           <td>${fmt(amount)}</td>
-          <td class="tc">${fmt(tax)}</td>
-          <td class="tc">${fmt(charge)}</td>
-          <td class="tc">${fmt(disc)}</td>
-          <td class="tr">${fmt(o.total)}</td>
+          <td class="tr">${fmt(tax)}</td>
+          <td class="tr">${fmt(charge)}</td>
+          <td class="tr">${fmt(disc)}</td>
+          <td class="tr font-bold">${fmt(o.total)}</td>
         </tr>
-        <tr><td colspan="5"><div class="dashed-line" style="margin: 3px 0;"></div></td></tr>
+        <tr><td colspan="5"><div class="sep">${SEP}</div></td></tr>
       `;
     });
     orderSummaryHtml = `
       <div class="section-title">Order Summary</div>
-      <div class="dashed-line"></div>
-      <table style="width: 100%; font-size: 11px;">
+      <div class="sep">${SEP}</div>
+      <table style="width: 100%;">
         <tbody>
           ${orderRowsHtml}
           <tr>
-            <td style="font-weight: bold;">${fmt(grandOrderQty)}</td>
+            <td class="font-bold">${grandOrderQty}</td>
             <td colspan="3"></td>
-            <td class="tr font-bold">Total : ${fmt(grandOrderTotal)}</td>
+            <td class="tr font-bold">${fmt(grandOrderTotal)}</td>
           </tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
+
 
   // Sales Details
   const salesDetails = (data as any).salesDetails || {};
@@ -238,7 +251,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
 
   const salesDetailsHtml = `
     <div class="section-title">Sales Details</div>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
     <table style="width: 100%;">
       <tbody>
         <tr><td>Sale Amount</td><td class="tr">${fmt(saleAmount)}</td></tr>
@@ -247,7 +260,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         <tr><td class="font-bold">Total Sale</td><td class="tr font-bold">${fmt(totalSale)}</td></tr>
       </tbody>
     </table>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Waiter Summary (Employee)
@@ -264,14 +277,14 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     waiterHtml = `
       <div class="section-title">Waiter Summary</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%;">
         <tbody>
           ${waiterRows}
           <tr><td class="font-bold">Total</td><td class="tr font-bold">${fmt(waiterTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -289,14 +302,14 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     productHtml = `
       <div class="section-title">Product</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%;">
         <tbody>
           ${prodRows}
           <tr><td class="font-bold">Total</td><td class="tr font-bold">${fmt(prodTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -315,7 +328,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     deliveryHtml = `
       <div class="section-title">Delivery Summary</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%;">
         <thead>
           <tr>
@@ -329,7 +342,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <tr><td colspan="2" class="font-bold">Total</td><td class="tr font-bold">${fmt(deliveryTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -359,7 +372,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     categoryHtml = `
       <div class="section-title">Sales By Category</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%; font-size: 11px;">
         <thead>
           <tr>
@@ -381,7 +394,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           </tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -413,7 +426,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     groupHtml = `
       <div class="section-title">Sales By Group</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%; font-size: 11px;">
         <thead>
           <tr>
@@ -435,7 +448,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           </tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -461,7 +474,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     voidHtml = `
       <div class="section-title">Void Items</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%; font-size: 11px;">
         <thead>
           <tr>
@@ -481,7 +494,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           </tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -495,7 +508,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   });
   const paymodeHtml = `
     <div class="section-title">Payment Summary</div>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
     <table style="width: 100%;">
       <thead>
         <tr>
@@ -509,7 +522,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         <tr><td colspan="2" class="font-bold">Total</td><td class="tr font-bold">${fmt(paymodeTotal)}</td></tr>
       </tbody>
     </table>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Tax Summary
@@ -521,7 +534,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   });
   const taxHtml = `
     <div class="section-title">Tax Summary</div>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
     <table style="width: 100%;">
       <thead>
         <tr>
@@ -535,7 +548,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         <tr><td colspan="2"></td><td class="tr font-bold">${fmt(vatTotal)}</td></tr>
       </tbody>
     </table>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Pay-Out section
@@ -553,7 +566,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     payOutHtml = `
       <div class="section-title">Pay-Out</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%; font-size: 11px;">
         <thead>
           <tr>
@@ -567,13 +580,13 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <tr><td colspan="2"></td><td class="tr font-bold">${fmt(payOutTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   } else if (cf.payOut != null) {
     // Fallback: just show the total payout if no detail records
     payOutHtml = `
       <div class="section-title">Pay-Out</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%; font-size: 11px;">
         <thead>
           <tr>
@@ -586,7 +599,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <tr><td colspan="2"></td><td class="tr font-bold">${fmt(cf.payOut)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -602,7 +615,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   });
   const tipsHtml = `
     <div class="section-title">Tips Summary</div>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
     <table style="width: 100%;">
       <thead>
         <tr>
@@ -615,7 +628,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         ${tipsRows.length > 0 ? `<tr><td class="font-bold">Total</td><td class="tr font-bold">${fmt(tipsTotal)}</td></tr>` : ''}
       </tbody>
     </table>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Driver Summary
@@ -633,7 +646,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     driverHtml = `
       <div class="section-title">Driver Summary</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%;">
         <thead>
           <tr><th style="text-align:left;">Driver</th><th class="tc">Count</th><th class="tr">Net</th></tr>
@@ -643,7 +656,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <tr><td colspan="2" class="font-bold">Total</td><td class="tr font-bold">${fmt(driverTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -662,7 +675,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     voucherHtml = `
       <div class="section-title">Voucher Entries</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%;">
         <thead>
           <tr><th style="text-align:left;">Voucher #</th><th class="tc">Type</th><th class="tr">Amount</th></tr>
@@ -672,7 +685,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <tr><td colspan="2" class="font-bold">Total</td><td class="tr font-bold">${fmt(voucherTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -691,7 +704,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     });
     denominationHtml = `
       <div class="section-title">Denominations</div>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
       <table style="width: 100%;">
         <thead>
           <tr><th style="text-align:left;">Denomination</th><th class="tc">Count</th><th class="tr">Total</th></tr>
@@ -701,7 +714,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <tr><td colspan="2" class="font-bold">Total</td><td class="tr font-bold">${fmt(denomTotal)}</td></tr>
         </tbody>
       </table>
-      <div class="dashed-line"></div>
+      <div class="sep">${SEP}</div>
     `;
   }
 
@@ -713,7 +726,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
 
   const salesSummaryHtml = `
     <div class="section-title">Sales Summary</div>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
     <table style="width: 100%;">
       <tbody>
         <tr><td>Sale</td><td class="tr">${fmt(data.salesSummary?.sales)}</td></tr>
@@ -728,7 +741,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         <tr><td>Pending Order</td><td class="tr">${fmt(gs.pendingOrder)}</td></tr>
       </tbody>
     </table>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Cash Flow — matches physical receipt: CASH, Pay In, Total Cash In, Pay Out, Purchase, Total Cash Out, Net Cash, Closing Balance, Difference
@@ -740,7 +753,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
 
   const cashFlowHtml = `
     <div class="section-title">Cash Flow</div>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
     <table style="width: 100%;">
       <tbody>
         <tr><td>CASH</td><td class="tr">${fmt(cf.cashSales)}</td></tr>
@@ -754,7 +767,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         <tr><td class="font-bold">Difference</td><td class="tr font-bold">${fmt(difference)}</td></tr>
       </tbody>
     </table>
-    <div class="dashed-line"></div>
+    <div class="sep">${SEP}</div>
   `;
 
   // Printed On footer
@@ -769,11 +782,14 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     <html>
       <head>
         <style>
+          *, *::before, *::after {
+            box-sizing: border-box;
+          }
           ${isPdf ? `
           @page { size: A4 portrait; margin: 15mm; }
           body { width: 210mm; max-width: 100%; margin: 0 auto; }
           ` : `
-          body { width: 100%; margin: 0; }
+          body { width: 288px; max-width: 288px; margin: 0; }
           `}
           * {
             border-color: #000000 !important;
@@ -784,21 +800,34 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
             background-color: #ffffff !important;
           }
           body {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.35;
             color: #000;
-            padding: 0;
+            padding: 4px 6px;
+            text-align: left;
           }
-          .tc { text-align: center; }
-          .tr { text-align: right; }
+          * { text-align: left; }
+          .tc { text-align: center !important; }
+          .tr { text-align: right !important; }
           .font-bold { font-weight: bold; }
-          .section-title { font-weight: bold; margin: 8px 0 2px 0; font-size: 12px; }
-          .dashed-line { border-top: 1px dashed #000; margin: 3px 0; }
-          .sub-header-row td { font-size: 10px; color: #333; padding-bottom: 1px; }
+          /* .sep — text-character dash separator; renders crisply on thermal, never blurry */
+          .sep { font-size: 11px; line-height: 1; margin: 2px 0; overflow: hidden; white-space: nowrap; letter-spacing: 0; }
+          .dashed-line { margin: 2px 0; }
+          .section-title { font-weight: bold; margin: 5px 0 0 0; font-size: 11px; line-height: 1.4; }
+          .sub-header-row td { font-size: 10px; color: #333; }
 
-          table { width: 100%; font-size: 12px; border-collapse: collapse; }
-          th { text-align: left; font-weight: bold; padding-bottom: 2px; }
-          td { padding: 1px 0; vertical-align: top; }
+          table { width: 100%; font-size: 11px; border-collapse: collapse; }
+          th { text-align: left !important; font-weight: bold; padding-bottom: 1px; }
+          td { padding: 0 2px; vertical-align: top; text-align: left; }
+          td.tr { text-align: right !important; }
+          td.tc { text-align: center !important; }
+
+          div { text-align: left; }
+          div[style*="text-align: center"],
+          div[style*="text-align:center"] {
+            text-align: center !important;
+          }
         </style>
       </head>
       <body>

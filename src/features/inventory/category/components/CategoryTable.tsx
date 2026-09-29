@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { RecordTableCard, ListHeader, StatusBadge } from "../../../../components/common";
 import type { CategoryListItem } from "../types";
+import { resolveImageUrl } from "../../../../utils/imageUtils";
 
 interface Props {
   categories: CategoryListItem[];
@@ -38,7 +39,32 @@ const CategoryTable = ({
         loading={loading}
         columns={[
         { header: "Code", accessor: "code" },
-        { header: "Category Name", accessor: "name" },
+        {
+          header: "Category Name",
+          accessor: "name",
+          render: (row) => {
+            const imageSrc = resolveImageUrl(row.imageUrl || row.imagePath || row.categoryImage || row.fileUrl || row.filePath);
+            return (
+              <div className="flex items-center gap-3">
+                {imageSrc ? (
+                  <img
+                    src={imageSrc}
+                    alt={row.name}
+                    className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-400 shrink-0">
+                    {row.name ? row.name.substring(0, 2).toUpperCase() : "--"}
+                  </div>
+                )}
+                <span className="font-semibold text-gray-800">{row.name}</span>
+              </div>
+            );
+          },
+        },
         {
           header: "Status",
           accessor: "isActive",

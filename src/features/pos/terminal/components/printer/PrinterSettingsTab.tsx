@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { getAvailablePrinters, printEscPosMarkup } from '../../../services/qzService';
+import { getAvailablePrinters } from '../../../services/qzService';
 import { printerSettingsApi } from '../../../services/printerSettingsApi';
 import { SelectInput, Button } from '../../../../../components/common';
 import { useToast } from '../../../../../app/providers/useToast';
@@ -186,58 +186,32 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({
   };
 
   const handleTestPrint = async () => {
-    const isNative = Capacitor.isNativePlatform();
     const billP = settings.billPrinter || 'No Printer';
 
     setTestingPrint(true);
     try {
-      if (isNative) {
-        const targetIp = findIp(billP) || findIp(settings.kotPrinter) || localStorage.getItem('cachedBillPrinterIp') || localStorage.getItem('printerIpAddress');
-        if (!targetIp) {
-          showToast("No Printer IP found to test. Please map an IP in IP MAP tab first.", "warning");
-          return;
-        }
-
-        const testMarkup = `
-[C]<b><font size='big'>TEST PRINT SUCCESS</font></b>
-[C]================================
-[C]Bitezo POS Tablet Direct Print
-[L]Terminal ID: #${localStorage.getItem("terminalId") || localStorage.getItem("systemCounterId") || "0"}
-[L]Printer: ${billP !== 'No Printer' ? billP : "Default Thermal"}
-[L]Target IP: ${targetIp}:9100
-[C]================================
-[C]Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
-[C]Status: Connected OK!
-[C]
-[C]
-`;
-        await printEscPosMarkup(testMarkup, billP);
-        showToast(`Test print sent successfully to ${targetIp}!`, "success");
-      } else {
-        // Desktop Web Mode: Send test print via PrintAgent (QZ Tray / Local Service)
-        const { printHtmlReceipt } = await import('../../../services/qzService');
-        const targetPrinter = (billP && billP !== 'No Printer') ? billP : undefined;
-        
-        const testHtml = `
-          <div style="font-family: monospace; font-size: 13px; text-align: center; width: 280px; padding: 10px; margin: 0 auto; color: #000;">
-            <h2 style="margin: 4px 0; font-size: 16px; font-weight: bold;">TEST PRINT SUCCESS</h2>
-            <div style="border-top: 2px dashed #000; margin: 8px 0;"></div>
-            <p style="margin: 4px 0; font-weight: bold;">Bitezo POS Web Software</p>
-            <div style="text-align: left; margin: 8px 0; font-size: 12px; line-height: 1.6;">
-              <div>Terminal: #${localStorage.getItem("terminalId") || localStorage.getItem("systemCounterId") || "Web"}</div>
-              <div>Printer: ${targetPrinter || "Default Windows Printer"}</div>
-              <div>Mode: Desktop PrintAgent</div>
-              <div>Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
-              <div>Status: Connected &amp; Verified OK!</div>
-            </div>
-            <div style="border-top: 2px dashed #000; margin: 8px 0;"></div>
-            <p style="margin: 8px 0 0 0; font-size: 11px;">Bitezo POS Cloud System</p>
+      const { printHtmlReceipt } = await import('../../../services/qzService');
+      const targetPrinter = (billP && billP !== 'No Printer') ? billP : undefined;
+      
+      const testHtml = `
+        <div style="font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; font-size: 13px; text-align: center; width: 280px; padding: 10px; margin: 0 auto; color: #000;">
+          <h2 style="margin: 4px 0; font-size: 16px; font-weight: bold;">TEST PRINT SUCCESS</h2>
+          <div style="border-top: 2px dashed #000; margin: 8px 0;"></div>
+          <p style="margin: 4px 0; font-weight: bold;">Bitezo POS Cloud System</p>
+          <div style="text-align: left; margin: 8px 0; font-size: 12px; line-height: 1.6;">
+            <div>Terminal: #${localStorage.getItem("terminalId") || localStorage.getItem("systemCounterId") || "1"}</div>
+            <div>Printer: ${targetPrinter || "Default Thermal Printer"}</div>
+            <div>Mode: Direct Thermal Print</div>
+            <div>Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+            <div>Status: Connected &amp; Verified OK!</div>
           </div>
-        `;
-        
-        await printHtmlReceipt(testHtml, targetPrinter);
-        showToast(`Test print sent to ${targetPrinter || "Default Printer"}!`, "success");
-      }
+          <div style="border-top: 2px dashed #000; margin: 8px 0;"></div>
+          <p style="margin: 8px 0 0 0; font-size: 11px;">Bitezo Cloud-Based POS</p>
+        </div>
+      `;
+      
+      await printHtmlReceipt(testHtml, targetPrinter);
+      showToast(`Test print sent to ${targetPrinter || "Default Printer"}!`, "success");
     } catch (err: any) {
       console.error("[TestPrint] Failed:", err);
       showToast(`Test print failed: ${err?.message || err}`, "error");

@@ -60,7 +60,9 @@ export const useUpdateCategory = () => {
         updatedAt: new Date().toISOString(),
         branchIds: data.branchAllocations,
         menuIds: data.menuIds,
-        imageFile: data.imageFile
+        imageFile: data.imageFile,
+        isImageChanged: data.isImageChanged,
+        isImageChaged: data.isImageChanged,
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });

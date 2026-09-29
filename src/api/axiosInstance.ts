@@ -44,9 +44,8 @@ axiosInstance.interceptors.request.use((config) => {
   const isCashierAction = normalizedUrl.includes("/cashier-log/") && !normalizedUrl.includes("iscashier-in");
   const isTokenResolvedOnly = normalizedUrl.includes("/change-password") || 
                               isCashierAction ||
-                              normalizedUrl.includes("/category/category-list") ||
-                              normalizedUrl.includes("/subcategory/subcategory-list") ||
-                              normalizedUrl.includes("/category/category-image") ||
+                              normalizedUrl.includes("/category") ||
+                              normalizedUrl.includes("/subcategory") ||
                               normalizedUrl.includes("/product/product-image") ||
                               normalizedUrl.includes("/order/void") ||
                               normalizedUrl.includes("/provider") ||

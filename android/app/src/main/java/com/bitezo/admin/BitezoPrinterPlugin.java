@@ -53,7 +53,7 @@ public class BitezoPrinterPlugin extends Plugin {
                     if (type.equals("tcp") || type.equals("bluetooth")) {
                         if (type.equals("tcp")) {
                             TcpConnection tcpConnection = new TcpConnection(address, port, 15000);
-                            printer = new EscPosPrinter(tcpConnection, 203, 72f, 42);
+                            printer = new EscPosPrinter(tcpConnection, 203, 72f, 48);
                         } else {
                             BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
                             if (adapter == null || !adapter.isEnabled()) {
@@ -61,7 +61,7 @@ public class BitezoPrinterPlugin extends Plugin {
                                 return;
                             }
                             BluetoothDevice device = adapter.getRemoteDevice(address);
-                            printer = new EscPosPrinter(new BluetoothConnection(device), 203, 72f, 42);
+                            printer = new EscPosPrinter(new BluetoothConnection(device), 203, 72f, 48);
                         }
 
                         int chunkHeight = 255;
@@ -123,13 +123,15 @@ public class BitezoPrinterPlugin extends Plugin {
             return;
         }
 
+        int charsPerLine = call.getInt("charsPerLine", 48);
+
         new Thread(() -> {
             try {
                 EscPosPrinter printer;
 
                 if (type.equals("tcp")) {
                     printer = new EscPosPrinter(
-                        new TcpConnection(address, port, 15000), 203, 72f, 42
+                        new TcpConnection(address, port, 15000), 203, 72f, charsPerLine
                     );
                 } else if (type.equals("bluetooth")) {
                     BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -139,7 +141,7 @@ public class BitezoPrinterPlugin extends Plugin {
                     }
                     BluetoothDevice device = adapter.getRemoteDevice(address);
                     printer = new EscPosPrinter(
-                        new BluetoothConnection(device), 203, 72f, 42
+                        new BluetoothConnection(device), 203, 72f, charsPerLine
                     );
                 } else {
                     call.reject("Invalid connection type: " + type);

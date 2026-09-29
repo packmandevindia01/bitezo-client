@@ -24,13 +24,26 @@ export interface CategoryListItem {
   arabic: string;
   colorCode: string;
   isActive: boolean;
+  imageUrl?: string;
+  imagePath?: string;
+  categoryImage?: string;
+  fileUrl?: string;
+  filePath?: string;
   createdAt?: string;
   updatedAt?: string;
   branches: BranchOption[];
 }
 
 export interface CategoryDetailData {
-  category: (CategoryListItem & { posStatus?: boolean }) | null;
+  category: (CategoryListItem & {
+    posStatus?: boolean;
+    image?: string;
+    imageUrl?: string;
+    imagePath?: string;
+    categoryImage?: string;
+    fileUrl?: string;
+    filePath?: string;
+  }) | null;
   branch: (BranchOption & { colorCode?: string })[] | null;
   group: BranchOption[] | null;
   menu?: { id: number; name: string; menuId?: number }[] | null;
@@ -47,6 +60,7 @@ export interface CategoryFormState {
   menuIds: number[];
   imageFile?: File;
   image?: string; // Preview URL
+  isImageChanged?: boolean;
 }
 
 export type CategoryDetailResponse = ApiResponse<CategoryDetailData>;
@@ -64,6 +78,7 @@ export interface CreateCategoryPayload {
   createdAt: string;
   branchIds: BranchAllocation[];
   menuIds: number[];
+  imageFile?: File;
 }
 
 export interface UpdateCategoryPayload {
@@ -77,4 +92,7 @@ export interface UpdateCategoryPayload {
   updatedAt: string;
   branchIds: BranchAllocation[];
   menuIds: number[];
+  imageFile?: File;
+  isImageChanged?: boolean;
+  isImageChaged?: boolean;
 }

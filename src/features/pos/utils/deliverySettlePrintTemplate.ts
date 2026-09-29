@@ -1,7 +1,6 @@
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { getDecimalPart } from "../../../utils/currency";
-import { Capacitor } from "@capacitor/core";
 
 export interface DeliverySettleOrderItem {
   sNo: number;
@@ -317,17 +316,10 @@ export const printDeliverySettlementReceipt = async (
   printerName?: string
 ): Promise<void> => {
   try {
-    if (Capacitor.isNativePlatform()) {
-      const { printEscPosMarkup } = await import("../services/qzService");
-      const { generateDeliverySettleMarkup } = await import("./escPosGenerator");
-      const markup = generateDeliverySettleMarkup(data);
-      await printEscPosMarkup(markup, printerName);
-    } else {
-      const { printHtmlReceipt } = await import("../services/qzService");
-      const html = await generateDeliverySettlePrintHtml(data);
-      const targetPrinter = printerName || localStorage.getItem("cachedBillPrinter") || undefined;
-      await printHtmlReceipt(html, targetPrinter);
-    }
+    const { printHtmlReceipt } = await import("../services/qzService");
+    const html = await generateDeliverySettlePrintHtml(data);
+    const targetPrinter = printerName || localStorage.getItem("cachedBillPrinter") || undefined;
+    await printHtmlReceipt(html, targetPrinter);
   } catch (err) {
     console.error("[printDeliverySettlementReceipt] Error:", err);
     throw err;

@@ -448,22 +448,11 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
     if (printState.step === 1) {
       if (shouldPrint) {
         try {
-          const { Capacitor } = await import("@capacitor/core");
           const reportData = await cashierLogService.getShiftEndReport(printState.dayId, printState.shiftId);
-          if (Capacitor.isNativePlatform()) {
-            // ── FAST PATH: ESC/POS native ──────────────────────────────────────
-            const { printEscPosMarkup } = await import("../../../../services/qzService");
-            const { generateEndReportMarkup } = await import("../../../../utils/escPosGenerator");
-            const markup = generateEndReportMarkup(reportData, 'SHIFTEND');
-            await printEscPosMarkup(markup);
-          } else {
-            // ── DESKTOP PATH: QZ Tray ──────────────────────────────────────────
-            const html = await generateEndReportHtml(reportData, 'SHIFTEND');
-            const { printHtmlReceipt } = await import("../../../../services/qzService");
-            const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
-            await printHtmlReceipt(html, defaultPrinter);
-            await new Promise(res => setTimeout(res, 3000));
-          }
+          const html = await generateEndReportHtml(reportData, 'SHIFTEND');
+          const { printHtmlReceipt } = await import("../../../../services/qzService");
+          const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+          await printHtmlReceipt(html, defaultPrinter);
           showToast("Printing Shift End...", "success");
         } catch (e: any) {
           showToast(e.message || "Failed to print Shift End", "error");
@@ -478,20 +467,11 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
     } else if (printState.step === 2) {
       if (shouldPrint) {
         try {
-          const { Capacitor } = await import("@capacitor/core");
           const reportData = await cashierLogService.getDayEndReport(printState.dayId);
-          if (Capacitor.isNativePlatform()) {
-            const { printEscPosMarkup } = await import("../../../../services/qzService");
-            const { generateEndReportMarkup } = await import("../../../../utils/escPosGenerator");
-            const markup = generateEndReportMarkup(reportData, 'DAYEND');
-            await printEscPosMarkup(markup);
-          } else {
-            const html = await generateEndReportHtml(reportData, 'DAYEND');
-            const { printHtmlReceipt } = await import("../../../../services/qzService");
-            const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
-            await printHtmlReceipt(html, defaultPrinter);
-            await new Promise(res => setTimeout(res, 3000));
-          }
+          const html = await generateEndReportHtml(reportData, 'DAYEND');
+          const { printHtmlReceipt } = await import("../../../../services/qzService");
+          const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+          await printHtmlReceipt(html, defaultPrinter);
           showToast("Printing Day End...", "success");
         } catch (e: any) {
           showToast(e.message || "Failed to print Day End", "error");
@@ -955,7 +935,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                   </div>
 
                   {(!cashierStatus?.isDayClosed) && (
-                    <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-center">
+                    <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-center gap-1">
                       <button
                         type="button"
                         tabIndex={-1}
@@ -963,9 +943,18 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                           setCloseTab("SHIFT");
                           resetSessionModalState();
                         }}
-                        className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-all ${closeTab === "SHIFT" ? "bg-white text-[#49293e] shadow-xs font-extrabold" : "text-slate-500 hover:text-slate-700"}`}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-bold rounded-lg transition-all ${
+                          closeTab === "SHIFT"
+                            ? "bg-blue-600 text-white shadow-xs font-extrabold"
+                            : "text-slate-600 hover:text-blue-600 hover:bg-slate-200/60 font-semibold"
+                        }`}
                       >
-                        {cashierStatus?.isShiftClosed ? "Open Shift" : "Close Shift"}
+                        {cashierStatus?.isShiftClosed ? (
+                          <LogIn size={15} className={closeTab === "SHIFT" ? "text-white" : "text-blue-500"} />
+                        ) : (
+                          <Moon size={15} className={closeTab === "SHIFT" ? "text-white" : "text-blue-500"} />
+                        )}
+                        <span>{cashierStatus?.isShiftClosed ? "Open Shift" : "Close Shift"}</span>
                       </button>
                       <button
                         type="button"
@@ -974,9 +963,14 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                           setCloseTab("DAY");
                           resetSessionModalState();
                         }}
-                        className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-all ${closeTab === "DAY" ? "bg-white text-[#49293e] shadow-xs font-extrabold" : "text-slate-500 hover:text-slate-700"}`}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-bold rounded-lg transition-all ${
+                          closeTab === "DAY"
+                            ? "bg-emerald-600 text-white shadow-xs font-extrabold"
+                            : "text-slate-600 hover:text-emerald-600 hover:bg-slate-200/60 font-semibold"
+                        }`}
                       >
-                        Close Day
+                        <LogOut size={15} className={closeTab === "DAY" ? "text-white" : "text-emerald-500"} />
+                        <span>Close Day</span>
                       </button>
                     </div>
                   )}

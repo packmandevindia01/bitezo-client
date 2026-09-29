@@ -119,6 +119,15 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    const [year, month, day] = date.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (selectedDate > today) {
+      showToast("Future dates are not allowed", "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
       await payInOutService.create({
@@ -205,6 +214,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
               label="DATE"
               type="date"
               value={date}
+              max={new Date().toLocaleDateString('en-CA')}
               onChange={(e) => setDate(e.target.value)}
             />
             <div className="md:col-span-2">

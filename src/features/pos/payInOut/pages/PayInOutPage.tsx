@@ -27,14 +27,52 @@ const PayInOutPage: React.FC = () => {
   const { formatAmount, currencySymbol } = useCurrency();
 
   // Search Filters
+  const todayStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
   const [searchFromDate, setSearchFromDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7); // Default to last 7 days
-    return d.toISOString().split('T')[0];
+    return d.toLocaleDateString('en-CA');
   });
-  const [searchToDate, setSearchToDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [searchToDate, setSearchToDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [searchInOut, setSearchInOut] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleFromDateChange = (val: string) => {
+    if (!val) {
+      setSearchFromDate('');
+      return;
+    }
+    if (val > todayStr) {
+      showToast("Future dates are not allowed", "warning");
+      setSearchFromDate(todayStr);
+      if (searchToDate && searchToDate < todayStr) {
+        setSearchToDate(todayStr);
+      }
+      return;
+    }
+    setSearchFromDate(val);
+    if (searchToDate && searchToDate < val) {
+      setSearchToDate(val);
+    }
+  };
+
+  const handleToDateChange = (val: string) => {
+    if (!val) {
+      setSearchToDate('');
+      return;
+    }
+    if (val > todayStr) {
+      showToast("Future dates are not allowed", "warning");
+      setSearchToDate(todayStr);
+      return;
+    }
+    if (searchFromDate && val < searchFromDate) {
+      showToast("To Date cannot be earlier than From Date", "warning");
+      setSearchToDate(searchFromDate);
+      return;
+    }
+    setSearchToDate(val);
+  };
 
   const [cancelId, setCancelId] = useState<number | null>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -71,10 +109,17 @@ const PayInOutPage: React.FC = () => {
       return;
     }
 
+    const [year, month, day] = data.date.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (localDate > today) {
+      showToast("Future dates are not allowed", "error");
+      return;
+    }
+
     if (editingId) {
       // Parse date as local time (not UTC) to avoid date shifting in +5:30 timezones
-      const [year, month, day] = data.date.split('-').map(Number);
-      const localDate = new Date(year, month - 1, day);
       const nowIso = new Date().toISOString();
 
       updateTransaction.mutate({
@@ -174,7 +219,8 @@ const PayInOutPage: React.FC = () => {
               <input
                 type="date"
                 value={searchFromDate}
-                onChange={(e) => setSearchFromDate(e.target.value)}
+                max={todayStr}
+                onChange={(e) => handleFromDateChange(e.target.value)}
                 className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
               />
             </div>
@@ -183,7 +229,9 @@ const PayInOutPage: React.FC = () => {
               <input
                 type="date"
                 value={searchToDate}
-                onChange={(e) => setSearchToDate(e.target.value)}
+                min={searchFromDate || undefined}
+                max={todayStr}
+                onChange={(e) => handleToDateChange(e.target.value)}
                 className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
               />
             </div>

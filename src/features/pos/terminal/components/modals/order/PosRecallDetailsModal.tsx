@@ -14,7 +14,6 @@ import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
-import { Capacitor } from "@capacitor/core";
 
 import { usePosProducts } from "../../../hooks/usePosProducts";
 
@@ -371,24 +370,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         )
       };
 
-      if (Capacitor.isNativePlatform() && !printData.billArabic) {
-        const { printEscPosMarkup } = await import("../../../../services/qzService");
-        const { generateBillMarkup } = await import("../../../../utils/escPosGenerator");
-        const markup = generateBillMarkup({ cartDetails: mappedItems as any, data: printData as any });
-        await printEscPosMarkup(markup);
+      try {
+        const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
+        
+        await printHtmlReceipt(htmlContent, billPrinter);
         showToast("Guest receipt sent to printer!", "success");
-      } else {
-        try {
-          const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
-          const settingsRes = await printerSettingsApi.getGeneral();
-          const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
-          
-          await printHtmlReceipt(htmlContent, billPrinter);
-          showToast("Guest receipt sent to printer!", "success");
-        } catch (err) {
-          console.error("Printer error:", err);
-          showToast("Failed to connect to printer", "error");
-        }
+      } catch (err) {
+        console.error("Printer error:", err);
+        showToast("Failed to connect to printer", "error");
       }
       
     } catch (e) {
