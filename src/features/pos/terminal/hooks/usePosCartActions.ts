@@ -58,6 +58,7 @@ export const usePosCartActions = () => {
   const totalExtras = useAppSelector(selectTotalExtras);
   const baseSubtotal = useAppSelector(selectBaseSubtotal);
   const waiterName = useAppSelector((state: any) => state.pos.waiterName);
+  const waiterId = useAppSelector((state: any) => state.pos.waiterId);
 
   const {
     orderTypes,
@@ -524,6 +525,7 @@ export const usePosCartActions = () => {
     billDiscountType,
     billDiscountValue,
     waiterName,
+    waiterId,
     orderLoading,
     orderError,
     editingOrderId,

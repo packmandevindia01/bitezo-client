@@ -98,3 +98,9 @@ export interface MenuProvider {
   paymodeName?: string;
   postAccountName?: string;
 }
+
+export interface PosWaiter {
+  empId: number;
+  empName: string;
+}
+

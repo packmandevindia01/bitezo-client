@@ -250,6 +250,7 @@ const ModifierPage = () => {
               Clear
             </Button>
             <Button 
+              id="btn-save-modifier"
               onClick={handleSave} 
               loading={isSaving}
               disabled={isDetailLoading}
@@ -287,6 +288,7 @@ const ModifierPage = () => {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onSave={handleSave}
+          saveButtonId="btn-save-modifier"
         />
       </Modal>
 

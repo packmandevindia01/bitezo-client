@@ -8,6 +8,7 @@ export const usePosModals = () => {
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isDriveThroughModalOpen, setIsDriveThroughModalOpen] = useState(false);
   const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
+  const [recallEmployeeId, setRecallEmployeeId] = useState<number | null>(null);
   const [returnToRecallOnCancel, setReturnToRecallOnCancel] = useState(false);
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
@@ -25,6 +26,7 @@ export const usePosModals = () => {
   const [isSettledAuthOpen, setIsSettledAuthOpen] = useState(false);
   const [isCashierSessionOpen, setIsCashierSessionOpen] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false);
 
   const openModal = useCallback((modalName: string) => {
     switch (modalName) {
@@ -50,6 +52,7 @@ export const usePosModals = () => {
       case 'settledAuth': setIsSettledAuthOpen(true); break;
       case 'cashierSession': setIsCashierSessionOpen(true); break;
       case 'message': setIsMessageModalOpen(true); break;
+      case 'waiter': setIsWaiterModalOpen(true); break;
     }
   }, []);
 
@@ -77,6 +80,7 @@ export const usePosModals = () => {
       case 'settledAuth': setIsSettledAuthOpen(false); break;
       case 'cashierSession': setIsCashierSessionOpen(false); break;
       case 'message': setIsMessageModalOpen(false); break;
+      case 'waiter': setIsWaiterModalOpen(false); break;
     }
   }, []);
 
@@ -88,6 +92,7 @@ export const usePosModals = () => {
     isDeliveryModalOpen, setIsDeliveryModalOpen,
     isDriveThroughModalOpen, setIsDriveThroughModalOpen,
     isRecallModalOpen, setIsRecallModalOpen,
+    recallEmployeeId, setRecallEmployeeId,
     returnToRecallOnCancel, setReturnToRecallOnCancel,
     isVoidModalOpen, setIsVoidModalOpen,
     isProviderModalOpen, setIsProviderModalOpen,
@@ -105,6 +110,7 @@ export const usePosModals = () => {
     isSettledAuthOpen, setIsSettledAuthOpen,
     isCashierSessionOpen, setIsCashierSessionOpen,
     isMessageModalOpen, setIsMessageModalOpen,
+    isWaiterModalOpen, setIsWaiterModalOpen,
     openModal,
     closeModal,
   };

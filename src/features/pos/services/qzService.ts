@@ -270,33 +270,39 @@ export const connectPrinterAgent = connectQZ;
  */
 export const resolveTargetIp = async (targetPrinterName?: string): Promise<string> => {
   let targetIp = "";
-  const targetName = (targetPrinterName || localStorage.getItem('cachedBillPrinter') || "").trim();
+  const rawTarget = (targetPrinterName || "").trim();
+  const isTargetNoPrinter = !rawTarget || rawTarget.toLowerCase() === "no printer" || rawTarget.toLowerCase() === "none" || rawTarget.toLowerCase() === "default";
+  const targetName = isTargetNoPrinter ? (localStorage.getItem('cachedBillPrinter') || localStorage.getItem('cachedKotPrinter') || "").trim() : rawTarget;
 
   // 1. Direct IP Check: if targetName itself is an IP address (e.g. "192.168.1.100")
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(rawTarget)) {
+    return rawTarget;
+  }
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(targetName)) {
     return targetName;
   }
 
   // 2. Direct Station-Specific Cache Check
-  if (!targetIp && targetName) {
-    const billName = (localStorage.getItem('cachedBillPrinter') || '').trim().toLowerCase();
-    const kotName = (localStorage.getItem('cachedKotPrinter') || '').trim().toLowerCase();
-    const packagerName = (localStorage.getItem('cachedPackagerPrinter') || '').trim().toLowerCase();
-    const masterKotName = (localStorage.getItem('cachedMasterKotPrinter') || '').trim().toLowerCase();
+  const billName = (localStorage.getItem('cachedBillPrinter') || '').trim().toLowerCase();
+  const kotName = (localStorage.getItem('cachedKotPrinter') || '').trim().toLowerCase();
+  const packagerName = (localStorage.getItem('cachedPackagerPrinter') || '').trim().toLowerCase();
+  const masterKotName = (localStorage.getItem('cachedMasterKotPrinter') || '').trim().toLowerCase();
 
-    if (billName && targetName.toLowerCase() === billName) {
+  if (targetName) {
+    const lower = targetName.toLowerCase();
+    if (billName && lower === billName) {
       targetIp = localStorage.getItem('cachedBillPrinterIp') || "";
-    } else if (kotName && targetName.toLowerCase() === kotName) {
+    } else if (kotName && lower === kotName) {
       targetIp = localStorage.getItem('cachedKotPrinterIp') || "";
-    } else if (packagerName && targetName.toLowerCase() === packagerName) {
+    } else if (packagerName && lower === packagerName) {
       targetIp = localStorage.getItem('cachedPackagerPrinterIp') || "";
-    } else if (masterKotName && targetName.toLowerCase() === masterKotName) {
+    } else if (masterKotName && lower === masterKotName) {
       targetIp = localStorage.getItem('cachedMasterKotPrinterIp') || "";
     }
   }
 
   // 3. Local Storage printerIpMap Lookup (Immediate & Synchronous)
-  if (!targetIp && targetName && targetName !== 'No Printer') {
+  if (!targetIp && targetName && targetName.toLowerCase() !== 'no printer') {
     try {
       const cached = localStorage.getItem('printerIpMap');
       if (cached) {
@@ -316,19 +322,28 @@ export const resolveTargetIp = async (targetPrinterName?: string): Promise<strin
     }
   }
 
-  // 4. Fallback to API if not found locally
-  if (!targetIp && targetName && targetName !== 'No Printer') {
+  // 4. Fallback to API IP map lookup if not found locally
+  if (!targetIp) {
     try {
       const { printerSettingsApi } = await import("./printerSettingsApi");
       const ipMapRes = await printerSettingsApi.getPrinterIpMap();
-      if (ipMapRes?.isSuccess && Array.isArray(ipMapRes.data)) {
-        const found = ipMapRes.data.find((item: any) => 
-          (item.printerName && item.printerName.toLowerCase() === targetName.toLowerCase()) ||
-          item.ipAddress === targetName
-        );
-        if (found && found.ipAddress) {
-          targetIp = found.ipAddress.trim();
-          localStorage.setItem('printerIpMap', JSON.stringify(ipMapRes.data));
+      if (ipMapRes?.isSuccess && Array.isArray(ipMapRes.data) && ipMapRes.data.length > 0) {
+        localStorage.setItem('printerIpMap', JSON.stringify(ipMapRes.data));
+        if (targetName && targetName.toLowerCase() !== 'no printer') {
+          const found = ipMapRes.data.find((item: any) => 
+            (item.printerName && item.printerName.toLowerCase() === targetName.toLowerCase()) ||
+            item.ipAddress === targetName
+          );
+          if (found && found.ipAddress) {
+            targetIp = found.ipAddress.trim();
+          }
+        }
+        // If still no targetIp, pick first entry from printerIpMap that has an IP
+        if (!targetIp) {
+          const firstValid = ipMapRes.data.find((item: any) => item?.ipAddress && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(item.ipAddress.trim()));
+          if (firstValid) {
+            targetIp = firstValid.ipAddress.trim();
+          }
         }
       }
     } catch (e) {
@@ -336,26 +351,64 @@ export const resolveTargetIp = async (targetPrinterName?: string): Promise<strin
     }
   }
 
-  // 5. Global Default / Fallback IP
+  // 5. Check General Settings from API
   if (!targetIp) {
-    targetIp = localStorage.getItem('cachedBillPrinterIp') || localStorage.getItem('printerIpAddress') || "";
+    try {
+      const { printerSettingsApi } = await import("./printerSettingsApi");
+      const genRes = await printerSettingsApi.getGeneral();
+      const genData = genRes?.data;
+      const candidates = [
+        genData?.androidBillPrinter,
+        genData?.billPrinter,
+        genData?.androidKOTPrinter,
+        genData?.kotPrinter
+      ];
+      for (const cand of candidates) {
+        if (cand && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(cand.trim())) {
+          targetIp = cand.trim();
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn("[Native IP Lookup] Fallback general printer settings lookup failed:", e);
+    }
   }
 
-  // 6. If still no IP, check if any entry in printerIpMap has an IP
+  // 6. Global Default / Fallback IPs from all known localStorage caches
+  if (!targetIp) {
+    const fallbackIps = [
+      localStorage.getItem('cachedBillPrinterIp'),
+      localStorage.getItem('cachedKotPrinterIp'),
+      localStorage.getItem('printerIpAddress'),
+      localStorage.getItem('cachedPackagerPrinterIp'),
+      localStorage.getItem('cachedMasterKotPrinterIp'),
+    ];
+    for (const item of fallbackIps) {
+      if (item && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(item.trim())) {
+        targetIp = item.trim();
+        break;
+      }
+    }
+  }
+
+  // 7. If still no IP, check any entry in cached printerIpMap
   if (!targetIp) {
     try {
       const cached = localStorage.getItem('printerIpMap');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed[0]?.ipAddress) {
-          targetIp = parsed[0].ipAddress.trim();
+        if (Array.isArray(parsed)) {
+          const firstWithIp = parsed.find((item: any) => item?.ipAddress && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(item.ipAddress.trim()));
+          if (firstWithIp) {
+            targetIp = firstWithIp.ipAddress.trim();
+          }
         }
       }
     } catch {}
   }
 
   if (!targetIp) {
-    const errorMsg = targetName && targetName !== 'No Printer'
+    const errorMsg = targetName && targetName.toLowerCase() !== 'no printer'
       ? `IP address not found for printer "${targetName}". Please configure IP mapping in Printer Settings.`
       : "No printer IP address mapped. Please configure Printer IP Mapping in POS Settings.";
     throw new Error(errorMsg);
@@ -432,22 +485,22 @@ export function isThermalPosPrinter(printerName: string): boolean {
  * Bypasses Windows GDI scaling and driver halftoning completely for razor-sharp vector clarity!
  */
 export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
-  let srcCanvas = canvas;
-  if (canvas.width !== 576) {
-    const fixedCanvas = document.createElement("canvas");
-    fixedCanvas.width = 576;
-    fixedCanvas.height = Math.round((canvas.height * 576) / canvas.width);
-    const fCtx = fixedCanvas.getContext("2d");
-    if (fCtx) {
-      fCtx.fillStyle = "#ffffff";
-      fCtx.fillRect(0, 0, 576, fixedCanvas.height);
-      fCtx.drawImage(canvas, 0, 0, 576, fixedCanvas.height);
-      srcCanvas = fixedCanvas;
-    }
-  }
-
   const width = 576;
-  const height = srcCanvas.height;
+  const cutterPaddingDots = 80; // ~10mm bottom white margin so physical cutter blade never slices through footer text
+  const scaledHeight = canvas.width === 576 ? canvas.height : Math.round((canvas.height * 576) / canvas.width);
+  const height = scaledHeight + cutterPaddingDots;
+
+  const fixedCanvas = document.createElement("canvas");
+  fixedCanvas.width = width;
+  fixedCanvas.height = height;
+  const fCtx = fixedCanvas.getContext("2d");
+  if (fCtx) {
+    fCtx.fillStyle = "#ffffff";
+    fCtx.fillRect(0, 0, width, height);
+    fCtx.drawImage(canvas, 0, 0, width, scaledHeight);
+  }
+  const srcCanvas = fixedCanvas;
+
   const bytesPerLine = width / 8; // 72 bytes per row
 
   // ESC/POS raster header:
@@ -459,8 +512,8 @@ export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
   const yH = (height >> 8) & 0xff;
 
   const header = [0x1b, 0x40, 0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH];
-  // Post-print: ESC d 4 (feed 4 lines), GS V 66 0 (feed to cutter & partial cut)
-  const footer = [0x1b, 0x64, 0x04, 0x1d, 0x56, 0x42, 0x00];
+  // Post-print: ESC d 8 (feed 8 lines so paper clears cutter knife), GS V 66 0 (feed to cutter & partial cut)
+  const footer = [0x1b, 0x64, 0x08, 0x1d, 0x56, 0x42, 0x00];
 
   const totalBytes = header.length + bytesPerLine * height + footer.length;
   const result = new Uint8Array(totalBytes);
@@ -552,6 +605,15 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
     } catch {}
     await new Promise((r) => setTimeout(r, 200));
 
+    // Measure exact content height and ensure iframe viewport matches to prevent any clipping
+    const contentHeight = Math.max(
+      doc.body.scrollHeight,
+      doc.body.offsetHeight,
+      doc.documentElement.scrollHeight,
+      doc.documentElement.offsetHeight
+    );
+    iframe.style.height = `${contentHeight + 80}px`;
+
     const renderTarget = doc.body;
 
     const canvas = await html2canvas(renderTarget, {
@@ -559,7 +621,12 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
+      width: 288,
       windowWidth: 288,
+      height: contentHeight,
+      windowHeight: contentHeight + 80,
+      scrollY: 0,
+      scrollX: 0,
       onclone: (clonedDoc) => {
         // 1. Wipe out any adopted stylesheets from modern browser/bundler
         try {

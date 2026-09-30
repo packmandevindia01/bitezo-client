@@ -315,13 +315,30 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       printData.billArabic = billArabic;
 
       const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
-      const settingsRes = await printerSettingsApi.getGeneral();
-      const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
+
+      let billPrinter: string | undefined;
+      try {
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const gen = settingsRes?.data;
+        billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
+      } catch (err) {
+        console.warn("[DineInTableOrdersModal] Could not fetch general printer settings:", err);
+      }
+
+      if (!billPrinter || billPrinter === "No Printer") {
+        billPrinter = localStorage.getItem('cachedBillPrinter') || 
+                      localStorage.getItem('cachedBillPrinterIp') ||
+                      localStorage.getItem('cachedKotPrinter') || 
+                      localStorage.getItem('cachedKotPrinterIp') || 
+                      localStorage.getItem('printerIpAddress') || 
+                      undefined;
+      }
+
       await printHtmlReceipt(htmlContent, billPrinter);
       showToast("Guest receipt sent to printer!", "success");
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to print receipt", "error");
+    } catch (e: any) {
+      console.error("[DineInTableOrdersModal] Print error:", e);
+      showToast(e?.message ? `Print failed: ${e.message}` : "Failed to print receipt", "error");
     }
   };
 

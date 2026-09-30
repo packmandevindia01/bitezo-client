@@ -1,5 +1,6 @@
 export interface CompanyFormData {
   comId?: number;
+  companyId?: number;
   custName: string;
   custMob: string;
   custMob2?: string;

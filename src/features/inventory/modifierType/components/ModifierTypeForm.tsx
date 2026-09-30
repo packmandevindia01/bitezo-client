@@ -4,16 +4,33 @@ import type { ModifierTypeForm as ModifierTypeFormType } from "../schemas";
 
 interface ModifierTypeFormProps {
   form: UseFormReturn<ModifierTypeFormType>;
+  onSave?: () => void;
 }
 
-const ModifierTypeForm = ({ form }: ModifierTypeFormProps) => {
+const ModifierTypeForm = ({ form, onSave }: ModifierTypeFormProps) => {
   const { register, formState: { errors } } = form;
 
   const handleEnter = (e: React.KeyboardEvent, nextId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextId) {
-        document.getElementById(nextId)?.focus();
+        setTimeout(() => {
+          const target = document.getElementById(nextId);
+          if (target) {
+            target.focus();
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+              try {
+                target.setSelectionRange(0, target.value.length);
+              } catch {
+                target.select?.();
+              }
+            }
+          } else {
+            onSave?.();
+          }
+        }, 10);
+      } else {
+        onSave?.();
       }
     }
   };
@@ -37,7 +54,16 @@ const ModifierTypeForm = ({ form }: ModifierTypeFormProps) => {
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabicName?.message}
         {...register("arabicName")}
-        onKeyDown={(e) => handleEnter(e, "modtype-save")}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (onSave) {
+              onSave();
+            } else {
+              handleEnter(e, "modtype-save");
+            }
+          }
+        }}
       />
     </div>
   );

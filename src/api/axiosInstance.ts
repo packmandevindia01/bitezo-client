@@ -25,9 +25,12 @@ axiosInstance.interceptors.request.use((config) => {
 
   // Identify onboarding/auth endpoints that should be "clean"
   const url = config.url || "";
-  // Only exclude auth/admin and the ONBOARDING company endpoints (masterload + creation with clientDb slug)
+  // Only exclude auth/admin and the ONBOARDING company endpoints (masterload + creation with clientDb slug or Temp-Token)
   // The plain /company GET/PUT (dashboard) must still send Bearer + clientDb
-  const isOnboardingCompany = url.startsWith("/company/") || url === "/company/masterload";
+  const hasTempToken = Boolean(
+    config.headers && (config.headers["Temp-Token"] || config.headers["temp-token"])
+  );
+  const isOnboardingCompany = url.startsWith("/company/") || url === "/company/masterload" || (url === "/company" && hasTempToken);
   const isAuthOrAdmin = url.startsWith("/auth") || 
                         url.startsWith("/admin") || 
                         isOnboardingCompany;
@@ -50,7 +53,8 @@ axiosInstance.interceptors.request.use((config) => {
                               normalizedUrl.includes("/order/void") ||
                               normalizedUrl.includes("/provider") ||
                               normalizedUrl.includes("/lock-product") ||
-                              normalizedUrl.includes("/employee/list-name");
+                              normalizedUrl.includes("/employee/list-name") ||
+                              normalizedUrl.includes("/waiters-list");
 
 
   // 3. Cleanup: Remove headers that can cause 500s or boundary errors on strict backends

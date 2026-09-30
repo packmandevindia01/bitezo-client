@@ -10,8 +10,8 @@ import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { subCategoryApi } from "../../subcategory/api";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../../app/providers/useToast";
-import { getConfig } from "../../../../config";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
+import { resolveImageUrl } from "../../../../utils/imageUtils";
 
 
 
@@ -24,7 +24,19 @@ export const useProductForm = (productId?: number) => {
   const auth = useAppSelector((state: any) => state.auth);
   
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>();
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isImageChanged, setIsImageChanged] = useState<boolean>(false);
+
+  const handleImageSelect = (file: File | null) => {
+    setImageFile(file);
+    setIsImageChanged(true);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    } else {
+      setImagePreview("");
+    }
+  };
 
   // Global Master Data (branches, etc.)
   const dispatch = useAppDispatch();
@@ -60,6 +72,7 @@ export const useProductForm = (productId?: number) => {
       fileName: "",
       fileUrl: "",
       filePath: "",
+      imageUrl: "",
       altProducts: [],
       productColors: [],
       openingStocks: []
@@ -104,41 +117,6 @@ export const useProductForm = (productId?: number) => {
     queryFn: () => productService.getById(productId!),
     enabled: !!productId
   });
-
-  // Manage local image preview URL and memory cleanup
-  useEffect(() => {
-    if (!imageFile) {
-      let path = existingData?.product?.fileUrl || existingData?.product?.filePath;
-      if (path && path !== "string") {
-        // Normalize backslashes to forward slashes
-        path = path.replace(/\\/g, "/");
-        let fullUrl = "";
-        if (path.startsWith("http://") || path.startsWith("https://")) {
-          fullUrl = path;
-        } else {
-          let apiOrigin = "";
-          try {
-            const rawApi = getConfig().apiBaseUrl;
-            apiOrigin = rawApi.startsWith("http") 
-              ? new URL(rawApi).origin 
-              : window.location.origin;
-          } catch {
-            apiOrigin = window.location.origin;
-          }
-          const cleanPath = path.startsWith("/") ? path : `/${path}`;
-          fullUrl = `${apiOrigin}${cleanPath}`;
-        }
-        console.log("[useProductForm] Product ID:", productId, "Existing image URL:", fullUrl);
-        setImagePreview(fullUrl);
-      } else {
-        setImagePreview("");
-      }
-    } else {
-        const objectUrl = URL.createObjectURL(imageFile);
-        setImagePreview(objectUrl);
-        return () => URL.revokeObjectURL(objectUrl);
-    }
-  }, [imageFile, existingData, productId]);
 
   // Generate Base Barcode & Code on Mount (if creating new)
   useEffect(() => {
@@ -198,7 +176,8 @@ export const useProductForm = (productId?: number) => {
   // Load existing data into form
   useEffect(() => {
     if (existingData?.product) {
-      const p = existingData.product;
+      const p = Array.isArray(existingData.product) ? existingData.product[0] : existingData.product;
+      if (!p) return;
       const dec = parseInt(localStorage.getItem("decimalPart") || "3", 10);
       form.reset({
         productId: p.productId,
@@ -220,8 +199,9 @@ export const useProductForm = (productId?: number) => {
         isActive: p.isActive,
         priceIsIncl: p.priceIsIncl,
         fileName: (p as any).fileName || "",
-        fileUrl: p.fileUrl || p.filePath || "",
+        fileUrl: p.fileUrl || p.filePath || (p as any).imageUrl || "",
         filePath: p.filePath || "",
+        imageUrl: (p as any).imageUrl || p.fileUrl || p.filePath || "",
         altProducts: existingData.altProducts?.map(a => ({
           unitId: String(a.unitId),
           barcode: a.barcode || "",
@@ -244,6 +224,20 @@ export const useProductForm = (productId?: number) => {
           branchId: String(o.branchId)
         })) || []
       });
+
+      const rawImage = p.fileUrl || p.filePath || (p as any).imageUrl || (p as any).imagePath || "";
+      const resolved = resolveImageUrl(rawImage);
+      setImagePreview(resolved);
+      setImageFile(null);
+      setIsImageChanged(false);
+
+      if (resolved) {
+        const testImg = new Image();
+        testImg.onerror = () => {
+          setImagePreview((prev) => (prev === resolved ? "" : prev));
+        };
+        testImg.src = resolved;
+      }
     }
   }, [existingData, form, currentBranchId]);
 
@@ -302,37 +296,32 @@ export const useProductForm = (productId?: number) => {
     });
     setImageFile(null);
     setImagePreview("");
+    setIsImageChanged(false);
   };
 
   // Save Mutation
   const saveMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       const activeProductId = productId || data.productId || (existingData?.product?.productId) || 0;
-      const rawPath = existingData?.product?.filePath || existingData?.product?.fileUrl || data.filePath || "";
-      const cleanOldPath = (!rawPath || rawPath === "string") 
-        ? "string" 
-        : (rawPath.startsWith("http") ? new URL(rawPath).pathname : rawPath).replace(/\\/g, "/");
 
       const payload: any = {
         code: data.code,
         barcode: data.barcode,
         name: data.name,
         arabicName: data.arabicName || "",
-        categoryId: Number(data.categoryId),
-        subCatId: Number(data.subCatId),
-        groupId: Number(data.groupId),
-        typeId: Number(data.typeId),
-        unitId: Number(data.unitId),
-        pVatId: Number(data.pVatId),
-        sVatId: Number(data.sVatId),
-        cost: Number(data.cost),
-        price: Number(data.price),
+        categoryId: Number(data.categoryId) || 0,
+        subCatId: Number(data.subCatId) || 0,
+        groupId: Number(data.groupId) || 0,
+        typeId: Number(data.typeId) || 0,
+        unitId: Number(data.unitId) || 0,
+        pVatId: Number(data.pVatId) || 0,
+        sVatId: Number(data.sVatId) || 0,
+        cost: Number(data.cost) || 0,
+        price: Number(data.price) || 0,
         priceIsIncl: data.priceIsIncl,
-        branchId: Number(data.branchId),
+        branchId: Number(data.branchId) || currentBranchId,
         isActive: data.isActive,
         colorCode: data.colorCode || "#49293e",
-        filePath: cleanOldPath !== "string" ? cleanOldPath : (data.filePath || undefined),
-        fileUrl: existingData?.product?.fileUrl || data.fileUrl || undefined,
         altProducts: data.altProducts.map(a => ({
           unitId: Number(a.unitId),
           barcode: a.barcode || "",
@@ -340,11 +329,11 @@ export const useProductForm = (productId?: number) => {
           price: Number(a.price),
           altName: a.altName || "",
           altArabic: a.altArabic || "",
-          branchId: Number(a.branchId)
+          branchId: Number(a.branchId) || currentBranchId
         })),
         productColors: data.productColors.map(c => ({
-          branchId: Number(c.branchId),
-          colorCode: c.colorCode
+          branchId: Number(c.branchId) || currentBranchId,
+          colorCode: c.colorCode || "#49293e"
         })),
         openingStocks: (data.openingStocks || []).map(o => {
           const unitObj = masterData?.unit?.find(u => String(u.id) === String(o.unitId));
@@ -357,7 +346,7 @@ export const useProductForm = (productId?: number) => {
             cost: c,
             amount: q * c,
             baseQty: q * (isNaN(uVal) ? 1 : uVal),
-            branchId: Number(o.branchId)
+            branchId: Number(o.branchId) || currentBranchId
           };
         })
       };
@@ -365,21 +354,17 @@ export const useProductForm = (productId?: number) => {
       if (activeProductId > 0) {
         payload.productId = activeProductId;
         payload.updatedAt = new Date().toISOString();
-        console.log("Submitting PUT payload to API:", JSON.stringify(payload, null, 2));
+        payload.isImageChanged = isImageChanged;
+        payload.imageFile = imageFile;
+        console.log("Submitting PUT payload to productService:", payload);
 
-        await productService.update(activeProductId, { 
-          ...payload, 
-          imageFile: imageFile || undefined,
-          oldPath: cleanOldPath
-        });
+        await productService.update(activeProductId, payload);
         return { id: activeProductId };
       } else {
         payload.createdAt = new Date().toISOString();
-        console.log("Submitting POST payload to API:", JSON.stringify(payload, null, 2));
-        return productService.create({ 
-          ...payload, 
-          imageFile: imageFile || undefined 
-        });
+        payload.imageFile = imageFile;
+        console.log("Submitting POST payload to productService:", payload);
+        return productService.create(payload);
       }
     },
     onSuccess: async () => {
@@ -449,8 +434,10 @@ export const useProductForm = (productId?: number) => {
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
     imagePreview,
-    setImageFile,
+    setImageFile: handleImageSelect,
+    handleImageSelect,
     setImagePreview,
+    isImageChanged,
     saveMutation,
     deleteMutation,
     handleAddAltProduct,

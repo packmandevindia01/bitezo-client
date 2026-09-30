@@ -83,7 +83,8 @@ export const useSystemRegistration = () => {
     }
 
     setLoadingTerminals(true);
-    fetchTerminals(branchId)
+    const compId = localStorage.getItem("companyId") || localStorage.getItem("onboardingCompanyId") || undefined;
+    fetchTerminals(branchId, compId)
       .then(setTerminals)
       .catch(() => showToast("Could not load terminals", "error"))
       .finally(() => setLoadingTerminals(false));

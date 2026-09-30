@@ -15,8 +15,9 @@ export const fetchBranches = async (): Promise<BranchOption[]> => {
   }));
 };
 
-export const fetchTerminals = async (branchId: string): Promise<TerminalOption[]> => {
-  const response = await axiosInstance.get<Record<string, unknown>[]>(`/Branch/${branchId}/onboard-list-terminal-id`);
+export const fetchTerminals = async (branchId: string, companyId?: string | number): Promise<TerminalOption[]> => {
+  const targetCompanyId = companyId ?? localStorage.getItem("companyId") ?? localStorage.getItem("onboardingCompanyId") ?? 0;
+  const response = await axiosInstance.get<Record<string, unknown>[]>(`/Branch/${branchId}/${targetCompanyId}/onboard-list-terminal-id`);
   
   // The API returns { data: [...] } due to ApiResponse mapping, but we might have unwrapped it via axios interceptor. 
   // Wait, if it's not unwrapped, it's response.data.data? Let's check the JSON.

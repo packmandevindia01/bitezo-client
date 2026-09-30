@@ -9,6 +9,7 @@ interface UseCompanyOnboardingFormProps {
   initialValues?: Partial<CompanyFormValues>;
   clientDb?: string;
   tempToken?: string;
+  comId?: number;
   onSuccess?: () => void;
 }
 
@@ -16,6 +17,7 @@ export const useCompanyOnboardingForm = ({
   initialValues,
   clientDb = "",
   tempToken = "",
+  comId,
   onSuccess,
 }: UseCompanyOnboardingFormProps) => {
   const { showToast } = useToast();
@@ -23,6 +25,8 @@ export const useCompanyOnboardingForm = ({
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
+      comId: comId ?? initialValues?.comId ?? 0,
+      companyId: comId ?? initialValues?.companyId ?? 0,
       custName: "",
       custMob: "",
       custMob2: "",
@@ -52,6 +56,8 @@ export const useCompanyOnboardingForm = ({
   useEffect(() => {
     if (initialValues) {
       form.reset({
+        comId: comId ?? initialValues?.comId ?? 0,
+        companyId: comId ?? initialValues?.companyId ?? 0,
         custName: "",
         custMob: "",
         custMob2: "",
@@ -74,7 +80,7 @@ export const useCompanyOnboardingForm = ({
         ...initialValues,
       });
     }
-  }, [initialValues, form]);
+  }, [initialValues, comId, form]);
 
   const countries = masterDataPayload?.masterData?.data?.country ||
     masterDataPayload?.masterData?.data?.countries ||
@@ -88,10 +94,21 @@ export const useCompanyOnboardingForm = ({
     : masterDataPayload?.currencyData || [];
 
   const onSubmit = (data: CompanyFormValues) => {
+    const targetComId = comId ?? data.comId ?? (data as any).companyId ?? 0;
+    const finalData: CompanyFormValues = {
+      ...data,
+      comId: targetComId,
+      companyId: targetComId,
+    };
     createCompanyMutation.mutate(
-      { data, clientDb, tempToken },
+      { data: finalData, clientDb, tempToken },
       {
-        onSuccess: () => {
+        onSuccess: (res: any) => {
+          const resData = res?.data ?? res;
+          const returnedCompId = resData?.comId ?? resData?.companyId ?? resData?.id ?? targetComId;
+          if (returnedCompId) {
+            localStorage.setItem("companyId", String(returnedCompId));
+          }
           showToast("Company created successfully", "success");
           onSuccess?.();
         },

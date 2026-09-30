@@ -16,6 +16,7 @@ interface ExtrasMasterFormProps {
   activeTab?: "general" | "categories" | "branches";
   onTabChange?: (tab: "general" | "categories" | "branches") => void;
   onSave?: () => void;
+  saveButtonId?: string;
 }
 
 const ExtrasMasterForm = ({
@@ -27,6 +28,7 @@ const ExtrasMasterForm = ({
   activeTab: controlledActiveTab,
   onTabChange,
   onSave,
+  saveButtonId = "btn-save-extras",
 }: ExtrasMasterFormProps) => {
   const [localActiveTab, setLocalActiveTab] = useState<"general" | "categories" | "branches">("general");
   const activeTab = controlledActiveTab ?? localActiveTab;
@@ -189,7 +191,18 @@ const ExtrasMasterForm = ({
           <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4 flex flex-col h-[350px] animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch Allocation</p>
-              <div className="w-full sm:w-64">
+              <div 
+                className="w-full sm:w-64"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (filteredBranches.length > 0) {
+                      document.getElementById(`extra-branch-btn-${filteredBranches[0].id}`)?.focus();
+                    }
+                  }
+                }}
+              >
                 <SearchBar
                   value={branchSearch}
                   onChange={setBranchSearch}
@@ -205,18 +218,54 @@ const ExtrasMasterForm = ({
                 filteredBranches.map((branch) => {
                   const active = form.watch("branchIds")?.includes(branch.id);
                   return (
-                    <div key={branch.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
-                      <span className="text-sm font-medium text-gray-700">{branch.name}</span>
+                    <div 
+                      key={branch.id} 
+                      onClick={() => {
+                        onToggleBranch(branch.id);
+                        document.getElementById(`extra-branch-btn-${branch.id}`)?.focus();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!active) {
+                            onToggleBranch(branch.id);
+                          }
+                          setTimeout(() => {
+                            document.getElementById(saveButtonId)?.focus();
+                          }, 10);
+                        }
+                      }}
+                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0 cursor-pointer hover:border-[#49293e]/20 transition"
+                    >
+                      <span className="text-sm font-medium text-gray-700 select-none">{branch.name}</span>
                       <button
+                        id={`extra-branch-btn-${branch.id}`}
                         type="button"
-                        onClick={() => onToggleBranch(branch.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleBranch(branch.id);
+                          e.currentTarget.focus();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!active) {
+                              onToggleBranch(branch.id);
+                            }
+                            setTimeout(() => {
+                              document.getElementById(saveButtonId)?.focus();
+                            }, 10);
+                          }
+                        }}
                         disabled={saving}
                         className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                           active
                             ? "bg-[#49293e] text-white"
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
                         }`}
-                        tabIndex={-1}
+                        tabIndex={0}
                       >
                         {active ? "Allocated" : "Allocate"}
                       </button>

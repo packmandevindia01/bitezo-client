@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, ListTree, Palette, Boxes } from "lucide-react";
+import { LayoutGrid, ListTree, Palette, Boxes, Trash2 } from "lucide-react";
 import { ImageUploadPanel } from "../../../../components/common";
 import type { UseFormReturn } from "react-hook-form";
 import type { ProductFormData } from "../schema/productSchema";
@@ -140,6 +140,16 @@ const ProductMasterForm = ({
               preview={imagePreview}
               onSelect={onImageSelect}
             />
+            {imagePreview && (
+              <button
+                type="button"
+                onClick={() => onImageSelect(null)}
+                className="mt-2 w-full py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl border border-red-200 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={14} />
+                Remove Image
+              </button>
+            )}
             {productId && (
               <div className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-500">

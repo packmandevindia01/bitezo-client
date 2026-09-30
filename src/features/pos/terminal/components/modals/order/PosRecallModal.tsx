@@ -5,10 +5,13 @@ import { Loader } from "../../../../../../components/common";
 import { Printer, Search, X, Truck } from "lucide-react";
 import { usePosRecall } from "../../../hooks/usePosRecall";
 import { useToast } from "../../../../../../app/providers/useToast";
+import { useAppSelector } from "../../../../../../app/hooks";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
 import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
 import { orderApi } from "../../../../services/orderApi";
+import { menuApi } from "../../../../services/menuApi";
+import type { PosWaiter } from "../../../../types";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
@@ -20,6 +23,7 @@ interface PosRecallModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSettleSuccess?: (amount: number) => void;
+  initialEmployeeId?: number | null;
 }
 
 const ORDER_TYPES = [
@@ -32,9 +36,17 @@ const ORDER_TYPES = [
   { id: 6, label: "Coming", value: 6 },
 ];
 
-export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose, onSettleSuccess }) => {
+export const PosRecallModal: React.FC<PosRecallModalProps> = ({
+  isOpen,
+  onClose,
+  onSettleSuccess,
+  initialEmployeeId,
+}) => {
   const { orders, loading, fetchOrders } = usePosRecall();
   const { showToast } = useToast();
+  const currentWaiterId = useAppSelector((state) => state.pos.waiterId);
+  const currentWaiterName = useAppSelector((state) => state.pos.waiterName);
+
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
   const [includeDeliveryOut, setIncludeDeliveryOut] = useState(true);
@@ -45,19 +57,44 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("Order No");
 
+  const [waiters, setWaiters] = useState<PosWaiter[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(() => {
+    if (initialEmployeeId && initialEmployeeId > 0) return initialEmployeeId;
+    if (currentWaiterId && currentWaiterId > 0) return currentWaiterId;
+    const stored = localStorage.getItem("selectedWaiterId");
+    return stored && !isNaN(Number(stored)) ? Number(stored) : null;
+  });
+
+  // Sync employee selection and load waiters list on modal open
+  useEffect(() => {
+    if (isOpen) {
+      const empId = (initialEmployeeId && initialEmployeeId > 0)
+        ? initialEmployeeId
+        : (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : null);
+      setSelectedEmployeeId(empId);
+
+      menuApi.getWaitersList().then((list) => {
+        if (Array.isArray(list)) setWaiters(list);
+      }).catch((err) => {
+        console.warn("[PosRecallModal] Failed to load waiters list:", err);
+      });
+    }
+  }, [isOpen, initialEmployeeId, currentWaiterId]);
+
   // Filter handlers
   useEffect(() => {
     if (isOpen) {
       const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
       void fetchOrders({
         OrderTypeId: typeValue,
+        EmployeeId: selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : undefined,
         SearchValue: search,
         SearchStatus: searchStatus,
         DeliveryOutStatus: includeDeliveryOut,
         DeliveryOutOnlyStatus: deliveryOutOnly
       });
     }
-  }, [isOpen, activeTab, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
+  }, [isOpen, activeTab, selectedEmployeeId, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
 
   const handlePrint = async (transId: number) => {
     try {
@@ -149,7 +186,14 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       const printData = {
         orderNo: master.orderNo ?? String(transId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? "Waiter",
+        waiter: master.employeeName ?? (() => {
+          const matchedOrder = orders.find(o => o.orderId === transId);
+          if (matchedOrder && typeof matchedOrder.details === "string") {
+            const m = matchedOrder.details.match(/\((CASH CUSTOMER|[^)]+)\)\s*\(([^)]+)\)/i);
+            if (m && m[2]) return m[2].trim();
+          }
+          return currentWaiterName || "Waiter";
+        })(),
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
@@ -178,13 +222,30 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       };
 
       const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
-      const settingsRes = await printerSettingsApi.getGeneral();
-      const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
+      
+      let billPrinter: string | undefined;
+      try {
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const gen = settingsRes?.data;
+        billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
+      } catch (err) {
+        console.warn("[PosRecallModal] Could not fetch general printer settings:", err);
+      }
+
+      if (!billPrinter || billPrinter === "No Printer") {
+        billPrinter = localStorage.getItem('cachedBillPrinter') || 
+                      localStorage.getItem('cachedBillPrinterIp') ||
+                      localStorage.getItem('cachedKotPrinter') || 
+                      localStorage.getItem('cachedKotPrinterIp') || 
+                      localStorage.getItem('printerIpAddress') || 
+                      undefined;
+      }
+
       await printHtmlReceipt(htmlContent, billPrinter);
       showToast("Guest receipt sent to printer!", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Print Error:", err);
-      showToast("Printing failed", "error");
+      showToast(err?.message ? `Print failed: ${err.message}` : "Printing failed", "error");
     }
   };
 
@@ -194,12 +255,48 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
     const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
     void fetchOrders({
       OrderTypeId: typeValue,
+      EmployeeId: selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : undefined,
       SearchValue: value,
       SearchStatus: status,
       DeliveryOutStatus: includeDeliveryOut,
       DeliveryOutOnlyStatus: deliveryOutOnly
     });
   };
+
+  const displayedOrders = React.useMemo(() => {
+    if (!selectedEmployeeId) return orders;
+
+    const targetWaiter = waiters.find((w) => w.empId === selectedEmployeeId);
+    const targetName = (
+      targetWaiter?.empName ||
+      (selectedEmployeeId === currentWaiterId ? currentWaiterName : null) ||
+      ""
+    ).toLowerCase().trim();
+
+    return orders.filter((order) => {
+      // 1. If backend object has explicit employeeId / waiterId
+      const oAny = order as any;
+      if (oAny.employeeId && Number(oAny.employeeId) === Number(selectedEmployeeId)) return true;
+      if (oAny.waiterId && Number(oAny.waiterId) === Number(selectedEmployeeId)) return true;
+
+      // 2. Parse / match employee tag from order.details string, e.g. "(emp1)" or "(emp2)"
+      if (typeof order.details === "string") {
+        const detailsLower = order.details.toLowerCase();
+
+        // Exact match with target employee name if known, e.g. "(emp1)"
+        if (targetName && detailsLower.includes(`(${targetName})`)) {
+          return true;
+        }
+
+        // Match tag pattern: "(emp<id>)" e.g. "(emp1)"
+        if (detailsLower.includes(`(emp${selectedEmployeeId})`)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  }, [orders, selectedEmployeeId, waiters, currentWaiterId, currentWaiterName]);
 
   return (
     <Modal
@@ -290,7 +387,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
           </div>
         )}
 
-        {!loading && orders.length === 0 && (
+        {!loading && displayedOrders.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400 gap-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
               <Search size={32} />
@@ -299,7 +396,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
           </div>
         )}
 
-        {orders.map((order, index) => (
+        {displayedOrders.map((order, index) => (
           <div
             key={order.orderId || `recall-${index}`}
             onClick={() => {
@@ -393,7 +490,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
       {/* FOOTER */}
       <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-          Total Records: {orders.length}
+          Total Records: {displayedOrders.length}
         </div>
       </div>
 
@@ -426,6 +523,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({ isOpen, onClose,
           setSelectedDriverOrderId(null);
           void fetchOrders({
             OrderTypeId: ORDER_TYPES.find(t => t.id === activeTab)?.value || 0,
+            EmployeeId: selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : undefined,
             SearchValue: search,
             SearchStatus: searchStatus,
             DeliveryOutStatus: includeDeliveryOut,

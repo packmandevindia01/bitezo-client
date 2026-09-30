@@ -147,6 +147,15 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
       const invoiceNo = master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo || (master.saleId ? String(master.saleId) : (orderId ? String(orderId) : undefined));
 
+      const paymentNames: Record<number, string> = { 1: "Cash", 2: "Card", 3: "Credit" };
+      const rawPayments = order.paymentData || order.paymentsData || order.payments || order.tenderData || [];
+      const payments = Array.isArray(rawPayments) && rawPayments.length > 0 
+        ? rawPayments.map((p: any) => ({
+            name: p.paymentName || p.paymodeName || paymentNames[p.paymodeId] || paymentNames[p.paymentId] || "Payment",
+            amount: Number(p.amount ?? p.paidAmount ?? 0)
+          }))
+        : undefined;
+
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
@@ -173,20 +182,39 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         vatAmount: master.vatAmount || 0,
         netAmount: master.netAmount || 0,
         deliveryCharge: master.deliveryCharge || 0,
+        payments,
         enableVat,
+        isSettlement: true,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
           Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
         )
       };
 
       const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
-      const settingsRes = await printerSettingsApi.getGeneral();
-      const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
+
+      let billPrinter: string | undefined;
+      try {
+        const settingsRes = await printerSettingsApi.getGeneral();
+        const gen = settingsRes?.data;
+        billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
+      } catch (err) {
+        console.warn("[PosSettledDetailsModal] Could not fetch general printer settings:", err);
+      }
+
+      if (!billPrinter || billPrinter === "No Printer") {
+        billPrinter = localStorage.getItem('cachedBillPrinter') || 
+                      localStorage.getItem('cachedBillPrinterIp') ||
+                      localStorage.getItem('cachedKotPrinter') || 
+                      localStorage.getItem('cachedKotPrinterIp') || 
+                      localStorage.getItem('printerIpAddress') || 
+                      undefined;
+      }
+
       await printHtmlReceipt(htmlContent, billPrinter);
       showToast("Settled receipt sent to printer!", "success");
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to print receipt", "error");
+    } catch (e: any) {
+      console.error("[PosSettledDetailsModal] Print error:", e);
+      showToast(e?.message ? `Print failed: ${e.message}` : "Failed to print receipt", "error");
     }
   };
 

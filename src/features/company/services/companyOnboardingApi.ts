@@ -71,10 +71,11 @@ export const fetchCompanyRegistration = async <T = unknown>(
     );
 
     const raw = json as unknown as Record<string, unknown>;
-    const rawData = raw?.data as Record<string, unknown> | null | undefined;
-    const database = rawData?.database ?? null;
-    const tempToken = raw?.temp_token ?? null;
-    const isNew = (raw?.isNew ?? false) as boolean;
+    const rawData = (raw?.data ?? raw) as Record<string, unknown> | null | undefined;
+    const database = (rawData?.database ?? rawData?.clientDb ?? raw?.database ?? null) as string | null;
+    const tempToken = (raw?.temp_token ?? raw?.tempToken ?? rawData?.temp_token ?? null) as string | null;
+    const isNew = Boolean(raw?.isNew ?? rawData?.isNew ?? false);
+    const companyId = (rawData?.companyId ?? rawData?.comId ?? raw?.companyId ?? raw?.comId ?? null) as number | null;
 
     return {
       data: json?.data ?? null,
@@ -83,6 +84,7 @@ export const fetchCompanyRegistration = async <T = unknown>(
       isRegistered: !isNew,
       database,
       tempToken,
+      companyId: companyId ? Number(companyId) : null,
       raw: json,
     };
   } catch (err: unknown) {
@@ -121,32 +123,38 @@ export const checkCompanyExists = async (clientDb: string, regId: string) => {
       return {
         exists: false,
         data: null,
-        message: json?.message ?? "Company not found. Proceed to create the company.",
+        companyId: null,
+        message: (json?.message as string) ?? "Company not created yet. Proceed to create the company.",
       };
     }
 
     // 409 = company already exists
     if (status === 409) {
+      const companyData = json?.data as Record<string, unknown> | null;
       return {
         exists: true,
-        data: json?.data ?? null,
-        message: json?.message ?? "Company already exists.",
+        data: companyData ?? null,
+        companyId: companyData?.companyId ?? companyData?.comId ?? null,
+        message: (json?.message as string) ?? "Company already exists.",
       };
     }
 
     // 200 with data = company found
-    if (json?.isSuccess && json?.data) {
+    if (status >= 200 && status < 300) {
+      const companyData = json?.data as Record<string, unknown> | null;
       return {
         exists: true,
-        data: json.data as { regId: string; name: string },
-        message: json.message ?? "Company found",
+        data: companyData ?? { regId },
+        companyId: companyData?.companyId ?? companyData?.comId ?? null,
+        message: (json?.message as string) ?? "Company found",
       };
     }
 
     return {
       exists: false,
       data: null,
-      message: json?.message ?? "Company not found.",
+      companyId: null,
+      message: (json?.message as string) ?? "Company not found.",
     };
   } catch (err: unknown) {
     const axErr = err as { response?: { data?: { message?: string } } };
@@ -197,10 +205,12 @@ export const fetchOnboardSeries = async (
 };
 
 export const fetchOnboardTerminals = async (
-  branchId: string | number
+  branchId: string | number,
+  companyId?: string | number
 ): Promise<OnboardTerminalOption[]> => {
+  const targetCompanyId = companyId ?? localStorage.getItem("companyId") ?? localStorage.getItem("onboardingCompanyId") ?? 0;
   const { data } = await axiosInstance.get<ApiResponse<OnboardTerminalOption[]>>(
-    `/Branch/${branchId}/onboard-list-terminal-id`
+    `/Branch/${branchId}/${targetCompanyId}/onboard-list-terminal-id`
   );
 
   if (!data.isSuccess) {

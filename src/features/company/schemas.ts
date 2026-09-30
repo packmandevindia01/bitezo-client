@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const companyFormSchema = z.object({
+  comId: z.number().optional(),
+  companyId: z.number().optional(),
   regId: z.string().min(1, "Registration ID is required").max(50, "max 50 chars"),
   custName: z.string().min(1, "Company Name is required").max(100, "max 100 chars"),
   crNo: z.string().min(1, "CR Number is required").max(20, "max 20 chars"),

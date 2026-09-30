@@ -271,6 +271,7 @@ const ExtrasMasterPage = () => {
               Clear
             </Button>
             <Button 
+              id="btn-save-extras"
               onClick={handleSave} 
               loading={isSaving}
               disabled={isDetailLoading}
@@ -308,6 +309,7 @@ const ExtrasMasterPage = () => {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onSave={handleSave}
+          saveButtonId="btn-save-extras"
         />
       </Modal>
 

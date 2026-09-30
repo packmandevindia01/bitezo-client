@@ -76,6 +76,10 @@ export interface ProductListItem {
   cost: number;
   category: string;
   group: string;
+  imageUrl?: string;
+  imagePath?: string;
+  filePath?: string;
+  fileUrl?: string;
 }
 
 export interface ProductDetail {
@@ -95,8 +99,10 @@ export interface ProductDetail {
     price: number;
     barcode: string;
     branchId: number;
-    filePath: string;
+    filePath?: string;
     fileUrl?: string;
+    imageUrl?: string;
+    imagePath?: string;
     isActive: boolean;
     priceIsIncl: boolean;
     createdAt: string;
@@ -132,11 +138,15 @@ export interface CreateProductPayload {
   openingStocks: OpeningStockItem[];
   filePath?: string;
   fileUrl?: string;
+  imageUrl?: string;
+  imageFile?: File | null;
 }
 
 export interface UpdateProductPayload extends Omit<CreateProductPayload, "createdAt"> {
   productId: number;
   updatedAt: string;
+  isImageChanged?: boolean;
+  isImageChaged?: boolean;
 }
 
 export type { ProductFormData, AltProductFormData, ProductColorFormData, OpeningStockFormData } from "./schema/productSchema";

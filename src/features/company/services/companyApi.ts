@@ -24,8 +24,12 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     throw new Error("Temporary token is missing for company creation.");
   }
 
+  const targetComId = Number(data.comId ?? (data as any).companyId ?? 0);
+
   const payload = {
-    comId: 0,
+    comId: targetComId,
+    companyId: targetComId,
+    id: targetComId,
     name: data.custName,
     mobNo: data.custMob,
     telNo: data.custMob2 || "",

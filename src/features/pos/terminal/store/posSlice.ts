@@ -48,6 +48,7 @@ interface PosState {
   comingTime: string;
   vehicleCustomerName: string;
   vehicleNo: string;
+  waiterId: number | null;
   waiterName: string | null;
   editingOrderId: number | null;
   editingSaleId: number | null;
@@ -80,6 +81,21 @@ const getDefaultInitialOrderType = () => {
 };
 
 const initialOT = getDefaultInitialOrderType();
+
+const getInitialWaiter = () => {
+  try {
+    const id = localStorage.getItem("selectedWaiterId");
+    const name = localStorage.getItem("selectedWaiterName");
+    return {
+      id: id && !isNaN(Number(id)) ? Number(id) : null,
+      name: name || null,
+    };
+  } catch {
+    return { id: null, name: null };
+  }
+};
+
+const initialWaiter = getInitialWaiter();
 
 const initialState: PosState = {
   cartItems: loadCart(),
@@ -117,7 +133,8 @@ const initialState: PosState = {
   comingTime: new Date().toISOString(),
   vehicleCustomerName: '',
   vehicleNo: '',
-  waiterName: null,
+  waiterId: initialWaiter.id,
+  waiterName: initialWaiter.name,
   editingOrderId: null,
   editingSaleId: null,
   voidProducts: [],
@@ -235,7 +252,6 @@ const posSlice = createSlice({
     clearCart: (state) => {
       state.cartItems = [];
       state.editingOrderId = null;
-      state.waiterName = null;
       state.editingSaleId = null;
       state.voidProducts = [];
       state.voidModifiers = [];
@@ -555,6 +571,10 @@ const posSlice = createSlice({
     setCustomDeliveryCharge: (state, action: PayloadAction<number | null>) => {
       state.customDeliveryCharge = action.payload;
     },
+    setWaiter: (state, action: PayloadAction<{ waiterId: number | null; waiterName: string | null }>) => {
+      state.waiterId = action.payload.waiterId;
+      state.waiterName = action.payload.waiterName;
+    },
   },
 });
 
@@ -602,7 +622,8 @@ export const {
   loadRecalledOrder,
   setIsSettling,
   setCombinedOrderIds,
-  setCustomDeliveryCharge
+  setCustomDeliveryCharge,
+  setWaiter
 } = posSlice.actions;
 
 export default posSlice.reducer;

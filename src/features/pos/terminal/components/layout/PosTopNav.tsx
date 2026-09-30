@@ -60,7 +60,7 @@ const PosTopNav = ({
 }: PosTopNavProps) => {
 
   const navigate = useNavigate();
-  const { editingOrderId, selectedOrderTypeName, selectedTableNo } = useAppSelector(state => state.pos);
+  const { editingOrderId, selectedOrderTypeName, selectedTableNo, waiterName } = useAppSelector(state => state.pos);
   const visibleOrderTypes = orderTypes.length > 0 ? orderTypes : fallbackOrderTypes;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -159,6 +159,12 @@ const PosTopNav = ({
             <span><span className="text-white/50 font-medium mr-1">Section:</span>{activeProvider ? activeProvider.provider.providerName : (selectedOrderTypeName || "-")}</span>
             <span className="text-white/30">|</span>
             <span><span className="text-white/50 font-medium mr-1">Table:</span>{activeProvider ? "-" : (selectedTableNo || "-")}</span>
+            {waiterName && (
+              <>
+                <span className="text-white/30">|</span>
+                <span className="text-[#fca311]"><span className="text-white/50 font-medium mr-1">Waiter:</span>{waiterName}</span>
+              </>
+            )}
           </div>
         </div>
 

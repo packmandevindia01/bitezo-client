@@ -206,6 +206,7 @@ export const PosTerminalPage = () => {
     tenderOptions: terminal.tenderOptions,
     decimalPart,
     waiterName: terminal.waiterName,
+    waiterId: terminal.waiterId,
     submitOrder: terminal.submitOrder,
     getDirectSettleOrderPayload: terminal.getDirectSettleOrderPayload,
     requestAuthorization,
@@ -423,6 +424,12 @@ export const PosTerminalPage = () => {
       return;
     }
 
+    // If a waiter is explicitly selected from the Waiter button, use their employee ID
+    if (terminal.waiterId && terminal.waiterId > 0) {
+      await checkoutFlow.submitOrderForEmployee(terminal.waiterId, shouldPrint);
+      return;
+    }
+
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
 
@@ -628,14 +635,18 @@ export const PosTerminalPage = () => {
                   }
                   modals.setIsCustomerModalOpen(true);
                 }}
-                onWaiter={() => {}}
+                onWaiter={() => modals.setIsWaiterModalOpen(true)}
+                selectedWaiterName={terminal.waiterName}
                 onSplit={() => modals.setIsSplitOpen(true)}
                 onCombine={() => modals.setIsCombineOpen(true)}
                 onRecall={() => {
                   requestAuthorization({
                     actionLabel: "Recall",
                     permissionId: 6,
-                    onAuthorized: () => modals.setIsRecallModalOpen(true),
+                    onAuthorized: (authEmpId: number) => {
+                      modals.setRecallEmployeeId(authEmpId || null);
+                      modals.setIsRecallModalOpen(true);
+                    },
                   });
                 }}
                 onMore={() => modals.setIsMoreModalOpen(true)}

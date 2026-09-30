@@ -76,7 +76,7 @@ public class BitezoPrinterPlugin extends Plugin {
                             try { Thread.sleep(50); } catch (Exception ignore) {}
                         }
                         
-                        printer.printFormattedTextAndCut("");
+                        printer.printFormattedTextAndCut("[L]\n\n\n");
 
                         if (type.equals("tcp")) {
                             try { Thread.sleep(500); } catch (Exception ignore) {}

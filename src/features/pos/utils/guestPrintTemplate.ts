@@ -168,12 +168,12 @@ export const generateGuestPrintHtml = async (
   const isBillArabic = data.billArabic ?? isBillArabicEnabled();
 
   const arabicInvoiceTitle = data.enableVat
-    ? '<span class="arabic-text" style="font-size:12px; font-weight:bold;">فاتورة ضريبية مبسطة</span>'
-    : '<span class="arabic-text" style="font-size:12px; font-weight:bold;">فاتورة مبسطة</span>';
+    ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة ضريبية مبسطة</div>'
+    : '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة مبسطة</div>';
 
   const headerTitle = data.enableVat 
-    ? `SIMPLIFIED TAX INVOICE${isBillArabic ? `<br/>${arabicInvoiceTitle}` : ''}<br/>${orderTypeLabel}` 
-    : `SIMPLIFIED INVOICE${isBillArabic ? `<br/>${arabicInvoiceTitle}` : ''}<br/>${orderTypeLabel}`;
+    ? `SIMPLIFIED TAX INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}<div style="margin-top:2px;">${orderTypeLabel}</div>` 
+    : `SIMPLIFIED INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}<div style="margin-top:2px;">${orderTypeLabel}</div>`;
 
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
@@ -236,14 +236,14 @@ export const generateGuestPrintHtml = async (
 
     itemsHtml += `
       <tr>
-        <td style="width: 10%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
-        <td style="width: 45%; text-align: left; vertical-align: top; padding: 0.5px 0;">
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
+        <td style="width: 44%; text-align: left; vertical-align: top; padding: 0.5px 0;">
           <div>${name}</div>
-          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.25; margin-top:1px; color:#000000;">${altArabicName}</div>` : ''}
+          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; line-height:1.25; margin-top:1px; color:#000000; text-align:left; white-space:normal;">${altArabicName}</div>` : ''}
           ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
-        <td style="width: 20%; text-align: right; vertical-align: top; padding: 0.5px 0;">${rate}</td>
-        <td style="width: 25%; text-align: right; vertical-align: top; padding: 0.5px 0;">${amt}</td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;">${rate}</td>
+        <td style="width: 24%; text-align: right; vertical-align: top; padding: 0.5px 0;">${amt}</td>
       </tr>
     `;
 
@@ -252,17 +252,17 @@ export const generateGuestPrintHtml = async (
         const exName = (ex.name || "EXTRA").toUpperCase();
         const exArabic = isBillArabic ? (ex.arabicName || ex.arabic || "") : "";
         const exDisplay = exArabic
-          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
+          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px; color:#000000; white-space:nowrap;">(${exArabic})</span>`
           : `+ ${exName}`;
         const exRate = fmt(ex.price);
         const exAmt = fmt(ex.price * (ex.qty || 1));
         displaySubTotal += parseFloat(exAmt);
         itemsHtml += `
           <tr>
-            <td style="text-align: left; vertical-align: top; padding: 0.5px 0;">${ex.qty || 1}</td>
-            <td style="text-align: left; vertical-align: top; padding: 0.5px 0;">${exDisplay}</td>
-            <td style="text-align: right; vertical-align: top; padding: 0.5px 0;">${exRate}</td>
-            <td style="text-align: right; vertical-align: top; padding: 0.5px 0;">${exAmt}</td>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;">${ex.qty || 1}</td>
+            <td style="width: 44%; text-align: left; vertical-align: top; padding: 0.5px 0;">${exDisplay}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;">${exRate}</td>
+            <td style="width: 24%; text-align: right; vertical-align: top; padding: 0.5px 0;">${exAmt}</td>
           </tr>
         `;
       });
@@ -338,32 +338,32 @@ export const generateGuestPrintHtml = async (
         <meta charset="UTF-8" />
         <style>
           body {
-            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 14px;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
             font-weight: 600;
             color: #000000;
             margin: 0 auto;
-            padding: 0;
+            padding: 0 0 25px 0;
             width: 100%;
             max-width: 576px;
             background-color: #ffffff;
             -webkit-font-smoothing: antialiased;
             text-rendering: geometricPrecision;
+            box-sizing: border-box;
           }
           .arabic-text {
             direction: rtl;
-            text-align: right;
-            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
-            font-weight: 700 !important;
-            font-size: 13px !important;
-            color: #000000 !important;
-            unicode-bidi: embed;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: normal;
+            color: #000000;
+            unicode-bidi: isolate;
             text-rendering: optimizeLegibility;
-            font-feature-settings: 'liga' 1, 'kern' 1;
-            -webkit-font-feature-settings: 'liga' 1, 'kern' 1;
+            font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            -webkit-font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
             word-wrap: normal;
-            overflow-wrap: break-word;
-            white-space: normal;
+            overflow-wrap: normal;
+            line-height: 1.5;
+            padding: 1px 0;
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
@@ -392,17 +392,17 @@ export const generateGuestPrintHtml = async (
             text-align: right;
           }
           table.items-table td {
-            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
-            font-size: 8pt !important;
-            font-weight: normal !important;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
             color: #000000;
             padding: 1px 0;
             line-height: 1.2;
           }
           table.items-table div {
-            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
-            font-size: 8pt !important;
-            font-weight: normal !important;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
             color: #000000;
             margin: 0;
             padding: 0;
@@ -413,7 +413,7 @@ export const generateGuestPrintHtml = async (
           
           .totals-table {
             width: 100%;
-            table-layout: auto !important;
+            table-layout: fixed;
             margin-top: 4px;
             font-size: 13px;
             font-weight: 600;
@@ -426,14 +426,14 @@ export const generateGuestPrintHtml = async (
             vertical-align: middle;
           }
           .totals-label {
-            width: 65%;
+            width: 72%;
             text-align: left;
             font-weight: 600;
             color: #000000;
             white-space: nowrap;
           }
           .totals-value {
-            width: 35%;
+            width: 28%;
             text-align: right;
             font-weight: 700;
             color: #000000;
@@ -441,14 +441,14 @@ export const generateGuestPrintHtml = async (
           }
           
           .grand-total {
-            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
             font-size: 12pt !important;
             font-weight: bold !important;
             color: #000000;
             white-space: nowrap;
           }
 
-          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; }
+          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
           .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; }
           .vat-table td { padding: 3px 0; font-weight: 600; color: #000000; }
           
@@ -525,10 +525,10 @@ export const generateGuestPrintHtml = async (
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width: 10%;">Qty${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">الكمية</span>' : ''}</th>
-              <th style="width: 45%;">Description${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">الوصف</span>' : ''}</th>
-              <th class="col-rate" style="width: 20%; text-align: right;">Rate${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">السعر</span>' : ''}</th>
-              <th class="col-amt" style="width: 25%; text-align: right;">Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">المبلغ</span>' : ''}</th>
+              <th style="width: 14%; text-align: left;">Qty${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">الكمية</span>' : ''}</th>
+              <th style="width: 44%; text-align: left;">Description${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">الوصف</span>' : ''}</th>
+              <th class="col-rate" style="width: 18%; text-align: right;">Rate${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">السعر</span>' : ''}</th>
+              <th class="col-amt" style="width: 24%; text-align: right;">Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ</span>' : ''}</th>
             </tr>
           </thead>
           <tbody>
@@ -540,47 +540,47 @@ export const generateGuestPrintHtml = async (
 
         <table class="totals-table">
           <tr>
-            <td class="totals-label">Sub Total${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(المجموع الفرعي)</span>' : ''}</td>
+            <td class="totals-label">Sub Total${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المجموع الفرعي)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.subTotal + (totalDiscount > 0 ? totalDiscount : 0))}</td>
           </tr>
           ${totalDiscount > 0 ? `
           <tr>
-            <td class="totals-label">Discount${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(الخصم)</span>' : ''}</td>
+            <td class="totals-label">Discount${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الخصم)</bdi>' : ''}</td>
             <td class="totals-value">-${fmt(totalDiscount)}</td>
           </tr>
           ` : ''}
           ${data.serviceCharge > 0 ? `
           <tr>
-            <td class="totals-label">Service Charge${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(رسوم الخدمة)</span>' : ''}</td>
+            <td class="totals-label">Service Charge${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(رسوم الخدمة)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.serviceCharge)}</td>
           </tr>
           ` : ''}
           ${data.levy > 0 ? `
           <tr>
-            <td class="totals-label">Levy(5%)${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(الضريبة الانتقائية 5%)</span>' : ''}</td>
+            <td class="totals-label">Levy(5%)${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الضريبة الانتقائية 5%)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.levy)}</td>
           </tr>
           ` : ''}
           ${(isDelivery || (data.deliveryCharge && data.deliveryCharge > 0)) ? `
           <tr>
-            <td class="totals-label">Delivery Charge${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(رسوم التوصيل)</span>' : ''}</td>
+            <td class="totals-label">Delivery Charge${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(رسوم التوصيل)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.deliveryCharge || 0)}</td>
           </tr>
           ` : ''}
           ${isVatActive ? `
           <tr>
-            <td class="totals-label">VAT Amount${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(ضريبة القيمة المضافة)</span>' : ''}</td>
+            <td class="totals-label">VAT Amount${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(ضريبة القيمة المضافة)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.vatAmount)}</td>
           </tr>
           ` : ''}
           <tr>
-            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total${isBillArabic ? ' <span class="arabic-text" style="font-size:12px; font-weight:bold;">(المجموع الكلي)</span>' : ''}</td>
+            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total${isBillArabic ? ' <bdi class="arabic-text" style="font-size:11.5px; font-weight:bold; white-space:nowrap;">(المجموع الكلي)</bdi>' : ''}</td>
             <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">${fmt(data.netAmount)}</td>
           </tr>
           ${data.payments && data.payments.length > 0 ? `
           <tr><td colspan="2"><div class="dashed-hr" style="margin: 5px 0;"></div></td></tr>
           ${data.payments.map(p => {
-            const arPay = isBillArabic && getPaymodeArabic(p.name) ? ` <span class="arabic-text" style="font-size:11px; font-weight:normal;">(${getPaymodeArabic(p.name)})</span>` : '';
+            const arPay = isBillArabic && getPaymodeArabic(p.name) ? ` <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(${getPaymodeArabic(p.name)})</bdi>` : '';
             return `
           <tr>
             <td class="totals-label">${p.name}${arPay}</td>
@@ -591,7 +591,7 @@ export const generateGuestPrintHtml = async (
           ` : ''}
           ${data.changeAmount !== undefined && data.changeAmount > 0 ? `
           <tr>
-            <td class="totals-label">Change${isBillArabic ? ' <span class="arabic-text" style="font-size:11px; font-weight:normal;">(المبلغ المتبقي)</span>' : ''}</td>
+            <td class="totals-label">Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المبلغ المتبقي)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.changeAmount)}</td>
           </tr>
           ` : ''}
@@ -602,18 +602,18 @@ export const generateGuestPrintHtml = async (
         <table class="vat-table" style="margin-top: 4px; width: 100%;">
           <thead>
             <tr>
-              <th style="text-align: left; width: 25%;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">رمز الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 25%;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">المبلغ غير شامل</span>' : ''}</th>
-              <th style="text-align: right; width: 25%;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">مبلغ الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 25%;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal;">المبلغ الصافي</span>' : ''}</th>
+              <th style="text-align: left; width: 20%;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 30%;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
+              <th style="text-align: right; width: 24%;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 26%;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="text-align: left; font-weight: normal;">10%</td>
-              <td style="text-align: right; font-weight: normal;">${fmt(data.netAmount - data.vatAmount)}</td>
-              <td style="text-align: right; font-weight: normal;">${fmt(data.vatAmount)}</td>
-              <td style="text-align: right; font-weight: normal;">${fmt(data.netAmount)}</td>
+              <td style="text-align: left; font-weight: normal; width: 20%;">10%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%;">${fmt(data.netAmount - data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 24%;">${fmt(data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 26%;">${fmt(data.netAmount)}</td>
             </tr>
           </tbody>
         </table>
@@ -623,7 +623,7 @@ export const generateGuestPrintHtml = async (
         <div style="margin-top: 10px; font-size: 12px;">
           <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
             ${isDelivery ? 'DELIVERY DETAILS' : 'CUSTOMER DETAILS'}
-            ${isBillArabic ? `<span class="arabic-text" style="font-size: 11px; margin-left: 6px;">(${isDelivery ? 'بيانات التوصيل' : 'بيانات العميل'})</span>` : ''}
+            ${isBillArabic ? `<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(${isDelivery ? 'بيانات التوصيل' : 'بيانات العميل'})</bdi>` : ''}
           </div>
           <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
           <table style="width: 100%; font-size: 12px; margin-top: 5px;">
@@ -645,15 +645,15 @@ export const generateGuestPrintHtml = async (
         <div style="font-size: 11px; margin-top: 5px;">Print Time : ${dateStr} ${timeStr}</div>
 
         ${customFootersHtml ? `
-        <div style="margin-top: 10px; padding: 0 4px; width: 100%; box-sizing: border-box;">
+        <div style="margin-top: 10px; margin-bottom: 20px; padding: 0 4px 15px 4px; width: 100%; box-sizing: border-box;">
           ${customFootersHtml}
         </div>
         ` : `
-        <div style="text-align: center; margin-top: 12px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.4;">
+        <div style="text-align: center; margin-top: 12px; margin-bottom: 20px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.5; padding-bottom: 15px;">
           <div>Thank you For Visiting</div>
-          ${isBillArabic ? '<div class="arabic-text" style="font-size: 13px; font-weight: bold;">شكراً لزيارتكم</div>' : ''}
-          <div>HAVE A GOOD DAY</div>
-          ${isBillArabic ? '<div class="arabic-text" style="font-size: 13px; font-weight: bold;">نتمنى لكم يوماً سعيداً</div>' : ''}
+          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 13px; font-weight: bold; text-align: center; display: block; white-space: nowrap; margin-top: 3px; line-height: 1.5;">شكراً لزيارتكم</div>' : ''}
+          <div style="margin-top: 6px;">HAVE A GOOD DAY</div>
+          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 13px; font-weight: bold; text-align: center; display: block; white-space: nowrap; margin-top: 3px; line-height: 1.5;">نتمنى لكم يوماً سعيداً</div>' : ''}
         </div>
         `}
       </body>

@@ -352,4 +352,21 @@ export const menuApi = {
     const id = raw?.id ?? raw?.messageId ?? raw?.modifierId ?? (typeof raw === 'number' ? raw : 0);
     return { id, name };
   },
+
+  /** GET /api/v1/menu/waiters-list */
+  getWaitersList: async (): Promise<import("../types").PosWaiter[]> => {
+    try {
+      const res = await axiosInstance.get<any>("/menu/waiters-list");
+      const payload = res.data;
+      if (payload && payload.isSuccess === false) {
+        throw new Error(payload.message || "Failed to load waiters");
+      }
+      const data = payload?.data !== undefined ? payload.data : payload;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error("[menuApi] getWaitersList error:", err);
+      throw err;
+    }
+  },
 };
+

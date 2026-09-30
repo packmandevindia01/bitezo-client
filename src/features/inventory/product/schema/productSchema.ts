@@ -46,6 +46,9 @@ export const productSchema = z.object({
   fileName: z.string().optional(),
   fileUrl: z.string().optional(),
   filePath: z.string().optional(),
+  imageUrl: z.string().optional(),
+  imageFile: z.any().optional(),
+  isImageChanged: z.boolean().optional(),
   altProducts: z.array(altProductSchema),
   productColors: z.array(productColorSchema),
   openingStocks: z.array(openingStockSchema)

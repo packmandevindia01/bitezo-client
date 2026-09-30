@@ -50,7 +50,7 @@ export const ModifierTypeQuickAddModal = ({ isOpen, onClose, onSuccess }: Props)
         </div>
       }
     >
-      <ModifierTypeForm form={form} />
+      <ModifierTypeForm form={form} onSave={form.handleSubmit(onSubmit as any)} />
     </Modal>
   );
 };

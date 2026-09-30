@@ -24,6 +24,7 @@ interface UsePosCheckoutFlowProps {
   tenderOptions: any[];
   decimalPart: number;
   waiterName: string | null;
+  waiterId?: number | null;
   
   submitOrder: (params: any, print: boolean) => Promise<any>;
   getDirectSettleOrderPayload: (params: any) => any;
@@ -57,6 +58,7 @@ export const usePosCheckoutFlow = ({
   tenderOptions = [],
   decimalPart,
   waiterName,
+  waiterId,
   submitOrder,
   getDirectSettleOrderPayload,
   requestAuthorization,
@@ -109,7 +111,14 @@ export const usePosCheckoutFlow = ({
         );
         payload.printData.billArabic = billArabic;
 
-        const targetPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+        let targetPrinter = localStorage.getItem('cachedBillPrinter') || undefined;
+        if (!targetPrinter || targetPrinter === "No Printer") {
+          targetPrinter = localStorage.getItem('cachedBillPrinterIp') ||
+                          localStorage.getItem('cachedKotPrinter') ||
+                          localStorage.getItem('cachedKotPrinterIp') ||
+                          localStorage.getItem('printerIpAddress') ||
+                          undefined;
+        }
 
         // ── UNIFIED HTML GRAPHIC PATH: Identical typography, alignment, and formatting on both Web and Android ──
         const { printHtmlReceipt } = await import("../../services/qzService");
@@ -430,9 +439,12 @@ export const usePosCheckoutFlow = ({
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
+    const effectiveEmployeeId = (waiterId && waiterId > 0)
+      ? waiterId
+      : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
 
-    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
-      submitSettlementForEmployee(defaultEmployeeId, payments);
+    if (effectiveEmployeeId) {
+      submitSettlementForEmployee(effectiveEmployeeId, payments);
       return;
     }
 
@@ -469,9 +481,12 @@ export const usePosCheckoutFlow = ({
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
     const payments = [{ paymodeId: resolvedPaymodeId, amount: total }];
+    const effectiveEmployeeId = (waiterId && waiterId > 0)
+      ? waiterId
+      : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
 
-    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
-      submitSettlementForEmployee(defaultEmployeeId, payments);
+    if (effectiveEmployeeId) {
+      submitSettlementForEmployee(effectiveEmployeeId, payments);
       return;
     }
 

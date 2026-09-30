@@ -224,7 +224,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const basePrintOptions = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? "Waiter",
+        waiter: master.employeeName ?? fallbackDetails?.employeeName ?? "Waiter",
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
@@ -342,7 +342,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? "Waiter",
+        waiter: master.employeeName ?? fallbackDetails?.employeeName ?? "Waiter",
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
@@ -372,19 +372,35 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
       try {
         const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
-        const settingsRes = await printerSettingsApi.getGeneral();
-        const billPrinter = settingsRes.data?.billPrinter || localStorage.getItem('cachedBillPrinter') || "No Printer";
+        
+        let billPrinter: string | undefined;
+        try {
+          const settingsRes = await printerSettingsApi.getGeneral();
+          const gen = settingsRes?.data;
+          billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
+        } catch (err) {
+          console.warn("[PosRecallDetailsModal] Could not fetch general printer settings:", err);
+        }
+
+        if (!billPrinter || billPrinter === "No Printer") {
+          billPrinter = localStorage.getItem('cachedBillPrinter') || 
+                        localStorage.getItem('cachedBillPrinterIp') ||
+                        localStorage.getItem('cachedKotPrinter') || 
+                        localStorage.getItem('cachedKotPrinterIp') || 
+                        localStorage.getItem('printerIpAddress') || 
+                        undefined;
+        }
         
         await printHtmlReceipt(htmlContent, billPrinter);
         showToast("Guest receipt sent to printer!", "success");
-      } catch (err) {
+      } catch (err: any) {
         console.error("Printer error:", err);
-        showToast("Failed to connect to printer", "error");
+        showToast(err?.message ? `Print failed: ${err.message}` : "Failed to connect to printer", "error");
       }
       
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      showToast("Failed to print receipt", "error");
+      showToast(e?.message ? `Print failed: ${e.message}` : "Failed to print receipt", "error");
     }
   };
 
@@ -696,7 +712,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const ticketNo = master.ticketNo ?? order?.ticketNo ?? "1";
-  const employeeName = master.employeeName ?? order?.employeeName ?? "Waiter";
+  const employeeName = master.employeeName ?? order?.employeeName ?? fallbackDetails?.employeeName ?? "Waiter";
   
   const orderTypeMap: Record<number, string> = {
     1: "DineIn",

@@ -138,46 +138,166 @@ export const productService = {
     return response.barcode;
   },
 
-  /** POST /api/product */
-  async create(payload: CreateProductPayload & { imageFile?: File }): Promise<{ id: number }> {
-    const { imageFile, ...jsonData } = payload;
-    
-    // 1. Create product as JSON
-    const data = await unwrap(
-      axiosInstance.post<ApiResponse<{ id: number }>>(BASE, jsonData)
-    );
+  /** POST /api/v1/product */
+  async create(payload: CreateProductPayload): Promise<{ id: number }> {
+    const formData = new FormData();
+    formData.append("Code", payload.code || "");
+    formData.append("Barcode", payload.barcode || "");
+    formData.append("Name", payload.name || "");
+    formData.append("ArabicName", payload.arabicName || "");
+    formData.append("CategoryId", String(Number(payload.categoryId) || 0));
+    formData.append("SubCatId", String(Number(payload.subCatId) || 0));
+    formData.append("GroupId", String(Number(payload.groupId) || 0));
+    formData.append("TypeId", String(Number(payload.typeId) || 0));
+    formData.append("UnitId", String(Number(payload.unitId) || 0));
+    formData.append("PVatId", String(Number(payload.pVatId) || 0));
+    formData.append("SVatId", String(Number(payload.sVatId) || 0));
+    formData.append("Cost", String(Number(payload.cost) || 0));
+    formData.append("Price", String(Number(payload.price) || 0));
+    formData.append("PriceIsIncl", String(Boolean(payload.priceIsIncl)));
+    formData.append("BranchId", String(Number(payload.branchId) || 0));
+    formData.append("IsActive", String(Boolean(payload.isActive)));
+    formData.append("ColorCode", payload.colorCode || "#49293e");
+    formData.append("CreatedAt", payload.createdAt || new Date().toISOString());
 
-    const createdId = (data as any)?.id || (data as any)?.productId || (typeof data === "number" ? data : 0);
-
-    // 2. Upload image sequentially right after product is created
-    if (imageFile && createdId) {
-      try {
-        await productService.uploadImage(createdId, imageFile, "string");
-      } catch (error: any) {
-        console.error("[ProductService] Image upload failed after creation:", error);
-        throw new Error(error.message ? `Product created, but image upload failed: ${error.message}` : "Product created, but image upload failed.");
-      }
+    if (payload.imageFile instanceof File) {
+      formData.append("ImageFile", payload.imageFile);
+    } else {
+      const dummyFile = new File([""], "empty.bin", { type: "application/octet-stream" });
+      formData.append("ImageFile", dummyFile);
     }
+
+    const altList = Array.isArray(payload.altProducts)
+      ? payload.altProducts.map(a => ({
+          unitId: Number(a.unitId) || 0,
+          barcode: a.barcode || "",
+          isIncl: Boolean(a.isIncl),
+          price: Number(a.price) || 0,
+          altName: a.altName || "",
+          altArabic: a.altArabic || "",
+          branchId: Number(a.branchId) || 0,
+        }))
+      : [];
+    formData.append("AltProductsJson", JSON.stringify(altList));
+
+    const colorList = Array.isArray(payload.productColors)
+      ? payload.productColors.map(c => ({
+          branchId: Number(c.branchId) || 0,
+          colorCode: c.colorCode || "#49293e",
+        }))
+      : [];
+    formData.append("ProductColorsJson", JSON.stringify(colorList));
+
+    const stockList = Array.isArray(payload.openingStocks)
+      ? payload.openingStocks.map(o => ({
+          unitId: Number(o.unitId) || 0,
+          qty: Number(o.qty) || 0,
+          cost: Number(o.cost) || 0,
+          amount: Number(o.amount) || ((Number(o.qty) || 0) * (Number(o.cost) || 0)),
+          baseQty: Number(o.baseQty) || Number(o.qty) || 0,
+          branchId: Number(o.branchId) || 0,
+        }))
+      : [];
+    formData.append("OpeningStocksJson", JSON.stringify(stockList));
+
+    console.group("[productService] POST /product Create Payload");
+    console.log("Original Payload Object:", payload);
+    const createDataSummary: Record<string, any> = {};
+    for (const [key, value] of (formData as any).entries()) {
+      createDataSummary[key] = value instanceof File ? `File (name: ${value.name}, size: ${value.size}B)` : value;
+    }
+    console.table(createDataSummary);
+    console.groupEnd();
+
+    const data = await unwrap(
+      axiosInstance.post<ApiResponse<{ id: number }>>(BASE, formData)
+    );
 
     return data;
   },
 
-  /** PUT /api/product/{productId} */
-  async update(productId: number, payload: UpdateProductPayload & { imageFile?: File; oldPath?: string }): Promise<{ id: number }> {
-    const { imageFile, oldPath, ...jsonData } = payload;
-    const url = `${BASE}/${productId}`;
+  /** PUT /api/v1/product/{productId} */
+  async update(productId: number, payload: UpdateProductPayload): Promise<{ id: number }> {
+    const formData = new FormData();
+    formData.append("ProductId", String(productId));
+    formData.append("Code", payload.code || "");
+    formData.append("Barcode", payload.barcode || "");
+    formData.append("Name", payload.name || "");
+    formData.append("ArabicName", payload.arabicName || "");
+    formData.append("CategoryId", String(Number(payload.categoryId) || 0));
+    formData.append("SubCatId", String(Number(payload.subCatId) || 0));
+    formData.append("GroupId", String(Number(payload.groupId) || 0));
+    formData.append("TypeId", String(Number(payload.typeId) || 0));
+    formData.append("UnitId", String(Number(payload.unitId) || 0));
+    formData.append("PVatId", String(Number(payload.pVatId) || 0));
+    formData.append("SVatId", String(Number(payload.sVatId) || 0));
+    formData.append("Cost", String(Number(payload.cost) || 0));
+    formData.append("Price", String(Number(payload.price) || 0));
+    formData.append("PriceIsIncl", String(Boolean(payload.priceIsIncl)));
+    formData.append("BranchId", String(Number(payload.branchId) || 0));
+    formData.append("IsActive", String(Boolean(payload.isActive)));
+    formData.append("ColorCode", payload.colorCode || "#49293e");
 
-    // 1. Update product as JSON
-    const data = await unwrap(
-      axiosInstance.put<ApiResponse<{ id: number }>>(url, jsonData)
-    );
+    const isImageChanged = Boolean(payload.isImageChanged ?? payload.isImageChaged ?? false);
+    formData.append("IsImageChanged", String(isImageChanged));
+    formData.append("IsImageChaged", String(isImageChanged));
+    formData.append("updatedAt", payload.updatedAt || new Date().toISOString());
+    formData.append("UpdatedAt", payload.updatedAt || new Date().toISOString());
 
-    // 2. Call image endpoint with OldPath (Option B)
-    try {
-      await productService.uploadImage(productId, imageFile, oldPath || "string");
-    } catch (error: any) {
-      console.error("[ProductService] Image API call failed after update:", error);
+    if (isImageChanged && payload.imageFile instanceof File) {
+      formData.append("ImageFile", payload.imageFile);
+    } else {
+      // Backend model binder expects ImageFile part in multipart/form-data even when unchanged
+      const dummyFile = new File([""], "empty.bin", { type: "application/octet-stream" });
+      formData.append("ImageFile", dummyFile);
     }
+
+    const altList = Array.isArray(payload.altProducts)
+      ? payload.altProducts.map(a => ({
+          unitId: Number(a.unitId) || 0,
+          barcode: a.barcode || "",
+          isIncl: Boolean(a.isIncl),
+          price: Number(a.price) || 0,
+          altName: a.altName || "",
+          altArabic: a.altArabic || "",
+          branchId: Number(a.branchId) || 0,
+        }))
+      : [];
+    formData.append("AltProductsJson", JSON.stringify(altList));
+
+    const colorList = Array.isArray(payload.productColors)
+      ? payload.productColors.map(c => ({
+          branchId: Number(c.branchId) || 0,
+          colorCode: c.colorCode || "#49293e",
+        }))
+      : [];
+    formData.append("ProductColorsJson", JSON.stringify(colorList));
+
+    const stockList = Array.isArray(payload.openingStocks)
+      ? payload.openingStocks.map(o => ({
+          unitId: Number(o.unitId) || 0,
+          qty: Number(o.qty) || 0,
+          cost: Number(o.cost) || 0,
+          amount: Number(o.amount) || ((Number(o.qty) || 0) * (Number(o.cost) || 0)),
+          baseQty: Number(o.baseQty) || Number(o.qty) || 0,
+          branchId: Number(o.branchId) || 0,
+        }))
+      : [];
+    formData.append("OpeningStocksJson", JSON.stringify(stockList));
+
+    console.group(`[productService] PUT /product/${productId} Update Payload`);
+    console.log("Original Payload Object:", payload);
+    const updateDataSummary: Record<string, any> = {};
+    for (const [key, value] of (formData as any).entries()) {
+      updateDataSummary[key] = value instanceof File ? `File (name: ${value.name}, size: ${value.size}B)` : value;
+    }
+    console.table(updateDataSummary);
+    console.groupEnd();
+
+    const url = `${BASE}/${productId}`;
+    const data = await unwrap(
+      axiosInstance.put<ApiResponse<{ id: number }>>(url, formData)
+    );
 
     return data;
   },
@@ -190,18 +310,21 @@ export const productService = {
     );
   },
 
-  /** POST /api/product/product-image */
+  /** POST /api/product/product-image (legacy helper) */
   async uploadImage(productId: number, imageFile?: File, oldPath: string = "string"): Promise<void> {
     const url = `${BASE}/product-image`;
     const formData = new FormData();
-    // Match Swagger: ProductId, OldPath, ProductImage
     formData.append("ProductId", String(productId));
     formData.append("OldPath", oldPath || "string");
     if (imageFile) {
       formData.append("ProductImage", imageFile);
     }
 
-    await axiosInstance.post(url, formData);
+    try {
+      await axiosInstance.post(url, formData);
+    } catch (e) {
+      console.warn("[productService] legacy uploadImage failed, ignoring:", e);
+    }
   },
 
   /** DELETE /api/product/{productId} */

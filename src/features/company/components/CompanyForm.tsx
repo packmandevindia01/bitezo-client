@@ -13,6 +13,7 @@ interface CompanyFormProps {
   onSuccess?: () => void;
   clientDb?: string;
   tempToken?: string;
+  comId?: number;
 }
 
 const CompanyForm = ({
@@ -21,6 +22,7 @@ const CompanyForm = ({
   onSuccess,
   clientDb = "",
   tempToken = "",
+  comId,
 }: CompanyFormProps) => {
   const saveBtnRef = useRef<HTMLButtonElement>(null);
   
@@ -36,6 +38,7 @@ const CompanyForm = ({
     initialValues,
     clientDb,
     tempToken,
+    comId,
     onSuccess,
   });
 

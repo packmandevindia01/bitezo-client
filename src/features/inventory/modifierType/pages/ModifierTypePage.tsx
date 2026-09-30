@@ -168,6 +168,7 @@ const ModifierTypePage = () => {
               Clear
             </Button>
             <Button 
+              id="modtype-save"
               onClick={form.handleSubmit(onSubmit as any)} 
               loading={isSaving}
               disabled={isDetailLoading}
@@ -196,7 +197,7 @@ const ModifierTypePage = () => {
           </div>
         }
       >
-        <ModifierTypeForm form={form} />
+        <ModifierTypeForm form={form} onSave={form.handleSubmit(onSubmit as any)} />
       </Modal>
 
       <ConfirmDialog

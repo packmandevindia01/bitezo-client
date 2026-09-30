@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { orderApi } from '../../services/orderApi';
 import type { RecallOrder, RecallParams } from '../../types';
 import { useToast } from '../../../../app/providers/useToast';
@@ -26,7 +26,10 @@ export const usePosRecall = () => {
         Decimals: getDecimalPart(),
       };
 
-      // Only add EmployeeId if it exists and is valid (removed to show all cashier/waiter orders)
+      // Include EmployeeId when filtering by specific employee/waiter
+      if (params.EmployeeId !== undefined && params.EmployeeId !== null && Number(params.EmployeeId) > 0) {
+        cleanParams.EmployeeId = Number(params.EmployeeId);
+      }
 
       // Only add search/status if they have actual content
       if (params.SearchValue?.trim()) {
@@ -52,13 +55,6 @@ export const usePosRecall = () => {
       setLoading(false);
     }
   }, [status, showToast]);
-
-  // Initial fetch when session is available
-  useEffect(() => {
-    if (status?.dayId) {
-      void fetchOrders({ OrderTypeId: 0 });
-    }
-  }, [status?.dayId, fetchOrders]);
 
   return {
     orders,

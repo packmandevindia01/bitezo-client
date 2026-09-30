@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import type { MenuProvider } from "../../../types";
 import { setCustomerId, setOrderType } from "../../store/posSlice";
 import { PosProviderOrderModal } from "./providers/PosProviderOrderModal";
+import { PosWaiterModal } from "./order/PosWaiterModal";
 
 const PosCustomerModal = React.lazy(() =>
   import("../../../customer/components/PosCustomerModal").then((m) => ({ default: m.PosCustomerModal }))
@@ -71,6 +72,13 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
         }}
       />
 
+      {modals.isWaiterModalOpen && (
+        <PosWaiterModal
+          isOpen={modals.isWaiterModalOpen}
+          onClose={() => modals.setIsWaiterModalOpen(false)}
+        />
+      )}
+
       <Suspense fallback={<ModalLoader />}>
         {modals.isCustomerModalOpen && (
           <PosCustomerModal
@@ -97,6 +105,7 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
           <PosRecallModal
             isOpen={modals.isRecallModalOpen}
             onClose={() => modals.setIsRecallModalOpen(false)}
+            initialEmployeeId={modals.recallEmployeeId}
             onSettleSuccess={() => {
               modals.setReturnToRecallOnCancel(true);
               // Close the recall modal first so the settle (MultiPay) modal

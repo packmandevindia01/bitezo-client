@@ -48,6 +48,7 @@ const CompanyOnboardingPage = () => {
   const [formNotice, setFormNotice] = useState("");
   const [clientDatabase, setClientDatabase] = useState("");
   const [tempToken, setTempToken] = useState("");
+  const [onboardCompanyId, setOnboardCompanyId] = useState<number | null>(null);
   const [systemType, setSystemType] = useState<SystemType>("pos");
   const [posBranchId, setPosBranchId] = useState("");
   const [posCounterId, setPosCounterId] = useState("");
@@ -69,11 +70,13 @@ const CompanyOnboardingPage = () => {
     const savedEmail = localStorage.getItem("onboardingEmail");
     const savedOtpToken = localStorage.getItem("onboardingOtpToken");
     const savedDb = localStorage.getItem("tenantId");
+    const savedCompanyId = localStorage.getItem("onboardingCompanyId") || localStorage.getItem("companyId");
 
     if (savedRegId) setFormState(s => ({ ...s, regId: savedRegId }));
     if (savedEmail) setFormState(s => ({ ...s, email: savedEmail }));
     if (savedOtpToken) setField("otpToken", savedOtpToken);
     if (savedDb) setClientDatabase(savedDb);
+    if (savedCompanyId && !isNaN(Number(savedCompanyId))) setOnboardCompanyId(Number(savedCompanyId));
   }, []);
 
   // Persistence wrapper for setStage
@@ -183,6 +186,9 @@ const CompanyOnboardingPage = () => {
     localStorage.setItem("systemSeriesId", seriesId);
     localStorage.setItem("systemSeriesName", seriesName);
     localStorage.setItem("systemRegisteredAt", new Date().toISOString());
+    if (onboardCompanyId) {
+      localStorage.setItem("companyId", String(onboardCompanyId));
+    }
 
     showToast("POS Terminal Registered! Opening system...", "success");
     
@@ -191,14 +197,20 @@ const CompanyOnboardingPage = () => {
     localStorage.removeItem("onboardingRegId");
     localStorage.removeItem("onboardingEmail");
     localStorage.removeItem("onboardingOtpToken");
+    localStorage.removeItem("onboardingCompanyId");
 
     navigate("/cashier/in", { replace: true });
   };
 
-  const beginPosSetup = async (db: string) => {
+  const beginPosSetup = async (db: string, compId?: number | null) => {
     localStorage.setItem("companyRegistered", "true");
     localStorage.setItem("tenantId", db);
     localStorage.setItem("systemType", "pos");
+    const activeCompanyId = compId ?? onboardCompanyId ?? (localStorage.getItem("companyId") ? Number(localStorage.getItem("companyId")) : null);
+    if (activeCompanyId) {
+      setOnboardCompanyId(activeCompanyId);
+      localStorage.setItem("companyId", String(activeCompanyId));
+    }
     setClientDatabase(db);
     setLoadingPosSetup(true);
 
@@ -221,7 +233,7 @@ const CompanyOnboardingPage = () => {
       if (branchOptions.length === 1) {
         const onlyBranchId = String(branchOptions[0].id);
         setPosBranchId(onlyBranchId);
-        await loadPosCounters(onlyBranchId, db);
+        await loadPosCounters(onlyBranchId, db, activeCompanyId);
       } else {
         setPosBranchId("");
       }
@@ -233,11 +245,13 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  const loadPosCounters = async (branchId: string, db = clientDatabase) => {
+  const loadPosCounters = async (branchId: string, db = clientDatabase, compId?: number | null) => {
     if (!branchId || !db) {
       setPosCounters([]);
       return;
     }
+
+    const activeCompanyId = compId ?? onboardCompanyId ?? (localStorage.getItem("companyId") ? Number(localStorage.getItem("companyId")) : null);
 
     try {
       setLoadingPosCounters(true);
@@ -247,7 +261,7 @@ const CompanyOnboardingPage = () => {
       const [counters, series, terminals] = await Promise.all([
         fetchOnboardCounters(branchId),
         fetchOnboardSeries(branchId),
-        fetchOnboardTerminals(branchId)
+        fetchOnboardTerminals(branchId, activeCompanyId ?? undefined)
       ]);
 
       setPosCounters(
@@ -303,6 +317,13 @@ const CompanyOnboardingPage = () => {
 
     const clientDb = String(registration.database || "").trim();
     const token = String(registration.tempToken || "");
+    const registrationCompId = registration.companyId ? Number(registration.companyId) : null;
+
+    if (registrationCompId) {
+      setOnboardCompanyId(registrationCompId);
+      localStorage.setItem("onboardingCompanyId", String(registrationCompId));
+      localStorage.setItem("companyId", String(registrationCompId));
+    }
 
     setClientDatabase(clientDb);
     setTempToken(token);
@@ -318,6 +339,14 @@ const CompanyOnboardingPage = () => {
     const companyCheck = await checkCompanyExists(clientDb, formState.regId.trim());
 
     const checkData = companyCheck.data as Record<string, unknown> | null;
+    const existingCompId = companyCheck.companyId ?? checkData?.companyId ?? checkData?.comId ?? registrationCompId;
+
+    if (existingCompId) {
+      const numCompId = Number(existingCompId);
+      setOnboardCompanyId(numCompId);
+      localStorage.setItem("onboardingCompanyId", String(numCompId));
+      localStorage.setItem("companyId", String(numCompId));
+    }
 
     if (companyCheck.exists) {
       showToast(
@@ -330,9 +359,12 @@ const CompanyOnboardingPage = () => {
       localStorage.setItem("companyRegistered", "true");
       // Explicitly set the tenantId so the app knows which database to talk to immediately
       localStorage.setItem("tenantId", clientDb);
+      if (existingCompId) {
+        localStorage.setItem("companyId", String(existingCompId));
+      }
 
       if (systemType === "pos") {
-        await beginPosSetup(clientDb);
+        await beginPosSetup(clientDb, existingCompId ? Number(existingCompId) : onboardCompanyId);
         return;
       }
       
@@ -743,7 +775,7 @@ const CompanyOnboardingPage = () => {
                     setPosTerminalId("");
                     setPosTerminals([]);
                     setPosSetupErrors((current) => ({ ...current, branchId: "", counterId: "", seriesId: "", terminalId: "" }));
-                    loadPosCounters(val).then(() => {
+                    loadPosCounters(val, clientDatabase, onboardCompanyId).then(() => {
                       setTimeout(() => document.getElementById("onboarding-pos-counter")?.focus(), 100);
                     });
                   }}
@@ -897,14 +929,20 @@ const CompanyOnboardingPage = () => {
                   regId: formState.regId.trim(),
                   email: formState.email.trim(),
                   database: clientDatabase,
+                  comId: onboardCompanyId ?? undefined,
+                  companyId: onboardCompanyId ?? undefined,
                 }}
+                comId={onboardCompanyId ?? undefined}
                 lockedFields={["regId", "email"]}
                 submitLabel="Create Company"
                 clientDb={clientDatabase}
                 tempToken={tempToken}
                 onSuccess={() => {
+                  if (onboardCompanyId) {
+                    localStorage.setItem("companyId", String(onboardCompanyId));
+                  }
                   if (systemType === "pos") {
-                    void beginPosSetup(clientDatabase);
+                    void beginPosSetup(clientDatabase, onboardCompanyId);
                   } else {
                     localStorage.setItem("companyRegistered", "true");
                     navigate("/", {
