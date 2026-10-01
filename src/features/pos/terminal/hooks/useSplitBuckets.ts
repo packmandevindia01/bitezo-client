@@ -9,6 +9,7 @@ export interface SplitCartItem {
   detail: any;
   modifiers: any[];
   isIncl: boolean;
+  variantName?: string;
 }
 
 export interface SplitBucket {

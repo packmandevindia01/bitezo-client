@@ -8,6 +8,7 @@ import type {
   PosOrderType,
   PosProduct
 } from '../../types';
+import { isItemSeperationEnabled } from '../../services/posConfigApi';
 
 interface PosState {
   cartItems: PosCartItem[];
@@ -52,6 +53,7 @@ interface PosState {
   waiterName: string | null;
   editingOrderId: number | null;
   editingSaleId: number | null;
+  prevUpdatedAt: string | null;
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
   voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   isSettledEdit: boolean;
@@ -137,6 +139,7 @@ const initialState: PosState = {
   waiterName: initialWaiter.name,
   editingOrderId: null,
   editingSaleId: null,
+  prevUpdatedAt: null,
   voidProducts: [],
   voidModifiers: [],
   isSettling: false,
@@ -164,6 +167,7 @@ const posSlice = createSlice({
     addToCart: (state, action: PayloadAction<{ 
       uniqueId: string; 
       productId: number; 
+      quantity?: number;
       variantName?: string; 
       variantArabic?: string;
       price?: number; 
@@ -171,9 +175,10 @@ const posSlice = createSlice({
       discountValue?: number;
       discountType?: 'percentage' | 'amount';
       unitId?: number;
+      createNewRow?: boolean;
     }>) => {
       state.isCartModified = true;
-      const { uniqueId, productId, variantName, variantArabic, price, isIncl, discountValue, discountType, unitId } = action.payload;
+      const { uniqueId, productId, variantName, variantArabic, price, isIncl, discountValue, discountType, unitId, createNewRow } = action.payload;
       
       const matchVariant = (a?: string, b?: string) => {
         const getNormalizedVariant = (name?: string) => {
@@ -184,19 +189,42 @@ const posSlice = createSlice({
         return getNormalizedVariant(a) === getNormalizedVariant(b);
       };
 
-      const existing = state.cartItems.find(item => item.uniqueId === uniqueId) || 
-        state.cartItems.find(item => 
-          item.productId === productId && 
-          matchVariant(item.variantName, variantName) &&
-          Number(item.price) === Number(price ?? 0) &&
-          item.isIncl === isIncl &&
-          (!item.extras || item.extras.length === 0) &&
-          (!item.modifiers || item.modifiers.length === 0) &&
-          (item.unitId === unitId)
+      const hasCustomizations = (item: any): boolean => {
+        const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
+        const hasModifiers = Array.isArray(item.modifiers) && item.modifiers.length > 0;
+        const hasMessages = Array.isArray(item.messages) && item.messages.length > 0;
+        const hasNote = Boolean(item.note || item.notes);
+        return hasExtras || hasModifiers || hasMessages || hasNote;
+      };
+
+      const isSeparation = createNewRow ?? isItemSeperationEnabled();
+
+      let existing = null;
+      if (!isSeparation) {
+        existing = state.cartItems.find(
+          item =>
+            item.uniqueId === uniqueId &&
+            !item.isExisting &&
+            !item.mapId &&
+            !hasCustomizations(item)
         );
+        if (!existing) {
+          existing = state.cartItems.find(
+            item => 
+              !item.isExisting &&
+              !item.mapId &&
+              item.productId === productId && 
+              matchVariant(item.variantName, variantName) &&
+              Number(item.price) === Number(price ?? 0) &&
+              item.isIncl === isIncl &&
+              (item.unitId === undefined || unitId === undefined || item.unitId === unitId) &&
+              !hasCustomizations(item)
+          );
+        }
+      }
 
       if (existing) {
-        existing.quantity += 1;
+        existing.quantity += (action.payload.quantity || 1);
         if (discountValue !== undefined) {
           existing.discountValue = discountValue;
           existing.discountType = discountType;
@@ -208,14 +236,15 @@ const posSlice = createSlice({
         state.cartItems.push({
           uniqueId,
           productId,
-          quantity: 1,
+          quantity: action.payload.quantity || 1,
           variantName,
           variantArabic,
           price: price ?? 0,
           isIncl,
           discountValue,
           discountType,
-          unitId
+          unitId,
+          isExisting: false,
         });
       }
     },
@@ -253,6 +282,7 @@ const posSlice = createSlice({
       state.cartItems = [];
       state.editingOrderId = null;
       state.editingSaleId = null;
+      state.prevUpdatedAt = null;
       state.voidProducts = [];
       state.voidModifiers = [];
       state.isSettledEdit = false;
@@ -331,9 +361,10 @@ const posSlice = createSlice({
       state.selectedOrderTypeId = type.orderTypeId;
       state.selectedOrderTypeName = type.orderType;
     },
-    setEditingOrder: (state, action: PayloadAction<{ orderId: number; orderType: string; isSettledEdit?: boolean; customerId?: number; employeeId?: number }>) => {
+    setEditingOrder: (state, action: PayloadAction<{ orderId: number; orderType: string; isSettledEdit?: boolean; customerId?: number; employeeId?: number; prevUpdatedAt?: string | null }>) => {
       state.editingOrderId = action.payload.orderId;
       state.isSettledEdit = action.payload.isSettledEdit || false;
+      state.prevUpdatedAt = action.payload.prevUpdatedAt || null;
       const ot = fallbackOrderTypeByName(action.payload.orderType);
       state.selectedOrderTypeId = ot.orderTypeId;
       state.selectedOrderTypeName = ot.orderType;
@@ -491,6 +522,7 @@ const posSlice = createSlice({
       vehicleCustomerName?: string;
       vehicleNo?: string;
       isCartModified?: boolean;
+      prevUpdatedAt?: string | null;
     }>) => {
       const { 
         editingOrderId, 
@@ -516,10 +548,12 @@ const posSlice = createSlice({
         comingTime,
         vehicleCustomerName,
         vehicleNo,
-        isCartModified
+        isCartModified,
+        prevUpdatedAt,
       } = action.payload;
       state.editingOrderId = editingOrderId ?? null;
       state.editingSaleId = editingSaleId ?? null;
+      state.prevUpdatedAt = prevUpdatedAt ?? null;
       state.isSettling = isSettling ?? false;
       state.isSettledEdit = isSettledEdit ?? false;
       state.waiterName = waiterName ?? null;

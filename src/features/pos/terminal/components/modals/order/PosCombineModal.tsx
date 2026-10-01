@@ -227,6 +227,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           sectionId: selectedSectionId,
           tableId: selectedTableId,
           isCartModified: true,
+          prevUpdatedAt: editingOrderId ? sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) || undefined : undefined,
         }));
 
         // Set the extra combined IDs in the store to be sent during submitOrder

@@ -10,6 +10,7 @@ import ProductListCard from "../components/ProductListCard";
 import { useProductList } from "../hooks/useProductList";
 import type { ProductListItem } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 const ProductListPage = () => {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ const ProductListPage = () => {
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("product");
       setPendingDelete(null);
     },
     onError: (error: any) => {

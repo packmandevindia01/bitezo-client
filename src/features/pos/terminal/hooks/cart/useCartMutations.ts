@@ -14,9 +14,18 @@ import {
 import { selectCartDetails } from "../../store/posSelectors";
 import { POS_PRODUCTS } from "../../../constants";
 import { menuApi } from "../../../services/menuApi";
+import { isItemSeperationEnabled } from "../../../services/posConfigApi";
 import { productDataCache } from "../usePosProducts";
 import { roundCalc } from "../../utils/billing";
 import type { PosCartItem } from "../../../types";
+
+const hasCustomizations = (item: any): boolean => {
+  const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
+  const hasModifiers = Array.isArray(item.modifiers) && item.modifiers.length > 0;
+  const hasMessages = Array.isArray(item.messages) && item.messages.length > 0;
+  const hasNote = Boolean(item.note || item.notes);
+  return hasExtras || hasModifiers || hasMessages || hasNote;
+};
 
 export const useCartMutations = () => {
   const dispatch = useAppDispatch();
@@ -44,15 +53,22 @@ export const useCartMutations = () => {
       return getNormalizedVariant(a) === getNormalizedVariant(b);
     };
 
-    const existing = cartDetails.find(
-      (item) =>
-        item.productId === productId &&
-        matchVariant(item.variantName, variantName) &&
-        Number(item.product?.price ?? item.price) === Number(targetPrice) &&
-        item.isIncl === isIncl &&
-        (!item.extras || item.extras.length === 0) &&
-        (!item.modifiers || item.modifiers.length === 0)
-    );
+    const isSeparation = isItemSeperationEnabled();
+
+    // When disabled: merge only if unplaced (!isExisting && !mapId), matches product/variant/price/unit, and has no modifiers/extras/messages
+    const existing = !isSeparation
+      ? cartDetails.find(
+          (item) =>
+            !item.isExisting &&
+            !item.mapId &&
+            item.productId === productId &&
+            matchVariant(item.variantName, variantName) &&
+            Number(item.product?.price ?? item.price) === Number(targetPrice) &&
+            item.isIncl === isIncl &&
+            (item.unitId === undefined || unitId === undefined || item.unitId === unitId) &&
+            !hasCustomizations(item)
+        )
+      : undefined;
 
     if (existing) {
       dispatch(
@@ -66,6 +82,7 @@ export const useCartMutations = () => {
           discountValue,
           discountType,
           unitId,
+          createNewRow: false,
         })
       );
       return existing.uniqueId;
@@ -84,6 +101,7 @@ export const useCartMutations = () => {
           discountValue,
           discountType,
           unitId,
+          createNewRow: true,
         })
       );
       return uniqueId;
@@ -138,15 +156,21 @@ export const useCartMutations = () => {
         }
       }
 
-      const existing = cartDetails.find(
-        (item) =>
-          item.productId === product.id &&
-          (!item.variantName || item.variantName.toLowerCase().trim() === "main") &&
-          Number(item.product?.price ?? item.price) === Number(targetPrice) &&
-          item.isIncl === isIncl &&
-          (!item.extras || item.extras.length === 0) &&
-          (!item.modifiers || item.modifiers.length === 0)
-      );
+      const isSeparation = isItemSeperationEnabled();
+
+      const existing = !isSeparation
+        ? cartDetails.find(
+            (item) =>
+              !item.isExisting &&
+              !item.mapId &&
+              item.productId === product.id &&
+              (!item.variantName || item.variantName.toLowerCase().trim() === "main") &&
+              Number(item.product?.price ?? item.price) === Number(targetPrice) &&
+              item.isIncl === isIncl &&
+              (item.unitId === undefined || product.unitId === undefined || item.unitId === product.unitId) &&
+              !hasCustomizations(item)
+          )
+        : undefined;
 
       if (existing) {
         dispatch(
@@ -158,6 +182,7 @@ export const useCartMutations = () => {
             discountValue,
             discountType,
             unitId: product.unitId,
+            createNewRow: false,
           })
         );
         return existing.uniqueId;
@@ -172,6 +197,7 @@ export const useCartMutations = () => {
             discountValue,
             discountType,
             unitId: product.unitId,
+            createNewRow: true,
           })
         );
         return uniqueId;

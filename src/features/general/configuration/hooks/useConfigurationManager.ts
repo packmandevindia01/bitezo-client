@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { INITIAL_CONFIG, INITIAL_BACKOFFICE_CONFIG } from "../constants";
 import type { ConfigurationState, DeliveryCharge, BackofficeConfigState } from "../types";
-import { useToast } from "../../../../app/providers/useToast";
-import { employeeService } from "../../employee/services/employeeService";
+import { employeeService, subscribeToEmployeeUpdates } from "../../employee";
 import { backofficeConfigApi } from "../services/backofficeConfigApi";
 import { posConfigApi } from "../../../pos/services/posConfigApi";
 import { mapApiToState, mapStateToApi } from "../../../pos/terminal/hooks/usePosConfiguration";
 import axiosInstance from "../../../../api/axiosInstance";
+import { useToast } from "../../../../app/providers/useToast";
 
 export interface ConfigurationEmployeeOption {
   label: string;
@@ -129,8 +129,13 @@ export const useConfigurationManager = () => {
     void loadBranches();
     void loadDropdownOptions();
 
+    const unsubscribeEmployee = subscribeToEmployeeUpdates(() => {
+      if (active) void loadEmployees();
+    });
+
     return () => {
       active = false;
+      unsubscribeEmployee();
     };
   }, []);
 
@@ -272,7 +277,10 @@ export const useConfigurationManager = () => {
           parsed.configs.billArabic = payload.billArabic;
           parsed.configs.masterKot = payload.masterKot;
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
+          parsed.configs.itemSeperation = payload.itemSeperation;
         }
+        parsed.itemSeperation = payload.itemSeperation;
+        localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
         parsed.kotArabic = payload.kotArabic;

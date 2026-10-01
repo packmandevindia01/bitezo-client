@@ -1,15 +1,18 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymentAgainstVoucherApi } from "../services/paymentAgainstVoucherApi";
 import { paymentAgainstVoucherSchema } from "../schema/paymentAgainstVoucherSchema";
 import type { PaymentAgainstVoucherFormData } from "../schema/paymentAgainstVoucherSchema";
 import { useAppSelector } from "../../../../app/hooks";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 export const usePaymentAgainstVoucherForm = (transId?: number) => {
+  const queryClient = useQueryClient();
   const auth = useAppSelector((state: any) => state.auth);
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
@@ -40,9 +43,12 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
   });
 
   // Load Master Data based on local storage branchId
-  const { data: masterData, isLoading: isLoadingMaster } = useQuery({
+  const { data: masterData, isLoading: isLoadingMaster, refetch: refetchMasterData } = useQuery({
     queryKey: ["paymentAgainstMasterData", branchId],
     queryFn: () => paymentAgainstVoucherApi.loadMasterData(branchId),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Load existing voucher if edit mode
@@ -55,7 +61,26 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
   const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
     queryKey: ["paymentAgainstAccounts"],
     queryFn: () => paymentAgainstVoucherApi.getAccountList(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Real-time synchronization: sync supplier accounts when suppliers are created/updated
+  useEffect(() => {
+    return subscribeToSupplierUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["paymentAgainstAccounts"] });
+      void queryClient.refetchQueries({ queryKey: ["paymentAgainstAccounts"] });
+    });
+  }, [queryClient]);
+
+  // Real-time synchronization: sync master data (employees, etc.) when employees are created/updated
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
+      void refetchMasterData();
+    });
+  }, [queryClient, refetchMasterData]);
 
   const selectedAccountId = form.watch("accountId");
   

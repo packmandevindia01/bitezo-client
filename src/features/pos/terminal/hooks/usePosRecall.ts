@@ -26,17 +26,18 @@ export const usePosRecall = () => {
         Decimals: getDecimalPart(),
       };
 
-      // Include EmployeeId when filtering by specific employee/waiter
+      // Include EmployeeId when filtering by specific employee/waiter, or fallback to current employee/user/1
       if (params.EmployeeId !== undefined && params.EmployeeId !== null && Number(params.EmployeeId) > 0) {
         cleanParams.EmployeeId = Number(params.EmployeeId);
+      } else {
+        const fallbackEmp = Number(localStorage.getItem("employeeId")) || Number(localStorage.getItem("userId")) || 1;
+        cleanParams.EmployeeId = fallbackEmp;
       }
 
       // Only add search/status if they have actual content
       if (params.SearchValue?.trim()) {
         cleanParams.SearchValue = params.SearchValue.trim();
-        if (params.SearchStatus?.trim()) {
-          cleanParams.SearchStatus = params.SearchStatus.trim();
-        }
+        cleanParams.SearchStatus = (params.SearchStatus?.trim() || "ORDER NO").toUpperCase();
       }
       if (params.ProviderName?.trim()) cleanParams.ProviderName = params.ProviderName.trim();
 

@@ -12,6 +12,8 @@ import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
+import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -335,44 +337,52 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount, decimalPart, grossTotal]);
 
-  useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        setMasterError(null);
-        const [data, productMaster] = await Promise.all([
-          purchaseReturnApi.loadMasterData(),
-          productService.loadMasterData().catch(() => null),
-        ]);
-        if (data) {
-          const unitsRes = productMaster?.unit || [];
-          const enrichedData = {
-            ...data,
-            units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.id || u.unitId) })),
-          };
-          setMasterData(enrichedData as any);
-          if (!invoiceId) {
-             if (data.series.length > 0) {
-                setValue("series", data.series[0].seriesId.toString());
-             }
-             if (isBranchLocked) {
-               setValue("branch", initialBranchId);
-             } else if (data.branches.length > 0) {
-               setValue("branch", data.branches[0].branchId.toString());
-             }
-             if (data.salesman && data.salesman.length > 0 && !getValues("salesman")) {
-               setValue("salesman", data.salesman[0].employeeId.toString());
-             }
-          }
+  const fetchMasterData = useCallback(async () => {
+    try {
+      setMasterError(null);
+      const [data, productMaster] = await Promise.all([
+        purchaseReturnApi.loadMasterData(),
+        productService.loadMasterData().catch(() => null),
+      ]);
+      if (data) {
+        const unitsRes = productMaster?.unit || [];
+        const enrichedData = {
+          ...data,
+          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.id || u.unitId) })),
+        };
+        setMasterData(enrichedData as any);
+        if (!invoiceId) {
+           if (data.series.length > 0 && !getValues("series")) {
+              setValue("series", data.series[0].seriesId.toString());
+           }
+           if (isBranchLocked) {
+             setValue("branch", initialBranchId);
+           } else if (data.branches.length > 0 && !getValues("branch")) {
+             setValue("branch", data.branches[0].branchId.toString());
+           }
+           if (data.salesman && data.salesman.length > 0 && !getValues("salesman")) {
+             setValue("salesman", data.salesman[0].employeeId.toString());
+           }
         }
-      } catch (error: any) {
-        console.error("Failed to load master data", error);
-        setMasterError(error?.message || "Failed to load master data");
-      } finally {
-        setLoadingMaster(false);
       }
-    };
+    } catch (error: any) {
+      console.error("Failed to load master data", error);
+      setMasterError(error?.message || "Failed to load master data");
+    } finally {
+      setLoadingMaster(false);
+    }
+  }, [invoiceId, setValue, getValues, isBranchLocked, initialBranchId]);
+
+  useEffect(() => {
     fetchMasterData();
-  }, [invoiceId, setValue]);
+  }, [fetchMasterData]);
+
+  // Real-time synchronization: update master data (employees/salesman) when employees are updated
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void fetchMasterData();
+    });
+  }, [fetchMasterData]);
 
     const fetchPurchaseReturnNumber = useCallback(async (seriesId: string) => {
       try {
@@ -584,6 +594,18 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       setSearchingSuppliers(false);
     }
   }, []);
+
+  // Fetch initial suppliers on mount
+  useEffect(() => {
+    void handleSupplierSearch("");
+  }, [handleSupplierSearch]);
+
+  // Real-time synchronization: update supplier options whenever suppliers are created/updated
+  useEffect(() => {
+    return subscribeToSupplierUpdates(() => {
+      void handleSupplierSearch("");
+    });
+  }, [handleSupplierSearch]);
 
   const handleInvoiceSearch = useCallback(async (query: string = "") => {
     if (!watchedBranch || !watchedSupplier) {

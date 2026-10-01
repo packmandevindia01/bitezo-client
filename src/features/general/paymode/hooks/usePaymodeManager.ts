@@ -7,6 +7,7 @@ import { paymodeService } from "../services/paymodeService";
 import { counterService } from "../../counter/services/counterService";
 import { useToast } from "../../../../app/providers/useToast";
 import type { PaymodeForm, PaymodeRecord } from "../types";
+import { notifyPaymodeUpdated } from "../utils/paymodeSync";
 
 const MAX_INT32 = 2147483647;
 
@@ -53,6 +54,9 @@ export const usePaymodeManager = () => {
   const { data: records = [], isLoading: recordsLoading } = useQuery({
     queryKey: ["paymodes"],
     queryFn: () => paymodeService.list(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const { data: counterOptions = [], isLoading: countersLoading } = useQuery({
@@ -64,6 +68,8 @@ export const usePaymodeManager = () => {
         counterName: c.counterName,
       }));
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // ── Form Setup ──────────────────────────────────────────
@@ -101,6 +107,15 @@ export const usePaymodeManager = () => {
     onSuccess: () => {
       showToast(`Paymode ${editingId ? "updated" : "created"} successfully`, "success");
       queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      void queryClient.refetchQueries({ queryKey: ["paymodes"] });
+      void queryClient.refetchQueries({ queryKey: ["paymentMaster"] });
+      void queryClient.refetchQueries({ queryKey: ["receiptMaster"] });
+      notifyPaymodeUpdated(editingId ? "updated" : "created");
       closeModal();
     },
     onError: (error: any) => {
@@ -113,6 +128,15 @@ export const usePaymodeManager = () => {
     onSuccess: () => {
       showToast("Paymode deleted successfully", "success");
       queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      void queryClient.refetchQueries({ queryKey: ["paymodes"] });
+      void queryClient.refetchQueries({ queryKey: ["paymentMaster"] });
+      void queryClient.refetchQueries({ queryKey: ["receiptMaster"] });
+      notifyPaymodeUpdated("deleted");
       if (editingId) {
         closeModal();
       }

@@ -11,6 +11,8 @@ import type { PurchaseInvoiceMasterData } from "../services/purchaseInvoiceApi";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
+import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 
 const toNumber = (value: string | number | undefined) => {
@@ -256,6 +258,18 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     }
   }, []);
 
+  // Fetch initial suppliers on mount
+  useEffect(() => {
+    void handleSupplierSearch("");
+  }, [handleSupplierSearch]);
+
+  // Real-time synchronization: update supplier options whenever suppliers are created/updated
+  useEffect(() => {
+    return subscribeToSupplierUpdates(() => {
+      void handleSupplierSearch("");
+    });
+  }, [handleSupplierSearch]);
+
   const parseStockValue = useCallback((res: any): string => {
     if (res === null || res === undefined) return "0.000";
     if (typeof res === "number") return formatAmount(res);
@@ -422,42 +436,50 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     return false;
   }, [setValue, methods]);
 
-  useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        setMasterError(null);
-        const [data, productMaster] = await Promise.all([
-          purchaseInvoiceApi.loadMasterData(),
-          productService.loadMasterData().catch(() => null),
-        ]);
-        if (data) {
-          const unitsRes = productMaster?.unit || [];
-          const enrichedData = {
-            ...data,
-            units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.id || u.unitId) })),
-          };
-          setMasterData(enrichedData as any);
-          // Pre-select first series and branch if available
-          if (data.series.length > 0) {
-            setValue("series", data.series[0].seriesId.toString());
-          }
-          if (data.branches.length > 0) {
-            if (isBranchLocked) {
-              setValue("branch", initialBranchId);
-            } else {
-              setValue("branch", data.branches[0].branchId.toString());
-            }
+  const fetchMasterData = useCallback(async () => {
+    try {
+      setMasterError(null);
+      const [data, productMaster] = await Promise.all([
+        purchaseInvoiceApi.loadMasterData(),
+        productService.loadMasterData().catch(() => null),
+      ]);
+      if (data) {
+        const unitsRes = productMaster?.unit || [];
+        const enrichedData = {
+          ...data,
+          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.id || u.unitId) })),
+        };
+        setMasterData(enrichedData as any);
+        // Pre-select first series and branch if available
+        if (data.series.length > 0 && !methods.getValues("series")) {
+          setValue("series", data.series[0].seriesId.toString());
+        }
+        if (data.branches.length > 0 && !methods.getValues("branch")) {
+          if (isBranchLocked) {
+            setValue("branch", initialBranchId);
+          } else {
+            setValue("branch", data.branches[0].branchId.toString());
           }
         }
-      } catch (error: any) {
-        console.error("Failed to load master data", error);
-        setMasterError(error?.message || "Failed to load master data");
-      } finally {
-        setLoadingMaster(false);
       }
-    };
+    } catch (error: any) {
+      console.error("Failed to load master data", error);
+      setMasterError(error?.message || "Failed to load master data");
+    } finally {
+      setLoadingMaster(false);
+    }
+  }, [setValue, methods, isBranchLocked, initialBranchId]);
+
+  useEffect(() => {
     fetchMasterData();
-  }, [setValue]);
+  }, [fetchMasterData]);
+
+  // Real-time synchronization: update master data (employees/salesman) when employees are updated
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void fetchMasterData();
+    });
+  }, [fetchMasterData]);
 
   const fetchPurchaseNumber = useCallback(async (seriesId: string) => {
       try {

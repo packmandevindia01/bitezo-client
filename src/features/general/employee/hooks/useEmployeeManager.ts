@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import type { EmployeeRecord, EmployeeForm } from "../types";
 import { employeeSchema } from "../types";
@@ -15,6 +15,7 @@ import {
   getEmployees,
   updateEmployee,
 } from "../services/employeeService";
+import { notifyEmployeesUpdated, subscribeToEmployeeUpdates } from "../utils/employeeSync";
 
 export const useEmployeeManager = () => {
   const queryClient = useQueryClient();
@@ -47,18 +48,25 @@ export const useEmployeeManager = () => {
     queryKey: ["employees"],
     queryFn: async () => {
       const data = await getEmployees();
-      return data.map((item) => ({
+      return (data || []).map((item) => ({
         id: item.empId,
         name: item.empName,
         code: item.empCode,
         branch: item.branch,
         branchId: item.branchId,
         driver: false,
-        active: item.isActive === "Active",
+        active:
+          item.isActive === "Active" ||
+          (item.isActive as any) === true ||
+          String(item.isActive).toLowerCase() === "true" ||
+          String(item.isActive) === "1",
         isMaster: false,
         roleId: 0,
       }));
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const { data: branches = [] } = useQuery({
@@ -66,6 +74,8 @@ export const useEmployeeManager = () => {
     queryFn: async () => {
       return await getBranches();
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: roles = [] } = useQuery({
@@ -73,7 +83,17 @@ export const useEmployeeManager = () => {
     queryFn: async () => {
       return await getEmployeeRoles();
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
+
+  // Real-time synchronization: sync employee list across tabs and components
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["employees"] });
+      void queryClient.refetchQueries({ queryKey: ["employees"] });
+    });
+  }, [queryClient]);
 
   // 3. Search Filter
   const filteredEmployees = useMemo(() => {
@@ -94,29 +114,47 @@ export const useEmployeeManager = () => {
         await updateEmployee(editingId, {
           empId: editingId,
           empCode: data.code,
-          empName: data.name,
-          branchId: parseInt(data.branchId, 10),
-          roleId: parseInt(data.roleId, 10),
-          isDriver: data.driver,
-          isActive: data.active,
-          isMaster: data.isMaster,
-          updatedAt: new Date().toISOString(),
-        });
-      } else {
-        await createEmployee({
           code: data.code,
+          empName: data.name,
           name: data.name,
           branchId: parseInt(data.branchId, 10),
           roleId: parseInt(data.roleId, 10),
           isDriver: data.driver,
+          driver: data.driver,
+          isActive: data.active,
+          active: data.active,
+          isMaster: data.isMaster,
+          updatedAt: new Date().toISOString(),
+        } as any);
+      } else {
+        await createEmployee({
+          code: data.code,
+          empCode: data.code,
+          name: data.name,
+          empName: data.name,
+          branchId: parseInt(data.branchId, 10),
+          roleId: parseInt(data.roleId, 10),
+          isDriver: data.driver,
+          driver: data.driver,
           isMaster: data.isMaster,
           isActive: data.active,
-        });
+          active: data.active,
+        } as any);
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       showToast(editingId ? "Employee updated successfully!" : "Employee added successfully!", "success");
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
+      await queryClient.refetchQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["employeeNames"] });
+      queryClient.invalidateQueries({ queryKey: ["waiters"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["branchData"] });
+      queryClient.invalidateQueries({ queryKey: ["physicalEntryBranchData"] });
+      notifyEmployeesUpdated();
       closeModal();
     },
     onError: (err: any) => {
@@ -128,9 +166,19 @@ export const useEmployeeManager = () => {
     mutationFn: async (id: number) => {
       await deleteEmployee(id);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       showToast("Employee deleted successfully!", "success");
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
+      await queryClient.refetchQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["employeeNames"] });
+      queryClient.invalidateQueries({ queryKey: ["waiters"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["branchData"] });
+      queryClient.invalidateQueries({ queryKey: ["physicalEntryBranchData"] });
+      notifyEmployeesUpdated();
       setDeleteCandidate(null);
     },
     onError: (err: any) => {
@@ -187,9 +235,18 @@ export const useEmployeeManager = () => {
     }
   };
 
-  const handleSave = form.handleSubmit((data: any) => {
-    saveMutation.mutate(data as EmployeeForm);
-  });
+  const handleSave = form.handleSubmit(
+    (data: any) => {
+      saveMutation.mutate(data as EmployeeForm);
+    },
+    (errors) => {
+      console.warn("[EmployeeForm] Validation errors:", errors);
+      const firstError = Object.values(errors)[0] as any;
+      if (firstError?.message) {
+        showToast(firstError.message as string, "error");
+      }
+    }
+  );
 
   return {
     form,

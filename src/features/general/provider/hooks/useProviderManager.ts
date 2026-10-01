@@ -8,6 +8,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../../inventory/shared/store/masterDataSlice";
 import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 
 export const useProviderManager = () => {
   const { showToast } = useToast();
@@ -39,7 +40,7 @@ export const useProviderManager = () => {
     },
   });
 
-  const { data: branchList = [] } = useQuery({
+  const { data: branchList = [], refetch: refetchBranchNames } = useQuery({
     queryKey: ["branchNames"],
     queryFn: async () => {
       try {
@@ -50,7 +51,27 @@ export const useProviderManager = () => {
         return [];
       }
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Listen for real-time branch updates (same tab and cross-tab)
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      void refetchBranchNames();
+      void dispatch(fetchGlobalMasterData());
+    });
+    return unsubscribe;
+  }, [queryClient, dispatch, refetchBranchNames]);
+
+  // Ensure fresh branch data whenever the modal opens
+  useEffect(() => {
+    if (open) {
+      void refetchBranchNames();
+    }
+  }, [open, refetchBranchNames]);
 
   const { data: paymodes = [], isLoading: paymodesLoading } = useQuery({
     queryKey: ["providerPaymodes"],
@@ -167,10 +188,12 @@ export const useProviderManager = () => {
 
   const openCreateModal = () => {
     resetForm();
+    void refetchBranchNames();
     setOpen(true);
   };
 
   const handleEdit = async (record: ProviderListItem) => {
+    void refetchBranchNames();
     try {
       const detail = await fetchProviderById(record.providerId);
       
@@ -246,6 +269,14 @@ export const useProviderManager = () => {
     );
   }, [records, search]);
 
+  const branchOptions = useMemo(() => {
+    if (branchList.length > 0) return branchList;
+    return branches.map((b: any) => ({
+      id: b.id ?? b.branchId,
+      name: b.name ?? b.branchName,
+    }));
+  }, [branchList, branches]);
+
   return {
     form,
     open,
@@ -255,7 +286,7 @@ export const useProviderManager = () => {
     loading: recordsLoading || masterLoading || paymodesLoading || accountsLoading,
     saving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    branchOptions: branchList.length > 0 ? branchList : branches.map((b: any) => ({ id: b.id ?? b.branchId, name: b.name ?? b.branchName })),
+    branchOptions,
     paymodeOptions: paymodes,
     accountOptions: accounts,
     allocationOpen,

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { categoryApi } from "../../category";
 import { useToast } from "../../../../app/providers/useToast";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 const schema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Max 50 characters").transform(v => v.toUpperCase().replace(/\s/g, "")),
@@ -24,8 +25,19 @@ export const useQuickAddCategory = (onCreated: (id: string, name: string) => voi
   });
 
   const mutation = useMutation({
-    mutationFn: (data: QuickAddCategoryFormData) =>
-      categoryApi.createCategory({
+    mutationFn: (data: QuickAddCategoryFormData) => {
+      const activeBranchId = Number(
+        localStorage.getItem("activeBranchId") ||
+        localStorage.getItem("branchId") ||
+        localStorage.getItem("systemBranchId") ||
+        1
+      );
+      const cachedMenus = queryClient.getQueryData<any[]>(["menuTimeSettingsList"]);
+      const menuIds = Array.isArray(cachedMenus) && cachedMenus.length > 0
+        ? cachedMenus.map((m) => m.menuId)
+        : [1];
+
+      return categoryApi.createCategory({
         code: data.code,
         name: data.name,
         arabic: data.arabicName ?? "",
@@ -33,11 +45,20 @@ export const useQuickAddCategory = (onCreated: (id: string, name: string) => voi
         colorCode: "red",
         createdAt: new Date().toISOString(),
         posStatus: true,
-        branchIds: [],
-        menuIds: [],
-      }),
+        branchIds: [{ branchId: activeBranchId, colorCode: "red" }],
+        menuIds,
+      });
+    },
     onSuccess: (res, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categoryOptions"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-list"] });
       queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      void queryClient.refetchQueries({ queryKey: ["categories"] });
+      void queryClient.refetchQueries({ queryKey: ["pos"] });
+      window.dispatchEvent(new CustomEvent("categories:updated"));
+      notifyPosMenuUpdated("category");
       showToast("Category created successfully", "success");
       const newId = (res?.data as any)?.id ?? (res?.data as any)?.catId ?? "";
       onCreated(String(newId), variables.name);

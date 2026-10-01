@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { fetchSupplierStatement } from "../services/supplierStatementApi";
 import { getBranchList, getSupplierList } from "../../purchaseReport/services/purchaseReportApi";
+import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
 
 export const useSupplierStatement = () => {
+  const queryClient = useQueryClient();
   const decimalPart = useAppSelector(selectDecimalPart);
   const { initialBranchId, isBranchLocked } = useBranchScope();
 
@@ -30,7 +32,18 @@ export const useSupplierStatement = () => {
   const { data: suppliers = [], isLoading: suppliersLoading } = useQuery({
     queryKey: ["supplierList", "all"],
     queryFn: getSupplierList,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Real-time synchronization: sync supplier options when suppliers are created/updated
+  useEffect(() => {
+    return subscribeToSupplierUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["supplierList"] });
+      void queryClient.refetchQueries({ queryKey: ["supplierList"] });
+    });
+  }, [queryClient]);
 
   // 3. Fetch The Statement Report Data!
   const { data: reportResponse, isLoading: reportLoading, isFetching, refetch } = useQuery({

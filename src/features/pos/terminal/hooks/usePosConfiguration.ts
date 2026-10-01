@@ -29,6 +29,7 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     cashdrawer: (configs.cashdrawer as any) || "Default",
     recipe: configs.recipe === "Enable",
     dayDate: (configs.dayDate ?? configs.DayDate) === "Enable",
+    itemSeperation: Boolean(configs.itemSeperation),
     itemSeparationAfterEdit: configs.itemSeperationEdit === "Enable",
     multiEmployeeTable: configs.multiEmployeeTable === "Enable",
     customerTakeout: configs.customerTakeout === "Enable",
@@ -90,6 +91,7 @@ export const mapStateToApi = (state: ConfigurationState, branchId: number): PosC
     cashdrawer: state.cashdrawer,
     recipe: state.recipe ? "Enable" : "Disable",
     dayDate: state.dayDate ? "Enable" : "Disable",
+    itemSeperation: Boolean(state.itemSeperation),
     itemSeperationEdit: state.itemSeparationAfterEdit ? "Enable" : "Disable",
     multiEmployeeTable: state.multiEmployeeTable ? "Enable" : "Disable",
     customerTakeout: state.customerTakeout ? "Enable" : "Disable",
@@ -324,7 +326,10 @@ export const usePosConfiguration = () => {
           parsed.configs.alternativeOrder = payload.alternativeOrder;
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
+          parsed.configs.itemSeperation = payload.itemSeperation;
         }
+        parsed.itemSeperation = payload.itemSeperation;
+        localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
         parsed.kotArabic = payload.kotArabic;

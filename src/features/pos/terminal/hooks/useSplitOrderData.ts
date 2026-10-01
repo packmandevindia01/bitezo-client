@@ -6,6 +6,7 @@ import { useAppSelector } from "../../../../app/hooks";
 import { useCashierLog } from "../../cashier";
 import type { SplitBucket, SplitCartItem } from "./useSplitBuckets";
 import { calculateOrder, roundCalc } from "../utils/billing";
+import { formatItemDisplayName } from "../../utils/alternativeHelpers";
 
 interface UseSplitOrderDataProps {
   orderId: number | null;
@@ -121,9 +122,14 @@ export const useSplitOrderData = ({
             }
           }
 
+          const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || "";
+          const baseName = d.productName || d.ProductName || realProduct.name || (pId ? `Product #${pId}` : "Item");
+          const displayName = formatItemDisplayName(baseName, rawAlt);
+
           return {
             mapId: d.mapId,
-            name: d.productName || d.ProductName,
+            name: displayName,
+            variantName: rawAlt || undefined,
             price: d.price || 0,
             currentQty: d.qty || 1,
             detail: {

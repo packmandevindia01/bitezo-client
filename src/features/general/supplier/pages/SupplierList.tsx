@@ -17,6 +17,8 @@ import {
   fetchSuppliers,
   updateSupplier,
 } from "../services";
+import { useQueryClient } from "@tanstack/react-query";
+import { notifySuppliersUpdated, subscribeToSupplierUpdates } from "../utils/supplierSync";
 import type { Supplier, SupplierPayload } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
 
@@ -26,6 +28,7 @@ const getErrorMessage = (error: unknown) => {
 };
 
 const SupplierList = () => {
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { hasPermission } = usePermissions();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -57,6 +60,13 @@ const SupplierList = () => {
 
   useEffect(() => {
     void loadSuppliers();
+  }, [loadSuppliers]);
+
+  // Real-time synchronization: sync supplier list across tabs and components
+  useEffect(() => {
+    return subscribeToSupplierUpdates(() => {
+      void loadSuppliers();
+    });
   }, [loadSuppliers]);
 
   const closeModal = () => {
@@ -91,6 +101,17 @@ const SupplierList = () => {
     }
   };
 
+  const invalidateAllSupplierQueries = () => {
+    void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["supplierList"] });
+    void queryClient.invalidateQueries({ queryKey: ["purchaseInvoiceSuppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["purchaseReturnSuppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["paymentAgainstAccounts"] });
+    void queryClient.invalidateQueries({ queryKey: ["paymentAccounts"] });
+    void queryClient.invalidateQueries({ queryKey: ["paymentAccountList"] });
+    notifySuppliersUpdated();
+  };
+
   const handleSave = async (payload: SupplierPayload) => {
     try {
       setSaving(true);
@@ -101,6 +122,7 @@ const SupplierList = () => {
         await createSupplier(payload);
         showToast("Supplier created successfully", "success");
       }
+      invalidateAllSupplierQueries();
       closeModal();
       void loadSuppliers();
     } catch (err: any) {
@@ -124,6 +146,7 @@ const SupplierList = () => {
         closeModal();
       }
 
+      invalidateAllSupplierQueries();
       void loadSuppliers();
     } catch (err: any) {
       const msg = err.message || getErrorMessage(err);

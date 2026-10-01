@@ -45,6 +45,8 @@ export const usePurchaseReturnReport = () => {
   const { data: suppliers = [] as SupplierOption[], isLoading: suppliersLoading } = useQuery({
     queryKey: ["supplierList", "all"],
     queryFn: getSupplierList,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: seriesList = [] as any[], isLoading: seriesLoading } = useQuery({

@@ -8,6 +8,7 @@ import { TouchKeyboard } from "../../../../../../components/common/TouchKeyboard
 import { Search, X } from "lucide-react";
 import { usePosVoid } from "../../../hooks/usePosVoid";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
+import { matchesOrderSearch } from "../../../utils/orderSearch";
 
 interface PosVoidModalProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
   const [deliveryOutOnly, setDeliveryOutOnly] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchStatus, setSearchStatus] = useState("Order No");
+  const [searchStatus, setSearchStatus] = useState("ORDER NO");
   const [reason, setReason] = useState("");
 
   // Filter handlers
@@ -63,6 +64,11 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
       DeliveryOutOnlyStatus: deliveryOutOnly
     });
   };
+
+  const displayedOrders = React.useMemo(() => {
+    if (!search || !search.trim()) return orders;
+    return orders.filter((order) => matchesOrderSearch(order, search, searchStatus));
+  }, [orders, search, searchStatus]);
 
   const handleVoidOrder = async () => {
     if (!selectedOrderId) return;
@@ -154,7 +160,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
             </button>
             {search && (
               <button
-                onClick={() => handleApplySearch("", "Order No")}
+                onClick={() => handleApplySearch("", "ORDER NO")}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-widest"
               >
                 Clear
@@ -172,7 +178,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
           </div>
         )}
 
-        {!loading && orders.length === 0 && (
+        {!loading && displayedOrders.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400 gap-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
               <Search size={32} />
@@ -181,7 +187,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
           </div>
         )}
 
-        {orders.map((order, index) => (
+        {displayedOrders.map((order, index) => (
           <div
             key={order.orderId || `void-${index}`}
             onClick={() => setSelectedOrderId(order.orderId)}

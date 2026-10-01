@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../../app/providers/useToast";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
 import { resolveImageUrl } from "../../../../utils/imageUtils";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 
 
@@ -375,6 +376,8 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
       queryClient.invalidateQueries({ queryKey: ["productList"] });
       queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("product");
 
       if (productId) {
         navigate("/dashboard/products");
@@ -397,6 +400,8 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
       queryClient.invalidateQueries({ queryKey: ["productList"] });
       queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("product");
       navigate("/dashboard/products");
     },
     onError: (error: any) => {

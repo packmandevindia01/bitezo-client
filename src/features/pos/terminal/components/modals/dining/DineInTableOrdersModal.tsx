@@ -193,6 +193,11 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     if (!selectedMaster || !data || loading) return;
     try {
       const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
+      const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
+      if (prevUpdatedAt) {
+        sessionStorage.setItem(`order_prevUpdatedAt_${selectedMaster.orderId}`, prevUpdatedAt);
+      }
 
       dispatch(loadRecalledOrder({
         editingOrderId: selectedMaster.orderId,
@@ -207,6 +212,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         tableId: table!.tableId,
         deliveryCharge: master.deliveryCharge || 0,
         waiterName: master.employeeName ?? "Waiter",
+        prevUpdatedAt,
       }));
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
       onEditSuccess?.();
@@ -222,6 +228,11 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     if (!selectedMaster || !data || loading) return;
     try {
       const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
+      const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
+      if (prevUpdatedAt) {
+        sessionStorage.setItem(`order_prevUpdatedAt_${selectedMaster.orderId}`, prevUpdatedAt);
+      }
 
       dispatch(loadRecalledOrder({
         editingOrderId: selectedMaster.orderId,
@@ -237,6 +248,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         deliveryCharge: master.deliveryCharge || 0,
         isSettling: true,
         waiterName: master.employeeName ?? "Waiter",
+        prevUpdatedAt,
       }));
       showToast(`Settling Order #${selectedMaster.orderNo}`, 'success');
       onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);

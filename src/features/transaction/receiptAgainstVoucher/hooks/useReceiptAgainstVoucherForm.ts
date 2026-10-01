@@ -1,15 +1,17 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { receiptAgainstVoucherApi } from "../services/receiptAgainstVoucherApi";
 import { receiptAgainstVoucherSchema } from "../schema/receiptAgainstVoucherSchema";
 import type { ReceiptAgainstVoucherFormData } from "../schema/receiptAgainstVoucherSchema";
 import { useAppSelector } from "../../../../app/hooks";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
   const auth = useAppSelector((state: any) => state.auth);
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
@@ -38,10 +40,13 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
     },
   });
 
-  const { data: masterData, isLoading: isLoadingMaster } = useQuery({
+  const { data: masterData, isLoading: isLoadingMaster, refetch: refetchMasterData } = useQuery({
     queryKey: ["receiptAgainstMasterData", branchId],
     queryFn: () => receiptAgainstVoucherApi.loadMasterData(branchId),
     retry: false, // Don't retry if API doesn't exist yet
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const { data: existingData, isLoading: isLoadingExisting } = useQuery({
@@ -56,6 +61,14 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
     queryFn: () => receiptAgainstVoucherApi.getAccountList(),
     retry: false,
   });
+
+  // Real-time synchronization: sync master data (employees, etc.) when employees are created/updated
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      void refetchMasterData();
+    });
+  }, [queryClient, refetchMasterData]);
 
   const selectedAccountId = form.watch("accountId");
   

@@ -13,6 +13,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
 import { generateUUID } from "../../../../utils/uuid";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -150,7 +151,17 @@ export const useStockAdjustment = (id?: string | null) => {
       };
     },
     enabled: !!watchedBranch,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Cross-tab and local real-time listener for employee updates
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["branchData"] });
+    });
+  }, [queryClient]);
 
   // 4. React Query: Load existing record (Edit Mode)
   const { data: recordData, isLoading: loadingRecord } = useQuery({

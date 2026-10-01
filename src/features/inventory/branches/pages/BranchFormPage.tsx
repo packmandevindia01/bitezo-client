@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
+import { useAppDispatch } from "../../../../app/hooks";
+import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import BranchForm from "../components/BranchForm";
 import { fetchBranchById, createBranch, updateBranch, deleteBranch } from "../services/branchApi";
+import { notifyBranchesUpdated } from "../utils/branchSync";
 import type { BranchPayload, BranchRecord } from "../types";
 
 const BranchFormPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(!!id);
   const [initialData, setInitialData] = useState<BranchRecord | null>(null);
 
@@ -40,7 +46,10 @@ const BranchFormPage = () => {
         await createBranch(payload);
         showToast("Branch Master created successfully", "success");
       }
-      window.dispatchEvent(new CustomEvent("branches:updated"));
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      void dispatch(fetchGlobalMasterData());
+      notifyBranchesUpdated();
       navigate("/dashboard/branches");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save branch";
@@ -53,7 +62,10 @@ const BranchFormPage = () => {
      try {
        await deleteBranch(Number(id));
        showToast("Branch deleted successfully", "success");
-       window.dispatchEvent(new CustomEvent("branches:updated"));
+       queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+       queryClient.invalidateQueries({ queryKey: ["branches"] });
+       void dispatch(fetchGlobalMasterData());
+       notifyBranchesUpdated();
        navigate("/dashboard/branches");
      } catch {
        showToast("Failed to delete branch", "error");

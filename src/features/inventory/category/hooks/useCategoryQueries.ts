@@ -1,11 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { categoryApi } from "../api";
 import type { CategoryForm } from "../schemas";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 export const useCategories = (catCode?: string, catName?: string) => {
   return useQuery({
     queryKey: ["categories", catCode, catName],
     queryFn: () => categoryApi.getCategories(catCode, catName),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -14,6 +18,8 @@ export const useCategoryDetail = (id: number | null) => {
     queryKey: ["category", id],
     queryFn: () => categoryApi.getCategoryById(id!),
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };
 
@@ -21,6 +27,8 @@ export const useCategoryBranches = () => {
   return useQuery({
     queryKey: ["categoryBranches"],
     queryFn: () => categoryApi.getBranches(),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };
 
@@ -41,6 +49,14 @@ export const useCreateCategory = () => {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categoryOptions"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-list"] });
+      queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      void queryClient.refetchQueries({ queryKey: ["categories"] });
+      void queryClient.refetchQueries({ queryKey: ["pos"] });
+      window.dispatchEvent(new CustomEvent("categories:updated"));
+      notifyPosMenuUpdated("category");
     },
   });
 };
@@ -66,7 +82,15 @@ export const useUpdateCategory = () => {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categoryOptions"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-list"] });
       queryClient.invalidateQueries({ queryKey: ["category", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      void queryClient.refetchQueries({ queryKey: ["categories"] });
+      void queryClient.refetchQueries({ queryKey: ["pos"] });
+      window.dispatchEvent(new CustomEvent("categories:updated"));
+      notifyPosMenuUpdated("category");
     },
   });
 };
@@ -77,6 +101,14 @@ export const useDeleteCategory = () => {
     mutationFn: (id: number) => categoryApi.deleteCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categoryOptions"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-list"] });
+      queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      void queryClient.refetchQueries({ queryKey: ["categories"] });
+      void queryClient.refetchQueries({ queryKey: ["pos"] });
+      window.dispatchEvent(new CustomEvent("categories:updated"));
+      notifyPosMenuUpdated("category");
     },
   });
 };

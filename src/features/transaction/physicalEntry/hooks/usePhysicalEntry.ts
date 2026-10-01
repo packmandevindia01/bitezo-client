@@ -11,6 +11,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
 import { generateUUID } from "../../../../utils/uuid";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -151,6 +152,13 @@ export const usePhysicalEntry = (id?: string | null) => {
     staleTime: 0,
     refetchOnMount: true,
   });
+
+  // Cross-tab and local real-time listener for employee updates
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["physicalEntryBranchData"] });
+    });
+  }, [queryClient]);
 
   // Load Existing Record
   const { data: recordData, isLoading: loadingRecord } = useQuery({

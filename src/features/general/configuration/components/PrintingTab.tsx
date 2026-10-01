@@ -71,6 +71,13 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
             label="Master KOT (Bill Printer)" 
             checked={form.masterKotBillPrinter} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("masterKotBillPrinter", e.target.checked)} 
+            onKeyDown={(e) => handleKeyDown(e, "conf-print-itemsep-main")}
+          />
+          <Checkbox 
+            id="conf-print-itemsep-main"
+            label="Item Separation" 
+            checked={!!form.itemSeperation} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("itemSeperation", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-itemsep")}
           />
           <Checkbox 

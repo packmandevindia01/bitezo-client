@@ -51,6 +51,7 @@ export interface OrderFormContext {
   voidProducts?: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
   voidModifiers?: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   combinedOrderIds?: number[];
+  prevUpdatedAt?: string | null;
 }
 
 export interface DirectSettleOrderBase {
@@ -67,6 +68,7 @@ export interface DirectSettleOrderBase {
   netAmount: number;
   deliveryCharge: number;
   updatedAt: string;
+  prevUpdatedAt?: string;
   orderTypeId: number;
   sectionId: number;
   tableId: number;
@@ -130,6 +132,7 @@ export const buildDirectSettleOrderPayload = (
     voidProducts = [],
     voidModifiers = [],
     combinedOrderIds = [],
+    prevUpdatedAt,
   } = context;
 
   const normalizedTypeName = (selectedOrderTypeName || "").toLowerCase().replace(/[\s_-]/g, "");
@@ -150,8 +153,13 @@ export const buildDirectSettleOrderPayload = (
     ...voidProducts.map((v) => v.mapId || 0)
   );
 
-  const details: MenuOrderDetail[] = cartDetails.map((item, index) => {
-    const mapId = item.mapId || highestExistingMapId + index + 1;
+  let nextNewMapId = highestExistingMapId + 1;
+  const itemsWithMapId = cartDetails.map((item) => ({
+    item,
+    mapId: item.mapId || nextNewMapId++,
+  }));
+
+  const details: MenuOrderDetail[] = itemsWithMapId.map(({ item, mapId }) => {
     const mainNetAmount = item.mainNetAmount !== undefined ? item.mainNetAmount : (item.lineTotal || 0);
     const mainVatAmount = item.mainVatAmount !== undefined ? item.mainVatAmount : (item.vatAmount || 0);
     const mainSc = item.mainSc !== undefined ? item.mainSc : (item.sc || 0);
@@ -178,13 +186,10 @@ export const buildDirectSettleOrderPayload = (
       netAmount: roundCalc(mainNetAmount),
       mapId,
       complimentaryStatus: false,
-      baseQty: item.quantity,
     };
   });
 
-  const modifiers: MenuOrderModifier[] = cartDetails.flatMap((item, index) => {
-    const mapId = item.mapId || highestExistingMapId + index + 1;
-
+  const modifiers: MenuOrderModifier[] = itemsWithMapId.flatMap(({ item, mapId }) => {
     const extrasRows = (item.extras || []).map((extra) => ({
       mapId,
       modifierId: extra.id,
@@ -262,6 +267,9 @@ export const buildDirectSettleOrderPayload = (
     })),
     voidModifiers: voidModifiers.filter((vm) => !voidProducts.some((vp) => vp.mapId === vm.mapId)),
     combinedOrderIds,
+    prevUpdatedAt:
+      prevUpdatedAt ||
+      (editingOrderId ? sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) || undefined : undefined),
   };
 };
 
@@ -284,6 +292,7 @@ export const buildNewOrderPayload = (
 
 /**
  * Pure Mapper: Assembles MenuOrderUpdateRequest for PUT /api/menu/order/{id}
+ * Strictly conforms to UpdateKotOrderDto schema (no extra/unmapped properties).
  */
 export const buildUpdateOrderPayload = (
   orderId: number,
@@ -291,9 +300,61 @@ export const buildUpdateOrderPayload = (
   session: OrderSessionParams
 ): MenuOrderUpdateRequest => {
   const base = buildDirectSettleOrderPayload(context, session);
+  const resolvedPrevUpdatedAt =
+    context.prevUpdatedAt ||
+    base.prevUpdatedAt ||
+    sessionStorage.getItem(`order_prevUpdatedAt_${orderId}`) ||
+    undefined;
+
+  const cleanedDetails: MenuOrderDetail[] = base.details.map((d) => ({
+    productId: d.productId,
+    unitId: d.unitId,
+    qty: d.qty,
+    price: d.price,
+    discPer: d.discPer,
+    discAmount: d.discAmount,
+    serviceCharge: d.serviceCharge,
+    levy: d.levy,
+    vatId: d.vatId,
+    vatAmount: d.vatAmount,
+    netAmount: d.netAmount,
+    mapId: d.mapId,
+    complimentaryStatus: d.complimentaryStatus,
+  }));
+
   return {
-    ...base,
     orderId,
+    customerId: base.customerId,
+    employeeId: base.employeeId,
+    discAmount: base.discAmount,
+    discPer: base.discPer,
+    serviceCharge: base.serviceCharge,
+    levy: base.levy,
+    vatExclAmount: base.vatExclAmount,
+    vatAmount: base.vatAmount,
+    netAmount: base.netAmount,
     updatedAt: new Date().toISOString(),
+    prevUpdatedAt: resolvedPrevUpdatedAt || new Date().toISOString(),
+    orderTypeId: base.orderTypeId,
+    sectionId: base.sectionId,
+    tableId: base.tableId,
+    guestNo: base.guestNo,
+    vehicleCustomerName: base.vehicleCustomerName || "",
+    vehicleNo: base.vehicleNo || "",
+    addressId: base.addressId,
+    missedCall: base.missedCall,
+    contactNo: base.contactNo || "",
+    note: base.note || "",
+    change: base.change || "",
+    isComing: base.isComing,
+    comingTime: base.comingTime,
+    providerNo: base.providerNo || "",
+    deliveryCharge: base.deliveryCharge,
+    driverId: base.driverId,
+    details: cleanedDetails,
+    modifiers: base.modifiers,
+    voidProducts: base.voidProducts,
+    voidModifiers: base.voidModifiers,
+    combinedOrderIds: base.combinedOrderIds,
   };
 };

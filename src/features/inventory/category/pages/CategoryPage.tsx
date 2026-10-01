@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ConfirmDialog, PageShell } from "../../../../components/common";
 import CategoryModal from "../components/CategoryModal";
 import CategoryTable from "../components/CategoryTable";
@@ -35,7 +35,7 @@ const CategoryPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Data Fetching
-  const { data: categories = [], isLoading } = useCategories();
+  const { data: categories = [], isLoading, refetch: refetchCategories } = useCategories();
   const { data: branchOptions = [] } = useCategoryBranches();
   const { data: menuTimes = [] } = useQuery({
     queryKey: ["menuTimeSettingsList"],
@@ -70,6 +70,21 @@ const CategoryPage = () => {
     },
   });
 
+  // Real-time synchronization for category list updates
+  useEffect(() => {
+    const handleCategoryUpdate = () => {
+      void refetchCategories();
+    };
+
+    window.addEventListener("categories:updated", handleCategoryUpdate);
+    window.addEventListener("pos_menu_updated", handleCategoryUpdate);
+
+    return () => {
+      window.removeEventListener("categories:updated", handleCategoryUpdate);
+      window.removeEventListener("pos_menu_updated", handleCategoryUpdate);
+    };
+  }, [refetchCategories]);
+
   const resetForm = () => {
     const currentCode = form.getValues("code"); // preserve auto-generated code
     let defaultBranches: { branchId: number; colorCode: string }[] = [];
@@ -80,7 +95,8 @@ const CategoryPage = () => {
         defaultBranches = [{ branchId: Number(targetBranch.id), colorCode: "red" }];
       }
     }
-    const defaultMenus = menuTimes.length > 0 ? [menuTimes[0].menuId] : [];
+    // Allocate to all active menu times so category is immediately visible across all POS menu sessions
+    const defaultMenus = menuTimes.length > 0 ? menuTimes.map(m => m.menuId) : [];
 
     form.reset({
       code: currentCode,
@@ -97,11 +113,30 @@ const CategoryPage = () => {
     });
   };
 
+  // If menuTimes or branchOptions finish loading after modal is already open, auto-populate allocations if empty
+  useEffect(() => {
+    if (open && !editingId) {
+      const currentMenuIds = form.getValues("menuIds");
+      if ((!currentMenuIds || currentMenuIds.length === 0) && menuTimes.length > 0) {
+        form.setValue("menuIds", menuTimes.map(m => m.menuId), { shouldValidate: true });
+      }
+      const currentBranches = form.getValues("branchAllocations");
+      if ((!currentBranches || currentBranches.length === 0) && branchOptions.length > 0) {
+        const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || branchOptions[0].id;
+        const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
+        if (targetBranch) {
+          form.setValue("branchAllocations", [{ branchId: Number(targetBranch.id), colorCode: "red" }], { shouldValidate: true });
+        }
+      }
+    }
+  }, [open, editingId, menuTimes, branchOptions, form]);
+
   const handleOpenCreate = async () => {
     resetForm();
     setError(null);
     setEditingId(null);
     setOpen(true);
+    void refetchCategories();
     
     try {
       const code = await categoryApi.getNextCategoryCode();
@@ -149,7 +184,7 @@ const CategoryPage = () => {
       // Extract menu allocations
       let existingMenus = ((detail.menu || (detail as any).menus || []) as any[]).map((m: any) => Number(m.id ?? m.menuId));
       if (existingMenus.length === 0 && menuTimes.length > 0) {
-        existingMenus = [menuTimes[0].menuId];
+        existingMenus = menuTimes.map((m) => m.menuId);
       }
 
       form.reset({
@@ -191,6 +226,7 @@ const CategoryPage = () => {
           { id: editingId, data },
           {
             onSuccess: () => {
+              void refetchCategories();
               showToast("Category updated successfully", "success");
               setOpen(false);
             },
@@ -203,6 +239,7 @@ const CategoryPage = () => {
       } else {
         createMutation.mutate(data, {
           onSuccess: () => {
+            void refetchCategories();
             showToast("Category created successfully", "success");
             setOpen(false);
           },

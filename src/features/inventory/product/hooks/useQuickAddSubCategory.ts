@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { subCategoryApi } from "../../subcategory/api";
 import { useToast } from "../../../../app/providers/useToast";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 const schema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Max 50 characters").transform(v => v.toUpperCase().replace(/\s/g, "")),
@@ -57,6 +58,8 @@ export const useQuickAddSubCategory = (
     onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ["subCategories", variables.categoryId] });
       queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("subcategory");
       showToast("Sub Category created successfully", "success");
       const newId = (res?.data as any)?.id ?? (res?.data as any)?.subCatId ?? "";
       onCreated(String(newId), variables.name);

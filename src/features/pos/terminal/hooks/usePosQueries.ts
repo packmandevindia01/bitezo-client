@@ -14,10 +14,10 @@ import { menuApi } from '../../services/menuApi';
 // ============================================================================
 
 const CACHE_CONFIG = {
-  staleTime: 60 * 1000, // 1 minute (so it doesn't refetch on every render, but can be stale)
+  staleTime: 0, // Immediately stale so invalidations and sync events always fetch fresh data
   gcTime: 24 * 60 * 60 * 1000, 
-  refetchOnWindowFocus: true, // Auto-refresh when switching back to the app from another tab
-  refetchInterval: 60 * 1000, // Auto-poll in the background every 1 minute
+  refetchOnWindowFocus: "always" as const, // Always auto-refresh when switching back to the app from another tab
+  refetchInterval: 30 * 1000, // Auto-poll in the background every 30 seconds
 };
 
 export const POS_QUERY_KEYS = {

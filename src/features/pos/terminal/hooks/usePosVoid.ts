@@ -28,9 +28,7 @@ export const usePosVoid = () => {
 
       if (params.SearchValue?.trim()) {
         cleanParams.SearchValue = params.SearchValue.trim();
-        if (params.SearchStatus?.trim()) {
-          cleanParams.SearchStatus = params.SearchStatus.trim();
-        }
+        cleanParams.SearchStatus = (params.SearchStatus?.trim() || "ORDER NO").toUpperCase();
       }
       if (params.ProviderName?.trim()) cleanParams.ProviderName = params.ProviderName.trim();
 

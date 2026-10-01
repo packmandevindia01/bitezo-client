@@ -86,6 +86,7 @@ export const usePosCartActions = () => {
     voidModifiers,
     combinedOrderIds,
     isSettling,
+    prevUpdatedAt,
   } = useAppSelector((state) => state.pos);
 
   const cartMutations = useCartMutations();
@@ -174,6 +175,7 @@ export const usePosCartActions = () => {
     voidProducts,
     voidModifiers,
     combinedOrderIds,
+    prevUpdatedAt,
   });
 
   const getDirectSettleOrderPayload = (session: OrderSessionParams) => {
@@ -230,6 +232,25 @@ export const usePosCartActions = () => {
       const context = getFormContext();
 
       if (editingOrderId) {
+        let effectivePrevUpdatedAt =
+          context.prevUpdatedAt ||
+          sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) ||
+          undefined;
+
+        if (!effectivePrevUpdatedAt) {
+          try {
+            const detailsRes = await orderApi.getOrderDetails(editingOrderId);
+            const m = detailsRes?.data?.masterData || detailsRes?.data;
+            if (m?.updatedAt) {
+              effectivePrevUpdatedAt = String(m.updatedAt);
+              sessionStorage.setItem(`order_prevUpdatedAt_${editingOrderId}`, effectivePrevUpdatedAt);
+            }
+          } catch (e) {
+            console.warn("Could not fetch order updatedAt for concurrency check:", e);
+          }
+        }
+        context.prevUpdatedAt = effectivePrevUpdatedAt;
+
         const updatePayload = buildUpdateOrderPayload(editingOrderId, context, session);
         const invalidDetail = updatePayload.details.find((d) => !d.productId || d.productId === 0);
         if (invalidDetail) {

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { subCategoryApi } from "../api";
 import type { SubCategoryForm } from "../schemas";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 export const useSubCategories = (code?: string, name?: string, catId?: number) => {
   return useQuery({
@@ -33,6 +34,8 @@ export const useCreateSubCategory = () => {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subCategories"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("subcategory");
     },
   });
 };
@@ -56,6 +59,8 @@ export const useUpdateSubCategory = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["subCategories"] });
       queryClient.invalidateQueries({ queryKey: ["subCategory", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("subcategory");
     },
   });
 };
@@ -66,6 +71,8 @@ export const useDeleteSubCategory = () => {
     mutationFn: (id: number) => subCategoryApi.deleteSubCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subCategories"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("subcategory");
     },
   });
 };

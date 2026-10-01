@@ -14,13 +14,22 @@ export type { BranchOption };
 // ── List ──────────────────────────────────────────────────────────────────────
 export const getEmployees = async (): Promise<EmployeeListResponse[]> => {
   const res = await axiosInstance.get("/employee/employee-list");
-  return res.data.data ?? [];
+  if (res.data && res.data.isSuccess === false) {
+    console.warn("[employeeService] getEmployees reported failure:", res.data.message);
+    return [];
+  }
+  if (Array.isArray(res.data)) return res.data;
+  return res.data?.data ?? [];
 };
 
 export const getEmployeeNames = async (branchId?: number): Promise<{empId: number, empName: string}[]> => {
   const url = branchId ? `/employee/list-name?branchId=${branchId}` : "/employee/list-name";
   const res = await axiosInstance.get(url);
-  return res.data.data ?? [];
+  if (res.data && res.data.isSuccess === false) {
+    return [];
+  }
+  if (Array.isArray(res.data)) return res.data;
+  return res.data?.data ?? [];
 };
 
 export const getDrivers = async (branchId: number): Promise<{driverId: number, driverName: string}[]> => {
@@ -36,12 +45,18 @@ export const getEmployeeById = async (
   empId: number
 ): Promise<EmployeeDetailResponse> => {
   const res = await axiosInstance.get(`/employee/${empId}/empid-data`);
-  return res.data.data;
+  if (res.data && res.data.isSuccess === false) {
+    throw new Error(res.data.message || "Failed to fetch employee details");
+  }
+  return res.data?.data ?? res.data;
 };
 
 // ── Create ────────────────────────────────────────────────────────────────────
 export const createEmployee = async (data: CreateEmployeePayload) => {
   const res = await axiosInstance.post("/employee", data);
+  if (res.data && res.data.isSuccess === false) {
+    throw new Error(res.data.message || "Failed to create employee");
+  }
   return res.data;
 };
 
@@ -51,12 +66,18 @@ export const updateEmployee = async (
   data: UpdateEmployeePayload
 ) => {
   const res = await axiosInstance.put(`/employee/${empId}`, data);
+  if (res.data && res.data.isSuccess === false) {
+    throw new Error(res.data.message || "Failed to update employee");
+  }
   return res.data;
 };
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 export const deleteEmployee = async (empId: number) => {
   const res = await axiosInstance.delete(`/employee/${empId}`);
+  if (res.data && res.data.isSuccess === false) {
+    throw new Error(res.data.message || "Failed to delete employee");
+  }
   return res.data;
 };
 

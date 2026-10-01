@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
 import { createBranch, deleteBranch, fetchBranches, updateBranch } from "../services/branchApi";
 import type { BranchPayload, BranchRecord } from "../types";
 import { useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { notifyBranchesUpdated } from "../utils/branchSync";
 
 export const useBranchManager = () => {
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const [branches, setBranches] = useState<BranchRecord[]>([]);
   const [search, setSearch] = useState("");
@@ -59,9 +62,11 @@ export const useBranchManager = () => {
       setBranches((prev) => [...prev, createdRecord]);
       showToast("Branch created successfully", "success");
     }
-    // Refresh global master data so other modules (Modifier, Product, etc.) see the changes
+    // Refresh global master data and query caches so other modules see the changes
+    queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
     dispatch(fetchGlobalMasterData());
-    window.dispatchEvent(new CustomEvent("branches:updated"));
+    notifyBranchesUpdated();
     setOpen(false);
     setEditingBranch(null);
   };
@@ -73,8 +78,10 @@ export const useBranchManager = () => {
       await deleteBranch(deleteCandidate.id);
       setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
       showToast("Branch deleted successfully", "success");
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
       dispatch(fetchGlobalMasterData());
-      window.dispatchEvent(new CustomEvent("branches:updated"));
+      notifyBranchesUpdated();
       setDeleteCandidate(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete branch";

@@ -8,6 +8,7 @@ import type { ApiResponse } from "../../../inventory/product/types";
 import { createSupplier, updateSupplier, deleteSupplier } from "../services/index";
 import { useToast } from "../../../../app/providers/useToast";
 import { formatAmount } from "../../../../utils/currency";
+import { notifySuppliersUpdated } from "../utils/supplierSync";
 
 interface Branch {
   branchId: number;
@@ -81,10 +82,21 @@ export const useSupplierForm = ({ initialData, onSubmitOverride, onSuccess, onCl
   const branches = branchesData || [];
 
   // Mutations
+  const invalidateAllSupplierQueries = () => {
+    void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["supplierList"] });
+    void queryClient.invalidateQueries({ queryKey: ["purchaseInvoiceSuppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["purchaseReturnSuppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["paymentAgainstAccounts"] });
+    void queryClient.invalidateQueries({ queryKey: ["paymentAccounts"] });
+    void queryClient.invalidateQueries({ queryKey: ["paymentAccountList"] });
+    notifySuppliersUpdated();
+  };
+
   const createMutation = useMutation({
     mutationFn: createSupplier,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      invalidateAllSupplierQueries();
       showToast("Supplier created successfully", "success");
       onSuccess?.();
     },
@@ -96,7 +108,7 @@ export const useSupplierForm = ({ initialData, onSubmitOverride, onSuccess, onCl
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => updateSupplier(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      invalidateAllSupplierQueries();
       showToast("Supplier updated successfully", "success");
       onSuccess?.();
     },
@@ -108,7 +120,7 @@ export const useSupplierForm = ({ initialData, onSubmitOverride, onSuccess, onCl
   const deleteMutation = useMutation({
     mutationFn: deleteSupplier,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      invalidateAllSupplierQueries();
       showToast("Supplier deleted successfully", "success");
       onSuccess?.();
     },

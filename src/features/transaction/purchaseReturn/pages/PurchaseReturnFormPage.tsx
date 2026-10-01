@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Printer, Save, RotateCcw, Plus, Trash2, X } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, AutocompleteInput } from "../../../../components/common";
+import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox, AutocompleteInput, Modal } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -12,6 +12,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
+import SupplierForm from "../../../general/supplier/components/SupplierForm";
+import { createSupplier } from "../../../general/supplier/services/index";
+import { notifySuppliersUpdated } from "../../../general/supplier/utils/supplierSync";
 
 const PurchaseReturnFormPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +51,7 @@ const PurchaseReturnFormPage = () => {
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
+    handleSupplierCreated,
     invoiceOptions,
     searchingInvoices,
     handleInvoiceSearch,
@@ -71,6 +75,29 @@ const PurchaseReturnFormPage = () => {
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [shouldResetAfterPrint, setShouldResetAfterPrint] = useState(false);
+
+  // Supplier modal state
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+
+  const handleCreateSupplier = async (payload: any) => {
+    try {
+      setCreatingSupplier(true);
+      const res = await createSupplier(payload);
+      const newId = res?.data?.id;
+      if (newId) {
+        showToast("Supplier created successfully", "success");
+        setIsSupplierModalOpen(false);
+        handleSupplierCreated(newId, payload.name || "New Supplier");
+        notifySuppliersUpdated();
+      }
+    } catch (error: any) {
+      showToast(error.message || "Failed to create supplier", "error");
+    } finally {
+      setCreatingSupplier(false);
+    }
+  };
+
   // Tracks whether a product was just selected via Enter (so we don't exit grid accidentally)
   const productSelectedRef = useRef(false);
 
@@ -267,10 +294,15 @@ const PurchaseReturnFormPage = () => {
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pr-purchaseNo" label="Return No" {...register("purchaseNo", { onChange: () => methods.trigger("purchaseNo") })} onKeyDown={(e) => hk(e, "pr-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pr-purchaseDate" label="Return Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate", { onChange: () => methods.trigger("purchaseDate") })} onKeyDown={(e) => hk(e, "pr-supplier")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
               
-              <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2">
-                <Controller name="supplier" control={control} render={({ field }) => (
-                  <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
-                )} />
+              <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2 flex items-end gap-1">
+                <div className="flex-1 min-w-0">
+                  <Controller name="supplier" control={control} render={({ field }) => (
+                    <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                  )} />
+                </div>
+                <button type="button" onClick={() => setIsSupplierModalOpen(true)} className="mb-1 shrink-0 h-8 w-8 flex items-center justify-center rounded border border-[#49293e] bg-[#49293e] hover:bg-[#3c2232] hover:border-[#3c2232] text-white transition-colors">
+                  <Plus size={16} />
+                </button>
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
@@ -739,6 +771,19 @@ const PurchaseReturnFormPage = () => {
           onClose={handlePrintModalClose}
           data={printData}
         />
+
+        <Modal
+          isOpen={isSupplierModalOpen}
+          onClose={() => setIsSupplierModalOpen(false)}
+          title="Add New Supplier"
+          size="2xl"
+        >
+          <SupplierForm
+            onSubmit={handleCreateSupplier}
+            onCancel={() => setIsSupplierModalOpen(false)}
+            submitting={creatingSupplier}
+          />
+        </Modal>
       </FormProvider>
     </PageShell>
   );

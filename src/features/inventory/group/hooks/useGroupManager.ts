@@ -4,6 +4,7 @@ import { useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { groupService } from "../services/groupService";
 import { useToast } from "../../../../app/providers/useToast";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 import type { GroupForm } from "../types";
 import { useGroupList } from "./useGroupList";
 import { useGroupModal } from "./useGroupModal";
@@ -79,7 +80,9 @@ export const useGroupManager = () => {
 
         await fetchGroups();
         void queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+        void queryClient.invalidateQueries({ queryKey: ["pos"] });
         void dispatch(fetchGlobalMasterData());
+        notifyPosMenuUpdated("group");
         showToast(modal.mode === "edit" ? "Group updated successfully" : "Group created successfully", "success");
         closeModal();
       } catch (err) {
@@ -111,7 +114,9 @@ export const useGroupManager = () => {
       await groupService.remove(deleteCandidate.grpId);
       setGroups((prev) => prev.filter((g) => g.grpId !== deleteCandidate.grpId));
       void queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      void queryClient.invalidateQueries({ queryKey: ["pos"] });
       void dispatch(fetchGlobalMasterData());
+      notifyPosMenuUpdated("group");
       showToast("Group deleted successfully", "success");
       setDeleteCandidate(null);
 

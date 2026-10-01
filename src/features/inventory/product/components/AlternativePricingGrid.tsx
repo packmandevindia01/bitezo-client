@@ -344,22 +344,31 @@ export const AlternativePricingGrid = ({
                         ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-4`, el); }}
                         type="text"
                         inputMode="decimal"
-                        value={alt.price === "0" ? formatAmount(0, decimalPart) : alt.price}
+                        value={alt.price ?? ""}
                         onFocus={(e) => {
                           setFocusPos({ r: rIdx, c: 4 });
                           e.target.select();
                         }}
                         onKeyDown={(e) => handleKeyDown(e, rIdx, 4)}
                         onChange={(e) => {
-                          let next = sanitizeAmountInput(e.target.value, decimalPart);
+                          let val = e.target.value;
+                          if (val === ".") {
+                            val = "0.";
+                          } else if (/^0\d+/.test(val)) {
+                            val = val.replace(/^0+/, "") || "0";
+                          }
+                          let next = sanitizeAmountInput(val, decimalPart);
                           if (next !== null) {
                             if (next.length > 15) next = next.slice(0, 15);
                             handleGridChange(rIdx, "price", next);
                           }
                         }}
                         onBlur={(e) => {
-                          if (e.target.value !== "" && e.target.value !== ".") {
-                            handleGridChange(rIdx, "price", formatAmount(e.target.value, decimalPart));
+                          const val = e.target.value.trim();
+                          if (val !== "" && val !== "." && Number(val) > 0) {
+                            handleGridChange(rIdx, "price", formatAmount(val, decimalPart));
+                          } else {
+                            handleGridChange(rIdx, "price", "0");
                           }
                         }}
                         className="h-8 w-full border-none bg-transparent px-2 py-0 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-[#49293e]/10 font-mono text-right"

@@ -17,6 +17,7 @@ import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus } from "../../../utils/billing";
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
+import { matchesOrderSearch } from "../../../utils/orderSearch";
 
 
 interface PosRecallModalProps {
@@ -55,7 +56,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   const [selectedDriverOrderId, setSelectedDriverOrderId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchStatus, setSearchStatus] = useState("Order No");
+  const [searchStatus, setSearchStatus] = useState("ORDER NO");
 
   const [waiters, setWaiters] = useState<PosWaiter[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(() => {
@@ -264,39 +265,47 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   };
 
   const displayedOrders = React.useMemo(() => {
-    if (!selectedEmployeeId) return orders;
+    let list = orders;
 
-    const targetWaiter = waiters.find((w) => w.empId === selectedEmployeeId);
-    const targetName = (
-      targetWaiter?.empName ||
-      (selectedEmployeeId === currentWaiterId ? currentWaiterName : null) ||
-      ""
-    ).toLowerCase().trim();
+    if (selectedEmployeeId) {
+      const targetWaiter = waiters.find((w) => w.empId === selectedEmployeeId);
+      const targetName = (
+        targetWaiter?.empName ||
+        (selectedEmployeeId === currentWaiterId ? currentWaiterName : null) ||
+        ""
+      ).toLowerCase().trim();
 
-    return orders.filter((order) => {
-      // 1. If backend object has explicit employeeId / waiterId
-      const oAny = order as any;
-      if (oAny.employeeId && Number(oAny.employeeId) === Number(selectedEmployeeId)) return true;
-      if (oAny.waiterId && Number(oAny.waiterId) === Number(selectedEmployeeId)) return true;
+      list = list.filter((order) => {
+        // 1. If backend object has explicit employeeId / waiterId
+        const oAny = order as any;
+        if (oAny.employeeId && Number(oAny.employeeId) === Number(selectedEmployeeId)) return true;
+        if (oAny.waiterId && Number(oAny.waiterId) === Number(selectedEmployeeId)) return true;
 
-      // 2. Parse / match employee tag from order.details string, e.g. "(emp1)" or "(emp2)"
-      if (typeof order.details === "string") {
-        const detailsLower = order.details.toLowerCase();
+        // 2. Parse / match employee tag from order.details string, e.g. "(emp1)" or "(emp2)"
+        if (typeof order.details === "string") {
+          const detailsLower = order.details.toLowerCase();
 
-        // Exact match with target employee name if known, e.g. "(emp1)"
-        if (targetName && detailsLower.includes(`(${targetName})`)) {
-          return true;
+          // Exact match with target employee name if known, e.g. "(emp1)"
+          if (targetName && detailsLower.includes(`(${targetName})`)) {
+            return true;
+          }
+
+          // Match tag pattern: "(emp<id>)" e.g. "(emp1)"
+          if (detailsLower.includes(`(emp${selectedEmployeeId})`)) {
+            return true;
+          }
         }
 
-        // Match tag pattern: "(emp<id>)" e.g. "(emp1)"
-        if (detailsLower.includes(`(emp${selectedEmployeeId})`)) {
-          return true;
-        }
-      }
+        return false;
+      });
+    }
 
-      return false;
-    });
-  }, [orders, selectedEmployeeId, waiters, currentWaiterId, currentWaiterName]);
+    if (search && search.trim()) {
+      list = list.filter((order) => matchesOrderSearch(order, search, searchStatus));
+    }
+
+    return list;
+  }, [orders, selectedEmployeeId, waiters, currentWaiterId, currentWaiterName, search, searchStatus]);
 
   return (
     <Modal
@@ -369,7 +378,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
             </button>
             {search && (
               <button
-                onClick={() => handleApplySearch("", "Order No")}
+                onClick={() => handleApplySearch("", "ORDER NO")}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-widest"
               >
                 Clear

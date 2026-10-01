@@ -8,6 +8,7 @@ import { PosSettledDetailsModal } from "./PosSettledDetailsModal";
 
 
 import { ConfirmDialog } from "../../../../../../components/common";
+import { matchesOrderSearch } from "../../../utils/orderSearch";
 
 interface PosSettledModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchStatus, setSearchStatus] = useState("Order No");
+  const [searchStatus, setSearchStatus] = useState("ORDER NO");
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
 
   // Filter handlers
@@ -72,6 +73,11 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
       DeliveryOutOnlyStatus: deliveryOutOnly
     });
   };
+
+  const displayedOrders = React.useMemo(() => {
+    if (!search || !search.trim()) return orders;
+    return orders.filter((order: any) => matchesOrderSearch(order, search, searchStatus));
+  }, [orders, search, searchStatus]);
 
   return (
     <Modal
@@ -126,7 +132,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
             </button>
             {search && (
               <button
-                onClick={() => handleApplySearch("", "Order No")}
+                onClick={() => handleApplySearch("", "ORDER NO")}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-widest"
               >
                 Clear
@@ -144,7 +150,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
           </div>
         )}
 
-        {!loading && orders.length === 0 && (
+        {!loading && displayedOrders.length === 0 && (
           <div className="flex flex-col items-center justify-center min-h-[300px] h-full py-16 text-slate-400 gap-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
               <Search size={32} />
@@ -153,7 +159,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
           </div>
         )}
 
-        {orders.map((order: any, index: number) => (
+        {displayedOrders.map((order: any, index: number) => (
           <div
             key={order.orderId || `recall-${index}`}
             onClick={() => {

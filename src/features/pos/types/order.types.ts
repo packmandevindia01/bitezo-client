@@ -120,6 +120,7 @@ export interface MenuOrderUpdateRequest {
   vatAmount: number;
   netAmount: number;
   updatedAt: string;
+  prevUpdatedAt: string;
   orderTypeId: number;
   sectionId: number;
   tableId: number;

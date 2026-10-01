@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -10,6 +10,9 @@ import type { BranchRecord } from "../../../inventory/branches/types";
 import { useToast } from "../../../../app/providers/useToast";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { paymodeService } from "../../../general/paymode/services/paymodeService";
+import { PAYMODE_SYNC_CHANNEL, PAYMODE_STORAGE_KEY } from "../../../general/paymode/utils/paymodeSync";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => void) => {
   const { showToast } = useToast();
@@ -68,16 +71,107 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   }, [allBranches, searchBranchId]);
 
   // 2. Master Data (Series, Employees/Salesman, Paymodes) based on Selected Form Branch
-  const { data: masterData } = useQuery({
+  const { data: masterData, refetch: refetchMasterData } = useQuery({
     queryKey: ["receiptMaster", currentFormBranchId],
     queryFn: () => receiptVoucherApi.getLoadMaster(currentFormBranchId || 0),
     placeholderData: keepPreviousData,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Paymodes Master List directly from Paymode Service for instant synchronization
+  const { data: allPaymodes = [], refetch: refetchAllPaymodes } = useQuery({
+    queryKey: ["paymodes"],
+    queryFn: () => paymodeService.list(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Cross-tab and local real-time listener for paymode updates
+  useEffect(() => {
+    let lastHandledTimestamp = 0;
+    const handleSync = () => {
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      void refetchMasterData();
+      void refetchAllPaymodes();
+    };
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel(PAYMODE_SYNC_CHANNEL);
+        channel.onmessage = (event) => {
+          if (event.data?.type === "PAYMODE_UPDATED") {
+            lastHandledTimestamp = event.data?.timestamp || Date.now();
+            handleSync();
+          }
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === PAYMODE_STORAGE_KEY && e.newValue) {
+        const ts = parseInt(e.newValue.split(":")[0], 10);
+        if (ts && ts !== lastHandledTimestamp) {
+          lastHandledTimestamp = ts;
+          handleSync();
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    const handleCustom = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      lastHandledTimestamp = detail?.timestamp || Date.now();
+      handleSync();
+    };
+    window.addEventListener("paymodes:updated", handleCustom);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("paymodes:updated", handleCustom);
+    };
+  }, [queryClient, refetchMasterData, refetchAllPaymodes]);
+
+  // Cross-tab and local real-time listener for employee updates
+  useEffect(() => {
+    return subscribeToEmployeeUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      void refetchMasterData();
+    });
+  }, [queryClient, refetchMasterData]);
 
   // Derived lists
   const seriesList = masterData?.series || [];
   const employeeList = masterData?.salesman || [];
-  const paymodeList = (masterData?.paymodes || []).filter(p => p.paymodeName.toLowerCase() !== "credit");
+
+  // Merge loadMaster paymodes and allPaymodes so newly created paymodes are immediately visible
+  const paymodeList = useMemo(() => {
+    const list = (masterData?.paymodes || [])
+      .filter((p) => p.paymodeName.toLowerCase() !== "credit")
+      .map((p) => ({ paymodeId: Number(p.paymodeId), paymodeName: p.paymodeName }));
+
+    const existingIds = new Set(list.map((p) => p.paymodeId));
+
+    (allPaymodes || []).forEach((p) => {
+      const isActive = p.isActive === "Active" || p.isActive === true;
+      const id = Number(p.paymodeId);
+      if (isActive && !existingIds.has(id) && p.paymodeName.toLowerCase() !== "credit") {
+        list.push({
+          paymodeId: id,
+          paymodeName: p.paymodeName,
+        });
+      }
+    });
+
+    return list;
+  }, [masterData?.paymodes, allPaymodes]);
 
   // 2. Account List
   const { data: accountList = [] } = useQuery({

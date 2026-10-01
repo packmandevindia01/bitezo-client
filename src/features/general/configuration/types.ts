@@ -28,6 +28,7 @@ export interface ConfigurationState {
   kotPrint: boolean;
   masterKot: boolean;
   masterKotBillPrinter: boolean;
+  itemSeperation: boolean;
   itemSeparationAfterEdit: boolean;
   printPrice: "Inclusive" | "Exclusive";
   colorChangeGuestPrint: boolean;

@@ -136,9 +136,12 @@ export const createCategory = async (
   formData.append("BranchIdsJson", JSON.stringify(branchList));
 
   if (Array.isArray(payload.menuIds) && payload.menuIds.length > 0) {
-    payload.menuIds.forEach((menuId) => {
+    payload.menuIds.forEach((menuId, idx) => {
       formData.append("MenuIds", String(menuId));
+      formData.append(`MenuIds[${idx}]`, String(menuId));
+      formData.append(`menuIds[${idx}]`, String(menuId));
     });
+    formData.append("MenuIdsJson", JSON.stringify(payload.menuIds));
   }
 
   // Detailed Console Logging for Create Category
@@ -200,9 +203,12 @@ export const updateCategory = async (
   formData.append("BranchIdsJson", JSON.stringify(branchList));
 
   if (Array.isArray(payload.menuIds) && payload.menuIds.length > 0) {
-    payload.menuIds.forEach((menuId) => {
+    payload.menuIds.forEach((menuId, idx) => {
       formData.append("MenuIds", String(menuId));
+      formData.append(`MenuIds[${idx}]`, String(menuId));
+      formData.append(`menuIds[${idx}]`, String(menuId));
     });
+    formData.append("MenuIdsJson", JSON.stringify(payload.menuIds));
   }
 
   // Detailed Console Logging for Update Category

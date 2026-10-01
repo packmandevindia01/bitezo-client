@@ -22,6 +22,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   kotPrint: true,
   masterKot: false,
   masterKotBillPrinter: false,
+  itemSeperation: false,
   itemSeparationAfterEdit: false,
   printPrice: "Inclusive",
   colorChangeGuestPrint: false,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal } from "../../../../../../components/common";
 import { TouchKeyboard } from "../../../../../../components/common/TouchKeyboard";
 
@@ -11,34 +11,51 @@ interface PosRecallSearchModalProps {
 }
 
 const SEARCH_TABS = [
-  { id: "Order No", label: "Order No" },
-  { id: "Ticket No", label: "Ticket No" },
-  { id: "Customer", label: "Customer" },
-  { id: "Vehicle No", label: "Vehicle No" },
-  { id: "Mobile No", label: "Mobile No" },
+  { id: "ORDER NO", label: "ORDER NO" },
+  { id: "TICKET NO", label: "TICKET NO" },
+  { id: "CUSTOMER", label: "CUSTOMER" },
+  { id: "VEHICLE NO", label: "VEHICLE NO" },
+  { id: "MOBILE NO", label: "MOBILE NO" },
 ];
 
 export const PosRecallSearchModal: React.FC<PosRecallSearchModalProps> = ({
   isOpen,
   onClose,
   onSearch,
-  initialSearchStatus = "Order No",
+  initialSearchStatus = "ORDER NO",
   initialSearchValue = "",
 }) => {
   const [activeTab, setActiveTab] = useState(initialSearchStatus);
   const [searchValue, setSearchValue] = useState(initialSearchValue);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync state when modal opens
+  // Sync state and ensure input focus when modal opens
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialSearchStatus);
       setSearchValue(initialSearchValue);
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialSearchStatus, initialSearchValue]);
 
   const handleSearch = () => {
     onSearch(searchValue, activeTab);
     onClose();
+  };
+
+  const handleInput = (char: string) => {
+    setSearchValue((prev) => prev + char);
+  };
+
+  const handleBackspace = () => {
+    setSearchValue((prev) => prev.slice(0, -1));
+  };
+
+  const handleClear = () => {
+    setSearchValue("");
   };
 
   return (
@@ -54,9 +71,12 @@ export const PosRecallSearchModal: React.FC<PosRecallSearchModalProps> = ({
           {SEARCH_TABS.map((tab) => (
             <button
               key={tab.id}
+              type="button"
+              onPointerDown={(e) => e.preventDefault()}
               onClick={() => {
                 setActiveTab(tab.id);
                 setSearchValue("");
+                inputRef.current?.focus();
               }}
               className={`
                 py-3 px-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors
@@ -75,10 +95,17 @@ export const PosRecallSearchModal: React.FC<PosRecallSearchModalProps> = ({
         {/* Input Display */}
         <div className="bg-white border-2 border-[#252f4a] rounded-lg p-1 text-center shadow-inner">
           <input
+            ref={inputRef}
             type="text"
             autoFocus
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
             placeholder={`TYPE ${activeTab.toUpperCase()}...`}
             className="w-full h-12 bg-transparent text-center text-lg font-black text-[#252f4a] tracking-wider outline-none placeholder:text-slate-300 placeholder:text-sm placeholder:font-bold placeholder:tracking-widest"
           />
@@ -87,9 +114,12 @@ export const PosRecallSearchModal: React.FC<PosRecallSearchModalProps> = ({
         {/* Keyboard Container */}
         <div className="bg-slate-100 p-2 rounded-xl border border-slate-200 mt-2">
           <TouchKeyboard
-            layout={activeTab.includes("No") ? "numeric" : "qwerty"}
+            layout={activeTab.toUpperCase().includes("NO") ? "numeric" : "qwerty"}
             embedded={true}
             hideCloseKey={true}
+            onInput={handleInput}
+            onBackspace={handleBackspace}
+            onClear={handleClear}
             onEnter={handleSearch}
           />
         </div>
@@ -97,7 +127,8 @@ export const PosRecallSearchModal: React.FC<PosRecallSearchModalProps> = ({
         {/* Action Buttons */}
         <div className="flex justify-end gap-3 pt-2">
           <button
-            onClick={() => setSearchValue("")}
+            type="button"
+            onClick={handleClear}
             disabled={!searchValue}
             tabIndex={-1}
             className="px-8 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold uppercase tracking-widest text-xs disabled:opacity-50 hover:bg-slate-50 transition-colors"
@@ -105,6 +136,7 @@ export const PosRecallSearchModal: React.FC<PosRecallSearchModalProps> = ({
             Clear
           </button>
           <button
+            type="button"
             onClick={handleSearch}
             className="px-8 py-3 rounded-xl bg-[#252f4a] text-white font-bold uppercase tracking-widest text-xs shadow-md hover:bg-[#1a2133] transition-colors"
           >

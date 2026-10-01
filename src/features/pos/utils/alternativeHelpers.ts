@@ -160,6 +160,50 @@ export const getAlternativeArabicName = (item?: PosCartItem | null): string => {
 };
 
 /**
+ * Formats a composite display name for a product and its alternative/variant name.
+ * Handles cases like:
+ * - base: "JUICE", alt: "(S)" -> "JUICE(S)"
+ * - base: "JUICE", alt: "JUICE(S)" -> "JUICE(S)"
+ * - base: "JUICE", alt: "S" -> "JUICE(S)"
+ * - base: "JUICE", alt: "Small" -> "JUICE(Small)"
+ * - base: "JUICE", alt: "" -> "JUICE"
+ */
+export const formatItemDisplayName = (
+  productName?: string | null,
+  altName?: string | null,
+  variantName?: string | null
+): string => {
+  const baseName = (productName || "").trim();
+  const rawAlt = (altName || variantName || "").trim();
+
+  if (!rawAlt || rawAlt.toLowerCase() === "main" || rawAlt.toLowerCase() === "none") {
+    return baseName || "Item";
+  }
+
+  if (!baseName) {
+    return rawAlt;
+  }
+
+  // If altName already contains the base product name (e.g. "JUICE(S)" or "JUICE - S")
+  if (rawAlt.toLowerCase().includes(baseName.toLowerCase())) {
+    return rawAlt;
+  }
+
+  // If baseName already contains the altName (e.g. baseName is already "JUICE(S)")
+  if (baseName.toLowerCase().includes(rawAlt.toLowerCase())) {
+    return baseName;
+  }
+
+  // If altName starts with '(', e.g. "(S)" -> "JUICE(S)"
+  if (rawAlt.startsWith("(")) {
+    return `${baseName}${rawAlt}`;
+  }
+
+  // For variant codes or names (e.g. "S", "M", "L", "Small")
+  return `${baseName}(${rawAlt})`;
+};
+
+/**
  * Reads the configured Alternative Order By option from local storage.
  * Defaults to "Id" if not found or invalid.
  */

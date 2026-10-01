@@ -38,6 +38,8 @@ export const useProductWisePurchaseReport = () => {
   const { data: suppliers = [] as SupplierOption[], isLoading: suppliersLoading } = useQuery({
     queryKey: ["supplierList", "all"],
     queryFn: getSupplierList,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: products = [] as ProductOption[], isLoading: productsLoading } = useQuery({

@@ -527,6 +527,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
       const saleId = !isNaN(parsedVoucher) ? parsedVoucher : null;
 
+      const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
+      const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
+      if (prevUpdatedAt) {
+        sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
+      }
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
         editingSaleId: saleId,
@@ -547,7 +553,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         isComing: master.isComing,
         comingTime: master.comingTime,
         vehicleCustomerName: master.vehicleCustomerName,
-        vehicleNo: master.vehicleNo
+        vehicleNo: master.vehicleNo,
+        prevUpdatedAt,
       }));
 
       onEditSuccess?.();
@@ -673,6 +680,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
       const saleId = !isNaN(parsedVoucher) ? parsedVoucher : null;
 
+      const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
+      const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
+      if (prevUpdatedAt) {
+        sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
+      }
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
         editingSaleId: saleId,
@@ -694,7 +707,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         comingTime: master.comingTime,
         vehicleCustomerName: master.vehicleCustomerName,
         vehicleNo: master.vehicleNo,
-        isSettling: true
+        isSettling: true,
+        prevUpdatedAt,
       }));
 
       onSettleSuccess?.(master.netAmount || 0);

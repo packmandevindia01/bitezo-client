@@ -21,6 +21,7 @@ export interface RuntimePosConfig {
   recipe?: string;
   dayDate?: string;
   DayDate?: string;
+  itemSeperation?: boolean;
   itemSeperationEdit?: string;
   multiEmployeeTable?: string;
   customerTakeout?: string;
@@ -170,4 +171,26 @@ export const getDayEndReportConfig = (): DayEndReportConfig => {
     showGroup: false,
     showDriver: false,
   };
+};
+
+export const isItemSeperationEnabled = (): boolean => {
+  try {
+    const raw = localStorage.getItem(POS_CONFIGS_STORAGE_KEY) || localStorage.getItem("posConfig");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.configs?.itemSeperation !== undefined) {
+        return Boolean(parsed.configs.itemSeperation);
+      }
+      if (parsed?.itemSeperation !== undefined) {
+        return Boolean(parsed.itemSeperation);
+      }
+    }
+    const direct = localStorage.getItem("itemSeperation");
+    if (direct !== null) {
+      return direct === "true";
+    }
+  } catch {
+    // ignore
+  }
+  return false;
 };

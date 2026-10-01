@@ -1,4 +1,5 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import {
   setCategory,
@@ -13,8 +14,10 @@ import {
   usePosMasterData, 
   usePosCategories, 
   usePosSubCategories, 
-  usePosProductsList 
+  usePosProductsList,
+  POS_QUERY_KEYS
 } from "./usePosQueries";
+import { POS_MENU_SYNC_CHANNEL, POS_MENU_STORAGE_KEY } from "../../utils/posMenuSync";
 
 export const alternativesCache: Record<string, any[]> = {}; // key: `${productId}-${orderTypeId}`
 export const productDataCache: Record<string, any> = {}; // key: `${productId}-${orderTypeId}`
@@ -53,6 +56,79 @@ export const usePosProducts = () => {
   const loading = groupsLoading || catsLoading || subsLoading || prodsLoading;
   const error = null;
 
+  const queryClient = useQueryClient();
+
+  // Real-time synchronization listener for cross-tab and local menu updates
+  useEffect(() => {
+    let lastHandledTimestamp = 0;
+
+    const handleSync = () => {
+      clearAllPosCache();
+      void queryClient.invalidateQueries({ queryKey: POS_QUERY_KEYS.all, refetchType: "all" });
+      void queryClient.refetchQueries({ queryKey: POS_QUERY_KEYS.all });
+      void refreshMasterData();
+    };
+
+    // 1. Cross-tab BroadcastChannel
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel(POS_MENU_SYNC_CHANNEL);
+        channel.onmessage = (event) => {
+          if (event.data?.type === "MENU_UPDATED") {
+            lastHandledTimestamp = event.data?.timestamp || Date.now();
+            handleSync();
+          }
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Cross-tab storage event
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === POS_MENU_STORAGE_KEY && e.newValue) {
+        const ts = parseInt(e.newValue.split(":")[0], 10);
+        if (ts && ts !== lastHandledTimestamp) {
+          lastHandledTimestamp = ts;
+          handleSync();
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    // 3. Same-tab DOM CustomEvent
+    const handleCustomEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      lastHandledTimestamp = detail?.timestamp || Date.now();
+      handleSync();
+    };
+    window.addEventListener("pos_menu_updated", handleCustomEvent);
+
+    // 4. Tab visibility / window focus check
+    const handleVisibilityOrFocus = () => {
+      try {
+        if (document.visibilityState === "visible") {
+          handleSync();
+        }
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    return () => {
+      if (channel) {
+        channel.close();
+      }
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("pos_menu_updated", handleCustomEvent);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [queryClient, refreshMasterData]);
+
   // Sync masterData orderTypes to redux
   useEffect(() => {
     if (masterData?.orderTypes && masterData.orderTypes.length > 0) {
@@ -80,10 +156,14 @@ export const usePosProducts = () => {
     return [...categories, ...unassignedMasterCats];
   }, [categories, masterData?.category]);
 
-  // Auto-select first category when menu group changes
+  // Auto-select first category ONLY when menu group actively changes
+  const prevGroupIdRef = useRef(activeGroupId);
   useEffect(() => {
-    if (categories.length > 0) {
-      dispatch(setCategory(categories[0].id));
+    if (prevGroupIdRef.current !== activeGroupId) {
+      prevGroupIdRef.current = activeGroupId;
+      if (categories.length > 0) {
+        dispatch(setCategory(categories[0].id));
+      }
     }
   }, [activeGroupId, categories, dispatch]);
 

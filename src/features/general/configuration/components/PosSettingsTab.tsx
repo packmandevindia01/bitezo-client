@@ -157,11 +157,19 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
             label="Print Price"
             value={form.printPrice}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("printPrice", e.target.value as any)}
-            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-recipe")}
+            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-item-seperation")}
             options={[
               { value: "Inclusive", label: "Inclusive" },
               { value: "Exclusive", label: "Exclusive" },
             ]}
+          />
+
+          <Checkbox 
+            id="conf-pos-item-seperation"
+            label="Item Separation" 
+            checked={!!form.itemSeperation} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("itemSeperation", e.target.checked)} 
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-recipe")}
           />
 
           <Checkbox 

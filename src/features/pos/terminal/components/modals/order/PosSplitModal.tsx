@@ -9,6 +9,7 @@ import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
 import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc } from "../../../utils/billing";
 import { useCashierLog } from "../../../../cashier";
+import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface SplitCartItem {
   detail: any;
   modifiers: any[];
   isIncl: boolean;
+  variantName?: string;
 }
 
 interface SplitBucket {
@@ -133,9 +135,14 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           }
         }
 
+        const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || "";
+        const baseName = d.productName || d.ProductName || realProduct.name || (pId ? `Product #${pId}` : "Item");
+        const displayName = formatItemDisplayName(baseName, rawAlt);
+
         return {
           mapId: d.mapId,
-          name: d.productName || d.ProductName,
+          name: displayName,
+          variantName: rawAlt || undefined,
           price: d.price || 0,
           currentQty: d.qty || 1,
           detail: {
@@ -600,7 +607,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                         onClick={(e) => { e.stopPropagation(); handleItemInteraction(bucket.id, item.mapId); }}
                       >
                         <div className="w-12 text-center">{item.currentQty}</div>
-                        <div className="flex-1 px-2 uppercase truncate">{item.name}</div>
+                        <div className="flex-1 px-2 uppercase truncate" title={item.name}>{item.name}</div>
                         <div className="w-20 text-right pr-2">{formatCurrency(calcs.lineNetAmount)}</div>
                       </div>
                       

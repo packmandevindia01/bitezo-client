@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { groupService } from "../../group/services/groupService";
 import { useToast } from "../../../../app/providers/useToast";
+import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 const schema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Max 50 characters").transform(v => v.toUpperCase().replace(/\s/g, "")),
@@ -34,6 +35,8 @@ export const useQuickAddGroup = (onCreated: (id: string, name: string) => void, 
       }),
     onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
+      notifyPosMenuUpdated("group");
       showToast("Group created successfully", "success");
       const newId = (res as any)?.id ?? (res as any)?.grpId ?? "";
       onCreated(String(newId), variables.name);

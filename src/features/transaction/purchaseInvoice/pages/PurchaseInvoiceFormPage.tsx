@@ -14,6 +14,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import SupplierForm from "../../../general/supplier/components/SupplierForm";
 import { createSupplier } from "../../../general/supplier/services/index";
+import { notifySuppliersUpdated } from "../../../general/supplier/utils/supplierSync";
 
 const PurchaseInvoiceFormPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +82,7 @@ const PurchaseInvoiceFormPage = () => {
         showToast("Supplier created successfully", "success");
         setIsSupplierModalOpen(false);
         handleSupplierCreated(newId, payload.name || "New Supplier");
+        notifySuppliersUpdated();
       }
     } catch (error: any) {
       showToast(error.message || "Failed to create supplier", "error");
