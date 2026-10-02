@@ -11,8 +11,10 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { paymodeService } from "../../../general/paymode/services/paymodeService";
-import { PAYMODE_SYNC_CHANNEL, PAYMODE_STORAGE_KEY } from "../../../general/paymode/utils/paymodeSync";
+import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { getEmployeeNames, getEmployees } from "../../../general/employee/services/employeeService";
 
 export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => void) => {
   const { showToast } = useToast();
@@ -45,40 +47,88 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   const currentFormBranchId = watch("branchId");
 
   // 1. Fetch All Branches for Dropdowns
-  const { data: allBranches = [] } = useQuery<BranchRecord[]>({
+  const { data: allBranches = [], refetch: refetchAllBranches } = useQuery<BranchRecord[]>({
     queryKey: ["allBranchesList"],
     queryFn: () => branchApi.fetchBranchNames(true),
-    placeholderData: keepPreviousData,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
-
-  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
-
-  const searchBranchList = allBranches.map((b: BranchRecord) => ({ branchId: b.id, branchName: b.branchName }));
-  const formBranchList = allBranches
-    .filter((b: BranchRecord) => b.branchName.toLowerCase() !== "all")
-    .map((b: BranchRecord) => ({ branchId: b.id, branchName: b.branchName }));
-
-  // Auto-select "All" if default is 0 and we found "All" in the API
-  useEffect(() => {
-    if (searchBranchId === 0 && allBranches.length > 0) {
-      const allBranch = allBranches.find(b => b.branchName.toLowerCase() === "all");
-      if (allBranch) {
-        setSearchBranchId(allBranch.id);
-      } else {
-        setSearchBranchId(allBranches[0].id);
-      }
-    }
-  }, [allBranches, searchBranchId]);
 
   // 2. Master Data (Series, Employees/Salesman, Paymodes) based on Selected Form Branch
   const { data: masterData, refetch: refetchMasterData } = useQuery({
     queryKey: ["receiptMaster", currentFormBranchId],
     queryFn: () => receiptVoucherApi.getLoadMaster(currentFormBranchId || 0),
-    placeholderData: keepPreviousData,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
+
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+
+  // Robust branch lists merging allBranches, masterData?.branches, and queryClient cache fallbacks
+  const { formBranchList, searchBranchList } = useMemo(() => {
+    const searchList: { branchId: number; branchName: string }[] = [];
+    const formList: { branchId: number; branchName: string }[] = [];
+    const existingSearchIds = new Set<number>();
+    const existingFormIds = new Set<number>();
+
+    const addBranch = (rawId: any, rawName: any) => {
+      const id = Number(rawId);
+      const name = String(rawName || "").trim();
+      if (!id || !name) return;
+
+      if (!existingSearchIds.has(id)) {
+        existingSearchIds.add(id);
+        searchList.push({ branchId: id, branchName: name });
+      }
+
+      if (name.toLowerCase() !== "all" && !existingFormIds.has(id)) {
+        existingFormIds.add(id);
+        formList.push({ branchId: id, branchName: name });
+      }
+    };
+
+    // 1. Add from allBranches query
+    (allBranches || []).forEach((b) => {
+      addBranch(b.id, b.branchName);
+    });
+
+    // 2. Add from masterData?.branches
+    (masterData?.branches || []).forEach((b) => {
+      addBranch(b.branchId, b.branchName);
+    });
+
+    // 3. Add from queryClient cache for ["allBranchesList"]
+    const cachedAllBranches = queryClient.getQueryData<any[]>(["allBranchesList"]);
+    if (Array.isArray(cachedAllBranches)) {
+      cachedAllBranches.forEach((b) => {
+        addBranch(b.id ?? b.branchId, b.branchName);
+      });
+    }
+
+    // 4. Add from queryClient cache for ["branches"]
+    const cachedBranches = queryClient.getQueryData<any[]>(["branches"]);
+    if (Array.isArray(cachedBranches)) {
+      cachedBranches.forEach((b) => {
+        addBranch(b.id ?? b.branchId, b.branchName);
+      });
+    }
+
+    return { formBranchList: formList, searchBranchList: searchList };
+  }, [allBranches, masterData?.branches, queryClient]);
+
+  // Auto-select "All" if default is 0 and we found "All" in the API
+  useEffect(() => {
+    if (searchBranchId === 0 && searchBranchList.length > 0) {
+      const allBranch = searchBranchList.find(b => b.branchName.toLowerCase() === "all");
+      if (allBranch) {
+        setSearchBranchId(allBranch.branchId);
+      } else {
+        setSearchBranchId(searchBranchList[0].branchId);
+      }
+    }
+  }, [searchBranchList, searchBranchId]);
 
   // Paymodes Master List directly from Paymode Service for instant synchronization
   const { data: allPaymodes = [], refetch: refetchAllPaymodes } = useQuery({
@@ -89,89 +139,178 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
     refetchOnWindowFocus: true,
   });
 
+  // Employee Names by Branch (and global) directly from Employee Service
+  const { data: allEmployeeNames = [], refetch: refetchEmployeeNames } = useQuery({
+    queryKey: ["employeeNames", currentFormBranchId],
+    queryFn: () => getEmployeeNames(currentFormBranchId || undefined),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Primary Employees List directly synchronized with Employee Master cache key ["employees"]
+  const { data: employeesList = [], refetch: refetchEmployees } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => {
+      const data = await getEmployees();
+      return (data || []).map((item: any) => ({
+        id: item.empId ?? item.id,
+        name: item.empName ?? item.name,
+        code: item.empCode ?? item.code,
+        branch: item.branch,
+        branchId: item.branchId,
+        driver: false,
+        active:
+          item.isActive === "Active" ||
+          item.isActive === true ||
+          item.active === true ||
+          String(item.isActive).toLowerCase() === "true" ||
+          String(item.isActive) === "1",
+        isMaster: false,
+        roleId: 0,
+      }));
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
   // Cross-tab and local real-time listener for paymode updates
   useEffect(() => {
-    let lastHandledTimestamp = 0;
-    const handleSync = () => {
+    return subscribeToPaymodeUpdates(() => {
       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
       queryClient.invalidateQueries({ queryKey: ["paymodes"] });
       void refetchMasterData();
       void refetchAllPaymodes();
-    };
-
-    let channel: BroadcastChannel | null = null;
-    try {
-      if (typeof BroadcastChannel !== "undefined") {
-        channel = new BroadcastChannel(PAYMODE_SYNC_CHANNEL);
-        channel.onmessage = (event) => {
-          if (event.data?.type === "PAYMODE_UPDATED") {
-            lastHandledTimestamp = event.data?.timestamp || Date.now();
-            handleSync();
-          }
-        };
-      }
-    } catch {
-      // ignore
-    }
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === PAYMODE_STORAGE_KEY && e.newValue) {
-        const ts = parseInt(e.newValue.split(":")[0], 10);
-        if (ts && ts !== lastHandledTimestamp) {
-          lastHandledTimestamp = ts;
-          handleSync();
-        }
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-
-    const handleCustom = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      lastHandledTimestamp = detail?.timestamp || Date.now();
-      handleSync();
-    };
-    window.addEventListener("paymodes:updated", handleCustom);
-
-    return () => {
-      if (channel) channel.close();
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("paymodes:updated", handleCustom);
-    };
+    });
   }, [queryClient, refetchMasterData, refetchAllPaymodes]);
+
+  // Cross-tab and local real-time listener for branch updates
+  useEffect(() => {
+    return subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      void refetchAllBranches();
+      void refetchMasterData();
+    });
+  }, [queryClient, refetchAllBranches, refetchMasterData]);
 
   // Cross-tab and local real-time listener for employee updates
   useEffect(() => {
     return subscribeToEmployeeUpdates(() => {
       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["employeeNames"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
       void refetchMasterData();
+      void refetchEmployeeNames();
+      void refetchEmployees();
     });
-  }, [queryClient, refetchMasterData]);
+  }, [queryClient, refetchMasterData, refetchEmployeeNames, refetchEmployees]);
 
   // Derived lists
   const seriesList = masterData?.series || [];
-  const employeeList = masterData?.salesman || [];
 
-  // Merge loadMaster paymodes and allPaymodes so newly created paymodes are immediately visible
-  const paymodeList = useMemo(() => {
-    const list = (masterData?.paymodes || [])
-      .filter((p) => p.paymodeName.toLowerCase() !== "credit")
-      .map((p) => ({ paymodeId: Number(p.paymodeId), paymodeName: p.paymodeName }));
+  // Merge loadMaster salesman, branch employee names, and global employees so newly created employees are immediately visible
+  const employeeList = useMemo(() => {
+    const list: { employeeId: number; employeeName: string }[] = [];
+    const existingIds = new Set<number>();
 
-    const existingIds = new Set(list.map((p) => p.paymodeId));
+    const addEmployee = (rawId: any, rawName: any, rawActive: any, rawBranchId: any) => {
+      const id = Number(rawId);
+      const name = String(rawName || "").trim();
+      if (!id || !name || existingIds.has(id)) return;
 
-    (allPaymodes || []).forEach((p) => {
-      const isActive = p.isActive === "Active" || p.isActive === true;
-      const id = Number(p.paymodeId);
-      if (isActive && !existingIds.has(id) && p.paymodeName.toLowerCase() !== "credit") {
-        list.push({
-          paymodeId: id,
-          paymodeName: p.paymodeName,
-        });
+      const isActive =
+        rawActive === "Active" ||
+        rawActive === true ||
+        String(rawActive).toLowerCase() === "true" ||
+        String(rawActive) === "1" ||
+        rawActive === undefined;
+
+      if (!isActive) return;
+
+      const matchesBranch =
+        !currentFormBranchId ||
+        !rawBranchId ||
+        Number(rawBranchId) === Number(currentFormBranchId);
+
+      if (matchesBranch) {
+        existingIds.add(id);
+        list.push({ employeeId: id, employeeName: name });
       }
+    };
+
+    // 1. Add from masterData?.salesman
+    (masterData?.salesman || []).forEach((e) => {
+      addEmployee(e.employeeId, e.employeeName, true, currentFormBranchId);
     });
 
+    // 2. Add from allEmployeeNames
+    (allEmployeeNames || []).forEach((e: any) => {
+      addEmployee(e.empId ?? e.employeeId ?? e.id, e.empName ?? e.employeeName ?? e.name, true, currentFormBranchId);
+    });
+
+    // 3. Add from employeesList (from ["employees"] query)
+    (employeesList || []).forEach((e: any) => {
+      addEmployee(e.id ?? e.empId ?? e.employeeId, e.name ?? e.empName ?? e.employeeName, e.active ?? e.isActive, e.branchId);
+    });
+
+    // 4. Add from queryClient cache for ["employees"] directly as instant synchronous fallback
+    const cachedQueryData = queryClient.getQueryData<any[]>(["employees"]);
+    if (Array.isArray(cachedQueryData)) {
+      cachedQueryData.forEach((e: any) => {
+        addEmployee(e.id ?? e.empId ?? e.employeeId, e.name ?? e.empName ?? e.employeeName, e.active ?? e.isActive, e.branchId);
+      });
+    }
+
     return list;
-  }, [masterData?.paymodes, allPaymodes]);
+  }, [masterData?.salesman, allEmployeeNames, employeesList, currentFormBranchId, queryClient]);
+
+  // Merge loadMaster paymodes, allPaymodes, and queryClient cache so newly created paymodes are immediately visible
+  const paymodeList = useMemo(() => {
+    const list: { paymodeId: number; paymodeName: string }[] = [];
+    const existingIds = new Set<number>();
+
+    const addPaymode = (rawId: any, rawName: any, rawActive: any) => {
+      const id = Number(rawId);
+      const name = String(rawName || "").trim();
+      if (!id || !name || existingIds.has(id)) return;
+      if (name.toLowerCase() === "credit") return;
+
+      const isActive =
+        rawActive === "Active" ||
+        rawActive === true ||
+        String(rawActive).toLowerCase() === "true" ||
+        String(rawActive).toLowerCase() === "active" ||
+        String(rawActive) === "1" ||
+        rawActive === undefined;
+
+      if (!isActive) return;
+
+      existingIds.add(id);
+      list.push({ paymodeId: id, paymodeName: name });
+    };
+
+    // 1. Add from masterData?.paymodes
+    (masterData?.paymodes || []).forEach((p: any) => {
+      addPaymode(p.paymodeId ?? p.id, p.paymodeName ?? p.name, true);
+    });
+
+    // 2. Add from allPaymodes (from ["paymodes"] query)
+    (allPaymodes || []).forEach((p: any) => {
+      addPaymode(p.paymodeId ?? p.id ?? p.code, p.paymodeName ?? p.name, p.isActive);
+    });
+
+    // 3. Add from queryClient cache for ["paymodes"] directly as instant synchronous fallback
+    const cachedQueryData = queryClient.getQueryData<any[]>(["paymodes"]);
+    if (Array.isArray(cachedQueryData)) {
+      cachedQueryData.forEach((p: any) => {
+        addPaymode(p.paymodeId ?? p.id ?? p.code, p.paymodeName ?? p.name, p.isActive);
+      });
+    }
+
+    return list;
+  }, [masterData?.paymodes, allPaymodes, queryClient]);
 
   // 2. Account List
   const { data: accountList = [] } = useQuery({

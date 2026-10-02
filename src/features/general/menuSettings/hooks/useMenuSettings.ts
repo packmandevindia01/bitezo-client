@@ -45,6 +45,8 @@ export const useMenuSettings = () => {
     mutationFn: (payload: CreateMenuSettingsPayload) => menuSettingsApi.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["menuSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["menuTimeSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
       showToast("Menu Settings created successfully", "success");
       closeModal();
     },
@@ -58,6 +60,8 @@ export const useMenuSettings = () => {
       menuSettingsApi.update(data.id, data.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["menuSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["menuTimeSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
       showToast("Menu Settings updated successfully", "success");
       closeModal();
     },
@@ -70,6 +74,8 @@ export const useMenuSettings = () => {
     mutationFn: (id: number) => menuSettingsApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["menuSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["menuTimeSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["pos"] });
       showToast("Menu Settings deleted successfully", "success");
       setDeleteCandidate(null);
     },

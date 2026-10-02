@@ -10,34 +10,36 @@ export const useDineIn = () => {
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchSections = useCallback(async () => {
+  const fetchSections = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       const response = await dineInApi.getSections();
       if (response.isSuccess) {
         if (response.data.length > 0) {
           setSections(response.data);
-          if (selectedSectionId === null) {
-            setSelectedSectionId(response.data[0].sectionId);
-          }
+          setSelectedSectionId(prev => prev !== null ? prev : response.data[0].sectionId);
         } else {
           setSections([]);
         }
       } else {
-        setSections([]);
-        showToast(response.message || 'Failed to fetch sections', 'warning');
+        if (!isSilent) {
+          setSections([]);
+          showToast(response.message || 'Failed to fetch sections', 'warning');
+        }
       }
     } catch (error: any) {
-      setSections([]);
-      showToast(error.message || 'Error fetching sections', 'warning');
+      if (!isSilent) {
+        setSections([]);
+        showToast(error.message || 'Error fetching sections', 'warning');
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  }, [showToast, selectedSectionId]);
+  }, [showToast]);
 
-  const fetchTables = useCallback(async (sectionId: number) => {
+  const fetchTables = useCallback(async (sectionId: number, isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       const response = await dineInApi.getTables(sectionId);
       if (response.isSuccess) {
         if (response.data.length > 0) {
@@ -46,14 +48,18 @@ export const useDineIn = () => {
           setTables([]);
         }
       } else {
-        setTables([]);
-        showToast(response.message || 'Failed to fetch tables', 'warning');
+        if (!isSilent) {
+          setTables([]);
+          showToast(response.message || 'Failed to fetch tables', 'warning');
+        }
       }
     } catch (error: any) {
-      setTables([]);
-      showToast(error.message || 'Error fetching tables', 'warning');
+      if (!isSilent) {
+        setTables([]);
+        showToast(error.message || 'Error fetching tables', 'warning');
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [showToast]);
 
@@ -66,6 +72,19 @@ export const useDineIn = () => {
       fetchTables(selectedSectionId);
     }
   }, [selectedSectionId, fetchTables]);
+
+  // Auto-refresh Dine In on POS every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (selectedSectionId !== null) {
+        void fetchTables(selectedSectionId, true);
+      } else {
+        void fetchSections(true);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [selectedSectionId, fetchTables, fetchSections]);
 
   return {
     sections,

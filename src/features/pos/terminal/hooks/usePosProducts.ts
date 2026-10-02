@@ -18,6 +18,9 @@ import {
   POS_QUERY_KEYS
 } from "./usePosQueries";
 import { POS_MENU_SYNC_CHANNEL, POS_MENU_STORAGE_KEY } from "../../utils/posMenuSync";
+import { useCategories } from "../../../inventory/category/hooks/useCategoryQueries";
+import { subscribeToCategoryUpdates } from "../../../inventory/category/utils/categorySync";
+import type { PosCategory } from "../../types";
 
 export const alternativesCache: Record<string, any[]> = {}; // key: `${productId}-${orderTypeId}`
 export const productDataCache: Record<string, any> = {}; // key: `${productId}-${orderTypeId}`
@@ -44,6 +47,7 @@ export const usePosProducts = () => {
   const paymodes = masterData?.paymodes ?? [];
 
   const { data: categories = [], isLoading: catsLoading } = usePosCategories(activeGroupId, selectedOrderTypeId);
+  const { data: masterCategoryList = [], refetch: refetchMasterCategoryList } = useCategories();
   
   const { data: subCategories = [], isLoading: subsLoading } = usePosSubCategories(activeCategoryId);
 
@@ -65,8 +69,11 @@ export const usePosProducts = () => {
     const handleSync = () => {
       clearAllPosCache();
       void queryClient.invalidateQueries({ queryKey: POS_QUERY_KEYS.all, refetchType: "all" });
+      void queryClient.invalidateQueries({ queryKey: ["categories"] });
       void queryClient.refetchQueries({ queryKey: POS_QUERY_KEYS.all });
+      void queryClient.refetchQueries({ queryKey: ["categories"] });
       void refreshMasterData();
+      void refetchMasterCategoryList();
     };
 
     // 1. Cross-tab BroadcastChannel
@@ -105,7 +112,12 @@ export const usePosProducts = () => {
     };
     window.addEventListener("pos_menu_updated", handleCustomEvent);
 
-    // 4. Tab visibility / window focus check
+    // 4. Category Master updates (same-tab and cross-tab sync)
+    const unsubCategorySync = subscribeToCategoryUpdates(() => {
+      handleSync();
+    });
+
+    // 5. Tab visibility / window focus check
     const handleVisibilityOrFocus = () => {
       try {
         if (document.visibilityState === "visible") {
@@ -122,12 +134,13 @@ export const usePosProducts = () => {
       if (channel) {
         channel.close();
       }
+      unsubCategorySync();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("pos_menu_updated", handleCustomEvent);
       window.removeEventListener("focus", handleVisibilityOrFocus);
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };
-  }, [queryClient, refreshMasterData]);
+  }, [queryClient, refreshMasterData, refetchMasterCategoryList]);
 
   // Sync masterData orderTypes to redux
   useEffect(() => {
@@ -145,16 +158,44 @@ export const usePosProducts = () => {
     }
   }, [menuTimes, groups, activeGroupId, dispatch]);
 
-  // Ensure categories remain visible even if no menu time is configured or if they are unassigned to menu times
+  // Ensure categories remain visible even if no menu time is configured, if unassigned,
+  // or if newly created in Category Master (even before products are added)
   const displayCategories = useMemo(() => {
     const masterCats = masterData?.category ?? [];
-    if (!categories || categories.length === 0) {
-      return masterCats;
-    }
-    const groupCatIds = new Set(categories.map(c => c.id));
-    const unassignedMasterCats = masterCats.filter(c => !groupCatIds.has(c.id));
-    return [...categories, ...unassignedMasterCats];
-  }, [categories, masterData?.category]);
+    const categoryMap = new Map<number, PosCategory>();
+
+    // 1. Prioritize categories explicitly returned for the active menu/group
+    (categories || []).forEach((c) => {
+      if (c && c.id > 0) {
+        categoryMap.set(c.id, c);
+      }
+    });
+
+    // 2. Include categories from POS master data if not already added
+    masterCats.forEach((c) => {
+      if (c && c.id > 0 && !categoryMap.has(c.id)) {
+        categoryMap.set(c.id, c);
+      }
+    });
+
+    // 3. Include active, POS-visible categories from category master
+    // (guarantees newly created categories appear immediately in the Menu List)
+    (masterCategoryList || []).forEach((c) => {
+      if (c && c.id > 0 && c.isActive !== false && c.posStatus !== false) {
+        if (!categoryMap.has(c.id)) {
+          categoryMap.set(c.id, {
+            id: c.id,
+            name: c.name || "",
+            arabicName: c.arabic || "",
+            imageUrl: c.imageUrl || null,
+            colorCode: c.colorCode || "red",
+          });
+        }
+      }
+    });
+
+    return Array.from(categoryMap.values());
+  }, [categories, masterData?.category, masterCategoryList]);
 
   // Auto-select first category ONLY when menu group actively changes
   const prevGroupIdRef = useRef(activeGroupId);

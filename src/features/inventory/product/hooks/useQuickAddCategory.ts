@@ -3,8 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { categoryApi } from "../../category";
+import { notifyCategoriesUpdated } from "../../category/utils/categorySync";
 import { useToast } from "../../../../app/providers/useToast";
-import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 
 const schema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Max 50 characters").transform(v => v.toUpperCase().replace(/\s/g, "")),
@@ -57,8 +57,7 @@ export const useQuickAddCategory = (onCreated: (id: string, name: string) => voi
       queryClient.invalidateQueries({ queryKey: ["pos"] });
       void queryClient.refetchQueries({ queryKey: ["categories"] });
       void queryClient.refetchQueries({ queryKey: ["pos"] });
-      window.dispatchEvent(new CustomEvent("categories:updated"));
-      notifyPosMenuUpdated("category");
+      notifyCategoriesUpdated("created");
       showToast("Category created successfully", "success");
       const newId = (res?.data as any)?.id ?? (res?.data as any)?.catId ?? "";
       onCreated(String(newId), variables.name);

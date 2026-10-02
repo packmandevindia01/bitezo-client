@@ -46,8 +46,17 @@ const BranchFormPage = () => {
         await createBranch(payload);
         showToast("Branch Master created successfully", "success");
       }
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
       queryClient.invalidateQueries({ queryKey: ["branchNames"] });
       queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["branchList"] });
+      queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+      void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
+      void queryClient.refetchQueries({ queryKey: ["branches"] });
+      void queryClient.refetchQueries({ queryKey: ["branchNames"] });
+      void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
       void dispatch(fetchGlobalMasterData());
       notifyBranchesUpdated();
       navigate("/dashboard/branches");
@@ -62,8 +71,17 @@ const BranchFormPage = () => {
      try {
        await deleteBranch(Number(id));
        showToast("Branch deleted successfully", "success");
+       queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
        queryClient.invalidateQueries({ queryKey: ["branchNames"] });
        queryClient.invalidateQueries({ queryKey: ["branches"] });
+       queryClient.invalidateQueries({ queryKey: ["branchList"] });
+       queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
+       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+       queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+       void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
+       void queryClient.refetchQueries({ queryKey: ["branches"] });
+       void queryClient.refetchQueries({ queryKey: ["branchNames"] });
+       void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
        void dispatch(fetchGlobalMasterData());
        notifyBranchesUpdated();
        navigate("/dashboard/branches");

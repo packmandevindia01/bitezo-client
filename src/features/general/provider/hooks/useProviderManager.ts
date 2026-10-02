@@ -7,8 +7,12 @@ import { fetchProviders, fetchProviderById, createProvider, updateProvider, dele
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../../inventory/shared/store/masterDataSlice";
-import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
+import { fetchBranchNames, fetchBranches } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { subscribeToPaymodeUpdates } from "../../paymode/utils/paymodeSync";
+import { paymodeService } from "../../paymode/services/paymodeService";
+import axiosInstance from "../../../../api/axiosInstance";
+import type { ApiResponse } from "../../../inventory/product/types";
 
 export const useProviderManager = () => {
   const { showToast } = useToast();
@@ -25,10 +29,8 @@ export const useProviderManager = () => {
   const { branches, loading: masterLoading } = useAppSelector((state) => state.masterData);
   
   useEffect(() => {
-    if (branches.length === 0) {
-      void dispatch(fetchGlobalMasterData());
-    }
-  }, [branches.length, dispatch]);
+    void dispatch(fetchGlobalMasterData());
+  }, [dispatch]);
 
   // ── Queries ─────────────────────────────────────────────
 
@@ -43,13 +45,47 @@ export const useProviderManager = () => {
   const { data: branchList = [], refetch: refetchBranchNames } = useQuery({
     queryKey: ["branchNames"],
     queryFn: async () => {
+      // 1. Try fetchBranchNames(true)
       try {
         const data = await fetchBranchNames(true);
-        return data.map((b) => ({ id: b.id, name: b.branchName }));
+        if (Array.isArray(data) && data.length > 0) {
+          return data
+            .map((b) => ({ id: Number(b.id ?? b.branchId ?? 0), name: String(b.branchName ?? b.name ?? "") }))
+            .filter((b) => b.id > 0);
+        }
       } catch (err) {
         console.warn("Failed to fetch branch names directly:", err);
-        return [];
       }
+
+      // 2. Try direct /Branch/true/list-name
+      try {
+        const { data: res } = await axiosInstance.get<ApiResponse<any[]>>("/Branch/true/list-name");
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (list.length > 0) {
+          return list
+            .map((b: any) => ({
+              id: Number(b.branchId ?? b.id ?? 0),
+              name: String(b.branchName ?? b.name ?? ""),
+            }))
+            .filter((b) => b.id > 0);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch /Branch/true/list-name:", err);
+      }
+
+      // 3. Fallback to /Branch/list (which always returns all created branches)
+      try {
+        const fallback = await fetchBranches();
+        if (Array.isArray(fallback) && fallback.length > 0) {
+          return fallback
+            .map((b) => ({ id: Number(b.id ?? 0), name: String(b.branchName ?? "") }))
+            .filter((b) => b.id > 0);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch /Branch/list:", err);
+      }
+
+      return [];
     },
     staleTime: 0,
     refetchOnMount: "always",
@@ -60,30 +96,72 @@ export const useProviderManager = () => {
   useEffect(() => {
     const unsubscribe = subscribeToBranchUpdates(() => {
       queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      queryClient.invalidateQueries({ queryKey: ["branchList"] });
       void refetchBranchNames();
       void dispatch(fetchGlobalMasterData());
     });
-    return unsubscribe;
+    return () => unsubscribe();
   }, [queryClient, dispatch, refetchBranchNames]);
 
-  // Ensure fresh branch data whenever the modal opens
+  // Ensure fresh branch & paymode data whenever the modal opens
   useEffect(() => {
     if (open) {
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["providerPaymodes"] });
       void refetchBranchNames();
+      void refetchPaymodes();
+      void dispatch(fetchGlobalMasterData());
     }
-  }, [open, refetchBranchNames]);
+  }, [open, refetchBranchNames, queryClient, dispatch]);
 
-  const { data: paymodes = [], isLoading: paymodesLoading } = useQuery({
+  const { data: paymodes = [], isLoading: paymodesLoading, refetch: refetchPaymodes } = useQuery({
     queryKey: ["providerPaymodes"],
-    queryFn: () => fetchProviderPaymodes(),
+    queryFn: async () => {
+      try {
+        const data = await fetchProviderPaymodes();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
+      } catch (err) {
+        console.warn("fetchProviderPaymodes failed:", err);
+      }
+      try {
+        const directList = await paymodeService.list();
+        if (Array.isArray(directList) && directList.length > 0) {
+          return directList.map((pm) => ({
+            paymodeId: pm.paymodeId,
+            paymodeName: pm.paymodeName,
+          }));
+        }
+      } catch (err) {
+        console.warn("paymodeService.list fallback failed:", err);
+      }
+      return [];
+    },
     select: (data) =>
-      (data || []).map((pm) => ({
-        id: pm.paymodeId,
-        name: pm.paymodeName,
-        paymodeId: pm.paymodeId,
-        paymodeName: pm.paymodeName,
+      (data || []).map((pm: any) => ({
+        id: pm.paymodeId ?? pm.id,
+        name: pm.paymodeName ?? pm.name,
+        paymodeId: pm.paymodeId ?? pm.id,
+        paymodeName: pm.paymodeName ?? pm.name,
       })),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Listen for real-time paymode updates (same tab and cross-tab)
+  useEffect(() => {
+    const unsubscribe = subscribeToPaymodeUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["providerPaymodes"] });
+      queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      void refetchPaymodes();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchPaymodes]);
 
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ["providerAccounts"],
@@ -188,12 +266,24 @@ export const useProviderManager = () => {
 
   const openCreateModal = () => {
     resetForm();
+    queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+    queryClient.invalidateQueries({ queryKey: ["providerPaymodes"] });
     void refetchBranchNames();
+    void refetchPaymodes();
+    void dispatch(fetchGlobalMasterData());
     setOpen(true);
   };
 
   const handleEdit = async (record: ProviderListItem) => {
+    queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+    queryClient.invalidateQueries({ queryKey: ["providerPaymodes"] });
     void refetchBranchNames();
+    void refetchPaymodes();
+    void dispatch(fetchGlobalMasterData());
     try {
       const detail = await fetchProviderById(record.providerId);
       

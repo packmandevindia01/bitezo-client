@@ -343,7 +343,7 @@ export const generateGuestPrintHtml = async (
             font-weight: 600;
             color: #000000;
             margin: 0 auto;
-            padding: 0 0 25px 0;
+            padding: 0 0 35px 0;
             width: 100%;
             max-width: 576px;
             background-color: #ffffff;
@@ -360,8 +360,8 @@ export const generateGuestPrintHtml = async (
             text-rendering: optimizeLegibility;
             font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
             -webkit-font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
-            word-wrap: normal;
-            overflow-wrap: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
             line-height: 1.5;
             padding: 1px 0;
           }
@@ -645,17 +645,17 @@ export const generateGuestPrintHtml = async (
         <div style="font-size: 11px; margin-top: 5px;">Print Time : ${dateStr} ${timeStr}</div>
 
         ${customFootersHtml ? `
-        <div style="margin-top: 10px; margin-bottom: 20px; padding: 0 4px 15px 4px; width: 100%; box-sizing: border-box;">
+        <div style="margin-top: 10px; margin-bottom: 8px; padding: 0 4px; width: 100%; box-sizing: border-box; text-align: center;">
           ${customFootersHtml}
         </div>
-        ` : `
-        <div style="text-align: center; margin-top: 12px; margin-bottom: 20px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.5; padding-bottom: 15px;">
+        ` : ''}
+        <div style="text-align: center; margin-top: 10px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.5; padding: 0 4px 20px 4px; box-sizing: border-box;">
           <div>Thank you For Visiting</div>
-          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 13px; font-weight: bold; text-align: center; display: block; white-space: nowrap; margin-top: 3px; line-height: 1.5;">شكراً لزيارتكم</div>' : ''}
+          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 12.5px; font-weight: bold; text-align: center; display: block; margin-top: 3px; line-height: 1.5; word-break: break-word; overflow-wrap: break-word;">شكراً لزيارتكم</div>' : ''}
           <div style="margin-top: 6px;">HAVE A GOOD DAY</div>
-          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 13px; font-weight: bold; text-align: center; display: block; white-space: nowrap; margin-top: 3px; line-height: 1.5;">نتمنى لكم يوماً سعيداً</div>' : ''}
+          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 12.5px; font-weight: bold; text-align: center; display: block; margin-top: 3px; line-height: 1.5; word-break: break-word; overflow-wrap: break-word;">نتمنى لكم يوماً سعيداً</div>' : ''}
         </div>
-        `}
+        <div style="height: 35px; width: 100%; clear: both;"></div>
       </body>
     </html>
   `;

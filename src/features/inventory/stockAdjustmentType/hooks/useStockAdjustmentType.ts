@@ -67,6 +67,9 @@ export const useStockAdjustmentType = () => {
       });
     }
     setIsModalOpen(true);
+    setTimeout(() => {
+      document.getElementById("typeName")?.focus();
+    }, 50);
   };
 
   const handleCloseModal = () => {
@@ -98,6 +101,15 @@ export const useStockAdjustmentType = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      setTimeout(() => {
+        if (newErrors.typeName) {
+          const el = document.getElementById("typeName") || document.getElementById("type-name");
+          el?.focus();
+        } else if (newErrors.effect) {
+          const el = document.getElementById("effect");
+          el?.focus();
+        }
+      }, 0);
       return;
     }
 
@@ -106,6 +118,10 @@ export const useStockAdjustmentType = () => {
     );
     if (isDuplicate) {
       setErrors({ typeName: "Already exists" });
+      setTimeout(() => {
+        const el = document.getElementById("typeName") || document.getElementById("type-name");
+        el?.focus();
+      }, 0);
       return;
     }
 

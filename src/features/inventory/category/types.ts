@@ -24,6 +24,7 @@ export interface CategoryListItem {
   arabic: string;
   colorCode: string;
   isActive: boolean;
+  posStatus?: boolean;
   imageUrl?: string;
   imagePath?: string;
   categoryImage?: string;

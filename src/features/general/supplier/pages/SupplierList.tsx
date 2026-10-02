@@ -19,6 +19,7 @@ import {
 } from "../services";
 import { useQueryClient } from "@tanstack/react-query";
 import { notifySuppliersUpdated, subscribeToSupplierUpdates } from "../utils/supplierSync";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import type { Supplier, SupplierPayload } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
 
@@ -69,6 +70,15 @@ const SupplierList = () => {
     });
   }, [loadSuppliers]);
 
+  // Real-time synchronization: sync branch updates across tabs and components
+  useEffect(() => {
+    return subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+    });
+  }, [queryClient]);
+
   const closeModal = () => {
     setOpen(false);
     setEditSupplier(null);
@@ -77,6 +87,9 @@ const SupplierList = () => {
 
   const openCreateModal = () => {
     if (!canAdd) return;
+    queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
     setEditSupplier(null);
     setOpen(true);
   };
@@ -84,6 +97,9 @@ const SupplierList = () => {
   const handleEdit = async (id: number) => {
     if (!canEdit) return;
     try {
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
       setOpen(true);
       setDetailLoading(true);
       const details = await fetchSupplierById(id);

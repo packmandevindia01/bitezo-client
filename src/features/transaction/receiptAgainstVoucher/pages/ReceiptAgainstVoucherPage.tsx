@@ -33,6 +33,7 @@ const ReceiptAgainstVoucherPage = () => {
   const { 
     form, 
     masterData, 
+    employeeList,
     accounts, 
     pendingInvoices,
     isLoading, 
@@ -323,8 +324,9 @@ const ReceiptAgainstVoucherPage = () => {
               <SearchableSelect
                 id="rav-page-employee"
                 label="Employee"
+                placeholder="Select Employee"
                 required
-                options={masterData?.salesman?.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName })) || []}
+                options={employeeList.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName }))}
                 value={String(form.watch("employeeId") || "")}
                 onChange={(val) => form.setValue("employeeId", Number(val) || 0, { shouldValidate: true })}
                 disabled={!!transId}

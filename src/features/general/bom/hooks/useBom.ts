@@ -8,6 +8,8 @@ import { bomSchema } from "../types";
 import type { BomForm, BomPayload } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { fetchBranchNames, fetchBranches } from "../../../inventory/branches/services/branchApi";
 
 export const useBom = (initialTransId?: number) => {
   const { showToast } = useToast();
@@ -99,13 +101,87 @@ export const useBom = (initialTransId?: number) => {
     return combined;
   }, [rawMaterialsQueryData, scannedRawMaterials]);
 
-  const { data: branches = [] } = useQuery({
+  const { data: branches = [], refetch: refetchBranches } = useQuery({
     queryKey: ["branches"],
     queryFn: async () => {
-      const bl = await bomApi.getBranchList();
-      return bl.map((b: any) => ({ label: b.branchName, value: String(b.branchId) }));
-    }
+      const branchMap = new Map<string, string>();
+
+      // 1. Try bomApi.getBranchList()
+      try {
+        const bl = await bomApi.getBranchList();
+        if (Array.isArray(bl)) {
+          bl.forEach((b: any) => {
+            const id = String(b.branchId ?? b.id ?? "");
+            const name = String(b.branchName ?? b.name ?? "");
+            if (id && id !== "0" && name) {
+              branchMap.set(id, name);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch branches from bomApi.getBranchList:", err);
+      }
+
+      // 2. Resiliently merge from direct Branch Master list
+      try {
+        const directBranches = await fetchBranchNames(true);
+        if (Array.isArray(directBranches)) {
+          directBranches.forEach((b: any) => {
+            const id = String(b.id ?? b.branchId ?? "");
+            const name = String(b.branchName ?? b.name ?? "");
+            if (id && id !== "0" && name && !branchMap.has(id)) {
+              branchMap.set(id, name);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch branches from fetchBranchNames:", err);
+      }
+
+      // 3. Fallback to fetchBranches() if empty
+      if (branchMap.size === 0) {
+        try {
+          const fallback = await fetchBranches();
+          if (Array.isArray(fallback)) {
+            fallback.forEach((b: any) => {
+              const id = String(b.id ?? b.branchId ?? "");
+              const name = String(b.branchName ?? b.name ?? "");
+              if (id && id !== "0" && name && !branchMap.has(id)) {
+                branchMap.set(id, name);
+              }
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch branches from fetchBranches:", err);
+        }
+      }
+
+      return Array.from(branchMap.entries()).map(([value, label]) => ({
+        label,
+        value,
+      }));
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      void refetchBranches();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchBranches]);
+
+  // Ensure fresh branch data on mount
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    void refetchBranches();
+  }, [queryClient, refetchBranches]);
 
   const { data: allUnits = [] } = useQuery({
     queryKey: ["allUnits"],

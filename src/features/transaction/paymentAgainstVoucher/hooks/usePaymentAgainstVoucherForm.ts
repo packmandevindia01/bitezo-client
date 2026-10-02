@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
+import { getEmployeeNames, getEmployees } from "../../../general/employee/services/employeeService";
 
 export const usePaymentAgainstVoucherForm = (transId?: number) => {
   const queryClient = useQueryClient();
@@ -42,10 +43,48 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
     },
   });
 
-  // Load Master Data based on local storage branchId
+  const currentFormBranchId = Number(form.watch("branchId") || branchId || 0);
+
+  // Load Master Data based on current branch
   const { data: masterData, isLoading: isLoadingMaster, refetch: refetchMasterData } = useQuery({
-    queryKey: ["paymentAgainstMasterData", branchId],
-    queryFn: () => paymentAgainstVoucherApi.loadMasterData(branchId),
+    queryKey: ["paymentAgainstMasterData", currentFormBranchId],
+    queryFn: () => paymentAgainstVoucherApi.loadMasterData(currentFormBranchId),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Employee Names by Branch (and global) directly from Employee Service
+  const { data: allEmployeeNames = [], refetch: refetchEmployeeNames } = useQuery({
+    queryKey: ["employeeNames", currentFormBranchId],
+    queryFn: () => getEmployeeNames(currentFormBranchId || undefined),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Primary Employees List directly synchronized with Employee Master cache key ["employees"]
+  const { data: employeesList = [], refetch: refetchEmployees } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => {
+      const data = await getEmployees();
+      return (data || []).map((item: any) => ({
+        id: item.empId ?? item.id,
+        name: item.empName ?? item.name,
+        code: item.empCode ?? item.code,
+        branch: item.branch,
+        branchId: item.branchId,
+        driver: false,
+        active:
+          item.isActive === "Active" ||
+          item.isActive === true ||
+          item.active === true ||
+          String(item.isActive).toLowerCase() === "true" ||
+          String(item.isActive) === "1",
+        isMaster: false,
+        roleId: 0,
+      }));
+    },
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -78,9 +117,69 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
   useEffect(() => {
     return subscribeToEmployeeUpdates(() => {
       void queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
+      void queryClient.invalidateQueries({ queryKey: ["employeeNames"] });
+      void queryClient.invalidateQueries({ queryKey: ["employees"] });
       void refetchMasterData();
+      void refetchEmployeeNames();
+      void refetchEmployees();
     });
-  }, [queryClient, refetchMasterData]);
+  }, [queryClient, refetchMasterData, refetchEmployeeNames, refetchEmployees]);
+
+  // Merge loadMaster salesman, branch employee names, and global employees so newly created employees are immediately visible
+  const employeeList = useMemo(() => {
+    const list: { employeeId: number; employeeName: string }[] = [];
+    const existingIds = new Set<number>();
+
+    const addEmployee = (rawId: any, rawName: any, rawActive: any, rawBranchId: any) => {
+      const id = Number(rawId);
+      const name = String(rawName || "").trim();
+      if (!id || !name || existingIds.has(id)) return;
+
+      const isActive =
+        rawActive === "Active" ||
+        rawActive === true ||
+        String(rawActive).toLowerCase() === "true" ||
+        String(rawActive) === "1" ||
+        rawActive === undefined;
+
+      if (!isActive) return;
+
+      const matchesBranch =
+        !currentFormBranchId ||
+        !rawBranchId ||
+        Number(rawBranchId) === Number(currentFormBranchId);
+
+      if (matchesBranch) {
+        existingIds.add(id);
+        list.push({ employeeId: id, employeeName: name });
+      }
+    };
+
+    // 1. Add from masterData?.salesman
+    (masterData?.salesman || []).forEach((e) => {
+      addEmployee(e.employeeId, e.employeeName, true, currentFormBranchId);
+    });
+
+    // 2. Add from allEmployeeNames
+    (allEmployeeNames || []).forEach((e: any) => {
+      addEmployee(e.empId ?? e.employeeId ?? e.id, e.empName ?? e.employeeName ?? e.name, true, currentFormBranchId);
+    });
+
+    // 3. Add from employeesList (from ["employees"] query)
+    (employeesList || []).forEach((e: any) => {
+      addEmployee(e.id ?? e.empId ?? e.employeeId, e.name ?? e.empName ?? e.employeeName, e.active ?? e.isActive, e.branchId);
+    });
+
+    // 4. Add from queryClient cache for ["employees"] directly as instant synchronous fallback
+    const cachedQueryData = queryClient.getQueryData<any[]>(["employees"]);
+    if (Array.isArray(cachedQueryData)) {
+      cachedQueryData.forEach((e: any) => {
+        addEmployee(e.id ?? e.empId ?? e.employeeId, e.name ?? e.empName ?? e.employeeName, e.active ?? e.isActive, e.branchId);
+      });
+    }
+
+    return list;
+  }, [masterData?.salesman, allEmployeeNames, employeesList, currentFormBranchId, queryClient]);
 
   const selectedAccountId = form.watch("accountId");
   
@@ -188,6 +287,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
   return {
     form,
     masterData,
+    employeeList,
     accounts,
     pendingInvoices,
     isLoading: isLoadingMaster || isLoadingExisting || isLoadingAccounts,

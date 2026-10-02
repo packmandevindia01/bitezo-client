@@ -59,33 +59,39 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [showGuestCount, setShowGuestCount] = useState(false);
 
-  /* Fetch orders when modal opens */
+  /* Fetch orders when modal opens + auto-refresh every 10 seconds */
   useEffect(() => {
     if (isOpen && table) {
       setSelectedOrderId(null);
       setData(null);
       void fetchOrders();
+
+      const interval = setInterval(() => {
+        void fetchOrders(true);
+      }, 10000);
+
+      return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, table]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (isSilent = false) => {
     if (!table) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     try {
       const res = await dineInApi.getTableOrders(table.tableId);
       if (res.isSuccess && res.data) {
         setData(res.data);
         if (res.data.masterData.length > 0) {
-          setSelectedOrderId(res.data.masterData[0].orderId);
+          setSelectedOrderId(prev => prev !== null && res.data.masterData.some(m => m.orderId === prev) ? prev : res.data.masterData[0].orderId);
         }
-      } else {
+      } else if (!isSilent) {
         showToast(res.message || 'Failed to load table orders', 'error');
       }
     } catch (e: any) {
-      showToast(e.message || 'Error loading table orders', 'error');
+      if (!isSilent) showToast(e.message || 'Error loading table orders', 'error');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 

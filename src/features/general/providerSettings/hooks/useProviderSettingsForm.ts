@@ -8,6 +8,8 @@ import {
   fetchAltNames,
   deleteProviderSettings,
 } from "../services/providerSettingsService";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import type {
   ProviderMasterItem,
   BranchMasterItem,
@@ -89,6 +91,20 @@ export const useProviderSettingsForm = (
         const uniqueBranches = Array.from(new Map((master.branch || []).map(b => [b.branchId, b])).values());
         const uniqueCategories = Array.from(new Map((master.category || []).map(c => [c.categoryId, c])).values());
 
+        // Resiliently merge branches from branchApi to guarantee latest branches are present
+        try {
+          const directBranches = await fetchBranchNames(true);
+          directBranches.forEach((db) => {
+            const bId = Number(db.id ?? db.branchId ?? 0);
+            const bName = String(db.branchName ?? "");
+            if (bId > 0 && !uniqueBranches.some((ub) => ub.branchId === bId)) {
+              uniqueBranches.push({ branchId: bId, branchName: bName });
+            }
+          });
+        } catch {
+          // ignore
+        }
+
         setProviders(uniqueProviders);
         setBranches(uniqueBranches);
         setCategories(uniqueCategories);
@@ -122,6 +138,13 @@ export const useProviderSettingsForm = (
   }, [showToast]);
 
   useEffect(() => { void loadBaseData(); }, [loadBaseData]);
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    return subscribeToBranchUpdates(() => {
+      void loadBaseData();
+    });
+  }, [loadBaseData]);
 
   // ─── Populate fields when editing ────────────────────────────────────────
   useEffect(() => {

@@ -603,16 +603,17 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
         await (doc as any).fonts.ready;
       }
     } catch {}
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 300));
 
-    // Measure exact content height and ensure iframe viewport matches to prevent any clipping
-    const contentHeight = Math.max(
+    // Measure exact content height and add a safe bottom buffer (80px) to ensure Arabic descenders and footer text are never clipped
+    const rawContentHeight = Math.max(
       doc.body.scrollHeight,
       doc.body.offsetHeight,
       doc.documentElement.scrollHeight,
       doc.documentElement.offsetHeight
     );
-    iframe.style.height = `${contentHeight + 80}px`;
+    const contentHeight = rawContentHeight + 80;
+    iframe.style.height = `${contentHeight + 100}px`;
 
     const renderTarget = doc.body;
 
@@ -624,7 +625,7 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
       width: 288,
       windowWidth: 288,
       height: contentHeight,
-      windowHeight: contentHeight + 80,
+      windowHeight: contentHeight + 100,
       scrollY: 0,
       scrollX: 0,
       onclone: (clonedDoc) => {

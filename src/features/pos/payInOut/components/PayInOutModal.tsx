@@ -15,6 +15,7 @@ import { paymodeService } from '../../../general/paymode/services/paymodeService
 import { cashierLogService } from '../../cashier/services/cashierLogService';
 import { useToast } from '../../../../app/providers/useToast';
 import { useCurrency } from '../../../../hooks/useCurrency';
+import { getTodayDateString, isFutureDate, parseDateParts } from './PayInOutFormModal';
 
 interface PayInOutModalProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
 
   const [type, setType] = useState<'IN' | 'OUT'>('IN');
   const [vchNo, setVchNo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => getTodayDateString());
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [paymodeId, setPaymodeId] = useState<string>('');
@@ -101,11 +102,24 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
 
   const handleClear = () => {
     setVchNo('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getTodayDateString());
     setDescription('');
     setAmount('');
     if (paymodes.length > 0) setPaymodeId(paymodes[0].value);
     fetchVoucherNumber();
+  };
+
+  const handleDateChange = (val: string) => {
+    if (!val) {
+      setDate('');
+      return;
+    }
+    if (isFutureDate(val)) {
+      showToast("Future dates are not allowed", "warning");
+      setDate(getTodayDateString());
+      return;
+    }
+    setDate(val);
   };
 
   const handleSave = async () => {
@@ -119,12 +133,18 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    const [year, month, day] = date.split('-').map(Number);
-    const selectedDate = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    if (selectedDate > today) {
+    if (isFutureDate(date)) {
       showToast("Future dates are not allowed", "error");
+      return;
+    }
+
+    const parsed = parseDateParts(date);
+    const selectedDate = parsed 
+      ? new Date(parsed.year, parsed.month - 1, parsed.day)
+      : new Date(date);
+
+    if (isNaN(selectedDate.getTime())) {
+      showToast("Invalid date selected", "error");
       return;
     }
 
@@ -132,7 +152,7 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
     try {
       await payInOutService.create({
         inOut: type,
-        voucherDate: new Date(date).toISOString(),
+        voucherDate: selectedDate.toISOString(),
         description,
         amount: Number(amount),
         paymodeId: Number(paymodeId),
@@ -214,8 +234,8 @@ const PayInOutModal: React.FC<PayInOutModalProps> = ({ isOpen, onClose }) => {
               label="DATE"
               type="date"
               value={date}
-              max={new Date().toLocaleDateString('en-CA')}
-              onChange={(e) => setDate(e.target.value)}
+              max={getTodayDateString()}
+              onChange={(e) => handleDateChange(e.target.value)}
             />
             <div className="md:col-span-2">
               <FormInput

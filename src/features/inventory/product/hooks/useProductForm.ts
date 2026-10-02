@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,11 +8,14 @@ import { productService } from "../services/productService";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { subCategoryApi } from "../../subcategory/api";
+import { categoryApi } from "../../category";
+import { subscribeToCategoryUpdates } from "../../category/utils/categorySync";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../../app/providers/useToast";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
 import { resolveImageUrl } from "../../../../utils/imageUtils";
 import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
+
 
 
 
@@ -98,6 +101,80 @@ export const useProductForm = (productId?: number) => {
     staleTime: 0,
     refetchOnMount: "always"
   });
+
+  // Category Master Data (always fresh from /category/category-list)
+  const { data: categoryList = [], refetch: refetchCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => categoryApi.getCategories(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Real-time synchronization for category updates (same tab and cross-tab)
+  useEffect(() => {
+    const unsubscribe = subscribeToCategoryUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
+      void refetchCategories();
+      void queryClient.refetchQueries({ queryKey: ["productMasterData"] });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [queryClient, refetchCategories]);
+
+  // Merge masterData?.category with categoryList and queryClient cache
+  const effectiveMasterData = useMemo(() => {
+    const categoryMap = new Map<string, { id: number; name: string }>();
+
+    // 1. First add from masterData?.category
+    if (Array.isArray(masterData?.category)) {
+      for (const c of masterData.category) {
+        const id = Number(c.id ?? (c as any).categoryId);
+        const name = c.name || (c as any).categoryName || "";
+        if (id) {
+          categoryMap.set(String(id), { id, name });
+        }
+      }
+    }
+
+    // 2. Add/merge from categoryList (which calls /category/category-list)
+    if (Array.isArray(categoryList)) {
+      for (const c of categoryList) {
+        const id = Number(c.id);
+        const name = c.name || "";
+        if (id) {
+          categoryMap.set(String(id), { id, name });
+        }
+      }
+    }
+
+    // 3. Fallback from queryClient cache for ["categories"]
+    const cachedCategories = queryClient.getQueryData<any[]>(["categories"]);
+    if (Array.isArray(cachedCategories)) {
+      for (const c of cachedCategories) {
+        const id = Number(c.id ?? c.catId);
+        const name = c.name ?? c.catName ?? "";
+        if (id && !categoryMap.has(String(id))) {
+          categoryMap.set(String(id), { id, name });
+        }
+      }
+    }
+
+    const mergedCategories = Array.from(categoryMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    return {
+      unit: masterData?.unit || [],
+      group: masterData?.group || [],
+      category: mergedCategories,
+      vat: masterData?.vat || [],
+      type: masterData?.type || [],
+    };
+  }, [masterData, categoryList, queryClient]);
 
   // Dynamic Subcategories based on Category selection
   const selectedCategoryId = form.watch("categoryId");
@@ -430,7 +507,7 @@ export const useProductForm = (productId?: number) => {
 
   return {
     form,
-    masterData,
+    masterData: effectiveMasterData,
     branches,
     subCategories,
     altProductsField,

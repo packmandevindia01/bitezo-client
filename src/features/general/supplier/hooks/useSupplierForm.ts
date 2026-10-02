@@ -9,6 +9,8 @@ import { createSupplier, updateSupplier, deleteSupplier } from "../services/inde
 import { useToast } from "../../../../app/providers/useToast";
 import { formatAmount } from "../../../../utils/currency";
 import { notifySuppliersUpdated } from "../utils/supplierSync";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 
 interface Branch {
   branchId: number;
@@ -72,14 +74,47 @@ export const useSupplierForm = ({ initialData, onSubmitOverride, onSuccess, onCl
   }, [initialData, reset]);
 
   // Fetch branches
-  const { data: branchesData, isLoading: branchesLoading } = useQuery({
-    queryKey: ["branches"],
+  const { data: branchesData, isLoading: branchesLoading, refetch: refetchBranches } = useQuery({
+    queryKey: ["branchNames"],
     queryFn: async () => {
-      const { data } = await axiosInstance.get<ApiResponse<Branch[]>>("/Branch/true/list-name");
-      return data.data ?? [];
+      try {
+        const data = await fetchBranchNames(true);
+        return (data ?? [])
+          .map((b) => ({
+            branchId: Number(b.id ?? 0),
+            branchName: String(b.branchName ?? ""),
+          }))
+          .filter((b) => b.branchId > 0);
+      } catch {
+        try {
+          const { data } = await axiosInstance.get<ApiResponse<any[]>>("/Branch/true/list-name");
+          return (data.data ?? [])
+            .map((b: any) => ({
+              branchId: Number(b.branchId ?? b.id ?? 0),
+              branchName: String(b.branchName ?? b.name ?? ""),
+            }))
+            .filter((b: Branch) => b.branchId > 0);
+        } catch {
+          return [];
+        }
+      }
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
   const branches = branchesData || [];
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      void refetchBranches();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchBranches]);
 
   // Mutations
   const invalidateAllSupplierQueries = () => {

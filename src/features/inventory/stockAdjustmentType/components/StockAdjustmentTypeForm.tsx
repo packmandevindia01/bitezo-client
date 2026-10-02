@@ -12,6 +12,7 @@ export const StockAdjustmentTypeForm = ({ form, setForm, isSaving, errors }: Pro
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <FormInput
+        id="typeName"
         label="Type Name"
         value={form.typeName}
         maxLength={50}
@@ -22,6 +23,7 @@ export const StockAdjustmentTypeForm = ({ form, setForm, isSaving, errors }: Pro
         error={errors?.typeName}
       />
       <SelectInput
+        id="effect"
         label="Effect"
         value={form.effect}
         onChange={(e) => setForm({ ...form, effect: e.target.value })}

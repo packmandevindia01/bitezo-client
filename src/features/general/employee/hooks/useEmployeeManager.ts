@@ -147,6 +147,7 @@ export const useEmployeeManager = () => {
       await queryClient.invalidateQueries({ queryKey: ["employees"] });
       await queryClient.refetchQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["employeeNames"] });
+      queryClient.invalidateQueries({ queryKey: ["allEmployeesList"] });
       queryClient.invalidateQueries({ queryKey: ["waiters"] });
       queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
       queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
@@ -171,6 +172,7 @@ export const useEmployeeManager = () => {
       await queryClient.invalidateQueries({ queryKey: ["employees"] });
       await queryClient.refetchQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["employeeNames"] });
+      queryClient.invalidateQueries({ queryKey: ["allEmployeesList"] });
       queryClient.invalidateQueries({ queryKey: ["waiters"] });
       queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
       queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });

@@ -5,21 +5,17 @@ import { z } from 'zod';
 import { Modal, Button, FormInput, SelectInput, Loader } from '../../../../components/common';
 import { TouchKeyboard } from '../../../../components/common/TouchKeyboard';
 import { useCurrency } from '../../../../hooks/useCurrency';
+import { useToast } from '../../../../app/providers/useToast';
 import { usePayInOutVoucherNumber } from '../hooks/usePayInOutQueries';
+import { getTodayDateString, isFutureDate } from '../utils/payInOutDateUtils';
+export { getTodayDateString, parseDateParts, isFutureDate } from '../utils/payInOutDateUtils';
 
 const payInOutSchema = z.object({
   type: z.enum(['IN', 'OUT']),
   vchNo: z.string().optional(),
   date: z.string()
     .min(1, "Date is required")
-    .refine((val) => {
-      if (!val) return true;
-      const [year, month, day] = val.split('-').map(Number);
-      const selected = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
-      return selected <= today;
-    }, { message: "Future dates are not allowed" }),
+    .refine((val) => !isFutureDate(val), { message: "Future dates are not allowed" }),
   description: z.string().min(1, "Description is required").max(100, "Max 100 characters"),
   amount: z.string()
     .min(1, "Amount is required")
@@ -50,37 +46,45 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
   isSaving
 }) => {
   const { decimalPart } = useCurrency();
+  const { showToast } = useToast();
   const { data: voucherNumberStr } = usePayInOutVoucherNumber(isOpen && !initialData);
 
   const [isKeyboardEnabled, setIsKeyboardEnabled] = useState(window.innerWidth >= 768);
   const [showKeyboard, setShowKeyboard] = useState(window.innerWidth >= 768);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
 
+  const todayDateString = getTodayDateString();
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors }
   } = useForm<PayInOutFormData>({
     resolver: zodResolver(payInOutSchema),
     defaultValues: {
       type: 'IN',
       vchNo: '',
-      date: new Date().toISOString().split('T')[0],
+      date: todayDateString,
       description: '',
       amount: '',
       paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
     }
   });
 
+  const currentDateValue = watch('date');
+
   useEffect(() => {
     if (isOpen) {
+      const todayStr = getTodayDateString();
       if (initialData) {
+        const rawDate = initialData.voucherDate ? initialData.voucherDate.split('T')[0] : todayStr;
         reset({
           type: initialData.inOut,
           vchNo: initialData.vchNo?.toString() || '',
-          date: initialData.voucherDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+          date: isFutureDate(rawDate) ? todayStr : rawDate,
           description: initialData.description,
           amount: Number(initialData.amount) > 0 ? Number(initialData.amount).toFixed(decimalPart) : '',
           paymodeId: initialData.paymodeId
@@ -89,7 +93,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
         reset({
           type: 'IN',
           vchNo: voucherNumberStr?.toString() || '',
-          date: new Date().toISOString().split('T')[0],
+          date: todayStr,
           description: '',
           amount: '',
           paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
@@ -116,11 +120,46 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
     reset({
       type: 'IN',
       vchNo: voucherNumberStr?.toString() || '',
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayDateString(),
       description: '',
       amount: '',
       paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
     });
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      setValue('date', '', { shouldValidate: true });
+      return;
+    }
+    if (isFutureDate(val)) {
+      showToast("Future dates are not allowed", "warning");
+      setValue('date', todayDateString, { shouldValidate: true });
+      e.target.value = todayDateString;
+      return;
+    }
+    setValue('date', val, { shouldValidate: true });
+  };
+
+  const handleFormSubmit = (data: PayInOutFormData) => {
+    if (isFutureDate(data.date)) {
+      showToast("Future dates are not allowed", "error");
+      setValue('date', todayDateString, { shouldValidate: true });
+      return;
+    }
+    onSubmit(data);
+  };
+
+  const onInvalid = (fieldErrors: any) => {
+    if (fieldErrors.date) {
+      showToast(fieldErrors.date.message || "Future dates are not allowed", "error");
+    } else {
+      const firstError = Object.values(fieldErrors)[0] as any;
+      if (firstError?.message) {
+        showToast(firstError.message, "warning");
+      }
+    }
   };
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
@@ -143,7 +182,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
       noPadding
       className="!max-w-[95vw] w-[95vw] md:!max-w-[800px] md:w-[800px] !max-h-[95vh] h-[95vh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col flex-1 h-full min-h-0 bg-slate-50">
+      <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} noValidate className="flex flex-col flex-1 h-full min-h-0 bg-slate-50">
         
         {/* Premium Header */}
         <div className="flex items-center justify-between bg-[#49293e] px-4 py-3 text-white shrink-0 border-b border-white/10 relative flex-wrap gap-4 shadow-md z-20">
@@ -187,7 +226,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
               Clear
             </Button>
             <Button 
-              onClick={handleSubmit(onSubmit)}
+              onClick={handleSubmit(handleFormSubmit, onInvalid)}
               disabled={isSaving}
               className="h-10 text-xs font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 shadow-md border-none text-white"
             >
@@ -249,8 +288,11 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
                 type="date"
                 label="Date"
                 required
-                max={new Date().toLocaleDateString('en-CA')}
-                {...register('date')}
+                max={todayDateString}
+                value={currentDateValue}
+                {...register('date', {
+                  onChange: handleDateChange
+                })}
                 error={errors.date?.message}
               />
             </div>

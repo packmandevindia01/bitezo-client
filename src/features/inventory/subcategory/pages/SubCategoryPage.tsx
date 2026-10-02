@@ -16,9 +16,10 @@ import {
 } from "../hooks/useSubCategoryQueries";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { categoryApi } from "../../category/api";
+import { subscribeToCategoryUpdates } from "../../category/utils/categorySync";
 import { subCategoryApi } from "../api";
 import type { SubCategoryListItem } from "../types";
-import { POS_MENU_SYNC_CHANNEL, POS_MENU_STORAGE_KEY } from "../../../pos/utils/posMenuSync";
+
 
 const SubCategoryPage = () => {
   const { hasPermission } = usePermissions();
@@ -51,43 +52,10 @@ const SubCategoryPage = () => {
 
   // Real-time synchronization for category updates (same tab and cross-tab)
   useEffect(() => {
-    const handleCategoryUpdate = () => {
+    return subscribeToCategoryUpdates(() => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       void refetchCategories();
-    };
-
-    window.addEventListener("categories:updated", handleCategoryUpdate);
-    window.addEventListener("pos_menu_updated", handleCategoryUpdate);
-
-    let channel: BroadcastChannel | null = null;
-    try {
-      if (typeof BroadcastChannel !== "undefined") {
-        channel = new BroadcastChannel(POS_MENU_SYNC_CHANNEL);
-        channel.onmessage = (event) => {
-          if (event.data?.detail === "category" || event.data?.type === "MENU_UPDATED") {
-            handleCategoryUpdate();
-          }
-        };
-      }
-    } catch {}
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === POS_MENU_STORAGE_KEY) {
-        handleCategoryUpdate();
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener("categories:updated", handleCategoryUpdate);
-      window.removeEventListener("pos_menu_updated", handleCategoryUpdate);
-      window.removeEventListener("storage", handleStorage);
-      if (channel) {
-        try {
-          channel.close();
-        } catch {}
-      }
-    };
+    });
   }, [queryClient, refetchCategories]);
 
   // Ensure fresh categories whenever modal opens

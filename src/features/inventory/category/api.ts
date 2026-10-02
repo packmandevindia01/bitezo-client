@@ -79,6 +79,7 @@ export const getCategories = async (
     code: item.catCode ?? item.code,
     name: item.catName ?? item.name,
     isActive: item.isActive === "Active" || item.isActive === true,
+    posStatus: item.posStatus !== undefined ? (item.posStatus === true || item.posStatus === "Active" || item.posStatus === 1) : true,
     arabic: item.arabic || "",
     colorCode: item.colorCode || "red",
     imageUrl: item.imageUrl || item.imagePath || item.categoryImage || item.fileUrl || item.filePath || item.image || "",
@@ -135,14 +136,13 @@ export const createCategory = async (
     : [];
   formData.append("BranchIdsJson", JSON.stringify(branchList));
 
-  if (Array.isArray(payload.menuIds) && payload.menuIds.length > 0) {
-    payload.menuIds.forEach((menuId, idx) => {
-      formData.append("MenuIds", String(menuId));
-      formData.append(`MenuIds[${idx}]`, String(menuId));
-      formData.append(`menuIds[${idx}]`, String(menuId));
-    });
-    formData.append("MenuIdsJson", JSON.stringify(payload.menuIds));
-  }
+  const menuIds = Array.isArray(payload.menuIds) && payload.menuIds.length > 0 ? payload.menuIds : [1];
+  menuIds.forEach((menuId, idx) => {
+    formData.append("MenuIds", String(menuId));
+    formData.append(`MenuIds[${idx}]`, String(menuId));
+    formData.append(`menuIds[${idx}]`, String(menuId));
+  });
+  formData.append("MenuIdsJson", JSON.stringify(menuIds));
 
   // Detailed Console Logging for Create Category
   console.group("[categoryApi] POST /category Create Payload");
@@ -202,14 +202,13 @@ export const updateCategory = async (
     : [];
   formData.append("BranchIdsJson", JSON.stringify(branchList));
 
-  if (Array.isArray(payload.menuIds) && payload.menuIds.length > 0) {
-    payload.menuIds.forEach((menuId, idx) => {
-      formData.append("MenuIds", String(menuId));
-      formData.append(`MenuIds[${idx}]`, String(menuId));
-      formData.append(`menuIds[${idx}]`, String(menuId));
-    });
-    formData.append("MenuIdsJson", JSON.stringify(payload.menuIds));
-  }
+  const menuIds = Array.isArray(payload.menuIds) && payload.menuIds.length > 0 ? payload.menuIds : [1];
+  menuIds.forEach((menuId, idx) => {
+    formData.append("MenuIds", String(menuId));
+    formData.append(`MenuIds[${idx}]`, String(menuId));
+    formData.append(`menuIds[${idx}]`, String(menuId));
+  });
+  formData.append("MenuIdsJson", JSON.stringify(menuIds));
 
   // Detailed Console Logging for Update Category
   console.group(`[categoryApi] PUT /category/${id} Update Payload`);
@@ -257,7 +256,12 @@ export const getBranches = async (): Promise<BranchOption[]> => {
   const data = await unwrap(
     axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list")
   );
-  return ((data as any[]) ?? []).map((b: any) => ({ id: Number(b.branchId), name: b.branchName }));
+  return ((data as any[]) ?? [])
+    .map((b: any) => ({
+      id: Number(b.branchId ?? b.id ?? 0),
+      name: String(b.branchName ?? b.name ?? ""),
+    }))
+    .filter((b: BranchOption) => b.id > 0);
 };
 
 export const categoryApi = {

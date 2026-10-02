@@ -22,10 +22,16 @@ export const fetchBranchNames = async (allStatus: boolean = false): Promise<Bran
   }
 
   return Array.isArray(data.data)
-    ? data.data.map((item) => ({
-        id: item.branchId ?? 0,
-        branchName: item.branchName ?? "",
-        isActive: item.isActive === true || String(item.isActive).toLowerCase() === "active",
+    ? data.data.map((item: any) => ({
+        id: item.branchId ?? item.id ?? 0,
+        branchName: item.branchName ?? item.name ?? "",
+        isActive:
+          item.isActive === true ||
+          item.isActive === "Active" ||
+          String(item.isActive).toLowerCase() === "active" ||
+          String(item.isActive).toLowerCase() === "true" ||
+          String(item.isActive) === "1" ||
+          item.isActive === undefined,
         lines: [],
         detailsLoaded: false,
       }))

@@ -8,11 +8,17 @@ import {
   Pencil,
   Plus
 } from 'lucide-react';
-import { ConfirmDialog, RecordTableCard, SearchBar, Button } from '../../../../components/common';
+import { ConfirmDialog, RecordTableCard, SearchBar, Button, FormInput } from '../../../../components/common';
 import { type PayInOutItem } from '../services/payInOutService';
 import { useToast } from '../../../../app/providers/useToast';
 import { useCurrency } from '../../../../hooks/useCurrency';
 import { PayInOutFormModal, type PayInOutFormData } from '../components/PayInOutFormModal';
+import { 
+  getTodayDateString, 
+  formatDateToYMD,
+  isFutureDate, 
+  parseDateParts 
+} from '../utils/payInOutDateUtils';
 import { 
   useCashierStatus, 
   usePaymodesForCounter, 
@@ -27,13 +33,13 @@ const PayInOutPage: React.FC = () => {
   const { formatAmount, currencySymbol } = useCurrency();
 
   // Search Filters
-  const todayStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
+  const todayStr = useMemo(() => getTodayDateString(), []);
   const [searchFromDate, setSearchFromDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7); // Default to last 7 days
-    return d.toLocaleDateString('en-CA');
+    return formatDateToYMD(d);
   });
-  const [searchToDate, setSearchToDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [searchToDate, setSearchToDate] = useState(() => getTodayDateString());
   const [searchInOut, setSearchInOut] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -42,17 +48,33 @@ const PayInOutPage: React.FC = () => {
       setSearchFromDate('');
       return;
     }
-    if (val > todayStr) {
+    if (isFutureDate(val)) {
       showToast("Future dates are not allowed", "warning");
       setSearchFromDate(todayStr);
-      if (searchToDate && searchToDate < todayStr) {
-        setSearchToDate(todayStr);
-      }
+      setSearchToDate(todayStr);
+      return;
+    }
+    if (searchToDate && val > searchToDate) {
+      showToast("From Date cannot be later than To Date", "warning");
+      setSearchFromDate(val);
+      setSearchToDate(val);
       return;
     }
     setSearchFromDate(val);
-    if (searchToDate && searchToDate < val) {
-      setSearchToDate(val);
+  };
+
+  const handleFromDateBlur = () => {
+    if (!searchFromDate) {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      const fallback = formatDateToYMD(d);
+      setSearchFromDate(searchToDate && fallback > searchToDate ? searchToDate : fallback);
+    } else if (isFutureDate(searchFromDate)) {
+      showToast("Future dates are not allowed", "warning");
+      setSearchFromDate(todayStr);
+      if (searchToDate < todayStr) setSearchToDate(todayStr);
+    } else if (searchToDate && searchFromDate > searchToDate) {
+      setSearchToDate(searchFromDate);
     }
   };
 
@@ -61,7 +83,7 @@ const PayInOutPage: React.FC = () => {
       setSearchToDate('');
       return;
     }
-    if (val > todayStr) {
+    if (isFutureDate(val)) {
       showToast("Future dates are not allowed", "warning");
       setSearchToDate(todayStr);
       return;
@@ -72,6 +94,18 @@ const PayInOutPage: React.FC = () => {
       return;
     }
     setSearchToDate(val);
+  };
+
+  const handleToDateBlur = () => {
+    if (!searchToDate) {
+      setSearchToDate(todayStr);
+    } else if (isFutureDate(searchToDate)) {
+      showToast("Future dates are not allowed", "warning");
+      setSearchToDate(todayStr);
+    } else if (searchFromDate && searchToDate < searchFromDate) {
+      showToast("To Date cannot be earlier than From Date", "warning");
+      setSearchToDate(searchFromDate);
+    }
   };
 
   const [cancelId, setCancelId] = useState<number | null>(null);
@@ -109,19 +143,24 @@ const PayInOutPage: React.FC = () => {
       return;
     }
 
-    const [year, month, day] = data.date.split('-').map(Number);
-    const localDate = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    if (localDate > today) {
+    if (isFutureDate(data.date)) {
       showToast("Future dates are not allowed", "error");
       return;
     }
 
-    if (editingId) {
-      // Parse date as local time (not UTC) to avoid date shifting in +5:30 timezones
-      const nowIso = new Date().toISOString();
+    const parsed = parseDateParts(data.date);
+    const localDate = parsed 
+      ? new Date(parsed.year, parsed.month - 1, parsed.day)
+      : new Date(data.date);
 
+    if (isNaN(localDate.getTime())) {
+      showToast("Invalid date selected", "error");
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (editingId) {
       updateTransaction.mutate({
         id: editingId,
         data: {
@@ -144,11 +183,6 @@ const PayInOutPage: React.FC = () => {
         }
       });
     } else {
-      // Parse date as local time (not UTC) to avoid date shifting in +5:30 timezones
-      const [year, month, day] = data.date.split('-').map(Number);
-      const localDate = new Date(year, month - 1, day);
-      const nowIso = new Date().toISOString();
-
       createTransaction.mutate({
         inOut: data.type,
         voucherDate: localDate.toISOString(),
@@ -215,32 +249,32 @@ const PayInOutPage: React.FC = () => {
         <div className="flex flex-col xl:flex-row gap-4 mb-4 justify-between items-end shrink-0">
           <div className="flex flex-wrap gap-3 items-end flex-1">
             <div className="w-full sm:w-40">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">From Date</label>
-              <input
+              <FormInput
+                label="From Date"
                 type="date"
                 value={searchFromDate}
-                max={todayStr}
+                max={searchToDate && searchToDate <= todayStr ? searchToDate : todayStr}
                 onChange={(e) => handleFromDateChange(e.target.value)}
-                className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
+                onBlur={handleFromDateBlur}
               />
             </div>
             <div className="w-full sm:w-40">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">To Date</label>
-              <input
+              <FormInput
+                label="To Date"
                 type="date"
                 value={searchToDate}
                 min={searchFromDate || undefined}
                 max={todayStr}
                 onChange={(e) => handleToDateChange(e.target.value)}
-                className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all"
+                onBlur={handleToDateBlur}
               />
             </div>
             <div className="w-full sm:w-40">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Type</label>
+              <label className="flex items-center whitespace-nowrap overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 min-w-0">Type</label>
               <select
                 value={searchInOut}
                 onChange={(e) => setSearchInOut(e.target.value as any)}
-                className="w-full h-10 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all cursor-pointer"
+                className="w-full h-9 px-3 text-xs rounded-md border border-gray-300 bg-white focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20 outline-none transition-all cursor-pointer"
               >
                 <option value="ALL">All Types</option>
                 <option value="IN">IN (Pay In)</option>
@@ -276,6 +310,7 @@ const PayInOutPage: React.FC = () => {
             {
               header: "Type",
               accessor: "inOut",
+              align: "center",
               render: (row) => (
                 <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                   row.inOut === 'IN' 
@@ -290,11 +325,13 @@ const PayInOutPage: React.FC = () => {
             {
               header: "Date",
               accessor: "date",
+              align: "center",
               render: (row) => new Date(row.date).toLocaleDateString()
             },
             {
               header: "Vch No",
               accessor: "vchNo",
+              align: "center",
               render: (row) => <span className="font-mono text-slate-600 font-bold">{row.vchNo || "—"}</span>
             },
             {

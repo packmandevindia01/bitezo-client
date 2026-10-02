@@ -14,13 +14,16 @@ import {
   useDeleteCategory,
   useCategoryBranches,
 } from "../hooks/useCategoryQueries";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { menuSettingsApi } from "../../../general/menuSettings/services/menuSettingsApi";
 import { categoryApi } from "../api";
 import type { CategoryListItem } from "../types";
 import { resolveImageUrl } from "../../../../utils/imageUtils";
+import { subscribeToCategoryUpdates } from "../utils/categorySync";
+import { subscribeToBranchUpdates } from "../../branches/utils/branchSync";
 
 const CategoryPage = () => {
+  const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const { showToast } = useToast();
 
@@ -36,10 +39,13 @@ const CategoryPage = () => {
 
   // Data Fetching
   const { data: categories = [], isLoading, refetch: refetchCategories } = useCategories();
-  const { data: branchOptions = [] } = useCategoryBranches();
+  const { data: branchOptions = [], refetch: refetchBranchOptions } = useCategoryBranches();
   const { data: menuTimes = [] } = useQuery({
     queryKey: ["menuTimeSettingsList"],
     queryFn: () => menuSettingsApi.list(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Mutations
@@ -72,18 +78,18 @@ const CategoryPage = () => {
 
   // Real-time synchronization for category list updates
   useEffect(() => {
-    const handleCategoryUpdate = () => {
+    return subscribeToCategoryUpdates(() => {
       void refetchCategories();
-    };
-
-    window.addEventListener("categories:updated", handleCategoryUpdate);
-    window.addEventListener("pos_menu_updated", handleCategoryUpdate);
-
-    return () => {
-      window.removeEventListener("categories:updated", handleCategoryUpdate);
-      window.removeEventListener("pos_menu_updated", handleCategoryUpdate);
-    };
+    });
   }, [refetchCategories]);
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    return subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
+      void refetchBranchOptions();
+    });
+  }, [queryClient, refetchBranchOptions]);
 
   const resetForm = () => {
     const currentCode = form.getValues("code"); // preserve auto-generated code
@@ -137,6 +143,7 @@ const CategoryPage = () => {
     setEditingId(null);
     setOpen(true);
     void refetchCategories();
+    void refetchBranchOptions();
     
     try {
       const code = await categoryApi.getNextCategoryCode();
@@ -148,6 +155,7 @@ const CategoryPage = () => {
 
   const handleEdit = async (cat: CategoryListItem) => {
     try {
+      void refetchBranchOptions();
       setEditingId(cat.id);
       const detail = await categoryApi.getCategoryById(cat.id);
       

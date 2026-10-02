@@ -63,8 +63,17 @@ export const useBranchManager = () => {
       showToast("Branch created successfully", "success");
     }
     // Refresh global master data and query caches so other modules see the changes
+    queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
     queryClient.invalidateQueries({ queryKey: ["branchNames"] });
     queryClient.invalidateQueries({ queryKey: ["branches"] });
+    queryClient.invalidateQueries({ queryKey: ["branchList"] });
+    queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
+    queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+    queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+    void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
+    void queryClient.refetchQueries({ queryKey: ["branches"] });
+    void queryClient.refetchQueries({ queryKey: ["branchNames"] });
+    void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
     dispatch(fetchGlobalMasterData());
     notifyBranchesUpdated();
     setOpen(false);
@@ -78,8 +87,17 @@ export const useBranchManager = () => {
       await deleteBranch(deleteCandidate.id);
       setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
       showToast("Branch deleted successfully", "success");
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
       queryClient.invalidateQueries({ queryKey: ["branchNames"] });
       queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["branchList"] });
+      queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
+      void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
+      void queryClient.refetchQueries({ queryKey: ["branches"] });
+      void queryClient.refetchQueries({ queryKey: ["branchNames"] });
+      void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
       dispatch(fetchGlobalMasterData());
       notifyBranchesUpdated();
       setDeleteCandidate(null);

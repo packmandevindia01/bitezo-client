@@ -104,17 +104,35 @@ export const usePaymodeManager = () => {
         return await paymodeService.create(payload);
       }
     },
-    onSuccess: () => {
+    onSuccess: (res, variables) => {
       showToast(`Paymode ${editingId ? "updated" : "created"} successfully`, "success");
+      const targetId = editingId || (res && typeof res === "object" && "id" in res ? Number((res as any).id) : Date.now());
+      if (targetId) {
+        queryClient.setQueryData<PaymodeRecord[]>(["paymodes"], (old = []) => {
+          const item: PaymodeRecord = {
+            paymodeId: targetId,
+            sNo: old.length + 1,
+            code: Number(variables.code) || 0,
+            paymodeName: variables.paymodeName,
+            isActive: variables.isActive,
+          };
+          if (editingId) {
+            return old.map(p => (p.paymodeId === editingId ? { ...p, ...item } : p));
+          }
+          return old.some(p => p.paymodeId === targetId) ? old : [...old, item];
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["paymodes"] });
       queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
       queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
       queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["providerPaymodes"] });
       queryClient.invalidateQueries({ queryKey: ["pos"] });
       void queryClient.refetchQueries({ queryKey: ["paymodes"] });
       void queryClient.refetchQueries({ queryKey: ["paymentMaster"] });
       void queryClient.refetchQueries({ queryKey: ["receiptMaster"] });
+      void queryClient.refetchQueries({ queryKey: ["providerPaymodes"] });
       notifyPaymodeUpdated(editingId ? "updated" : "created");
       closeModal();
     },
@@ -125,17 +143,22 @@ export const usePaymodeManager = () => {
 
   const deleteMutation = useMutation({
     mutationFn: (paymodeId: number) => paymodeService.remove(paymodeId),
-    onSuccess: () => {
+    onSuccess: (_data, paymodeId) => {
       showToast("Paymode deleted successfully", "success");
+      queryClient.setQueryData<PaymodeRecord[]>(["paymodes"], (old = []) => {
+        return old.filter(p => p.paymodeId !== paymodeId);
+      });
       queryClient.invalidateQueries({ queryKey: ["paymodes"] });
       queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
       queryClient.invalidateQueries({ queryKey: ["paymentAgainstMasterData"] });
       queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      queryClient.invalidateQueries({ queryKey: ["providerPaymodes"] });
       queryClient.invalidateQueries({ queryKey: ["pos"] });
       void queryClient.refetchQueries({ queryKey: ["paymodes"] });
       void queryClient.refetchQueries({ queryKey: ["paymentMaster"] });
       void queryClient.refetchQueries({ queryKey: ["receiptMaster"] });
+      void queryClient.refetchQueries({ queryKey: ["providerPaymodes"] });
       notifyPaymodeUpdated("deleted");
       if (editingId) {
         closeModal();

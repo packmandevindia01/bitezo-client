@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { payInOutService } from "../services/payInOutService";
 import { paymodeService } from "../../../general/paymode/services/paymodeService";
 import { cashierLogService } from "../../cashier/services/cashierLogService";
+import { parseDateParts, isFutureDate } from "../utils/payInOutDateUtils";
 
 export const useCashierStatus = () => {
   return useQuery({
@@ -31,9 +32,27 @@ export const usePayInOutTransactions = (fromDate: string, toDate: string, descri
   return useQuery({
     queryKey: ['payInOut', fromDate, toDate, description],
     queryFn: async () => {
-      const fromD = new Date(fromDate);
+      if (!fromDate || !toDate) return [];
+
+      const parsedFrom = parseDateParts(fromDate);
+      const parsedTo = parseDateParts(toDate);
+
+      let fromD = parsedFrom ? new Date(parsedFrom.year, parsedFrom.month - 1, parsedFrom.day) : new Date(fromDate);
+      let toD = parsedTo ? new Date(parsedTo.year, parsedTo.month - 1, parsedTo.day) : new Date(toDate);
+
+      if (isNaN(fromD.getTime()) || isNaN(toD.getTime())) return [];
+
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      // Clamp to today if future date
+      if (fromD > today) fromD = new Date(today);
+      if (toD > today) toD = new Date(today);
+
+      // If from date is later than to date, clamp from to to
+      if (fromD > toD) fromD = new Date(toD);
+
       fromD.setHours(0, 0, 0, 0);
-      const toD = new Date(toDate);
       toD.setHours(23, 59, 59, 999);
       
       const response = await payInOutService.list({
@@ -41,8 +60,9 @@ export const usePayInOutTransactions = (fromDate: string, toDate: string, descri
         toDate: toD.toISOString(),
         description
       });
-      return response.data;
-    }
+      return response.data || [];
+    },
+    enabled: !!fromDate && !!toDate && fromDate <= toDate && !isFutureDate(fromDate) && !isFutureDate(toDate)
   });
 };
 

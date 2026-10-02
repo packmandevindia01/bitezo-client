@@ -252,7 +252,8 @@ const ReceiptVoucherFormPage = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    document.getElementById("rv-save-btn")?.focus();
+                    const saveBtn = document.getElementById("rv-save") || document.getElementById("rv-save-btn");
+                    saveBtn?.focus();
                   }
                 }}
                 className="w-full text-sm rounded-md border border-gray-300 outline-none transition px-4 py-2 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20"

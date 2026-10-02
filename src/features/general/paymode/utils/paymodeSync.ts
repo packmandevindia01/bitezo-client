@@ -37,3 +37,51 @@ export const notifyPaymodeUpdated = (action: PaymodeSyncAction = "created") => {
     // Silently continue
   }
 };
+
+export const subscribeToPaymodeUpdates = (onUpdate: () => void): (() => void) => {
+  let channel: BroadcastChannel | null = null;
+
+  const handleCustomEvent = () => {
+    onUpdate();
+  };
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === PAYMODE_STORAGE_KEY) {
+      onUpdate();
+    }
+  };
+
+  const handleChannelMessage = (event: MessageEvent) => {
+    if (event.data?.type === "PAYMODE_UPDATED") {
+      onUpdate();
+    }
+  };
+
+  // 1. Same-tab CustomEvent
+  window.addEventListener("paymodes:updated", handleCustomEvent);
+
+  // 2. Cross-tab StorageEvent
+  window.addEventListener("storage", handleStorage);
+
+  // 3. Cross-tab BroadcastChannel
+  try {
+    if (typeof BroadcastChannel !== "undefined") {
+      channel = new BroadcastChannel(PAYMODE_SYNC_CHANNEL);
+      channel.onmessage = handleChannelMessage;
+    }
+  } catch {
+    // Silently continue
+  }
+
+  return () => {
+    window.removeEventListener("paymodes:updated", handleCustomEvent);
+    window.removeEventListener("storage", handleStorage);
+    if (channel) {
+      try {
+        channel.close();
+      } catch {
+        // Silently continue
+      }
+    }
+  };
+};

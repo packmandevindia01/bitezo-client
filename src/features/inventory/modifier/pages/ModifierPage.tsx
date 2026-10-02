@@ -15,8 +15,11 @@ import { usePermissions } from "../../../../hooks/usePermissions";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import type { RootState } from "../../../../app/store";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { categoryApi } from "../../category";
+import { fetchBranchNames } from "../../branches/services/branchApi";
+import { subscribeToBranchUpdates } from "../../branches/utils/branchSync";
+import { subscribeToCategoryUpdates } from "../../category/utils/categorySync";
 import { useToast } from "../../../../app/providers/useToast";
 
 import { 
@@ -31,6 +34,7 @@ import { modifierFormSchema, type ModifierForm as ModifierFormType, type Modifie
 const ModifierPage = () => {
   const { hasPermission } = usePermissions();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -43,18 +47,62 @@ const ModifierPage = () => {
   const canDelete = hasPermission("Modifier Master", "Delete");
 
   const dispatch = useAppDispatch();
-  const { branches } = useAppSelector((state: RootState) => state.masterData);
+  const { branches: reduxBranches } = useAppSelector((state: RootState) => state.masterData);
 
-  useEffect(() => {
-    if (branches.length === 0) {
-      dispatch(fetchGlobalMasterData());
-    }
-  }, [dispatch, branches.length]);
+  // Fetch branches with React Query for instant reactivity
+  const { data: branchList = [], refetch: refetchBranches } = useQuery({
+    queryKey: ["branchNames"],
+    queryFn: async () => {
+      try {
+        const data = await fetchBranchNames(true);
+        return data.map((b) => ({ id: b.id, name: b.branchName }));
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
-  const { data: categories = [] } = useQuery({
+  const branches = branchList.length > 0 ? branchList : reduxBranches;
+
+  const { data: categories = [], refetch: refetchCategories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => categoryApi.getCategories(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      void refetchBranches();
+      dispatch(fetchGlobalMasterData());
+    });
+    return () => unsubscribe();
+  }, [queryClient, dispatch, refetchBranches]);
+
+  // Real-time synchronization for category updates
+  useEffect(() => {
+    const unsubscribe = subscribeToCategoryUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      void refetchCategories();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchCategories]);
+
+  // Refetch branches whenever modal opens
+  useEffect(() => {
+    if (open) {
+      void refetchBranches();
+      dispatch(fetchGlobalMasterData());
+    }
+  }, [open, refetchBranches, dispatch]);
 
   const { data: records = [], isLoading } = useModifiers(search || undefined);
   const { data: detailRecord, isLoading: isDetailLoading } = useModifierDetail(editingId || undefined);
@@ -107,6 +155,8 @@ const ModifierPage = () => {
   };
 
   const openCreateModal = () => {
+    void refetchBranches();
+    void refetchCategories();
     setEditingId(null);
     setActiveTab("general");
     form.clearErrors();
@@ -117,6 +167,8 @@ const ModifierPage = () => {
   };
 
   const handleEdit = (record: ModifierRecord) => {
+    void refetchBranches();
+    void refetchCategories();
     setEditingId(record.id);
     setActiveTab("general");
     form.clearErrors();
