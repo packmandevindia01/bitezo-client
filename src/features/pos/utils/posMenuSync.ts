@@ -17,7 +17,13 @@ export const notifyPosMenuUpdated = (detail: PosMenuUpdateDetail = "general") =>
     if (typeof BroadcastChannel !== "undefined") {
       const channel = new BroadcastChannel(POS_MENU_SYNC_CHANNEL);
       channel.postMessage(payload);
-      channel.close();
+      setTimeout(() => {
+        try {
+          channel.close();
+        } catch {
+          // Silently continue
+        }
+      }, 1000);
     }
   } catch {
     // Silently continue

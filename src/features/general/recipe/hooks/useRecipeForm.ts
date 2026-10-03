@@ -12,8 +12,15 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useNavigate } from "react-router-dom";
 import { generateUUID } from "../../../../utils/uuid";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { subscribeToProductUpdates } from "../../../inventory/product/utils/productSync";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { fetchBranchNames, fetchBranches } from "../../../inventory/branches/services/branchApi";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 
 export const useRecipeForm = (initialTransId?: number) => {
+  const dispatch = useAppDispatch();
+  const reduxBranches = useAppSelector((state) => state.masterData.branches);
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const { decimalPart } = useCurrency();
   const { showToast } = useToast();
@@ -29,9 +36,10 @@ export const useRecipeForm = (initialTransId?: number) => {
     setCategoryUnits(prev => {
       if (prev[unitCategory]) return prev;
       recipeApi.getUnitListByName(unitCategory).then(res => {
+        const units = res as any[];
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
+          [unitCategory]: (units || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -86,31 +94,128 @@ export const useRecipeForm = (initialTransId?: number) => {
   }, [watchedItems, watchedFinishedProductQty]);
 
   // 4. React Query Data Fetching
-  const { data: finishedProducts = [] } = useQuery({
-    queryKey: ["finishedProducts"],
+  const { data: finishedProducts = [], refetch: refetchFinishedProducts } = useQuery({
+    queryKey: ["recipeFinishedProducts"],
     queryFn: async () => {
-      const fp = await recipeApi.getFinishedProductListByName("");
-      return fp.map((p: any) => ({
-        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-        code: p.barcode || p.code
-      }));
-    }
+      const prodMap = new Map<string, { label: string; value: string; code: string; barcode?: string }>();
+
+      const [recipeFinishedRes, generalProductsRes, productListRes] = await Promise.allSettled([
+        recipeApi.getFinishedProductListByName(""),
+        productService.listName(""),
+        productService.list({ branchId: 0 }),
+      ]);
+
+      if (recipeFinishedRes.status === "fulfilled" && Array.isArray(recipeFinishedRes.value)) {
+        recipeFinishedRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.productName || p.name || "";
+            const label = code ? `[${code}] ${name}` : name;
+            prodMap.set(id, { label, value: id, code, barcode: p.barcode || code });
+          }
+        });
+      }
+
+      if (productListRes.status === "fulfilled" && Array.isArray(productListRes.value)) {
+        productListRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.name || p.productName || "";
+            const label = code ? `[${code}] ${name}` : name;
+            if (!prodMap.has(id)) {
+              prodMap.set(id, { label, value: id, code, barcode: p.barcode || code });
+            } else {
+              const existing = prodMap.get(id)!;
+              if (!existing.code && code) {
+                existing.code = code;
+                existing.barcode = p.barcode || code;
+                existing.label = label;
+              }
+            }
+          }
+        });
+      }
+
+      if (generalProductsRes.status === "fulfilled" && Array.isArray(generalProductsRes.value)) {
+        generalProductsRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0" && !prodMap.has(id)) {
+            const name = p.productName || p.name || "";
+            prodMap.set(id, { label: name, value: id, code: "" });
+          }
+        });
+      }
+
+      return Array.from(prodMap.values());
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const [scannedRawMaterials, setScannedRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
 
-  const { data: rawMaterialsQueryData = [] } = useQuery({
+  const { data: rawMaterialsQueryData = [], refetch: refetchRawMaterials } = useQuery({
     queryKey: ["recipeRawMaterials"],
     queryFn: async () => {
-      const rm = await recipeApi.getRawMaterialProductListByName("");
-      return rm.map((p: any) => ({
-        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-        code: p.barcode || p.code || "",
-        barcode: p.barcode || ""
-      }));
-    }
+      const prodMap = new Map<string, { label: string; value: string; code: string; barcode: string }>();
+
+      const [recipeRawRes, generalProductsRes, productListRes] = await Promise.allSettled([
+        recipeApi.getRawMaterialProductListByName(""),
+        productService.listName(""),
+        productService.list({ branchId: 0 }),
+      ]);
+
+      if (recipeRawRes.status === "fulfilled" && Array.isArray(recipeRawRes.value)) {
+        recipeRawRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.productName || p.name || "";
+            const label = code ? `[${code}] ${name}` : name;
+            prodMap.set(id, { label, value: id, code, barcode: p.barcode || "" });
+          }
+        });
+      }
+
+      if (productListRes.status === "fulfilled" && Array.isArray(productListRes.value)) {
+        productListRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.name || p.productName || "";
+            const label = code ? `[${code}] ${name}` : name;
+            if (!prodMap.has(id)) {
+              prodMap.set(id, { label, value: id, code, barcode: p.barcode || code || "" });
+            } else {
+              const existing = prodMap.get(id)!;
+              if (!existing.code && code) {
+                existing.code = code;
+                existing.barcode = p.barcode || code || "";
+                existing.label = label;
+              }
+            }
+          }
+        });
+      }
+
+      if (generalProductsRes.status === "fulfilled" && Array.isArray(generalProductsRes.value)) {
+        generalProductsRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0" && !prodMap.has(id)) {
+            const name = p.productName || p.name || "";
+            prodMap.set(id, { label: name, value: id, code: "", barcode: "" });
+          }
+        });
+      }
+
+      return Array.from(prodMap.values());
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const rawMaterials = useMemo(() => {
@@ -123,13 +228,126 @@ export const useRecipeForm = (initialTransId?: number) => {
     return combined;
   }, [rawMaterialsQueryData, scannedRawMaterials]);
 
-  const { data: branches = [] } = useQuery({
-    queryKey: ["branches"],
+  const { data: queryBranches = [], refetch: refetchBranches } = useQuery({
+    queryKey: ["recipeBranches"],
     queryFn: async () => {
-      const bl = await recipeApi.getBranchList();
-      return bl.map((b: any) => ({ label: b.branchName, value: String(b.branchId) }));
-    }
+      const branchMap = new Map<string, string>();
+
+      const [branchMasterRes, directBranchesRes, recipeBranchesRes] = await Promise.allSettled([
+        fetchBranches(),
+        fetchBranchNames(true),
+        recipeApi.getBranchList(),
+      ]);
+
+      if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
+        branchMasterRes.value.forEach((b: any) => {
+          const id = String(b.id ?? b.branchId ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name) {
+            branchMap.set(id, name);
+          }
+        });
+      }
+
+      if (directBranchesRes.status === "fulfilled" && Array.isArray(directBranchesRes.value)) {
+        directBranchesRes.value.forEach((b: any) => {
+          const id = String(b.id ?? b.branchId ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name && !branchMap.has(id)) {
+            branchMap.set(id, name);
+          }
+        });
+      }
+
+      if (recipeBranchesRes.status === "fulfilled" && Array.isArray(recipeBranchesRes.value)) {
+        recipeBranchesRes.value.forEach((b: any) => {
+          const id = String(b.branchId ?? b.id ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name && !branchMap.has(id)) {
+            branchMap.set(id, name);
+          }
+        });
+      }
+
+      return Array.from(branchMap.entries()).map(([value, label]) => ({
+        label,
+        value,
+      }));
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.removeQueries({ queryKey: ["recipeBranches"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
+      void refetchBranches();
+      void dispatch(fetchGlobalBranches());
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchBranches, dispatch]);
+
+  // Ensure fresh branch data on mount
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ["recipeBranches"] });
+    queryClient.invalidateQueries({ queryKey: ["recipeBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+    void refetchBranches();
+    void dispatch(fetchGlobalBranches());
+  }, [queryClient, refetchBranches, dispatch]);
+
+  // Merge query branches with live Redux masterData branches
+  const branches = useMemo(() => {
+    const branchMap = new Map<string, string>();
+
+    (queryBranches || []).forEach((b: any) => {
+      const id = String(b.value ?? b.id ?? b.branchId ?? "");
+      const name = String(b.label ?? b.branchName ?? b.name ?? "");
+      if (id && id !== "0" && name) {
+        branchMap.set(id, name);
+      }
+    });
+
+    (reduxBranches || []).forEach((b: any) => {
+      const id = String(b.id ?? b.branchId ?? "");
+      const name = String(b.name ?? b.branchName ?? "");
+      if (id && id !== "0" && name && !branchMap.has(id)) {
+        branchMap.set(id, name);
+      }
+    });
+
+    return Array.from(branchMap.entries()).map(([value, label]) => ({
+      label,
+      value,
+    }));
+  }, [queryBranches, reduxBranches]);
+
+  // Real-time synchronization for product updates
+  useEffect(() => {
+    const unsubscribe = subscribeToProductUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+      void refetchRawMaterials();
+      void refetchFinishedProducts();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchRawMaterials, refetchFinishedProducts]);
+
+  // Ensure fresh product data on mount
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["recipeRawMaterials"] });
+    queryClient.invalidateQueries({ queryKey: ["recipeFinishedProducts"] });
+    queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+    void refetchRawMaterials();
+    void refetchFinishedProducts();
+  }, [queryClient, refetchRawMaterials, refetchFinishedProducts]);
 
   const { data: allUnits = [] } = useQuery({
     queryKey: ["allUnits"],
@@ -139,15 +357,15 @@ export const useRecipeForm = (initialTransId?: number) => {
     }
   });
 
-  const { data: orderTypes = [] } = useQuery({
+  const { data: orderTypes = [] } = useQuery<{ label: string; value: string }[]>({
     queryKey: ["orderTypes"],
-    queryFn: async () => {
-      const ol = await recipeApi.getOrderTypes();
-      return ol.map((o: any) => ({ label: o.providerName, value: String(o.providerId) }));
+    queryFn: async (): Promise<{ label: string; value: string }[]> => {
+      const ol = (await recipeApi.getOrderTypes()) as any[];
+      return (ol || []).map((o: any) => ({ label: o.providerName, value: String(o.providerId) }));
     }
   });
 
-  const { data: recipeData, isLoading: isLoadingInitialData, isError: isInitialDataError, error: initialDataError } = useQuery({
+  const { data: recipeData, isLoading: isLoadingInitialData, isError: isInitialDataError, error: initialDataError } = useQuery<any>({
     queryKey: ["recipeData", initialTransId],
     queryFn: async () => {
       if (!initialTransId) return null;
@@ -184,7 +402,7 @@ export const useRecipeForm = (initialTransId?: number) => {
             let unitCategory = "";
             if (barcode || item.productId) {
               try {
-                const costData = await recipeApi.getProductCostData(barcode || String(item.productId));
+                const costData: any = await recipeApi.getProductCostData(barcode || String(item.productId));
                 unitCategory = costData.unitCategory || "";
                 if (unitCategory) {
                   await loadCategoryUnits(unitCategory);
@@ -246,8 +464,8 @@ export const useRecipeForm = (initialTransId?: number) => {
          if (finishedProductUnits.length === 0) {
            try {
              const identifier = prod?.code || watchedFinishedProduct;
-             const costData = await recipeApi.getProductCostData(identifier);
-             const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
+             const costData: any = await recipeApi.getProductCostData(identifier);
+             const unitsResp = (await recipeApi.getUnitListByName(costData.unitCategory)) as any[];
              const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
              setFinishedProductUnits(unitOptions);
              
@@ -278,20 +496,45 @@ export const useRecipeForm = (initialTransId?: number) => {
       return;
     }
 
-    setValue("finishedProductCode", prod.code || "", { shouldDirty: true });
-    const identifier = prod.code || productId;
+    let codeToUse = prod.code;
+    if (!codeToUse) {
+      try {
+        const costData: any = await recipeApi.getProductCostDataById(Number(productId));
+        if (costData?.productCode) {
+          codeToUse = costData.productCode;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch product code by ID:", err);
+      }
+    }
+
+    setValue("finishedProductCode", codeToUse || "", { shouldDirty: true });
+    const identifier = codeToUse || productId;
 
     try {
-      const costData = await recipeApi.getProductCostData(identifier);
-      const unitsResp = await recipeApi.getUnitListByName(costData.unitCategory);
-      
-      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
-      setFinishedProductUnits(unitOptions);
+      let costData: any = await recipeApi.getProductCostData(identifier).catch(() => null);
+      if (!costData) {
+        costData = await recipeApi.getProductCostDataById(Number(productId)).catch(() => null);
+      }
+      if (!costData) return;
 
-      setValue("finishedProductUnit", String(costData.baseUnitId), { shouldValidate: true, shouldDirty: true });
-      const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
-      setValue("finishedProductUnitName", unitName, { shouldDirty: true });
-      setValue("finishedProductQty", "1", { shouldValidate: true, shouldDirty: true });
+      if (costData.productCode && !codeToUse) {
+        setValue("finishedProductCode", costData.productCode, { shouldDirty: true });
+      }
+
+      if (costData.unitCategory) {
+        const unitsResp = (await recipeApi.getUnitListByName(costData.unitCategory)) as any[];
+        const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+        setFinishedProductUnits(unitOptions);
+
+        setValue("finishedProductUnit", String(costData.baseUnitId), { shouldValidate: true, shouldDirty: true });
+        const unitName = unitsResp.find((u: any) => u.unitId === costData.baseUnitId)?.name || costData.unitCategory;
+        setValue("finishedProductUnitName", unitName, { shouldDirty: true });
+        setValue("finishedProductQty", "1", { shouldValidate: true, shouldDirty: true });
+      } else if (costData.baseUnitId) {
+        setValue("finishedProductUnit", String(costData.baseUnitId), { shouldValidate: true, shouldDirty: true });
+        setValue("finishedProductQty", "1", { shouldValidate: true, shouldDirty: true });
+      }
     } catch (err: any) {
       showToast("Failed to fetch product details", "error");
     }
@@ -312,16 +555,39 @@ export const useRecipeForm = (initialTransId?: number) => {
     }
 
     setValue(`items.${index}.productId`, Number(productId));
-    setValue(`items.${index}.code`, barcode || "");
-    const identifier = barcode || productId;
+
+    let bc = barcode;
+    if (!bc) {
+      try {
+        const costData: any = await recipeApi.getProductCostDataById(Number(productId));
+        if (costData?.productCode) {
+          bc = costData.productCode;
+          setValue(`items.${index}.productName`, costData.productName);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch product cost data by ID:", err);
+      }
+    }
+
+    setValue(`items.${index}.code`, bc || "");
+    const identifier = bc || productId;
 
     try {
-      const costData = await recipeApi.getProductCostData(identifier);
+      let costData: any = await recipeApi.getProductCostData(identifier).catch(() => null);
+      if (!costData) {
+        costData = await recipeApi.getProductCostDataById(Number(productId)).catch(() => null);
+      }
       if (costData) {
         setValue(`items.${index}.unitCategory`, costData.unitCategory || "");
         setValue(`items.${index}.unitId`, costData.baseUnitId);
         setValue(`items.${index}.unit`, String(costData.baseUnitId));
         setValue(`items.${index}.cost`, Number(costData.cost).toFixed(decimalPart));
+        if (costData.productName && !getValues(`items.${index}.productName`)) {
+          setValue(`items.${index}.productName`, costData.productName);
+        }
+        if (costData.productCode && !getValues(`items.${index}.code`)) {
+          setValue(`items.${index}.code`, costData.productCode);
+        }
         
         if (costData.unitCategory) {
           loadCategoryUnits(costData.unitCategory);
@@ -334,9 +600,9 @@ export const useRecipeForm = (initialTransId?: number) => {
 
   const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
     try {
-      let details = await recipeApi.getProductCostData(barcode).catch(() => null);
+      let details: any = await recipeApi.getProductCostData(barcode).catch(() => null);
       if (!details) {
-        const nameResults = await recipeApi.getRawMaterialProductListByName(barcode).catch(() => []);
+        const nameResults = (await recipeApi.getRawMaterialProductListByName(barcode).catch(() => [])) as any[];
         if (nameResults && nameResults.length > 0) {
           const first = nameResults[0];
           const bcToUse = first.barcode || first.code || barcode;
@@ -397,7 +663,7 @@ export const useRecipeForm = (initialTransId?: number) => {
 
     try {
       // Try to fetch updated unit cost, fall back if API endpoint doesn't exist
-      const result = await recipeApi.getUnitCost(Number(productId), Number(unitId)).catch(() => null);
+      const result: any = await recipeApi.getUnitCost(Number(productId), Number(unitId)).catch(() => null);
       if (result && result.cost !== undefined && result.cost !== null) {
         setValue(`items.${index}.cost`, Number(result.cost).toFixed(decimalPart));
       }

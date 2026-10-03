@@ -83,8 +83,35 @@ export const deleteEmployee = async (empId: number) => {
 
 // ── Branches ──────────────────────────────────────────────────────────────────
 export const getBranches = async (): Promise<BranchOption[]> => {
-  const res = await axiosInstance.get("/Branch/false/list-name");
-  return res.data?.data ?? [];
+  const branchMap = new Map<number, string>();
+
+  const [listRes, trueRes, falseRes] = await Promise.allSettled([
+    axiosInstance.get("/Branch/list"),
+    axiosInstance.get("/Branch/true/list-name"),
+    axiosInstance.get("/Branch/false/list-name"),
+  ]);
+
+  const processItems = (data: any) => {
+    const list = Array.isArray(data) ? data : data?.data ?? [];
+    if (Array.isArray(list)) {
+      list.forEach((b: any) => {
+        const id = Number(b.branchId ?? b.id);
+        const name = String(b.branchName ?? b.name ?? "");
+        if (id && id > 0 && name && !branchMap.has(id)) {
+          branchMap.set(id, name);
+        }
+      });
+    }
+  };
+
+  if (listRes.status === "fulfilled") processItems(listRes.value.data);
+  if (trueRes.status === "fulfilled") processItems(trueRes.value.data);
+  if (falseRes.status === "fulfilled") processItems(falseRes.value.data);
+
+  return Array.from(branchMap.entries()).map(([branchId, branchName]) => ({
+    branchId,
+    branchName,
+  }));
 };
 
 export const getEmployeeRoles = async (): Promise<EmployeeRoleOption[]> => {

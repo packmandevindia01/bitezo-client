@@ -71,8 +71,18 @@ export interface BranchOption {
 export const employeeSchema = z.object({
   name: z.string().min(1, "Name is required").max(50, "Maximum character limit exceeded."),
   code: z.string().min(1, "Code is required").max(50, "Maximum character limit exceeded."),
-  branchId: z.string().min(1, "Branch is required"),
-  roleId: z.string().min(1, "Role is required"),
+  branchId: z
+    .string()
+    .min(1, "Branch is required")
+    .refine((val) => Boolean(val && val.trim() !== "" && val !== "0"), {
+      message: "Branch is required",
+    }),
+  roleId: z
+    .string()
+    .min(1, "Role is required")
+    .refine((val) => Boolean(val && val.trim() !== "" && val !== "0"), {
+      message: "Role is required",
+    }),
   driver: z.boolean().default(false),
   active: z.boolean().default(true),
   isMaster: z.boolean().default(false),

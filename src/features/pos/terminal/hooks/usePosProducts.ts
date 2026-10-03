@@ -20,6 +20,7 @@ import {
 import { POS_MENU_SYNC_CHANNEL, POS_MENU_STORAGE_KEY } from "../../utils/posMenuSync";
 import { useCategories } from "../../../inventory/category/hooks/useCategoryQueries";
 import { subscribeToCategoryUpdates } from "../../../inventory/category/utils/categorySync";
+import { usePermissions } from "../../../../hooks/usePermissions";
 import type { PosCategory } from "../../types";
 
 export const alternativesCache: Record<string, any[]> = {}; // key: `${productId}-${orderTypeId}`
@@ -33,6 +34,9 @@ export const clearAllPosCache = () => {
 
 export const usePosProducts = () => {
   const dispatch = useAppDispatch();
+  const { hasPermission } = usePermissions();
+  const canViewCategoryMaster = hasPermission("Category Master", "View");
+
   const { 
     activeGroupId,
     activeCategoryId,
@@ -47,7 +51,11 @@ export const usePosProducts = () => {
   const paymodes = masterData?.paymodes ?? [];
 
   const { data: categories = [], isLoading: catsLoading } = usePosCategories(activeGroupId, selectedOrderTypeId);
-  const { data: masterCategoryList = [], refetch: refetchMasterCategoryList } = useCategories();
+  const { data: masterCategoryList = [], refetch: refetchMasterCategoryList } = useCategories(
+    undefined,
+    undefined,
+    canViewCategoryMaster
+  );
   
   const { data: subCategories = [], isLoading: subsLoading } = usePosSubCategories(activeCategoryId);
 
@@ -69,11 +77,13 @@ export const usePosProducts = () => {
     const handleSync = () => {
       clearAllPosCache();
       void queryClient.invalidateQueries({ queryKey: POS_QUERY_KEYS.all, refetchType: "all" });
-      void queryClient.invalidateQueries({ queryKey: ["categories"] });
       void queryClient.refetchQueries({ queryKey: POS_QUERY_KEYS.all });
-      void queryClient.refetchQueries({ queryKey: ["categories"] });
       void refreshMasterData();
-      void refetchMasterCategoryList();
+      if (canViewCategoryMaster) {
+        void queryClient.invalidateQueries({ queryKey: ["categories"] });
+        void queryClient.refetchQueries({ queryKey: ["categories"] });
+        void refetchMasterCategoryList();
+      }
     };
 
     // 1. Cross-tab BroadcastChannel
@@ -140,7 +150,7 @@ export const usePosProducts = () => {
       window.removeEventListener("focus", handleVisibilityOrFocus);
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };
-  }, [queryClient, refreshMasterData, refetchMasterCategoryList]);
+  }, [queryClient, refreshMasterData, refetchMasterCategoryList, canViewCategoryMaster]);
 
   // Sync masterData orderTypes to redux
   useEffect(() => {

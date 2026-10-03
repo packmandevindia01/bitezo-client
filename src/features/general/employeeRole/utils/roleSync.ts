@@ -1,19 +1,19 @@
 /**
- * Cross-tab & local real-time synchronization utility for Branch Master data.
- * Broadcasts updates whenever branches are created, updated, or deleted in Backoffice.
+ * Cross-tab & local real-time synchronization utility for Employee Role Master data.
+ * Broadcasts updates whenever roles are created, updated, or deleted.
  */
 
-export const BRANCH_SYNC_CHANNEL = "bitezo_branches_sync";
-export const BRANCH_STORAGE_KEY = "bitezo_branches_updated_at";
+export const ROLE_SYNC_CHANNEL = "bitezo_employee_roles_sync";
+export const ROLE_STORAGE_KEY = "bitezo_employee_roles_updated_at";
 
-export const notifyBranchesUpdated = () => {
+export const notifyRolesUpdated = () => {
   const timestamp = Date.now();
-  const payload = { type: "BRANCHES_UPDATED", timestamp };
+  const payload = { type: "ROLES_UPDATED", timestamp };
 
   // 1. Cross-tab BroadcastChannel
   try {
     if (typeof BroadcastChannel !== "undefined") {
-      const channel = new BroadcastChannel(BRANCH_SYNC_CHANNEL);
+      const channel = new BroadcastChannel(ROLE_SYNC_CHANNEL);
       channel.postMessage(payload);
       setTimeout(() => {
         try {
@@ -29,20 +29,20 @@ export const notifyBranchesUpdated = () => {
 
   // 2. Cross-tab localStorage fallback (fires 'storage' event in other tabs)
   try {
-    localStorage.setItem(BRANCH_STORAGE_KEY, String(timestamp));
+    localStorage.setItem(ROLE_STORAGE_KEY, String(timestamp));
   } catch {
     // Silently continue
   }
 
   // 3. Same-tab DOM CustomEvent
   try {
-    window.dispatchEvent(new CustomEvent("branches:updated", { detail: payload }));
+    window.dispatchEvent(new CustomEvent("roles:updated", { detail: payload }));
   } catch {
     // Silently continue
   }
 };
 
-export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => {
+export const subscribeToRoleUpdates = (onUpdate: () => void): (() => void) => {
   let channel: BroadcastChannel | null = null;
 
   const handleCustomEvent = () => {
@@ -50,19 +50,19 @@ export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => 
   };
 
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === BRANCH_STORAGE_KEY) {
+    if (event.key === ROLE_STORAGE_KEY) {
       onUpdate();
     }
   };
 
   const handleChannelMessage = (event: MessageEvent) => {
-    if (event.data?.type === "BRANCHES_UPDATED") {
+    if (event.data?.type === "ROLES_UPDATED") {
       onUpdate();
     }
   };
 
   // 1. Same-tab CustomEvent
-  window.addEventListener("branches:updated", handleCustomEvent);
+  window.addEventListener("roles:updated", handleCustomEvent);
 
   // 2. Cross-tab StorageEvent
   window.addEventListener("storage", handleStorage);
@@ -70,7 +70,7 @@ export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => 
   // 3. Cross-tab BroadcastChannel
   try {
     if (typeof BroadcastChannel !== "undefined") {
-      channel = new BroadcastChannel(BRANCH_SYNC_CHANNEL);
+      channel = new BroadcastChannel(ROLE_SYNC_CHANNEL);
       channel.onmessage = handleChannelMessage;
     }
   } catch {
@@ -78,7 +78,7 @@ export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => 
   }
 
   return () => {
-    window.removeEventListener("branches:updated", handleCustomEvent);
+    window.removeEventListener("roles:updated", handleCustomEvent);
     window.removeEventListener("storage", handleStorage);
     if (channel) {
       try {

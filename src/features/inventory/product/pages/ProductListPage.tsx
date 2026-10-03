@@ -11,6 +11,7 @@ import { useProductList } from "../hooks/useProductList";
 import type { ProductListItem } from "../types";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
+import { notifyProductsUpdated } from "../utils/productSync";
 
 const ProductListPage = () => {
   const navigate = useNavigate();
@@ -36,7 +37,29 @@ const ProductListPage = () => {
       queryClient.invalidateQueries({ queryKey: ["productClosingStock"] });
       queryClient.invalidateQueries({ queryKey: ["productAverageCost"] });
       queryClient.invalidateQueries({ queryKey: ["pos"] });
+      queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeListProducts"] });
+
+      queryClient.removeQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.removeQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.removeQueries({ queryKey: ["recipeListProducts"] });
+      queryClient.removeQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.removeQueries({ queryKey: ["bomRawMaterials"] });
+      queryClient.removeQueries({ queryKey: ["finishedProducts"] });
+
+      void queryClient.refetchQueries({ queryKey: ["bomFinishedProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["bomRawMaterials"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeFinishedProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeRawMaterials"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeListProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["finishedProducts"], type: "all" });
       notifyPosMenuUpdated("product");
+      notifyProductsUpdated("deleted");
       setPendingDelete(null);
     },
     onError: (error: any) => {

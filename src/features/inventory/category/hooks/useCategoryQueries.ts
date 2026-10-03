@@ -3,13 +3,18 @@ import { categoryApi } from "../api";
 import type { CategoryForm } from "../schemas";
 import { notifyCategoriesUpdated } from "../utils/categorySync";
 
-export const useCategories = (catCode?: string, catName?: string) => {
+export const useCategories = (catCode?: string, catName?: string, enabled: boolean = true) => {
   return useQuery({
     queryKey: ["categories", catCode, catName],
     queryFn: () => categoryApi.getCategories(catCode, catName),
+    enabled,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 403 || error?.statusCode === 403) return false;
+      return failureCount < 2;
+    },
   });
 };
 

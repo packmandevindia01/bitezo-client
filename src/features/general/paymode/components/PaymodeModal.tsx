@@ -15,6 +15,7 @@ interface Props {
   onClear: () => void;
   onSave: () => void;
   onDelete?: () => void;
+  onOpenCounters?: () => void;
 }
 
 const PaymodeModal = ({
@@ -28,6 +29,7 @@ const PaymodeModal = ({
   onClear,
   onSave,
   onDelete,
+  onOpenCounters,
 }: Props) => {
   const { register, formState: { errors } } = form;
 
@@ -127,6 +129,7 @@ const PaymodeModal = ({
               counterOptions={counterOptions}
               selectedIds={selectedCounterIds}
               disabled={saving}
+              onOpen={onOpenCounters}
               onChange={(ids) => form.setValue("counterIds", ids, { shouldDirty: true, shouldValidate: true })}
             />
 

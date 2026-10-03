@@ -1,18 +1,37 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerApi } from "../services/customerApi";
 import type { Customer } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
+import { useAppDispatch } from "../../../../app/hooks";
+import { fetchGlobalBranches, fetchGlobalMasterData } from "../../../inventory/shared/store/masterDataSlice";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 
 export const useCustomerList = () => {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
 
   const [open, setOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Customer | null>(null);
   const [search, setSearch] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.removeQueries({ queryKey: ["customerBranches"] });
+      queryClient.removeQueries({ queryKey: ["branchNames"] });
+      queryClient.removeQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      void dispatch(fetchGlobalBranches());
+      void dispatch(fetchGlobalMasterData());
+    });
+    return () => unsubscribe();
+  }, [queryClient, dispatch]);
 
   // 1. Fetch Customers List
   const { data: customersResponse, isLoading: loading } = useQuery({
@@ -62,6 +81,14 @@ export const useCustomerList = () => {
   };
 
   const openCreateModal = () => {
+    queryClient.removeQueries({ queryKey: ["customerBranches"] });
+    queryClient.removeQueries({ queryKey: ["branchNames"] });
+    queryClient.removeQueries({ queryKey: ["branches"] });
+    queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+    void dispatch(fetchGlobalBranches());
+    void dispatch(fetchGlobalMasterData());
     setEditCustomer(null);
     setOpen(true);
   };
@@ -69,6 +96,14 @@ export const useCustomerList = () => {
   const handleEdit = async (customer: Customer) => {
     if (!customer.id) return;
     try {
+      queryClient.removeQueries({ queryKey: ["customerBranches"] });
+      queryClient.removeQueries({ queryKey: ["branchNames"] });
+      queryClient.removeQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      void dispatch(fetchGlobalBranches());
+      void dispatch(fetchGlobalMasterData());
       setOpen(true);
       setDetailLoading(true);
       const res = await customerApi.getCustomerById(customer.id);

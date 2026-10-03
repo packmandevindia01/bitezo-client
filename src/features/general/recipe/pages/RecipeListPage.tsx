@@ -3,7 +3,7 @@ import { Button, PageShell, RecordTableCard, ConfirmDialog, SelectInput, Searcha
 import { useRecipeList } from "../hooks/useRecipeList";
 import { recipeApi } from "../services/recipeApi";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -20,6 +20,10 @@ const RecipeListPage = () => {
     products,
     handleFilterChange,
   } = useRecipeList();
+
+  const branchOptions = useMemo(() => {
+    return [{ label: "All Branches", value: "" }, ...branches];
+  }, [branches]);
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -60,8 +64,7 @@ const RecipeListPage = () => {
             <SelectInput 
               id="filter-branch"
               label="Branch" 
-              placeholder="All Branches"
-              options={branches} 
+              options={branchOptions} 
               value={filters.branchId} 
               onChange={(e) => handleFilterChange("branchId", e.target.value)} 
             />
@@ -71,7 +74,7 @@ const RecipeListPage = () => {
               id="filter-product"
               label="Product" 
               placeholder="All Products"
-              options={products}
+              options={products} 
               value={filters.productId} 
               onChange={(val) => handleFilterChange("productId", val)} 
             />
@@ -94,7 +97,7 @@ const RecipeListPage = () => {
             { header: "Branch", accessor: "branchName" },
             { header: "Finished Product", accessor: "productName" },
             { header: "Unit", accessor: "unitName" },
-            { header: "Qty", accessor: "qty" },
+            { header: "Qty", accessor: "qty", align: "right" },
             {
               header: "Actions",
               accessor: "transId",

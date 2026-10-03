@@ -29,7 +29,11 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
       throw err;
     }
 
-    return envelope.data;
+    if (envelope && typeof envelope === "object" && "data" in envelope && (envelope as any).data !== undefined) {
+      return (envelope as any).data;
+    }
+
+    return envelope as unknown as T;
   } catch (error: any) {
     const responseData = error.response?.data;
     if (responseData) {
@@ -353,7 +357,7 @@ export const productService = {
   },
 
   /** GET /api/product/list-name */
-  listName(productName?: string): Promise<{ productId: number; productName: string }[]> {
+  listName(productName: string = ""): Promise<{ productId: number; productName: string }[]> {
     const url = `${BASE}/list-name`;
     return unwrap(
       axiosInstance.get<ApiResponse<{ productId: number; productName: string }[]>>(url, { params: { productName } })

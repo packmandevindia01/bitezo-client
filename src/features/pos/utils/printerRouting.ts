@@ -62,7 +62,7 @@ export const executeKotRouting = async (
         localStorage.getItem('cachedKotPrinter'),
         localStorage.getItem('cachedBillPrinterIp'),
         localStorage.getItem('printerIpAddress')
-      ) || 'Default'
+      ) || ''
     : pickFirstValidPrinter(
         !isIp(generalPrinter?.kotPrinter) ? generalPrinter?.kotPrinter : undefined,
         !isIp(localStorage.getItem('cachedKotPrinter')) ? localStorage.getItem('cachedKotPrinter') : undefined,
@@ -70,7 +70,7 @@ export const executeKotRouting = async (
         !isIp(localStorage.getItem('cachedBillPrinter')) ? localStorage.getItem('cachedBillPrinter') : undefined,
         generalPrinter?.kotPrinter,
         generalPrinter?.billPrinter
-      ) || 'Default';
+      ) || '';
 
   // Read POS Configuration toggles from cached posConfigs
   let isStandardKotEnabled = true;

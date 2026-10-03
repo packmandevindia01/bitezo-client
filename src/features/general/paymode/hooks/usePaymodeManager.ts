@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymodeService } from "../services/paymodeService";
 import { counterService } from "../../counter/services/counterService";
+import { subscribeToCounterUpdates } from "../../counter/utils/counterSync";
 import { useToast } from "../../../../app/providers/useToast";
 import type { PaymodeForm, PaymodeRecord } from "../types";
 import { notifyPaymodeUpdated } from "../utils/paymodeSync";
@@ -59,18 +60,45 @@ export const usePaymodeManager = () => {
     refetchOnWindowFocus: true,
   });
 
-  const { data: counterOptions = [], isLoading: countersLoading } = useQuery({
+  const { data: counterOptions = [], isLoading: countersLoading, refetch: refetchCounters } = useQuery({
     queryKey: ["counters"],
     queryFn: async () => {
       const data = await counterService.list();
-      return data.map((c) => ({
+      return (data || []).map((c) => ({
         counterId: c.counterId,
         counterName: c.counterName,
       }));
     },
     staleTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Real-time synchronization for counter updates
+  useEffect(() => {
+    const unsubscribe = subscribeToCounterUpdates(() => {
+      queryClient.removeQueries({ queryKey: ["counters"] });
+      queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+      void refetchCounters();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchCounters]);
+
+  // Ensure fresh counter data on mount
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ["counters"] });
+    queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+    void refetchCounters();
+  }, [queryClient, refetchCounters]);
+
+  // Ensure fresh counter data whenever the modal opens
+  useEffect(() => {
+    if (open) {
+      queryClient.removeQueries({ queryKey: ["counters"] });
+      queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+      void refetchCounters();
+    }
+  }, [open, queryClient, refetchCounters]);
 
   // ── Form Setup ──────────────────────────────────────────
 
@@ -190,6 +218,9 @@ export const usePaymodeManager = () => {
 
   const openCreateModal = async () => {
     resetForm();
+    queryClient.removeQueries({ queryKey: ["counters"] });
+    queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+    void refetchCounters();
     setOpen(true);
     try {
       const res = await paymodeService.getNextCode();
@@ -203,6 +234,9 @@ export const usePaymodeManager = () => {
 
   const handleEdit = async (record: PaymodeRecord) => {
     try {
+      queryClient.removeQueries({ queryKey: ["counters"] });
+      queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+      void refetchCounters();
       const detail = await paymodeService.getById(record.paymodeId);
       const p = detail.paymode[0];
       setEditingId(p.paymodeId);
@@ -278,6 +312,7 @@ export const usePaymodeManager = () => {
     saving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
     counterOptions,
+    refetchCounters,
     counterAllocOpen,
     setCounterAllocOpen,
     setSearch,

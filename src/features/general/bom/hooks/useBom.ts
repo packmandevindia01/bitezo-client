@@ -10,8 +10,12 @@ import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { fetchBranchNames, fetchBranches } from "../../../inventory/branches/services/branchApi";
+import { subscribeToProductUpdates } from "../../../inventory/product/utils/productSync";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 
 export const useBom = (initialTransId?: number) => {
+  const dispatch = useAppDispatch();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -64,31 +68,136 @@ export const useBom = (initialTransId?: number) => {
   const watchedFinishedProductUnit = useWatch({ control, name: "finishedProductUnit" });
 
 
-  const { data: finishedProducts = [] } = useQuery({
-    queryKey: ["finishedProducts"],
+  const { data: finishedProducts = [], refetch: refetchFinishedProducts } = useQuery({
+    queryKey: ["bomFinishedProducts"],
     queryFn: async () => {
-      const fp = await bomApi.getFinishedProductListByName("");
-      return fp.map((p: any) => ({
-        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-        code: p.barcode || p.code
-      }));
-    }
+      const prodMap = new Map<string, { label: string; value: string; code: string; barcode?: string }>();
+
+      // Concurrently query BOM finished products, general product master list, and product list
+      const [bomFinishedRes, generalProductsRes, productListRes] = await Promise.allSettled([
+        bomApi.getFinishedProductListByName(""),
+        productService.listName(""),
+        productService.list(),
+      ]);
+
+      // 1. Process bomApi.getFinishedProductListByName("")
+      if (bomFinishedRes.status === "fulfilled" && Array.isArray(bomFinishedRes.value)) {
+        bomFinishedRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.productName || p.name || "";
+            const label = code ? `[${code}] ${name}` : name;
+            prodMap.set(id, { label, value: id, code, barcode: p.barcode || code });
+          }
+        });
+      }
+
+      // 2. Process product list from productService.list()
+      if (productListRes.status === "fulfilled" && Array.isArray(productListRes.value)) {
+        productListRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.name || p.productName || "";
+            const label = code ? `[${code}] ${name}` : name;
+            if (!prodMap.has(id)) {
+              prodMap.set(id, { label, value: id, code, barcode: p.barcode || code });
+            } else {
+              const existing = prodMap.get(id)!;
+              if (!existing.code && code) {
+                existing.code = code;
+                existing.barcode = p.barcode || code;
+                existing.label = label;
+              }
+            }
+          }
+        });
+      }
+
+      // 3. Process general products from productService.listName()
+      if (generalProductsRes.status === "fulfilled" && Array.isArray(generalProductsRes.value)) {
+        generalProductsRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0" && !prodMap.has(id)) {
+            const name = p.productName || p.name || "";
+            prodMap.set(id, { label: name, value: id, code: "" });
+          }
+        });
+      }
+
+      return Array.from(prodMap.values());
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const [scannedRawMaterials, setScannedRawMaterials] = useState<{ label: string; value: string; code?: string; barcode?: string }[]>([]);
 
-  const { data: rawMaterialsQueryData = [] } = useQuery({
+  const { data: rawMaterialsQueryData = [], refetch: refetchRawMaterials } = useQuery({
     queryKey: ["bomRawMaterials"],
     queryFn: async () => {
-      const rm = await bomApi.getRawMaterialProductListByName("");
-      return rm.map((p: any) => ({
-        label: p.barcode || p.code ? `[${p.barcode || p.code}] ${p.productName}` : p.productName,
-        value: String(p.productId),
-        code: p.barcode || p.code || "",
-        barcode: p.barcode || ""
-      }));
-    }
+      const prodMap = new Map<string, { label: string; value: string; code: string; barcode: string }>();
+
+      // Concurrently query BOM raw materials, general product master list, and product list
+      const [bomRawRes, generalProductsRes, productListRes] = await Promise.allSettled([
+        bomApi.getRawMaterialProductListByName(""),
+        productService.listName(""),
+        productService.list(),
+      ]);
+
+      // 1. Process bomApi.getRawMaterialProductListByName("")
+      if (bomRawRes.status === "fulfilled" && Array.isArray(bomRawRes.value)) {
+        bomRawRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.productName || p.name || "";
+            const label = code ? `[${code}] ${name}` : name;
+            prodMap.set(id, { label, value: id, code, barcode: p.barcode || "" });
+          }
+        });
+      }
+
+      // 2. Process product list from productService.list()
+      if (productListRes.status === "fulfilled" && Array.isArray(productListRes.value)) {
+        productListRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0") {
+            const code = p.barcode || p.code || "";
+            const name = p.name || p.productName || "";
+            const label = code ? `[${code}] ${name}` : name;
+            if (!prodMap.has(id)) {
+              prodMap.set(id, { label, value: id, code, barcode: p.barcode || code || "" });
+            } else {
+              const existing = prodMap.get(id)!;
+              if (!existing.code && code) {
+                existing.code = code;
+                existing.barcode = p.barcode || code || "";
+                existing.label = label;
+              }
+            }
+          }
+        });
+      }
+
+      // 3. Process general products from productService.listName()
+      if (generalProductsRes.status === "fulfilled" && Array.isArray(generalProductsRes.value)) {
+        generalProductsRes.value.forEach((p: any) => {
+          const id = String(p.productId ?? p.id ?? "");
+          if (id && id !== "0" && !prodMap.has(id)) {
+            const name = p.productName || p.name || "";
+            prodMap.set(id, { label: name, value: id, code: "", barcode: "" });
+          }
+        });
+      }
+
+      return Array.from(prodMap.values());
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const rawMaterials = useMemo(() => {
@@ -101,59 +210,51 @@ export const useBom = (initialTransId?: number) => {
     return combined;
   }, [rawMaterialsQueryData, scannedRawMaterials]);
 
-  const { data: branches = [], refetch: refetchBranches } = useQuery({
-    queryKey: ["branches"],
+  const reduxBranches = useAppSelector((state) => state.masterData.branches);
+
+  const { data: queryBranches = [], refetch: refetchBranches } = useQuery({
+    queryKey: ["bomBranches"],
     queryFn: async () => {
       const branchMap = new Map<string, string>();
 
-      // 1. Try bomApi.getBranchList()
-      try {
-        const bl = await bomApi.getBranchList();
-        if (Array.isArray(bl)) {
-          bl.forEach((b: any) => {
-            const id = String(b.branchId ?? b.id ?? "");
-            const name = String(b.branchName ?? b.name ?? "");
-            if (id && id !== "0" && name) {
-              branchMap.set(id, name);
-            }
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to fetch branches from bomApi.getBranchList:", err);
-      }
+      // Concurrently query all available branch endpoints to ensure newly created branches are always present
+      const [branchMasterRes, directBranchesRes, bomBranchesRes] = await Promise.allSettled([
+        fetchBranches(),
+        fetchBranchNames(true),
+        bomApi.getBranchList(),
+      ]);
 
-      // 2. Resiliently merge from direct Branch Master list
-      try {
-        const directBranches = await fetchBranchNames(true);
-        if (Array.isArray(directBranches)) {
-          directBranches.forEach((b: any) => {
-            const id = String(b.id ?? b.branchId ?? "");
-            const name = String(b.branchName ?? b.name ?? "");
-            if (id && id !== "0" && name && !branchMap.has(id)) {
-              branchMap.set(id, name);
-            }
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to fetch branches from fetchBranchNames:", err);
-      }
-
-      // 3. Fallback to fetchBranches() if empty
-      if (branchMap.size === 0) {
-        try {
-          const fallback = await fetchBranches();
-          if (Array.isArray(fallback)) {
-            fallback.forEach((b: any) => {
-              const id = String(b.id ?? b.branchId ?? "");
-              const name = String(b.branchName ?? b.name ?? "");
-              if (id && id !== "0" && name && !branchMap.has(id)) {
-                branchMap.set(id, name);
-              }
-            });
+      // 1. Process fetchBranches() (direct Branch Master list - contains all newly created branches)
+      if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
+        branchMasterRes.value.forEach((b: any) => {
+          const id = String(b.id ?? b.branchId ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name) {
+            branchMap.set(id, name);
           }
-        } catch (err) {
-          console.warn("Failed to fetch branches from fetchBranches:", err);
-        }
+        });
+      }
+
+      // 2. Process directBranches (/Branch/true/list-name)
+      if (directBranchesRes.status === "fulfilled" && Array.isArray(directBranchesRes.value)) {
+        directBranchesRes.value.forEach((b: any) => {
+          const id = String(b.id ?? b.branchId ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name && !branchMap.has(id)) {
+            branchMap.set(id, name);
+          }
+        });
+      }
+
+      // 3. Process bomApi.getBranchList()
+      if (bomBranchesRes.status === "fulfilled" && Array.isArray(bomBranchesRes.value)) {
+        bomBranchesRes.value.forEach((b: any) => {
+          const id = String(b.branchId ?? b.id ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name && !branchMap.has(id)) {
+            branchMap.set(id, name);
+          }
+        });
       }
 
       return Array.from(branchMap.entries()).map(([value, label]) => ({
@@ -169,19 +270,72 @@ export const useBom = (initialTransId?: number) => {
   // Real-time synchronization for branch updates
   useEffect(() => {
     const unsubscribe = subscribeToBranchUpdates(() => {
-      queryClient.invalidateQueries({ queryKey: ["branches"] });
-      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
-      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      queryClient.removeQueries({ queryKey: ["bomBranches"] });
+      queryClient.invalidateQueries({ queryKey: ["bomBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
       void refetchBranches();
+      void dispatch(fetchGlobalBranches());
     });
     return () => unsubscribe();
-  }, [queryClient, refetchBranches]);
+  }, [queryClient, refetchBranches, dispatch]);
 
   // Ensure fresh branch data on mount
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    queryClient.removeQueries({ queryKey: ["bomBranches"] });
+    queryClient.invalidateQueries({ queryKey: ["bomBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
     void refetchBranches();
-  }, [queryClient, refetchBranches]);
+    void dispatch(fetchGlobalBranches());
+  }, [queryClient, refetchBranches, dispatch]);
+
+  // Merge query branches with live Redux masterData branches
+  const branches = useMemo(() => {
+    const branchMap = new Map<string, string>();
+
+    (queryBranches || []).forEach((b: any) => {
+      const id = String(b.value ?? b.id ?? b.branchId ?? "");
+      const name = String(b.label ?? b.branchName ?? b.name ?? "");
+      if (id && id !== "0" && name) {
+        branchMap.set(id, name);
+      }
+    });
+
+    (reduxBranches || []).forEach((b: any) => {
+      const id = String(b.id ?? b.branchId ?? "");
+      const name = String(b.name ?? b.branchName ?? "");
+      if (id && id !== "0" && name && !branchMap.has(id)) {
+        branchMap.set(id, name);
+      }
+    });
+
+    return Array.from(branchMap.entries()).map(([value, label]) => ({
+      label,
+      value,
+    }));
+  }, [queryBranches, reduxBranches]);
+
+  // Real-time synchronization for product updates
+  useEffect(() => {
+    const unsubscribe = subscribeToProductUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomRawMaterials"] });
+      void refetchFinishedProducts();
+      void refetchRawMaterials();
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchFinishedProducts, refetchRawMaterials]);
+
+  // Ensure fresh product data on mount
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["bomFinishedProducts"] });
+    queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+    queryClient.invalidateQueries({ queryKey: ["bomRawMaterials"] });
+    void refetchFinishedProducts();
+    void refetchRawMaterials();
+  }, [queryClient, refetchFinishedProducts, refetchRawMaterials]);
 
   const { data: allUnits = [] } = useQuery({
     queryKey: ["allUnits"],
@@ -282,6 +436,18 @@ export const useBom = (initialTransId?: number) => {
     const prod = finishedProducts.find(p => p.value === productId);
     if (!prod) return;
 
+    let codeToUse = prod.code;
+    if (!codeToUse) {
+      try {
+        const costData = await bomApi.getProductCostDataById(Number(productId));
+        if (costData?.productCode) {
+          codeToUse = costData.productCode;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch product code by ID:", err);
+      }
+    }
+
     const branchIdVal = getValues("branchId");
     if (!branchIdVal) {
       showToast("Please select a Branch first to load unit.", "warning");
@@ -289,17 +455,20 @@ export const useBom = (initialTransId?: number) => {
     }
 
     try {
-      const unitData = await bomApi.getProductUnitData(Number(branchIdVal), prod.code);
-      
-      setValue("finishedProductCode", prod.code || "-");
-      
-      const unitsResp = await bomApi.getUnitListByName(unitData.unitCategory);
-      const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
-      setFinishedProductUnits(unitOptions);
+      setValue("finishedProductCode", codeToUse || "-");
 
-      setValue("finishedProductUnit", String(unitData.unitId), { shouldValidate: true });
-      const unitName = unitsResp.find((u: any) => u.unitId === unitData.unitId)?.name || unitData.unitCategory;
-      setValue("finishedProductUnitName", unitName);
+      if (codeToUse) {
+        const unitData = await bomApi.getProductUnitData(Number(branchIdVal), codeToUse);
+        if (unitData?.unitCategory) {
+          const unitsResp = await bomApi.getUnitListByName(unitData.unitCategory);
+          const unitOptions = unitsResp.map((u: any) => ({ label: u.name, value: String(u.unitId) }));
+          setFinishedProductUnits(unitOptions);
+
+          setValue("finishedProductUnit", String(unitData.unitId), { shouldValidate: true });
+          const unitName = unitsResp.find((u: any) => u.unitId === unitData.unitId)?.name || unitData.unitCategory;
+          setValue("finishedProductUnitName", unitName);
+        }
+      }
     } catch (err) {
       showToast("Failed to fetch product unit data", "error");
     }
@@ -309,13 +478,27 @@ export const useBom = (initialTransId?: number) => {
     setValue(`items.${index}.product`, productId);
     setValue(`items.${index}.productId`, Number(productId));
 
+    let bc = barcode;
+    if (!bc) {
+      try {
+        const costData = await bomApi.getProductCostDataById(Number(productId));
+        if (costData?.productCode) {
+          bc = costData.productCode;
+          setValue(`items.${index}.code`, bc);
+          setValue(`items.${index}.productName`, costData.productName);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch product cost data by ID:", err);
+      }
+    }
+
     const branchIdVal = getValues("branchId");
-    if (!branchIdVal || !barcode) return;
+    if (!branchIdVal || !bc) return;
 
     try {
-      const unitData = await bomApi.getProductUnitData(Number(branchIdVal), barcode);
+      const unitData = await bomApi.getProductUnitData(Number(branchIdVal), bc);
       if (unitData) {
-        setValue(`items.${index}.code`, barcode || "-");
+        setValue(`items.${index}.code`, bc || "-");
         setValue(`items.${index}.unitCategory`, unitData.unitCategory || "");
         setValue(`items.${index}.unitId`, unitData.unitId);
         setValue(`items.${index}.unit`, String(unitData.unitId));

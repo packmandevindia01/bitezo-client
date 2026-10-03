@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
-import { createBranch, deleteBranch, fetchBranches, updateBranch } from "../services/branchApi";
+import { createBranch, deleteBranch, fetchBranches, fetchBranchNames, updateBranch } from "../services/branchApi";
 import type { BranchPayload, BranchRecord } from "../types";
 import { useAppDispatch } from "../../../../app/hooks";
-import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { fetchGlobalMasterData, fetchGlobalBranches, addMasterBranch } from "../../shared/store/masterDataSlice";
 import { notifyBranchesUpdated } from "../utils/branchSync";
 
 export const useBranchManager = () => {
@@ -60,21 +60,69 @@ export const useBranchManager = () => {
     } else {
       const createdRecord = await createBranch(payload);
       setBranches((prev) => [...prev, createdRecord]);
+      let branchId = createdRecord?.id;
+      const branchNameToUse = createdRecord?.branchName || payload.branchName;
+      if (!branchId || branchId === 0) {
+        try {
+          const [namesRes, listRes] = await Promise.allSettled([
+            fetchBranchNames(true),
+            fetchBranches(),
+          ]);
+          if (namesRes.status === "fulfilled" && Array.isArray(namesRes.value)) {
+            const found = namesRes.value.find((b: any) => (b.branchName || b.name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+            if (found && (found.id || (found as any).branchId)) {
+              branchId = found.id || (found as any).branchId;
+            }
+          }
+          if ((!branchId || branchId === 0) && listRes.status === "fulfilled" && Array.isArray(listRes.value)) {
+            const found = listRes.value.find((b: any) => (b.branchName || b.name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+            if (found && (found.id || (found as any).branchId)) {
+              branchId = found.id || (found as any).branchId;
+            }
+          }
+        } catch {
+          // continue
+        }
+      }
+      if (branchId && branchId !== 0 && branchNameToUse) {
+        dispatch(addMasterBranch({ id: Number(branchId), name: branchNameToUse }));
+      }
       showToast("Branch created successfully", "success");
     }
-    // Refresh global master data and query caches so other modules see the changes
-    queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
-    queryClient.invalidateQueries({ queryKey: ["branchNames"] });
-    queryClient.invalidateQueries({ queryKey: ["branches"] });
-    queryClient.invalidateQueries({ queryKey: ["branchList"] });
-    queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
-    queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
-    queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
-    void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
-    void queryClient.refetchQueries({ queryKey: ["branches"] });
-    void queryClient.refetchQueries({ queryKey: ["branchNames"] });
-    void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
-    dispatch(fetchGlobalMasterData());
+
+    // Invalidate and refetch all branch caches (both active and inactive)
+    queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["stockAdjustmentBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["physicalEntryBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["internalStockTransferMaster"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranchSpecific"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["bomBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["branchList"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["categoryBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["receiptMaster"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["paymentMaster"], refetchType: "all" });
+    queryClient.invalidateQueries({ queryKey: ["recipeBranches"], refetchType: "all" });
+
+    void queryClient.refetchQueries({ queryKey: ["allBranchesList"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["branches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["stockAdjustmentBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["physicalEntryBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["internalStockTransferMaster"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranchSpecific"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["bomBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["recipeBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["branchNames"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["categoryBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["customerBranches"], type: "all" });
+    void queryClient.refetchQueries({ queryKey: ["branchList"], type: "all" });
+
+    void dispatch(fetchGlobalBranches());
+    void dispatch(fetchGlobalMasterData());
     notifyBranchesUpdated();
     setOpen(false);
     setEditingBranch(null);
@@ -87,18 +135,39 @@ export const useBranchManager = () => {
       await deleteBranch(deleteCandidate.id);
       setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
       showToast("Branch deleted successfully", "success");
-      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
-      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
-      queryClient.invalidateQueries({ queryKey: ["branches"] });
-      queryClient.invalidateQueries({ queryKey: ["branchList"] });
-      queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
-      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
-      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
-      void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
-      void queryClient.refetchQueries({ queryKey: ["branches"] });
-      void queryClient.refetchQueries({ queryKey: ["branchNames"] });
-      void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
-      dispatch(fetchGlobalMasterData());
+
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["physicalEntryBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferMaster"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranchSpecific"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["bomBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["recipeBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchList"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["categoryBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"], refetchType: "all" });
+
+      void queryClient.refetchQueries({ queryKey: ["allBranchesList"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["branches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["stockAdjustmentBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["physicalEntryBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["internalStockTransferMaster"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranchSpecific"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["bomBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["branchNames"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["categoryBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["customerBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["branchList"], type: "all" });
+
+      void dispatch(fetchGlobalBranches());
+      void dispatch(fetchGlobalMasterData());
       notifyBranchesUpdated();
       setDeleteCandidate(null);
     } catch (error) {

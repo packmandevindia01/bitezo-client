@@ -1,27 +1,23 @@
 /**
- * Cross-tab & local real-time synchronization utility for Branch Master data.
- * Broadcasts updates whenever branches are created, updated, or deleted in Backoffice.
+ * Cross-tab and local real-time synchronization utility for Counters.
+ * Broadcasts updates whenever counters are created, updated, or deleted in Backoffice.
  */
 
-export const BRANCH_SYNC_CHANNEL = "bitezo_branches_sync";
-export const BRANCH_STORAGE_KEY = "bitezo_branches_updated_at";
+export const COUNTER_SYNC_CHANNEL = "bitezo_counter_sync";
+export const COUNTER_STORAGE_KEY = "bitezo_counter_updated_at";
 
-export const notifyBranchesUpdated = () => {
+export type CounterSyncAction = "created" | "updated" | "deleted";
+
+export const notifyCounterUpdated = (action: CounterSyncAction = "created") => {
   const timestamp = Date.now();
-  const payload = { type: "BRANCHES_UPDATED", timestamp };
+  const payload = { type: "COUNTER_UPDATED", action, timestamp };
 
   // 1. Cross-tab BroadcastChannel
   try {
     if (typeof BroadcastChannel !== "undefined") {
-      const channel = new BroadcastChannel(BRANCH_SYNC_CHANNEL);
+      const channel = new BroadcastChannel(COUNTER_SYNC_CHANNEL);
       channel.postMessage(payload);
-      setTimeout(() => {
-        try {
-          channel.close();
-        } catch {
-          // Silently continue
-        }
-      }, 1000);
+      channel.close();
     }
   } catch {
     // Silently continue
@@ -29,20 +25,20 @@ export const notifyBranchesUpdated = () => {
 
   // 2. Cross-tab localStorage fallback (fires 'storage' event in other tabs)
   try {
-    localStorage.setItem(BRANCH_STORAGE_KEY, String(timestamp));
+    localStorage.setItem(COUNTER_STORAGE_KEY, `${timestamp}:${action}`);
   } catch {
     // Silently continue
   }
 
   // 3. Same-tab DOM CustomEvent
   try {
-    window.dispatchEvent(new CustomEvent("branches:updated", { detail: payload }));
+    window.dispatchEvent(new CustomEvent("counters:updated", { detail: payload }));
   } catch {
     // Silently continue
   }
 };
 
-export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => {
+export const subscribeToCounterUpdates = (onUpdate: () => void): (() => void) => {
   let channel: BroadcastChannel | null = null;
 
   const handleCustomEvent = () => {
@@ -50,19 +46,19 @@ export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => 
   };
 
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === BRANCH_STORAGE_KEY) {
+    if (event.key === COUNTER_STORAGE_KEY) {
       onUpdate();
     }
   };
 
   const handleChannelMessage = (event: MessageEvent) => {
-    if (event.data?.type === "BRANCHES_UPDATED") {
+    if (event.data?.type === "COUNTER_UPDATED") {
       onUpdate();
     }
   };
 
   // 1. Same-tab CustomEvent
-  window.addEventListener("branches:updated", handleCustomEvent);
+  window.addEventListener("counters:updated", handleCustomEvent);
 
   // 2. Cross-tab StorageEvent
   window.addEventListener("storage", handleStorage);
@@ -70,7 +66,7 @@ export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => 
   // 3. Cross-tab BroadcastChannel
   try {
     if (typeof BroadcastChannel !== "undefined") {
-      channel = new BroadcastChannel(BRANCH_SYNC_CHANNEL);
+      channel = new BroadcastChannel(COUNTER_SYNC_CHANNEL);
       channel.onmessage = handleChannelMessage;
     }
   } catch {
@@ -78,7 +74,7 @@ export const subscribeToBranchUpdates = (onUpdate: () => void): (() => void) => 
   }
 
   return () => {
-    window.removeEventListener("branches:updated", handleCustomEvent);
+    window.removeEventListener("counters:updated", handleCustomEvent);
     window.removeEventListener("storage", handleStorage);
     if (channel) {
       try {

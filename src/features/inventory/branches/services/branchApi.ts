@@ -47,9 +47,9 @@ export const fetchBranches = async (): Promise<BranchRecord[]> => {
 
   return Array.isArray(data.data)
     ? data.data.map((item) => ({
-        id: item.branchId ?? 0,
+        id: item.branchId ?? (item as any).id ?? 0,
         sNo: (item as any).sNo,
-        branchName: item.branchName ?? "",
+        branchName: item.branchName ?? (item as any).name ?? "",
         isActive: item.isActive === true || String(item.isActive).toLowerCase() === "active",
         lines: [],
         detailsLoaded: false,
@@ -67,7 +67,8 @@ export const createBranch = async (payload: BranchPayload): Promise<BranchRecord
       throw new Error(data.message || "Failed to create branch");
     }
 
-    const id = data?.data?.branchId ?? data?.data?.id ?? (typeof data?.data === "number" ? data.data : undefined) ?? 0;
+    const rawData = data?.data ?? data;
+    const id = rawData?.branchId ?? rawData?.BranchId ?? rawData?.id ?? rawData?.Id ?? data?.branchId ?? data?.BranchId ?? (typeof rawData === "number" ? rawData : undefined) ?? 0;
 
     return {
       id,
@@ -181,24 +182,6 @@ export const fetchBranchPrintData = async (branchId?: number): Promise<LineItem[
       }
     } catch (err) {
       console.warn(`[fetchBranchPrintData] Could not load /Branch/branches/${targetBranchId}/print-design-data:`, err);
-    }
-  }
-
-  // 2. Fallback to /Branch/print-data if the branch-specific endpoint was not used or failed
-  if (rawList.length === 0) {
-    try {
-      const { data } = await axiosInstance.get<any>("/Branch/print-data");
-      rawList = Array.isArray(data?.data?.printDesigns)
-        ? data.data.printDesigns
-        : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.printDesigns)
-        ? data.printDesigns
-        : Array.isArray(data)
-        ? data
-        : [];
-    } catch (err) {
-      console.warn("[fetchBranchPrintData] Fallback /Branch/print-data failed:", err);
     }
   }
 

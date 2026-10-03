@@ -4,9 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../app/hooks";
-import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { fetchGlobalMasterData, fetchGlobalBranches, addMasterBranch } from "../../shared/store/masterDataSlice";
 import BranchForm from "../components/BranchForm";
-import { fetchBranchById, createBranch, updateBranch, deleteBranch } from "../services/branchApi";
+import { fetchBranchById, createBranch, updateBranch, deleteBranch, fetchBranchNames, fetchBranches } from "../services/branchApi";
 import { notifyBranchesUpdated } from "../utils/branchSync";
 import type { BranchPayload, BranchRecord } from "../types";
 
@@ -39,24 +39,76 @@ const BranchFormPage = () => {
 
   const handleSubmit = async (payload: BranchPayload) => {
     try {
+      let savedBranch: BranchRecord | null = null;
       if (id) {
-        await updateBranch(Number(id), payload);
+        savedBranch = await updateBranch(Number(id), payload);
         showToast("Branch Master updated successfully", "success");
       } else {
-        await createBranch(payload);
+        savedBranch = await createBranch(payload);
         showToast("Branch Master created successfully", "success");
       }
-      queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
-      queryClient.invalidateQueries({ queryKey: ["branchNames"] });
-      queryClient.invalidateQueries({ queryKey: ["branches"] });
-      queryClient.invalidateQueries({ queryKey: ["branchList"] });
-      queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
-      queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
-      queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
-      void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
-      void queryClient.refetchQueries({ queryKey: ["branches"] });
-      void queryClient.refetchQueries({ queryKey: ["branchNames"] });
-      void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
+
+      const branchNameToUse = savedBranch?.branchName || payload.branchName;
+      if (branchNameToUse) {
+        let branchId = savedBranch?.id;
+        if (!branchId || branchId === 0) {
+          try {
+            const [namesRes, listRes] = await Promise.allSettled([
+              fetchBranchNames(true),
+              fetchBranches(),
+            ]);
+            if (namesRes.status === "fulfilled" && Array.isArray(namesRes.value)) {
+              const found = namesRes.value.find((b: any) => (b.branchName || b.name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+              if (found && (found.id || (found as any).branchId)) {
+                branchId = found.id || (found as any).branchId;
+              }
+            }
+            if ((!branchId || branchId === 0) && listRes.status === "fulfilled" && Array.isArray(listRes.value)) {
+              const found = listRes.value.find((b: any) => (b.branchName || b.name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+              if (found && (found.id || (found as any).branchId)) {
+                branchId = found.id || (found as any).branchId;
+              }
+            }
+          } catch {
+            // continue
+          }
+        }
+        if (branchId && branchId !== 0) {
+          dispatch(addMasterBranch({ id: Number(branchId), name: branchNameToUse }));
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["stockAdjustmentBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferMaster"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranchSpecific"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["bomBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["recipeBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["physicalEntryBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchList"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["categoryBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["receiptMaster"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["paymentMaster"], refetchType: "all" });
+
+      void queryClient.refetchQueries({ queryKey: ["allBranchesList"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["branches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["stockAdjustmentBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["internalStockTransferMaster"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranchSpecific"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["bomBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["physicalEntryBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["branchNames"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["categoryBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["customerBranches"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["branchList"], type: "all" });
+
+      void dispatch(fetchGlobalBranches());
       void dispatch(fetchGlobalMasterData());
       notifyBranchesUpdated();
       navigate("/dashboard/branches");
@@ -71,17 +123,38 @@ const BranchFormPage = () => {
      try {
        await deleteBranch(Number(id));
        showToast("Branch deleted successfully", "success");
-       queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
-       queryClient.invalidateQueries({ queryKey: ["branchNames"] });
-       queryClient.invalidateQueries({ queryKey: ["branches"] });
-       queryClient.invalidateQueries({ queryKey: ["branchList"] });
-       queryClient.invalidateQueries({ queryKey: ["categoryBranches"] });
-       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
-       queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
-       void queryClient.refetchQueries({ queryKey: ["allBranchesList"] });
-       void queryClient.refetchQueries({ queryKey: ["branches"] });
-       void queryClient.refetchQueries({ queryKey: ["branchNames"] });
-       void queryClient.refetchQueries({ queryKey: ["categoryBranches"] });
+
+       queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["stockAdjustmentBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["internalStockTransferMaster"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["internalStockTransferBranchSpecific"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["bomBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["recipeBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["physicalEntryBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["branchList"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["categoryBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["receiptMaster"], refetchType: "all" });
+       queryClient.invalidateQueries({ queryKey: ["paymentMaster"], refetchType: "all" });
+
+       void queryClient.refetchQueries({ queryKey: ["allBranchesList"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["branches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["stockAdjustmentBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["internalStockTransferMaster"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["internalStockTransferBranchSpecific"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["bomBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["recipeBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["physicalEntryBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["branchNames"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["categoryBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["customerBranches"], type: "all" });
+       void queryClient.refetchQueries({ queryKey: ["branchList"], type: "all" });
+
+       void dispatch(fetchGlobalBranches());
        void dispatch(fetchGlobalMasterData());
        notifyBranchesUpdated();
        navigate("/dashboard/branches");

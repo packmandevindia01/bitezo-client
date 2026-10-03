@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import type { BranchRecord } from "../../../inventory/branches/types";
 import { emptyCounterForm } from "../constants";
 import { counterService } from "../services/counterService";
+import { notifyCounterUpdated, subscribeToCounterUpdates } from "../utils/counterSync";
 import type { CounterForm, CounterRecord } from "../types";
 
 export interface CounterError {
@@ -13,6 +15,7 @@ export interface CounterError {
 
 export const useCounterManager = () => {
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [records, setRecords] = useState<CounterRecord[]>([]);
   const [form, setForm] = useState<CounterForm>(emptyCounterForm);
   const [errors, setErrors] = useState<CounterError>({});
@@ -42,9 +45,14 @@ export const useCounterManager = () => {
     }
   }, [showToast]);
 
-  // Initial fetch
+  // Initial fetch and real-time synchronization
   useEffect(() => {
-    fetchData();
+    void fetchData();
+
+    const unsubscribe = subscribeToCounterUpdates(() => {
+      void fetchData();
+    });
+    return () => unsubscribe();
   }, [fetchData]);
 
   const setField = <K extends keyof CounterForm>(key: K, value: CounterForm[K]) => {
@@ -119,6 +127,13 @@ export const useCounterManager = () => {
         showToast("Counter created successfully", "success");
       }
 
+      // Purge query cache and notify all modules/pages across tabs
+      queryClient.removeQueries({ queryKey: ["counters"] });
+      queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["counterList"], refetchType: "all" });
+      void queryClient.refetchQueries({ queryKey: ["counters"], type: "all" });
+      notifyCounterUpdated(editingId ? "updated" : "created");
+
       await fetchData(); // Refresh list
       closeModal();
       return { success: true };
@@ -154,6 +169,14 @@ export const useCounterManager = () => {
       setSaving(true);
       await counterService.remove(record.counterId);
       showToast("Counter deleted successfully", "success");
+
+      // Purge query cache and notify all modules/pages across tabs
+      queryClient.removeQueries({ queryKey: ["counters"] });
+      queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["counterList"], refetchType: "all" });
+      void queryClient.refetchQueries({ queryKey: ["counters"], type: "all" });
+      notifyCounterUpdated("deleted");
+
       await fetchData();
     } catch {
       showToast("Failed to delete counter", "error");

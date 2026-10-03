@@ -1,10 +1,16 @@
+import { useEffect, useMemo } from "react";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, Checkbox, FormInput, SelectInput } from "../../../../components/common";
 import type { Customer } from "../types";
 import { useCustomerForm } from "../hooks/useCustomerForm";
 import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
-import { useQuery } from "@tanstack/react-query";
-import { branchApi } from "../../../inventory/branches/services/branchApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { fetchGlobalBranches, fetchGlobalMasterData } from "../../../inventory/shared/store/masterDataSlice";
+import axiosInstance from "../../../../api/axiosInstance";
+import type { ApiResponse } from "../../../inventory/product/types";
 
 interface Props {
   initialData?: Customer | null;
@@ -31,15 +37,122 @@ const CustomerForm = ({
 
   const { register, watch, setValue, formState: { errors } } = form;
   const handleKeyDown = useEnterKeyNavigation();
+  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const masterBranches = useAppSelector((state) => state.masterData.branches);
 
-  const { data: branchesData } = useQuery({
-    queryKey: ["branchNames"],
-    queryFn: () => branchApi.fetchBranchNames(true),
+  const { data: branchesData = [], refetch: refetchBranches } = useQuery({
+    queryKey: ["customerBranches"],
+    queryFn: async () => {
+      const branchMap = new Map<string, string>();
+
+      const [branchMasterRes, directBranchesRes] = await Promise.allSettled([
+        fetchBranches(),
+        fetchBranchNames(true),
+      ]);
+
+      if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
+        branchMasterRes.value.forEach((b: any) => {
+          const id = String(b.id ?? b.branchId ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name) {
+            branchMap.set(id, name);
+          }
+        });
+      }
+
+      if (directBranchesRes.status === "fulfilled" && Array.isArray(directBranchesRes.value)) {
+        directBranchesRes.value.forEach((b: any) => {
+          const id = String(b.id ?? b.branchId ?? "");
+          const name = String(b.branchName ?? b.name ?? "");
+          if (id && id !== "0" && name && !branchMap.has(id)) {
+            branchMap.set(id, name);
+          }
+        });
+      }
+
+      if (branchMap.size === 0) {
+        try {
+          const { data: res } = await axiosInstance.get<ApiResponse<any[]>>("/Branch/true/list-name");
+          const list = Array.isArray(res?.data) ? res.data : [];
+          list.forEach((b: any) => {
+            const id = String(b.branchId ?? b.id ?? "");
+            const name = String(b.branchName ?? b.name ?? "");
+            if (id && id !== "0" && name) {
+              branchMap.set(id, name);
+            }
+          });
+        } catch {
+          // ignore
+        }
+      }
+
+      return Array.from(branchMap.entries()).map(([value, label]) => ({
+        label,
+        value,
+      }));
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
-  const branchOptions = branchesData
-    ? branchesData.map(b => ({ label: b.branchName, value: String(b.id) }))
-    : [{ label: "Loading...", value: "" }];
+  // Real-time synchronization for branch updates
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.removeQueries({ queryKey: ["customerBranches"] });
+      queryClient.removeQueries({ queryKey: ["branchNames"] });
+      queryClient.removeQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
+      void refetchBranches();
+      void dispatch(fetchGlobalBranches());
+      void dispatch(fetchGlobalMasterData());
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchBranches, dispatch]);
+
+  // Ensure fresh branch data on mount
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ["customerBranches"] });
+    queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+    void refetchBranches();
+    void dispatch(fetchGlobalBranches());
+  }, [queryClient, refetchBranches, dispatch]);
+
+  const branchOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    // 1. Add from Redux store masterData.branches
+    if (Array.isArray(masterBranches)) {
+      masterBranches.forEach((b) => {
+        const id = String(b.id);
+        if (id && id !== "0" && b.name) {
+          map.set(id, b.name);
+        }
+      });
+    }
+
+    // 2. Add from React Query fetched branches (authoritative server data)
+    if (Array.isArray(branchesData)) {
+      branchesData.forEach((b) => {
+        if (b.value && b.value !== "0" && b.label) {
+          map.set(b.value, b.label);
+        }
+      });
+    }
+
+    // 3. If editing and initialData has a branch not in the map
+    if (initialData?.branch && !map.has(String(initialData.branch))) {
+      map.set(String(initialData.branch), `Branch (${initialData.branch})`);
+    }
+
+    return Array.from(map.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [masterBranches, branchesData, initialData?.branch]);
 
   const handleClear = () => {
     form.reset();

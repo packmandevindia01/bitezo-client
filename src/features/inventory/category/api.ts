@@ -36,8 +36,10 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
     return envelope.data;
   } catch (error: any) {
     if (error.response?.data) {
-      console.error("[categoryApi] Server error status:", error.response.status);
-      console.error("[categoryApi] Server error payload:", JSON.stringify(error.response.data, null, 2));
+      if (error.response.status !== 403) {
+        console.error("[categoryApi] Server error status:", error.response.status);
+        console.error("[categoryApi] Server error payload:", JSON.stringify(error.response.data, null, 2));
+      }
       const envelope = error.response.data as any;
       let msg: string | undefined;
       if (Array.isArray(envelope.errors) && envelope.errors.length > 0) {
@@ -70,14 +72,15 @@ export const getCategories = async (
   if (catCode) params.catCode = catCode;
   if (catName) params.catName = catName;
 
-  const data = await unwrap(
-    axiosInstance.get<ApiResponse<CategoryListItem[]>>("/category/category-list", { params })
-  );
-  
-  return ((data as any[]) ?? []).map((item: any) => ({
-    id: item.catId ?? item.id,
-    code: item.catCode ?? item.code,
-    name: item.catName ?? item.name,
+  try {
+    const data = await unwrap(
+      axiosInstance.get<ApiResponse<CategoryListItem[]>>("/category/category-list", { params })
+    );
+    
+    return ((data as any[]) ?? []).map((item: any) => ({
+      id: item.catId ?? item.id,
+      code: item.catCode ?? item.code,
+      name: item.catName ?? item.name,
     isActive: item.isActive === "Active" || item.isActive === true,
     posStatus: item.posStatus !== undefined ? (item.posStatus === true || item.posStatus === "Active" || item.posStatus === 1) : true,
     arabic: item.arabic || "",
@@ -85,6 +88,12 @@ export const getCategories = async (
     imageUrl: item.imageUrl || item.imagePath || item.categoryImage || item.fileUrl || item.filePath || item.image || "",
     branches: [],
   }));
+  } catch (error: any) {
+    if (error?.response?.status === 403 || error?.statusCode === 403) {
+      return [];
+    }
+    throw error;
+  }
 };
 
 export const getNextCategoryCode = async (): Promise<string> => {

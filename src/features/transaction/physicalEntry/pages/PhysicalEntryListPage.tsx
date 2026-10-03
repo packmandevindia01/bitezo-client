@@ -3,7 +3,7 @@ import { Button, FormInput, PageShell, SelectInput, RecordTableCard, ConfirmDial
 import { usePhysicalEntryList } from "../hooks/usePhysicalEntryList";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { physicalEntryApi } from "../services/physicalEntryApi";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -20,6 +20,10 @@ const PhysicalEntryListPage = () => {
     fetchList,
     branches
   } = usePhysicalEntryList();
+
+  const branchOptions = useMemo(() => {
+    return [{ label: "All Branches", value: "" }, ...branches];
+  }, [branches]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -97,9 +101,9 @@ const PhysicalEntryListPage = () => {
           </div>
           <div className="w-48">
             <SelectInput 
+              id="filter-branch"
               label="Branch" 
-              placeholder="All Branches"
-              options={branches} 
+              options={branchOptions} 
               value={filters.branchId} 
               onChange={(e) => handleFilterChange("branchId", e.target.value)} 
               disabled={filters.isBranchLocked}

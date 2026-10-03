@@ -50,7 +50,7 @@ export const useProviderManager = () => {
         const data = await fetchBranchNames(true);
         if (Array.isArray(data) && data.length > 0) {
           return data
-            .map((b) => ({ id: Number(b.id ?? b.branchId ?? 0), name: String(b.branchName ?? b.name ?? "") }))
+            .map((b: any) => ({ id: Number(b.id ?? b.branchId ?? 0), name: String(b.branchName ?? b.name ?? "") }))
             .filter((b) => b.id > 0);
         }
       } catch (err) {

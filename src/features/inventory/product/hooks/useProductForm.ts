@@ -6,7 +6,7 @@ import { productSchema } from "../schema/productSchema";
 import type { ProductFormData } from "../schema/productSchema";
 import { productService } from "../services/productService";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
-import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { fetchGlobalBranches, fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { subCategoryApi } from "../../subcategory/api";
 import { categoryApi } from "../../category";
 import { subscribeToCategoryUpdates } from "../../category/utils/categorySync";
@@ -15,6 +15,8 @@ import { useToast } from "../../../../app/providers/useToast";
 import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
 import { resolveImageUrl } from "../../../../utils/imageUtils";
 import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
+import { notifyProductsUpdated } from "../utils/productSync";
+import { subscribeToBranchUpdates } from "../../branches/utils/branchSync";
 
 
 
@@ -89,10 +91,18 @@ export const useProductForm = (productId?: number) => {
   });
 
   useEffect(() => {
-    if (!globalMasterData || branches.length === 0) {
-      dispatch(fetchGlobalMasterData());
+    void dispatch(fetchGlobalBranches());
+    if (!globalMasterData) {
+      void dispatch(fetchGlobalMasterData());
     }
-  }, [dispatch, globalMasterData, branches.length]);
+  }, [dispatch, globalMasterData]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      void dispatch(fetchGlobalBranches());
+    });
+    return () => unsubscribe();
+  }, [dispatch]);
 
   // Product Master Data
   const { data: masterData, isLoading: isLoadingMaster } = useQuery({
@@ -454,7 +464,30 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["productList"] });
       queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
       queryClient.invalidateQueries({ queryKey: ["pos"] });
+      queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeListProducts"] });
+
+      // Remove stale cache entries so any subsequent page mount fetches fresh products
+      queryClient.removeQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.removeQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.removeQueries({ queryKey: ["recipeListProducts"] });
+      queryClient.removeQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.removeQueries({ queryKey: ["bomRawMaterials"] });
+      queryClient.removeQueries({ queryKey: ["finishedProducts"] });
+
+      void queryClient.refetchQueries({ queryKey: ["bomFinishedProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["bomRawMaterials"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeFinishedProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeRawMaterials"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeListProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["finishedProducts"], type: "all" });
       notifyPosMenuUpdated("product");
+      notifyProductsUpdated(productId ? "updated" : "created");
 
       if (productId) {
         navigate("/dashboard/products");
@@ -478,7 +511,29 @@ export const useProductForm = (productId?: number) => {
       queryClient.invalidateQueries({ queryKey: ["productList"] });
       queryClient.invalidateQueries({ queryKey: ["stockRegisterReport"] });
       queryClient.invalidateQueries({ queryKey: ["pos"] });
+      queryClient.invalidateQueries({ queryKey: ["finishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["bomRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.invalidateQueries({ queryKey: ["recipeListProducts"] });
+
+      queryClient.removeQueries({ queryKey: ["recipeFinishedProducts"] });
+      queryClient.removeQueries({ queryKey: ["recipeRawMaterials"] });
+      queryClient.removeQueries({ queryKey: ["recipeListProducts"] });
+      queryClient.removeQueries({ queryKey: ["bomFinishedProducts"] });
+      queryClient.removeQueries({ queryKey: ["bomRawMaterials"] });
+      queryClient.removeQueries({ queryKey: ["finishedProducts"] });
+
+      void queryClient.refetchQueries({ queryKey: ["bomFinishedProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["bomRawMaterials"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeFinishedProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeRawMaterials"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["recipeListProducts"], type: "all" });
+      void queryClient.refetchQueries({ queryKey: ["finishedProducts"], type: "all" });
       notifyPosMenuUpdated("product");
+      notifyProductsUpdated("deleted");
       navigate("/dashboard/products");
     },
     onError: (error: any) => {

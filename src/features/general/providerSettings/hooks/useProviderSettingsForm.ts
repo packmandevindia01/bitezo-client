@@ -94,7 +94,7 @@ export const useProviderSettingsForm = (
         // Resiliently merge branches from branchApi to guarantee latest branches are present
         try {
           const directBranches = await fetchBranchNames(true);
-          directBranches.forEach((db) => {
+          directBranches.forEach((db: any) => {
             const bId = Number(db.id ?? db.branchId ?? 0);
             const bName = String(db.branchName ?? "");
             if (bId > 0 && !uniqueBranches.some((ub) => ub.branchId === bId)) {

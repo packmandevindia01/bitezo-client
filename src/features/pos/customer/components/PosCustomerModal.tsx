@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 import { Modal, FormInput, Button, ConfirmDialog, SelectInput } from "../../../../components/common";
 import { useCustomer } from "../hooks/useCustomer";
@@ -6,6 +6,11 @@ import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { FormProvider } from "react-hook-form";
 import { getDecimalPart } from "../../../../utils/currency";
 import { handleFocusNextInput } from "../../../../utils/keyboard";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 
 interface PosCustomerModalProps {
   isOpen: boolean;
@@ -22,6 +27,69 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const masterBranches = useAppSelector((state) => state.masterData.branches);
+
+  const { data: branchesData = [], refetch: refetchBranches } = useQuery({
+    queryKey: ["customerBranches"],
+    queryFn: async () => {
+      try {
+        const [branchMasterRes, directBranchesRes] = await Promise.allSettled([
+          fetchBranches(),
+          fetchBranchNames(true),
+        ]);
+        const branchMap = new Map<string, string>();
+        if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
+          branchMasterRes.value.forEach((b: any) => {
+            const id = String(b.id ?? b.branchId ?? "");
+            const name = String(b.branchName ?? b.name ?? "");
+            if (id && id !== "0" && name) branchMap.set(id, name);
+          });
+        }
+        if (directBranchesRes.status === "fulfilled" && Array.isArray(directBranchesRes.value)) {
+          directBranchesRes.value.forEach((b: any) => {
+            const id = String(b.id ?? b.branchId ?? "");
+            const name = String(b.branchName ?? b.name ?? "");
+            if (id && id !== "0" && name) branchMap.set(id, name);
+          });
+        }
+        return Array.from(branchMap.entries()).map(([value, label]) => ({ label, value }));
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      queryClient.removeQueries({ queryKey: ["customerBranches"] });
+      queryClient.removeQueries({ queryKey: ["branchNames"] });
+      queryClient.removeQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
+      void refetchBranches();
+      void dispatch(fetchGlobalBranches());
+    });
+    return () => unsubscribe();
+  }, [queryClient, refetchBranches, dispatch]);
+
+  const branchOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(masterBranches)) {
+      masterBranches.forEach((b) => {
+        const id = String(b.id);
+        if (id && id !== "0" && b.name) map.set(id, b.name);
+      });
+    }
+    if (Array.isArray(branchesData)) {
+      branchesData.forEach((b) => {
+        if (b.value && b.value !== "0" && b.label) map.set(b.value, b.label);
+      });
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [masterBranches, branchesData]);
 
   const { register, formState: { errors }, watch } = methods;
   const customerId = watch("id");
@@ -346,7 +414,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                       }, 50);
                     }
                   }}
-                  options={[
+                  options={branchOptions.length > 0 ? branchOptions : [
                     { label: "Main Branch", value: "main" }
                   ]}
                 />

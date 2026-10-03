@@ -3,12 +3,16 @@ import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import type { RecipePayload } from "../types";
 
-function unwrap<T>(data: ApiResponse<T>): T {
+function unwrap<T>(data: ApiResponse<T> | any): T {
+  if (!data) return data;
   // Support both `isSuccess` boolean and `status` codes for success checks
   if (data.isSuccess === false || (data.status && data.status >= 400)) {
     throw new Error(data.message || "Operation failed");
   }
-  return data.data;
+  if (data.data !== undefined) {
+    return data.data;
+  }
+  return data;
 }
 
 const BASE_URL = "/recipe";
@@ -46,6 +50,11 @@ export const recipeApi = {
 
   getProductCostData: async (barcode: string) => {
     const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number; unitCategory: string }>>(`${BASE_URL}/product-cost-data/${barcode}`);
+    return unwrap(response.data);
+  },
+
+  getProductCostDataById: async (productId: number) => {
+    const response = await axiosInstance.get<ApiResponse<{ productId: number; productCode: string; productName: string; baseUnitId: number; cost: number; altUnitId: number; vatId: number; vatName: string; vatValue: number; unitCategory: string }>>(`/product/${productId}/productid-data`);
     return unwrap(response.data);
   },
 

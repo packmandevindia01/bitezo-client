@@ -16,9 +16,15 @@ import {
   updateEmployee,
 } from "../services/employeeService";
 import { notifyEmployeesUpdated, subscribeToEmployeeUpdates } from "../utils/employeeSync";
+import { subscribeToRoleUpdates } from "../../employeeRole/utils/roleSync";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
+import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 
 export const useEmployeeManager = () => {
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const reduxBranches = useAppSelector((state) => state.masterData.branches);
   const { showToast } = useToast();
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -69,31 +75,94 @@ export const useEmployeeManager = () => {
     refetchOnWindowFocus: true,
   });
 
-  const { data: branches = [] } = useQuery({
+  const { data: queryBranches = [], refetch: refetchBranches } = useQuery({
     queryKey: ["branches"],
     queryFn: async () => {
       return await getBranches();
     },
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
+  // Roles query — feeds the Role dropdown in the Employee modal
   const { data: roles = [] } = useQuery({
     queryKey: ["employeeRoles"],
     queryFn: async () => {
       return await getEmployeeRoles();
     },
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
-  // Real-time synchronization: sync employee list across tabs and components
+  const branches = useMemo(() => {
+    const map = new Map<number, string>();
+
+    // 1. Redux store branches (instantly available on navigation)
+    if (Array.isArray(reduxBranches)) {
+      reduxBranches.forEach((b: any) => {
+        const id = Number(b.id ?? b.branchId);
+        const name = String(b.branchName ?? b.name ?? "");
+        if (id && id > 0 && name) {
+          map.set(id, name);
+        }
+      });
+    }
+
+    // 2. Query fetched branches (authoritative backend list)
+    if (Array.isArray(queryBranches)) {
+      queryBranches.forEach((b) => {
+        const id = Number(b.branchId);
+        const name = String(b.branchName ?? "");
+        if (id && id > 0 && name) {
+          map.set(id, name);
+        }
+      });
+    }
+
+    return Array.from(map.entries()).map(([branchId, branchName]) => ({
+      branchId,
+      branchName,
+    }));
+  }, [reduxBranches, queryBranches]);
+
+  // Ensure fresh branch and role data on mount
   useEffect(() => {
-    return subscribeToEmployeeUpdates(() => {
+    void queryClient.resetQueries({ queryKey: ["branches"] });
+    void queryClient.resetQueries({ queryKey: ["employeeRoles"] });
+    queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+    void dispatch(fetchGlobalBranches());
+  }, [queryClient, dispatch]);
+
+  // Real-time synchronization: sync employee list, roles, and branches across tabs and components
+  useEffect(() => {
+    const unsubEmployee = subscribeToEmployeeUpdates(() => {
       void queryClient.invalidateQueries({ queryKey: ["employees"] });
       void queryClient.refetchQueries({ queryKey: ["employees"] });
     });
-  }, [queryClient]);
+
+    const unsubRoles = subscribeToRoleUpdates(() => {
+      void queryClient.resetQueries({ queryKey: ["employeeRoles"] });
+    });
+
+    const unsubBranches = subscribeToBranchUpdates(() => {
+      void queryClient.resetQueries({ queryKey: ["branches"] });
+      queryClient.removeQueries({ queryKey: ["branchNames"] });
+      queryClient.removeQueries({ queryKey: ["branchList"] });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      void refetchBranches();
+      void dispatch(fetchGlobalBranches());
+    });
+
+    return () => {
+      unsubEmployee();
+      unsubRoles();
+      unsubBranches();
+    };
+  }, [queryClient, refetchBranches, dispatch]);
 
   // 3. Search Filter
   const filteredEmployees = useMemo(() => {
@@ -153,6 +222,8 @@ export const useEmployeeManager = () => {
       queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
       queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.removeQueries({ queryKey: ["branchData"] });
+      queryClient.removeQueries({ queryKey: ["physicalEntryBranchData"] });
       queryClient.invalidateQueries({ queryKey: ["branchData"] });
       queryClient.invalidateQueries({ queryKey: ["physicalEntryBranchData"] });
       notifyEmployeesUpdated();
@@ -178,6 +249,8 @@ export const useEmployeeManager = () => {
       queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
       queryClient.invalidateQueries({ queryKey: ["paymentMaster"] });
       queryClient.invalidateQueries({ queryKey: ["receiptMaster"] });
+      queryClient.removeQueries({ queryKey: ["branchData"] });
+      queryClient.removeQueries({ queryKey: ["physicalEntryBranchData"] });
       queryClient.invalidateQueries({ queryKey: ["branchData"] });
       queryClient.invalidateQueries({ queryKey: ["physicalEntryBranchData"] });
       notifyEmployeesUpdated();
@@ -209,11 +282,19 @@ export const useEmployeeManager = () => {
 
   const openCreateModal = () => {
     resetForm();
+    void queryClient.resetQueries({ queryKey: ["employeeRoles"] });
+    void queryClient.resetQueries({ queryKey: ["branches"] });
+    queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+    void dispatch(fetchGlobalBranches());
     setOpen(true);
   };
 
   const handleEdit = async (record: EmployeeRecord) => {
     try {
+      void queryClient.resetQueries({ queryKey: ["employeeRoles"] });
+      void queryClient.resetQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
+      void dispatch(fetchGlobalBranches());
       const detail = await getEmployeeById(record.id);
       setEditingId(detail.empId);
       reset({
@@ -237,21 +318,25 @@ export const useEmployeeManager = () => {
     }
   };
 
-  const handleSave = form.handleSubmit(
-    (data: any) => {
-      saveMutation.mutate(data as EmployeeForm);
-    },
-    (errors) => {
-      console.warn("[EmployeeForm] Validation errors:", errors);
-      const firstError = Object.values(errors)[0] as any;
+  const handleSave = async (e?: React.BaseSyntheticEvent) => {
+    const isValid = await form.trigger();
+    if (!isValid) {
+      const errs = form.formState.errors;
+      console.warn("[EmployeeForm] Validation errors:", errs);
+      const firstError = Object.values(errs)[0] as any;
       if (firstError?.message) {
         showToast(firstError.message as string, "error");
       }
+      return;
     }
-  );
+    await form.handleSubmit((data: any) => {
+      saveMutation.mutate(data as EmployeeForm);
+    })(e);
+  };
 
   return {
     form,
+    errors: form.formState.errors,
     editingId,
     search,
     setSearch,

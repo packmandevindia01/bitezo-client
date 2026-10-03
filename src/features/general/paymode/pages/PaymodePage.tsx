@@ -17,6 +17,7 @@ const PaymodePage = () => {
     loading,
     saving,
     counterOptions,
+    refetchCounters,
     setSearch,
     resetForm,
     closeModal,
@@ -106,6 +107,7 @@ const PaymodePage = () => {
         saving={saving}
         selectedCounterIds={form.watch("counterIds")}
         counterOptions={counterOptions}
+        onOpenCounters={refetchCounters}
         onClose={closeModal}
         onClear={resetForm}
         onSave={handleSave}

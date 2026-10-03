@@ -9,6 +9,7 @@ interface CounterAllocationSelectProps {
   selectedIds: number[];
   onChange: (ids: number[]) => void;
   disabled?: boolean;
+  onOpen?: () => void;
 }
 
 export const CounterAllocationSelect: React.FC<CounterAllocationSelectProps> = ({
@@ -17,6 +18,7 @@ export const CounterAllocationSelect: React.FC<CounterAllocationSelectProps> = (
   selectedIds = [],
   onChange,
   disabled = false,
+  onOpen,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -149,12 +151,21 @@ export const CounterAllocationSelect: React.FC<CounterAllocationSelectProps> = (
     }
   }, [isOpen, counterOptions.length]);
 
+  const handleToggle = () => {
+    if (disabled) return;
+    if (!isOpen && onOpen) {
+      onOpen();
+    }
+    setIsOpen(!isOpen);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
 
     if (!isOpen) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
         e.preventDefault();
+        if (onOpen) onOpen();
         setIsOpen(true);
         setActiveIndex(0);
       }
@@ -195,7 +206,7 @@ export const CounterAllocationSelect: React.FC<CounterAllocationSelectProps> = (
       <label
         htmlFor={id}
         className="flex items-center whitespace-nowrap overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-0.5 cursor-pointer"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={handleToggle}
       >
         <span>Counter Allocation</span>
       </label>
@@ -205,7 +216,7 @@ export const CounterAllocationSelect: React.FC<CounterAllocationSelectProps> = (
         id={id}
         ref={triggerRef}
         tabIndex={disabled ? -1 : 3}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={handleToggle}
         onKeyDown={handleKeyDown}
         className={`w-full bg-white border rounded-lg px-3 py-1.5 min-h-[38px] text-xs font-semibold text-[#49293e] focus:outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer ${
           disabled

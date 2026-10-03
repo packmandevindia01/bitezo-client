@@ -3,7 +3,7 @@ import { Button, FormInput, PageShell, SelectInput, RecordTableCard, ConfirmDial
 import { useInternalStockTransferList } from "../hooks/useInternalStockTransferList";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { internalStockTransferApi } from "../services/internalStockTransferApi";
 import { useToast } from "../../../../app/providers/useToast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,10 @@ const InternalStockTransferListPage = () => {
     searchTerm,
     setSearchTerm
   } = useInternalStockTransferList();
+
+  const branchOptions = useMemo(() => {
+    return [{ label: "All Branches", value: "" }, ...branches];
+  }, [branches]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -75,9 +79,9 @@ const InternalStockTransferListPage = () => {
           </div>
           <div className="w-48">
             <SelectInput 
+              id="filter-branch"
               label="Branch" 
-              placeholder="All Branches"
-              options={branches} 
+              options={branchOptions} 
               value={filters.branchId} 
               onChange={(e) => handleFilterChange("branchId", e.target.value)} 
               disabled={filters.isBranchLocked}

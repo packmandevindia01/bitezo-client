@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
-import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { fetchGlobalBranches, fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
 import { subCategoryApi } from "../../subcategory/api";
 import { useToast } from "../../../../app/providers/useToast";
 import type { MasterItem } from "../types";
+import { subscribeToBranchUpdates } from "../../branches/utils/branchSync";
 
 export const useProductMasterData = (categoryId: string) => {
   const { showToast } = useToast();
@@ -12,11 +13,24 @@ export const useProductMasterData = (categoryId: string) => {
   const [subCategories, setSubCategories] = useState<MasterItem[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
 
+  // Always re-fetch branches on mount so newly created branches appear immediately
+  // without requiring a manual page refresh.
   useEffect(() => {
-    if (!masterData || branches.length === 0) {
-      dispatch(fetchGlobalMasterData());
+    void dispatch(fetchGlobalBranches());
+    if (!masterData) {
+      void dispatch(fetchGlobalMasterData());
     }
-  }, [dispatch, masterData, branches.length]);
+  }, [dispatch, masterData]);
+
+  // Subscribe to real-time branch updates (same-tab CustomEvent + cross-tab BroadcastChannel/storage).
+  // Covers the timing gap: branch created → user navigates to Product form →
+  // on-mount dispatch above already handles it, but this also catches live edits/deletions.
+  useEffect(() => {
+    const unsubscribe = subscribeToBranchUpdates(() => {
+      void dispatch(fetchGlobalBranches());
+    });
+    return () => unsubscribe();
+  }, [dispatch]);
 
   useEffect(() => {
     const catId = parseInt(categoryId);
@@ -41,7 +55,3 @@ export const useProductMasterData = (categoryId: string) => {
     loadingSubs,
   };
 };
-
-
-
-

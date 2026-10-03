@@ -6,6 +6,8 @@ import type { EmployeeRoleRecord, EmployeeRoleForm, EmployeeRolePermission } fro
 import { employeeRoleService } from "../services/employeeRoleService";
 import EmployeeRoleModal from "../components/EmployeeRoleModal";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useQueryClient } from "@tanstack/react-query";
+import { notifyRolesUpdated, subscribeToRoleUpdates } from "../utils/roleSync";
 
 const initialFormState: EmployeeRoleForm = {
   roleName: "",
@@ -13,6 +15,7 @@ const initialFormState: EmployeeRoleForm = {
 };
 
 const EmployeeRolePage = () => {
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { hasPermission } = usePermissions();
   
@@ -54,6 +57,10 @@ const EmployeeRolePage = () => {
 
   useEffect(() => {
     void fetchData();
+    const unsubscribe = subscribeToRoleUpdates(() => {
+      void fetchData();
+    });
+    return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -131,6 +138,9 @@ const EmployeeRolePage = () => {
       }
       setIsModalOpen(false);
       void fetchData();
+      queryClient.removeQueries({ queryKey: ["employeeRoles"] });
+      queryClient.invalidateQueries({ queryKey: ["employeeRoles"], refetchType: "all" });
+      notifyRolesUpdated();
     } catch (err: any) {
       showToast(err.message || "Failed to save role", "error");
     } finally {
@@ -144,6 +154,9 @@ const EmployeeRolePage = () => {
       await employeeRoleService.deleteRole(id);
       showToast("Employee role deleted successfully", "success");
       void fetchData();
+      queryClient.removeQueries({ queryKey: ["employeeRoles"] });
+      queryClient.invalidateQueries({ queryKey: ["employeeRoles"], refetchType: "all" });
+      notifyRolesUpdated();
     } catch (err: any) {
       showToast(err.message || "Failed to delete role", "error");
     } finally {

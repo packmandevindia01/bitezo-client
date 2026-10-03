@@ -1,8 +1,11 @@
+import { useMemo } from "react";
 import { Button, Checkbox, FormInput, Modal, SelectInput } from "../../../../components/common";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import type { BranchOption, EmployeeRoleOption, EmployeeForm } from "../types";
 import type { UseFormReturn } from "react-hook-form";
+import { useFormState } from "react-hook-form";
 import { useEnterKeyNavigation } from "../../../../hooks/useEnterKeyNavigation";
+import { useAppSelector } from "../../../../app/hooks";
 
 interface Props {
   isOpen: boolean;
@@ -29,13 +32,41 @@ const EmployeeModal = ({
   onSave,
   onDelete,
 }: Props) => {
-  const { register, watch, setValue, formState: { errors } } = form;
+  const { register, watch, setValue } = form;
+  const { errors } = useFormState({ control: form.control });
   const handleKeyDown = useEnterKeyNavigation();
+  const masterBranches = useAppSelector((state) => state.masterData.branches);
 
-  const branchOptions = branches.map((b) => ({
-    label: b.branchName,
-    value: String(b.branchId),
-  }));
+  const branchOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    // 1. Redux store branches
+    if (Array.isArray(masterBranches)) {
+      masterBranches.forEach((b: any) => {
+        const id = String(b.id ?? b.branchId ?? "");
+        const name = String(b.branchName ?? b.name ?? "");
+        if (id && id !== "0" && name) {
+          map.set(id, name);
+        }
+      });
+    }
+
+    // 2. Props branches (from useEmployeeManager)
+    if (Array.isArray(branches)) {
+      branches.forEach((b) => {
+        const id = String(b.branchId ?? "");
+        const name = String(b.branchName ?? "");
+        if (id && id !== "0" && name) {
+          map.set(id, name);
+        }
+      });
+    }
+
+    return Array.from(map.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [masterBranches, branches]);
 
   const roleOptions = roles.map((r) => ({
     label: r.roleName,
@@ -46,7 +77,7 @@ const EmployeeModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingId ? "Edit Employee" : "Add Employee"}
+      title={editingId ? "Edit Employee" : "Employee Creation"}
       size="lg"
       footer={
         <div className="flex gap-3">
@@ -122,8 +153,13 @@ const EmployeeModal = ({
           placeholder="Select a branch"
           options={branchOptions}
           tabIndex={3}
-          {...register("branchId")}
+          ref={register("branchId").ref}
+          value={watch("branchId") ?? ""}
+          onChange={(e) => {
+            setValue("branchId", e.target.value, { shouldValidate: true, shouldDirty: true });
+          }}
           error={errors.branchId?.message}
+          className={errors.branchId ? "!border-red-500 !bg-red-50/30 focus:!border-red-500 focus:!ring-red-500/30" : ""}
           onKeyDown={(e) => handleKeyDown(e, "emp-role")}
         />
 
@@ -134,8 +170,13 @@ const EmployeeModal = ({
           placeholder="Select a role"
           options={roleOptions}
           tabIndex={4}
-          {...register("roleId")}
+          ref={register("roleId").ref}
+          value={watch("roleId") ?? ""}
+          onChange={(e) => {
+            setValue("roleId", e.target.value, { shouldValidate: true, shouldDirty: true });
+          }}
           error={errors.roleId?.message}
+          className={errors.roleId ? "!border-red-500 !bg-red-50/30 focus:!border-red-500 focus:!ring-red-500/30" : ""}
           onKeyDown={(e) => handleKeyDown(e, "emp-save-btn")}
         />
 
