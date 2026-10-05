@@ -36,10 +36,30 @@ const ReceiptAgainstVoucherPage = () => {
     employeeList,
     accounts, 
     pendingInvoices,
+    paymodeList,
+    branchList,
     isLoading, 
     isSaving, 
     saveMutation
   } = useReceiptAgainstVoucherForm(transId);
+  
+  const handleBranchChange = (val: string) => {
+    const newBranchId = Number(val);
+    if (newBranchId === Number(form.getValues("branchId"))) return;
+    form.setValue("branchId", newBranchId, { shouldValidate: true });
+    form.setValue("seriesId", 0);
+    form.setValue("vchNo", "");
+    remove();
+    setManualItem({
+      invoiceId: 0,
+      voucherType: "",
+      invoiceNo: "",
+      invoiceAmount: "",
+      paid: "",
+      balance: "",
+      amount: "",
+    });
+  };
   
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
@@ -47,8 +67,37 @@ const ReceiptAgainstVoucherPage = () => {
   });
 
   const availablePendingInvoices = useMemo(() => {
-    return pendingInvoices?.filter((inv: any) => !fields.some((f: any) => f.invoiceId === inv.invoiceId)) || [];
+    return (pendingInvoices || [])
+      .map((inv: any) => {
+        const invoiceId = Number(inv.invoiceId ?? inv.InvoiceId ?? inv.id ?? inv.Id ?? 0);
+        const invoiceNo = String(inv.invoiceNo || inv.InvoiceNo || inv.vchNo || inv.VchNo || inv.voucherNo || inv.VoucherNo || inv.invNo || inv.InvNo || (invoiceId ? `INV #${invoiceId}` : "")).trim();
+        const voucherType = String(inv.voucherType || inv.VoucherType || inv.vchType || inv.VchType || "").trim();
+        const invoiceDate = String(inv.invoiceDate || inv.InvoiceDate || inv.date || "").split("T")[0];
+        const invoiceAmount = Number(inv.invoiceAmount ?? inv.InvoiceAmount ?? inv.invAmnt ?? inv.amount ?? 0);
+        const balance = Number(inv.balance ?? inv.Balance ?? (invoiceAmount - Number(inv.paid || 0)));
+        return {
+          ...inv,
+          invoiceId,
+          invoiceNo,
+          voucherType,
+          invoiceDate,
+          invoiceAmount,
+          balance,
+        };
+      })
+      .filter((inv: any) => !fields.some((f: any) => Number(f.invoiceId) === Number(inv.invoiceId)));
   }, [pendingInvoices, fields]);
+
+  const getInvoiceNo = (item: any) => {
+    if (item.invoiceNo) return item.invoiceNo;
+    const found = (pendingInvoices || []).find((p: any) => 
+      Number(p.invoiceId ?? p.InvoiceId ?? p.id ?? p.Id) === Number(item.invoiceId)
+    );
+    if (found) {
+      return found.invoiceNo || found.InvoiceNo || found.vchNo || found.VchNo || found.voucherNo || found.VoucherNo || found.invNo || found.InvNo || "";
+    }
+    return item.invoiceId ? `INV #${item.invoiceId}` : "-";
+  };
 
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const [isMultiPaymodeOpen, setIsMultiPaymodeOpen] = useState(false);
@@ -74,10 +123,18 @@ const ReceiptAgainstVoucherPage = () => {
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  const handleManualKeyDown = (e: React.KeyboardEvent, nextId?: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (nextId) document.getElementById(nextId)?.focus();
+      if (nextId) {
+        const el = document.getElementById(nextId);
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.select?.();
+          }
+        }
+      }
     }
   };
 
@@ -152,7 +209,7 @@ const ReceiptAgainstVoucherPage = () => {
       amount: "",
     });
     setShowClearConfirm(false);
-    setTimeout(() => document.getElementById("rav-page-series")?.focus(), 0);
+    setTimeout(() => document.getElementById(!isBranchLocked ? "rav-page-branch" : "rav-page-series")?.focus(), 0);
   };
 
   const handleClearClick = () => {
@@ -225,15 +282,15 @@ const ReceiptAgainstVoucherPage = () => {
   const selectedAccountName = accounts.find((a: any) => a.accountId === selectedAccountId)?.accountName || "";
 
   const multiPayId = useMemo(() => {
-    const multi = masterData?.paymodes?.find(p => p.paymodeName?.toLowerCase().includes("multi"));
+    const multi = paymodeList.find(p => p.paymodeName?.toLowerCase().includes("multi"));
     return multi ? multi.paymodeId : 0;
-  }, [masterData]);
+  }, [paymodeList]);
 
   const totalAmount = fields.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
   const printData: Partial<VoucherPrintData> = useMemo(() => {
     const vals = form.getValues();
-    const paymode = masterData?.paymodes?.find(p => p.paymodeId === Number(vals.paymodeId));
+    const paymode = paymodeList.find(p => p.paymodeId === Number(vals.paymodeId));
 
     return {
       voucherType: "RECEIPT AGAINST" as any, // type assertion because we'll add it to VoucherPrintTemplate soon
@@ -269,7 +326,7 @@ const ReceiptAgainstVoucherPage = () => {
 
   const handlePaymodeChange = (val: string) => {
     const selectedId = Number(val);
-    const isMulti = selectedId === multiPayId || masterData?.paymodes?.find(p => p.paymodeId === selectedId)?.paymodeName?.toLowerCase().includes("multi");
+    const isMulti = selectedId === multiPayId || paymodeList.find(p => p.paymodeId === selectedId)?.paymodeName?.toLowerCase().includes("multi");
 
     form.setValue("paymodeId", selectedId, { shouldValidate: true });
     
@@ -296,10 +353,27 @@ const ReceiptAgainstVoucherPage = () => {
           <form id="rav-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col h-full gap-4">
             
             <div className="grid gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6 flex-none">
+              <SearchableSelect
+                id="rav-page-branch"
+                label="Branch"
+                placeholder="Select Branch"
+                required
+                options={branchList.map((b) => ({ value: String(b.branchId), label: b.branchName }))}
+                value={String(form.watch("branchId") || "")}
+                onChange={(val) => {
+                  handleBranchChange(val);
+                  setTimeout(() => document.getElementById("rav-page-series")?.focus(), 50);
+                }}
+                onKeyDown={(e) => handleKeyDown(e, "rav-page-series")}
+                disabled={!!transId || isBranchLocked}
+                error={form.formState.errors.branchId?.message}
+                autoFocus={!isBranchLocked}
+              />
+
               <div
                 className="h-full flex flex-col justify-end"
                 onMouseDownCapture={(e) => {
-                  if (!branchId) {
+                  if (!form.watch("branchId")) {
                     e.stopPropagation();
                     e.preventDefault();
                     showToast("Please select a Branch first.", "warning", "Warning");
@@ -313,26 +387,18 @@ const ReceiptAgainstVoucherPage = () => {
                   options={masterData?.series?.map((s: any) => ({ value: String(s.seriesId), label: s.seriesName })) || []}
                   value={String(form.watch("seriesId") || "")}
                   {...form.register("seriesId", { 
-                    onChange: (e) => form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true }) 
+                    onChange: (e) => {
+                      form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true });
+                      setTimeout(() => document.getElementById("rav-page-date")?.focus(), 50);
+                    } 
                   })}
+                  onKeyDown={(e) => handleKeyDown(e, "rav-page-date")}
                   disabled={!!transId}
                   error={form.formState.errors.seriesId?.message}
-                  autoFocus
+                  autoFocus={isBranchLocked}
                 />
               </div>
-              
-              <SearchableSelect
-                id="rav-page-employee"
-                label="Employee"
-                placeholder="Select Employee"
-                required
-                options={employeeList.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName }))}
-                value={String(form.watch("employeeId") || "")}
-                onChange={(val) => form.setValue("employeeId", Number(val) || 0, { shouldValidate: true })}
-                disabled={!!transId}
-                error={form.formState.errors.employeeId?.message}
-              />
-              
+
               <FormInput 
                 id="rav-page-vchNo" 
                 label="Vch No" 
@@ -349,10 +415,27 @@ const ReceiptAgainstVoucherPage = () => {
                 {...form.register("voucherDate", {
                   onChange: (e) => form.setValue("voucherDate", e.target.value, { shouldValidate: true })
                 })}
+                onKeyDown={(e) => handleKeyDown(e, "rav-page-employee")}
                 error={form.formState.errors.voucherDate?.message}
               />
+
+              <SearchableSelect
+                id="rav-page-employee"
+                label="Employee"
+                placeholder="Select Employee"
+                required
+                options={employeeList.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName }))}
+                value={String(form.watch("employeeId") || "")}
+                onChange={(val) => {
+                  form.setValue("employeeId", Number(val) || 0, { shouldValidate: true });
+                  setTimeout(() => document.getElementById("rav-page-customer")?.focus(), 50);
+                }}
+                onKeyDown={(e) => handleKeyDown(e, "rav-page-customer")}
+                disabled={!!transId}
+                error={form.formState.errors.employeeId?.message}
+              />
               
-              <div className="md:col-span-2 flex items-end gap-2 h-full translate-y-[2px]">
+              <div className="flex items-end gap-2 h-full translate-y-[2px]">
                 <div className="flex-1 min-w-0 h-full flex flex-col justify-end">
                   <SearchableSelect
                     id="rav-page-customer"
@@ -360,7 +443,11 @@ const ReceiptAgainstVoucherPage = () => {
                     required
                     options={accounts.map((a: any) => ({ value: String(a.accountId), label: `${a.code} - ${a.accountName}` }))}
                     value={String(form.watch("accountId") || "")}
-                    onChange={(val) => form.setValue("accountId", Number(val), { shouldValidate: true })}
+                    onChange={(val) => {
+                      form.setValue("accountId", Number(val), { shouldValidate: true });
+                      setTimeout(() => document.getElementById("rav-manual-vchNo")?.focus(), 50);
+                    }}
+                    onKeyDown={(e) => handleKeyDown(e, "rav-manual-vchNo")}
                     disabled={!!transId}
                     error={form.formState.errors.accountId?.message}
                   />
@@ -369,7 +456,7 @@ const ReceiptAgainstVoucherPage = () => {
                   <Button 
                     type="button"
                     variant="secondary" 
-                    className="h-9 px-4 text-xs font-bold" 
+                    className="h-9 px-3 text-xs font-bold" 
                     onClick={() => {
                       if (!form.watch("accountId")) {
                         showToast("Please select a customer first", "error", "Error");
@@ -406,7 +493,7 @@ const ReceiptAgainstVoucherPage = () => {
                   <SearchableSelect
                     id="rav-manual-vchNo"
                     label="INV NO"
-                    options={availablePendingInvoices.map((inv: any) => ({ value: inv.invoiceNo, label: `${inv.invoiceNo} | ${inv.voucherType}` }))}
+                    options={availablePendingInvoices.map((inv: any) => ({ value: inv.invoiceNo, label: `${inv.invoiceNo}${inv.voucherType ? ` | ${inv.voucherType}` : ""}` }))}
                     value={manualItem.invoiceNo}
                     onChange={(val) => {
                       const selected = availablePendingInvoices.find((i: any) => i.invoiceNo === val);
@@ -418,11 +505,29 @@ const ReceiptAgainstVoucherPage = () => {
                           invoiceAmount: String(selected.invoiceAmount || 0),
                           paid: String((Number(selected.invoiceAmount) || 0) - (Number(selected.balance) || 0)),
                           balance: String(selected.balance || 0),
+                          amount: String(selected.balance || 0),
                           invoiceId: selected.invoiceId || 0,
                         }));
-                        setTimeout(() => document.getElementById("rav-manual-amount")?.focus(), 10);
+                        setTimeout(() => {
+                          const amtEl = document.getElementById("rav-manual-amount") as HTMLInputElement;
+                          if (amtEl) {
+                            amtEl.focus();
+                            amtEl.select?.();
+                          }
+                        }, 50);
                       } else {
                         setManualField("invoiceNo", val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (manualItem.invoiceId || manualItem.invoiceNo) {
+                          e.preventDefault();
+                          document.getElementById("rav-manual-amount")?.focus();
+                        } else {
+                          e.preventDefault();
+                          document.getElementById("rav-page-narration")?.focus();
+                        }
                       }
                     }}
                   />
@@ -445,7 +550,19 @@ const ReceiptAgainstVoucherPage = () => {
                       setManualField("amount", val);
                     }
                   }} 
-                  onKeyDown={(e) => handleManualKeyDown(e, "rav-manual-add-btn")} 
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (manualItem.invoiceId && Number(manualItem.amount) > 0) {
+                        handleManualAdd();
+                      } else if (fields.length > 0) {
+                        document.getElementById("rav-page-narration")?.focus();
+                      } else {
+                        handleManualAdd();
+                      }
+                    }
+                  }} 
                 />
                 <div className="flex items-end mb-1">
                   <Button
@@ -476,7 +593,7 @@ const ReceiptAgainstVoucherPage = () => {
                         (column) => (
                           <th
                             key={column}
-                            className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 ${column === "Inv Amnt" || column === "Balance" || column === "Amount" ? "text-right" : ""}`}
+                            className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 ${column === "Inv Amnt" || column === "Balance" || column === "Amount" ? "text-right" : "text-center"}`}
                           >
                             {column}
                           </th>
@@ -495,21 +612,34 @@ const ReceiptAgainstVoucherPage = () => {
                     ) : (
                       fields.map((item, index) => (
                         <tr key={item.id} className="hover:bg-[#49293e]/5">
-                          <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900">
-                            {item.invoiceNo}
+                          <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900 text-center">
+                            {getInvoiceNo(item)}
                           </td>
-                          <td className="px-4 py-3">{item.voucherType}</td>
-                          <td className="px-4 py-3 text-gray-500">{item.invoiceDate}</td>
+                          <td className="px-4 py-3 text-center">{item.voucherType || "-"}</td>
+                          <td className="px-4 py-3 text-gray-500 text-center">{item.invoiceDate || "-"}</td>
                           <td className="px-4 py-3 text-right font-mono">{formatAmount(item.invoiceAmount || 0)}</td>
                           <td className="px-4 py-3 text-right font-mono">{formatAmount(item.balance || 0)}</td>
                           <td className="px-2 py-2">
                             <input
+                              id={`rav-table-amount-${index}`}
                               type="number"
-                              max={item.balance}
+                              max={item.balance || undefined}
                               step={Math.pow(10, -getDecimalPart()).toString()}
                               className="w-full text-right font-mono font-semibold text-gray-900 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]"
                               {...form.register(`details.${index}.amount`)}
                               onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  if (index < fields.length - 1) {
+                                    const nextInput = document.getElementById(`rav-table-amount-${index + 1}`) as HTMLInputElement;
+                                    nextInput?.focus();
+                                    nextInput?.select();
+                                  } else {
+                                    document.getElementById("rav-page-narration")?.focus();
+                                  }
+                                }
+                              }}
                             />
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -536,14 +666,20 @@ const ReceiptAgainstVoucherPage = () => {
                   id="rav-page-narration" 
                   label="Narration" 
                   {...form.register("narration")} 
+                  onKeyDown={(e) => handleKeyDown(e, "rav-page-paymode")}
                 />
                 <SearchableSelect 
                   id="rav-page-paymode" 
                   label="Paymode" 
+                  placeholder="Select Paymode"
                   required
-                  options={masterData?.paymodes?.map(p => ({ value: String(p.paymodeId), label: p.paymodeName })) || []}
+                  options={paymodeList.map(p => ({ value: String(p.paymodeId), label: p.paymodeName }))}
                   value={String(form.watch("paymodeId") || "")}
-                  onChange={handlePaymodeChange}
+                  onChange={(val) => {
+                    handlePaymodeChange(val);
+                    setTimeout(() => document.getElementById("rav-save-btn")?.focus(), 50);
+                  }}
+                  onKeyDown={(e) => handleKeyDown(e, "rav-save-btn")}
                   disabled={!!transId}
                   error={form.formState.errors.paymodeId?.message}
                 />
@@ -603,6 +739,7 @@ const ReceiptAgainstVoucherPage = () => {
             Print
           </Button>
           <Button
+            id="rav-save-btn"
             type="submit"
             form="rav-form"
             disabled={isSaving}
@@ -636,7 +773,13 @@ const ReceiptAgainstVoucherPage = () => {
         onSelect={handleMultiSelect}
         partyName={selectedAccountName}
         fetchInvoices={(fromDate, toDate) => 
-          receiptAgainstVoucherApi.getPendingInvoicesDetails(Number(branchId), selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
+          receiptAgainstVoucherApi.getPendingInvoicesDetails(
+            Number(form.watch("branchId") || branchId || 0), 
+            selectedAccountId, 
+            transId ? Number(transId) : undefined, 
+            fromDate, 
+            toDate
+          )
         }
         type="RECEIPT"
       />
@@ -651,7 +794,7 @@ const ReceiptAgainstVoucherPage = () => {
           }
         }}
         totalDue={totalAmount}
-        paymodes={masterData?.paymodes || []}
+        paymodes={paymodeList}
         onSubmit={(payments: any) => {
           form.setValue("paymodes", payments);
           setIsMultiPaymodeOpen(false);

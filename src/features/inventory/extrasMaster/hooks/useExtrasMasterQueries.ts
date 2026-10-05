@@ -47,11 +47,23 @@ export function useCreateExtrasMaster() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (data: Omit<ExtrasMasterForm, "category">) =>
-      extrasMasterApi.create({
+    mutationFn: (data: Omit<ExtrasMasterForm, "category">) => {
+      const activeBranchId = Number(
+        localStorage.getItem("activeBranchId") ||
+        localStorage.getItem("branchId") ||
+        localStorage.getItem("systemBranchId") ||
+        1
+      );
+      const branchIds = Array.isArray(data.branchIds) && data.branchIds.length > 0
+        ? data.branchIds
+        : [activeBranchId];
+
+      return extrasMasterApi.create({
         ...data,
+        branchIds,
         createdAt: new Date().toISOString(),
-      }),
+      });
+    },
     onSuccess: () => {
       showToast("Extras created successfully", "success");
       queryClient.invalidateQueries({ queryKey: EXTRAS_MASTER_KEYS.lists() });
@@ -67,12 +79,24 @@ export function useUpdateExtrasMaster() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Omit<ExtrasMasterForm, "category"> }) =>
-      extrasMasterApi.update(id, {
+    mutationFn: ({ id, data }: { id: number; data: Omit<ExtrasMasterForm, "category"> }) => {
+      const activeBranchId = Number(
+        localStorage.getItem("activeBranchId") ||
+        localStorage.getItem("branchId") ||
+        localStorage.getItem("systemBranchId") ||
+        1
+      );
+      const branchIds = Array.isArray(data.branchIds) && data.branchIds.length > 0
+        ? data.branchIds
+        : [activeBranchId];
+
+      return extrasMasterApi.update(id, {
         ...data,
         id,
+        branchIds,
         updatedAt: new Date().toISOString(),
-      }),
+      });
+    },
     onSuccess: (_, variables) => {
       showToast("Extras updated successfully", "success");
       queryClient.invalidateQueries({ queryKey: EXTRAS_MASTER_KEYS.lists() });

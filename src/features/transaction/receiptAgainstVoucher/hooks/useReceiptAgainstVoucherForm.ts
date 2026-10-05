@@ -10,10 +10,16 @@ import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 import { getEmployeeNames, getEmployees } from "../../../general/employee/services/employeeService";
+import { paymodeService } from "../../../general/paymode/services/paymodeService";
+import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
+import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
+import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import type { BranchRecord } from "../../../inventory/branches/types";
 
 export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   const auth = useAppSelector((state: any) => state.auth);
+  const reduxBranches = useAppSelector((state: any) => state.masterData?.branches);
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const fallbackBranch = auth?.activeBranchId || auth?.branchId || Number(localStorage.getItem("branchId")) || 0;
   const branchId = isBranchLocked ? initialBranchId : fallbackBranch;
@@ -42,6 +48,37 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
   });
 
   const currentFormBranchId = Number(form.watch("branchId") || branchId || 0);
+
+  // 1. Fetch All Branches for Dropdowns with robust multi-endpoint fallback
+  const { data: allBranches = [], refetch: refetchAllBranches } = useQuery<any[]>({
+    queryKey: ["allBranchesList"],
+    queryFn: async () => {
+      try {
+        const data = await fetchBranchNames(false);
+        if (Array.isArray(data) && data.length > 0) return data;
+      } catch (e) {}
+      try {
+        const data = await fetchBranchNames(true);
+        if (Array.isArray(data) && data.length > 0) return data;
+      } catch (e) {}
+      try {
+        const data = await fetchBranches();
+        if (Array.isArray(data) && data.length > 0) return data;
+      } catch (e) {}
+      return [];
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Real-time synchronization: sync branches when created/updated
+  useEffect(() => {
+    return subscribeToBranchUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["allBranchesList"] });
+      void refetchAllBranches();
+    });
+  }, [queryClient, refetchAllBranches]);
 
   const { data: masterData, isLoading: isLoadingMaster, refetch: refetchMasterData } = useQuery({
     queryKey: ["receiptAgainstMasterData", currentFormBranchId],
@@ -88,6 +125,15 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
     refetchOnWindowFocus: true,
   });
 
+  // Paymodes Master List directly from Paymode Service for instant synchronization
+  const { data: allPaymodes = [], refetch: refetchAllPaymodes } = useQuery({
+    queryKey: ["paymodes"],
+    queryFn: () => paymodeService.list(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
   const { data: existingData, isLoading: isLoadingExisting } = useQuery({
     queryKey: ["receiptAgainstData", transId],
     queryFn: () => receiptAgainstVoucherApi.getReceiptAgainstVoucherById(transId!),
@@ -112,6 +158,16 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       void refetchEmployees();
     });
   }, [queryClient, refetchMasterData, refetchEmployeeNames, refetchEmployees]);
+
+  // Real-time synchronization: sync paymodes when created/updated/deleted
+  useEffect(() => {
+    return subscribeToPaymodeUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["receiptAgainstMasterData"] });
+      void queryClient.invalidateQueries({ queryKey: ["paymodes"] });
+      void refetchMasterData();
+      void refetchAllPaymodes();
+    });
+  }, [queryClient, refetchMasterData, refetchAllPaymodes]);
 
   // Merge loadMaster salesman, branch employee names, and global employees so newly created employees are immediately visible
   const employeeList = useMemo(() => {
@@ -169,13 +225,120 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
     return list;
   }, [masterData?.salesman, allEmployeeNames, employeesList, currentFormBranchId, queryClient]);
 
+  // Merge loadMaster paymodes, allPaymodes, and queryClient cache so newly created paymodes are immediately visible
+  const paymodeList = useMemo(() => {
+    const list: { paymodeId: number; paymodeName: string }[] = [];
+    const existingIds = new Set<number>();
+
+    const addPaymode = (rawId: any, rawName: any, rawActive: any) => {
+      const id = Number(rawId);
+      const name = String(rawName || "").trim();
+      if (!id || !name || existingIds.has(id)) return;
+      if (name.toLowerCase() === "credit") return;
+
+      const isActive =
+        rawActive === "Active" ||
+        rawActive === true ||
+        String(rawActive).toLowerCase() === "true" ||
+        String(rawActive).toLowerCase() === "active" ||
+        String(rawActive) === "1" ||
+        rawActive === undefined;
+
+      if (!isActive) return;
+
+      existingIds.add(id);
+      list.push({ paymodeId: id, paymodeName: name });
+    };
+
+    // 1. Add from masterData?.paymodes
+    (masterData?.paymodes || []).forEach((p: any) => {
+      addPaymode(p.paymodeId ?? p.id, p.paymodeName ?? p.name, true);
+    });
+
+    // 2. Add from allPaymodes (from ["paymodes"] query)
+    (allPaymodes || []).forEach((p: any) => {
+      addPaymode(p.paymodeId ?? p.id ?? p.code, p.paymodeName ?? p.name, p.isActive);
+    });
+
+    // 3. Add from queryClient cache for ["paymodes"] directly as instant synchronous fallback
+    const cachedQueryData = queryClient.getQueryData<any[]>(["paymodes"]);
+    if (Array.isArray(cachedQueryData)) {
+      cachedQueryData.forEach((p: any) => {
+        addPaymode(p.paymodeId ?? p.id ?? p.code, p.paymodeName ?? p.name, p.isActive);
+      });
+    }
+
+    return list;
+  }, [masterData?.paymodes, allPaymodes, queryClient]);
+
+  // Robust branch list merging allBranches, masterData?.branches, Redux, and cache fallbacks
+  const branchList = useMemo(() => {
+    const list: { branchId: number; branchName: string }[] = [];
+    const existingIds = new Set<number>();
+
+    const addBranch = (rawId: any, rawName: any) => {
+      const id = Number(rawId);
+      const name = String(rawName || "").trim();
+      if (!id || !name || existingIds.has(id)) return;
+
+      existingIds.add(id);
+      list.push({ branchId: id, branchName: name });
+    };
+
+    // 1. Add from allBranches query
+    (allBranches || []).forEach((b: any) => {
+      addBranch(b.branchId ?? b.id ?? b.BranchId ?? b.Id, b.branchName ?? b.name ?? b.BranchName ?? b.Name);
+    });
+
+    // 2. Add from masterData?.branches
+    (masterData?.branches || []).forEach((b: any) => {
+      addBranch(b.branchId ?? b.id ?? b.BranchId ?? b.Id, b.branchName ?? b.name ?? b.BranchName ?? b.Name);
+    });
+
+    // 3. Add from queryClient cache for various branch query keys
+    ["allBranchesList", "branchList", "branchNames", "branches", "stockAdjustmentBranches", "internalStockTransferBranches"].forEach((key) => {
+      const cached = queryClient.getQueryData<any[]>([key]);
+      if (Array.isArray(cached)) {
+        cached.forEach((b: any) => {
+          addBranch(b.branchId ?? b.id ?? b.BranchId ?? b.Id ?? b.value, b.branchName ?? b.name ?? b.BranchName ?? b.Name ?? b.label);
+        });
+      }
+    });
+
+    // 4. Add from Redux masterData branches
+    if (Array.isArray(reduxBranches)) {
+      reduxBranches.forEach((b: any) => {
+        addBranch(b.id ?? b.branchId, b.name ?? b.branchName);
+      });
+    }
+
+    // 5. Fallback for the current form branch so raw numbers never appear in the UI
+    const currentBranch = Number(currentFormBranchId || branchId || 0);
+    if (currentBranch > 0 && !existingIds.has(currentBranch)) {
+      const fallbackName = currentBranch === 1 ? "All" : `Branch ${currentBranch}`;
+      addBranch(currentBranch, fallbackName);
+    }
+
+    return list;
+  }, [allBranches, masterData?.branches, reduxBranches, currentFormBranchId, branchId, queryClient]);
+
+  // Auto-select first branch if none selected
+  useEffect(() => {
+    if (!transId && (!form.getValues("branchId") || form.getValues("branchId") === 0) && branchList.length > 0) {
+      form.setValue("branchId", branchList[0].branchId, { shouldValidate: true });
+    }
+  }, [branchList, form, transId]);
+
   const selectedAccountId = form.watch("accountId");
   
   const { data: pendingInvoices = [] } = useQuery({
-    queryKey: ["receiptAgainstPendingInvoices", branchId, selectedAccountId, transId],
-    queryFn: () => receiptAgainstVoucherApi.getPendingInvoices(branchId, selectedAccountId, transId),
-    enabled: !!selectedAccountId,
+    queryKey: ["receiptAgainstPendingInvoices", currentFormBranchId, selectedAccountId, transId],
+    queryFn: () => receiptAgainstVoucherApi.getPendingInvoices(currentFormBranchId, selectedAccountId, transId),
+    enabled: !!selectedAccountId && currentFormBranchId > 0,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Fetch next voucher number when series changes (only for create mode)
@@ -188,6 +351,9 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
           const series = masterData.series.find(s => s.seriesId === selectedSeriesId);
           if (series) {
             form.setValue("prefix", series.prefix);
+            if (series.branchId && (!form.getValues("branchId") || form.getValues("branchId") === 0)) {
+              form.setValue("branchId", series.branchId, { shouldValidate: true });
+            }
           }
         }
       }).catch(console.error);
@@ -198,8 +364,13 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
   useEffect(() => {
     if (masterData?.series?.length && !transId) {
       const currentSeries = form.getValues("seriesId");
-      if (!currentSeries || currentSeries === 0) {
-        form.setValue("seriesId", masterData.series[0].seriesId, { shouldValidate: true });
+      const seriesStillValid = masterData.series.some(s => s.seriesId === currentSeries);
+      if (!currentSeries || currentSeries === 0 || !seriesStillValid) {
+        const defaultSeries = masterData.series[0];
+        form.setValue("seriesId", defaultSeries.seriesId, { shouldValidate: true });
+        if (defaultSeries.branchId && (!form.getValues("branchId") || form.getValues("branchId") === 0)) {
+          form.setValue("branchId", defaultSeries.branchId, { shouldValidate: true });
+        }
       }
     }
   }, [masterData, form, transId]);
@@ -208,6 +379,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
   useEffect(() => {
     if (existingData) {
       const { masterData: md, detailsData, paymodesData } = existingData;
+      const rawDetails = detailsData || [];
       form.reset({
         transId: transId,
         seriesId: md.seriesId,
@@ -221,16 +393,25 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
         discount: md.discount,
         refNo: md.refNo || "",
         narration: md.narration || "",
-        details: (detailsData || []).map(d => ({
-          invoiceId: d.invoiceId,
-          voucherType: d.voucherType,
-          invoiceNo: d.invoiceNo,
-          invoiceDate: d.invoiceDate?.split("T")[0] || "",
-          invoiceAmount: d.invoiceAmount,
-          receivedAmount: d.receivedAmount,
-          balance: 0,
-          amount: Number(d.receivedAmount).toFixed(getDecimalPart()),
-        })),
+        details: rawDetails.map((d: any) => {
+          const invId = Number(d.invoiceId ?? d.InvoiceId ?? d.id ?? d.Id ?? 0);
+          const vType = d.voucherType || d.VoucherType || d.vchType || d.VchType || "";
+          const vNo = d.invoiceNo || d.InvoiceNo || d.vchNo || d.VchNo || d.voucherNo || d.VoucherNo || d.invNo || d.InvNo || "";
+          const vDate = (d.invoiceDate || d.InvoiceDate || d.date || "").split("T")[0];
+          const invAmnt = Number(d.invoiceAmount ?? d.InvoiceAmount ?? d.invAmnt ?? d.amount ?? 0);
+          const recAmnt = Number(d.receivedAmount ?? d.ReceivedAmount ?? d.amount ?? 0);
+          const bal = Number(d.balance ?? d.Balance ?? (invAmnt > recAmnt ? invAmnt - recAmnt : recAmnt));
+          return {
+            invoiceId: invId,
+            voucherType: vType,
+            invoiceNo: vNo,
+            invoiceDate: vDate,
+            invoiceAmount: invAmnt,
+            receivedAmount: recAmnt,
+            balance: bal,
+            amount: recAmnt.toFixed(getDecimalPart()),
+          };
+        }),
         paymodes: (paymodesData || []).map(p => ({
           paymodeId: p.paymodeId,
           amount: p.amount
@@ -238,6 +419,43 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       });
     }
   }, [existingData, form, transId]);
+
+  // Enrich existing details with pending invoices data (e.g. invoiceNo, invoiceAmount, balance) if missing
+  useEffect(() => {
+    if (pendingInvoices && pendingInvoices.length > 0) {
+      const currentDetails = form.getValues("details") || [];
+      if (currentDetails.length > 0) {
+        let hasChanges = false;
+        const enriched = currentDetails.map((d: any) => {
+          const invId = Number(d.invoiceId);
+          const match = pendingInvoices.find((p: any) => Number(p.invoiceId ?? p.InvoiceId ?? p.id ?? p.Id) === invId);
+          if (match) {
+            const matchedNo = match.invoiceNo || match.InvoiceNo || match.vchNo || match.VchNo || match.voucherNo || match.VoucherNo || match.invNo || match.InvNo || "";
+            const matchedType = match.voucherType || match.VoucherType || match.vchType || match.VchType || "";
+            const matchedDate = (match.invoiceDate || match.InvoiceDate || match.date || "").split("T")[0];
+            const matchedAmnt = Number(match.invoiceAmount ?? match.InvoiceAmount ?? match.invAmnt ?? 0);
+            const matchedBal = Number(match.balance ?? match.Balance ?? 0);
+
+            if ((!d.invoiceNo && matchedNo) || (d.balance === 0 && matchedBal > 0)) {
+              hasChanges = true;
+              return {
+                ...d,
+                invoiceNo: d.invoiceNo || matchedNo,
+                voucherType: d.voucherType || matchedType,
+                invoiceDate: d.invoiceDate || matchedDate,
+                invoiceAmount: d.invoiceAmount || matchedAmnt,
+                balance: d.balance || matchedBal,
+              };
+            }
+          }
+          return d;
+        });
+        if (hasChanges) {
+          form.setValue("details", enriched);
+        }
+      }
+    }
+  }, [pendingInvoices, form]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: ReceiptAgainstVoucherFormData): Promise<any> => {
@@ -295,9 +513,12 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
 
   return {
     form,
-    masterData,
+    masterData: masterData ? { ...masterData, paymodes: paymodeList } : undefined,
+    paymodeList,
     employeeList,
     accounts,
+    branchList,
+    formBranchList: branchList,
     pendingInvoices,
     isLoading: isLoadingMaster || isLoadingAccounts || (!!transId && isLoadingExisting),
     isSaving: saveMutation.isPending,

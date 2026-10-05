@@ -8,6 +8,7 @@ export interface ProviderSettingEntry {
   exclPrice: number;
   inclPrice: number;
   price: number;
+  rawPrice?: string;
 }
 
 export interface ProviderSettingsState {

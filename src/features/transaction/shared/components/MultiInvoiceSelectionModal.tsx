@@ -54,16 +54,26 @@ export const MultiInvoiceSelectionModal = ({
 
   useEffect(() => {
     if (isOpen && pendingInvoices) {
-      setInvoices(pendingInvoices.map((p: any) => ({
-        id: p.invoiceId,
-        vchType: p.voucherType,
-        invoiceDate: p.invoiceDate ? p.invoiceDate.split("T")[0] : "",
-        vchNo: p.invoiceNo,
-        invAmnt: Number(p.invoiceAmount) || 0,
-        paid: (Number(p.invoiceAmount) || 0) - (Number(p.balance) || 0),
-        balance: Number(p.balance) || 0,
-        amount: 0
-      })));
+      setInvoices(pendingInvoices.map((p: any) => {
+        const invoiceId = Number(p.invoiceId ?? p.InvoiceId ?? p.id ?? p.Id ?? 0);
+        const invoiceNo = String(p.invoiceNo || p.InvoiceNo || p.vchNo || p.VchNo || p.voucherNo || p.VoucherNo || p.invNo || p.InvNo || (invoiceId ? `INV #${invoiceId}` : "")).trim();
+        const voucherType = String(p.voucherType || p.VoucherType || p.vchType || p.VchType || "").trim();
+        const invoiceDate = String(p.invoiceDate || p.InvoiceDate || p.date || "").split("T")[0];
+        const invoiceAmount = Number(p.invoiceAmount ?? p.InvoiceAmount ?? p.invAmnt ?? p.amount ?? 0);
+        const balance = Number(p.balance ?? p.Balance ?? 0);
+        const paid = Number(p.paid ?? (invoiceAmount - balance));
+
+        return {
+          id: invoiceId,
+          vchType: voucherType,
+          invoiceDate,
+          vchNo: invoiceNo,
+          invAmnt: invoiceAmount,
+          paid: paid > 0 ? paid : 0,
+          balance,
+          amount: 0
+        };
+      }));
     }
   }, [isOpen, pendingInvoices]);
 
@@ -78,8 +88,8 @@ export const MultiInvoiceSelectionModal = ({
 
   const filteredInvoices = invoices.filter(
     (inv) =>
-      (inv.vchNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       inv.vchType.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (((inv.vchNo || "").toLowerCase().includes(searchTerm.toLowerCase())) ||
+       ((inv.vchType || "").toLowerCase().includes(searchTerm.toLowerCase()))) &&
       (ignoreDates || (!fromDate || !inv.invoiceDate || inv.invoiceDate >= fromDate) && (!toDate || !inv.invoiceDate || inv.invoiceDate <= toDate))
   );
 
@@ -213,7 +223,7 @@ export const MultiInvoiceSelectionModal = ({
                   {["Vch Type", "Invoice Date", "Vch No", "Total", "Paid", "Balance", "Amount"].map((col) => (
                     <th
                       key={col}
-                      className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 ${col === "Total" || col === "Paid" || col === "Balance" || col === "Amount" ? "text-right" : ""}`}
+                      className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 ${col === "Total" || col === "Paid" || col === "Balance" || col === "Amount" ? "text-right" : "text-center"}`}
                     >
                       {col}
                     </th>
@@ -246,9 +256,9 @@ export const MultiInvoiceSelectionModal = ({
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{inv.vchType}</td>
-                      <td className="px-4 py-3 text-gray-500">{inv.invoiceDate || "-"}</td>
-                      <td className="px-4 py-3">{inv.vchNo}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 text-center">{inv.vchType}</td>
+                      <td className="px-4 py-3 text-gray-500 text-center">{inv.invoiceDate || "-"}</td>
+                      <td className="px-4 py-3 text-center">{inv.vchNo}</td>
                       <td className="px-4 py-3 text-right font-mono">{formatAmount(inv.invAmnt)}</td>
                       <td className="px-4 py-3 text-right font-mono">{formatAmount(inv.paid)}</td>
                       <td className="px-4 py-3 text-right font-mono text-red-600">{formatAmount(inv.balance)}</td>

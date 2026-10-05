@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { formatAmount, sanitizeAmountInput } from "../../../../utils/formatters";
 import { useAppSelector } from "../../../../app/hooks";
@@ -28,39 +28,33 @@ export const OpeningStockGrid = ({
   onOpeningStocksChange,
 }: OpeningStockGridProps) => {
   const { showToast } = useToast();
-  const [focusPos, setFocusPos] = useState({ r: 0, c: 0 });
   const decimalPart = useAppSelector(selectDecimalPart);
-  const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const nextRowId = useRef(-1);
   const isInitialMount = useRef(true);
-  const TOTAL_COLS = 4; // Editable columns: Branch, Unit, Qty, Cost
+
+  const focusField = (targetId: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.focus();
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+          el.select?.();
+        }
+      }
+    }, 50);
+  };
 
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       if (openingStocks.length === 0) {
         addButtonRef.current?.focus();
+      } else {
+        focusField("stock-branch-0");
       }
-      return;
     }
-
-    if (openingStocks.length === 0) {
-      addButtonRef.current?.focus();
-      return;
-    }
-
-    const key = `${focusPos.r}-${focusPos.c}`;
-    let el: HTMLElement | null = (cellRefs.current.get(key) as HTMLElement) ?? null;
-    if (!el) {
-      if (focusPos.c === 0) el = document.getElementById(`stock-branch-${focusPos.r}`);
-      else if (focusPos.c === 1) el = document.getElementById(`stock-unit-${focusPos.r}`);
-    }
-    if (el && document.activeElement !== el && !el.contains(document.activeElement)) {
-      el.focus();
-      if (el instanceof HTMLInputElement) el.select();
-    }
-  }, [focusPos, openingStocks.length]);
+  }, []);
 
   const validBranches = branches.filter(b => b.name.toLowerCase() !== "all");
   const branchOptions = validBranches.map(b => ({ label: b.name, value: String(b.id) }));
@@ -129,51 +123,17 @@ export const OpeningStockGrid = ({
     };
     nextRowId.current -= 1;
     onOpeningStocksChange([...openingStocks, newRow]);
-    
-    // Auto-focus the Qty column (c=2) if Branch and Unit defaulted successfully, otherwise Branch (c=0)
-    const startCol = (initialBranchId && initialUnitId) ? 2 : 0;
-    setFocusPos({ r: nextRowIndex, c: startCol });
+    focusField(`stock-branch-${nextRowIndex}`);
   };
 
   const removeGridRow = (idx: number) => {
-    onOpeningStocksChange(openingStocks.filter((_, i) => i !== idx));
-    if (focusPos.r >= openingStocks.length - 1) {
-      setFocusPos(p => ({ ...p, r: Math.max(0, openingStocks.length - 2) }));
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, r: number, c: number) => {
-    const isLastRow = r === openingStocks.length - 1;
-    const isLastCol = c === TOTAL_COLS - 1;
-
-    switch (e.key) {
-      case "Enter":
-        e.preventDefault();
-        if (isLastRow && c === 0 && !openingStocks[r].branchId) {
-          removeGridRow(r);
-          setTimeout(() => {
-            document.getElementById("prod-save-btn")?.focus();
-          }, 50);
-          return;
-        }
-        
-        if (isLastCol) {
-          if (isLastRow) {
-            addGridRow();
-          } else {
-            setFocusPos({ r: r + 1, c: 0 });
-          }
-        } else {
-          setFocusPos({ r, c: c + 1 });
-        }
-        break;
-      case "Tab":
-        if (isLastCol && isLastRow && !e.shiftKey) {
-          e.preventDefault();
-          addGridRow();
-          setFocusPos({ r: r + 1, c: 0 });
-        }
-        break;
+    const next = openingStocks.filter((_, i) => i !== idx);
+    onOpeningStocksChange(next);
+    if (next.length > 0) {
+      const targetIdx = Math.min(idx, next.length - 1);
+      focusField(`stock-branch-${targetIdx}`);
+    } else {
+      setTimeout(() => addButtonRef.current?.focus(), 50);
     }
   };
 
@@ -233,18 +193,28 @@ export const OpeningStockGrid = ({
                   return (
                     <tr key={stock.id ?? rIdx} className="group border-b border-gray-100 transition-colors hover:bg-gray-50/50">
                       <td className="p-0 border-r border-gray-100">
-                        <div
-                          onFocus={() => setFocusPos({ r: rIdx, c: 0 })}
-                          className="px-0.5 py-0"
-                        >
+                        <div className="px-0.5 py-0">
                           <SearchableSelect
-                            ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-0`, el); }}
-                            key={`stock-branch-${rIdx}-${stock.id}`}
                             id={`stock-branch-${rIdx}`}
                             options={branchOptions}
                             value={String(stock.branchId || "")}
-                            onChange={(value) => handleGridChange(rIdx, "branchId", value)}
-                            onKeyDown={(e) => handleKeyDown(e, rIdx, 0)}
+                            onChange={(value) => {
+                              handleGridChange(rIdx, "branchId", value);
+                              focusField(`stock-unit-${rIdx}`);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (rIdx === openingStocks.length - 1 && !stock.branchId) {
+                                  removeGridRow(rIdx);
+                                  setTimeout(() => {
+                                    document.getElementById("prod-save-btn")?.focus();
+                                  }, 50);
+                                  return;
+                                }
+                                focusField(`stock-unit-${rIdx}`);
+                              }
+                            }}
                             placeholder="Branch"
                             clearable={false}
                             className="h-8 w-full border-none !bg-transparent text-left text-sm font-bold shadow-none focus-within:bg-white focus-within:ring-1 focus-within:ring-[#49293e]/10 [&>button]:!bg-transparent [&>button]:!border-none [&>button]:!shadow-none [&>button]:!ring-0 [&>button]:hover:!bg-transparent"
@@ -252,33 +222,38 @@ export const OpeningStockGrid = ({
                         </div>
                       </td>
                       <td className="p-0 border-r border-gray-100">
-                        <div
-                          onFocus={() => setFocusPos({ r: rIdx, c: 1 })}
-                          className="px-0.5 py-0"
-                        >
+                        <div className="px-0.5 py-0">
                           <SearchableSelect
-                            ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-1`, el); }}
-                            key={`stock-unit-${rIdx}-${stock.id}`}
                             id={`stock-unit-${rIdx}`}
                             options={altUnitOptions.length > 0 ? altUnitOptions : (masterData?.unit?.map(u => ({ label: u.name, value: String(u.id) })) ?? [])}
                             value={String(stock.unitId || "")}
-                            onChange={(value) => handleGridChange(rIdx, "unitId", value)}
-                            onKeyDown={(e) => handleKeyDown(e, rIdx, 1)}
+                            onChange={(value) => {
+                              handleGridChange(rIdx, "unitId", value);
+                              focusField(`stock-qty-${rIdx}`);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                focusField(`stock-qty-${rIdx}`);
+                              }
+                            }}
                             placeholder="Unit"
                           />
                         </div>
                       </td>
                       <td className="p-0 border-r border-gray-100">
                         <input
-                          ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-2`, el); }}
+                          id={`stock-qty-${rIdx}`}
                           type="text"
                           inputMode="decimal"
                           value={stock.qty}
-                          onFocus={(e) => {
-                            setFocusPos({ r: rIdx, c: 2 });
-                            e.target.select();
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              focusField(`stock-cost-${rIdx}`);
+                            }
                           }}
-                          onKeyDown={(e) => handleKeyDown(e, rIdx, 2)}
                           onChange={(e) => {
                             let next = sanitizeAmountInput(e.target.value, decimalPart);
                             if (next !== null) {
@@ -300,15 +275,24 @@ export const OpeningStockGrid = ({
                       </td>
                       <td className="p-0 border-r border-gray-100">
                         <input
-                          ref={(el) => { if (el) cellRefs.current.set(`${rIdx}-3`, el); }}
+                          id={`stock-cost-${rIdx}`}
                           type="text"
                           inputMode="decimal"
                           value={stock.cost === "0" ? formatAmount(0, decimalPart) : stock.cost}
-                          onFocus={(e) => {
-                            setFocusPos({ r: rIdx, c: 3 });
-                            e.target.select();
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (rIdx < openingStocks.length - 1) {
+                                focusField(`stock-branch-${rIdx + 1}`);
+                              } else {
+                                addGridRow();
+                              }
+                            } else if (e.key === "Tab" && !e.shiftKey && rIdx === openingStocks.length - 1) {
+                              e.preventDefault();
+                              addGridRow();
+                            }
                           }}
-                          onKeyDown={(e) => handleKeyDown(e, rIdx, 3)}
                           onChange={(e) => {
                             let next = sanitizeAmountInput(e.target.value, decimalPart);
                             if (next !== null) {
@@ -352,6 +336,12 @@ export const OpeningStockGrid = ({
             type="button"
             ref={addButtonRef}
             onClick={addGridRow}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addGridRow();
+              }
+            }}
             className="flex items-center gap-2 rounded-md text-xs font-bold text-[#49293e]/60 transition-all hover:text-[#49293e] focus:outline-none focus:ring-2 focus:ring-[#49293e]/25 focus:ring-offset-2"
            >
              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#49293e]/10">

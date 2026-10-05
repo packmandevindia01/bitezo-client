@@ -221,13 +221,22 @@ const StockAdjustmentPage = () => {
                 <table className="min-w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
-                      {["SL", "Product", "Code", "Unit", "Qty", "Cost", "Type", "Effect", "Amount", ""].map(
-                        (col, i) => (
-                          <th key={i} className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                            {col}
-                          </th>
-                        )
-                      )}
+                      {[
+                        { label: "SL", align: "text-center" },
+                        { label: "Product", align: "text-left" },
+                        { label: "Code", align: "text-center" },
+                        { label: "Unit", align: "text-center" },
+                        { label: "Qty", align: "text-right" },
+                        { label: "Cost", align: "text-right" },
+                        { label: "Type", align: "text-center" },
+                        { label: "Effect", align: "text-center" },
+                        { label: "Amount", align: "text-right" },
+                        { label: "", align: "text-center" },
+                      ].map((col, i) => (
+                        <th key={i} className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 ${col.align}`}>
+                          {col.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
@@ -327,7 +336,7 @@ const StockAdjustmentPage = () => {
                               }}
                             />
                           </td>
-                          <td className="px-2 py-1 text-[10px] text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
+                          <td className="px-2 py-1 text-[10px] text-center text-gray-500 border-r border-gray-100 bg-gray-50/50">{itemWatch.code || "-"}</td>
                           <td className="p-0 border-r border-gray-100 w-24 relative">
                             <Controller
                               name={`items.${index}.unit`}
@@ -406,10 +415,16 @@ const StockAdjustmentPage = () => {
 
                                     const rowProduct = methods.getValues(`items.${index}.product`);
                                     if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                      handleProductSearch("");
                                       // Wait slightly longer than SearchableSelect's internal 50ms handleFocusNextInput 
                                       setTimeout(() => {
                                         append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
-                                        setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+                                        const nextIndex = items.length;
+                                        setTimeout(() => {
+                                          const el = document.getElementById(`product-select-${nextIndex}`);
+                                          if (el) el.focus();
+                                          else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
+                                        }, 50);
                                       }, 60);
                                     }
                                   }}
@@ -423,8 +438,14 @@ const StockAdjustmentPage = () => {
                                       } else {
                                         const rowProduct = methods.getValues(`items.${index}.product`);
                                         if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                          handleProductSearch("");
                                           append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
-                                          setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 100);
+                                          const nextIndex = items.length;
+                                          setTimeout(() => {
+                                            const el = document.getElementById(`product-select-${nextIndex}`);
+                                            if (el) el.focus();
+                                            else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
+                                          }, 100);
                                         } else {
                                           handleGridNav(e, index);
                                         }
@@ -437,7 +458,7 @@ const StockAdjustmentPage = () => {
                               )}
                             />
                           </td>
-                          <td className="p-0 border-r border-gray-100 w-20">
+                          <td className="p-0 border-r border-gray-100 w-20 text-center">
                             {isEffectEditable ? (
                               <select
                                 id={`effect-select-${index}`}
@@ -456,9 +477,13 @@ const StockAdjustmentPage = () => {
                                     
                                     const rowProduct = methods.getValues(`items.${index}.product`);
                                     if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                      handleProductSearch("");
                                       append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
+                                      const nextIndex = items.length;
                                       setTimeout(() => {
-                                        document.getElementById(`product-select-${items.length}`)?.focus();
+                                        const el = document.getElementById(`product-select-${nextIndex}`);
+                                        if (el) el.focus();
+                                        else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
                                       }, 100);
                                     } else {
                                       handleGridNav(e, index);
@@ -475,6 +500,24 @@ const StockAdjustmentPage = () => {
                                 className={`w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs font-bold text-center outline-none cursor-not-allowed ${itemWatch.effect === '-' ? 'text-red-500' : itemWatch.effect === '+' ? 'text-green-600' : 'text-[#49293e]'}`}
                                 readOnly
                                 tabIndex={-1}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    const rowProduct = methods.getValues(`items.${index}.product`);
+                                    if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+                                      handleProductSearch("");
+                                      append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
+                                      const nextIndex = items.length;
+                                      setTimeout(() => {
+                                        const el = document.getElementById(`product-select-${nextIndex}`);
+                                        if (el) el.focus();
+                                        else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
+                                      }, 100);
+                                    } else {
+                                      handleGridNav(e, index);
+                                    }
+                                  }
+                                }}
                               />
                             )}
                           </td>
@@ -508,13 +551,17 @@ const StockAdjustmentPage = () => {
                           <button
                             type="button"
                             onClick={() => {
+                              handleProductSearch("");
                               append({
                                 id: generateUUID(),
-                                product: "", code: "", unit: "", qty: "1", cost: formatAmount(0), type: "", effect: ""
+                                product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: ""
                               }, { shouldFocus: false });
                               
+                              const nextIndex = items.length;
                               setTimeout(() => {
-                                document.getElementById(`product-select-${items.length}`)?.focus();
+                                const el = document.getElementById(`product-select-${nextIndex}`);
+                                if (el) el.focus();
+                                else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
                               }, 50);
                             }}
                             disabled={!canSave}

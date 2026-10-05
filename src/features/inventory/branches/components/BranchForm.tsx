@@ -8,7 +8,7 @@ import {
 } from "@dnd-kit/core";
 
 import { Button, Checkbox, DragHandle, Loader } from "../../../../components/common";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Save, RotateCcw } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useBranchLines } from "../hooks/useBranchLines";
@@ -64,6 +64,15 @@ const BranchForm = ({
     temp: { fontFamily: "Courier", fontStyle: "Regular", fontSize: "Medium" },
   });
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const el = document.getElementById("branch-name");
+      el?.focus();
+      if (el instanceof HTMLInputElement) el.select?.();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const openFontModal = (id: string) => {
     const line = allLines.find((item) => item.id === id);
     if (!line) return;
@@ -87,7 +96,12 @@ const BranchForm = ({
   const handleSubmit = async () => {
     if (!branchName.trim()) {
       setBranchNameError("Branch Master is required");
-      showToast("Please fill all required fields", "error");
+      showToast("Branch Master is required", "error");
+      setTimeout(() => {
+        const el = document.getElementById("branch-name");
+        el?.focus();
+        if (el instanceof HTMLInputElement) el.select?.();
+      }, 50);
       return;
     }
 
@@ -123,6 +137,10 @@ const BranchForm = ({
     setIsActive(true);
     resetLines();
     if (onClear) onClear();
+    setTimeout(() => {
+      const el = document.getElementById("branch-name");
+      el?.focus();
+    }, 50);
   };
 
   const sampleText = fontModal.lineId
@@ -165,11 +183,55 @@ const BranchForm = ({
                   setBranchName(value);
                   setBranchNameError("");
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!branchName.trim()) {
+                      setBranchNameError("Branch Master is required");
+                      showToast("Branch Master is required", "error");
+                      setTimeout(() => {
+                        const el = document.getElementById("branch-name");
+                        el?.focus();
+                        if (el instanceof HTMLInputElement) el.select?.();
+                      }, 20);
+                      return;
+                    }
+                    if (activeTab === "kot") {
+                      if (headerLines.length > 0) {
+                        const nextEl = document.getElementById(`input-line-${headerLines[0].id}`);
+                        if (nextEl) {
+                          nextEl.focus();
+                          if (nextEl instanceof HTMLInputElement) nextEl.select?.();
+                          return;
+                        }
+                      }
+                      if (footerLines.length > 0) {
+                        const nextEl = document.getElementById(`input-line-${footerLines[0].id}`);
+                        if (nextEl) {
+                          nextEl.focus();
+                          if (nextEl instanceof HTMLInputElement) nextEl.select?.();
+                          return;
+                        }
+                      }
+                    } else {
+                      if (dayEndLines.length > 0) {
+                        const nextEl = document.getElementById(`input-line-${dayEndLines[0].id}`);
+                        if (nextEl) {
+                          nextEl.focus();
+                          if (nextEl instanceof HTMLInputElement) nextEl.select?.();
+                          return;
+                        }
+                      }
+                    }
+                    saveBtnRef.current?.focus();
+                  }
+                }}
               />
 
               <div className="flex gap-4 border-b border-slate-200 mb-6">
                 <button
                   type="button"
+                  tabIndex={-1}
                   onClick={() => setActiveTab("kot")}
                   className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === "kot" 
@@ -181,6 +243,7 @@ const BranchForm = ({
                 </button>
                 <button
                   type="button"
+                  tabIndex={-1}
                   onClick={() => setActiveTab("end")}
                   className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === "end" 
@@ -200,6 +263,20 @@ const BranchForm = ({
                     onUpdate={updateLine}
                     onOpenFont={openFontModal}
                     disabled={submitting}
+                    lastRowKeyDown={(e) => {
+                      if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+                        e.preventDefault();
+                        if (footerLines.length > 0) {
+                          const nextEl = document.getElementById(`input-line-${footerLines[0].id}`);
+                          if (nextEl) {
+                            nextEl.focus();
+                            if (nextEl instanceof HTMLInputElement) nextEl.select?.();
+                            return;
+                          }
+                        }
+                        saveBtnRef.current?.focus();
+                      }
+                    }}
                   />
 
                   <PrintSection
@@ -238,10 +315,17 @@ const BranchForm = ({
             {/* ── Sticky Action Footer ── */}
             <div className="sticky bottom-0 z-10 mt-8 py-4 border-t border-slate-200 bg-white flex flex-wrap items-center justify-end gap-3 -mx-4 px-4 xl:-mx-6 xl:px-6 -mb-4 xl:-mb-6">
               <Checkbox
+                id="branch-active"
                 label="Active"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
                 disabled={submitting}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    saveBtnRef.current?.focus();
+                  }
+                }}
               />
 
               <Button 
@@ -256,6 +340,7 @@ const BranchForm = ({
               </Button>
 
               <Button 
+                id="branch-save-btn"
                 ref={saveBtnRef} 
                 onClick={handleSubmit} 
                 disabled={submitting}

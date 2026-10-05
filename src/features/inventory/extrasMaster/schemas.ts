@@ -6,8 +6,8 @@ export const extrasMasterFormSchema = z.object({
   typeId: z.coerce.number().min(1, "Type is required"),
   price: z.coerce.number().gt(0, "Price must be greater than zero"),
   color: z.string().optional(),
-  branchIds: z.array(z.number()).min(1, "At least one branch must be allocated"),
-  categoryIds: z.array(z.number()),
+  branchIds: z.array(z.number()).default([]),
+  categoryIds: z.array(z.number()).default([]),
 });
 
 export type ExtrasMasterForm = z.infer<typeof extrasMasterFormSchema>;

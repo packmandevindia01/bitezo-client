@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Save, RotateCcw, Trash2, Camera, X } from "lucide-react";
 import { handleFocusNextInput } from "../../../../utils/keyboard";
 import { Button, FormInput, Modal, Checkbox, SearchableSelect } from "../../../../components/common";
 import { BranchAllocationSelect } from "./BranchAllocationSelect";
+import { useToast } from "../../../../app/providers/useToast";
 import type { UseFormReturn } from "react-hook-form";
 import type { ProviderFormType } from "../types";
 
@@ -40,7 +41,21 @@ const ProviderModal = ({
   onDelete,
 }: Props) => {
   const { register, formState: { errors } } = form;
+  const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById("prov-name");
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -70,6 +85,7 @@ const ProviderModal = ({
             Clear
           </Button>
           <Button 
+            id="prov-save-btn"
             type="button"
             onClick={onSave} 
             disabled={saving}
@@ -112,6 +128,7 @@ const ProviderModal = ({
           <div className="flex flex-col gap-4">
             {/* Provider Name */}
             <FormInput
+              id="prov-name"
               label="Provider Name"
               required
               tabIndex={1}
@@ -120,10 +137,30 @@ const ProviderModal = ({
               placeholder="Enter provider name"
               autoFocus
               error={errors.providerName?.message}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const val = form.getValues("providerName");
+                  if (!val || !val.trim()) {
+                    void form.trigger("providerName");
+                    showToast("Provider name is required", "error");
+                    setTimeout(() => {
+                      const el = document.getElementById("prov-name");
+                      el?.focus();
+                      if (el instanceof HTMLInputElement) el.select?.();
+                    }, 50);
+                    return;
+                  }
+                  setTimeout(() => {
+                    document.getElementById("prov-paymode")?.focus();
+                  }, 50);
+                }
+              }}
             />
 
             {/* Paymode */}
             <SearchableSelect
+              id="prov-paymode"
               label="Paymode"
               required
               tabIndex={2}
@@ -139,6 +176,7 @@ const ProviderModal = ({
 
             {/* Post Account */}
             <SearchableSelect
+              id="prov-post-account"
               label="Post Account"
               required
               tabIndex={3}

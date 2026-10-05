@@ -41,6 +41,24 @@ export interface ReceiptAgainstPendingInvoice {
   invoiceNo: string;
   invoiceAmount: string;
   balance: string;
+  InvoiceId?: number;
+  id?: number;
+  Id?: number;
+  InvoiceNo?: string;
+  vchNo?: string;
+  VchNo?: string;
+  voucherNo?: string;
+  VoucherNo?: string;
+  invNo?: string;
+  InvNo?: string;
+  VoucherType?: string;
+  vchType?: string;
+  VchType?: string;
+  InvoiceDate?: string;
+  InvoiceAmount?: string | number;
+  invAmnt?: string | number;
+  Balance?: string | number;
+  paid?: string | number;
 }
 
 export interface ReceiptAgainstDetailPayload {
@@ -83,6 +101,11 @@ export interface ReceiptAgainstListItem {
   code: string;
   account: string;
   amount: string;
+  invoiceNo?: string;
+  InvoiceNo?: string;
+  invNo?: string;
+  invoices?: string;
+  vchNo?: string;
 }
 
 export interface ReceiptAgainstDetailData {

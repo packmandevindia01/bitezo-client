@@ -93,16 +93,18 @@ const CategoryPage = () => {
 
   const resetForm = () => {
     const currentCode = form.getValues("code"); // preserve auto-generated code
-    let defaultBranches: { branchId: number; colorCode: string }[] = [];
+    const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branchOptions[0]?.id ? Number(branchOptions[0].id) : 1);
+    let defaultBranches: { branchId: number; colorCode: string }[] = [{ branchId: activeBranchId, colorCode: "red" }];
     if (branchOptions.length > 0) {
-      const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || branchOptions[0].id;
       const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
       if (targetBranch) {
         defaultBranches = [{ branchId: Number(targetBranch.id), colorCode: "red" }];
       }
     }
     // Allocate to all active menu times so category is immediately visible across all POS menu sessions
-    const defaultMenus = menuTimes.length > 0 ? menuTimes.map(m => m.menuId) : [];
+    const defaultMenus = menuTimes.length > 0
+      ? menuTimes.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
+      : [1];
 
     form.reset({
       code: currentCode,
@@ -124,7 +126,8 @@ const CategoryPage = () => {
     if (open && !editingId) {
       const currentMenuIds = form.getValues("menuIds");
       if ((!currentMenuIds || currentMenuIds.length === 0) && menuTimes.length > 0) {
-        form.setValue("menuIds", menuTimes.map(m => m.menuId), { shouldValidate: true });
+        const resolvedMenus = menuTimes.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0);
+        form.setValue("menuIds", resolvedMenus.length > 0 ? resolvedMenus : [1], { shouldValidate: true });
       }
       const currentBranches = form.getValues("branchAllocations");
       if ((!currentBranches || currentBranches.length === 0) && branchOptions.length > 0) {
@@ -190,9 +193,14 @@ const CategoryPage = () => {
       }
 
       // Extract menu allocations
-      let existingMenus = ((detail.menu || (detail as any).menus || []) as any[]).map((m: any) => Number(m.id ?? m.menuId));
+      let existingMenus = ((detail.menu || (detail as any).menus || []) as any[])
+        .map((m: any) => Number(m.id ?? m.menuId))
+        .filter((id: number) => id > 0);
       if (existingMenus.length === 0 && menuTimes.length > 0) {
-        existingMenus = menuTimes.map((m) => m.menuId);
+        existingMenus = menuTimes.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0);
+      }
+      if (existingMenus.length === 0) {
+        existingMenus = [1];
       }
 
       form.reset({

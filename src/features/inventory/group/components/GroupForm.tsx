@@ -45,6 +45,11 @@ const GroupForm = ({
         .then(code => setForm(prev => ({ ...prev, code })))
         .catch(() => {}); // ignore error, user can still type it manually
     }
+
+    const timer = setTimeout(() => {
+      document.getElementById("grp-name")?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
   }, [initialData]);
 
   const handleChange = <K extends keyof GroupFormState>(key: K, value: GroupFormState[K]) => {
@@ -70,7 +75,9 @@ const GroupForm = ({
         .catch(() => {});
     }
 
-    document.getElementById("grp-name")?.focus();
+    setTimeout(() => {
+      document.getElementById("grp-name")?.focus();
+    }, 10);
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -81,6 +88,16 @@ const GroupForm = ({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      const firstErrorId = newErrors.code ? "grp-code" : "grp-name";
+      setTimeout(() => {
+        const target = document.getElementById(firstErrorId);
+        if (target) {
+          target.focus();
+          if (target instanceof HTMLInputElement) {
+            target.select?.();
+          }
+        }
+      }, 10);
       return;
     }
     setErrors({});
@@ -134,10 +151,21 @@ const GroupForm = ({
           maxLength={50}
           value={form.code}
           disabled={saving}
-          readOnly
+          readOnly={Boolean(initialData?.code || form.code)}
           error={errors.code}
-          className="uppercase font-mono cursor-not-allowed text-slate-500 bg-slate-50"
-          onKeyDown={(e) => handleKeyDown(e, "grp-name")}
+          className={`uppercase font-mono ${initialData?.code || form.code ? "cursor-not-allowed text-slate-500 bg-slate-50" : ""}`}
+          onChange={(e) => handleChange("code", e.target.value.toUpperCase().replace(/\s/g, ""))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (!form.code.trim()) {
+                setErrors((prev) => ({ ...prev, code: "Code is required" }));
+                document.getElementById("grp-code")?.focus();
+                return;
+              }
+              handleKeyDown(e, "grp-name");
+            }
+          }}
         />
 
         <FormInput
@@ -151,7 +179,17 @@ const GroupForm = ({
           disabled={saving}
           error={errors.name}
           onChange={(e) => handleChange("name", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "grp-arabic")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (!form.name.trim()) {
+                setErrors((prev) => ({ ...prev, name: "Name is required" }));
+                document.getElementById("grp-name")?.focus();
+                return;
+              }
+              handleKeyDown(e, "grp-arabic");
+            }
+          }}
         />
 
         <FormInput
@@ -163,24 +201,48 @@ const GroupForm = ({
           disabled={saving}
           className="text-right"
           onChange={(e) => handleChange("arabicName", e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e)}
-        />
-
-        <div 
-          className="p-3 bg-slate-50 rounded-xl border border-slate-200"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              handleSubmit();
+              if (!form.code.trim()) {
+                setErrors((prev) => ({ ...prev, code: "Code is required" }));
+                document.getElementById("grp-code")?.focus();
+                return;
+              }
+              if (!form.name.trim()) {
+                setErrors((prev) => ({ ...prev, name: "Name is required" }));
+                document.getElementById("grp-name")?.focus();
+                return;
+              }
+              handleKeyDown(e, "grp-save-btn");
             }
           }}
-        >
+        />
+
+        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
           <Checkbox
+            id="grp-active"
             label="Active Status"
             tabIndex={4}
             checked={form.isActive}
             disabled={saving}
             onChange={(e) => handleChange("isActive", e.target.checked)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (!form.code.trim()) {
+                  setErrors((prev) => ({ ...prev, code: "Code is required" }));
+                  document.getElementById("grp-code")?.focus();
+                  return;
+                }
+                if (!form.name.trim()) {
+                  setErrors((prev) => ({ ...prev, name: "Name is required" }));
+                  document.getElementById("grp-name")?.focus();
+                  return;
+                }
+                handleKeyDown(e, "grp-save-btn");
+              }
+            }}
           />
         </div>
       </div>

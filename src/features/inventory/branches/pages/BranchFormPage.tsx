@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader } from "../../../../components/common";
+import axiosInstance from "../../../../api/axiosInstance";
 import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData, fetchGlobalBranches, addMasterBranch } from "../../shared/store/masterDataSlice";
@@ -58,15 +59,23 @@ const BranchFormPage = () => {
               fetchBranches(),
             ]);
             if (namesRes.status === "fulfilled" && Array.isArray(namesRes.value)) {
-              const found = namesRes.value.find((b: any) => (b.branchName || b.name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
-              if (found && (found.id || (found as any).branchId)) {
-                branchId = found.id || (found as any).branchId;
+              const found = namesRes.value.find((b: any) => String(b.branchName || b.BranchName || b.name || b.Name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+              if (found) {
+                branchId = found.id || (found as any).branchId || (found as any).BranchId || (found as any).Id;
               }
             }
             if ((!branchId || branchId === 0) && listRes.status === "fulfilled" && Array.isArray(listRes.value)) {
-              const found = listRes.value.find((b: any) => (b.branchName || b.name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
-              if (found && (found.id || (found as any).branchId)) {
-                branchId = found.id || (found as any).branchId;
+              const found = listRes.value.find((b: any) => String(b.branchName || b.BranchName || b.name || b.Name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+              if (found) {
+                branchId = found.id || (found as any).branchId || (found as any).BranchId || (found as any).Id;
+              }
+            }
+            if (!branchId || branchId === 0) {
+              const directRes = await axiosInstance.get<any>("/Branch/true/list-name").catch(() => null);
+              const list = Array.isArray(directRes?.data) ? directRes.data : Array.isArray(directRes?.data?.data) ? directRes.data.data : [];
+              const found = list.find((b: any) => String(b.branchName || b.BranchName || b.name || b.Name || "").trim().toLowerCase() === branchNameToUse.trim().toLowerCase());
+              if (found) {
+                branchId = found.branchId || found.BranchId || found.id || found.Id;
               }
             }
           } catch {

@@ -85,7 +85,11 @@ const ExtrasMasterPage = () => {
   useEffect(() => {
     if (editingId && detailRecord) {
       const mod = detailRecord.modifier?.[0];
-      const branchIds = (detailRecord.branchIds || []).map((b) => b.id);
+      const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+      let branchIds = (detailRecord.branchIds || []).map((b) => b.id);
+      if (branchIds.length === 0) {
+        branchIds = [activeBranchId];
+      }
       const categoryIds = (detailRecord.categoryIds || []).map((c) => c.id);
       
       if (mod) {
@@ -100,9 +104,11 @@ const ExtrasMasterPage = () => {
         });
       }
     }
-  }, [editingId, detailRecord, form]);
+  }, [editingId, detailRecord, form, branches]);
 
   const closeModal = () => {
+    const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+    const defaultBranchIds = [activeBranchId];
     setOpen(false);
     setEditingId(null);
     setActiveTab("general");
@@ -113,12 +119,14 @@ const ExtrasMasterPage = () => {
       typeId: 0,
       price: 0,
       color: "#cccccc",
-      branchIds: [],
+      branchIds: defaultBranchIds,
       categoryIds: [],
     });
   };
 
   const openCreateModal = () => {
+    const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+    const defaultBranchIds = [activeBranchId];
     setEditingId(null);
     setActiveTab("general");
     form.clearErrors();
@@ -128,10 +136,15 @@ const ExtrasMasterPage = () => {
       typeId: 0,
       price: 0,
       color: "#cccccc",
-      branchIds: [],
+      branchIds: defaultBranchIds,
       categoryIds: [],
     });
     setOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById("ext-name");
+      el?.focus();
+      if (el instanceof HTMLInputElement) el.select?.();
+    }, 50);
   };
 
   const handleEdit = (record: ExtrasMasterRecord) => {
@@ -139,6 +152,11 @@ const ExtrasMasterPage = () => {
     setActiveTab("general");
     form.clearErrors();
     setOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById("ext-name");
+      el?.focus();
+      if (el instanceof HTMLInputElement) el.select?.();
+    }, 50);
   };
 
   const handleDelete = () => {
@@ -172,11 +190,15 @@ const ExtrasMasterPage = () => {
       }
       setTimeout(() => {
         if (errors.name) {
-          document.getElementById("ext-name")?.focus();
+          const el = document.getElementById("ext-name");
+          el?.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
         } else if (errors.typeId) {
           document.getElementById("ext-type")?.focus();
         } else if (errors.price) {
-          document.getElementById("ext-price")?.focus();
+          const el = document.getElementById("ext-price");
+          el?.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
         }
       }, 50);
     } else if (errors.branchIds) {
@@ -254,8 +276,9 @@ const ExtrasMasterPage = () => {
             <Button 
               variant="secondary" 
               onClick={() => {
+                const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
                 form.reset({
-                  name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [], categoryIds: []
+                  name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [activeBranchId], categoryIds: []
                 });
                 form.clearErrors();
                 setActiveTab("general");

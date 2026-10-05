@@ -140,7 +140,7 @@ const ExtrasMasterForm = ({
       <div className="flex-1 min-h-[350px]">
         {activeTab === "general" && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <ExtrasBasicFields form={form} onSave={onSave} />
+            <ExtrasBasicFields form={form} onSave={onSave} saveButtonId={saveButtonId} />
           </div>
         )}
 
@@ -148,7 +148,18 @@ const ExtrasMasterForm = ({
           <div className="rounded-xl border border-[#49293e]/10 bg-[#49293e]/5 p-4 flex flex-col h-[350px] animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#49293e]/60">Category Allocation</p>
-              <div className="w-full sm:w-64">
+              <div 
+                className="w-full sm:w-64"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (filteredCategories.length > 0) {
+                      document.getElementById(`extra-cat-btn-${filteredCategories[0].id}`)?.focus();
+                    }
+                  }
+                }}
+              >
                 <SearchBar
                   value={categorySearch}
                   onChange={setCategorySearch}
@@ -164,18 +175,54 @@ const ExtrasMasterForm = ({
                 filteredCategories.map((cat) => {
                   const active = form.watch("categoryIds")?.includes(cat.id);
                   return (
-                    <div key={cat.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
-                      <span className="text-sm font-medium text-gray-700">{cat.name}</span>
+                    <div 
+                      key={cat.id} 
+                      onClick={() => {
+                        onToggleCategory(cat.id);
+                        document.getElementById(`extra-cat-btn-${cat.id}`)?.focus();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!active) {
+                            onToggleCategory(cat.id);
+                          }
+                          setTimeout(() => {
+                            document.getElementById(saveButtonId)?.focus();
+                          }, 10);
+                        }
+                      }}
+                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0 cursor-pointer hover:border-[#49293e]/20 transition"
+                    >
+                      <span className="text-sm font-medium text-gray-700 select-none">{cat.name}</span>
                       <button
+                        id={`extra-cat-btn-${cat.id}`}
                         type="button"
-                        onClick={() => onToggleCategory(cat.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleCategory(cat.id);
+                          e.currentTarget.focus();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!active) {
+                              onToggleCategory(cat.id);
+                            }
+                            setTimeout(() => {
+                              document.getElementById(saveButtonId)?.focus();
+                            }, 10);
+                          }
+                        }}
                         disabled={saving}
                         className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                           active
                             ? "bg-[#49293e] text-white"
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
                         }`}
-                        tabIndex={-1}
+                        tabIndex={0}
                       >
                         {active ? "Allocated" : "Allocate"}
                       </button>

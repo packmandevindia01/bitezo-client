@@ -6,6 +6,7 @@ import {
   loadMasterData,
   loadProducts,
   fetchAltNames,
+  fetchUnitPrice,
   deleteProviderSettings,
 } from "../services/providerSettingsService";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
@@ -23,13 +24,26 @@ import type {
 } from "../types";
 import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 
+const createEmptyEntry = (): ProviderSettingEntry => ({
+  productId: 0,
+  unitId: 0,
+  productName: "",
+  productCode: "",
+  altName: "",
+  isIncl: true,
+  exclPrice: 0,
+  inclPrice: 0,
+  price: 0,
+  rawPrice: "",
+});
+
 export const useProviderSettingsForm = (
   initialData: ProviderSettingsData | null | undefined,
   onSubmit: (payload: ProviderSettingsPayload) => void,
   onDeleteSuccess?: () => void
 ) => {
   const { showToast } = useToast();
-  const { decimalPart, formatAmount } = useCurrency();
+  const { decimalPart } = useCurrency();
 
   // ─── Master data ──────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderMasterItem[]>([]);
@@ -37,7 +51,7 @@ export const useProviderSettingsForm = (
   const [categories, setCategories] = useState<CategoryMasterItem[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategoryListItem[]>([]);
   const [allProducts, setAllProducts] = useState<ProductSearchItem[]>([]);
-  const [altNameOptions, setAltNameOptions] = useState<AltNameItem[]>([]);
+  const [altNamesMap, setAltNamesMap] = useState<Record<number, AltNameItem[]>>({});
 
   // ─── Loading states ───────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
@@ -68,17 +82,8 @@ export const useProviderSettingsForm = (
     setSelectedSubCategory("");
   };
 
-  // ─── Entry row ────────────────────────────────────────────────────────────
-  const [selectedProductKey, setSelectedProductKey] = useState("");
-  const [entryProductId, setEntryProductId] = useState<number | null>(null);
-  const [entryUnitId, setEntryUnitId] = useState<number | null>(null);
-  const [entryCode, setEntryCode] = useState("");
-  const [entryAltName, setEntryAltName] = useState("");
-  const [entryIsIncl, setEntryIsIncl] = useState(true);
-  const [entryPrice, setEntryPrice] = useState(formatAmount(0));
-
   // ─── Grid entries ─────────────────────────────────────────────────────────
-  const [entries, setEntries] = useState<ProviderSettingEntry[]>([]);
+  const [entries, setEntries] = useState<ProviderSettingEntry[]>([createEmptyEntry()]);
 
   // ─── Load master data + all products on mount ─────────────────────────────
   const loadBaseData = useCallback(async () => {
@@ -87,9 +92,9 @@ export const useProviderSettingsForm = (
       const master = await loadMasterData();
       if (master) {
         // Deduplicate master data
-        const uniqueProviders = Array.from(new Map((master.provider || []).map(p => [p.providerId, p])).values());
-        const uniqueBranches = Array.from(new Map((master.branch || []).map(b => [b.branchId, b])).values());
-        const uniqueCategories = Array.from(new Map((master.category || []).map(c => [c.categoryId, c])).values());
+        const uniqueProviders = Array.from(new Map((master.provider || []).map((p) => [p.providerId, p])).values());
+        const uniqueBranches = Array.from(new Map((master.branch || []).map((b) => [b.branchId, b])).values());
+        const uniqueCategories = Array.from(new Map((master.category || []).map((c) => [c.categoryId, c])).values());
 
         // Resiliently merge branches from branchApi to guarantee latest branches are present
         try {
@@ -112,7 +117,7 @@ export const useProviderSettingsForm = (
       const prodsData = await loadProducts({});
       const uniqueProds: ProductSearchItem[] = [];
       const seenKeys = new Set<string>();
-      
+
       prodsData.forEach((p) => {
         const key = `${p.productId}-${p.unitId}`;
         if (!seenKeys.has(key)) {
@@ -128,7 +133,7 @@ export const useProviderSettingsForm = (
           });
         }
       });
-      
+
       setAllProducts(uniqueProds);
     } catch {
       showToast("Failed to load initial data", "error");
@@ -137,7 +142,9 @@ export const useProviderSettingsForm = (
     }
   }, [showToast]);
 
-  useEffect(() => { void loadBaseData(); }, [loadBaseData]);
+  useEffect(() => {
+    void loadBaseData();
+  }, [loadBaseData]);
 
   // Real-time synchronization for branch updates
   useEffect(() => {
@@ -152,31 +159,49 @@ export const useProviderSettingsForm = (
     const { master, details } = initialData;
     setSelectedProvider(master.providerId.toString());
     setSelectedBranch(master.branchId.toString());
-    setSelectedDate(master.createdAt?.split("T")[0] || "");
-    
-      if (details) {
-        const uniqueDetails: ProviderSettingEntry[] = [];
-        const seenDetailsKeys = new Set<string>();
+    setSelectedDate(master.createdAt?.split("T")[0] || new Date().toISOString().split("T")[0]);
 
-        details.forEach((d) => {
-          const key = `${d.productId}-${d.unitId}`;
-          if (!seenDetailsKeys.has(key)) {
-            seenDetailsKeys.add(key);
-            uniqueDetails.push({
-              productId: d.productId,
+    if (details && details.length > 0) {
+      const uniqueDetails: ProviderSettingEntry[] = [];
+      const seenDetailsKeys = new Set<string>();
+      const newAltMap: Record<number, AltNameItem[]> = {};
+
+      details.forEach((d) => {
+        const key = `${d.productId}-${d.unitId}`;
+        if (!seenDetailsKeys.has(key)) {
+          seenDetailsKeys.add(key);
+          uniqueDetails.push({
+            productId: d.productId,
+            unitId: d.unitId,
+            productName: d.product,
+            productCode: d.barcode,
+            altName: d.altName,
+            isIncl: d.isIncl,
+            exclPrice: d.isIncl ? d.price / 1.05 : d.price,
+            inclPrice: d.isIncl ? d.price : d.price * 1.05,
+            price: d.price,
+            rawPrice: d.price ? String(d.price) : "",
+          });
+
+          if (!newAltMap[d.productId]) {
+            newAltMap[d.productId] = [];
+          }
+          if (!newAltMap[d.productId].some((a) => a.unitId === d.unitId)) {
+            newAltMap[d.productId].push({
               unitId: d.unitId,
-              productName: d.product,
-              productCode: d.barcode,
               altName: d.altName,
-              isIncl: d.isIncl,
-              exclPrice: d.isIncl ? d.price / 1.05 : d.price,
-              inclPrice: d.isIncl ? d.price : d.price * 1.05,
               price: d.price,
+              isIncl: d.isIncl,
             });
           }
-        });
-        setEntries(uniqueDetails);
-      }
+        }
+      });
+
+      setEntries(uniqueDetails.length > 0 ? uniqueDetails : [createEmptyEntry()]);
+      setAltNamesMap((prev) => ({ ...prev, ...newAltMap }));
+    } else {
+      setEntries([createEmptyEntry()]);
+    }
   }, [initialData]);
 
   // ─── Sub-categories when category changes ─────────────────────────────────
@@ -253,13 +278,6 @@ export const useProviderSettingsForm = (
           }
         });
 
-        setSelectedProductKey("");
-        setEntryProductId(null);
-        setEntryUnitId(null);
-        setEntryCode("");
-        setEntryAltName("");
-        setEntryPrice(formatAmount(0));
-        setAltNameOptions([]);
         setAllProducts(uniqueProds);
       } catch (e) {
         console.error("Failed to load category products", e);
@@ -272,7 +290,7 @@ export const useProviderSettingsForm = (
     };
   }, [selectedCategoryIds, selectedSubCategory]);
 
-  // ─── Handlers ─────────────────────────────────────────────────────────────
+  // ─── Load Data Button Handler ─────────────────────────────────────────────
   const handleLoad = async () => {
     if (!selectedProvider || !selectedBranch) {
       showToast("Please select Provider and Branch", "warning");
@@ -300,31 +318,81 @@ export const useProviderSettingsForm = (
       const uniqueLoadedEntries: ProviderSettingEntry[] = [];
       const seenLoadedKeys = new Set<string>();
 
-      data.forEach((p) => {
-        const key = `${p.productId}-${p.unitId}`;
+      data.forEach((p: any) => {
+        const prodId = Number(p.productId ?? p.ProductId ?? 0);
+        const rawUnitId = Number(p.unitId ?? p.UnitId ?? p.uomId ?? p.UomId ?? 0);
+        const rawAltName = String(p.altName ?? p.AltName ?? "").trim();
+        const rawProdName = String(p.product ?? p.Product ?? p.productName ?? p.ProductName ?? "").trim();
+        const barcode = String(p.barcode ?? p.Barcode ?? "").trim();
+        const price = Number(p.price ?? p.Price ?? 0);
+        const isIncl = Boolean(p.isIncl ?? p.IsIncl ?? true);
+
+        // Match with allProducts to resolve unitId or altName if missing from API
+        const matched = allProducts.find((ap) => ap.productId === prodId);
+        const unitId = rawUnitId > 0 ? rawUnitId : (matched?.unitId ?? 0);
+        const altName = rawAltName || (matched?.altName && matched.altName.trim()) || rawProdName || "Default";
+
+        const key = `${prodId}-${unitId}`;
         if (!seenLoadedKeys.has(key)) {
           seenLoadedKeys.add(key);
           uniqueLoadedEntries.push({
-            productId: p.productId,
-            unitId: p.unitId,
-            productName: p.product,
-            productCode: p.barcode,
-            altName: p.altName || p.product,
-            isIncl: p.isIncl,
-            exclPrice: p.isIncl ? p.price / 1.05 : p.price,
-            inclPrice: p.isIncl ? p.price : p.price * 1.05,
-            price: p.price,
+            productId: prodId,
+            unitId,
+            productName: rawProdName,
+            productCode: barcode,
+            altName,
+            isIncl,
+            exclPrice: isIncl ? price / 1.05 : price,
+            inclPrice: isIncl ? price : price * 1.05,
+            price,
+            rawPrice: price ? String(price) : "",
           });
         }
       });
-      
+
       setEntries((prev) => {
-        const existingKeys = new Set(prev.map((e) => `${e.productId}-${e.unitId}`));
+        const nonBlank = prev.filter((e) => e.productId > 0);
+        const existingKeys = new Set(nonBlank.map((e) => `${e.productId}-${e.unitId}`));
         const newItems = uniqueLoadedEntries.filter(
           (e) => !existingKeys.has(`${e.productId}-${e.unitId}`)
         );
-        return [...prev, ...newItems];
+        const combined = [...nonBlank, ...newItems];
+        return combined.length > 0 ? combined : [createEmptyEntry()];
       });
+
+      // Pre-fetch alt names for loaded products in background to auto-fill unitId & alt options
+      const missingAltProdIds = Array.from(
+        new Set(uniqueLoadedEntries.map((e) => e.productId).filter((id) => id > 0 && !altNamesMap[id]))
+      );
+
+      if (missingAltProdIds.length > 0) {
+        void Promise.allSettled(
+          missingAltProdIds.map(async (pid) => {
+            try {
+              const alts = await fetchAltNames(pid);
+              if (Array.isArray(alts) && alts.length > 0) {
+                setAltNamesMap((prev) => ({ ...prev, [pid]: alts }));
+                setEntries((prev) =>
+                  prev.map((e) => {
+                    if (e.productId === pid && (!e.unitId || e.unitId === 0)) {
+                      return {
+                        ...e,
+                        unitId: alts[0].unitId,
+                        altName: alts[0].altName || e.altName,
+                      };
+                    }
+                    return e;
+                  })
+                );
+              }
+            } catch {
+              // ignore
+            }
+          })
+        );
+      }
+
+      showToast(`Loaded ${uniqueLoadedEntries.length} products`, "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to load settings", "error");
     } finally {
@@ -332,128 +400,174 @@ export const useProviderSettingsForm = (
     }
   };
 
-  const handleProductSelect = async (val: string) => {
-    setSelectedProductKey(val);
-    if (!val) {
-      setEntryProductId(null);
-      setEntryUnitId(null);
-      setEntryCode("");
-      setEntryAltName("");
-      setEntryPrice(formatAmount(0));
-      setAltNameOptions([]);
-      return;
-    }
-    const [pid, uid] = val.split("-").map(Number);
-    const match = allProducts.find((p) => p.productId === pid && p.unitId === uid);
-    if (!match) return;
+  // ─── Inline Grid Actions ──────────────────────────────────────────────────
+  const handleAddRow = () => {
+    setEntries((prev) => [...prev, createEmptyEntry()]);
+  };
 
-    setEntryProductId(pid);
-    setEntryUnitId(uid);
-    setEntryCode(match.barcode);
-    setEntryAltName(match.altName);
-    setEntryPrice(match.price ? match.price.toFixed(decimalPart) : formatAmount(0));
-    if (match.isIncl !== undefined) setEntryIsIncl(match.isIncl);
+  const handleRemoveEntry = (index: number) => {
+    setEntries((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.length > 0 ? updated : [createEmptyEntry()];
+    });
+  };
 
+  const loadAltNames = async (productId: number) => {
+    if (!productId || altNamesMap[productId]) return;
     try {
       setLoadingAltNames(true);
-      const alts = await fetchAltNames(pid);
-      setAltNameOptions(alts);
-      const currentAlt = alts.find((a) => a.unitId === uid);
-      if (currentAlt) setEntryAltName(currentAlt.altName);
+      const alts = await fetchAltNames(productId);
+      setAltNamesMap((prev) => ({ ...prev, [productId]: alts }));
     } catch {
-      showToast("Failed to load alt names", "error");
+      // ignore
     } finally {
       setLoadingAltNames(false);
     }
   };
 
-  const handleAltNameSelect = (val: string) => {
-    if (!val || !entryProductId) return;
-    const uid = Number(val);
-    const alt = altNameOptions.find((a) => a.unitId === uid);
+  const handleGridProductSelect = async (index: number, val: string) => {
+    if (!val) {
+      setEntries((prev) => {
+        const updated = [...prev];
+        updated[index] = createEmptyEntry();
+        return updated;
+      });
+      return;
+    }
+
+    const [pid, uid] = val.split("-").map(Number);
+    const product =
+      allProducts.find((p) => p.productId === pid && p.unitId === uid) ||
+      allProducts.find((p) => p.productId === pid);
+    if (!product) return;
+
+    const isDuplicate = entries.some(
+      (e, i) => i !== index && e.productId === pid && e.unitId === (product.unitId || uid)
+    );
+    if (isDuplicate) {
+      showToast("This product is already in the list", "warning");
+      return;
+    }
+
+    const isIncl = product.isIncl ?? true;
+    const price = product.price ?? 0;
+    const exclPrice = isIncl ? price / 1.05 : price;
+    const inclPrice = isIncl ? price : price * 1.05;
+
+    const rowEntry: ProviderSettingEntry = {
+      productId: pid,
+      unitId: product.unitId || uid,
+      productName: product.productName,
+      productCode: product.barcode,
+      altName: product.altName,
+      isIncl,
+      price,
+      rawPrice: price ? String(price) : "",
+      exclPrice,
+      inclPrice,
+    };
+
+    setEntries((prev) => {
+      const updated = [...prev];
+      updated[index] = rowEntry;
+      return updated;
+    });
+
+    if (!altNamesMap[pid]) {
+      void loadAltNames(pid);
+    }
+  };
+
+  const handleGridAltNameSelect = async (index: number, unitId: number) => {
+    const entry = entries[index];
+    if (!entry || !entry.productId) return;
+
+    const alts = altNamesMap[entry.productId] || [];
+    const alt = alts.find((a) => a.unitId === unitId);
     if (!alt) return;
 
-    const fullProduct = allProducts.find(
-      (p) => p.productId === entryProductId && p.unitId === uid
+    const isDuplicate = entries.some(
+      (e, i) => i !== index && e.productId === entry.productId && e.unitId === unitId
     );
-
-    setEntryUnitId(uid);
-    setEntryAltName(alt.altName);
-    setSelectedProductKey(`${entryProductId}-${uid}`);
-
-    if (fullProduct) {
-      setEntryCode(fullProduct.barcode);
-      setEntryPrice(fullProduct.price ? fullProduct.price.toFixed(decimalPart) : formatAmount(0));
-      if (fullProduct.isIncl !== undefined) setEntryIsIncl(fullProduct.isIncl);
-    } else {
-      setEntryCode("");
-      setEntryPrice(formatAmount(0));
+    if (isDuplicate) {
+      showToast("This product and unit combination is already in the list", "warning");
+      return;
     }
+
+    let newPrice = alt.price ?? entry.price;
+    let isIncl = alt.isIncl ?? entry.isIncl;
+
+    if (alt.price === undefined) {
+      try {
+        const unitData = await fetchUnitPrice(entry.productId, unitId);
+        if (unitData && typeof unitData.price === "number") {
+          newPrice = unitData.price;
+          if (unitData.isIncl !== undefined) isIncl = unitData.isIncl;
+        }
+      } catch {
+        // use existing price
+      }
+    }
+
+    const exclPrice = isIncl ? newPrice / 1.05 : newPrice;
+    const inclPrice = isIncl ? newPrice : newPrice * 1.05;
+
+    setEntries((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        unitId,
+        altName: alt.altName,
+        isIncl,
+        price: newPrice,
+        rawPrice: newPrice ? String(newPrice) : "",
+        exclPrice,
+        inclPrice,
+      };
+      return updated;
+    });
   };
 
-  const handleAddEntry = () => {
-    if (!entryProductId || !entryUnitId) {
-      showToast("Please select a product", "warning");
-      return;
-    }
-    const priceVal = parseFloat(entryPrice);
-    if (isNaN(priceVal) || priceVal <= 0) {
-      showToast("Please enter a valid price", "warning");
-      return;
-    }
-    if (entries.some((e) => e.productId === entryProductId && e.unitId === entryUnitId)) {
-      showToast("This product/unit combination is already in the list", "warning");
-      return;
-    }
-    setEntries((prev) => [
-      ...prev,
-      {
-        productId: entryProductId,
-        unitId: entryUnitId,
-        productName: allProducts.find((p) => p.productId === entryProductId)?.productName ?? "",
-        productCode: entryCode,
-        altName: entryAltName,
-        isIncl: entryIsIncl,
-        exclPrice: entryIsIncl ? priceVal / 1.05 : priceVal,
-        inclPrice: entryIsIncl ? priceVal : priceVal * 1.05,
-        price: priceVal,
-      },
-    ]);
-    // Reset row
-    setSelectedProductKey("");
-    setEntryProductId(null);
-    setEntryUnitId(null);
-    setEntryCode("");
-    setEntryAltName("");
-    setEntryPrice(formatAmount(0));
-    setEntryIsIncl(true);
-    setAltNameOptions([]);
+  const handleGridToggleTax = (index: number) => {
+    setEntries((prev) => {
+      const updated = [...prev];
+      const row = updated[index];
+      if (!row || !row.productId) return prev;
+      const nextIsIncl = !row.isIncl;
+      const exclPrice = nextIsIncl ? row.price / 1.05 : row.price;
+      const inclPrice = nextIsIncl ? row.price : row.price * 1.05;
+      updated[index] = {
+        ...row,
+        isIncl: nextIsIncl,
+        exclPrice,
+        inclPrice,
+      };
+      return updated;
+    });
   };
 
-  const handleEditEntry = async (entry: ProviderSettingEntry) => {
-    const key = `${entry.productId}-${entry.unitId}`;
-    setSelectedProductKey(key);
-    setEntryProductId(entry.productId);
-    setEntryUnitId(entry.unitId);
-    setEntryCode(entry.productCode);
-    setEntryAltName(entry.altName);
-    setEntryPrice(entry.price.toFixed(decimalPart));
-    setEntryIsIncl(entry.isIncl);
-
-    try {
-      setLoadingAltNames(true);
-      const alts = await fetchAltNames(entry.productId);
-      setAltNameOptions(alts);
-    } catch {
-      showToast("Failed to load alt names for editing", "error");
-    } finally {
-      setLoadingAltNames(false);
-    }
+  const handleGridPriceChange = (index: number, val: string) => {
+    setEntries((prev) => {
+      const updated = [...prev];
+      const row = updated[index];
+      if (!row) return prev;
+      const num = parseFloat(val) || 0;
+      const exclPrice = row.isIncl ? num / 1.05 : num;
+      const inclPrice = row.isIncl ? num : num * 1.05;
+      updated[index] = {
+        ...row,
+        price: num,
+        rawPrice: val,
+        exclPrice,
+        inclPrice,
+      };
+      return updated;
+    });
   };
 
   const handleDeleteSettings = async () => {
     if (!initialData?.master?.transId) {
-      setEntries([]);
+      setEntries([createEmptyEntry()]);
       return;
     }
     try {
@@ -469,26 +583,12 @@ export const useProviderSettingsForm = (
     }
   };
 
-  const handleRemoveEntry = (productId: number, unitId: number) => {
-    setEntries((prev) =>
-      prev.filter((e) => !(e.productId == productId && e.unitId == unitId))
-    );
-  };
-
   const handleReset = () => {
     setSelectedProvider("");
     setSelectedBranch("");
     setSelectedCategoryIds([]);
     setSelectedSubCategory("");
-    setEntries([]);
-    setSelectedProductKey("");
-    setEntryProductId(null);
-    setEntryUnitId(null);
-    setEntryCode("");
-    setEntryAltName("");
-    setEntryPrice(formatAmount(0));
-    setEntryIsIncl(true);
-    setAltNameOptions([]);
+    setEntries([createEmptyEntry()]);
   };
 
   const handleSubmit = () => {
@@ -496,22 +596,32 @@ export const useProviderSettingsForm = (
       showToast("Please select Provider and Branch", "warning");
       return;
     }
-    if (entries.length === 0) {
-      showToast("No items to save", "warning");
+    const validEntries = entries.filter((e) => e.productId > 0 && e.unitId > 0);
+    if (validEntries.length === 0) {
+      showToast("Please add at least one product", "warning");
+      return;
+    }
+    const invalidPrice = validEntries.find((e) => !e.price || e.price <= 0);
+    if (invalidPrice) {
+      showToast(`Please enter a valid price for ${invalidPrice.productName || "all items"}`, "warning");
       return;
     }
     const [year, month, day] = selectedDate.split("-").map(Number);
     const now = new Date();
     const timestamp = new Date(
-      year, month - 1, day,
-      now.getHours(), now.getMinutes(), now.getSeconds()
+      year,
+      month - 1,
+      day,
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds()
     ).toISOString();
 
     onSubmit({
       branchId: Number(selectedBranch),
       providerId: Number(selectedProvider),
       createdAt: timestamp,
-      details: entries.map((e) => ({
+      details: validEntries.map((e) => ({
         productId: e.productId,
         unitId: e.unitId,
         isIncl: e.isIncl,
@@ -522,38 +632,43 @@ export const useProviderSettingsForm = (
 
   return {
     // master data
-    providers, branches, categories, subCategories, allProducts, altNameOptions,
+    providers,
+    branches,
+    categories,
+    subCategories,
+    allProducts,
+    altNamesMap,
     // loading
-    loading, loadingSubs, loadingAltNames,
+    loading,
+    loadingSubs,
+    loadingAltNames,
     // filter selections
-    selectedProvider, setSelectedProvider,
-    selectedDate, setSelectedDate,
-    selectedBranch, setSelectedBranch,
+    selectedProvider,
+    setSelectedProvider,
+    selectedDate,
+    setSelectedDate,
+    selectedBranch,
+    setSelectedBranch,
     selectedCategoryIds,
     handleAddCategory,
     handleRemoveCategory,
     handleClearCategories,
-    selectedSubCategory, setSelectedSubCategory,
-    // entry row
-    selectedProductKey,
-    entryUnitId,
-    entryCode, setEntryCode,
-    entryAltName,
-    entryIsIncl, setEntryIsIncl,
-    entryPrice, setEntryPrice,
+    selectedSubCategory,
+    setSelectedSubCategory,
     // grid
     entries,
+    setEntries,
+    handleAddRow,
+    handleRemoveEntry,
+    handleGridProductSelect,
+    handleGridAltNameSelect,
+    handleGridToggleTax,
+    handleGridPriceChange,
+    loadAltNames,
     // handlers
     handleLoad,
-    handleProductSelect,
-    handleAltNameSelect,
-    handleAddEntry,
-    handleEditEntry,
-    handleRemoveEntry,
     handleDeleteSettings,
     handleReset,
     handleSubmit,
   };
 };
-
-

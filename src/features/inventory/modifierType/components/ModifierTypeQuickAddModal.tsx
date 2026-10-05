@@ -50,7 +50,15 @@ export const ModifierTypeQuickAddModal = ({ isOpen, onClose, onSuccess }: Props)
         </div>
       }
     >
-      <ModifierTypeForm form={form} onSave={form.handleSubmit(onSubmit as any)} />
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          form.handleSubmit(onSubmit as any)();
+        }}
+      >
+        <ModifierTypeForm form={form} onSave={form.handleSubmit(onSubmit as any)} />
+      </form>
     </Modal>
   );
 };

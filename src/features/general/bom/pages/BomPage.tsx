@@ -69,11 +69,11 @@ const BomPage = () => {
           return;
         }
       }
-      const container = (e.target as HTMLElement).closest('.relative');
-      const formElements = container
-        ? Array.from(container.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
-            .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'))
-        : [];
+      const formElements = Array.from(
+        document.querySelectorAll(
+          'input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'
+        )
+      ).filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
       const currentIndex = formElements.indexOf(e.target as Element);
       if (currentIndex > -1 && formElements[currentIndex + 1]) {
         (formElements[currentIndex + 1] as HTMLElement).focus();
@@ -277,30 +277,91 @@ const BomPage = () => {
                                         setValue(`items.${index}.qty`, "");
                                       }
                                       setTimeout(() => {
-                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                        qtyInputs[0]?.focus();
-                                      }, 100);
+                                        const unitEl = document.getElementById(`item-unit-${index}`);
+                                        if (unitEl) {
+                                          unitEl.focus();
+                                        } else {
+                                          document.getElementById(`item-qty-${index}`)?.focus();
+                                        }
+                                      }, 50);
                                     }}
                                     onKeyDown={async (e) => {
                                       if (e.key === "Enter") {
+                                        e.preventDefault();
                                         if (productSelectedRef.current) {
                                           productSelectedRef.current = false;
+                                          setTimeout(() => {
+                                            const unitEl = document.getElementById(`item-unit-${index}`);
+                                            if (unitEl) {
+                                              unitEl.focus();
+                                            } else {
+                                              document.getElementById(`item-qty-${index}`)?.focus();
+                                            }
+                                          }, 50);
                                           return;
                                         }
                                         const rawValue = e.currentTarget.value;
                                         if (rawValue && rawValue.trim().length > 0) {
-                                          e.preventDefault();
+                                          const matchedOpt = rowOptions.find(
+                                            (o) => o.label.toLowerCase() === rawValue.trim().toLowerCase() ||
+                                                   (o as any).code?.toLowerCase() === rawValue.trim().toLowerCase()
+                                          ) as any;
+                                          if (matchedOpt) {
+                                            selectField.onChange(matchedOpt.value);
+                                            setValue(`items.${index}.productName`, matchedOpt.label);
+                                            setValue(`items.${index}.code`, matchedOpt.code || "");
+                                            handleGridProductSelect(index, matchedOpt.value, matchedOpt.code || "");
+                                            setTimeout(() => {
+                                              const unitEl = document.getElementById(`item-unit-${index}`);
+                                              if (unitEl) {
+                                                unitEl.focus();
+                                              } else {
+                                                document.getElementById(`item-qty-${index}`)?.focus();
+                                              }
+                                            }, 50);
+                                            return;
+                                          }
+
                                           const success = await handleBarcodeScan(index, rawValue.trim());
                                           if (success) {
                                             setTimeout(() => {
-                                              const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                              qtyInputs[0]?.focus();
-                                            }, 100);
+                                              const unitEl = document.getElementById(`item-unit-${index}`);
+                                              if (unitEl) {
+                                                unitEl.focus();
+                                              } else {
+                                                document.getElementById(`item-qty-${index}`)?.focus();
+                                              }
+                                            }, 50);
+                                            return;
                                           }
+                                        }
+
+                                        const currentProd = form.getValues(`items.${index}.product`);
+                                        if (currentProd && currentProd.trim() !== "") {
+                                          setTimeout(() => {
+                                            const unitEl = document.getElementById(`item-unit-${index}`);
+                                            if (unitEl) {
+                                              unitEl.focus();
+                                            } else {
+                                              document.getElementById(`item-qty-${index}`)?.focus();
+                                            }
+                                          }, 50);
                                           return;
                                         }
-                                        if (items.length > 1) remove(index);
-                                        setTimeout(() => document.getElementById("bom-save-btn")?.focus(), 50);
+
+                                        if (index > 0 && items.length > 1) {
+                                          remove(index);
+                                          setTimeout(() => document.getElementById("bom-save-btn")?.focus(), 50);
+                                        } else {
+                                          setTimeout(() => {
+                                            const unitEl = document.getElementById(`item-unit-${index}`);
+                                            if (unitEl) {
+                                              unitEl.focus();
+                                            } else {
+                                              document.getElementById(`item-qty-${index}`)?.focus();
+                                            }
+                                          }, 50);
+                                        }
                                       }
                                     }}
                                     disabled={!canSave}
@@ -321,7 +382,20 @@ const BomPage = () => {
                                   className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
                                   options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
-                                  onChange={(val) => handleGridUnitChange(index, val)}
+                                  onChange={(val) => {
+                                    handleGridUnitChange(index, val);
+                                    setTimeout(() => {
+                                      document.getElementById(`item-qty-${index}`)?.focus();
+                                    }, 50);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setTimeout(() => {
+                                        document.getElementById(`item-qty-${index}`)?.focus();
+                                      }, 50);
+                                    }
+                                  }}
                                   disabled={!canSave}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
@@ -342,14 +416,21 @@ const BomPage = () => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
                                   const rowProduct = form.getValues(`items.${index}.product`);
-                                  if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-                                    append({
-                                      id: generateUUID(),
-                                      product: "", code: "", unit: "", qty: "1"
-                                    }, { shouldFocus: false });
-                                    setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+                                  if (rowProduct && rowProduct.trim() !== "") {
+                                    if (index === items.length - 1) {
+                                      append({
+                                        id: generateUUID(),
+                                        product: "", code: "", unit: "", qty: "1"
+                                      }, { shouldFocus: false });
+                                      setTimeout(() => document.getElementById(`product-select-${items.length}`)?.focus(), 50);
+                                    } else {
+                                      setTimeout(() => document.getElementById(`product-select-${index + 1}`)?.focus(), 50);
+                                    }
                                   } else {
-                                    handleGridNav(e, index);
+                                    if (items.length > 1) {
+                                      remove(index);
+                                    }
+                                    setTimeout(() => document.getElementById("bom-save-btn")?.focus(), 50);
                                   }
                                 }
                               }}
@@ -439,7 +520,6 @@ const BomPage = () => {
                 onClick={onSubmit} 
                 disabled={saving} 
                 loading={saving}
-                tabIndex={12}
               >
                 Save
               </Button>
@@ -454,7 +534,6 @@ const BomPage = () => {
                 disabled={!canDelete || items.length === 0} 
                 isAction
                 icon={<Trash2 size={16} />}
-                tabIndex={13}
               >
                 Delete
               </Button>

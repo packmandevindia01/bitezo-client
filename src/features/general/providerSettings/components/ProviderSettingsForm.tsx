@@ -4,7 +4,6 @@ import { Button } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useProviderSettingsForm } from "../hooks/useProviderSettingsForm";
 import ProviderSettingsFilters from "./ProviderSettingsFilters";
-import ProviderSettingsEntryRow from "./ProviderSettingsEntryRow";
 import ProviderSettingsGrid from "./ProviderSettingsGrid";
 import type { ProviderSettingsData, ProviderSettingsPayload } from "../types";
 
@@ -21,7 +20,8 @@ const ProviderSettingsForm = ({ initialData, onSubmit, onCancel, submitting }: P
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   const handleClearClick = () => {
-    if (form.entries.length > 0) {
+    const hasData = form.entries.some((e) => e.productId > 0);
+    if (hasData) {
       setShowClearConfirm(true);
     } else {
       form.handleReset();
@@ -29,10 +29,12 @@ const ProviderSettingsForm = ({ initialData, onSubmit, onCancel, submitting }: P
     }
   };
 
+  const validItemsCount = form.entries.filter((e) => e.productId > 0).length;
+
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      {/* ── Fixed Header Section (Filters & Entry) ── */}
-      <div className="flex flex-col gap-2 p-1">
+    <div className="flex flex-col flex-1 h-full overflow-hidden p-2">
+      {/* ── Fixed Header Section (Filters Only) ── */}
+      <div className="flex flex-col gap-2 flex-none">
         <ProviderSettingsFilters
           providers={form.providers}
           branches={form.branches}
@@ -55,50 +57,45 @@ const ProviderSettingsForm = ({ initialData, onSubmit, onCancel, submitting }: P
           onSubCategoryChange={form.setSelectedSubCategory}
           onLoad={form.handleLoad}
         />
-
-        <ProviderSettingsEntryRow
-          allProducts={form.allProducts}
-          altNameOptions={form.altNameOptions}
-          selectedProductKey={form.selectedProductKey}
-          entryUnitId={form.entryUnitId}
-          entryCode={form.entryCode}
-          entryPrice={form.entryPrice}
-          entryIsIncl={form.entryIsIncl}
-          loadingAltNames={form.loadingAltNames}
-          onProductChange={(val) => void form.handleProductSelect(val)}
-          onAltNameChange={form.handleAltNameSelect}
-          onCodeChange={form.setEntryCode}
-          onPriceChange={form.setEntryPrice}
-          onIsInclChange={form.setEntryIsIncl}
-          onAdd={form.handleAddEntry}
-        />
       </div>
 
-      {/* ── Scrollable Table Section ── */}
-      <div className="flex-1 overflow-y-auto mt-2 pr-1">
+      {/* ── Interactive Data Grid (Purchase Invoice Style) ── */}
+      <div className="flex-1 overflow-hidden mt-2 flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm min-h-0">
         <ProviderSettingsGrid
           entries={form.entries}
+          allProducts={form.allProducts}
+          altNamesMap={form.altNamesMap}
+          onProductSelect={form.handleGridProductSelect}
+          onAltNameSelect={form.handleGridAltNameSelect}
+          onToggleTax={form.handleGridToggleTax}
+          onPriceChange={form.handleGridPriceChange}
           onRemove={form.handleRemoveEntry}
-          onEdit={form.handleEditEntry}
+          onAddRow={form.handleAddRow}
+          onLoadAltNames={form.loadAltNames}
+          disabled={submitting}
         />
       </div>
 
       {/* ── Sticky Action Footer ── */}
-      <div className="flex justify-end gap-3 pt-4 mt-2 bg-white border-t border-gray-100">
-        <Button
-          variant="danger"
-          onClick={() => setShowDeleteAllConfirm(true)}
-          isAction
-          icon={<Trash2 size={18} />}
-          tabIndex={-1}
-        >
-          Delete All
-        </Button>
+      <div className="flex justify-end gap-3 pt-3 mt-2 bg-white border-t border-gray-100 flex-none">
+        {initialData?.master?.transId ? (
+          <Button
+            variant="danger"
+            onClick={() => setShowDeleteAllConfirm(true)}
+            isAction
+            icon={<Trash2 size={18} />}
+            tabIndex={-1}
+            disabled={submitting}
+          >
+            Delete All
+          </Button>
+        ) : null}
         <Button
           variant="secondary"
           onClick={onCancel}
           isAction
           icon={<X size={18} />}
+          disabled={submitting}
         >
           Cancel
         </Button>
@@ -108,17 +105,18 @@ const ProviderSettingsForm = ({ initialData, onSubmit, onCancel, submitting }: P
           isAction
           icon={<RotateCcw size={18} />}
           tabIndex={-1}
+          disabled={submitting}
         >
           Clear
         </Button>
         <Button
           onClick={form.handleSubmit}
-          disabled={submitting || form.entries.length === 0}
+          disabled={submitting || validItemsCount === 0}
           isAction
           loading={submitting}
           icon={<Save size={18} />}
         >
-          Save
+          {initialData?.master?.transId ? "Update" : "Save"}
         </Button>
       </div>
 

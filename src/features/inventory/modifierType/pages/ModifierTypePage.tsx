@@ -20,9 +20,11 @@ import {
 } from "../hooks/useModifierTypeQueries";
 import { modifierTypeFormSchema, type ModifierTypeForm as ModifierTypeFormType, type ModifierTypeRecord } from "../schemas";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useToast } from "../../../../app/providers/useToast";
 
 const ModifierTypePage = () => {
   const { hasPermission } = usePermissions();
+  const { showToast } = useToast();
 
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -100,6 +102,18 @@ const ModifierTypePage = () => {
     }
   };
 
+  const handleSave = form.handleSubmit(
+    (data) => {
+      onSubmit(data);
+    },
+    (invalidErrors) => {
+      const firstError = Object.values(invalidErrors)[0] as any;
+      if (firstError?.message) {
+        showToast(String(firstError.message), "error");
+      }
+    }
+  );
+
   return (
     <PageShell title="Modifier Type">
       <ListHeader
@@ -169,7 +183,7 @@ const ModifierTypePage = () => {
             </Button>
             <Button 
               id="modtype-save"
-              onClick={form.handleSubmit(onSubmit as any)} 
+              onClick={handleSave} 
               loading={isSaving}
               disabled={isDetailLoading}
               isAction
@@ -189,6 +203,7 @@ const ModifierTypePage = () => {
                 }}
                 disabled={isSaving || isDetailLoading}
                 isAction
+                tabIndex={-1}
                 icon={<Trash2 size={18} />}
               >
                 Delete
@@ -197,7 +212,15 @@ const ModifierTypePage = () => {
           </div>
         }
       >
-        <ModifierTypeForm form={form} onSave={form.handleSubmit(onSubmit as any)} />
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+        >
+          <ModifierTypeForm form={form} onSave={handleSave} />
+        </form>
       </Modal>
 
       <ConfirmDialog

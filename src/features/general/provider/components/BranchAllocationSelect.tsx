@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X, Check } from "lucide-react";
+import { handleFocusNextInput } from "../../../../utils/keyboard";
 
 export interface BranchOption {
   id: number;
@@ -161,10 +162,21 @@ export const BranchAllocationSelect: React.FC<BranchAllocationSelectProps> = ({
     if (disabled) return;
 
     if (!isOpen) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === " ") {
         e.preventDefault();
         setIsOpen(true);
         setActiveIndex(0);
+      } else if (e.key === "Enter") {
+        if (selectedIds.length === 0) {
+          e.preventDefault();
+          setIsOpen(true);
+          setActiveIndex(0);
+        } else {
+          e.preventDefault();
+          if (triggerRef.current) {
+            handleFocusNextInput(triggerRef.current);
+          }
+        }
       }
       return;
     }
@@ -210,7 +222,9 @@ export const BranchAllocationSelect: React.FC<BranchAllocationSelectProps> = ({
           <span className="text-red-500 font-bold">*</span>
         </label>
         {error && (
-          <span className="text-xs text-red-500 font-medium">{error}</span>
+          <span className="text-[10px] text-red-500 font-bold ml-2 normal-case truncate shrink" title={error}>
+            ({error.toLowerCase().includes('required') ? 'required' : error})
+          </span>
         )}
       </div>
 
@@ -218,8 +232,23 @@ export const BranchAllocationSelect: React.FC<BranchAllocationSelectProps> = ({
       <div
         id={id}
         ref={triggerRef}
+        role="combobox"
+        aria-expanded={isOpen}
         tabIndex={disabled ? -1 : tabIndex}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onFocus={() => {
+          if (disabled) return;
+          if (!isOpen) {
+            setIsOpen(true);
+            setActiveIndex(0);
+          }
+        }}
+        onMouseDown={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          setIsOpen((prev) => !prev);
+          if (!isOpen) setActiveIndex(0);
+          triggerRef.current?.focus();
+        }}
         onKeyDown={handleKeyDown}
         className={`w-full bg-white border rounded-lg px-3 py-1.5 min-h-[38px] text-xs font-semibold text-[#49293e] focus:outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer ${
           disabled

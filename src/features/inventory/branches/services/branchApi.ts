@@ -15,46 +15,63 @@ interface BranchListItem {
 // ─── Exported API functions ───────────────────────────────────────────────────
 
 export const fetchBranchNames = async (allStatus: boolean = false): Promise<BranchRecord[]> => {
-  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>(`/Branch/${allStatus}/list-name`);
+  const { data } = await axiosInstance.get<any>(`/Branch/${allStatus}/list-name`);
 
-  if (!data.isSuccess) {
+  if (data && typeof data === "object" && !Array.isArray(data) && data.isSuccess === false) {
     throw new Error(data.message || "Failed to load branches");
   }
 
-  return Array.isArray(data.data)
-    ? data.data.map((item: any) => ({
-        id: item.branchId ?? item.id ?? 0,
-        branchName: item.branchName ?? item.name ?? "",
-        isActive:
-          item.isActive === true ||
-          item.isActive === "Active" ||
-          String(item.isActive).toLowerCase() === "active" ||
-          String(item.isActive).toLowerCase() === "true" ||
-          String(item.isActive) === "1" ||
-          item.isActive === undefined,
-        lines: [],
-        detailsLoaded: false,
-      }))
+  const rawList = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.data)
+    ? data.data
     : [];
+
+  return rawList.map((item: any) => ({
+    id: item.branchId ?? item.BranchId ?? item.id ?? item.Id ?? 0,
+    branchName: item.branchName ?? item.BranchName ?? item.name ?? item.Name ?? "",
+    isActive:
+      item.isActive === true ||
+      item.isActive === "Active" ||
+      item.IsActive === true ||
+      item.IsActive === "Active" ||
+      String(item.isActive ?? item.IsActive ?? "").toLowerCase() === "active" ||
+      String(item.isActive ?? item.IsActive ?? "").toLowerCase() === "true" ||
+      String(item.isActive ?? item.IsActive ?? "") === "1" ||
+      (item.isActive === undefined && item.IsActive === undefined),
+    lines: [],
+    detailsLoaded: false,
+  }));
 };
 
 export const fetchBranches = async (): Promise<BranchRecord[]> => {
-  const { data } = await axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list");
+  const { data } = await axiosInstance.get<any>("/Branch/list");
 
-  if (!data.isSuccess) {
+  if (data && typeof data === "object" && !Array.isArray(data) && data.isSuccess === false) {
     throw new Error(data.message || "Failed to load branch list");
   }
 
-  return Array.isArray(data.data)
-    ? data.data.map((item) => ({
-        id: item.branchId ?? (item as any).id ?? 0,
-        sNo: (item as any).sNo,
-        branchName: item.branchName ?? (item as any).name ?? "",
-        isActive: item.isActive === true || String(item.isActive).toLowerCase() === "active",
-        lines: [],
-        detailsLoaded: false,
-      }))
+  const rawList = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.data)
+    ? data.data
     : [];
+
+  return rawList.map((item: any) => ({
+    id: item.branchId ?? item.BranchId ?? item.id ?? item.Id ?? 0,
+    sNo: item.sNo ?? item.SNo,
+    branchName: item.branchName ?? item.BranchName ?? item.name ?? item.Name ?? "",
+    isActive:
+      item.isActive === true ||
+      item.isActive === "Active" ||
+      item.IsActive === true ||
+      item.IsActive === "Active" ||
+      String(item.isActive ?? item.IsActive ?? "").toLowerCase() === "active" ||
+      String(item.isActive ?? item.IsActive ?? "").toLowerCase() === "true" ||
+      String(item.isActive ?? item.IsActive ?? "") === "1",
+    lines: [],
+    detailsLoaded: false,
+  }));
 };
 
 export const createBranch = async (payload: BranchPayload): Promise<BranchRecord> => {
@@ -203,6 +220,7 @@ export const fetchBranchPrintData = async (branchId?: number): Promise<LineItem[
 
 export const branchApi = {
   fetchBranchNames,
+  fetchBranches,
   fetchBranchById,
   fetchBranchPrintData,
   resolveCurrentBranchId,

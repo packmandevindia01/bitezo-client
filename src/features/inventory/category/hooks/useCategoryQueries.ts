@@ -50,7 +50,7 @@ export const useCreateCategory = () => {
       );
       const cachedMenus = queryClient.getQueryData<any[]>(["menuTimeSettingsList"]);
       const fallbackMenus = Array.isArray(cachedMenus) && cachedMenus.length > 0
-        ? cachedMenus.map((m) => m.menuId)
+        ? cachedMenus.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
         : [1];
 
       const resolvedBranches = Array.isArray(data.branchAllocations) && data.branchAllocations.length > 0
@@ -59,7 +59,7 @@ export const useCreateCategory = () => {
 
       const resolvedMenus = Array.isArray(data.menuIds) && data.menuIds.length > 0
         ? data.menuIds
-        : fallbackMenus;
+        : (fallbackMenus.length > 0 ? fallbackMenus : [1]);
 
       return categoryApi.createCategory({
         code: data.code || "",
@@ -100,7 +100,7 @@ export const useUpdateCategory = () => {
       );
       const cachedMenus = queryClient.getQueryData<any[]>(["menuTimeSettingsList"]);
       const fallbackMenus = Array.isArray(cachedMenus) && cachedMenus.length > 0
-        ? cachedMenus.map((m) => m.menuId)
+        ? cachedMenus.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
         : [1];
 
       const resolvedBranches = Array.isArray(data.branchAllocations) && data.branchAllocations.length > 0
@@ -109,7 +109,7 @@ export const useUpdateCategory = () => {
 
       const resolvedMenus = Array.isArray(data.menuIds) && data.menuIds.length > 0
         ? data.menuIds
-        : fallbackMenus;
+        : (fallbackMenus.length > 0 ? fallbackMenus : [1]);
 
       return categoryApi.updateCategory(id, {
         id,

@@ -13,6 +13,7 @@ import {
 } from "../../../../components/common";
 import ExtrasTypeFormComponent from "../components/ExtrasTypeForm";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useToast } from "../../../../app/providers/useToast";
 
 import { extrasTypeFormSchema, type ExtrasTypeForm as ExtrasTypeFormType, type ExtrasTypeRecord } from "../schemas";
 import { 
@@ -25,6 +26,7 @@ import {
 
 const ExtrasTypePage = () => {
   const { hasPermission } = usePermissions();
+  const { showToast } = useToast();
   
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -65,18 +67,31 @@ const ExtrasTypePage = () => {
   const closeModal = () => {
     setOpen(false);
     setEditingId(null);
+    form.clearErrors();
     form.reset({ name: "", arabicName: "" });
   };
 
   const openCreateModal = () => {
     setEditingId(null);
+    form.clearErrors();
     form.reset({ name: "", arabicName: "" });
     setOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById("exttype-name");
+      el?.focus();
+      if (el instanceof HTMLInputElement) el.select?.();
+    }, 50);
   };
 
   const handleEdit = (record: ExtrasTypeRecord) => {
     setEditingId(record.typeId);
+    form.clearErrors();
     setOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById("exttype-name");
+      el?.focus();
+      if (el instanceof HTMLInputElement) el.select?.();
+    }, 50);
   };
 
   const handleDelete = () => {
@@ -101,6 +116,35 @@ const ExtrasTypePage = () => {
       );
     }
   };
+
+  const onInvalid = (errors: any) => {
+    if (errors.name) {
+      if (errors.name?.message) {
+        showToast(String(errors.name.message), "error");
+      }
+      setTimeout(() => {
+        const el = document.getElementById("exttype-name");
+        el?.focus();
+        if (el instanceof HTMLInputElement) el.select?.();
+      }, 50);
+    } else if (errors.arabicName) {
+      if (errors.arabicName?.message) {
+        showToast(String(errors.arabicName.message), "error");
+      }
+      setTimeout(() => {
+        const el = document.getElementById("exttype-arabicName");
+        el?.focus();
+        if (el instanceof HTMLInputElement) el.select?.();
+      }, 50);
+    } else {
+      const firstError = Object.values(errors)[0] as any;
+      if (firstError?.message) {
+        showToast(String(firstError.message), "error");
+      }
+    }
+  };
+
+  const handleSave = form.handleSubmit(onSubmit, onInvalid);
 
   return (
     <PageShell title="Extras Type">
@@ -160,7 +204,15 @@ const ExtrasTypePage = () => {
           <div className="flex gap-3">
             <Button
               variant="secondary"
-              onClick={() => form.reset({ name: "", arabicName: "" })}
+              onClick={() => {
+                form.reset({ name: "", arabicName: "" });
+                form.clearErrors();
+                setTimeout(() => {
+                  const el = document.getElementById("exttype-name");
+                  el?.focus();
+                  if (el instanceof HTMLInputElement) el.select?.();
+                }, 10);
+              }}
               disabled={isSaving || isDetailLoading}
               tabIndex={-1}
               isAction
@@ -169,7 +221,8 @@ const ExtrasTypePage = () => {
               Clear
             </Button>
             <Button
-              onClick={form.handleSubmit(onSubmit)}
+              id="exttype-save"
+              onClick={handleSave}
               loading={isSaving}
               disabled={isDetailLoading}
               isAction
@@ -189,6 +242,7 @@ const ExtrasTypePage = () => {
                 }}
                 disabled={isSaving || isDetailLoading}
                 isAction
+                tabIndex={-1}
                 icon={<Trash2 size={18} />}
               >
                 Delete
@@ -197,7 +251,15 @@ const ExtrasTypePage = () => {
           </div>
         }
       >
-        <ExtrasTypeFormComponent form={form} />
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+        >
+          <ExtrasTypeFormComponent form={form} onSave={handleSave} saveButtonId="exttype-save" />
+        </form>
       </Modal>
 
       <ConfirmDialog

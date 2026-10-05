@@ -32,6 +32,7 @@ const ReceiptAgainstVoucherListPage = () => {
     const searchLower = searchTerm.toLowerCase();
     return (
       String(item.voucherNo || "").toLowerCase().includes(searchLower) ||
+      String(item.invoiceNo || item.InvoiceNo || item.invNo || item.invoices || "").toLowerCase().includes(searchLower) ||
       String(item.account || "").toLowerCase().includes(searchLower) ||
       String(item.code || "").toLowerCase().includes(searchLower)
     );
@@ -56,7 +57,7 @@ const ReceiptAgainstVoucherListPage = () => {
   };
 
   const renderActions = (item: any) => (
-    <div className="flex gap-1 justify-end">
+    <div className="flex gap-1 justify-center">
       <button
         onClick={() => navigate(`/dashboard/receipt-against-voucher/${item.transId}`)}
         className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
@@ -111,7 +112,7 @@ const ReceiptAgainstVoucherListPage = () => {
             <SearchBar 
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="Search by voucher no or account..."
+              placeholder="Search by voucher no, invoice no, or account..."
             />
           </div>
           <div className="w-48">
@@ -138,12 +139,13 @@ const ReceiptAgainstVoucherListPage = () => {
         data={filteredRecords}
         columns={[
           { header: "Sl No", accessor: "transId", render: (_, index) => <span className="font-mono text-gray-500">{index + 1}</span>, align: "center" },
-          { header: "Voucher No", accessor: "voucherNo" },
-          { header: "Date", accessor: "voucherDate", render: renderDate },
-          { header: "Account Code", accessor: "code" },
-          { header: "Account Name", accessor: "account" },
+          { header: "Voucher No", accessor: "voucherNo", align: "center" },
+          { header: "Invoice No", accessor: "invoiceNo", render: (item: any) => <span>{item.invoiceNo || item.InvoiceNo || item.invNo || item.invoices || item.vchNo || "-"}</span>, align: "center" },
+          { header: "Date", accessor: "voucherDate", render: renderDate, align: "center" },
+          { header: "Account Code", accessor: "code", align: "center" },
+          { header: "Account Name", accessor: "account", align: "center" },
           { header: "Amount", accessor: "amount", align: "right", render: renderAmount },
-          { header: "Actions", accessor: "transId", render: renderActions }
+          { header: "Actions", accessor: "transId", render: renderActions, align: "center" }
         ]}
         loading={isLoading}
         rowKey="transId"

@@ -41,6 +41,7 @@ const ModifierTypeForm = ({ form, onSave }: ModifierTypeFormProps) => {
         id="modtype-name"
         label="Name"
         required
+        maxLength={15}
         placeholder="e.g. Extra Cheese"
         error={errors.name?.message}
         {...register("name")}
@@ -51,6 +52,7 @@ const ModifierTypeForm = ({ form, onSave }: ModifierTypeFormProps) => {
       <FormInput
         id="modtype-arabic"
         label="Arabic Name"
+        maxLength={15}
         placeholder="أدخل الاسم بالعربي"
         error={errors.arabicName?.message}
         {...register("arabicName")}

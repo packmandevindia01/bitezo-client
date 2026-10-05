@@ -73,15 +73,15 @@ export const fetchGlobalBranches = createAsyncThunk(
       const branchMap = new Map<number, string>();
       if (namesRes.status === "fulfilled" && Array.isArray(namesRes.value)) {
         namesRes.value.forEach((b: any) => {
-          const id = Number(b.id || b.branchId || 0);
-          const name = String(b.branchName || b.name || "");
+          const id = Number(b.id || b.branchId || b.BranchId || b.Id || 0);
+          const name = String(b.branchName || b.BranchName || b.name || b.Name || "");
           if (id && id !== 0 && name) branchMap.set(id, name);
         });
       }
       if (listRes.status === "fulfilled" && Array.isArray(listRes.value)) {
         listRes.value.forEach((b: any) => {
-          const id = Number(b.id || b.branchId || 0);
-          const name = String(b.branchName || b.name || "");
+          const id = Number(b.id || b.branchId || b.BranchId || b.Id || 0);
+          const name = String(b.branchName || b.BranchName || b.name || b.Name || "");
           if (id && id !== 0 && name && !branchMap.has(id)) {
             branchMap.set(id, name);
           }

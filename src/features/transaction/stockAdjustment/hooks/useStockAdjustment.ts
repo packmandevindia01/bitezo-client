@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/ser
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
+import axiosInstance from "../../../../api/axiosInstance";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -62,6 +63,7 @@ export const useStockAdjustment = (id?: string | null) => {
   // Product Search State
   const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
+  const defaultProductOptionsRef = useRef<SearchableOption[]>([]);
 
   const initialForm = useMemo(() => {
     const empty = createEmptyStockAdjustmentForm();
@@ -115,61 +117,65 @@ export const useStockAdjustment = (id?: string | null) => {
     queryFn: async () => {
       const branchMap = new Map<string, string>();
 
-      const [branchMasterRes, directBranchesTrueRes, directBranchesFalseRes, saBranchesRes] = await Promise.allSettled([
+      const addBranch = (rawId: any, rawName: any) => {
+        const id = String(rawId ?? "");
+        const name = String(rawName ?? "");
+        if (id && id !== "0" && name && !branchMap.has(id)) {
+          branchMap.set(id, name);
+        }
+      };
+
+      const [branchMasterRes, directBranchesTrueRes, directBranchesFalseRes, saBranchesRes, directAxiosRes, directAxiosListRes] = await Promise.allSettled([
         fetchBranches(),
         fetchBranchNames(true),
         fetchBranchNames(false),
         stockAdjustmentApi.getBranchList(),
+        axiosInstance.get<any>("/Branch/true/list-name"),
+        axiosInstance.get<any>("/Branch/list"),
       ]);
 
       if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
         branchMasterRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       if (directBranchesTrueRes.status === "fulfilled" && Array.isArray(directBranchesTrueRes.value)) {
         directBranchesTrueRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       if (directBranchesFalseRes.status === "fulfilled" && Array.isArray(directBranchesFalseRes.value)) {
         directBranchesFalseRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       if (saBranchesRes.status === "fulfilled" && Array.isArray(saBranchesRes.value)) {
         saBranchesRes.value.forEach((b: any) => {
-          const id = String(b.branchId ?? b.BranchId ?? b.id ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
+        });
+      }
+
+      if (directAxiosRes.status === "fulfilled") {
+        const list = Array.isArray(directAxiosRes.value?.data) ? directAxiosRes.value.data : Array.isArray(directAxiosRes.value?.data?.data) ? directAxiosRes.value.data.data : [];
+        list.forEach((b: any) => {
+          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
+        });
+      }
+
+      if (directAxiosListRes.status === "fulfilled") {
+        const list = Array.isArray(directAxiosListRes.value?.data) ? directAxiosListRes.value.data : Array.isArray(directAxiosListRes.value?.data?.data) ? directAxiosListRes.value.data.data : [];
+        list.forEach((b: any) => {
+          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       // Merge Redux branches (from addMasterBranch)
       if (Array.isArray(reduxBranches)) {
         reduxBranches.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.name ?? b.branchName ?? b.BranchName ?? b.Name);
         });
       }
 
@@ -182,8 +188,8 @@ export const useStockAdjustment = (id?: string | null) => {
       if (Array.isArray(reduxBranches) && reduxBranches.length > 0) {
         return reduxBranches
           .map((b: any) => ({
-            label: b.name || b.branchName || b.BranchName || "",
-            value: String(b.id || b.branchId || b.BranchId || ""),
+            label: b.name || b.branchName || b.BranchName || b.Name || "",
+            value: String(b.id || b.branchId || b.BranchId || b.Id || ""),
           }))
           .filter((b: any) => b.value && b.value !== "0");
       }
@@ -296,12 +302,55 @@ export const useStockAdjustment = (id?: string | null) => {
   }, [id, queryClient, watchedBranch, refetchBranchData]);
 
   // Cross-tab and local real-time listener for employee updates
+  // Real-time synchronization for branch-specific data on employee updates
   useEffect(() => {
     return subscribeToEmployeeUpdates(() => {
       void queryClient.invalidateQueries({ queryKey: ["branchData"], refetchType: "all" });
       void refetchBranchData();
     });
   }, [queryClient, refetchBranchData]);
+
+  // 3a. React Query: Fetch Initial Default Products
+  const { data: defaultProductList = [] } = useQuery({
+    queryKey: ["stockAdjustmentDefaultProducts"],
+    queryFn: async () => {
+      try {
+        const results = await stockAdjustmentApi.getProductListByName("");
+        if (Array.isArray(results) && results.length > 0) {
+          const mapped = results.map((r: any) => ({
+            label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
+            value: r.productId.toString(),
+            code: r.code || "",
+            barcode: r.barcode || "",
+          }));
+          const seenIds = new Set<string>();
+          return mapped.filter((item: any) => {
+            if (seenIds.has(item.value)) return false;
+            seenIds.add(item.value);
+            return true;
+          });
+        }
+        return [];
+      } catch (err) {
+        console.error("Failed to load initial stock adjustment products", err);
+        return [];
+      }
+    },
+    staleTime: 60 * 1000,
+    refetchOnMount: true,
+  });
+
+  useEffect(() => {
+    if (defaultProductList && defaultProductList.length > 0) {
+      defaultProductOptionsRef.current = defaultProductList;
+      setProductOptions(prev => {
+        if (prev.length === 0) {
+          return defaultProductList;
+        }
+        return prev;
+      });
+    }
+  }, [defaultProductList]);
 
   // 4. React Query: Load existing record (Edit Mode)
   const { data: recordData, isLoading: loadingRecord } = useQuery({
@@ -403,16 +452,16 @@ export const useStockAdjustment = (id?: string | null) => {
       setProductOptions(recordData.productOptions);
     } else if (!id) {
       reset(initialForm);
-      setProductOptions([]);
+      setProductOptions(defaultProductOptionsRef.current.length > 0 ? defaultProductOptionsRef.current : defaultProductList);
     }
-  }, [id, recordData, reset, initialForm]);
+  }, [id, recordData, reset, initialForm, defaultProductList]);
 
   const fallbackBranches = useMemo(() => {
     if (Array.isArray(reduxBranches) && reduxBranches.length > 0) {
       return reduxBranches
         .map((b: any) => ({
-          label: b.name || b.branchName || b.BranchName || "",
-          value: String(b.id || b.branchId || b.BranchId || "")
+          label: b.name || b.branchName || b.BranchName || b.Name || "",
+          value: String(b.id || b.branchId || b.BranchId || b.Id || "")
         }))
         .filter((b: any) => b.value && b.value !== "0");
     }
@@ -422,15 +471,15 @@ export const useStockAdjustment = (id?: string | null) => {
   const resolvedBranches = useMemo(() => {
     const branchMap = new Map<string, string>();
     (branches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? "");
-      const label = String(b.label ?? b.name ?? b.branchName ?? "");
+      const id = String(b.value ?? b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
+      const label = String(b.label ?? b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
       if (id && id !== "0" && label) {
         branchMap.set(id, label);
       }
     });
     (fallbackBranches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? "");
-      const label = String(b.label ?? b.name ?? b.branchName ?? "");
+      const id = String(b.value ?? b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
+      const label = String(b.label ?? b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
       if (id && id !== "0" && label && !branchMap.has(id)) {
         branchMap.set(id, label);
       }
@@ -490,23 +539,31 @@ export const useStockAdjustment = (id?: string | null) => {
     const stored = (watchedItems[index] as any);
     const storedValue = stored?.product;
     const storedName = stored?.productName;
-    if (!storedValue || !storedName) return productOptions;
-    const alreadyPresent = productOptions.some((o: any) => o.value === storedValue);
-    if (alreadyPresent) return productOptions;
-    return [{ label: storedName, value: storedValue }, ...productOptions];
+    const baseOptions = productOptions.length > 0 ? productOptions : defaultProductOptionsRef.current;
+    if (!storedValue || !storedName) return baseOptions;
+    const alreadyPresent = baseOptions.some((o: any) => o.value === storedValue);
+    if (alreadyPresent) return baseOptions;
+    return [{ label: storedName, value: storedValue }, ...baseOptions];
   }, [productOptions, watchedItems]);
 
   // 5. Product Search with Barcode Fallback and deduplication
   const handleProductSearch = useCallback(async (query: string) => {
+    const trimmed = (query || "").trim();
+    if (!trimmed) {
+      if (defaultProductOptionsRef.current.length > 0) {
+        setProductOptions(defaultProductOptionsRef.current);
+        return;
+      }
+    }
     setSearchingProducts(true);
     try {
       // When query is empty, fetch all products so the dropdown is populated on first click
       const [nameResults, costDetail] = await Promise.all([
-        stockAdjustmentApi.getProductListByName(query).catch(() => []),
-        query ? stockAdjustmentApi.getPurchaseCostData(query).catch(() => null) : Promise.resolve(null)
+        stockAdjustmentApi.getProductListByName(trimmed).catch(() => []),
+        trimmed ? stockAdjustmentApi.getPurchaseCostData(trimmed).catch(() => null) : Promise.resolve(null)
       ]);
 
-      let mapped = nameResults.map((r) => ({
+      let mapped = (nameResults || []).map((r) => ({
         label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
         value: r.productId.toString(),
         code: r.code || "",
@@ -518,7 +575,7 @@ export const useStockAdjustment = (id?: string | null) => {
           label: costDetail.productCode ? `[${costDetail.productCode}] ${costDetail.productName}` : costDetail.productName,
           value: costDetail.productId.toString(),
           code: costDetail.productCode || "",
-          barcode: query,
+          barcode: trimmed,
         };
         // Prepend matched code result for instant display at the top of options list
         mapped = [costOption, ...mapped];
@@ -530,6 +587,10 @@ export const useStockAdjustment = (id?: string | null) => {
         seenIds.add(item.value);
         return true;
       });
+
+      if (!trimmed && defaultProductOptionsRef.current.length === 0 && mapped.length > 0) {
+        defaultProductOptionsRef.current = mapped;
+      }
 
       setProductOptions(mapped);
     } catch (error) {

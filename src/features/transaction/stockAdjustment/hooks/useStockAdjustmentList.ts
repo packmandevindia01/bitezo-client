@@ -6,6 +6,7 @@ import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/ser
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
+import axiosInstance from "../../../../api/axiosInstance";
 
 export const useStockAdjustmentList = () => {
   const queryClient = useQueryClient();
@@ -24,61 +25,65 @@ export const useStockAdjustmentList = () => {
     queryFn: async () => {
       const branchMap = new Map<string, string>();
 
-      const [branchMasterRes, directBranchesTrueRes, directBranchesFalseRes, saBranchesRes] = await Promise.allSettled([
+      const addBranch = (rawId: any, rawName: any) => {
+        const id = String(rawId ?? "");
+        const name = String(rawName ?? "");
+        if (id && id !== "0" && name && !branchMap.has(id)) {
+          branchMap.set(id, name);
+        }
+      };
+
+      const [branchMasterRes, directBranchesTrueRes, directBranchesFalseRes, saBranchesRes, directAxiosRes, directAxiosListRes] = await Promise.allSettled([
         fetchBranches(),
         fetchBranchNames(true),
         fetchBranchNames(false),
         stockAdjustmentApi.getBranchList(),
+        axiosInstance.get<any>("/Branch/true/list-name"),
+        axiosInstance.get<any>("/Branch/list"),
       ]);
 
       if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
         branchMasterRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       if (directBranchesTrueRes.status === "fulfilled" && Array.isArray(directBranchesTrueRes.value)) {
         directBranchesTrueRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       if (directBranchesFalseRes.status === "fulfilled" && Array.isArray(directBranchesFalseRes.value)) {
         directBranchesFalseRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       if (saBranchesRes.status === "fulfilled" && Array.isArray(saBranchesRes.value)) {
         saBranchesRes.value.forEach((b: any) => {
-          const id = String(b.branchId ?? b.BranchId ?? b.id ?? b.Id ?? "");
-          const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
+        });
+      }
+
+      if (directAxiosRes.status === "fulfilled") {
+        const list = Array.isArray(directAxiosRes.value?.data) ? directAxiosRes.value.data : Array.isArray(directAxiosRes.value?.data?.data) ? directAxiosRes.value.data.data : [];
+        list.forEach((b: any) => {
+          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
+        });
+      }
+
+      if (directAxiosListRes.status === "fulfilled") {
+        const list = Array.isArray(directAxiosListRes.value?.data) ? directAxiosListRes.value.data : Array.isArray(directAxiosListRes.value?.data?.data) ? directAxiosListRes.value.data.data : [];
+        list.forEach((b: any) => {
+          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
         });
       }
 
       // Merge Redux branches (from addMasterBranch)
       if (Array.isArray(reduxBranches)) {
         reduxBranches.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-          const name = String(b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
+          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.name ?? b.branchName ?? b.BranchName ?? b.Name);
         });
       }
 
@@ -91,8 +96,8 @@ export const useStockAdjustmentList = () => {
       if (Array.isArray(reduxBranches) && reduxBranches.length > 0) {
         return reduxBranches
           .map((b: any) => ({
-            label: b.name || b.branchName || b.BranchName || "",
-            value: String(b.id || b.branchId || b.BranchId || ""),
+            label: b.name || b.branchName || b.BranchName || b.Name || "",
+            value: String(b.id || b.branchId || b.BranchId || b.Id || ""),
           }))
           .filter((b: any) => b.value && b.value !== "0");
       }
@@ -109,8 +114,8 @@ export const useStockAdjustmentList = () => {
     if (Array.isArray(reduxBranches) && reduxBranches.length > 0) {
       return reduxBranches
         .map((b: any) => ({
-          label: b.name || b.branchName || b.BranchName || "",
-          value: String(b.id || b.branchId || b.BranchId || "")
+          label: b.name || b.branchName || b.BranchName || b.Name || "",
+          value: String(b.id || b.branchId || b.BranchId || b.Id || "")
         }))
         .filter((b: any) => b.value && b.value !== "0");
     }
@@ -120,15 +125,15 @@ export const useStockAdjustmentList = () => {
   const resolvedBranches = useMemo(() => {
     const branchMap = new Map<string, string>();
     (branches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? "");
-      const label = String(b.label ?? b.name ?? b.branchName ?? "");
+      const id = String(b.value ?? b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
+      const label = String(b.label ?? b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
       if (id && id !== "0" && label) {
         branchMap.set(id, label);
       }
     });
     (fallbackBranches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? "");
-      const label = String(b.label ?? b.name ?? b.branchName ?? "");
+      const id = String(b.value ?? b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
+      const label = String(b.label ?? b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
       if (id && id !== "0" && label && !branchMap.has(id)) {
         branchMap.set(id, label);
       }

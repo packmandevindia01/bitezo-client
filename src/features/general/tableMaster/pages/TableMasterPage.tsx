@@ -114,23 +114,52 @@ const TableMasterPage = () => {
     setOpen(true);
   };
 
-  const handleSave = form.handleSubmit((data) => {
-    if (mode === "create") {
-      createMutation.mutate(data, {
-        onSuccess: () => {
-          setOpen(false);
-          setSelectedId(null);
+  const handleSave = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    form.handleSubmit(
+      (data) => {
+        if (mode === "create") {
+          createMutation.mutate(data, {
+            onSuccess: () => {
+              setOpen(false);
+              setSelectedId(null);
+            }
+          });
+        } else if (selectedId) {
+          updateMutation.mutate({ id: selectedId, data }, {
+            onSuccess: () => {
+              setOpen(false);
+              setSelectedId(null);
+            }
+          });
         }
-      });
-    } else if (selectedId) {
-      updateMutation.mutate({ id: selectedId, data }, {
-        onSuccess: () => {
-          setOpen(false);
-          setSelectedId(null);
+      },
+      (invalidErrors) => {
+        const errorOrder: (keyof TableMasterFormType)[] = ["tableName", "chairs", "sectionId"];
+        const fieldMap: Partial<Record<keyof TableMasterFormType, string>> = {
+          tableName: "table-name",
+          chairs: "table-chairs",
+        };
+        for (const key of errorOrder) {
+          if (invalidErrors[key]) {
+            const targetId = fieldMap[key];
+            if (targetId) {
+              setTimeout(() => {
+                const el = document.getElementById(targetId);
+                if (el) {
+                  el.focus();
+                  if (el instanceof HTMLInputElement) {
+                    el.select?.();
+                  }
+                }
+              }, 30);
+              break;
+            }
+          }
         }
-      });
-    }
-  });
+      }
+    )();
+  };
 
   const handleClear = () => {
     // Only clear the form values, do not close the modal

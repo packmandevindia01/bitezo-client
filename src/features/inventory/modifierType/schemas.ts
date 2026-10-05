@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const modifierTypeFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  arabicName: z.string().optional(),
+  name: z.string().min(1, "Name is required").max(15, "Maximum 15 characters allowed"),
+  arabicName: z.string().max(15, "Maximum 15 characters allowed").optional(),
   price: z.coerce.number().min(0, "Price must be a positive number").optional().default(0),
 });
 

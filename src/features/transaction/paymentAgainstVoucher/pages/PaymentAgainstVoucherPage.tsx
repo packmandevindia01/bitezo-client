@@ -36,10 +36,30 @@ const PaymentAgainstVoucherPage = () => {
     employeeList,
     accounts, 
     pendingInvoices,
+    paymodeList,
+    branchList,
     isLoading, 
     isSaving, 
     saveMutation
   } = usePaymentAgainstVoucherForm(transId);
+  
+  const handleBranchChange = (val: string) => {
+    const newBranchId = Number(val);
+    if (newBranchId === Number(form.getValues("branchId"))) return;
+    form.setValue("branchId", newBranchId, { shouldValidate: true });
+    form.setValue("seriesId", 0);
+    form.setValue("vchNo", "");
+    remove();
+    setManualItem({
+      invoiceId: 0,
+      voucherType: "",
+      invoiceNo: "",
+      invoiceAmount: "",
+      paid: "",
+      balance: "",
+      amount: "",
+    });
+  };
   
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
@@ -74,10 +94,18 @@ const PaymentAgainstVoucherPage = () => {
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  const handleManualKeyDown = (e: React.KeyboardEvent, nextId?: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent, nextId?: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (nextId) document.getElementById(nextId)?.focus();
+      if (nextId) {
+        const el = document.getElementById(nextId);
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.select?.();
+          }
+        }
+      }
     }
   };
 
@@ -152,7 +180,7 @@ const PaymentAgainstVoucherPage = () => {
       amount: "",
     });
     setShowClearConfirm(false);
-    setTimeout(() => document.getElementById("pav-page-series")?.focus(), 0);
+    setTimeout(() => document.getElementById(!isBranchLocked ? "pav-page-branch" : "pav-page-series")?.focus(), 0);
   };
 
   const handleClearClick = () => {
@@ -225,15 +253,15 @@ const PaymentAgainstVoucherPage = () => {
   const selectedAccountName = accounts.find(a => a.accountId === selectedAccountId)?.accountName || "";
 
   const multiPayId = useMemo(() => {
-    const multi = masterData?.paymodes?.find(p => p.paymodeName?.toLowerCase().includes("multi"));
+    const multi = paymodeList.find(p => p.paymodeName?.toLowerCase().includes("multi"));
     return multi ? multi.paymodeId : 0;
-  }, [masterData]);
+  }, [paymodeList]);
 
   const totalAmount = fields.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
   const printData: Partial<VoucherPrintData> = useMemo(() => {
     const vals = form.getValues();
-    const paymode = masterData?.paymodes?.find(p => p.paymodeId === Number(vals.paymodeId));
+    const paymode = paymodeList.find(p => p.paymodeId === Number(vals.paymodeId));
 
     return {
       voucherType: "PAYMENT AGAINST",
@@ -269,7 +297,7 @@ const PaymentAgainstVoucherPage = () => {
 
   const handlePaymodeChange = (val: string) => {
     const selectedId = Number(val);
-    const isMulti = selectedId === multiPayId || masterData?.paymodes?.find(p => p.paymodeId === selectedId)?.paymodeName?.toLowerCase().includes("multi");
+    const isMulti = selectedId === multiPayId || paymodeList.find(p => p.paymodeId === selectedId)?.paymodeName?.toLowerCase().includes("multi");
 
     form.setValue("paymodeId", selectedId, { shouldValidate: true });
     
@@ -296,10 +324,27 @@ const PaymentAgainstVoucherPage = () => {
           <form id="pav-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col h-full gap-4">
             
             <div className="grid gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6 flex-none">
+              <SearchableSelect
+                id="pav-page-branch"
+                label="Branch"
+                placeholder="Select Branch"
+                required
+                options={branchList.map((b) => ({ value: String(b.branchId), label: b.branchName }))}
+                value={String(form.watch("branchId") || "")}
+                onChange={(val) => {
+                  handleBranchChange(val);
+                  setTimeout(() => document.getElementById("pav-page-series")?.focus(), 50);
+                }}
+                onKeyDown={(e) => handleKeyDown(e, "pav-page-series")}
+                disabled={!!transId || isBranchLocked}
+                error={form.formState.errors.branchId?.message}
+                autoFocus={!isBranchLocked}
+              />
+
               <div
                 className="h-full flex flex-col justify-end"
                 onMouseDownCapture={(e) => {
-                  if (!branchId) {
+                  if (!form.watch("branchId")) {
                     e.stopPropagation();
                     e.preventDefault();
                     showToast("Please select a Branch first.", "warning", "Warning");
@@ -313,26 +358,18 @@ const PaymentAgainstVoucherPage = () => {
                   options={masterData?.series?.map((s: any) => ({ value: String(s.seriesId), label: s.seriesName })) || []}
                   value={String(form.watch("seriesId") || "")}
                   {...form.register("seriesId", { 
-                    onChange: (e) => form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true }) 
+                    onChange: (e) => {
+                      form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true });
+                      setTimeout(() => document.getElementById("pav-page-date")?.focus(), 50);
+                    } 
                   })}
+                  onKeyDown={(e) => handleKeyDown(e, "pav-page-date")}
                   disabled={!!transId}
                   error={form.formState.errors.seriesId?.message}
-                  autoFocus
+                  autoFocus={isBranchLocked}
                 />
               </div>
-              
-              <SearchableSelect
-                id="pav-page-employee"
-                label="Employee"
-                placeholder="Select Employee"
-                required
-                options={employeeList.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName }))}
-                value={String(form.watch("employeeId") || "")}
-                onChange={(val) => form.setValue("employeeId", Number(val) || 0, { shouldValidate: true })}
-                disabled={!!transId}
-                error={form.formState.errors.employeeId?.message}
-              />
-              
+
               <FormInput 
                 id="pav-page-vchNo" 
                 label="Vch No" 
@@ -349,10 +386,27 @@ const PaymentAgainstVoucherPage = () => {
                 {...form.register("voucherDate", {
                   onChange: (e) => form.setValue("voucherDate", e.target.value, { shouldValidate: true })
                 })}
+                onKeyDown={(e) => handleKeyDown(e, "pav-page-employee")}
                 error={form.formState.errors.voucherDate?.message}
               />
+
+              <SearchableSelect
+                id="pav-page-employee"
+                label="Employee"
+                placeholder="Select Employee"
+                required
+                options={employeeList.map((e: any) => ({ value: String(e.employeeId), label: e.employeeName }))}
+                value={String(form.watch("employeeId") || "")}
+                onChange={(val) => {
+                  form.setValue("employeeId", Number(val) || 0, { shouldValidate: true });
+                  setTimeout(() => document.getElementById("pav-page-supplier")?.focus(), 50);
+                }}
+                onKeyDown={(e) => handleKeyDown(e, "pav-page-supplier")}
+                disabled={!!transId}
+                error={form.formState.errors.employeeId?.message}
+              />
               
-              <div className="md:col-span-2 flex items-end gap-2 h-full translate-y-[2px]">
+              <div className="flex items-end gap-2 h-full translate-y-[2px]">
                 <div className="flex-1 min-w-0 h-full flex flex-col justify-end">
                   <SearchableSelect
                     id="pav-page-supplier"
@@ -360,7 +414,11 @@ const PaymentAgainstVoucherPage = () => {
                     required
                     options={accounts.map((a: any) => ({ value: String(a.accountId), label: `${a.code} - ${a.accountName}` }))}
                     value={String(form.watch("accountId") || "")}
-                    onChange={(val) => form.setValue("accountId", Number(val), { shouldValidate: true })}
+                    onChange={(val) => {
+                      form.setValue("accountId", Number(val), { shouldValidate: true });
+                      setTimeout(() => document.getElementById("pav-manual-vchNo")?.focus(), 50);
+                    }}
+                    onKeyDown={(e) => handleKeyDown(e, "pav-manual-vchNo")}
                     disabled={!!transId}
                     error={form.formState.errors.accountId?.message}
                   />
@@ -369,7 +427,7 @@ const PaymentAgainstVoucherPage = () => {
                   <Button 
                     type="button"
                     variant="secondary" 
-                    className="h-9 px-4 text-xs font-bold" 
+                    className="h-9 px-3 text-xs font-bold" 
                     onClick={() => {
                       if (!form.watch("accountId")) {
                         showToast("Please select a supplier first", "error", "Error");
@@ -418,11 +476,29 @@ const PaymentAgainstVoucherPage = () => {
                           invoiceAmount: String(selected.invoiceAmount || 0),
                           paid: String((Number(selected.invoiceAmount) || 0) - (Number(selected.balance) || 0)),
                           balance: String(selected.balance || 0),
+                          amount: String(selected.balance || 0),
                           invoiceId: selected.invoiceId || 0,
                         }));
-                        setTimeout(() => document.getElementById("pav-manual-amount")?.focus(), 10);
+                        setTimeout(() => {
+                          const amtEl = document.getElementById("pav-manual-amount") as HTMLInputElement;
+                          if (amtEl) {
+                            amtEl.focus();
+                            amtEl.select?.();
+                          }
+                        }, 50);
                       } else {
                         setManualField("invoiceNo", val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (manualItem.invoiceId || manualItem.invoiceNo) {
+                          e.preventDefault();
+                          document.getElementById("pav-manual-amount")?.focus();
+                        } else {
+                          e.preventDefault();
+                          document.getElementById("pav-page-narration")?.focus();
+                        }
                       }
                     }}
                   />
@@ -445,7 +521,19 @@ const PaymentAgainstVoucherPage = () => {
                       setManualField("amount", val);
                     }
                   }} 
-                  onKeyDown={(e) => handleManualKeyDown(e, "pav-manual-add-btn")} 
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (manualItem.invoiceId && Number(manualItem.amount) > 0) {
+                        handleManualAdd();
+                      } else if (fields.length > 0) {
+                        document.getElementById("pav-page-narration")?.focus();
+                      } else {
+                        handleManualAdd();
+                      }
+                    }
+                  }} 
                 />
                 <div className="flex items-end mb-1">
                   <Button
@@ -476,7 +564,7 @@ const PaymentAgainstVoucherPage = () => {
                         (column) => (
                           <th
                             key={column}
-                            className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 ${column === "Inv Amnt" || column === "Balance" || column === "Amount" ? "text-right" : ""}`}
+                            className={`sticky top-0 bg-gray-50 z-10 whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 ${column === "Inv Amnt" || column === "Balance" || column === "Amount" ? "text-right" : "text-center"}`}
                           >
                             {column}
                           </th>
@@ -495,21 +583,34 @@ const PaymentAgainstVoucherPage = () => {
                     ) : (
                       fields.map((item, index) => (
                         <tr key={item.id} className="hover:bg-[#49293e]/5">
-                          <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900">
+                          <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900 text-center">
                             {item.invoiceNo}
                           </td>
-                          <td className="px-4 py-3">{item.voucherType}</td>
-                          <td className="px-4 py-3 text-gray-500">{item.invoiceDate}</td>
+                          <td className="px-4 py-3 text-center">{item.voucherType}</td>
+                          <td className="px-4 py-3 text-gray-500 text-center">{item.invoiceDate}</td>
                           <td className="px-4 py-3 text-right font-mono">{formatAmount(item.invoiceAmount || 0)}</td>
                           <td className="px-4 py-3 text-right font-mono">{formatAmount(item.balance || 0)}</td>
                           <td className="px-2 py-2">
                             <input
+                              id={`pav-table-amount-${index}`}
                               type="number"
                               max={item.balance}
                               step={Math.pow(10, -getDecimalPart()).toString()}
                               className="w-full text-right font-mono font-semibold text-gray-900 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]"
                               {...form.register(`details.${index}.amount`)}
                               onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  if (index < fields.length - 1) {
+                                    const nextInput = document.getElementById(`pav-table-amount-${index + 1}`) as HTMLInputElement;
+                                    nextInput?.focus();
+                                    nextInput?.select();
+                                  } else {
+                                    document.getElementById("pav-page-narration")?.focus();
+                                  }
+                                }
+                              }}
                             />
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -536,14 +637,20 @@ const PaymentAgainstVoucherPage = () => {
                   id="pav-page-narration" 
                   label="Narration" 
                   {...form.register("narration")} 
+                  onKeyDown={(e) => handleKeyDown(e, "pav-page-paymode")}
                 />
                 <SearchableSelect 
                   id="pav-page-paymode" 
                   label="Paymode" 
+                  placeholder="Select Paymode"
                   required
-                  options={masterData?.paymodes?.map(p => ({ value: String(p.paymodeId), label: p.paymodeName })) || []}
+                  options={paymodeList.map(p => ({ value: String(p.paymodeId), label: p.paymodeName }))}
                   value={String(form.watch("paymodeId") || "")}
-                  onChange={handlePaymodeChange}
+                  onChange={(val) => {
+                    handlePaymodeChange(val);
+                    setTimeout(() => document.getElementById("pav-save-btn")?.focus(), 50);
+                  }}
+                  onKeyDown={(e) => handleKeyDown(e, "pav-save-btn")}
                   disabled={!!transId}
                   error={form.formState.errors.paymodeId?.message}
                 />
@@ -603,6 +710,7 @@ const PaymentAgainstVoucherPage = () => {
             Print
           </Button>
           <Button
+            id="pav-save-btn"
             type="submit"
             form="pav-form"
             disabled={isSaving}
@@ -636,7 +744,7 @@ const PaymentAgainstVoucherPage = () => {
         onSelect={handleMultiSelect}
         partyName={selectedAccountName}
         fetchInvoices={(fromDate, toDate) => 
-          paymentAgainstVoucherApi.getPendingInvoicesDetails(Number(branchId), selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
+          paymentAgainstVoucherApi.getPendingInvoicesDetails(Number(form.watch("branchId") || branchId), selectedAccountId, transId ? Number(transId) : undefined, fromDate, toDate)
         }
         type="PAYMENT"
       />
@@ -651,7 +759,7 @@ const PaymentAgainstVoucherPage = () => {
           }
         }}
         totalDue={totalAmount}
-        paymodes={masterData?.paymodes || []}
+        paymodes={paymodeList}
         onSubmit={(payments: any) => {
           form.setValue("paymodes", payments);
           setIsMultiPaymodeOpen(false);

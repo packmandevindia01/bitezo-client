@@ -12,8 +12,8 @@ export const categoryFormSchema = z.object({
       branchId: z.number(),
       colorCode: z.string()
     })
-  ).min(1, "At least one branch must be allocated"),
-  menuIds: z.array(z.number()).min(1, "At least one menu time must be allocated"),
+  ).default([]),
+  menuIds: z.array(z.number()).default([]),
   imageFile: z.any().optional(), // File | undefined
   image: z.string().optional(),
   isImageChanged: z.boolean().default(false),

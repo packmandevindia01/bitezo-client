@@ -96,8 +96,26 @@ const CategoryModal = ({
           }
         }, 10);
       } else {
-        const nameVal = form.getValues("name")?.trim();
+        const nameInput = document.getElementById("cat-name") as HTMLInputElement | null;
+        const nameVal = nameInput?.value?.trim() || form.getValues("name")?.trim();
         if (nameVal) {
+          form.setValue("name", nameVal, { shouldValidate: true, shouldDirty: true });
+
+          // Ensure default menuIds and branchAllocations are set if currently empty
+          const currentMenus = form.getValues("menuIds");
+          if (!currentMenus || currentMenus.length === 0) {
+            const fallbackMenus = menuTimes.length > 0
+              ? menuTimes.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
+              : [1];
+            form.setValue("menuIds", fallbackMenus.length > 0 ? fallbackMenus : [1], { shouldValidate: true });
+          }
+
+          const currentBranches = form.getValues("branchAllocations");
+          if (!currentBranches || currentBranches.length === 0) {
+            const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branchOptions[0]?.id ? Number(branchOptions[0].id) : 1);
+            form.setValue("branchAllocations", [{ branchId: activeBranchId, colorCode: colorCode || "red" }], { shouldValidate: true });
+          }
+
           onSave();
         } else {
           setTimeout(() => {
@@ -109,25 +127,28 @@ const CategoryModal = ({
   };
 
   const onToggleMenu = (menuId: number) => {
-    if (menuIds.includes(menuId)) {
-      setValue("menuIds", menuIds.filter((id) => id !== menuId), { shouldValidate: true, shouldDirty: true });
+    const id = Number(menuId);
+    if (menuIds.some((mId) => Number(mId) === id)) {
+      setValue("menuIds", menuIds.filter((mId) => Number(mId) !== id), { shouldValidate: true, shouldDirty: true });
     } else {
-      setValue("menuIds", [...menuIds, menuId], { shouldValidate: true, shouldDirty: true });
+      setValue("menuIds", [...menuIds, id], { shouldValidate: true, shouldDirty: true });
     }
   };
 
   const onToggleBranch = (branchId: number) => {
-    const isAllocated = branchAllocations.some((b) => Number(b.branchId) === Number(branchId));
+    const bId = Number(branchId);
+    const isAllocated = branchAllocations.some((b) => Number(b.branchId) === bId);
     if (isAllocated) {
-      setValue("branchAllocations", branchAllocations.filter((b) => Number(b.branchId) !== Number(branchId)), { shouldValidate: true, shouldDirty: true });
+      setValue("branchAllocations", branchAllocations.filter((b) => Number(b.branchId) !== bId), { shouldValidate: true, shouldDirty: true });
     } else {
       const defaultColor = colorCode || "red";
-      setValue("branchAllocations", [...branchAllocations, { branchId: Number(branchId), colorCode: defaultColor }], { shouldValidate: true, shouldDirty: true });
+      setValue("branchAllocations", [...branchAllocations, { branchId: bId, colorCode: defaultColor }], { shouldValidate: true, shouldDirty: true });
     }
   };
 
   const handleUpdateBranchColor = (branchId: number, color: string) => {
-    const next = branchAllocations.map(b => Number(b.branchId) === Number(branchId) ? { ...b, colorCode: color } : b);
+    const bId = Number(branchId);
+    const next = branchAllocations.map(b => Number(b.branchId) === bId ? { ...b, colorCode: color } : b);
     setValue("branchAllocations", next, { shouldValidate: true, shouldDirty: true });
   };
 
@@ -357,13 +378,14 @@ const CategoryModal = ({
                   <p className="text-[10px] text-gray-400">No menu times available.</p>
                 ) : (
                   filteredMenuTimes.map((menu) => {
-                    const active = menuIds.includes(menu.menuId);
+                    const mId = Number((menu as any).menuId ?? (menu as any).id);
+                    const active = menuIds.some((id) => Number(id) === mId);
                     return (
-                      <div key={menu.menuId} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
+                      <div key={mId} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
                         <span className="text-sm font-medium text-gray-700">{menu.name}</span>
                         <button
                           type="button"
-                          onClick={() => onToggleMenu(menu.menuId)}
+                          onClick={() => onToggleMenu(mId)}
                           className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                             active
                               ? "bg-[#49293e] text-white"
@@ -403,12 +425,13 @@ const CategoryModal = ({
                   <p className="text-[10px] text-gray-400">No branches available.</p>
                 ) : (
                   filteredBranches.map((branch) => {
-                    const allocation = branchAllocations.find((b) => Number(b.branchId) === Number(branch.id));
+                    const bId = Number((branch as any).id ?? (branch as any).branchId);
+                    const allocation = branchAllocations.find((b) => Number(b.branchId) === bId);
                     const active = !!allocation;
                     const branchColorHex = normalizeHexColor(allocation?.colorCode || colorCode);
 
                     return (
-                      <div key={branch.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
+                      <div key={bId} className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm shrink-0">
                         <div className="flex items-center gap-3 min-w-0">
                           {active && (
                             <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/50 px-2 py-0.5 shrink-0">
@@ -416,14 +439,14 @@ const CategoryModal = ({
                                 <input
                                   type="color"
                                   value={branchColorHex}
-                                  onChange={(e) => handleUpdateBranchColor(branch.id, e.target.value)}
+                                  onChange={(e) => handleUpdateBranchColor(bId, e.target.value)}
                                   className="absolute inset-[-50%] h-[200%] w-[200%] cursor-pointer border-none bg-transparent"
                                 />
                               </div>
                               <input
                                 type="text"
                                 value={branchColorHex}
-                                onChange={(e) => handleUpdateBranchColor(branch.id, e.target.value)}
+                                onChange={(e) => handleUpdateBranchColor(bId, e.target.value)}
                                 className="w-16 p-0 rounded-md border-none bg-transparent text-[10px] font-mono outline-none focus:ring-0 uppercase font-semibold text-slate-600"
                                 placeholder="#000000"
                                 maxLength={7}
@@ -434,7 +457,7 @@ const CategoryModal = ({
                         </div>
                         <button
                           type="button"
-                          onClick={() => onToggleBranch(branch.id)}
+                          onClick={() => onToggleBranch(bId)}
                           className={`rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition shrink-0 ${
                             active
                               ? "bg-[#49293e] text-white shadow-sm"

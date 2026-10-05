@@ -15,6 +15,28 @@ interface Props {
 const PrintSection = ({
   section, lines, onUpdate, onOpenFont, disabled, lastRowKeyDown,
 }: Props) => {
+  const handleRowKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, i: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (i < lines.length - 1) {
+        const nextLineId = lines[i + 1]?.id;
+        if (nextLineId) {
+          setTimeout(() => {
+            const el = document.getElementById(`input-line-${nextLineId}`);
+            if (el) {
+              el.focus();
+              if (el instanceof HTMLInputElement) el.select?.();
+            }
+          }, 10);
+        }
+      } else {
+        if (lastRowKeyDown) {
+          lastRowKeyDown(e);
+        }
+      }
+    }
+  };
+
   return (
     <div>
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -43,7 +65,7 @@ const PrintSection = ({
               onOffsetChange={(offset) => onUpdate(item.id, { offsetX: offset })}
               onOpenFont={() => onOpenFont(item.id)}
               disabled={disabled}
-              onKeyDown={i === lines.length - 1 ? lastRowKeyDown : undefined}
+              onKeyDown={(e) => handleRowKeyDown(e, i)}
             />
           ))}
         </SortableContext>

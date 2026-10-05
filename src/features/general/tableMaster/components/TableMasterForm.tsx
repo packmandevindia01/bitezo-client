@@ -2,7 +2,7 @@ import { Trash2, Minus, Plus, Save, RotateCcw, X } from "lucide-react";
 import { Button, FormInput, Checkbox } from "../../../../components/common";
 import type { UseFormReturn } from "react-hook-form";
 import type { TableMasterForm as TableMasterFormType } from "../schemas";
-import type React from "react";
+import React, { useEffect } from "react";
 
 interface TableMasterFormProps {
   form: UseFormReturn<TableMasterFormType>;
@@ -27,6 +27,13 @@ const TableMasterForm = ({
 
   const currentChairs = watch("chairs");
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      document.getElementById("table-name")?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleChairChange = (delta: number) => {
     const current = Number(currentChairs || 0);
     const next = Math.max(1, current + delta);
@@ -37,13 +44,34 @@ const TableMasterForm = ({
     if (e.key === "Enter") {
       e.preventDefault();
       if (nextId) {
-        document.getElementById(nextId)?.focus();
+        setTimeout(() => {
+          const target = document.getElementById(nextId);
+          if (target) {
+            target.focus();
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+              try {
+                target.setSelectionRange(0, target.value.length);
+              } catch {
+                target.select?.();
+              }
+            }
+          }
+        }, 10);
+      } else {
+        onSave();
       }
     }
   };
 
   return (
-    <div className="flex flex-col bg-white p-4 md:p-5 w-full">
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave();
+      }}
+      className="flex flex-col bg-white p-4 md:p-5 w-full"
+    >
       <div className="mb-3 flex items-center justify-between border-b border-gray-50 pb-2">
         <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-[#49293e]">
           {mode === "edit" ? "Edit Table" : "Register New Table"}
@@ -75,7 +103,21 @@ const TableMasterForm = ({
             className="h-11 text-base font-bold !rounded-xl border-gray-200 uppercase"
             autoFocus
             disabled={loading}
-            onKeyDown={(e) => handleEnter(e, "table-chairs")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const nameVal = form.getValues("tableName");
+                if (!nameVal || !nameVal.trim()) {
+                  void form.trigger("tableName");
+                  setTimeout(() => {
+                    const el = document.getElementById("table-name");
+                    el?.focus();
+                  }, 20);
+                  return;
+                }
+                handleEnter(e, "table-chairs");
+              }
+            }}
             onChange={(e) => {
               // Convert to uppercase on change and enforce max 15 characters
               setValue("tableName", e.target.value.toUpperCase().slice(0, 15), { shouldValidate: true, shouldDirty: true });
@@ -108,6 +150,32 @@ const TableMasterForm = ({
                 className="h-11 !rounded-xl border-gray-200"
                 inputClassName="px-0 text-center text-base font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 disabled={loading}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const nameVal = form.getValues("tableName");
+                    if (!nameVal || !nameVal.trim()) {
+                      void form.trigger("tableName");
+                      setTimeout(() => {
+                        const el = document.getElementById("table-name");
+                        el?.focus();
+                        if (el instanceof HTMLInputElement) el.select?.();
+                      }, 20);
+                      return;
+                    }
+                    const chairsVal = form.getValues("chairs");
+                    if (!chairsVal || Number(chairsVal) < 1) {
+                      void form.trigger("chairs");
+                      setTimeout(() => {
+                        const el = document.getElementById("table-chairs");
+                        el?.focus();
+                        if (el instanceof HTMLInputElement) el.select?.();
+                      }, 20);
+                      return;
+                    }
+                    handleEnter(e, "table-save-btn");
+                  }
+                }}
               />
             </div>
             <button
@@ -124,10 +192,37 @@ const TableMasterForm = ({
         {/* Status */}
         <div className="flex flex-col gap-1.5 justify-center mt-2">
           <Checkbox
+            id="table-active"
             label="Active Status"
             checked={watch("isActive")}
             onChange={(e) => setValue("isActive", e.target.checked, { shouldValidate: true, shouldDirty: true })}
             disabled={loading}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const nameVal = form.getValues("tableName");
+                if (!nameVal || !nameVal.trim()) {
+                  void form.trigger("tableName");
+                  setTimeout(() => {
+                    const el = document.getElementById("table-name");
+                    el?.focus();
+                    if (el instanceof HTMLInputElement) el.select?.();
+                  }, 20);
+                  return;
+                }
+                const chairsVal = form.getValues("chairs");
+                if (!chairsVal || Number(chairsVal) < 1) {
+                  void form.trigger("chairs");
+                  setTimeout(() => {
+                    const el = document.getElementById("table-chairs");
+                    el?.focus();
+                    if (el instanceof HTMLInputElement) el.select?.();
+                  }, 20);
+                  return;
+                }
+                handleEnter(e, "table-save-btn");
+              }
+            }}
           />
         </div>
       </div>
@@ -135,7 +230,12 @@ const TableMasterForm = ({
       <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-gray-100">
         <Button 
           variant="secondary" 
-          onClick={onClear} 
+          onClick={() => {
+            onClear();
+            setTimeout(() => {
+              document.getElementById("table-name")?.focus();
+            }, 30);
+          }} 
           disabled={loading}
           type="button"
           tabIndex={-1}
@@ -145,9 +245,10 @@ const TableMasterForm = ({
           Clear
         </Button>
         <Button 
+          id="table-save-btn"
           onClick={onSave} 
           disabled={loading}
-          type="button"
+          type="submit"
           isAction
           loading={loading}
           icon={<Save size={18} />}
@@ -167,7 +268,7 @@ const TableMasterForm = ({
           </Button>
         )}
       </div>
-    </div>
+    </form>
   );
 };
 

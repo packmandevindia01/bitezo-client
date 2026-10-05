@@ -42,6 +42,7 @@ const SortableRow = ({
 
       {/* Input */}
       <input
+        id={`input-line-${item.id}`}
         className="flex-1 text-[11px] border border-gray-100 rounded-md px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#49293e]/20 focus:border-[#49293e]/40 transition disabled:bg-gray-50 min-w-0"
         value={item.value}
         onChange={(e) => onChange(e.target.value)}

@@ -274,6 +274,13 @@ export const useProviderManager = () => {
     void refetchPaymodes();
     void dispatch(fetchGlobalMasterData());
     setOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById("prov-name");
+      if (el) {
+        el.focus();
+        if (el instanceof HTMLInputElement) el.select?.();
+      }
+    }, 50);
   };
 
   const handleEdit = async (record: ProviderListItem) => {
@@ -306,6 +313,13 @@ export const useProviderManager = () => {
 
       setImagePreview(detail.provider.fileUrl || "");
       setOpen(true);
+      setTimeout(() => {
+        const el = document.getElementById("prov-name");
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
+        }
+      }, 50);
     } catch (error: any) {
       showToast(error?.message || "Failed to fetch provider details", "error");
     }
@@ -316,8 +330,46 @@ export const useProviderManager = () => {
       saveMutation.mutate(data);
     },
     (errs) => {
-      if (errs.branchIds) {
-        document.getElementById("prov-branch-select")?.focus();
+      if (errs.providerName) {
+        if (errs.providerName.message) {
+          showToast(String(errs.providerName.message), "error");
+        }
+        setTimeout(() => {
+          const el = document.getElementById("prov-name");
+          if (el) {
+            el.focus();
+            if (el instanceof HTMLInputElement) el.select?.();
+          }
+        }, 50);
+      } else if (errs.paymodeId) {
+        if (errs.paymodeId.message) {
+          showToast(String(errs.paymodeId.message), "error");
+        }
+        setTimeout(() => {
+          const el = document.getElementById("prov-paymode");
+          el?.focus();
+        }, 50);
+      } else if (errs.postAccountId) {
+        if (errs.postAccountId.message) {
+          showToast(String(errs.postAccountId.message), "error");
+        }
+        setTimeout(() => {
+          const el = document.getElementById("prov-post-account");
+          el?.focus();
+        }, 50);
+      } else if (errs.branchIds) {
+        if (errs.branchIds.message) {
+          showToast(String(errs.branchIds.message), "error");
+        }
+        setTimeout(() => {
+          const el = document.getElementById("prov-branch-select");
+          el?.focus();
+        }, 50);
+      } else {
+        const firstError = Object.values(errs)[0] as any;
+        if (firstError?.message) {
+          showToast(String(firstError.message), "error");
+        }
       }
     }
   );

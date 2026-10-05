@@ -23,7 +23,7 @@ export const receiptAgainstVoucherSchema = z.object({
   seriesId: z.coerce.number().min(1, "Series is required"),
   prefix: z.string().optional().default(""),
   vchNo: z.string().optional(), // For UI display purposes
-  branchId: z.coerce.number(),
+  branchId: z.coerce.number().min(1, "Branch is required"),
   accountId: z.coerce.number().min(1, "Account/Customer is required"),
   paymodeId: z.coerce.number().min(1, "Paymode is required"),
   employeeId: z.coerce.number().min(1, "Employee is required"),
