@@ -1,18 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { bomApi } from "../services/bomApi";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
-import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import { fetchBranchNames, fetchBranches } from "../../../inventory/branches/services/branchApi";
+import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToProductUpdates } from "../../../inventory/product/utils/productSync";
 import { productService } from "../../../inventory/product/services/productService";
-import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
-import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 
 export const useBomList = () => {
-  const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
-  const reduxBranches = useAppSelector((state) => state.masterData.branches);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -21,111 +16,23 @@ export const useBomList = () => {
     unitId: ""
   });
 
-  // 1. Branches Query
-  const { data: queryBranches = [] } = useQuery<SearchableOption[]>({
+  // 1. Branches Query (direct from backend without alterations, matching transaction modules)
+  const { data: branches = [] } = useQuery<SearchableOption[]>({
     queryKey: ["bomBranches"],
     queryFn: async () => {
-      const branchMap = new Map<string, string>();
-
-      // Concurrently query all available branch endpoints to ensure newly created branches are always present
-      const [branchMasterRes, directBranchesRes, bomBranchesRes] = await Promise.allSettled([
-        fetchBranches(),
-        fetchBranchNames(true),
-        bomApi.getBranchList(),
-      ]);
-
-      // 1. Process fetchBranches() (direct Branch Master list - contains all newly created branches)
-      if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
-        branchMasterRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      // 2. Process directBranches (/Branch/true/list-name)
-      if (directBranchesRes.status === "fulfilled" && Array.isArray(directBranchesRes.value)) {
-        directBranchesRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      // 3. Process bomApi.getBranchList()
-      if (bomBranchesRes.status === "fulfilled" && Array.isArray(bomBranchesRes.value)) {
-        bomBranchesRes.value.forEach((b: any) => {
-          const id = String(b.branchId ?? b.id ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      return Array.from(branchMap.entries()).map(([value, label]) => ({
-        label,
-        value,
+      const data = await fetchBranchNames(true);
+      return (data || []).map((b: any) => ({
+        label: b.branchName,
+        value: String(b.id),
       }));
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
   });
 
-  // Real-time synchronization for branch updates (same-tab CustomEvent + cross-tab BroadcastChannel/storage)
   useEffect(() => {
-    const unsubscribe = subscribeToBranchUpdates(() => {
-      // resetQueries atomically clears cached data and re-fetches for any active subscriber
-      void queryClient.resetQueries({ queryKey: ["bomBranches"] });
-      queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
-      void dispatch(fetchGlobalBranches());
-    });
-    return () => unsubscribe();
-  }, [queryClient, dispatch]);
-
-  // Ensure fresh branch data on every mount.
-  // Covers the timing gap where: branch is created → notifyBranchesUpdated fires →
-  // user navigates to BOM list (BomListPage not yet mounted, so event was missed) →
-  // on-mount reset guarantees a fresh fetch regardless of any cached state.
-  useEffect(() => {
-    void queryClient.resetQueries({ queryKey: ["bomBranches"] });
-    queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
-    void dispatch(fetchGlobalBranches());
-  }, [queryClient, dispatch]);
-
-  // Merge query branches with live Redux masterData branches
-  const branches = useMemo(() => {
-    const branchMap = new Map<string, string>();
-
-    (queryBranches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? b.branchId ?? "");
-      const name = String(b.label ?? b.branchName ?? b.name ?? "");
-      if (id && id !== "0" && name) {
-        branchMap.set(id, name);
-      }
-    });
-
-    (reduxBranches || []).forEach((b: any) => {
-      const id = String(b.id ?? b.branchId ?? "");
-      const name = String(b.name ?? b.branchName ?? "");
-      if (id && id !== "0" && name && !branchMap.has(id)) {
-        branchMap.set(id, name);
-      }
-    });
-
-    return Array.from(branchMap.entries()).map(([value, label]) => ({
-      label,
-      value,
-    }));
-  }, [queryBranches, reduxBranches]);
+    if (branches.length > 0 && !filters.branchId) {
+      setFilters((prev) => ({ ...prev, branchId: branches[0].value }));
+    }
+  }, [branches, filters.branchId]);
 
   // 2. Finished Products Query
   const { data: products = [], refetch: refetchProducts } = useQuery<SearchableOption[]>({

@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SearchableSelect } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";

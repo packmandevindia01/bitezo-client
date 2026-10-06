@@ -8,6 +8,7 @@ import type {
   PosOrderType
 } from "../types";
 import { sortAlternatives } from "../utils/alternativeHelpers";
+import { resolveImageUrl } from "../../../utils/imageUtils";
 
 export interface ApiResponse<T> {
   data: T;
@@ -83,7 +84,7 @@ export const menuApi = {
           id,
           name: String(c.categoryName ?? c.name ?? ""),
           arabicName: String(c.arabicName ?? c.arabic ?? ""),
-          imageUrl: c.imageUrl ?? null,
+          imageUrl: c.imageUrl ? resolveImageUrl(c.imageUrl) : null,
           colorCode: c.colorCode || "red"
         });
       }
@@ -125,7 +126,7 @@ export const menuApi = {
         id: Number(c.categoryId ?? c.id ?? c.catId ?? 0),
         name: String(c.categoryName ?? c.name ?? c.catName ?? ""),
         arabicName: String(c.arabicName ?? c.arabic ?? ""),
-        imageUrl: c.imageUrl ?? null,
+        imageUrl: c.imageUrl ? resolveImageUrl(c.imageUrl) : null,
         colorCode: c.colorCode || "red"
       })).filter((c: PosCategory) => c.id > 0) as PosCategory[];
     } catch (error) {
@@ -149,7 +150,7 @@ export const menuApi = {
         subCategoryId: Number(s.subCategoryId ?? s.id ?? s.subCatId ?? s.subcategoryId ?? 0),
         subCategoryName: String(s.subCategoryName ?? s.name ?? s.subCatName ?? s.subcategoryName ?? ""),
         arabicName: String(s.arabicName ?? ""),
-        imageUrl: s.imageUrl ?? null
+        imageUrl: s.imageUrl ? resolveImageUrl(s.imageUrl) : null
       })).filter((s: MenuSubCategory) => s.subCategoryId > 0);
     } catch (error) {
       console.error(`[menuApi] Failed to fetch sub-categories for categoryId ${categoryId}:`, error);
@@ -174,7 +175,7 @@ export const menuApi = {
         arabicName: p.arabicName,
         categoryId: categoryId,
         price: p.price,
-        imageUrl: p.imageUrl,
+        imageUrl: p.imageUrl ? resolveImageUrl(p.imageUrl) : undefined,
         colorCode: p.colorCode,
         vatId: p.vatId,
         vatValue: p.vatValue,
@@ -224,7 +225,7 @@ export const menuApi = {
         price: Number(p.price ?? 0),
         hasAlternatives: Boolean(p.hasAlternatives),
         isLocked: Boolean(p.isLocked),
-        imageUrl: p.imageUrl,
+        imageUrl: p.imageUrl ? resolveImageUrl(p.imageUrl) : undefined,
         code: p.code || p.productCode || "",
         unitId: p.unitId,
         isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :

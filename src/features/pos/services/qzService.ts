@@ -480,15 +480,101 @@ export function isThermalPosPrinter(printerName: string): boolean {
 }
 
 /**
+ * Dynamically crops the rendered receipt canvas to eliminate wasted paper above and below.
+ * Scans every pixel row from top and bottom to find exact content boundaries:
+ * 1. Top: crops from the very first non-white pixel row (plus small top margin), eliminating excess header gap.
+ * 2. Bottom: crops directly at the last non-white pixel row (plus small bottom margin), eliminating excess footer gap.
+ */
+export function cropCanvasContent(
+  canvas: HTMLCanvasElement,
+  topPaddingDots = 4,
+  bottomPaddingDots = 8
+): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return canvas;
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const imgData = ctx.getImageData(0, 0, width, height).data;
+
+  let firstDarkY = -1;
+  let lastDarkY = -1;
+
+  for (let y = 0; y < height; y++) {
+    const rowOffset = y * width * 4;
+    let hasDarkPixel = false;
+    for (let x = 0; x < width; x++) {
+      const idx = rowOffset + x * 4;
+      const r = imgData[idx];
+      const g = imgData[idx + 1];
+      const b = imgData[idx + 2];
+      const a = imgData[idx + 3];
+
+      // Treat any pixel that is non-transparent and darker than white paper background as content
+      if (a > 30) {
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (lum < 235) {
+          hasDarkPixel = true;
+          break;
+        }
+      }
+    }
+
+    if (hasDarkPixel) {
+      if (firstDarkY === -1) {
+        firstDarkY = y;
+      }
+      lastDarkY = y;
+    }
+  }
+
+  // If no content found (blank canvas), return original
+  if (firstDarkY === -1 || lastDarkY === -1) {
+    return canvas;
+  }
+
+  // Calculate tight crop boundaries
+  const startY = Math.max(0, firstDarkY - topPaddingDots);
+  const endY = Math.min(height, lastDarkY + 1 + bottomPaddingDots);
+  const croppedHeight = endY - startY;
+
+  if (croppedHeight <= 0) return canvas;
+
+  const croppedCanvas = document.createElement("canvas");
+  croppedCanvas.width = width;
+  croppedCanvas.height = croppedHeight;
+  const cCtx = croppedCanvas.getContext("2d");
+  if (!cCtx) return canvas;
+
+  cCtx.fillStyle = "#ffffff";
+  cCtx.fillRect(0, 0, width, croppedHeight);
+  cCtx.drawImage(
+    canvas,
+    0,
+    startY,
+    width,
+    croppedHeight,
+    0,
+    0,
+    width,
+    croppedHeight
+  );
+
+  return croppedCanvas;
+}
+
+/**
  * Encodes a 576-pixel wide canvas directly into 1:1 ESC/POS raster bit image commands (GS v 0).
  * Every bit directly drives one physical heating pin on the 203 DPI thermal print head.
  * Bypasses Windows GDI scaling and driver halftoning completely for razor-sharp vector clarity!
  */
 export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
+  // Dynamically crop canvas so it begins right at the header and ends right after the footer
+  const srcCanvas = cropCanvasContent(canvas, 4, 8);
   const width = 576;
-  const cutterPaddingDots = 80; // ~10mm bottom white margin so physical cutter blade never slices through footer text
-  const scaledHeight = canvas.width === 576 ? canvas.height : Math.round((canvas.height * 576) / canvas.width);
-  const height = scaledHeight + cutterPaddingDots;
+  const height = srcCanvas.width === 576 
+    ? srcCanvas.height 
+    : Math.round((srcCanvas.height * 576) / srcCanvas.width);
 
   const fixedCanvas = document.createElement("canvas");
   fixedCanvas.width = width;
@@ -497,9 +583,8 @@ export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
   if (fCtx) {
     fCtx.fillStyle = "#ffffff";
     fCtx.fillRect(0, 0, width, height);
-    fCtx.drawImage(canvas, 0, 0, width, scaledHeight);
+    fCtx.drawImage(srcCanvas, 0, 0, width, height);
   }
-  const srcCanvas = fixedCanvas;
 
   const bytesPerLine = width / 8; // 72 bytes per row
 
@@ -512,8 +597,9 @@ export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
   const yH = (height >> 8) & 0xff;
 
   const header = [0x1b, 0x40, 0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH];
-  // Post-print: ESC d 8 (feed 8 lines so paper clears cutter knife), GS V 66 0 (feed to cutter & partial cut)
-  const footer = [0x1b, 0x64, 0x08, 0x1d, 0x56, 0x42, 0x00];
+  // Post-print: ESC d 2 (feed 2 lines ~5mm so physical cutter blade cleanly clears the last footer line),
+  // GS V 66 0 (advance to cutter position & partial cut)
+  const footer = [0x1b, 0x64, 0x02, 0x1d, 0x56, 0x42, 0x00];
 
   const totalBytes = header.length + bytesPerLine * height + footer.length;
   const result = new Uint8Array(totalBytes);
@@ -664,7 +750,7 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
       },
     });
 
-    return canvas;
+    return cropCanvasContent(canvas, 4, 8);
   } finally {
     if (iframe.parentNode) {
       document.body.removeChild(iframe);
@@ -785,8 +871,8 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       }
 
       let finalCanvas: HTMLCanvasElement = canvas;
-      const cutterFeedMargin = 160;
-      const finalHeight = Math.max(canvas.height + cutterFeedMargin, Math.round(canvas.width * 1.05));
+      const cutterFeedMargin = 24;
+      const finalHeight = Math.max(canvas.height + cutterFeedMargin, Math.round(canvas.width * 0.8));
       const padded = document.createElement("canvas");
       padded.width = canvas.width;
       padded.height = finalHeight;

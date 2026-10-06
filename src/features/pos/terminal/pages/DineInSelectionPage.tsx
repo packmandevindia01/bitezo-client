@@ -48,7 +48,7 @@ function formatOrderTime(dateStr: string): string | null {
 export const DineInSelectionPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { sections, tables, selectedSectionId, setSelectedSectionId, loading } = useDineIn();
+  const { sections, tables, selectedSectionId, setSelectedSectionId, loading, refresh } = useDineIn();
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
 
@@ -294,7 +294,9 @@ export const DineInSelectionPage: React.FC = () => {
         sectionId={selectedSectionId ?? 0}
         onClose={() => setOrdersTable(null)}
         onEditSuccess={() => setOrdersTable(null)}
-        onSettleSuccess={() => setOrdersTable(null)}
+        onSettleSuccess={() => {
+          void refresh();
+        }}
       />
     </div>
   );

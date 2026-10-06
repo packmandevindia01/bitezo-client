@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Save, RotateCcw, Trash2 } from "lucide-react";
 import { Button, FormInput, Modal, Checkbox } from "../../../../components/common";
 import { CounterAllocationSelect } from "./CounterAllocationSelect";
+import { useToast } from "../../../../app/providers/useToast";
 import type { CounterOption } from "../types";
 import type { UseFormReturn } from "react-hook-form";
 
@@ -32,6 +34,22 @@ const PaymodeModal = ({
   onOpenCounters,
 }: Props) => {
   const { register, formState: { errors } } = form;
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        const nameInput = document.getElementById("pm-name");
+        if (nameInput) {
+          nameInput.focus();
+          if (nameInput instanceof HTMLInputElement) {
+            nameInput.select?.();
+          }
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   return (
     <Modal
@@ -87,21 +105,18 @@ const PaymodeModal = ({
               id="pm-code"
               label="Paymode Code"
               required
-              tabIndex={1}
+              tabIndex={-1}
               maxLength={9}
-              {...register("code", {
-                onChange: (e) => {
-                  e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 9);
-                }
-              })}
+              readOnly={true}
+              inputClassName="cursor-not-allowed bg-slate-50 font-mono font-medium text-slate-700"
+              {...register("code")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   document.getElementById("pm-name")?.focus();
                 }
               }}
-              placeholder="Enter paymode code"
-              autoFocus
+              placeholder="Auto-generated"
               error={errors.code?.message as string}
             />
 
@@ -110,13 +125,27 @@ const PaymodeModal = ({
               id="pm-name"
               label="Paymode Name"
               required
-              tabIndex={2}
+              tabIndex={1}
               maxLength={25}
+              autoFocus
               {...register("paymodeName")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  document.getElementById("pm-counter-select")?.focus();
+                  const val = form.getValues("paymodeName");
+                  if (!val || !val.trim()) {
+                    void form.trigger("paymodeName");
+                    showToast("Paymode name is required", "error");
+                    setTimeout(() => {
+                      const el = document.getElementById("pm-name");
+                      el?.focus();
+                      if (el instanceof HTMLInputElement) el.select?.();
+                    }, 50);
+                    return;
+                  }
+                  setTimeout(() => {
+                    document.getElementById("pm-counter-select")?.focus();
+                  }, 50);
                 }
               }}
               placeholder="Enter paymode name"
@@ -135,10 +164,17 @@ const PaymodeModal = ({
 
             {/* Active toggle */}
             <Checkbox
+              id="pm-active"
               label="Active"
-              tabIndex={4}
+              tabIndex={2}
               checked={form.watch("isActive")}
               onChange={(e) => form.setValue("isActive", e.target.checked, { shouldDirty: true, shouldValidate: true })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("pm-save-btn")?.focus();
+                }
+              }}
             />
           </div>
         </div>

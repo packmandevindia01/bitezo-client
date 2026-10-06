@@ -3,10 +3,7 @@ import type { MenuProvider } from "../../../types";
 import { setCustomerId, setOrderType } from "../../store/posSlice";
 import { PosProviderOrderModal } from "./providers/PosProviderOrderModal";
 import { PosWaiterModal } from "./order/PosWaiterModal";
-
-const PosCustomerModal = React.lazy(() =>
-  import("../../../customer/components/PosCustomerModal").then((m) => ({ default: m.PosCustomerModal }))
-);
+import { PosCustomerModal } from "../../../customer/components/PosCustomerModal";
 const PosDeliveryModal = React.lazy(() =>
   import("../../../customer/components/PosDeliveryModal").then((m) => ({ default: m.PosDeliveryModal }))
 );
@@ -85,7 +82,6 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
             isOpen={modals.isCustomerModalOpen}
             onClose={() => {
               modals.setIsCustomerModalOpen(false);
-              modals.setIsMoreModalOpen(true);
             }}
           />
         )}

@@ -1,16 +1,9 @@
 import axiosInstance from "../../../../api/axiosInstance";
-import type { ApiResponse } from "../../product/types";
 import type { BranchPayload, BranchRecord, LineItem } from "../types";
 import { 
   buildRequestBody, 
   mapResponseToBranch 
 } from "./branch-mappers";
-
-interface BranchListItem {
-  branchId?: number;
-  branchName?: string;
-  isActive?: boolean;
-}
 
 // ─── Exported API functions ───────────────────────────────────────────────────
 

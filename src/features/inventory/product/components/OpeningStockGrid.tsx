@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { formatAmount, sanitizeAmountInput } from "../../../../utils/formatters";
 import { useAppSelector } from "../../../../app/hooks";

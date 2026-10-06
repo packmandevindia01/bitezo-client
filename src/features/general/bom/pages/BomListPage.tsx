@@ -51,7 +51,6 @@ const BomListPage = () => {
           <div className="w-48">
             <SelectInput 
               label="Branch" 
-              placeholder="All Branches"
               options={branches} 
               value={filters.branchId} 
               onChange={(e) => handleFilterChange("branchId", e.target.value)} 

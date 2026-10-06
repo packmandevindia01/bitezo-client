@@ -15,7 +15,6 @@ import { paymodeService } from "../../../general/paymode/services/paymodeService
 import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import type { BranchRecord } from "../../../inventory/branches/types";
 
 export const usePaymentAgainstVoucherForm = (transId?: number) => {
   const queryClient = useQueryClient();

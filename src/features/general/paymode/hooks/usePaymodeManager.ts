@@ -217,19 +217,73 @@ export const usePaymodeManager = () => {
   };
 
   const openCreateModal = async () => {
-    resetForm();
+    const maxCode = records.reduce((max, r) => Math.max(max, Number(r.code) || 0), 0);
+    const initialCode = maxCode > 0 ? String(maxCode + 1) : "1";
+    form.reset({
+      paymodeId: 0,
+      code: initialCode,
+      paymodeName: "",
+      isActive: true,
+      counterIds: [],
+    });
+    setEditingId(null);
+    setCounterAllocOpen(false);
+
     queryClient.removeQueries({ queryKey: ["counters"] });
     queryClient.invalidateQueries({ queryKey: ["counters"], refetchType: "all" });
     void refetchCounters();
     setOpen(true);
     try {
       const res = await paymodeService.getNextCode();
-      if (res && res.code !== undefined && res.code !== null) {
-        form.setValue("code", String(res.code), { shouldValidate: false, shouldDirty: false });
+      if (res && res.code !== undefined && res.code !== null && Number(res.code) > 0) {
+        form.setValue("code", String(res.code), { shouldValidate: true, shouldDirty: false });
       }
     } catch (error) {
       console.warn("Failed to fetch next paymode code:", error);
     }
+  };
+
+  const handleClear = async () => {
+    if (editingId) {
+      const currentCode = form.getValues("code");
+      form.reset({
+        paymodeId: editingId,
+        code: currentCode,
+        paymodeName: "",
+        isActive: true,
+        counterIds: [],
+      });
+    } else {
+      let currentCode = form.getValues("code");
+      if (!currentCode) {
+        try {
+          const res = await paymodeService.getNextCode();
+          if (res && res.code !== undefined && res.code !== null && Number(res.code) > 0) {
+            currentCode = String(res.code);
+          }
+        } catch {
+          const maxCode = records.reduce((max, r) => Math.max(max, Number(r.code) || 0), 0);
+          currentCode = String(maxCode + 1);
+        }
+      }
+      form.reset({
+        paymodeId: 0,
+        code: currentCode || "1",
+        paymodeName: "",
+        isActive: true,
+        counterIds: [],
+      });
+    }
+    form.clearErrors();
+    setTimeout(() => {
+      const nameInput = document.getElementById("pm-name");
+      if (nameInput) {
+        nameInput.focus();
+        if (nameInput instanceof HTMLInputElement) {
+          nameInput.select?.();
+        }
+      }
+    }, 50);
   };
 
   const handleEdit = async (record: PaymodeRecord) => {
@@ -255,9 +309,25 @@ export const usePaymodeManager = () => {
     }
   };
 
-  const handleSave = form.handleSubmit((data) => {
-    saveMutation.mutate(data);
-  });
+  const handleSave = form.handleSubmit(
+    (data) => {
+      saveMutation.mutate(data);
+    },
+    (errors) => {
+      if (errors.paymodeName) {
+        showToast(errors.paymodeName.message || "Paymode name is required", "error");
+        setTimeout(() => {
+          const el = document.getElementById("pm-name");
+          if (el) {
+            el.focus();
+            if (el instanceof HTMLInputElement) el.select?.();
+          }
+        }, 50);
+      } else if (errors.code) {
+        showToast(errors.code.message || "Paymode code is required", "error");
+      }
+    }
+  );
 
   const handleDelete = (paymodeId: number) => {
     deleteMutation.mutate(paymodeId);
@@ -319,6 +389,7 @@ export const usePaymodeManager = () => {
     setField,
     toggleCounterSelection,
     resetForm,
+    handleClear,
     closeModal,
     openCreateModal,
     handleSave,

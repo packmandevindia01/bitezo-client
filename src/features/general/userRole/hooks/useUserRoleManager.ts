@@ -264,9 +264,24 @@ export const useUserRoleManager = () => {
   const handleSave = async () => {
     if (!form.roleName.trim()) {
       setRoleNameError("required");
-      setTimeout(() => {
-        document.getElementById("role-name-input")?.focus();
-      }, 50);
+      showToast("Role name is required", "error");
+      const focusRoleName = () => {
+        setTimeout(() => {
+          const el = document.getElementById("role-name-input");
+          if (el) {
+            el.focus();
+            if (el instanceof HTMLInputElement) el.select?.();
+          }
+        }, 50);
+        setTimeout(() => {
+          const el = document.getElementById("role-name-input");
+          if (el && document.activeElement !== el) {
+            el.focus();
+            if (el instanceof HTMLInputElement) el.select?.();
+          }
+        }, 150);
+      };
+      focusRoleName();
       return;
     } else {
       setRoleNameError("");
@@ -279,11 +294,26 @@ export const useUserRoleManager = () => {
     );
     if (duplicateRole) {
       showToast("Role name already exists. Please enter a unique role name.", "error");
+      setTimeout(() => {
+        const el = document.getElementById("role-name-input");
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
+        }
+      }, 50);
       return;
     }
 
     if (form.permissionIds.length === 0) {
       showToast("Select at least one permission", "error");
+      setTimeout(() => {
+        const firstCheckbox = document.querySelector<HTMLInputElement>(
+          '#role-permissions-table input[type="checkbox"]'
+        );
+        if (firstCheckbox) {
+          firstCheckbox.focus();
+        }
+      }, 50);
       return;
     }
 

@@ -19,7 +19,7 @@ const PaymodePage = () => {
     counterOptions,
     refetchCounters,
     setSearch,
-    resetForm,
+    handleClear,
     closeModal,
     openCreateModal,
     handleSave,
@@ -109,7 +109,7 @@ const PaymodePage = () => {
         counterOptions={counterOptions}
         onOpenCounters={refetchCounters}
         onClose={closeModal}
-        onClear={resetForm}
+        onClear={handleClear}
         onSave={handleSave}
         onDelete={() => {
           if (!canDelete) return;

@@ -461,21 +461,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }
 
         let itemIsIncl = isIncl;
+        const explicitDetailIsIncl = detail.isIncl ?? detail.PriceIsIncl ?? detail.priceIsIncl;
+        if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
+          itemIsIncl = Boolean(explicitDetailIsIncl);
+        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+          itemIsIncl = Boolean(realProduct.isIncl);
+        }
+
         if (detail.netAmount !== undefined && detail.price !== undefined) {
           const lineBase = (detail.price || 0) * (detail.qty || 1);
           const discAmt = detail.discAmount || 0;
           const vatAmt = detail.vatAmount || 0;
           const netAmt = detail.netAmount;
+          const remainingBase = lineBase - discAmt;
           
-          if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
-            itemIsIncl = true;
-          } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
-            itemIsIncl = false;
-          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-            itemIsIncl = Boolean(realProduct.isIncl);
+          if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
+            if (Math.abs(netAmt - remainingBase) < 0.01) {
+              itemIsIncl = true;
+            } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
+              itemIsIncl = false;
+            }
           }
-        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-          itemIsIncl = Boolean(realProduct.isIncl);
         }
 
         let calculatedVatValue: number | undefined = undefined;
@@ -486,14 +492,24 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           }
         }
 
+        const isDetailComplimentary = Boolean(
+          detail.complimentaryStatus ||
+          detail.ComplimentaryStatus ||
+          (detail.discPer && Number(detail.discPer) === 100)
+        );
+
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
           productId: pId,
           quantity: detail.qty || 1,
           price: detail.price || 0,
           isIncl: itemIsIncl,
-          discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
-          discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
+          discountValue: isDetailComplimentary
+            ? 100
+            : detail.discPer && detail.discPer > 0
+            ? detail.discPer
+            : (detail.discAmount || 0),
+          discountType: isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount',
           extras,
           modifiers,
           messages,
@@ -542,8 +558,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
-        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
+        billDiscountValue: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100))
+          ? 100
+          : master.discPer && master.discPer > 0
+          ? master.discPer
+          : (master.discAmount || 0),
+        billDiscountType: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100) || (master.discPer && master.discPer > 0))
+          ? 'percentage'
+          : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
@@ -617,21 +639,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }
 
         let itemIsIncl = isIncl;
+        const explicitDetailIsIncl = detail.isIncl ?? detail.PriceIsIncl ?? detail.priceIsIncl;
+        if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
+          itemIsIncl = Boolean(explicitDetailIsIncl);
+        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+          itemIsIncl = Boolean(realProduct.isIncl);
+        }
+
         if (detail.netAmount !== undefined && detail.price !== undefined) {
           const lineBase = (detail.price || 0) * (detail.qty || 1);
           const discAmt = detail.discAmount || 0;
           const vatAmt = detail.vatAmount || 0;
           const netAmt = detail.netAmount;
+          const remainingBase = lineBase - discAmt;
           
-          if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
-            itemIsIncl = true;
-          } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
-            itemIsIncl = false;
-          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-            itemIsIncl = Boolean(realProduct.isIncl);
+          if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
+            if (Math.abs(netAmt - remainingBase) < 0.01) {
+              itemIsIncl = true;
+            } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
+              itemIsIncl = false;
+            }
           }
-        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-          itemIsIncl = Boolean(realProduct.isIncl);
         }
 
         let calculatedVatValue: number | undefined = undefined;
@@ -642,14 +670,24 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           }
         }
 
+        const isDetailComplimentary = Boolean(
+          detail.complimentaryStatus ||
+          detail.ComplimentaryStatus ||
+          (detail.discPer && Number(detail.discPer) === 100)
+        );
+
         return {
           uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
           productId: pId,
           quantity: detail.qty || 1,
           price: detail.price || 0,
           isIncl: itemIsIncl,
-          discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
-          discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
+          discountValue: isDetailComplimentary
+            ? 100
+            : detail.discPer && detail.discPer > 0
+            ? detail.discPer
+            : (detail.discAmount || 0),
+          discountType: isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount',
           extras,
           modifiers,
           isExisting: true,
@@ -695,8 +733,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
-        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
+        billDiscountValue: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100))
+          ? 100
+          : master.discPer && master.discPer > 0
+          ? master.discPer
+          : (master.discAmount || 0),
+        billDiscountType: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100) || (master.discPer && master.discPer > 0))
+          ? 'percentage'
+          : 'amount',
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,

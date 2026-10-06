@@ -185,7 +185,11 @@ export const buildDirectSettleOrderPayload = (
       vatAmount: roundCalc(mainVatAmount),
       netAmount: roundCalc(mainNetAmount),
       mapId,
-      complimentaryStatus: false,
+      complimentaryStatus: Boolean(
+        (item.discountType === "percentage" && Number(item.discountValue) === 100) ||
+        (billDiscountType === "percentage" && Number(billDiscountValue) === 100) ||
+        (item as any).complimentaryStatus
+      ),
     };
   });
 

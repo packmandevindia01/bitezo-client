@@ -1,10 +1,29 @@
+import { getConfig } from "../config";
+
+/**
+ * Extracts the backend origin (protocol + host + port) from runtime config.
+ * E.g., "http://192.168.1.34:8068/api/v1" -> "http://192.168.1.34:8068"
+ */
+const getBackendOrigin = (): string => {
+  try {
+    const { apiBaseUrl } = getConfig();
+    if (apiBaseUrl && (apiBaseUrl.startsWith("http://") || apiBaseUrl.startsWith("https://"))) {
+      const url = new URL(apiBaseUrl);
+      return url.origin;
+    }
+  } catch {
+    // fallback if invalid URL
+  }
+  return "";
+};
+
 /**
  * Resolves an image path from the backend into a fully qualified browser URL.
  * Handles:
  * - Full URLs (http://, https://, blob:, data:)
  * - Windows backslashes (normalized to forward slashes)
  * - Dummy Swagger "string" placeholders (returns empty string)
- * - Relative backend paths (using Vite proxy or apiOrigin)
+ * - Relative backend paths (prepends backend origin in production/IIS)
  */
 export const resolveImageUrl = (path?: string | null): string => {
   if (!path || typeof path !== "string") {
@@ -30,14 +49,22 @@ export const resolveImageUrl = (path?: string | null): string => {
     return normalized;
   }
 
-  // Extract relative path if it contains /images/ or /uploads/ so it routes through the proxy
-  const imgIndex = normalized.indexOf("/images/");
+  const origin = getBackendOrigin();
+
+  // Ensure clean path starting with slash for matching
+  const cleanWithSlash = normalized.startsWith("/") ? normalized : `/${normalized}`;
+
+  // Extract relative path if it contains /images/ or /uploads/
+  const imgIndex = cleanWithSlash.indexOf("/images/");
   if (imgIndex !== -1) {
-    return normalized.substring(imgIndex);
+    const rel = cleanWithSlash.substring(imgIndex);
+    return origin ? `${origin}${rel}` : rel;
   }
-  const uploadIndex = normalized.indexOf("/uploads/");
+
+  const uploadIndex = cleanWithSlash.indexOf("/uploads/");
   if (uploadIndex !== -1) {
-    return normalized.substring(uploadIndex);
+    const rel = cleanWithSlash.substring(uploadIndex);
+    return origin ? `${origin}${rel}` : rel;
   }
 
   // If other external absolute URL
@@ -45,7 +72,7 @@ export const resolveImageUrl = (path?: string | null): string => {
     return normalized;
   }
 
-  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+  return origin ? `${origin}${cleanWithSlash}` : cleanWithSlash;
 };
 
 

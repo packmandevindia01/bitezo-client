@@ -158,22 +158,35 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
           let realProduct: any = products.find((p: any) => p.id === pId) || {};
 
-          let itemIsIncl = true;
+          let itemIsIncl = (() => {
+            try {
+              const saved = localStorage.getItem('posConfigs');
+              const full = saved ? JSON.parse(saved) : {};
+              return full?.configs?.priceView === 'Inclusive';
+            } catch { return true; }
+          })();
+
+          const explicitDetailIsIncl = detail.isIncl ?? detail.PriceIsIncl ?? detail.priceIsIncl;
+          if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
+            itemIsIncl = Boolean(explicitDetailIsIncl);
+          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+            itemIsIncl = Boolean(realProduct.isIncl);
+          }
+
           if (detail.netAmount !== undefined && detail.price !== undefined) {
             const lineBase = (detail.price || 0) * (detail.qty || 1);
             const discAmt = detail.discAmount || 0;
             const vatAmt = detail.vatAmount || 0;
             const netAmt = detail.netAmount;
+            const remainingBase = lineBase - discAmt;
             
-            if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
-              itemIsIncl = true;
-            } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
-              itemIsIncl = false;
-            } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-              itemIsIncl = Boolean(realProduct.isIncl);
+            if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
+              if (Math.abs(netAmt - remainingBase) < 0.01) {
+                itemIsIncl = true;
+              } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
+                itemIsIncl = false;
+              }
             }
-          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-            itemIsIncl = Boolean(realProduct.isIncl);
           }
 
           let calculatedVatValue: number | undefined = undefined;

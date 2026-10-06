@@ -38,7 +38,16 @@ const PosProductGrid = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const firstAltRef = useRef<HTMLButtonElement>(null);
   const { formatAmount } = useCurrency();
-  const [columns, setColumns] = useState(6);
+  const getInitialColumns = () => {
+    if (typeof window === "undefined") return 6;
+    const w = window.innerWidth;
+    if (w >= 1280) return 6;
+    if (w >= 1024) return 5;
+    if (w >= 768) return 4;
+    return 4;
+  };
+
+  const [columns, setColumns] = useState(getInitialColumns);
 
   // Stable callbacks using the ref pattern to prevent stale closures
   // without needing to wrap the heavy parent functions in useCallback
@@ -63,24 +72,61 @@ const PosProductGrid = ({
   useEffect(() => {
     if (!scrollRef.current) return;
 
-    const computeColumns = (width: number) => {
-      // Aim for an ideal card width of ~130px.
-      // This mathematically guarantees a fluid width,
-      // perfectly emulating CSS repeat(auto-fill, minmax(130px, 1fr)).
-      const cols = Math.floor(width / 130);
-      return Math.max(3, Math.min(cols, 8)); // Keep between 3 and 8 columns
+    const computeColumns = (gridWidth: number) => {
+      const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
+
+      // Minimum columns by device screen category:
+      // - POS menu screen: minimum 4 products in a row
+      // - Tab menu screen: minimum 3 or 4 products in a row
+      // - Desktop menu screen: minimum 5 or 6 products in a row
+      let minCols = 4;
+
+      if (screenWidth >= 1280) {
+        // Standard / Large Desktop: minimum 6 products in a row
+        minCols = 6;
+      } else if (screenWidth >= 1024) {
+        // Compact Desktop / 1024px screen: minimum 5 or 6 products in a row
+        minCols = gridWidth >= 600 ? 6 : 5;
+      } else if (screenWidth >= 768) {
+        // Tab (Tablet): minimum 3 or 4 products in a row
+        minCols = gridWidth >= 420 ? 4 : 3;
+      } else {
+        // POS Menu Screen / Mobile: minimum 4 products in a row
+        minCols = 4;
+      }
+
+      // Fluid calculation based on available grid container width (~105px-110px ideal card width)
+      const fluidCols = Math.floor(gridWidth / 110);
+
+      // Return at least minCols, scaling up on wider displays (up to 10 max)
+      return Math.max(minCols, Math.min(fluidCols, 10));
+    };
+
+    const updateColumns = (width: number) => {
+      setColumns(computeColumns(width));
     };
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setColumns(computeColumns(entry.contentRect.width));
+        updateColumns(entry.contentRect.width);
       }
     });
 
+    const handleWindowResize = () => {
+      if (scrollRef.current) {
+        updateColumns(scrollRef.current.getBoundingClientRect().width);
+      }
+    };
+
     // Fire immediately with current width so first render is correct
-    setColumns(computeColumns(scrollRef.current.getBoundingClientRect().width));
+    updateColumns(scrollRef.current.getBoundingClientRect().width);
     observer.observe(scrollRef.current);
-    return () => observer.disconnect();
+    window.addEventListener("resize", handleWindowResize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleWindowResize);
+    };
   }, []);
 
 

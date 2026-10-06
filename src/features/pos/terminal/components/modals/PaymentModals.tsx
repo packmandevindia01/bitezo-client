@@ -49,6 +49,7 @@ export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) =>
       <PosMultiPayModal
         isOpen={modals.isMultiPayModalOpen}
         customerId={props.selectedCustomerId}
+        tenderOptions={props.tenderOptions}
         onClose={() => {
           modals.setIsMultiPayModalOpen(false);
           if (modals.returnToRecallOnCancel) {
@@ -66,19 +67,10 @@ export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) =>
             modals.setReturnToRecallOnCancel(false);
           }
           const mappedPayments = payments.map((p: any) => {
-            const matchedTender = props.tenderOptions.find((t) =>
-              t.label.toLowerCase().includes(p.mode.toLowerCase())
-            );
-            const id = matchedTender
-              ? Number(matchedTender.id)
-              : p.mode === "cash"
-              ? 1
-              : p.mode === "card"
-              ? 2
-              : 3;
-            const finalAmount = p.mode === "cash" ? Math.max(0, p.amount - changeAmount) : p.amount;
+            const isCash = (p.label || "").toLowerCase().includes("cash");
+            const finalAmount = isCash ? Math.max(0, p.amount - changeAmount) : p.amount;
             return {
-              paymodeId: id,
+              paymodeId: Number(p.paymodeId),
               amount: roundCalc(finalAmount),
             };
           });

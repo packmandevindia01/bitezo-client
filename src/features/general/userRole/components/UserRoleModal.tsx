@@ -1,5 +1,5 @@
 import { Save, RotateCcw, Trash2, ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useState, useMemo, useEffect } from "react";
 import { Button, Checkbox, FormInput, Loader, Modal } from "../../../../components/common";
 import type { UserRoleForm, UserRolePermission } from "../types";
 
@@ -52,6 +52,19 @@ const UserRoleModal = ({
 }: Props) => {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById("role-name-input");
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const { permissionsByModule, categories } = useMemo(() => {
     const permByMod: Record<string, UserRolePermission[]> = {};
     const cats: Record<string, string[]> = {};
@@ -88,6 +101,14 @@ const UserRoleModal = ({
     });
   };
 
+  const handleCheckboxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      onSave();
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -98,7 +119,16 @@ const UserRoleModal = ({
         <div className="flex gap-3">
           <Button 
             variant="secondary" 
-            onClick={onClear} 
+            onClick={() => {
+              onClear();
+              setTimeout(() => {
+                const el = document.getElementById("role-name-input");
+                if (el) {
+                  el.focus();
+                  if (el instanceof HTMLInputElement) el.select?.();
+                }
+              }, 50);
+            }} 
             disabled={saving || deleting} 
             tabIndex={-1}
             isAction
@@ -109,6 +139,12 @@ const UserRoleModal = ({
           <Button 
             id="role-save-btn"
             onClick={onSave} 
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onSave();
+              }
+            }}
             disabled={saving || deleting}
             isAction
             loading={saving}
@@ -136,7 +172,20 @@ const UserRoleModal = ({
           <Loader text="Loading role details..." />
         </div>
       ) : (
-        <div className="flex flex-col overflow-y-auto pr-1" style={{ maxHeight: "calc(90vh - 120px)" }}>
+        <form 
+          onSubmit={(e) => { e.preventDefault(); onSave(); }} 
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const target = e.target as HTMLElement;
+              if (target.id === "role-name-input") return;
+              if (target.tagName === "BUTTON") return;
+              e.preventDefault();
+              onSave();
+            }
+          }}
+          className="flex flex-col overflow-y-auto pr-1" 
+          style={{ maxHeight: "calc(90vh - 120px)" }}
+        >
           <section className="rounded-3xl border border-gray-200 bg-white p-2 md:p-3">
             <div className="flex flex-col gap-3">
               <FormInput
@@ -152,7 +201,22 @@ const UserRoleModal = ({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    document.getElementById("role-save-btn")?.focus();
+                    if (!form.roleName.trim()) {
+                      onSave();
+                      return;
+                    }
+                    if (form.permissionIds.length > 0) {
+                      document.getElementById("role-save-btn")?.focus();
+                    } else {
+                      const firstCheckbox = document.querySelector<HTMLInputElement>(
+                        '#role-permissions-table input[type="checkbox"]'
+                      );
+                      if (firstCheckbox) {
+                        firstCheckbox.focus();
+                      } else {
+                        document.getElementById("role-save-btn")?.focus();
+                      }
+                    }
                   }
                 }}
               />
@@ -160,7 +224,7 @@ const UserRoleModal = ({
               <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 flex items-center">
                 Permissions <span className="text-red-500 ml-1 font-bold">*</span>
               </p>
-              <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div id="role-permissions-table" className="overflow-hidden rounded-xl border border-gray-200">
                 {moduleNames.length === 0 ? (
                   <p className="p-5 text-sm text-gray-500">No permissions available.</p>
                 ) : (
@@ -220,6 +284,7 @@ const UserRoleModal = ({
                                           <Checkbox
                                             checked={isActionAllSelected}
                                             onChange={(e) => setActionPermissions(category, action, e.target.checked, categories)}
+                                            onKeyDown={handleCheckboxKeyDown}
                                             id={`category-${category.toLowerCase()}-action-${action.toLowerCase()}`}
                                           />
                                         </div>
@@ -234,6 +299,7 @@ const UserRoleModal = ({
                                     <Checkbox
                                       checked={isCategoryAllSelected}
                                       onChange={(e) => handleToggleCategoryCheckbox(category, e.target.checked)}
+                                      onKeyDown={handleCheckboxKeyDown}
                                       id={`category-${category.toLowerCase()}-all`}
                                     />
                                   </div>
@@ -265,6 +331,7 @@ const UserRoleModal = ({
                                                 <Checkbox
                                                   checked={form.permissionIds.includes(permission.permissionId)}
                                                   onChange={() => onTogglePermission(permission.permissionId)}
+                                                  onKeyDown={handleCheckboxKeyDown}
                                                   disabled={!isViewAction && !isViewSelected}
                                                   id={`permission-${permission.permissionId}`}
                                                 />
@@ -280,6 +347,7 @@ const UserRoleModal = ({
                                           <Checkbox
                                             checked={allSelected}
                                             onChange={(e) => onToggleModule(module, e.target.checked)}
+                                            onKeyDown={handleCheckboxKeyDown}
                                             id={`module-${module.replace(/\s+/g, "-").toLowerCase()}`}
                                           />
                                         </div>
@@ -298,7 +366,7 @@ const UserRoleModal = ({
               </div>
             </div>
           </section>
-        </div>
+        </form>
       )}
     </Modal>
   );

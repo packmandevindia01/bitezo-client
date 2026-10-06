@@ -148,6 +148,7 @@ const EmployeeModal = ({
 
         <SelectInput
           id="emp-branch"
+          name="branchId"
           label="Branch Name"
           required
           placeholder="Select a branch"
@@ -165,6 +166,7 @@ const EmployeeModal = ({
 
         <SelectInput
           id="emp-role"
+          name="roleId"
           label="Role"
           required
           placeholder="Select a role"

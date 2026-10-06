@@ -337,13 +337,14 @@ export const generateGuestPrintHtml = async (
       <head>
         <meta charset="UTF-8" />
         <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 13px;
             font-weight: 600;
             color: #000000;
             margin: 0 auto;
-            padding: 0 0 35px 0;
+            padding: 2px 0 0 0;
             width: 100%;
             max-width: 576px;
             background-color: #ffffff;
@@ -367,7 +368,7 @@ export const generateGuestPrintHtml = async (
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .header-title { font-size: 16px; margin-bottom: 12px; letter-spacing: 0.5px; font-weight: 800; color: #000000; }
+          .header-title { font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 800; color: #000000; }
           
           table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
           
@@ -649,13 +650,12 @@ export const generateGuestPrintHtml = async (
           ${customFootersHtml}
         </div>
         ` : ''}
-        <div style="text-align: center; margin-top: 10px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.5; padding: 0 4px 20px 4px; box-sizing: border-box;">
+        <div style="text-align: center; margin-top: 6px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.4; padding: 0 4px 2px 4px; box-sizing: border-box;">
           <div>Thank you For Visiting</div>
           ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 12.5px; font-weight: bold; text-align: center; display: block; margin-top: 3px; line-height: 1.5; word-break: break-word; overflow-wrap: break-word;">شكراً لزيارتكم</div>' : ''}
           <div style="margin-top: 6px;">HAVE A GOOD DAY</div>
           ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 12.5px; font-weight: bold; text-align: center; display: block; margin-top: 3px; line-height: 1.5; word-break: break-word; overflow-wrap: break-word;">نتمنى لكم يوماً سعيداً</div>' : ''}
         </div>
-        <div style="height: 35px; width: 100%; clear: both;"></div>
       </body>
     </html>
   `;

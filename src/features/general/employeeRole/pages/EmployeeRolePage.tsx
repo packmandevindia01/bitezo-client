@@ -121,10 +121,26 @@ const EmployeeRolePage = () => {
   const handleSave = async () => {
     if (!form.roleName.trim()) {
       setError("required");
+      showToast("Role name is required", "error");
+      setTimeout(() => {
+        const el = document.getElementById("employee-role-name-input");
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
+        }
+      }, 50);
       return;
     }
     if (form.roleName.trim().length > 20) {
       setError("Maximum 20 characters allowed");
+      showToast("Maximum 20 characters allowed", "error");
+      setTimeout(() => {
+        const el = document.getElementById("employee-role-name-input");
+        if (el) {
+          el.focus();
+          if (el instanceof HTMLInputElement) el.select?.();
+        }
+      }, 50);
       return;
     }
     try {

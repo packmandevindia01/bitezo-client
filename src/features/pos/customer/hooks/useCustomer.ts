@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerApi } from "../services/customerApi";
 import { useToast } from "../../../../app/providers/useToast";
 import { customerSchema, type Customer } from "../types/customer";
@@ -66,18 +66,12 @@ export const useCustomer = (onSuccess?: () => void) => {
     },
   });
 
-  const customersQuery = useQuery({
-    queryKey: ["customers"],
-    queryFn: () => customerApi.getCustomers().then(res => res.data),
-    staleTime: 5 * 60 * 1000,
-  });
-
   return {
     methods,
     saveCustomer: (data: Customer) => saveMutation.mutate(data),
     deleteCustomer: (id: number) => deleteMutation.mutate(id),
-    loading: saveMutation.isPending || deleteMutation.isPending || customersQuery.isLoading,
-    customers: customersQuery.data || [],
+    loading: saveMutation.isPending || deleteMutation.isPending,
+    customers: [],
     resetForm: () => reset(initialForm),
   };
 };

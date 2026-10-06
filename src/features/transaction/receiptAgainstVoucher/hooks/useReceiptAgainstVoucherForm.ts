@@ -14,7 +14,6 @@ import { paymodeService } from "../../../general/paymode/services/paymodeService
 import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import type { BranchRecord } from "../../../inventory/branches/types";
 
 export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () => void) => {
   const queryClient = useQueryClient();
@@ -428,7 +427,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
         let hasChanges = false;
         const enriched = currentDetails.map((d: any) => {
           const invId = Number(d.invoiceId);
-          const match = pendingInvoices.find((p: any) => Number(p.invoiceId ?? p.InvoiceId ?? p.id ?? p.Id) === invId);
+          const match: any = pendingInvoices.find((p: any) => Number(p.invoiceId ?? p.InvoiceId ?? p.id ?? p.Id) === invId);
           if (match) {
             const matchedNo = match.invoiceNo || match.InvoiceNo || match.vchNo || match.VchNo || match.voucherNo || match.VoucherNo || match.invNo || match.InvNo || "";
             const matchedType = match.voucherType || match.VoucherType || match.vchType || match.VchType || "";

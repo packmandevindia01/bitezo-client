@@ -322,10 +322,53 @@ export const useEmployeeManager = () => {
     const isValid = await form.trigger();
     if (!isValid) {
       const errs = form.formState.errors;
-      console.warn("[EmployeeForm] Validation errors:", errs);
-      const firstError = Object.values(errs)[0] as any;
-      if (firstError?.message) {
-        showToast(firstError.message as string, "error");
+      const values = form.getValues();
+
+      const fieldOrder: Array<{
+        name: keyof EmployeeForm;
+        id: string;
+        isInvalid: () => boolean;
+      }> = [
+        {
+          name: "name",
+          id: "emp-name",
+          isInvalid: () => Boolean(errs.name || !values.name || !values.name.trim()),
+        },
+        {
+          name: "code",
+          id: "emp-code",
+          isInvalid: () => Boolean(errs.code || !values.code || !values.code.trim()),
+        },
+        {
+          name: "branchId",
+          id: "emp-branch",
+          isInvalid: () =>
+            Boolean(errs.branchId || !values.branchId || values.branchId === "0" || !values.branchId.trim()),
+        },
+        {
+          name: "roleId",
+          id: "emp-role",
+          isInvalid: () =>
+            Boolean(errs.roleId || !values.roleId || values.roleId === "0" || !values.roleId.trim()),
+        },
+      ];
+
+      for (const field of fieldOrder) {
+        if (field.isInvalid()) {
+          try {
+            form.setFocus(field.name);
+          } catch {
+            // fallback to DOM
+          }
+          const el = document.getElementById(field.id);
+          if (el) {
+            el.focus();
+            if ("select" in el && typeof (el as HTMLInputElement).select === "function") {
+              (el as HTMLInputElement).select();
+            }
+          }
+          break;
+        }
       }
       return;
     }

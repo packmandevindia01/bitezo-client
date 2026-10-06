@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../../../../../app/hooks';
 import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo } from '../../../store/posSlice';
@@ -11,8 +11,17 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
-import { getVatStatus } from '../../../utils/billing';
+import { getVatStatus, roundCalc } from '../../../utils/billing';
 import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
+import { PosMultiPayModal, type MultiPaymentLine } from '../payment/PosMultiPayModal';
+import { EmployeePasswordModal } from '../system/EmployeePasswordModal';
+import { useEmployeeAuthorization } from '../../../hooks/useEmployeeAuthorization';
+import { useCashierLog } from '../../../../cashier';
+import { usePosMasterData } from '../../../hooks/usePosQueries';
+import { getRuntimePosConfig } from '../../../hooks/system/useTerminalInit';
+import { buildSalesInvoicePayload } from '../../../mappers/invoicePayloadMapper';
+import { salesInvoiceApi } from '../../../../services/salesInvoiceApi';
+import type { DirectSettleOrderBase } from '../../../mappers/orderPayloadMapper';
 import type {
   DineInTable,
   TableOrdersResponse,
@@ -54,10 +63,55 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const { status } = useCashierLog();
+  const { data: posMasterData } = usePosMasterData();
+  const {
+    authorizationModalKey,
+    authorizationModalProps,
+    requestAuthorization,
+  } = useEmployeeAuthorization();
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<TableOrdersResponse | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [showGuestCount, setShowGuestCount] = useState(false);
+
+  // Settle modal states
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+  const [isSettlingSubmit, setIsSettlingSubmit] = useState(false);
+  const [settleOrderData, setSettleOrderData] = useState<{
+    master: any;
+    mappedItems: any[];
+    rawData: any;
+  } | null>(null);
+
+  const tenderOptions: { id: string; label: string }[] = useMemo(() => {
+    const rawList =
+      posMasterData?.paymodes ||
+      (posMasterData as any)?.paymode ||
+      (posMasterData as any)?.data?.paymodes ||
+      [];
+
+    const list = rawList.length > 0 ? rawList : [
+      { paymodeId: 1, paymodeName: "Cash" },
+      { paymodeId: 2, paymodeName: "Card" },
+      { paymodeId: 3, paymodeName: "Credit" }
+    ];
+
+    return list
+      .slice()
+      .sort((a: any, b: any) => {
+        const aIsCash = Number(a.paymodeId) === 1 || (a.paymodeName || "").toLowerCase().includes("cash");
+        const bIsCash = Number(b.paymodeId) === 1 || (b.paymodeName || "").toLowerCase().includes("cash");
+        if (aIsCash && !bIsCash) return -1;
+        if (!aIsCash && bIsCash) return 1;
+        return Number(a.paymodeId) - Number(b.paymodeId);
+      })
+      .map((p: any) => ({
+        id: String(p.paymodeId),
+        label: p.paymodeName,
+      }));
+  }, [posMasterData]);
 
   /* Fetch orders when modal opens + auto-refresh every 10 seconds */
   useEffect(() => {
@@ -191,7 +245,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       };
     });
 
-    return { master, mappedItems };
+    return { master, mappedItems, fullOrder };
   };
 
   /* ── EDIT — load selected order into cart ── */
@@ -229,40 +283,309 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     }
   };
 
-  /* ── SETTLE — load selected order and trigger payment ── */
+  /* ── SETTLE — open MultiPay modal for settlement ── */
   const handleSettle = async () => {
     if (!selectedMaster || !data || loading) return;
     try {
-      const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      setLoading(true);
+      const { master, mappedItems, fullOrder } = await fetchAndMapFullOrder(selectedMaster.orderId);
       const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
       const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
       if (prevUpdatedAt) {
         sessionStorage.setItem(`order_prevUpdatedAt_${selectedMaster.orderId}`, prevUpdatedAt);
       }
 
-      dispatch(loadRecalledOrder({
-        editingOrderId: selectedMaster.orderId,
-        cartItems: mappedItems,
-        orderTypeId: master.orderTypeId || 1,
-        orderTypeName: 'DineIn',
-        customerId: master.customerId || 1,
-        addressId: master.addressId || 0,
-        billDiscountValue: master.discPer && master.discPer > 0 ? master.discPer : (master.discAmount || 0),
-        billDiscountType: master.discPer && master.discPer > 0 ? 'percentage' : 'amount',
-        sectionId,
-        tableId: table!.tableId,
-        deliveryCharge: master.deliveryCharge || 0,
-        isSettling: true,
-        waiterName: master.employeeName ?? "Waiter",
-        prevUpdatedAt,
-      }));
-      showToast(`Settling Order #${selectedMaster.orderNo}`, 'success');
-      onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
-      onClose();
-      navigate('/pos', { state: { skipAutoDineIn: true } });
-    } catch {
-      showToast('Failed to load full order for settlement', 'error');
+      setSettleOrderData({
+        master,
+        mappedItems,
+        rawData: fullOrder,
+      });
+      setIsMultiPayOpen(true);
+    } catch (e: any) {
+      console.error("[DineInTableOrdersModal] Failed to load full order for settlement:", e);
+      showToast(e?.message || 'Failed to load order for settlement', 'error');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  /* ── SUBMIT SETTLEMENT TO API & PRINT ── */
+  const executeSettlement = async (
+    employeeId: number,
+    mappedPayments: { paymodeId: number; amount: number; paymodeName?: string }[],
+    changeAmount: number
+  ) => {
+    if (!settleOrderData || !selectedMaster || !table) return;
+    setIsSettlingSubmit(true);
+
+    try {
+      const rawOrder = settleOrderData.rawData;
+      const master = rawOrder.masterData || rawOrder.master || rawOrder;
+      const details = rawOrder.detailsData || rawOrder.details || [];
+      const modifiersData = rawOrder.modifiersData || rawOrder.modifiers || [];
+
+      const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
+      const activeTransDate = rawTransDate.split("T")[0];
+
+      const directSettleOrder: DirectSettleOrderBase = {
+        orderId: master.orderId,
+        customerId: master.customerId || 1,
+        employeeId,
+        transDate: master.transDate || master.voucherDate || activeTransDate,
+        discAmount: master.discAmount || master.discount || 0,
+        discPer: master.discPer || 0,
+        serviceCharge: master.serviceCharge || 0,
+        levy: master.levyAmt || master.levy || 0,
+        vatExclAmount: master.vatExclAmount || 0,
+        vatAmount: master.vatAmount || 0,
+        netAmount: master.netAmount || selectedMaster.netAmount,
+        deliveryCharge: master.deliveryCharge || 0,
+        updatedAt: new Date().toISOString(),
+        prevUpdatedAt:
+          sessionStorage.getItem(`order_prevUpdatedAt_${master.orderId}`) ||
+          master.prevUpdatedAt ||
+          master.updatedAt ||
+          undefined,
+        orderTypeId: master.orderTypeId || 1,
+        sectionId: master.sectionId || sectionId || 0,
+        tableId: master.tableId || table.tableId || 0,
+        tableNo: master.tableNo || table.tableName || "",
+        guestNo: master.guestNo || 0,
+        vehicleCustomerName: master.vehicleCustomerName || "",
+        vehicleNo: master.vehicleNo || "",
+        addressId: master.addressId || 0,
+        missedCall: master.missedCall || false,
+        contactNo: master.mobileNo || master.contactNo || "",
+        note: master.note || "",
+        change: String(changeAmount || "0.00"),
+        isComing: master.isComing || false,
+        comingTime: master.comingTime || new Date().toISOString(),
+        providerId: master.providerId || 0,
+        providerOrderNo: master.providerOrderNo || "",
+        providerNo: master.providerNo || "",
+        driverId: master.driverId || 0,
+        details: details.map((d: any) => ({
+          productId: d.productId || d.itemId || 0,
+          unitId: d.unitId || 1,
+          qty: d.qty || 1,
+          price: d.price || 0,
+          discPer: d.discPer || 0,
+          discAmount: d.discAmount || 0,
+          serviceCharge: d.serviceCharge || 0,
+          levy: d.levy || 0,
+          vatId: d.vatId || 0,
+          vatAmount: d.vatAmount || 0,
+          netAmount: d.netAmount ?? ((d.price || 0) * (d.qty || 1)),
+          mapId: d.mapId || 0,
+          complimentaryStatus: Boolean(d.complimentaryStatus || (d.discPer && Number(d.discPer) === 100)),
+          baseQty: d.baseQty || d.qty || 1,
+        })),
+        modifiers: modifiersData.map((m: any) => ({
+          mapId: m.mapId,
+          modifierId: m.modifierId,
+          qty: m.qty || 1,
+          amount: m.amount || m.price || 0,
+          typeId: m.typeId || 0,
+          modifierName: m.modifierName || "",
+          arabicName: m.arabicName || "",
+          status: m.status || (m.price > 0 ? "extras" : "modifier"),
+        })),
+        voidProducts: [],
+        voidModifiers: [],
+        combinedOrderIds: [],
+      };
+
+      const salesPayload = buildSalesInvoicePayload({
+        orderPayload: directSettleOrder,
+        payments: mappedPayments,
+        employeeId,
+        dayId: status?.dayId || 1,
+        shiftId: status?.shiftId || 1,
+        transDate: activeTransDate,
+        editingSaleId: 0,
+        isOrderEdited: false,
+        tenderOptions,
+      });
+
+      const createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
+      let invoiceNoStr: string | undefined = undefined;
+      if (createRes && typeof createRes === 'object') {
+        const vNo = createRes.voucherNo ?? createRes.invoiceNo ?? createRes.voucherNumber ?? createRes.saleNo;
+        if (vNo) invoiceNoStr = String(vNo);
+      }
+
+      // Try printing guest/settled receipt
+      try {
+        const enableVat = getVatStatus();
+        const printMappedItems = settleOrderData.mappedItems.map((item: any) => ({
+          ...item,
+          price: item.price,
+          extras: item.extras,
+          itemDiscount: item.discAmount || item.discountValue || 0,
+          lineTotal: item.netAmount || item.rawAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1)),
+          product: { ...item.product, price: item.price },
+        }));
+
+        const printData: any = {
+          orderNo: master.orderNo ?? String(master.orderId),
+          ticketNo: master.ticketNo ?? "1",
+          invoiceNo: invoiceNoStr,
+          waiter: master.employeeName ?? "Waiter",
+          counter: "Main",
+          section: master.sectionName || "DINE IN",
+          table: table.tableName || "",
+          orderType: "DINE IN",
+          date: new Date().toLocaleDateString('en-GB'),
+          time: new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
+          subTotal:
+            master.vatExclAmount ||
+            (master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0)),
+          discount: master.discAmount || master.discount || 0,
+          serviceCharge: master.serviceCharge || 0,
+          levy: master.levyAmt || 0,
+          vatAmount: master.vatAmount || 0,
+          netAmount: master.netAmount || selectedMaster.netAmount,
+          deliveryCharge: master.deliveryCharge || 0,
+          changeAmount: changeAmount,
+          payments: mappedPayments.map((p) => ({
+            name:
+              tenderOptions.find((t: any) => String(t.id) === String(p.paymodeId))?.label ||
+              p.paymodeName ||
+              "Other",
+            amount: p.amount,
+          })),
+          isSettlement: true,
+          enableVat,
+          billArabic:
+            isBillArabicEnabled() ||
+            printMappedItems.some((it: any) =>
+              Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
+            ),
+        };
+
+        const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
+        let billPrinter: string | undefined;
+        try {
+          const settingsRes = await printerSettingsApi.getGeneral();
+          const gen = settingsRes?.data;
+          billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
+        } catch (err) {
+          console.warn("[DineInTableOrdersModal] Could not fetch general printer settings:", err);
+        }
+
+        if (!billPrinter || billPrinter === "No Printer") {
+          billPrinter =
+            localStorage.getItem('cachedBillPrinter') ||
+            localStorage.getItem('cachedBillPrinterIp') ||
+            localStorage.getItem('cachedKotPrinter') ||
+            localStorage.getItem('cachedKotPrinterIp') ||
+            localStorage.getItem('printerIpAddress') ||
+            undefined;
+        }
+
+        if (billPrinter) {
+          await printHtmlReceipt(htmlContent, billPrinter);
+        }
+      } catch (printErr: any) {
+        console.warn("[DineInTableOrdersModal] Receipt print warning:", printErr);
+        showToast("Order settled, but receipt print failed", "warning");
+      }
+
+      showToast(`Order #${selectedMaster.orderNo} settled successfully!`, 'success');
+      dispatch(clearCart());
+      setIsMultiPayOpen(false);
+      setSettleOrderData(null);
+
+      // Refresh table orders
+      try {
+        const res = await dineInApi.getTableOrders(table.tableId);
+        if (res.isSuccess && res.data && res.data.masterData.length > 0) {
+          setData(res.data);
+          setSelectedOrderId(res.data.masterData[0].orderId);
+          onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
+        } else {
+          onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
+          onClose();
+        }
+      } catch {
+        onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
+        onClose();
+      }
+    } catch (err: any) {
+      console.error("[DineInTableOrdersModal] Settlement failed:", err);
+      const msg = err.response?.data?.message || err.message || "Failed to settle order";
+      showToast(msg, "error");
+    } finally {
+      setIsSettlingSubmit(false);
+    }
+  };
+
+  /* ── MultiPay Modal Submission Handler ── */
+  const handleMultiPaySubmit = async (payments: MultiPaymentLine[], changeAmount: number) => {
+    if (!settleOrderData) return;
+
+    if (!status || status.isDayClosed || status.isShiftClosed) {
+      showToast("Cashier day or shift is closed. Please open a shift first.", "error");
+      return;
+    }
+
+    const mappedPayments = payments.map((p) => {
+      const isCash = (p.label || "").toLowerCase().includes("cash");
+      const finalAmount = isCash ? Math.max(0, p.amount - changeAmount) : p.amount;
+      let pid = Number(p.paymodeId);
+      if (!pid || isNaN(pid) || pid <= 0) {
+        const cashTender = tenderOptions.find((t: any) => (t.label || "").toLowerCase().includes("cash"));
+        pid = cashTender ? Number(cashTender.id) : 1;
+      }
+      return {
+        paymodeId: pid,
+        paymodeName: p.label,
+        amount: roundCalc(finalAmount),
+      };
+    });
+
+    const isCreditPayment = mappedPayments.some((p) => {
+      const tender = tenderOptions.find((t: any) => String(t.id) === String(p.paymodeId));
+      const label = (tender?.label || p.paymodeName || "").toLowerCase();
+      return label.includes("credit") && !label.includes("multi");
+    });
+
+    const master = settleOrderData.master;
+    const resolvedCustomerId = master.customerId || 1;
+    if (isCreditPayment && (!resolvedCustomerId || Number(resolvedCustomerId) === 1)) {
+      showToast("Credit payment is not allowed for Cash Customer. Please select a customer first.", "warning");
+      return;
+    }
+
+    let config: any = null;
+    try {
+      config = await getRuntimePosConfig();
+    } catch {
+      showToast("Unable to load POS configuration", "error");
+      return;
+    }
+
+    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+    const defaultEmployeeId = Number(config?.employeeId ?? 0);
+    const effectiveEmployeeId = (master.employeeId && Number(master.employeeId) > 0)
+      ? Number(master.employeeId)
+      : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
+
+    if (effectiveEmployeeId) {
+      await executeSettlement(effectiveEmployeeId, mappedPayments, changeAmount);
+      return;
+    }
+
+    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
+      showToast("Default employee is enabled but not selected in settings", "error");
+      return;
+    }
+
+    requestAuthorization({
+      actionLabel: "Settlement",
+      permissionId: 19, // Settle
+      onAuthorized: (authEmpId: number) => executeSettlement(authEmpId, mappedPayments, changeAmount),
+    });
   };
 
   /* ── PRINT ── */
@@ -369,7 +692,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         §15: w-full max-w-[95vw] xl:max-w-[1500px] to fit 5 cards in a row
       */}
       <Modal
-        isOpen={isOpen && !showGuestCount}
+        isOpen={isOpen && !showGuestCount && !isMultiPayOpen}
         onClose={onClose}
         size="2xl"
         noPadding
@@ -506,6 +829,29 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         tableCapacity={table?.capacity ?? 0}
         onConfirm={handleNewGuestConfirm}
         onClose={() => setShowGuestCount(false)}
+      />
+
+      {/* ── Settle (MultiPay) Modal ── */}
+      {isMultiPayOpen && (
+        <PosMultiPayModal
+          isOpen={isMultiPayOpen}
+          totalDue={selectedMaster?.netAmount || 0}
+          customerId={settleOrderData?.master?.customerId || (selectedMaster as any)?.customerId || 1}
+          tenderOptions={tenderOptions}
+          loading={isSettlingSubmit}
+          onClose={() => {
+            setIsMultiPayOpen(false);
+            setSettleOrderData(null);
+            dispatch(clearCart());
+          }}
+          onSubmit={handleMultiPaySubmit}
+        />
+      )}
+
+      {/* ── Employee Authorization Modal ── */}
+      <EmployeePasswordModal
+        key={authorizationModalKey}
+        {...authorizationModalProps}
       />
     </>
   );

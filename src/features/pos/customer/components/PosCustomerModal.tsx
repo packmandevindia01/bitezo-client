@@ -19,12 +19,14 @@ interface PosCustomerModalProps {
 
 export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => {
   const { methods, loading, saveCustomer, deleteCustomer, resetForm } = useCustomer(onClose);
-  const [isKeyboardEnabled, setIsKeyboardEnabled] = useState(true);
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [isKeyboardEnabled, setIsKeyboardEnabled] = useState(false);
+  const [showKeyboard, setShowKeyboard] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingData, setPendingData] = useState<any>(null);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(() => 
+    typeof window !== "undefined" ? (window.innerWidth < 1200 || window.innerHeight < 820) : false
+  );
   
   const firstInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -59,8 +61,8 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
         return [];
       }
     },
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 5 * 60 * 1000,
+    enabled: isOpen,
   });
 
   useEffect(() => {
@@ -109,7 +111,6 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
   useEffect(() => {
     if (isOpen) {
       resetForm();
-      setIsKeyboardEnabled(true);
       if (window.innerWidth > 1024) {
         setTimeout(() => firstInputRef.current?.focus(), 100);
       }
@@ -120,14 +121,19 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
     const updateViewportMode = () => {
       setIsCompactViewport(window.innerWidth < 1200 || window.innerHeight < 820);
     };
-    updateViewportMode();
     window.addEventListener("resize", updateViewportMode);
     return () => window.removeEventListener("resize", updateViewportMode);
   }, []);
 
-  const handleInputFocus = () => {
+  const handleInputFocus = (e?: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement> | React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (isKeyboardEnabled) {
       setShowKeyboard(true);
+      const target = (e?.currentTarget || e?.target) as HTMLElement | null;
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
+      }
     }
   };
 
@@ -141,7 +147,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
       onClose={onClose}
       noScroll
       noPadding
-      className="!max-w-[95vw] w-[95vw] !max-h-[95vh] h-[95vh] !rounded-none !m-0 bg-[#f8f9fa] flex flex-col shadow-none overflow-hidden z-[100]"
+      className="!max-w-[95vw] w-[95vw] !max-h-[95vh] h-[95vh] !rounded-2xl !m-0 bg-[#f8f9fa] flex flex-col shadow-2xl overflow-hidden z-[100]"
     >
       <FormProvider {...methods}>
         <form 
@@ -179,18 +185,21 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   const newVal = !isKeyboardEnabled;
                   setIsKeyboardEnabled(newVal);
                   setShowKeyboard(newVal);
-                  setTimeout(() => firstInputRef.current?.focus(), 50);
+                  if (newVal) {
+                    setTimeout(() => firstInputRef.current?.focus(), 50);
+                  }
                 }}
                 className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all border ${
                   isKeyboardEnabled 
                     ? "text-[#49293e] bg-white border-white hover:bg-slate-100 shadow-sm" 
-                    : "text-white/70 bg-white/10 border-white/20 hover:bg-white/20"
+                    : "text-white/80 bg-white/10 border-white/20 hover:bg-white/20"
                 }`}
+                title={isKeyboardEnabled ? "Switch to physical keyboard" : "Enable touch keyboard"}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M11 19a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9ZM19 9h-7.5a3 3 0 0 0-3 3v1h10.5a3 3 0 0 0 3-3V9Z"/>
                 </svg>
-                {isKeyboardEnabled ? "Touch Keyboard" : "Physical Keyboard"}
+                {isKeyboardEnabled ? "Touch Keyboard: ON" : "Touch Keyboard: OFF"}
               </button>
 
               <div className="w-px h-6 bg-white/20 mx-1"></div>
@@ -244,8 +253,8 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
           </div>
 
           {/* Form Section */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 hide-scrollbar relative z-10">
-            <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10">
+            <div className={`max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 ${showKeyboard ? "pb-28" : "pb-4"}`}>
               
               {/* Primary Details Card */}
               <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200/60">
@@ -269,7 +278,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   placeholder="Enter Code"
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={1}
                 />
                 <FormInput
@@ -279,7 +288,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.customerName?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={2}
                 />
                 <FormInput
@@ -289,7 +298,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputClassName="text-right font-arabic"
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={3}
                 />
                 <FormInput
@@ -303,7 +312,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.mobileNo?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={4}
                 />
                 <FormInput
@@ -312,7 +321,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.telNo?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={5}
                 />
                 <FormInput
@@ -321,7 +330,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.email?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={6}
                 />
               </div>
@@ -354,7 +363,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                       errors.address ? "border-red-500 bg-red-50/30" : "border-gray-300 bg-white"
                     } focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]/20`}
                     placeholder="Enter full address"
-                    inputMode="none"
+                    inputMode={isKeyboardEnabled ? "none" : undefined}
                     tabIndex={7}
                   />
                 </div>
@@ -365,7 +374,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.area?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={8}
                 />
                 <FormInput
@@ -374,7 +383,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.identityNo?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={9}
                 />
                 <FormInput
@@ -383,7 +392,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   error={errors.trnNo?.message}
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={10}
                 />
                 <SelectInput
@@ -427,7 +436,7 @@ export const PosCustomerModal = ({ isOpen, onClose }: PosCustomerModalProps) => 
                   onFocus={handleInputFocus}
                   onClick={handleInputFocus}
                   inputClassName="text-right"
-                  inputMode="none"
+                  inputMode={isKeyboardEnabled ? "none" : undefined}
                   tabIndex={12}
                 />
                 </div>

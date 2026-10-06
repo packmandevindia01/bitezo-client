@@ -97,21 +97,27 @@ export const useSplitOrderData = ({
             }
           } catch {}
 
+          const explicitDetailIsIncl = d.isIncl ?? d.PriceIsIncl ?? d.priceIsIncl;
+          if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
+            itemIsIncl = Boolean(explicitDetailIsIncl);
+          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
+            itemIsIncl = Boolean(realProduct.isIncl);
+          }
+
           if (d.netAmount !== undefined && d.price !== undefined) {
             const lineBase = (d.price || 0) * (d.qty || 1);
             const discAmt = d.discAmount || 0;
             const vatAmt = d.vatAmount || 0;
             const netAmt = d.netAmount;
+            const remainingBase = lineBase - discAmt;
             
-            if (Math.abs(netAmt - (lineBase - discAmt)) < 0.01) {
-              itemIsIncl = true;
-            } else if (Math.abs(netAmt - ((lineBase - discAmt) + vatAmt)) < 0.01) {
-              itemIsIncl = false;
-            } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-              itemIsIncl = Boolean(realProduct.isIncl);
+            if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
+              if (Math.abs(netAmt - remainingBase) < 0.01) {
+                itemIsIncl = true;
+              } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
+                itemIsIncl = false;
+              }
             }
-          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-            itemIsIncl = Boolean(realProduct.isIncl);
           }
 
           let calculatedVatValue: number | undefined = undefined;

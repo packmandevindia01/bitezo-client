@@ -58,29 +58,6 @@ const BomPage = () => {
     }
   };
 
-  const handleGridNav = (e: React.KeyboardEvent, rowIndex?: number) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (rowIndex !== undefined) {
-        const rowProduct = form.getValues(`items.${rowIndex}.product`);
-        if (!rowProduct || rowProduct.trim() === "") {
-          if (items.length > 1) remove(rowIndex);
-          setTimeout(() => document.getElementById("bom-save-btn")?.focus(), 50);
-          return;
-        }
-      }
-      const formElements = Array.from(
-        document.querySelectorAll(
-          'input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'
-        )
-      ).filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
-      const currentIndex = formElements.indexOf(e.target as Element);
-      if (currentIndex > -1 && formElements[currentIndex + 1]) {
-        (formElements[currentIndex + 1] as HTMLElement).focus();
-      }
-    }
-  };
-
   if (loading) {
     return (
       <PageShell title="BOM">
