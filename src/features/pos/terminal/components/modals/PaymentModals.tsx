@@ -15,6 +15,7 @@ export interface PaymentModalsProps {
   orderLoading: boolean;
   handleCompleteSettlement: (payments: any[], change: number) => void;
   handleClearCart: () => void;
+  onCancelSettle?: () => void;
 }
 
 export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) => {
@@ -52,6 +53,7 @@ export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) =>
         tenderOptions={props.tenderOptions}
         onClose={() => {
           modals.setIsMultiPayModalOpen(false);
+          props.onCancelSettle?.();
           if (modals.returnToRecallOnCancel) {
             props.handleClearCart();
             modals.setReturnToRecallOnCancel(false);

@@ -11,11 +11,12 @@ import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
 import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
 import { orderApi } from "../../../../services/orderApi";
 import { menuApi } from "../../../../services/menuApi";
+import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import type { PosWaiter } from "../../../../types";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus } from "../../../utils/billing";
+import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
 
@@ -117,22 +118,45 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       };
       const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
 
-      const voucherDateStr = master.voucherDate ?? master.orderDate ?? master.createdAt;
+      const isValidDateStr = (s: any) => {
+        if (!s || typeof s !== 'string') return false;
+        if (s.startsWith('0001')) return false;
+        return true;
+      };
+
+      const candidateDates = [
+        master.voucherDate,
+        master.transDate,
+        master.orderDate,
+        master.createdAt,
+        master.entryDate,
+        order.voucherDate,
+        order.transDate,
+        order.createdAt
+      ];
+
+      let resolvedDateStr = candidateDates.find(isValidDateStr);
       let date: string | undefined;
       let time: string | undefined;
       
-      if (voucherDateStr) {
+      if (resolvedDateStr) {
         try {
-          const d = new Date(voucherDateStr);
-          if (!isNaN(d.getTime())) {
+          const d = new Date(resolvedDateStr);
+          if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
             date = d.toLocaleDateString('en-GB');
-            time = d.toLocaleTimeString('en-US');
-          } else if (/am|pm/i.test(voucherDateStr)) {
+            time = d.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+          } else if (/am|pm/i.test(resolvedDateStr)) {
             const today = new Date();
             date = today.toLocaleDateString('en-GB');
-            time = voucherDateStr;
+            time = resolvedDateStr;
           }
         } catch { /* ignore */ }
+      }
+
+      if (!date) {
+        const now = new Date();
+        date = now.toLocaleDateString('en-GB');
+        time = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
       }
 
       // Deduplicate modifiersData mapped in order
@@ -145,9 +169,12 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         return true;
       });
 
-      let calculatedSubTotal = 0;
-      let calculatedVatTotal = 0;
-      const mappedItems = details.map((d: any) => {
+      const netAmount = Number(master.netAmount ?? order.netAmount ?? 0);
+      const enableVat = getVatStatus();
+
+      let detailsVatSum = 0;
+      let totalVatBase = 0;
+      const preMapped = details.map((d: any) => {
         const itemMods = orderModifiersData.filter((m: any) => m.mapId === d.mapId);
         const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
@@ -159,62 +186,239 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           id: m.modifierId, name: m.modifierName || m.name || ""
         }));
         
-        let lineBase = (d.price || 0) * (d.qty || 1);
+        const qty = d.qty ?? d.Qty ?? 1;
+        const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
+        const price = d.price ?? d.Price ?? (qty > 0 ? amount / qty : 0);
+
+        let lineBase = price * qty;
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
-        calculatedSubTotal += lineBase;
-        calculatedVatTotal += (d.vatAmount || 0);
+
+        const itemLineNetAmount = amount || lineBase;
+        const itemVat = Number(d.vatAmount ?? d.VatAmount ?? 0);
+        detailsVatSum += itemVat;
+
+        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
+        totalVatBase += itemVatBase;
         
         return {
-          productId: d.productId || d.itemId || 0,
-          quantity: d.qty || 1,
-          price: d.price || 0,
-          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
-          product: { 
-            name: d.productName || d.ProductName || `Product #${d.productId || 0}`, 
-            price: d.price || 0,
-            arabicName: d.arabicName || d.ArabicName
-          },
+          ...d,
+          qty,
+          price,
           extras,
           modifiers,
           messages,
-          itemDiscount: d.discAmount || 0,
-          lineTotal: d.netAmount || d.amount || lineBase
+          lineBase,
+          itemLineNetAmount,
+          itemVat,
+          itemVatBase
         };
       });
 
-      const enableVat = getVatStatus();
+      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
+      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
+        resolvedVatAmount = detailsVatSum;
+      }
+
+      // If VAT is active in system settings and prices are inclusive but vatAmount was 0
+      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
+        const billingConfig = getBillingConfig(orderTypeName);
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
+      }
+
+      let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
+      if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
+        resolvedSubTotal = roundCalc(netAmount - resolvedVatAmount - Number(master.serviceCharge || 0) - Number(master.levyAmt || master.levy || 0) - Number(master.deliveryCharge || 0));
+      }
+
+      const mappedItems = preMapped.map((d: any) => {
+        const pId = d.productId || d.itemId || 0;
+        let itemVat = d.itemVat;
+        if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
+          const ratio = (d.itemLineNetAmount || 0) / netAmount;
+          itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
+        }
+        const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
+        const itemBase = enableVat && itemVat > 0 ? (itemLineNet - itemVat) : (d.itemVatBase ?? itemLineNet);
+        return {
+          productId: pId,
+          quantity: d.qty || 1,
+          price: d.price || 0,
+          baseAmount: itemBase,
+          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          product: { 
+            name: d.productName || d.ProductName || `Product #${pId}`, 
+            price: d.price || 0,
+            arabicName: d.arabicName || d.ArabicName
+          },
+          extras: d.extras,
+          modifiers: d.modifiers,
+          messages: d.messages || [],
+          itemDiscount: d.discAmount || 0,
+          lineTotal: itemLineNet,
+          vatAmount: itemVat
+        };
+      });
+
+      let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
+      let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
+      let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
+      let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
+      let resolvedArea = master.area || master.areaName || "";
+      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+      let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      const matchedOrder = orders.find(o => o.orderId === transId);
+
+      // Extract employee name and customer name from details string if needed
+      let empFromDetails = "";
+      let custFromDetails = "";
+      if (matchedOrder && typeof matchedOrder.details === "string") {
+        const parenMatches = matchedOrder.details.match(/\(([^)]+)\)/g)?.map((s: string) => s.replace(/[()]/g, "").trim()) || [];
+        if (parenMatches.length >= 3) {
+          custFromDetails = parenMatches[1];
+          const cand = parenMatches[2];
+          if (cand && !["waiter", "cashier", "null", "undefined"].includes(cand.toLowerCase())) {
+            empFromDetails = cand;
+          }
+        } else if (parenMatches.length === 2) {
+          if (parenMatches[1].toLowerCase() === "cash customer") {
+            custFromDetails = parenMatches[1];
+          } else if (!["waiter", "cashier", "null", "undefined"].includes(parenMatches[1].toLowerCase())) {
+            empFromDetails = parenMatches[1];
+          }
+        } else if (parenMatches.length === 1) {
+          custFromDetails = parenMatches[0];
+        }
+      }
+
+      let resolvedCustomerName =
+        master.deliveryCustomerName ||
+        master.vehicleCustomerName ||
+        master.customerName ||
+        master.customer ||
+        custFromDetails ||
+        "";
+
+      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
+        try {
+          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
+          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : (addrRes?.data || addrRes);
+          if (addrData) {
+            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
+            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
+            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
+            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
+            resolvedArea = addrData.area || resolvedArea;
+            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
+              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
+            }
+          }
+        } catch (fetchAddrErr) {
+          console.warn("[PosRecallModal] Could not fetch delivery address fallback:", fetchAddrErr);
+        }
+      }
+
+      if (!resolvedCustomerName) {
+        resolvedCustomerName = "CASH CUSTOMER";
+      }
+
+      let resolvedWaiter = "";
+      const rawName = master.employeeName;
+      if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
+        resolvedWaiter = String(rawName).trim();
+      }
+
+      if (!resolvedWaiter && empFromDetails) {
+        resolvedWaiter = empFromDetails;
+      }
+
+      if (!resolvedWaiter) {
+        const empId = master.employeeId ?? master.empId ?? (matchedOrder as any)?.employeeId;
+        if (empId) {
+          try {
+            const mapRaw = localStorage.getItem("posEmpNameMap");
+            if (mapRaw) {
+              const map = JSON.parse(mapRaw);
+              if (map[String(empId)] && !["waiter", "cashier"].includes(String(map[String(empId)]).trim().toLowerCase())) {
+                resolvedWaiter = String(map[String(empId)]).trim();
+              }
+            }
+          } catch {}
+
+          if (!resolvedWaiter && String(empId) === localStorage.getItem("authorizedEmployeeId")) {
+            const authName = localStorage.getItem("authorizedEmployeeName");
+            if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) {
+              resolvedWaiter = authName.trim();
+            }
+          }
+
+          if (!resolvedWaiter) {
+            try {
+              const branchId =
+                Number(localStorage.getItem("systemBranchId")) ||
+                Number(localStorage.getItem("activeBranchId")) ||
+                Number(localStorage.getItem("branchId")) ||
+                0;
+              const { getEmployeeNames } = await import("../../../../../general/employee/services/employeeService");
+              const list = await getEmployeeNames(branchId);
+              if (Array.isArray(list) && list.length > 0) {
+                const map: Record<string, string> = {};
+                try {
+                  const existing = localStorage.getItem("posEmpNameMap");
+                  if (existing) Object.assign(map, JSON.parse(existing));
+                } catch {}
+                list.forEach((e: any) => {
+                  const id = e.empId ?? e.id;
+                  const name = e.empName ?? e.name;
+                  if (id && name) map[String(id)] = name;
+                });
+                localStorage.setItem("posEmpNameMap", JSON.stringify(map));
+                if (map[String(empId)] && !["waiter", "cashier"].includes(String(map[String(empId)]).trim().toLowerCase())) {
+                  resolvedWaiter = String(map[String(empId)]).trim();
+                }
+              }
+            } catch (e) {
+              console.warn("[PosRecallModal] getEmployeeNames fallback failed:", e);
+            }
+          }
+        }
+      }
+
+      if (!resolvedWaiter) {
+        resolvedWaiter =
+          localStorage.getItem("defaultEmployeeName") ||
+          localStorage.getItem("authorizedEmployeeName") ||
+          currentWaiterName ||
+          localStorage.getItem("employeeName") ||
+          "Waiter";
+      }
 
       const printData = {
         orderNo: master.orderNo ?? String(transId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? (() => {
-          const matchedOrder = orders.find(o => o.orderId === transId);
-          if (matchedOrder && typeof matchedOrder.details === "string") {
-            const m = matchedOrder.details.match(/\((CASH CUSTOMER|[^)]+)\)\s*\(([^)]+)\)/i);
-            if (m && m[2]) return m[2].trim();
-          }
-          return currentWaiterName || "Waiter";
-        })(),
+        waiter: resolvedWaiter,
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
         orderType: orderTypeName,
         date, time,
-        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
+        customerName: resolvedCustomerName,
         vehicleNo: master.vehicleNo,
-        contactNo: master.mobileNo || master.contactNo,
-        flatNo: master.flatNo,
-        buildingNo: master.buildingNo,
-        blockNo: master.blockNo,
-        roadNo: master.roadNo,
-        area: master.area,
-        providerNo: master.providerNo,
-        subTotal: calculatedSubTotal,
+        contactNo: resolvedContactNo,
+        flatNo: resolvedFlatNo,
+        buildingNo: resolvedBuildingNo,
+        blockNo: resolvedBlockNo,
+        roadNo: resolvedRoadNo,
+        area: resolvedArea,
+        address: resolvedAddress,
+        providerNo: master.providerNo || master.providerOrderNo || "",
+        subTotal: resolvedSubTotal,
         discount: master.discAmount || master.discount || 0,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
-        vatAmount: master.vatAmount || calculatedVatTotal || 0,
-        netAmount: master.netAmount || 0,
+        vatAmount: resolvedVatAmount,
+        netAmount: netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 

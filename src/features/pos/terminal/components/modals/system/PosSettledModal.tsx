@@ -242,6 +242,8 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         orderId={selectedOrderId}
+        orderDetailsStr={orders.find(o => o.orderId === selectedOrderId)?.details}
+        orderSummary={orders.find(o => o.orderId === selectedOrderId)}
         onEditSuccess={() => {
           onEditSuccess?.();
           onClose();

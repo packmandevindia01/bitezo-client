@@ -18,6 +18,14 @@ export interface KotPrintData {
   isMaster?: boolean;
   vehicleNo?: string;
   customerName?: string;
+  contactNo?: string;
+  flatNo?: string;
+  buildingNo?: string;
+  blockNo?: string;
+  roadNo?: string;
+  area?: string;
+  address?: string;
+  providerNo?: string;
   kotHeader?: string;
   kotArabic?: boolean;
 }
@@ -108,6 +116,8 @@ export const generateKotHtml = async (
     || orderTypeIdMap[(data as any).orderTypeId as number]
     || (rawOrderType ? rawOrderType.replace(/([A-Z])/g, " $1").trim().toUpperCase() : "DINE IN");
   const isDineIn = orderTypeStr === "DINE IN";
+  const isDelivery = orderTypeStr === "DELIVERY" || Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
+  const isDriveThru = orderTypeStr === "DRIVE THRU";
 
   const isKotArabic = data.kotArabic ?? isKotArabicEnabled();
 
@@ -329,17 +339,46 @@ export const generateKotHtml = async (
 
   // Common meta rows
   let metaHtml = metaRow("Date", dateStr, "Time", timeStr);
-  metaHtml += metaRow("Waiter", data.waiter, "Counter", data.counter);
+  const empLabel = isDineIn ? "Waiter" : "Employee";
+  metaHtml += metaRow(empLabel, data.waiter, "Counter", data.counter);
   if (isDineIn) {
     metaHtml += metaRow("Section", data.section, "Table", data.table);
   }
-  if (data.vehicleNo && data.customerName) {
-    metaHtml += metaRow("Vehicle", data.vehicleNo, "Customer", data.customerName);
-  } else if (data.customerName) {
-    metaHtml += metaRow("Customer", data.customerName, "", "");
-  } else if (data.vehicleNo) {
-    metaHtml += metaRow("Vehicle", data.vehicleNo, "", "");
+  if (!isDelivery && !isDriveThru) {
+    if (data.vehicleNo && data.customerName) {
+      metaHtml += metaRow("Vehicle", data.vehicleNo, "Customer", data.customerName);
+    } else if (data.customerName) {
+      metaHtml += metaRow("Customer", data.customerName, "", "");
+    } else if (data.vehicleNo) {
+      metaHtml += metaRow("Vehicle", data.vehicleNo, "", "");
+    }
   }
+
+  const hasDeliveryDetails = Boolean(
+    data.contactNo || data.customerName || data.flatNo || data.buildingNo || 
+    data.blockNo || data.roadNo || data.area || data.address || data.vehicleNo || data.providerNo
+  );
+
+  const deliveryDetailsHtml = (isDriveThru || isDelivery) && hasDeliveryDetails ? `
+    <div style="margin-top: 8px; border-top: 1px dashed #000; padding-top: 5px; font-size: 12px;">
+      <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
+        ${isDelivery ? 'DELIVERY DETAILS' : 'CUSTOMER DETAILS'}
+        ${isKotArabic ? `<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(${isDelivery ? 'بيانات التوصيل' : 'بيانات العميل'})</bdi>` : ''}
+      </div>
+      <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+        ${data.contactNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Mob No</td><td style="font-weight: bold;">${data.contactNo}</td></tr>` : ''}
+        ${data.customerName ? `<tr><td style="width: 35%; padding-bottom: 2px;">Customer</td><td style="font-weight: bold;">${data.customerName}</td></tr>` : ''}
+        ${data.flatNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Flat No</td><td style="font-weight: bold;">${data.flatNo}</td></tr>` : ''}
+        ${data.buildingNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Building</td><td style="font-weight: bold;">${data.buildingNo}</td></tr>` : ''}
+        ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
+        ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
+        ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
+        ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Address</td><td style="font-weight: bold;">${data.address}</td></tr>` : ''}
+        ${data.vehicleNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Vehicle No</td><td style="font-weight: bold;">${data.vehicleNo}</td></tr>` : ''}
+        ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
+      </table>
+    </div>
+  ` : '';
 
   // ─── Order No / Ticket No row ──────
   const orderTicketHtml = `
@@ -466,6 +505,8 @@ export const generateKotHtml = async (
           ${itemsTableHtml}
 
           ${totalsHtml}
+
+          ${deliveryDetailsHtml}
           
           <div class="text-center" style="font-size: 11px; margin-top: 8px;">Print On : ${dateStr} ${timeStr}</div>
         </body>
@@ -498,6 +539,10 @@ export const generateKotHtml = async (
         ${itemsTableHtml}
 
         ${totalsHtml}
+
+        ${deliveryDetailsHtml}
+
+        <div class="text-center" style="font-size: 11px; margin-top: 8px;">Print On : ${dateStr} ${timeStr}</div>
       </body>
     </html>
   `;

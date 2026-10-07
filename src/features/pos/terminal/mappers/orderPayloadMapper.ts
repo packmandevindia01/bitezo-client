@@ -1,4 +1,5 @@
 import { roundCalc } from "../utils/billing";
+import { formatDateOnly } from "./invoicePayloadMapper";
 import type {
   PosCartItem,
   MenuOrderRequest,
@@ -45,6 +46,12 @@ export interface OrderFormContext {
   comingTime?: string | null;
   vehicleCustomerName?: string;
   vehicleNo?: string;
+  deliveryCustomerName?: string;
+  flatNo?: string;
+  buildingNo?: string;
+  roadNo?: string;
+  blockNo?: string;
+  area?: string;
   billDiscountType?: 'percentage' | 'amount';
   billDiscountValue?: number;
   editingOrderId?: number | null;
@@ -59,6 +66,7 @@ export interface DirectSettleOrderBase {
   customerId: number;
   employeeId: number;
   transDate: string;
+  voucherDate?: string;
   discAmount: number;
   discPer: number;
   serviceCharge: number;
@@ -76,6 +84,13 @@ export interface DirectSettleOrderBase {
   guestNo: number;
   vehicleCustomerName: string;
   vehicleNo: string;
+  customerName?: string;
+  deliveryCustomerName?: string;
+  flatNo?: string;
+  buildingNo?: string;
+  roadNo?: string;
+  blockNo?: string;
+  area?: string;
   addressId: number;
   missedCall: boolean;
   contactNo: string;
@@ -126,6 +141,12 @@ export const buildDirectSettleOrderPayload = (
     comingTime,
     vehicleCustomerName,
     vehicleNo,
+    deliveryCustomerName,
+    flatNo,
+    buildingNo,
+    roadNo,
+    blockNo,
+    area,
     billDiscountType = "percentage",
     billDiscountValue = 0,
     editingOrderId,
@@ -224,6 +245,29 @@ export const buildDirectSettleOrderPayload = (
     return [...extrasRows, ...modifierRows, ...messageRows];
   });
 
+  let cachedDelivery: any = null;
+  try {
+    const rawDelivery = sessionStorage.getItem("pos_current_delivery_details");
+    if (rawDelivery) cachedDelivery = JSON.parse(rawDelivery);
+  } catch {}
+
+  const isDeliveryOrder = selectedOrderTypeId === 4 || normalizedTypeName.includes("delivery");
+  const isDriveThruOrder = selectedOrderTypeId === 3 || normalizedTypeName.includes("drive");
+
+  const resolvedCustomerName = isDriveThruOrder
+    ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
+    : isDeliveryOrder
+    ? deliveryCustomerName || vehicleCustomerName || cachedDelivery?.customerName || ""
+    : vehicleCustomerName || "";
+
+  const resolvedFlatNo = flatNo || (isDeliveryOrder ? cachedDelivery?.flatNo : "") || "";
+  const resolvedBuildingNo = buildingNo || (isDeliveryOrder ? cachedDelivery?.buildingNo : "") || "";
+  const resolvedBlockNo = blockNo || (isDeliveryOrder ? cachedDelivery?.blockNo : "") || "";
+  const resolvedRoadNo = roadNo || (isDeliveryOrder ? cachedDelivery?.roadNo : "") || "";
+  const resolvedArea = area || (isDeliveryOrder ? cachedDelivery?.area : "") || "";
+  const resolvedContactNo = contactNo || (isDeliveryOrder ? cachedDelivery?.contactNo : "") || "";
+  const resolvedAddressId = selectedAddressId || (isDeliveryOrder ? cachedDelivery?.addressId : 0) || 0;
+
   return {
     orderId: editingOrderId || 0,
     customerId: session.customerId || selectedCustomerId || 1,
@@ -243,15 +287,20 @@ export const buildDirectSettleOrderPayload = (
     tableId: isDineIn ? selectedTableId || 0 : 0,
     tableNo: isDineIn ? selectedTableNo || "" : "",
     guestNo: guestNo || 0,
-    vehicleCustomerName: selectedOrderTypeName.toLowerCase().includes("drive")
-      ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
-      : "",
-    vehicleNo: selectedOrderTypeName.toLowerCase().includes("drive")
+    vehicleCustomerName: resolvedCustomerName,
+    vehicleNo: isDriveThruOrder
       ? vehicleNo || localStorage.getItem("driveThruVehicleNo") || ""
       : "",
-    addressId: selectedAddressId || 0,
+    customerName: resolvedCustomerName,
+    deliveryCustomerName: isDeliveryOrder ? resolvedCustomerName : undefined,
+    flatNo: resolvedFlatNo,
+    buildingNo: resolvedBuildingNo,
+    blockNo: resolvedBlockNo,
+    roadNo: resolvedRoadNo,
+    area: resolvedArea,
+    addressId: resolvedAddressId,
     missedCall,
-    contactNo,
+    contactNo: resolvedContactNo,
     note,
     change,
     isComing,
@@ -286,11 +335,36 @@ export const buildNewOrderPayload = (
 ): MenuOrderRequest => {
   const base = buildDirectSettleOrderPayload(context, session);
   return {
-    ...base,
-    voucherDate: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
+    voucherDate: formatDateOnly(session.transDate || new Date()),
+    customerId: base.customerId,
+    employeeId: base.employeeId,
     dayId: session.dayId || 1,
     shiftId: session.shiftId || 1,
+    discAmount: base.discAmount,
+    discPer: base.discPer,
+    serviceCharge: base.serviceCharge,
+    levy: base.levy,
+    vatExclAmount: base.vatExclAmount,
+    vatAmount: base.vatAmount,
+    netAmount: base.netAmount,
+    createdAt: new Date().toISOString(),
+    orderTypeId: base.orderTypeId,
+    sectionId: base.sectionId,
+    tableId: base.tableId,
+    guestNo: base.guestNo,
+    vehicleCustomerName: base.vehicleCustomerName || "",
+    vehicleNo: base.vehicleNo || "",
+    addressId: base.addressId,
+    missedCall: base.missedCall,
+    contactNo: base.contactNo || "",
+    note: base.note || "",
+    change: base.change || "",
+    isComing: base.isComing,
+    comingTime: base.comingTime || new Date().toISOString(),
+    providerNo: base.providerNo || "",
+    deliveryCharge: base.deliveryCharge,
+    details: base.details,
+    modifiers: base.modifiers,
   };
 };
 

@@ -14,7 +14,7 @@ import type { VoucherPrintData } from "../../shared/components/VoucherPrintTempl
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { getDecimalPart } from "../../../../utils/currency";
 import { numberToWords } from "../../../../utils/numberToWords";
-import { useReceiptAgainstVoucherForm } from "../hooks/useReceiptAgainstVoucherForm";
+import { useReceiptAgainstVoucherForm, formatDateOnly } from "../hooks/useReceiptAgainstVoucherForm";
 import { receiptAgainstVoucherApi } from "../services/receiptAgainstVoucherApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectActiveBranchId } from "../../../auth/store/authSlice";
@@ -190,7 +190,7 @@ const ReceiptAgainstVoucherPage = () => {
       ...form.getValues(),
       accountId: 0,
       paymodeId: 0,
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       discount: 0,
       refNo: "",
       narration: "",
@@ -295,7 +295,7 @@ const ReceiptAgainstVoucherPage = () => {
     return {
       voucherType: "RECEIPT AGAINST" as any, // type assertion because we'll add it to VoucherPrintTemplate soon
       voucherNo: vals.vchNo || "",
-      date: vals.voucherDate || "",
+      date: vals.voucherDate ? formatDateOnly(vals.voucherDate) : "",
       paymentType: paymode?.paymodeName || "CASH RECEIPT",
       partyName: selectedAccountName || "",
       amount: totalAmount,
@@ -411,7 +411,7 @@ const ReceiptAgainstVoucherPage = () => {
                 label="Date" 
                 required
                 type="date" 
-                max={new Date().toISOString().split("T")[0]}
+                max={formatDateOnly(new Date())}
                 {...form.register("voucherDate", {
                   onChange: (e) => form.setValue("voucherDate", e.target.value, { shouldValidate: true })
                 })}

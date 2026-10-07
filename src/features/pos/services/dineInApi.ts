@@ -11,6 +11,12 @@ interface RawDineInTable {
   employeeName: string | null;
   isUsed: boolean;
   chairs?: number;
+  isReserved?: boolean;
+  reserved?: boolean;
+  isReserve?: boolean;
+  status?: string;
+  tableStatus?: string;
+  reservationStatus?: string;
 }
 
 export const dineInApi = {
@@ -26,18 +32,37 @@ export const dineInApi = {
 
     // Map raw API fields → DineInTable shape used throughout the POS
     if (data.isSuccess && Array.isArray(data.data)) {
-      const mapped: DineInTable[] = data.data.map((t, idx) => ({
-        tableId: t.tableId,
-        tableName: t.tableName,
-        positionNo: t.positionNo,
-        orderDate: t.orderDate,
-        employeeName: t.employeeName,
-        isUsed: t.isUsed,
-        // derived
-        status: t.isUsed ? 'occupied' : 'available',
-        position: t.positionNo > 0 ? t.positionNo : idx + 1,
-        capacity: t.chairs ?? 0,
-      }));
+      const mapped: DineInTable[] = data.data.map((t: any, idx) => {
+        const isReserved = Boolean(
+          t.isReserved ||
+          t.isReserve ||
+          t.reserved ||
+          (typeof t.status === 'string' && t.status.toLowerCase() === 'reserved') ||
+          (typeof t.tableStatus === 'string' && t.tableStatus.toLowerCase() === 'reserved') ||
+          (typeof t.reservationStatus === 'string' && t.reservationStatus.toLowerCase() === 'reserved') ||
+          /reserved/i.test(t.tableName || '') ||
+          /reservation/i.test(t.tableName || '')
+        );
+        const status: 'available' | 'occupied' | 'reserved' = isReserved
+          ? 'reserved'
+          : t.isUsed
+          ? 'occupied'
+          : 'available';
+
+        return {
+          ...t,
+          tableId: t.tableId,
+          tableName: t.tableName,
+          positionNo: t.positionNo,
+          orderDate: t.orderDate,
+          employeeName: t.employeeName,
+          isUsed: Boolean(t.isUsed || isReserved),
+          status,
+          isReserved,
+          position: t.positionNo > 0 ? t.positionNo : idx + 1,
+          capacity: t.chairs ?? 0,
+        };
+      });
       return { ...data, data: mapped } as ApiResponse<DineInTable[]>;
     }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Search, Save, RotateCcw, Truck, Keyboard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { FormInput, Checkbox, Button } from "../../../../components/common";
+import { FormInput, Button } from "../../../../components/common";
 import { PosDeliveryKeyboard } from "../components/PosDeliveryKeyboard";
 import { useDelivery } from "../hooks/useDelivery";
 import { PosMoreAddressModal } from "../components/PosMoreAddressModal";
@@ -14,7 +14,10 @@ import {
   setNote,
   setMissedCall,
   setIsComing,
-  setChange
+  setComingTime,
+  setChange,
+  setVehicleCustomerName,
+  setDeliveryDetails
 } from "../../terminal/store/posSlice";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -41,6 +44,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     mobileNo: "",
     customerName: "",
     isComing: false,
+    comingTime: "",    // HH:mm, shown only when isComing is true
     flatNo: "",
     buildingNo: "",
     roadNo: "",
@@ -81,6 +85,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       mobileNo: "",
       customerName: "",
       isComing: false,
+      comingTime: "",
       flatNo: "",
       buildingNo: "",
       roadNo: "",
@@ -94,11 +99,67 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     setCurrentAddressId(null);
     lastLookedUpMobileRef.current = "";
     lastLoadedAddressRef.current = null;
+    sessionStorage.removeItem("pos_current_delivery_details");
     setTimeout(() => mobileRef.current?.focus(), 50);
   };
 
   useEffect(() => {
-    handleClearForm();
+    let prefilled = false;
+    try {
+      const raw = sessionStorage.getItem("pos_current_delivery_details");
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d.contactNo || d.customerName) {
+          let prefilledComingTime = "";
+          if (d.comingTime) {
+            try {
+              if (d.comingTime.includes("T")) {
+                const dateObj = new Date(d.comingTime);
+                if (!isNaN(dateObj.getTime())) {
+                  prefilledComingTime = `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`;
+                }
+              } else if (/^\d{1,2}:\d{2}/.test(d.comingTime)) {
+                prefilledComingTime = d.comingTime.slice(0, 5);
+              }
+            } catch {}
+          }
+          const addrData = {
+            mobileNo: d.contactNo || "",
+            customerName: d.customerName || "",
+            isComing: Boolean(d.isComing),
+            comingTime: prefilledComingTime,
+            flatNo: d.flatNo || "",
+            buildingNo: d.buildingNo || "",
+            roadNo: d.roadNo || "",
+            blockNo: d.blockNo || "",
+            area: d.area || "",
+            note: d.note || "",
+            callBack: "",
+            isMissedCall: Boolean(d.isMissedCall),
+            keepChanges: d.change || ""
+          };
+          setForm(addrData);
+          if (d.addressId) {
+            setCurrentAddressId(d.addressId);
+            lastLoadedAddressRef.current = {
+              customerName: d.customerName || "",
+              flatNo: d.flatNo || "",
+              buildingNo: d.buildingNo || "",
+              roadNo: d.roadNo || "",
+              blockNo: d.blockNo || "",
+              area: d.area || "",
+              note: d.note || "",
+              addressId: d.addressId
+            };
+          }
+          prefilled = true;
+        }
+      }
+    } catch {}
+
+    if (!prefilled) {
+      handleClearForm();
+    }
     setTimeout(() => mobileRef.current?.focus(), 100);
     setActiveField("mobileNo");
     setShowKeyboard(true);
@@ -219,17 +280,86 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     setShowKeyboard(true);
   };
 
-  const applyDeliveryFieldsToStore = () => {
+  const toggleComing = () => {
+    setForm(prev => {
+      const nextVal = !prev.isComing;
+      const now = new Date();
+      const defaultTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      return {
+        ...prev,
+        isComing: nextVal,
+        comingTime: nextVal ? (prev.comingTime || defaultTime) : ""
+      };
+    });
+  };
+
+  const toggleMissedCall = () => {
+    setForm(prev => ({
+      ...prev,
+      isMissedCall: !prev.isMissedCall
+    }));
+  };
+
+  const applyDeliveryFieldsToStore = (savedAddrId?: number) => {
+    const effAddrId = savedAddrId || currentAddressId || 0;
+
+    // Convert HH:mm to ISO string for the store; fall back to now if empty
+    const resolvedComingTime = form.isComing && form.comingTime
+      ? (() => {
+          const [h, m] = form.comingTime.split(":").map(Number);
+          const d = new Date();
+          d.setHours(h, m, 0, 0);
+          return d.toISOString();
+        })()
+      : new Date().toISOString();
+
     dispatch(setContactNo(form.mobileNo));
     dispatch(setNote(form.note));
     dispatch(setMissedCall(form.isMissedCall));
     dispatch(setIsComing(form.isComing));
+    dispatch(setComingTime(resolvedComingTime));
     dispatch(setChange(form.keepChanges));
+    dispatch(setVehicleCustomerName(form.customerName));
+    dispatch(setDeliveryDetails({
+      customerName: form.customerName,
+      contactNo: form.mobileNo,
+      flatNo: form.flatNo,
+      buildingNo: form.buildingNo,
+      roadNo: form.roadNo,
+      blockNo: form.blockNo,
+      area: form.area,
+      note: form.note,
+      addressId: effAddrId,
+      change: form.keepChanges,
+      isMissedCall: form.isMissedCall,
+      isComing: form.isComing,
+    }));
+    const deliveryCache = {
+      customerName: form.customerName,
+      contactNo: form.mobileNo,
+      flatNo: form.flatNo,
+      buildingNo: form.buildingNo,
+      roadNo: form.roadNo,
+      blockNo: form.blockNo,
+      area: form.area,
+      note: form.note,
+      addressId: effAddrId,
+      change: form.keepChanges,
+      isMissedCall: form.isMissedCall,
+      isComing: form.isComing,
+      comingTime: resolvedComingTime,
+    };
+    sessionStorage.setItem("pos_current_delivery_details", JSON.stringify(deliveryCache));
   };
 
   const handleSave = async () => {
     if (!form.mobileNo.trim() || !form.customerName.trim()) {
       showToast("Both Mobile No and Customer Name are required", "error");
+      return;
+    }
+
+    if (form.isComing && !form.comingTime) {
+      showToast("Please enter expected coming time", "error");
       return;
     }
 
@@ -243,10 +373,13 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       form.area === (lastLoadedAddressRef.current.area || "") &&
       form.note === (lastLoadedAddressRef.current.note || "");
 
+    // "Coming (Come & Collect)" orders use the Coming order type
+    const orderTypeName = form.isComing ? "Coming" : "Delivery";
+
     if (isUnchanged && currentAddressId) {
-      applyDeliveryFieldsToStore();
+      applyDeliveryFieldsToStore(currentAddressId);
       dispatch(setAddressId(currentAddressId));
-      dispatch(setOrderTypeByName("Delivery"));
+      dispatch(setOrderTypeByName(orderTypeName));
       handleBack();
       return;
     }
@@ -262,21 +395,13 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       note: form.note
     });
 
-    if (responseData) {
-      applyDeliveryFieldsToStore();
-      if (responseData.id) {
-        dispatch(setAddressId(responseData.id));
-      } else if (currentAddressId) {
-        dispatch(setAddressId(currentAddressId));
-      }
-      dispatch(setOrderTypeByName("Delivery"));
-      handleBack();
-    } else if (currentAddressId) {
-      applyDeliveryFieldsToStore();
-      dispatch(setAddressId(currentAddressId));
-      dispatch(setOrderTypeByName("Delivery"));
-      handleBack();
+    const finalAddressId = responseData?.id || currentAddressId || 0;
+    applyDeliveryFieldsToStore(finalAddressId);
+    if (finalAddressId > 0) {
+      dispatch(setAddressId(finalAddressId));
     }
+    dispatch(setOrderTypeByName(orderTypeName));
+    handleBack();
   };
 
   const handleSelectAddressFromMore = (address: DeliveryAddress) => {
@@ -352,9 +477,9 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
           {/* Unified Form Card */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4.5 md:p-5 shadow-sm flex flex-col gap-3 sm:gap-3.5 md:gap-4 w-full">
             
-            {/* Row 1: Primary Identity (Mobile No + Search & Customer Name & Coming Toggle) */}
+            {/* Row 1: Primary Identity (Mobile No + Search & Customer Name & Coming Toggle & Expected Time) */}
             <div className="grid grid-cols-12 gap-3 md:gap-4 items-end">
-              <div className="col-span-12 md:col-span-4">
+              <div className={`col-span-12 ${form.isComing ? "md:col-span-3" : "md:col-span-4"}`}>
                 <FormInput
                   label="Mobile No"
                   required
@@ -385,7 +510,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
                 />
               </div>
 
-              <div className="col-span-12 md:col-span-5">
+              <div className={`col-span-12 ${form.isComing ? "md:col-span-4" : "md:col-span-5"}`}>
                 <FormInput
                   label="Customer Name"
                   required
@@ -405,16 +530,56 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
               </div>
 
               <div className="col-span-12 md:col-span-3 flex flex-col justify-end pb-[4px]">
-                <label
-                  onClick={() => setForm({ ...form, isComing: !form.isComing })}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-300 rounded-lg flex items-center gap-2.5 cursor-pointer hover:bg-slate-100 transition-all select-none"
+                <div
+                  role="switch"
+                  aria-checked={form.isComing}
+                  tabIndex={0}
+                  onClick={toggleComing}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleComing();
+                    }
+                  }}
+                  className={`w-full h-9 px-3 border rounded-lg flex items-center gap-2.5 cursor-pointer transition-all select-none ${
+                    form.isComing
+                      ? "bg-amber-50 border-amber-400 hover:bg-amber-100 text-amber-900"
+                      : "bg-slate-50 border-slate-300 hover:bg-slate-100 text-[#49293e]"
+                  }`}
                 >
-                  <Checkbox checked={form.isComing} onChange={(e) => setForm({ ...form, isComing: e.target.checked })} />
-                  <span className="text-[#49293e] font-extrabold text-[10px] tracking-wider uppercase whitespace-nowrap">
-                    Coming (Come & Collect)
+                  <div
+                    className={`w-9 h-5 rounded-full transition-all duration-200 relative shrink-0 ${
+                      form.isComing ? "bg-amber-600" : "bg-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                        form.isComing ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </div>
+                  <span className="font-extrabold text-[10px] tracking-wider uppercase whitespace-nowrap">
+                    Coming (Come &amp; Collect)
                   </span>
-                </label>
+                </div>
               </div>
+
+              {form.isComing && (
+                <div className="col-span-12 md:col-span-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <span>Expected Time</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      value={form.comingTime}
+                      onChange={(e) => setForm(prev => ({ ...prev, comingTime: e.target.value }))}
+                      className="w-full !h-9 px-3 bg-white border border-amber-400 rounded-lg text-xs sm:text-sm font-semibold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400/20 focus:border-amber-500 transition-all cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Row 2: Address Grid (5 Equal Fields) */}
@@ -549,15 +714,38 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
               </div>
 
               <div className="col-span-12 md:col-span-2 flex flex-col justify-end pb-[4px]">
-                <label
-                  onClick={() => setForm({ ...form, isMissedCall: !form.isMissedCall })}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-300 rounded-lg flex items-center gap-2.5 cursor-pointer hover:bg-slate-100 transition-all select-none"
+                <div
+                  role="switch"
+                  aria-checked={form.isMissedCall}
+                  tabIndex={0}
+                  onClick={toggleMissedCall}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleMissedCall();
+                    }
+                  }}
+                  className={`w-full h-9 px-3 border rounded-lg flex items-center gap-2.5 cursor-pointer transition-all select-none ${
+                    form.isMissedCall
+                      ? "bg-purple-50/80 border-[#49293e] text-[#49293e]"
+                      : "bg-slate-50 border-slate-300 hover:bg-slate-100 text-[#49293e]"
+                  }`}
                 >
-                  <Checkbox checked={form.isMissedCall} onChange={(e) => setForm({ ...form, isMissedCall: e.target.checked })} />
-                  <span className="text-[#49293e] font-extrabold text-[10px] tracking-wider uppercase whitespace-nowrap">
+                  <div
+                    className={`w-9 h-5 rounded-full transition-all duration-200 relative shrink-0 ${
+                      form.isMissedCall ? "bg-[#49293e]" : "bg-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                        form.isMissedCall ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </div>
+                  <span className="font-extrabold text-[10px] tracking-wider uppercase whitespace-nowrap">
                     Missed Call
                   </span>
-                </label>
+                </div>
               </div>
 
               <div className="col-span-12 md:col-span-3 grid grid-cols-2 gap-2 pb-[4px]">

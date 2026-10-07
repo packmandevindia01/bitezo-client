@@ -86,7 +86,30 @@ export interface SalesInvoicePayload {
 export const salesInvoiceApi = {
   createSalesInvoice: async (payload: SalesInvoicePayload): Promise<any> => {
     try {
-      const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', payload));
+      const postPayload: any = { ...payload };
+      delete postPayload.saleId;
+      delete postPayload.updateAt;
+      delete postPayload.updatedAt;
+
+      // Ensure voucherDate is strictly Date-Only (YYYY-MM-DD)
+      if (postPayload.voucherDate) {
+        postPayload.voucherDate = postPayload.voucherDate.includes("T")
+          ? postPayload.voucherDate.split("T")[0]
+          : postPayload.voucherDate;
+      } else {
+        postPayload.voucherDate = new Date().toISOString().split("T")[0];
+      }
+
+      if (!postPayload.createdAt) {
+        postPayload.createdAt = new Date().toISOString();
+      }
+      if (!postPayload.transDate) {
+        postPayload.transDate = new Date().toISOString();
+      } else if (!postPayload.transDate.includes("T")) {
+        postPayload.transDate = new Date(postPayload.transDate).toISOString();
+      }
+
+      const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));
       return data ?? null;
     } catch (e: any) {
       console.error("Sales invoice creation failed:", e);
@@ -96,7 +119,31 @@ export const salesInvoiceApi = {
   
   updateSalesInvoice: async (saleId: number, payload: SalesInvoicePayload): Promise<boolean> => {
     try {
-      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${saleId}`, payload));
+      const putPayload: any = { ...payload };
+      putPayload.saleId = saleId;
+      putPayload.updateAt = new Date().toISOString();
+
+      // Ensure voucherDate is strictly Date-Only (YYYY-MM-DD)
+      if (putPayload.voucherDate) {
+        putPayload.voucherDate = putPayload.voucherDate.includes("T")
+          ? putPayload.voucherDate.split("T")[0]
+          : putPayload.voucherDate;
+      } else {
+        putPayload.voucherDate = new Date().toISOString().split("T")[0];
+      }
+
+      // Remove fields not present in PUT UpdateSalesInvoiceDto
+      delete putPayload.seriesId;
+      delete putPayload.prefix;
+      delete putPayload.dayId;
+      delete putPayload.shiftId;
+      delete putPayload.transDate;
+      delete putPayload.androidStatus;
+      delete putPayload.createdAt;
+      delete putPayload.updatedAt;
+      delete putPayload.combinedOrderIds;
+
+      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${saleId}`, putPayload));
       return true;
     } catch (e: any) {
       console.error("Sales invoice update failed:", e);

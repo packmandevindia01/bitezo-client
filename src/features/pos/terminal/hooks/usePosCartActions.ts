@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
+import { deliveryApi } from "../../customer/services/deliveryApi";
 import type { MenuOrderRequest, MenuOrderUpdateRequest } from "../../types";
 import {
   clearCart,
@@ -79,6 +80,12 @@ export const usePosCartActions = () => {
     comingTime,
     vehicleCustomerName,
     vehicleNo,
+    deliveryCustomerName,
+    flatNo,
+    buildingNo,
+    roadNo,
+    blockNo,
+    area,
     billDiscountType,
     billDiscountValue,
     editingOrderId,
@@ -169,6 +176,12 @@ export const usePosCartActions = () => {
     comingTime,
     vehicleCustomerName,
     vehicleNo,
+    deliveryCustomerName,
+    flatNo,
+    buildingNo,
+    roadNo,
+    blockNo,
+    area,
     billDiscountType,
     billDiscountValue,
     editingOrderId,
@@ -182,25 +195,7 @@ export const usePosCartActions = () => {
     return buildDirectSettleOrderPayload(getFormContext(), session);
   };
 
-  const isKotPrintEnabledInConfig = () => {
-    try {
-      for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const configsObj = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
-          const val = configsObj?.kotPrint ?? configsObj?.KotPrint;
-          if (val !== undefined && val !== null) {
-            const str = String(val).trim().toLowerCase();
-            return str === "enable" || str === "true" || str === "1" || val === true;
-          }
-        }
-      }
-    } catch {}
-    return true; // Default to true so KOT is not silently lost
-  };
-
-  const submitOrder = async (session: OrderSessionParams, shouldPrint: boolean = true) => {
+  const submitOrder = async (session: OrderSessionParams, shouldPrint: boolean = false) => {
     if (cartDetails.length === 0) {
       showToast("Cart is empty", "warning");
       return;
@@ -263,7 +258,7 @@ export const usePosCartActions = () => {
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
 
-          const shouldPrintKot = shouldPrint || isKotPrintEnabledInConfig();
+          const shouldPrintKot = Boolean(shouldPrint);
           if (shouldPrintKot) {
             await handleOrderPrinting(editingOrderId, session, true, shouldPrint);
           }
@@ -284,7 +279,7 @@ export const usePosCartActions = () => {
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
 
-        const shouldPrintKot = shouldPrint || isKotPrintEnabledInConfig();
+        const shouldPrintKot = Boolean(shouldPrint);
         if (shouldPrintKot) {
           await handleOrderPrinting(response.data.id, session, false, shouldPrint);
         }
@@ -333,7 +328,59 @@ export const usePosCartActions = () => {
       let orderNoStr = String(orderId);
       let ticketNoStr = String(orderId);
       let orderTypeStr = selectedOrderTypeName || "DINE IN";
-      let waiterStr = localStorage.getItem("defaultEmployeeName") || localStorage.getItem("employeeName") || "Cashier";
+      const resolveEmployeeName = async (empId?: number | string | null): Promise<string | null> => {
+        if (!empId) return null;
+        const idStr = String(empId).trim();
+        if (!idStr || idStr === "0" || idStr === "NaN") return null;
+
+        try {
+          const mapRaw = localStorage.getItem("posEmpNameMap");
+          if (mapRaw) {
+            const map = JSON.parse(mapRaw);
+            if (map[idStr]) return map[idStr];
+          }
+        } catch {}
+
+        if (idStr === localStorage.getItem("authorizedEmployeeId")) {
+          const authName = localStorage.getItem("authorizedEmployeeName");
+          if (authName) return authName;
+        }
+
+        try {
+          const branchId =
+            Number(localStorage.getItem("systemBranchId")) ||
+            Number(localStorage.getItem("activeBranchId")) ||
+            Number(localStorage.getItem("branchId")) ||
+            0;
+          const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
+          const list = await getEmployeeNames(branchId);
+          if (Array.isArray(list) && list.length > 0) {
+            const map: Record<string, string> = {};
+            try {
+              const existing = localStorage.getItem("posEmpNameMap");
+              if (existing) Object.assign(map, JSON.parse(existing));
+            } catch {}
+            list.forEach((e: any) => {
+              const id = e.empId ?? e.id;
+              const name = e.empName ?? e.name;
+              if (id && name) map[String(id)] = name;
+            });
+            localStorage.setItem("posEmpNameMap", JSON.stringify(map));
+            if (map[idStr]) return map[idStr];
+          }
+        } catch {}
+
+        return null;
+      };
+
+      const targetEmpId = session.employeeId || waiterId;
+      let waiterStr = (await resolveEmployeeName(targetEmpId))
+        || waiterName
+        || localStorage.getItem("defaultEmployeeName")
+        || localStorage.getItem("authorizedEmployeeName")
+        || localStorage.getItem("employeeName")
+        || "Waiter";
+
       let sectionStr = selectedSectionId ? String(selectedSectionId) : "Main";
       let tableStr = selectedTableId ? String(selectedTableId) : "T1";
       let vehicleNoStr = vehicleNo || localStorage.getItem("driveThruVehicleNo") || "";
@@ -351,7 +398,10 @@ export const usePosCartActions = () => {
           orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
           ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
           orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
-          waiterStr = masterData.employeeName || waiterStr;
+          const masterEmp = masterData.employeeName || (await resolveEmployeeName(masterData.employeeId ?? masterData.empId ?? masterData.waiterId));
+          if (masterEmp) {
+            waiterStr = masterEmp;
+          }
           sectionStr = masterData.sectionName || sectionStr;
           tableStr = masterData.tableNo || tableStr;
           vehicleNoStr = masterData.vehicleNo || vehicleNoStr;
@@ -371,6 +421,41 @@ export const usePosCartActions = () => {
       const { executeKotRouting } = await import("../../utils/printerRouting");
       const { isKotArabicEnabled, isBillArabicEnabled } = await import("../../utils/alternativeHelpers");
 
+      let cachedDelivery: any = null;
+      try {
+        const rawDelivery = sessionStorage.getItem("pos_current_delivery_details");
+        if (rawDelivery) cachedDelivery = JSON.parse(rawDelivery);
+      } catch {}
+
+      let resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || cachedDelivery?.contactNo || "";
+      let resolvedCustomerName = (masterData as any)?.deliveryCustomerName || (masterData as any)?.vehicleCustomerName || (masterData as any)?.customerName || customerNameStr || cachedDelivery?.customerName || "";
+      let resolvedFlatNo = (masterData as any)?.flatNo || (masterData as any)?.flat || (masterData as any)?.flatNumber || flatNo || cachedDelivery?.flatNo || "";
+      let resolvedBuildingNo = (masterData as any)?.buildingNo || (masterData as any)?.building || (masterData as any)?.buildingNumber || buildingNo || cachedDelivery?.buildingNo || "";
+      let resolvedBlockNo = (masterData as any)?.blockNo || (masterData as any)?.block || (masterData as any)?.blockNumber || blockNo || cachedDelivery?.blockNo || "";
+      let resolvedRoadNo = (masterData as any)?.roadNo || (masterData as any)?.road || (masterData as any)?.roadNumber || (masterData as any)?.street || roadNo || cachedDelivery?.roadNo || "";
+      let resolvedArea = (masterData as any)?.area || (masterData as any)?.areaName || area || cachedDelivery?.area || "";
+      let resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || cachedDelivery?.address || "";
+
+      const isDeliveryOrder = orderTypeStr.toLowerCase().includes("delivery");
+      if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
+        try {
+          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
+          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : (addrRes?.data || addrRes);
+          if (addrData) {
+            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
+            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
+            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
+            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
+            resolvedArea = addrData.area || resolvedArea;
+            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
+              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
+            }
+          }
+        } catch (fetchAddrErr) {
+          console.warn("[usePosCartActions] Could not fetch delivery address fallback:", fetchAddrErr);
+        }
+      }
+
       const commonPrintData = {
         orderNo: orderNoStr,
         ticketNo: ticketNoStr,
@@ -381,13 +466,14 @@ export const usePosCartActions = () => {
         orderType: orderTypeStr,
         orderTypeId: selectedOrderTypeId,
         vehicleNo: vehicleNoStr,
-        customerName: customerNameStr,
-        contactNo: (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "",
-        flatNo: (masterData as any)?.flatNo || "",
-        buildingNo: (masterData as any)?.buildingNo || "",
-        blockNo: (masterData as any)?.blockNo || "",
-        roadNo: (masterData as any)?.roadNo || "",
-        area: (masterData as any)?.area || "",
+        customerName: resolvedCustomerName,
+        contactNo: resolvedContactNo,
+        flatNo: resolvedFlatNo,
+        buildingNo: resolvedBuildingNo,
+        blockNo: resolvedBlockNo,
+        roadNo: resolvedRoadNo,
+        area: resolvedArea,
+        address: resolvedAddress,
         providerNo: (masterData as any)?.providerOrderNo || session.providerOrderNo || "",
         kotArabic: isKotArabicEnabled(),
         billArabic: isBillArabicEnabled(),

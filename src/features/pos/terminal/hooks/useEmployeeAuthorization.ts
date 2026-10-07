@@ -65,8 +65,16 @@ export const useEmployeeAuthorization = () => {
       authorized = true;
       verifiedEmployeeId = employeeId;
       if (employeeId > 0) {
-        localStorage.getItem("authorizedEmployeeId"); // Check existing
         localStorage.setItem("authorizedEmployeeId", String(employeeId));
+        try {
+          const mapRaw = localStorage.getItem("posEmpNameMap");
+          if (mapRaw) {
+            const map = JSON.parse(mapRaw);
+            if (map[String(employeeId)]) {
+              localStorage.setItem("authorizedEmployeeName", map[String(employeeId)]);
+            }
+          }
+        } catch {}
       }
       setIsOpen(false);
       setIsAdminOverride(false);

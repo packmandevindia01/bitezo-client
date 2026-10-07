@@ -73,6 +73,9 @@ export interface PosTerminalModalsProps {
   orderLoading: boolean;
   tenderOptions: any[];
   selectedCustomerId?: number;
+  /** Called before the settle modal opens — used to set print preference */
+  onBeforeSettle?: () => void;
+  onCancelSettle?: () => void;
 }
 
 /**
@@ -130,6 +133,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         orderLoading={props.orderLoading}
         handleCompleteSettlement={props.handleCompleteSettlement}
         handleClearCart={props.handleClearCart}
+        onCancelSettle={props.onCancelSettle}
       />
 
       <OrderModals
@@ -142,6 +146,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         resetTerminalState={props.resetTerminalState}
         setActiveProvider={props.setActiveProvider}
         handleClearCart={props.handleClearCart}
+        onBeforeSettle={props.onBeforeSettle}
       />
 
       <SystemModals

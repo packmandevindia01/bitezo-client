@@ -49,6 +49,12 @@ interface PosState {
   comingTime: string;
   vehicleCustomerName: string;
   vehicleNo: string;
+  deliveryCustomerName: string;
+  flatNo: string;
+  buildingNo: string;
+  roadNo: string;
+  blockNo: string;
+  area: string;
   waiterId: number | null;
   waiterName: string | null;
   editingOrderId: number | null;
@@ -135,6 +141,12 @@ const initialState: PosState = {
   comingTime: new Date().toISOString(),
   vehicleCustomerName: '',
   vehicleNo: '',
+  deliveryCustomerName: '',
+  flatNo: '',
+  buildingNo: '',
+  roadNo: '',
+  blockNo: '',
+  area: '',
   waiterId: initialWaiter.id,
   waiterName: initialWaiter.name,
   editingOrderId: null,
@@ -304,6 +316,12 @@ const posSlice = createSlice({
       state.comingTime = new Date().toISOString();
       state.vehicleCustomerName = '';
       state.vehicleNo = '';
+      state.deliveryCustomerName = '';
+      state.flatNo = '';
+      state.buildingNo = '';
+      state.roadNo = '';
+      state.blockNo = '';
+      state.area = '';
       state.customDeliveryCharge = null;
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
@@ -496,6 +514,37 @@ const posSlice = createSlice({
     setVehicleNo: (state, action: PayloadAction<string>) => {
       state.vehicleNo = action.payload;
     },
+    setDeliveryDetails: (state, action: PayloadAction<{
+      customerName?: string;
+      contactNo?: string;
+      flatNo?: string;
+      buildingNo?: string;
+      blockNo?: string;
+      roadNo?: string;
+      area?: string;
+      note?: string;
+      addressId?: number;
+      change?: string;
+      isMissedCall?: boolean;
+      isComing?: boolean;
+    }>) => {
+      const p = action.payload;
+      if (p.customerName !== undefined) {
+        state.deliveryCustomerName = p.customerName;
+        state.vehicleCustomerName = p.customerName;
+      }
+      if (p.contactNo !== undefined) state.contactNo = p.contactNo;
+      if (p.flatNo !== undefined) state.flatNo = p.flatNo;
+      if (p.buildingNo !== undefined) state.buildingNo = p.buildingNo;
+      if (p.blockNo !== undefined) state.blockNo = p.blockNo;
+      if (p.roadNo !== undefined) state.roadNo = p.roadNo;
+      if (p.area !== undefined) state.area = p.area;
+      if (p.note !== undefined) state.note = p.note;
+      if (p.addressId !== undefined) state.selectedAddressId = p.addressId;
+      if (p.change !== undefined) state.change = p.change;
+      if (p.isMissedCall !== undefined) state.missedCall = p.isMissedCall;
+      if (p.isComing !== undefined) state.isComing = p.isComing;
+    },
     loadRecalledOrder: (state, action: PayloadAction<{
       editingOrderId?: number | null;
       editingSaleId?: number | null;
@@ -521,6 +570,12 @@ const posSlice = createSlice({
       comingTime?: string;
       vehicleCustomerName?: string;
       vehicleNo?: string;
+      deliveryCustomerName?: string;
+      flatNo?: string;
+      buildingNo?: string;
+      blockNo?: string;
+      roadNo?: string;
+      area?: string;
       isCartModified?: boolean;
       prevUpdatedAt?: string | null;
     }>) => {
@@ -548,6 +603,12 @@ const posSlice = createSlice({
         comingTime,
         vehicleCustomerName,
         vehicleNo,
+        deliveryCustomerName,
+        flatNo,
+        buildingNo,
+        blockNo,
+        roadNo,
+        area,
         isCartModified,
         prevUpdatedAt,
       } = action.payload;
@@ -582,6 +643,12 @@ const posSlice = createSlice({
       if (comingTime !== undefined) state.comingTime = comingTime;
       if (vehicleCustomerName !== undefined) state.vehicleCustomerName = vehicleCustomerName;
       if (vehicleNo !== undefined) state.vehicleNo = vehicleNo;
+      if (deliveryCustomerName !== undefined) state.deliveryCustomerName = deliveryCustomerName;
+      if (flatNo !== undefined) state.flatNo = flatNo;
+      if (buildingNo !== undefined) state.buildingNo = buildingNo;
+      if (blockNo !== undefined) state.blockNo = blockNo;
+      if (roadNo !== undefined) state.roadNo = roadNo;
+      if (area !== undefined) state.area = area;
     },
     addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
       state.isCartModified = true;
@@ -653,6 +720,7 @@ export const {
   setComingTime,
   setVehicleCustomerName,
   setVehicleNo,
+  setDeliveryDetails,
   loadRecalledOrder,
   setIsSettling,
   setCombinedOrderIds,

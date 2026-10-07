@@ -15,6 +15,28 @@ import { backofficeConfigApi } from "../../../general/configuration/services/bac
 import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
+export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
+  if (!dateVal) return new Date().toISOString().split("T")[0];
+  if (typeof dateVal === "string") {
+    const trimmed = dateVal.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) return trimmed.split("T")[0];
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    return trimmed;
+  }
+  const d = dateVal;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -614,7 +636,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
     setSearchingInvoices(true);
     try {
-      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(watchedBranch), Number(watchedSupplier), query);
+      const results = await purchaseReturnApi.searchPurchaseInvoices(Number(watchedBranch), Number(watchedSupplier), query, decimalPart);
       const mapped = results.map((r: any) => {
         const invText = r.invoiceNo || r.purchaseNo || "Unknown";
         return {
@@ -628,7 +650,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     } finally {
       setSearchingInvoices(false);
     }
-  }, [watchedBranch, watchedSupplier]);
+  }, [watchedBranch, watchedSupplier, decimalPart]);
 
   useEffect(() => {
     if (!invoiceId && watchedBranch && watchedSupplier) {
@@ -1072,63 +1094,88 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
 
     try {
+      const paymentsList = (data.payments && data.payments.length > 0) ? data.payments : watchedPayments;
+      const rootPaymodeId = (paymentsList && paymentsList.length > 1 && selectedPaymodeId === (multiPayId || 3))
+        ? (multiPayId || 3)
+        : (selectedPaymodeId || (paymentsList?.[0]?.paymodeId ? Number(paymentsList[0].paymodeId) : 1));
+
+      const computedPaymodes = (() => {
+        if (paymentsList && paymentsList.length > 0) {
+          const map = new Map<number, number>();
+          for (const p of paymentsList as any[]) {
+            const pid = Number(p.paymodeId) || selectedPaymodeId || 1;
+            map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
+          }
+          const list = Array.from(map.entries()).map(([paymodeId, amount]) => ({
+            paymodeId,
+            amount: Number(amount.toFixed(decimalPart))
+          }));
+          if (list.length > 0) return list;
+        }
+        return [
+          {
+            paymodeId: selectedPaymodeId || 1,
+            amount: Number(totals.grandTotal.toFixed(decimalPart))
+          }
+        ];
+      })();
+
       const payload: any = {
-        seriesId: parseInt(data.series) || 0,
-        prefix: "",
         supplierId: parseInt(data.supplier) || 0,
-        paymodeId: watchedPayments.length > 1 ? (multiPayId || 3) : (watchedPayments.length > 0 ? (watchedPayments[0].paymodeId || 1) : 1),
+        paymodeId: rootPaymodeId,
         branchId: parseInt(data.branch) || 0,
         employeeId: parseInt(data.salesman) || 0,
-        dayId: 0,
-        shiftId: 0,
-        purchaseReturnDate: new Date(data.purchaseDate).toISOString(),
+        purchaseReturnDate: formatDateOnly(data.purchaseDate),
         purchaseId: purchaseId || 0,
-        purchaseInvoiceNo: data.invoiceNo || "",
-        invoiceNo: data.invoiceNo || "",
         refNo: data.refNo || "",
         narration: data.narration || "",
-        discAmount: toNumber(data.discAmount),
-        discPer: toNumber(data.globalDiscPercent),
+        discAmount: Number(toNumber(data.discAmount).toFixed(decimalPart)),
+        discPer: Number(toNumber(data.globalDiscPercent).toFixed(decimalPart)),
         vatExclAmount: Number((totals.netAmount - totals.vatAmount).toFixed(decimalPart)),
         vatAmount: Number(totals.vatAmount.toFixed(decimalPart)),
         netAmount: Number(totals.grandTotal.toFixed(decimalPart)),
-        createdAt: new Date().toISOString(),
         details: validItems.map((item: any) => {
           const l = calculateLine(item as PurchaseReturnLineItem, decimalPart, grossTotal, toNumber(data.discAmount));
           const unitCurrentValue = getUnitCurrentValue(item.unit);
           return {
             productId: parseInt(item.product) || 0,
             unitId: parseInt(item.unit) || 0,
-            vatId: parseInt(item.vatId) || 1,
+            vatId: item.vatId !== undefined && item.vatId !== "" ? parseInt(item.vatId) : 1,
             qty: toNumber(item.qty),
             foc: toNumber(item.foc),
             price: toNumber(item.price),
-            discPer: 0,
-            discAmount: l.discountAmount,
-            vatAmount: l.vatAmount,
-            netAmount: l.netAmount,
-            baseQty: (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue,
+            discPer: toNumber(item.discPercent) || 0,
+            discAmount: Number(l.discountAmount.toFixed(decimalPart)),
+            vatAmount: Number(l.vatAmount.toFixed(decimalPart)),
+            netAmount: Number(l.netAmount.toFixed(decimalPart)),
+            baseQty: Number(((toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue).toFixed(decimalPart)),
           };
         }),
-        paymodes: (() => {
-          if (watchedPayments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return [];
-          // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
-          const map = new Map<number, number>();
-          for (const p of watchedPayments as any[]) {
-            const pid = p.paymodeId || 1;
-            map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
-          }
-          return Array.from(map.entries()).map(([paymodeId, amount]) => ({ paymodeId, amount }));
-        })(),
+        paymodes: computedPaymodes,
       };
 
       if (invoiceId) {
         payload.purchaseReturnId = Number(invoiceId);
         payload.updateAt = new Date().toISOString();
+        delete payload.seriesId;
+        delete payload.prefix;
+        delete payload.dayId;
+        delete payload.shiftId;
+        delete payload.createdAt;
+        delete payload.purchaseInvoiceNo;
+        delete payload.invoiceNo;
         await purchaseReturnApi.updatePurchaseReturn(invoiceId, payload);
         showToast("Purchase Return updated successfully", "success");
       } else {
+        payload.seriesId = parseInt(data.series) || 0;
+        payload.prefix = "";
+        payload.dayId = 0;
+        payload.shiftId = 0;
         payload.createdAt = new Date().toISOString();
+        delete payload.updateAt;
+        delete payload.purchaseReturnId;
+        delete payload.purchaseInvoiceNo;
+        delete payload.invoiceNo;
         await purchaseReturnApi.savePurchaseReturn(payload);
         showToast("Purchase Return saved successfully", "success");
       }

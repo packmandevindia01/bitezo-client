@@ -436,7 +436,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   }
 
   // ── Delivery / Drive-thru details ─────────────────────────────────────────
-  if ((isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo)) {
+  if ((isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) {
     markup += `[L]${DASH_SEP}\n`;
     markup += `[C]<b>${isDelivery ? "DELIVERY DETAILS" : "CUSTOMER DETAILS"}</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
@@ -447,6 +447,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     if (data.blockNo)    markup += twoCol("Block",       data.blockNo)    + "\n";
     if (data.roadNo)     markup += twoCol("Road",        data.roadNo)     + "\n";
     if (data.area)       markup += twoCol("Area",        data.area)       + "\n";
+    if (data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo) markup += twoCol("Address", data.address) + "\n";
     if (data.vehicleNo)  markup += twoCol("Vehicle No",  data.vehicleNo)  + "\n";
     if (data.providerNo) markup += twoCol("Provider No", data.providerNo) + "\n";
   }

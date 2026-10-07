@@ -2,9 +2,15 @@ import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { receiptAgainstVoucherApi } from "../services/receiptAgainstVoucherApi";
+import { receiptAgainstVoucherApi, formatDateOnly } from "../services/receiptAgainstVoucherApi";
 import { receiptAgainstVoucherSchema } from "../schema/receiptAgainstVoucherSchema";
 import type { ReceiptAgainstVoucherFormData } from "../schema/receiptAgainstVoucherSchema";
+import type {
+  ReceiptAgainstCreatePayload,
+  ReceiptAgainstUpdatePayload,
+  ReceiptAgainstPaymodePayload,
+  ReceiptAgainstDetailPayload
+} from "../types";
 import { useAppSelector } from "../../../../app/hooks";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
@@ -14,6 +20,8 @@ import { paymodeService } from "../../../general/paymode/services/paymodeService
 import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+
+export { formatDateOnly };
 
 export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () => void) => {
   const queryClient = useQueryClient();
@@ -37,7 +45,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       accountId: 0,
       paymodeId: 0,
       employeeId,
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       discount: 0,
       refNo: "",
       narration: "",
@@ -388,7 +396,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
         accountId: md.accountId,
         paymodeId: md.paymodeId,
         employeeId: md.employeeId,
-        voucherDate: md.voucherDate?.split("T")[0] || "",
+        voucherDate: formatDateOnly(md.voucherDate),
         discount: md.discount,
         refNo: md.refNo || "",
         narration: md.narration || "",
@@ -458,50 +466,73 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
 
   const saveMutation = useMutation({
     mutationFn: async (data: ReceiptAgainstVoucherFormData): Promise<any> => {
+      const vDate = formatDateOnly(data.voucherDate);
       const totalAmount = data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const now = new Date();
+      const decimalPart = getDecimalPart();
+      const selectedPaymodeId = Number(data.paymodeId) || 1;
 
-      const basePayload = {
+      // Build paymodes: NEVER empty
+      const paymodesPayload: ReceiptAgainstPaymodePayload[] = (() => {
+        if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+          return data.paymodes.map(p => ({
+            paymodeId: Number(p.paymodeId || 0) || 1,
+            amount: Number(Number(p.amount || 0).toFixed(decimalPart))
+          }));
+        }
+        return [
+          {
+            paymodeId: selectedPaymodeId,
+            amount: Number(totalAmount.toFixed(decimalPart))
+          }
+        ];
+      })();
+
+      const detailsPayload: ReceiptAgainstDetailPayload[] = data.details.map(d => ({
+        invoiceId: Number(d.invoiceId || 0),
+        voucherType: d.voucherType || "",
+        amount: Number(Number(d.amount || 0).toFixed(decimalPart))
+      }));
+
+      if (transId) {
+        const updatePayload: ReceiptAgainstUpdatePayload = {
+          transId: Number(transId),
+          branchId: Number(data.branchId || 0),
+          accountId: Number(data.accountId || 0),
+          paymodeId: selectedPaymodeId,
+          employeeId: Number(data.employeeId || 0),
+          voucherDate: vDate,
+          discount: Number(data.discount || 0),
+          amount: Number(totalAmount.toFixed(decimalPart)),
+          refNo: data.refNo?.trim() || "",
+          narration: data.narration?.trim() || "",
+          updatedAt: new Date().toISOString(),
+          details: detailsPayload,
+          paymodes: paymodesPayload
+        };
+        console.log("RECEIPT AGAINST UPDATE PAYLOAD:", JSON.stringify(updatePayload, null, 2));
+        return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(Number(transId), updatePayload);
+      }
+
+      const createPayload: ReceiptAgainstCreatePayload = {
         seriesId: Number(data.seriesId || 0),
         prefix: data.prefix || "",
         branchId: Number(data.branchId || 0),
         accountId: Number(data.accountId || 0),
-        paymodeId: Number(data.paymodeId || 0),
+        paymodeId: selectedPaymodeId,
         dayId: 0,
         shiftId: 0,
         employeeId: Number(data.employeeId || 0),
-        voucherDate: data.voucherDate,
+        voucherDate: vDate,
         discount: Number(data.discount || 0),
-        amount: totalAmount,
-        refNo: data.refNo || "",
-        narration: data.narration || "",
-        details: data.details.map(d => ({
-          invoiceId: Number(d.invoiceId || 0),
-          voucherType: d.voucherType || "",
-          amount: Number(d.amount || 0)
-        })),
-        paymodes: Number(data.paymodeId) === 3 ? (data.paymodes || []).map(p => ({
-          paymodeId: Number(p.paymodeId || 0),
-          amount: Number(p.amount || 0)
-        })) : []
-      };
-      
-      if (transId) {
-        const updatePayload: any = {
-          ...basePayload,
-          transId,
-          updatedAt: new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString()
-        };
-        console.log("RECEIPT AGAINST UPDATE PAYLOAD:", JSON.stringify(updatePayload, null, 2));
-        return receiptAgainstVoucherApi.updateReceiptAgainstVoucher(transId, updatePayload as any);
-      }
-      
-      const createPayload: any = {
-        ...basePayload,
-        createdAt: new Date(data.voucherDate + "T" + now.toISOString().split("T")[1]).toISOString()
+        amount: Number(totalAmount.toFixed(decimalPart)),
+        refNo: data.refNo?.trim() || "",
+        narration: data.narration?.trim() || "",
+        createdAt: new Date().toISOString(),
+        details: detailsPayload,
+        paymodes: paymodesPayload
       };
       console.log("RECEIPT AGAINST CREATE PAYLOAD:", JSON.stringify(createPayload, null, 2));
-      return receiptAgainstVoucherApi.createReceiptAgainstVoucher(createPayload as any);
+      return receiptAgainstVoucherApi.createReceiptAgainstVoucher(createPayload);
     },
     onSuccess,
   });

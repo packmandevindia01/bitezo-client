@@ -15,6 +15,28 @@ export interface BuildInvoiceOptions {
   activeProviderPostAccountId?: number;
 }
 
+export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
+  if (!dateVal) return new Date().toISOString().split("T")[0];
+  if (typeof dateVal === "string") {
+    const trimmed = dateVal.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) return trimmed.split("T")[0];
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    return trimmed;
+  }
+  const d = dateVal;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 /**
  * Pure Mapper: Builds the SalesInvoicePayload for POST/PUT /sales-invoices.
  * Guarantees that paymodes balance and line totals conform to backend DTO specs.
@@ -41,7 +63,11 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     systemSeriesId = 1;
   }
 
-  const activeTransDate = (transDate || new Date().toISOString()).split("T")[0];
+  const activeTransDateIso = transDate && transDate.includes("T")
+    ? transDate
+    : (transDate ? new Date(transDate).toISOString() : new Date().toISOString());
+
+  const activeTransDateOnly = activeTransDateIso.split("T")[0];
   const activeDriverId = orderPayload.driverId || Number(localStorage.getItem("selectedDriverId") || 0);
 
   const resolvedCustomerId =
@@ -70,6 +96,8 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       ? validPayments[0].paymodeId
       : 1;
 
+  const resolvedVoucherDate = formatDateOnly(orderPayload.voucherDate || transDate || new Date());
+
   return {
     seriesId: systemSeriesId,
     prefix: "",
@@ -78,12 +106,12 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     employeeId,
     dayId,
     shiftId,
-    transDate: activeTransDate,
+    transDate: activeTransDateIso,
     orderTypeId: orderPayload.orderTypeId,
     androidStatus: false,
     saleId: editingSaleId || 0,
     orderId: orderPayload.orderId,
-    voucherDate: new Date().toISOString(),
+    voucherDate: resolvedVoucherDate,
     discAmount: orderPayload.discAmount,
     discPer: orderPayload.discPer,
     serviceCharge: orderPayload.serviceCharge,
@@ -108,10 +136,10 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       note: orderPayload.note,
       change: orderPayload.change || "0.00",
       isComing: orderPayload.isComing,
-      comingTime: orderPayload.comingTime,
+      comingTime: orderPayload.comingTime || new Date().toISOString(),
       providerNo: orderPayload.providerNo,
       driverId: activeDriverId,
-      transDate: activeTransDate,
+      transDate: activeTransDateOnly,
     },
     combinedOrderIds: orderPayload.combinedOrderIds,
     modifiers: orderPayload.modifiers,
@@ -134,8 +162,8 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       complimentaryStatus: d.complimentaryStatus || false,
     })),
     paymodes:
-      rootPaymodeId === 3
+      validPayments.length > 0
         ? validPayments.map((p) => ({ paymodeId: p.paymodeId, amount: p.amount }))
-        : [],
+        : [{ paymodeId: rootPaymodeId || 1, amount: orderPayload.netAmount }],
   };
 };

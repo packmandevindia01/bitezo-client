@@ -51,9 +51,10 @@ export interface DineInTable {
   orderDate: string;
   employeeName: string | null;
   isUsed: boolean;
-  status: 'available' | 'occupied';
+  status: 'available' | 'occupied' | 'reserved';
   position: number;
   capacity: number;
+  isReserved?: boolean;
 }
 
 export interface PosMenuTime {

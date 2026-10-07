@@ -87,8 +87,11 @@ export const purchaseReturnApi = {
     }
   },
 
-  searchProductsByName: async (branchId: number, productName: string, purchaseId?: number) => {
-    const params: any = { branchId, productName };
+  searchProductsByName: async (branchId: number, productName?: string, purchaseId?: number) => {
+    const params: any = { branchId };
+    if (productName && productName.trim()) {
+      params.productName = productName.trim();
+    }
     if (purchaseId && purchaseId > 0) {
       params.purchaseId = purchaseId;
     }
@@ -201,8 +204,12 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
-  searchSuppliers: async (query: string) => {
+  searchSuppliers: async (query?: string) => {
     try {
+      const params: any = {};
+      if (query && query.trim()) {
+        params.supplierName = query.trim();
+      }
       const response = await axiosInstance.get<{
         data: {
           supplierId: number;
@@ -212,7 +219,7 @@ export const purchaseReturnApi = {
         isSuccess: boolean;
         message: string;
       }>("/purchase-return-invoice/supplier-list-name", {
-        params: { supplierName: query }
+        params
       });
       if (!response.data.isSuccess) throw new Error(response.data.message);
       return response.data.data;
@@ -287,16 +294,34 @@ export const purchaseReturnApi = {
     return response.data.data;
   },
 
-  searchPurchaseInvoices: async (branchId: number, supplierId: number, invoiceNo: string = "") => {
-    const response = await axiosInstance.get<{
-      data: any[];
-      isSuccess: boolean;
-      message: string;
-    }>("/purchase-invoice/list-invoice-no", {
-      params: { BranchId: branchId, SupplierId: supplierId, InvoiceNo: invoiceNo }
-    });
-    if (!response.data.isSuccess) throw new Error(response.data.message || "Failed to fetch invoices");
-    return response.data.data || [];
+  searchPurchaseInvoices: async (branchId: number, supplierId: number, invoiceNo: string = "", decimals?: number) => {
+    const params: any = { BranchId: branchId, SupplierId: supplierId };
+    if (invoiceNo && invoiceNo.trim()) {
+      params.InvoiceNo = invoiceNo.trim();
+    }
+    if (decimals !== undefined && decimals !== null) {
+      params.Decimals = decimals;
+    }
+    try {
+      const response = await axiosInstance.get<{
+        data: any[];
+        isSuccess: boolean;
+        message: string;
+      }>("/purchase-return-invoice/list-invoice-no", { params });
+      if (!response.data.isSuccess) throw new Error(response.data.message || "Failed to fetch invoices");
+      return response.data.data || [];
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        const response = await axiosInstance.get<{
+          data: any[];
+          isSuccess: boolean;
+          message: string;
+        }>("/purchase-invoice/list-invoice-no", { params });
+        if (!response.data.isSuccess) throw new Error(response.data.message || "Failed to fetch invoices");
+        return response.data.data || [];
+      }
+      throw err;
+    }
   },
 
   getPurchaseInvoiceData: async (purchaseId: string | number) => {

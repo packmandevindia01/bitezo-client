@@ -45,10 +45,20 @@ const PurchaseInvoiceListPage = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const data = await purchaseInvoiceApi.getPurchaseInvoiceList({
-        FromDate: fromDate,
-        ToDate: toDate,
-      });
+      const activeBranch = Number(
+        sessionStorage.getItem("backoffice_activeBranchId") ||
+        localStorage.getItem("activeBranchId") ||
+        localStorage.getItem("branchId") ||
+        0
+      );
+      const params: any = {
+        FromDate: fromDate ? fromDate.split("T")[0] : getFirstDayOfMonth(),
+        ToDate: toDate ? toDate.split("T")[0] : getToday(),
+      };
+      if (activeBranch > 1) {
+        params.BranchId = activeBranch;
+      }
+      const data = await purchaseInvoiceApi.getPurchaseInvoiceList(params);
       setInvoices(data || []);
     } catch (error: any) {
       showToast(error.message || "Failed to load invoices", "error");

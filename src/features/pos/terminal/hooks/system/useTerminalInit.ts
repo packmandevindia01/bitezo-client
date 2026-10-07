@@ -4,6 +4,7 @@ import { useAppDispatch } from "../../../../../app/hooks";
 import { setOrderType, setOrderTypeByName } from "../../store/posSlice";
 import { posConfigApi, POS_CONFIGS_STORAGE_KEY, type RuntimePosConfig } from "../../../services/posConfigApi";
 import { branchApi } from "../../../../inventory/branches/services/branchApi";
+import { getEmployeeNames } from "../../../../general/employee/services/employeeService";
 import type { PosOrderType } from "../../../types";
 
 interface UseTerminalInitProps {
@@ -108,6 +109,50 @@ export const useTerminalInit = ({
       })
       .catch((err) => {
         console.warn("Failed to load branch print data:", err);
+      });
+
+    // Load and cache employee names in posEmpNameMap
+    const branchId =
+      Number(localStorage.getItem("systemBranchId")) ||
+      Number(localStorage.getItem("activeBranchId")) ||
+      Number(localStorage.getItem("branchId")) ||
+      0;
+
+    getEmployeeNames(branchId)
+      .then((employees) => {
+        if (Array.isArray(employees) && employees.length > 0) {
+          const empMap: Record<string, string> = {};
+          try {
+            const existing = localStorage.getItem("posEmpNameMap");
+            if (existing) Object.assign(empMap, JSON.parse(existing));
+          } catch {}
+          employees.forEach((emp: any) => {
+            const id = emp.empId ?? emp.id;
+            const name = emp.empName ?? emp.name;
+            if (id && name) {
+              empMap[String(id)] = name;
+            }
+          });
+          localStorage.setItem("posEmpNameMap", JSON.stringify(empMap));
+
+          // Also resolve defaultEmployeeName if default employee is set
+          try {
+            const rawConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
+            if (rawConfig) {
+              const parsed = JSON.parse(rawConfig);
+              const cfg = parsed?.configs;
+              if (cfg?.defaultEmployee === "Enable" && cfg?.employeeId) {
+                const defName = empMap[String(cfg.employeeId)];
+                if (defName) {
+                  localStorage.setItem("defaultEmployeeName", defName);
+                }
+              }
+            }
+          } catch {}
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load employee names for posEmpNameMap:", err);
       });
   }, []);
 

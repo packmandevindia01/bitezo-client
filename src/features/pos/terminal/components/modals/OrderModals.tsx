@@ -44,6 +44,8 @@ export interface OrderModalsProps {
   resetTerminalState: () => void;
   setActiveProvider: (data: any) => void;
   handleClearCart: () => void;
+  /** Called before the settle modal opens so the caller can set print state */
+  onBeforeSettle?: () => void;
 }
 
 export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
@@ -103,6 +105,7 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
             onClose={() => modals.setIsRecallModalOpen(false)}
             initialEmployeeId={modals.recallEmployeeId}
             onSettleSuccess={() => {
+              props.onBeforeSettle?.();
               modals.setReturnToRecallOnCancel(true);
               // Close the recall modal first so the settle (MultiPay) modal
               // is not obscured behind it — both share z-50

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput, SelectInput } from "../../../../components/common";
 import { useReceiptAgainstVoucherList } from "../hooks/useReceiptAgainstVoucherList";
-import { receiptAgainstVoucherApi } from "../services/receiptAgainstVoucherApi";
+import { receiptAgainstVoucherApi, formatDateOnly } from "../services/receiptAgainstVoucherApi";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -14,8 +14,8 @@ const ReceiptAgainstVoucherListPage = () => {
   
   // Date filters defaulting to current month
   const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0];
+  const firstDay = formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 1));
+  const lastDay = formatDateOnly(new Date(today.getFullYear(), today.getMonth() + 1, 0));
   
   const [fromDate, setFromDate] = useState(firstDay);
   const [toDate, setToDate] = useState(lastDay);
@@ -80,7 +80,7 @@ const ReceiptAgainstVoucherListPage = () => {
   );
   
   const renderDate = (item: any) => (
-    <span>{item.voucherDate ? item.voucherDate.split("T")[0] : ""}</span>
+    <span>{item.voucherDate ? formatDateOnly(item.voucherDate) : ""}</span>
   );
 
   return (

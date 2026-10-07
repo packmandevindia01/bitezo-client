@@ -16,8 +16,26 @@ export const orderApi = {
    * POST /api/menu/order
    */
   submitOrder: async (order: MenuOrderRequest): Promise<MenuOrderResponse> => {
+    const payload = { ...order };
+    if (payload.voucherDate) {
+      payload.voucherDate = payload.voucherDate.includes("T")
+        ? payload.voucherDate.split("T")[0]
+        : payload.voucherDate;
+    } else {
+      payload.voucherDate = new Date().toISOString().split("T")[0];
+    }
+    // Remove fields not in CreateKotOrderDto
+    delete (payload as any).orderId;
+    delete (payload as any).driverId;
+    delete (payload as any).transDate;
+    delete (payload as any).updatedAt;
+    delete (payload as any).prevUpdatedAt;
+    delete (payload as any).voidProducts;
+    delete (payload as any).voidModifiers;
+    delete (payload as any).combinedOrderIds;
+
     return unwrap<MenuOrderResponse>(
-      axiosInstance.post("/menu/order", order)
+      axiosInstance.post("/menu/order", payload)
     );
   },
 
@@ -98,8 +116,15 @@ export const orderApi = {
    * PUT /api/menu/order/{orderId}
    */
   updateOrder: async (orderId: number, order: import("../types").MenuOrderUpdateRequest): Promise<MenuOrderResponse> => {
+    const payload = { ...order };
+    delete (payload as any).voucherDate;
+    delete (payload as any).dayId;
+    delete (payload as any).shiftId;
+    delete (payload as any).createdAt;
+    delete (payload as any).transDate;
+
     return unwrap<MenuOrderResponse>(
-      axiosInstance.put(`/menu/order/${orderId}`, order)
+      axiosInstance.put(`/menu/order/${orderId}`, payload)
     );
   },
 
@@ -108,8 +133,16 @@ export const orderApi = {
    * POST /api/order/split
    */
   splitOrder: async (payload: import("../types").SplitOrderRequest): Promise<MenuOrderResponse> => {
+    const postPayload = { ...payload } as any;
+    if (postPayload.voucherDate) {
+      postPayload.voucherDate = postPayload.voucherDate.includes("T")
+        ? postPayload.voucherDate.split("T")[0]
+        : postPayload.voucherDate;
+    } else {
+      postPayload.voucherDate = new Date().toISOString().split("T")[0];
+    }
     return unwrap<MenuOrderResponse>(
-      axiosInstance.post("/order-split", payload)
+      axiosInstance.post("/order-split", postPayload)
     );
   },
 

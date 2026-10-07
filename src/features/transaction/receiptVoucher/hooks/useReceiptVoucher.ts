@@ -3,8 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { receiptVoucherSchema } from "../types";
-import type { ReceiptVoucherForm, ReceiptVoucherPayload } from "../types";
-import { receiptVoucherApi } from "../services/receiptVoucherApi";
+import type { ReceiptVoucherForm, ReceiptVoucherCreatePayload, ReceiptVoucherUpdatePayload } from "../types";
+import { receiptVoucherApi, formatDateOnly } from "../services/receiptVoucherApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import type { BranchRecord } from "../../../inventory/branches/types";
 import { useToast } from "../../../../app/providers/useToast";
@@ -15,6 +15,8 @@ import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymod
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { getEmployeeNames, getEmployees } from "../../../general/employee/services/employeeService";
+
+export { formatDateOnly };
 
 export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => void) => {
   const { showToast } = useToast();
@@ -30,7 +32,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
     defaultValues: {
       seriesId: 0,
       prefix: "",
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       voucherNo: "",
       accountId: 0,
       accountName: "",
@@ -322,18 +324,18 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
   // 3. Receipt Details List
   const currentYear = new Date().getFullYear();
   const [fromDate, setFromDate] = useState<string>(`${currentYear}-01-01`);
-  const [toDate, setToDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState<string>(formatDateOnly(new Date()));
 
   const { data: receiptVouchers = [], isLoading: isLoadingList } = useQuery({
     queryKey: ["receiptVouchers", searchBranchId, fromDate, toDate],
     queryFn: () => receiptVoucherApi.getReceiptDetails({
       BranchId: searchBranchId,
       SeriesId: 0, // 0 for all
-      FromDate: fromDate,
-      ToDate: toDate,
+      FromDate: formatDateOnly(fromDate),
+      ToDate: formatDateOnly(toDate),
       Decimals: decimalPart,
     }),
-    enabled: searchBranchId !== 0,
+    enabled: searchBranchId !== 0 || searchBranchList.length > 0,
   });
 
   // 4. Fetch Receipt Data for Edit
@@ -354,7 +356,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
         reset({
           seriesId: d.seriesId || 0,
           prefix: "",
-          voucherDate: d.voucherDate ? d.voucherDate.split("T")[0] : new Date().toISOString().split("T")[0],
+          voucherDate: formatDateOnly(d.voucherDate),
           voucherNo: d.voucherNo || "",
           accountId: d.accountId || 0,
           accountName: d.accountName || "",
@@ -375,51 +377,59 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
 
   const saveMutation = useMutation({
     mutationFn: async (data: ReceiptVoucherForm) => {
-      const payload: ReceiptVoucherPayload = {
-        seriesId: Number(data.seriesId),
-        prefix: data.prefix || "",
-        branchId: Number(data.branchId),
-        accountId: Number(data.accountId),
-        paymodeId: Number(data.paymodeId),
-        counterId: 0,
-        dayId: 0,
-        shiftId: 0,
-        employeeId: Number(data.employeeId),
-        voucherDate: data.voucherDate,
-        amount: Number(data.amount),
-        refNo: data.refNo,
-        narration: data.narration,
-        createdAt: new Date().toISOString(),
-      };
-      
-      if (Number(data.paymodeId) === 3 && data.paymodes) {
-        payload.paymodes = data.paymodes;
-      } else {
-        payload.paymodes = [];
-      }
-      
+      const vDate = formatDateOnly(data.voucherDate);
+      const selectedPaymodeId = Number(data.paymodeId) || 1;
+      const voucherAmount = Number(Number(data.amount).toFixed(decimalPart));
+
+      // Build paymodes array: ALWAYS populated with valid entries, NEVER empty
+      const paymodesPayload = (() => {
+        if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+          return data.paymodes.map((p) => ({
+            paymodeId: Number(p.paymodeId) || 1,
+            amount: Number(Number(p.amount).toFixed(decimalPart)),
+          }));
+        }
+        return [
+          {
+            paymodeId: selectedPaymodeId,
+            amount: voucherAmount,
+          },
+        ];
+      })();
+
       if (transId) {
-        const updatePayload = {
-          transId: transId,
+        const updatePayload: ReceiptVoucherUpdatePayload = {
+          transId: Number(transId),
           branchId: Number(data.branchId),
           accountId: Number(data.accountId),
-          paymodeId: Number(data.paymodeId),
+          paymodeId: selectedPaymodeId,
           employeeId: Number(data.employeeId),
-          voucherDate: data.voucherDate,
-          amount: Number(data.amount),
-          refNo: data.refNo || "",
-          narration: data.narration || "",
+          voucherDate: vDate,
+          amount: voucherAmount,
+          refNo: data.refNo?.trim() || "",
+          narration: data.narration?.trim() || "",
           updatedAt: new Date().toISOString(),
+          paymodes: paymodesPayload,
         };
-        
-        if (Number(data.paymodeId) === 3 && data.paymodes) {
-          (updatePayload as any).paymodes = data.paymodes;
-        } else {
-          (updatePayload as any).paymodes = [];
-        }
-        await receiptVoucherApi.updateReceipt(transId, updatePayload as any);
+        await receiptVoucherApi.updateReceipt(Number(transId), updatePayload);
       } else {
-        await receiptVoucherApi.createReceipt(payload);
+        const createPayload: ReceiptVoucherCreatePayload = {
+          seriesId: Number(data.seriesId),
+          prefix: data.prefix || "",
+          branchId: Number(data.branchId),
+          accountId: Number(data.accountId),
+          paymodeId: selectedPaymodeId,
+          dayId: 0,
+          shiftId: 0,
+          employeeId: Number(data.employeeId),
+          voucherDate: vDate,
+          amount: voucherAmount,
+          refNo: data.refNo?.trim() || "",
+          narration: data.narration?.trim() || "",
+          createdAt: new Date().toISOString(),
+          paymodes: paymodesPayload,
+        };
+        await receiptVoucherApi.createReceipt(createPayload);
       }
     },
     onSuccess: () => {
@@ -479,7 +489,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
     reset({
       seriesId: 0,
       prefix: "",
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       voucherNo: "",
       accountId: 0,
       accountName: "",

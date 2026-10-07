@@ -5,7 +5,7 @@ async function unwrap<T>(promise: Promise<{ data: any }>): Promise<T> {
     const { data: envelope } = await promise;
     if (!envelope.isSuccess) {
       const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? firstError.message : firstError) 
+      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.code) : firstError) 
                   ?? envelope.message 
                   ?? "An unexpected error occurred.";
       throw new Error(msg);
@@ -21,13 +21,13 @@ async function unwrap<T>(promise: Promise<{ data: any }>): Promise<T> {
           const firstErr = envelope.errors[firstKey];
           const msg = Array.isArray(firstErr) ? firstErr[0] : firstErr;
           throw new Error(`${firstKey}: ${msg}`);
-        } else {
+        } else if (envelope.errors.length > 0) {
           const firstErr = envelope.errors[0];
           const msg = typeof firstErr === 'object' ? (firstErr.message || firstErr.code) : firstErr;
-          throw new Error(msg);
+          throw new Error(msg || envelope.message || "An unexpected error occurred.");
         }
       }
-      throw new Error(envelope.message || "Bad Request");
+      throw new Error(envelope.message || envelope.title || "Bad Request");
     }
     throw error;
   }
@@ -100,7 +100,11 @@ export const purchaseInvoiceApi = {
     return response.data.data;
   },
 
-  searchProductsByName: async (branchId: number, productName: string) => {
+  searchProductsByName: async (branchId: number, productName?: string) => {
+    const params: any = { branchId };
+    if (productName && productName.trim()) {
+      params.productName = productName.trim();
+    }
     const response = await axiosInstance.get<{
       data: {
         productId: number;
@@ -111,7 +115,7 @@ export const purchaseInvoiceApi = {
       isSuccess: boolean;
       message: string;
     }>("/purchase-invoice/product-list-name", {
-      params: { branchId, productName }
+      params
     });
 
     if (!response.data.isSuccess) {
@@ -188,8 +192,12 @@ export const purchaseInvoiceApi = {
     return response.data.data;
   },
 
-  searchSuppliers: async (query: string) => {
+  searchSuppliers: async (query?: string) => {
     try {
+      const params: any = {};
+      if (query && query.trim()) {
+        params.supplierName = query.trim();
+      }
       const response = await axiosInstance.get<{
         data: {
           supplierId: number;
@@ -198,9 +206,7 @@ export const purchaseInvoiceApi = {
         }[];
         isSuccess: boolean;
         message: string;
-      }>("/purchase-invoice/supplier-list-name", {
-        params: { supplierName: query }
-      });
+      }>("/purchase-invoice/supplier-list-name", { params });
       if (!response.data.isSuccess) throw new Error(response.data.message);
       return response.data.data;
     } catch (err: any) {
@@ -244,6 +250,16 @@ export const purchaseInvoiceApi = {
     }>(`/purchase-invoice/cancel/${purchaseId}`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data;
+  },
+
+  listInvoiceNo: async (params?: { BranchId?: number; SupplierId?: number; InvoiceNo?: string; Decimals?: number }) => {
+    const response = await axiosInstance.get<{
+      data: any[];
+      isSuccess: boolean;
+      message: string;
+    }>("/purchase-invoice/list-invoice-no", { params });
+    if (!response.data.isSuccess) throw new Error(response.data.message);
+    return response.data.data;
   },
 
   getUnitsByCategory: async (unitCategory: string) => {

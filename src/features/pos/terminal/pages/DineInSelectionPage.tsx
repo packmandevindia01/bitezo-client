@@ -50,7 +50,7 @@ export const DineInSelectionPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const { sections, tables, selectedSectionId, setSelectedSectionId, loading, refresh } = useDineIn();
 
-  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied' | 'reserved'>('all');
 
   // Modal state
   const [guestTable, setGuestTable] = useState<DineInTable | null>(null);
@@ -58,7 +58,9 @@ export const DineInSelectionPage: React.FC = () => {
 
   /* derived */
   const filteredTables = tables.filter(table => {
-    return statusFilter === 'all' || table.status === statusFilter;
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'reserved') return table.status === 'reserved' || table.isReserved;
+    return table.status === statusFilter;
   });
 
   const isFiltered = statusFilter !== 'all';
@@ -68,8 +70,8 @@ export const DineInSelectionPage: React.FC = () => {
   const handleBack = () => navigate('/pos', { state: { skipAutoDineIn: true } });
 
   const handleTableClick = useCallback((table: DineInTable) => {
-    if (table.isUsed) {
-      // Occupied: show table orders
+    if (table.isUsed || table.isReserved || table.status === 'occupied' || table.status === 'reserved') {
+      // Occupied or Reserved: show table orders
       setOrdersTable(table);
     } else {
       // Available: ask for guest count
@@ -97,31 +99,48 @@ export const DineInSelectionPage: React.FC = () => {
 
   /* ── Table card ── */
   const TableCard = ({ table }: { table: DineInTable }) => {
-    const isOccupied = table.isUsed;
+    const isReserved = Boolean(
+      table.isReserved ||
+      table.status === 'reserved' ||
+      (table as any)?.isReserve ||
+      (table as any)?.reserved ||
+      ((table as any)?.tableStatus && String((table as any).tableStatus).toLowerCase() === 'reserved') ||
+      /reserved/i.test(table.tableName || '') ||
+      /reservation/i.test(table.tableName || '')
+    );
+    const isOccupied = table.isUsed || isReserved;
     const orderTime = isOccupied ? formatOrderTime(table.orderDate) : null;
 
     return (
       <button
         onClick={() => handleTableClick(table)}
         tabIndex={-1}
-        title={isOccupied
+        title={isReserved
+          ? `Reserved${table.employeeName ? ` by ${table.employeeName}` : ''}`
+          : isOccupied
           ? `Occupied by ${table.employeeName ?? 'Staff'}${orderTime ? ` · ${orderTime}` : ''}`
           : `Select ${table.tableName}`}
         className={[
           'relative group flex flex-col items-center justify-center w-full aspect-square rounded-2xl border-2 transition-all duration-300 select-none overflow-hidden',
-          isOccupied
+          isReserved
+            ? 'bg-purple-50 border-purple-300/70 hover:border-purple-400 hover:shadow-[0_8px_30px_rgba(168,85,247,0.25)] active:scale-95 cursor-pointer'
+            : isOccupied
             ? 'bg-amber-50 border-amber-300/70 hover:border-amber-400 hover:shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-95 cursor-pointer'
             : 'bg-white border-slate-100 hover:border-[#49293e] hover:shadow-[0_8px_30px_rgba(73,41,62,0.20)] hover:-translate-y-1 active:scale-95 shadow-sm cursor-pointer',
         ].join(' ')}
       >
-        {isOccupied && (
+        {isReserved ? (
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-100/40 to-purple-200/20 pointer-events-none" />
+        ) : isOccupied ? (
           <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 to-amber-200/20 pointer-events-none" />
-        )}
+        ) : null}
 
         {/* icon */}
         <div className={[
           'w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-all duration-300',
-          isOccupied
+          isReserved
+            ? 'bg-purple-200/60 text-purple-700'
+            : isOccupied
             ? 'bg-amber-200/60 text-amber-700'
             : 'bg-slate-50 text-slate-400 group-hover:bg-[#49293e] group-hover:text-white',
         ].join(' ')}>
@@ -131,7 +150,7 @@ export const DineInSelectionPage: React.FC = () => {
         {/* table name */}
         <span className={[
           'text-[14px] font-black tracking-tight leading-tight text-center px-1 break-words max-w-full',
-          isOccupied ? 'text-amber-900' : 'text-[#49293e]',
+          isReserved ? 'text-purple-900' : isOccupied ? 'text-amber-900' : 'text-[#49293e]',
         ].join(' ')}>
           {table.tableName}
         </span>
@@ -140,13 +159,19 @@ export const DineInSelectionPage: React.FC = () => {
         {isOccupied && (
           <div className="flex flex-col items-center gap-0.5 mt-1.5 z-10">
             {table.employeeName && (
-              <div className="flex items-center gap-1 text-[8px] font-bold text-amber-700 uppercase tracking-wider">
+              <div className={[
+                'flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider',
+                isReserved ? 'text-purple-700' : 'text-amber-700',
+              ].join(' ')}>
                 <User size={8} />
                 <span className="truncate max-w-[70px]">{table.employeeName}</span>
               </div>
             )}
             {orderTime && (
-              <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 uppercase tracking-wider">
+              <div className={[
+                'flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider',
+                isReserved ? 'text-purple-600' : 'text-amber-600',
+              ].join(' ')}>
                 <Clock size={8} />
                 <span>{orderTime}</span>
               </div>
@@ -154,13 +179,18 @@ export const DineInSelectionPage: React.FC = () => {
           </div>
         )}
 
-        {/* occupied badge */}
-        {isOccupied && (
+        {/* badge */}
+        {isReserved ? (
+          <span className="absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-600 text-white text-[7px] font-black uppercase tracking-widest rounded-full shadow-sm">
+            <span className="w-1 h-1 bg-white rounded-full animate-ping" />
+            Reserved
+          </span>
+        ) : isOccupied ? (
           <span className="absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500 text-white text-[7px] font-black uppercase tracking-widest rounded-full shadow-sm">
             <span className="w-1 h-1 bg-white rounded-full animate-ping" />
             Busy
           </span>
-        )}
+        ) : null}
 
         {/* available hover ring */}
         {!isOccupied && (
@@ -202,7 +232,7 @@ export const DineInSelectionPage: React.FC = () => {
             {/* Filters */}
             <div className="flex justify-start">
               <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
-                {(['all', 'available', 'occupied'] as const).map(s => (
+                {(['all', 'available', 'occupied', 'reserved'] as const).map(s => (
                   <button key={s} onClick={() => setStatusFilter(s)} tabIndex={-1}
                     className={['px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] transition-all', statusFilter === s ? 'bg-white text-[#49293e] shadow-sm' : 'text-slate-400 hover:text-slate-600'].join(' ')}>
                     {s}
@@ -213,9 +243,10 @@ export const DineInSelectionPage: React.FC = () => {
 
             {/* Legend */}
             {!isFiltered && !loading && tables.length > 0 && (
-              <div className="flex items-center gap-5 text-[9px] font-black uppercase tracking-widest text-slate-400">
+              <div className="flex items-center gap-5 text-[9px] font-black uppercase tracking-widest text-slate-400 flex-wrap">
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-white border-2 border-slate-200 shadow-sm inline-block" />Available — tap to order</span>
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-100 border-2 border-amber-300 inline-block" />Occupied — tap to manage</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-100 border-2 border-purple-300 inline-block" />Reserved — tap to view</span>
                 {sparse && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-50 border-2 border-dashed border-slate-200 inline-block" />Empty slot</span>}
               </div>
             )}

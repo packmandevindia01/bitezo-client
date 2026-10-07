@@ -15,6 +15,28 @@ import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supp
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
 
+export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
+  if (!dateVal) return new Date().toISOString().split("T")[0];
+  if (typeof dateVal === "string") {
+    const trimmed = dateVal.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) return trimmed.split("T")[0];
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    return trimmed;
+  }
+  const d = dateVal;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -721,9 +743,9 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         employeeId: parseInt(data.salesman || "") || 0,
         dayId: 0,
         shiftId: 0,
-        purchaseDate: new Date(data.purchaseDate).toISOString(),
+        purchaseDate: formatDateOnly(data.purchaseDate),
         invoiceNo: data.invoiceNo,
-        invoiceDate: new Date(data.invoiceDate).toISOString(),
+        invoiceDate: formatDateOnly(data.invoiceDate),
         refNo: data.refNo,
         narration: data.narration,
         discAmount: toNumber(data.discAmount),
@@ -744,26 +766,35 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
           return {
             productId: parseInt(item.product || "") || 0,
             unitId: parseInt(item.unit || "") || 0,
-            vatId: parseInt(item.vatId || "") || 1,
+            vatId: item.vatId !== undefined && item.vatId !== "" ? parseInt(item.vatId) : 1,
             qty: toNumber(item.qty),
             foc: toNumber(item.foc),
             price: toNumber(item.price),
-            discPer: 0,
-            discAmount: l.discountAmount,
-            vatAmount: l.vatAmount,
-            netAmount: l.netAmount,
-            baseQty: (toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue,
+            discPer: toNumber(item.discPercent),
+            discAmount: Number(l.discountAmount.toFixed(decimalPart)),
+            vatAmount: Number(l.vatAmount.toFixed(decimalPart)),
+            netAmount: Number(l.netAmount.toFixed(decimalPart)),
+            baseQty: Number(((toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue).toFixed(decimalPart)),
           };
         }),
         paymodes: (() => {
-          if (data.payments.length <= 1 || selectedPaymodeId !== (multiPayId || 3)) return [];
-          // Deduplicate by paymodeId — sum amounts if same paymodeId appears more than once
-          const map = new Map<number, number>();
-          for (const p of data.payments as any[]) {
-            const pid = p.paymodeId || 1;
-            map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
+          if (data.payments && data.payments.length > 0) {
+            const map = new Map<number, number>();
+            for (const p of data.payments as any[]) {
+              const pid = Number(p.paymodeId) || selectedPaymodeId || 1;
+              map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
+            }
+            return Array.from(map.entries()).map(([paymodeId, amount]) => ({
+              paymodeId,
+              amount: Number(amount.toFixed(decimalPart))
+            }));
           }
-          return Array.from(map.entries()).map(([paymodeId, amount]) => ({ paymodeId, amount }));
+          return [
+            {
+              paymodeId: selectedPaymodeId || 1,
+              amount: Number(totals.grandTotal.toFixed(decimalPart))
+            }
+          ];
         })(),
       };
 
@@ -772,10 +803,12 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       if (invoiceId) {
         payload.purchaseId = Number(invoiceId);
         payload.updateAt = new Date().toISOString();
+        delete payload.createdAt;
         await purchaseInvoiceApi.updatePurchaseInvoice(invoiceId, payload);
         showToast("Purchase Invoice updated successfully", "success");
       } else {
         payload.createdAt = new Date().toISOString();
+        delete payload.updateAt;
         await purchaseInvoiceApi.savePurchaseInvoice(payload);
         showToast("Purchase Invoice saved successfully", "success");
       }

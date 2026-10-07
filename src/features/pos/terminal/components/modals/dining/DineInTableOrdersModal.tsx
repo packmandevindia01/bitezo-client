@@ -11,8 +11,9 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
-import { getVatStatus, roundCalc } from '../../../utils/billing';
+import { getVatStatus, roundCalc, getBillingConfig } from '../../../utils/billing';
 import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
+import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
 import { PosMultiPayModal, type MultiPaymentLine } from '../payment/PosMultiPayModal';
 import { EmployeePasswordModal } from '../system/EmployeePasswordModal';
 import { useEmployeeAuthorization } from '../../../hooks/useEmployeeAuthorization';
@@ -80,6 +81,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const [isSettlingSubmit, setIsSettlingSubmit] = useState(false);
   const [settleOrderData, setSettleOrderData] = useState<{
+    orderId: number;
     master: any;
     mappedItems: any[];
     rawData: any;
@@ -151,6 +153,68 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
   const selectedMaster = data?.masterData.find(o => o.orderId === selectedOrderId) ?? null;
   const allModifiers = dedupeModifiers(data?.modifiersData ?? []);
+
+  /* ── Check if table or order is marked as Reserved ── */
+  const isTableReserved = useMemo(() => {
+    // 1. Check table object properties and name
+    if (
+      table?.isReserved ||
+      (table as any)?.isReserve ||
+      (table as any)?.reserved ||
+      (table?.status && String(table.status).toLowerCase() === 'reserved') ||
+      ((table as any)?.tableStatus && String((table as any).tableStatus).toLowerCase() === 'reserved') ||
+      ((table as any)?.reservationStatus && String((table as any).reservationStatus).toLowerCase() === 'reserved') ||
+      /reserved/i.test(table?.tableName || '') ||
+      /reservation/i.test(table?.tableName || '')
+    ) {
+      return true;
+    }
+
+    // 2. Check modal response data envelope
+    if (
+      (data as any)?.isReserved ||
+      (data as any)?.isReserve ||
+      (data as any)?.reserved ||
+      ((data as any)?.status && String((data as any).status).toLowerCase() === 'reserved') ||
+      ((data as any)?.tableStatus && String((data as any).tableStatus).toLowerCase() === 'reserved')
+    ) {
+      return true;
+    }
+
+    // 3. Check selectedMaster
+    if (selectedMaster) {
+      if (
+        (selectedMaster as any).isReserved ||
+        (selectedMaster as any).isReserve ||
+        (selectedMaster as any).reserved ||
+        ((selectedMaster as any).status && String((selectedMaster as any).status).toLowerCase() === 'reserved') ||
+        ((selectedMaster as any).orderStatus && String((selectedMaster as any).orderStatus).toLowerCase() === 'reserved') ||
+        ((selectedMaster as any).orderType && String((selectedMaster as any).orderType).toLowerCase() === 'reserved') ||
+        ((selectedMaster as any).orderTypeName && String((selectedMaster as any).orderTypeName).toLowerCase() === 'reserved') ||
+        /reserved/i.test((selectedMaster as any)?.note || '') ||
+        /reservation/i.test((selectedMaster as any)?.note || '')
+      ) {
+        return true;
+      }
+    }
+
+    // 4. Check any order in masterData
+    if (data?.masterData && data.masterData.length > 0) {
+      return data.masterData.some((m: any) =>
+        m.isReserved ||
+        m.isReserve ||
+        m.reserved ||
+        (m.status && String(m.status).toLowerCase() === 'reserved') ||
+        (m.orderStatus && String(m.orderStatus).toLowerCase() === 'reserved') ||
+        (m.orderType && String(m.orderType).toLowerCase() === 'reserved') ||
+        (m.orderTypeName && String(m.orderTypeName).toLowerCase() === 'reserved') ||
+        /reserved/i.test(m.note || '') ||
+        /reservation/i.test(m.note || '')
+      );
+    }
+
+    return false;
+  }, [table, data, selectedMaster]);
 
   /* ── NEW — ask for guest count first (§1 autofocus / guest UX rule) ── */
   const handleNew = () => {
@@ -288,14 +352,16 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     if (!selectedMaster || !data || loading) return;
     try {
       setLoading(true);
-      const { master, mappedItems, fullOrder } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const targetOrderId = selectedMaster.orderId;
+      const { master, mappedItems, fullOrder } = await fetchAndMapFullOrder(targetOrderId);
       const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
       const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
       if (prevUpdatedAt) {
-        sessionStorage.setItem(`order_prevUpdatedAt_${selectedMaster.orderId}`, prevUpdatedAt);
+        sessionStorage.setItem(`order_prevUpdatedAt_${targetOrderId}`, prevUpdatedAt);
       }
 
       setSettleOrderData({
+        orderId: targetOrderId,
         master,
         mappedItems,
         rawData: fullOrder,
@@ -319,6 +385,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     setIsSettlingSubmit(true);
 
     try {
+      const targetOrderId = settleOrderData.orderId || selectedMaster.orderId;
       const rawOrder = settleOrderData.rawData;
       const master = rawOrder.masterData || rawOrder.master || rawOrder;
       const details = rawOrder.detailsData || rawOrder.details || [];
@@ -328,7 +395,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const activeTransDate = rawTransDate.split("T")[0];
 
       const directSettleOrder: DirectSettleOrderBase = {
-        orderId: master.orderId,
+        orderId: targetOrderId,
         customerId: master.customerId || 1,
         employeeId,
         transDate: master.transDate || master.voucherDate || activeTransDate,
@@ -342,13 +409,13 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         deliveryCharge: master.deliveryCharge || 0,
         updatedAt: new Date().toISOString(),
         prevUpdatedAt:
-          sessionStorage.getItem(`order_prevUpdatedAt_${master.orderId}`) ||
+          sessionStorage.getItem(`order_prevUpdatedAt_${targetOrderId}`) ||
           master.prevUpdatedAt ||
           master.updatedAt ||
           undefined,
         orderTypeId: master.orderTypeId || 1,
-        sectionId: master.sectionId || sectionId || 0,
-        tableId: master.tableId || table.tableId || 0,
+        sectionId: Number(master.sectionId || sectionId || 0),
+        tableId: Number(master.tableId || table.tableId || 0),
         tableNo: master.tableNo || table.tableName || "",
         guestNo: master.guestNo || 0,
         vehicleCustomerName: master.vehicleCustomerName || "",
@@ -414,37 +481,93 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         if (vNo) invoiceNoStr = String(vNo);
       }
 
-      // Try printing guest/settled receipt
+      // Try printing settled receipt
       try {
         const enableVat = getVatStatus();
-        const printMappedItems = settleOrderData.mappedItems.map((item: any) => ({
-          ...item,
-          price: item.price,
-          extras: item.extras,
-          itemDiscount: item.discAmount || item.discountValue || 0,
-          lineTotal: item.netAmount || item.rawAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1)),
-          product: { ...item.product, price: item.price },
-        }));
+        const settleNetAmount = Number(master.netAmount || selectedMaster.netAmount || 0);
+
+        // Resolve employee name for settle print
+        const settleRawEmpId = master.employeeId ?? master.empId ?? master.waiterId ?? employeeId;
+        const settleWaiter = await resolveEmployeeNameForPrint(settleRawEmpId, master.employeeName);
+
+        // Resolve customer name for settle print
+        const settleCustomer =
+          master.deliveryCustomerName ||
+          master.vehicleCustomerName ||
+          master.customerName ||
+          master.customer ||
+          "CASH CUSTOMER";
+
+        // Pre-map items with VAT split
+        let settleDetailsVatSum = 0;
+        const settlePreMapped = settleOrderData.mappedItems.map((item: any) => {
+          const qty = item.quantity || 1;
+          const price = item.price || 0;
+          let lineBase = price * qty;
+          if (item.extras && item.extras.length > 0) {
+            item.extras.forEach((ex: any) => { lineBase += ex.price * ex.qty; });
+          }
+          const itemLineNetAmount = item.rawAmount || lineBase;
+          const itemVat = Number(item.rawVatAmount || 0);
+          settleDetailsVatSum += itemVat;
+          const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
+          return { ...item, lineBase, itemLineNetAmount, itemVat, itemVatBase };
+        });
+
+        let settleResolvedVat = Number(master.vatAmount ?? master.vatAmt ?? 0);
+        if (settleResolvedVat <= 0 && settleDetailsVatSum > 0) settleResolvedVat = settleDetailsVatSum;
+        if (enableVat && settleResolvedVat <= 0 && settleNetAmount > 0) {
+          const bc = getBillingConfig("DINE IN");
+          const vr = bc.vatRate > 0 ? bc.vatRate : 0.10;
+          settleResolvedVat = roundCalc(settleNetAmount - settleNetAmount / (1 + vr));
+        }
+
+        let settleSubTotal = Number(master.vatExclAmount ?? master.subTotal ?? 0);
+        if (settleSubTotal <= 0 || (enableVat && Math.abs(settleSubTotal - settleNetAmount) < 0.001 && settleResolvedVat > 0)) {
+          settleSubTotal = roundCalc(
+            settleNetAmount - settleResolvedVat -
+            Number(master.serviceCharge || 0) -
+            Number(master.levyAmt || master.levy || 0) -
+            Number(master.deliveryCharge || 0)
+          );
+        }
+
+        const printMappedItems = settlePreMapped.map((item: any) => {
+          let itemVat = item.itemVat;
+          if (enableVat && itemVat <= 0 && settleResolvedVat > 0 && settleNetAmount > 0) {
+            const ratio = (item.itemLineNetAmount || 0) / settleNetAmount;
+            itemVat = Number((settleResolvedVat * ratio).toFixed(3));
+          }
+          const itemLineNet = item.itemLineNetAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1));
+          const baseAmount = enableVat && itemVat > 0 ? (itemLineNet - itemVat) : (item.itemVatBase ?? itemLineNet);
+          return {
+            ...item,
+            baseAmount,
+            vatAmount: itemVat,
+            lineTotal: itemLineNet,
+            itemDiscount: item.discountValue || item.discAmount || 0,
+            product: { ...item.product, price: item.price },
+          };
+        });
 
         const printData: any = {
           orderNo: master.orderNo ?? String(master.orderId),
           ticketNo: master.ticketNo ?? "1",
           invoiceNo: invoiceNoStr,
-          waiter: master.employeeName ?? "Waiter",
+          waiter: settleWaiter,
           counter: "Main",
           section: master.sectionName || "DINE IN",
           table: table.tableName || "",
           orderType: "DINE IN",
+          customerName: settleCustomer,
           date: new Date().toLocaleDateString('en-GB'),
           time: new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
-          subTotal:
-            master.vatExclAmount ||
-            (master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0)),
+          subTotal: settleSubTotal,
           discount: master.discAmount || master.discount || 0,
           serviceCharge: master.serviceCharge || 0,
-          levy: master.levyAmt || 0,
-          vatAmount: master.vatAmount || 0,
-          netAmount: master.netAmount || selectedMaster.netAmount,
+          levy: master.levyAmt || master.levy || 0,
+          vatAmount: settleResolvedVat,
+          netAmount: settleNetAmount,
           deliveryCharge: master.deliveryCharge || 0,
           changeAmount: changeAmount,
           payments: mappedPayments.map((p) => ({
@@ -491,6 +614,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         showToast("Order settled, but receipt print failed", "warning");
       }
 
+      const settledOrderId = targetOrderId;
+      const settledNetAmount = selectedMaster.netAmount;
+
       showToast(`Order #${selectedMaster.orderNo} settled successfully!`, 'success');
       dispatch(clearCart());
       setIsMultiPayOpen(false);
@@ -499,17 +625,29 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       // Refresh table orders
       try {
         const res = await dineInApi.getTableOrders(table.tableId);
-        if (res.isSuccess && res.data && res.data.masterData.length > 0) {
-          setData(res.data);
-          setSelectedOrderId(res.data.masterData[0].orderId);
-          onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
+        // Exclude the settled order in case of any database read lag
+        const freshOrders = (res?.data?.masterData || []).filter(o => o.orderId !== settledOrderId);
+        if (freshOrders.length > 0) {
+          setData({
+            ...res.data,
+            masterData: freshOrders,
+          });
+          setSelectedOrderId(freshOrders[0].orderId);
+          onSettleSuccess?.(settledOrderId, settledNetAmount);
         } else {
-          onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
+          onSettleSuccess?.(settledOrderId, settledNetAmount);
           onClose();
         }
       } catch {
-        onSettleSuccess?.(selectedMaster.orderId, selectedMaster.netAmount);
-        onClose();
+        const remainingOrders = (data?.masterData || []).filter(o => o.orderId !== settledOrderId);
+        if (remainingOrders.length > 0) {
+          setData(prev => prev ? { ...prev, masterData: remainingOrders } : null);
+          setSelectedOrderId(remainingOrders[0].orderId);
+          onSettleSuccess?.(settledOrderId, settledNetAmount);
+        } else {
+          onSettleSuccess?.(settledOrderId, settledNetAmount);
+          onClose();
+        }
       }
     } catch (err: any) {
       console.error("[DineInTableOrdersModal] Settlement failed:", err);
@@ -588,72 +726,233 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     });
   };
 
-  /* ── PRINT ── */
+  /* ── Resolve employee name (multi-step: cache → auth → API list → API by ID → localStorage) ── */
+  const resolveEmployeeNameForPrint = async (
+    empId?: number | string | null,
+    currentName?: string | null
+  ): Promise<string> => {
+    if (
+      currentName &&
+      typeof currentName === "string" &&
+      !["waiter", "cashier", "null", "undefined", ""].includes(currentName.trim().toLowerCase())
+    ) {
+      return currentName.trim();
+    }
+
+    const idStr = empId !== undefined && empId !== null ? String(empId).trim() : "";
+    if (idStr && idStr !== "0" && idStr !== "NaN") {
+      // 1. Try local cache posEmpNameMap
+      try {
+        const mapRaw = localStorage.getItem("posEmpNameMap");
+        if (mapRaw) {
+          const map = JSON.parse(mapRaw);
+          if (map[idStr] && !["waiter", "cashier"].includes(String(map[idStr]).trim().toLowerCase())) {
+            return String(map[idStr]).trim();
+          }
+        }
+      } catch {}
+
+      // 2. Try authorized employee if ID matches
+      if (idStr === localStorage.getItem("authorizedEmployeeId")) {
+        const authName = localStorage.getItem("authorizedEmployeeName");
+        if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) {
+          return authName.trim();
+        }
+      }
+
+      // 3. Try fetching branch employee names
+      try {
+        const branchId =
+          Number(localStorage.getItem("systemBranchId")) ||
+          Number(localStorage.getItem("activeBranchId")) ||
+          Number(localStorage.getItem("branchId")) ||
+          0;
+        const list = await getEmployeeNames(branchId);
+        if (Array.isArray(list) && list.length > 0) {
+          const map: Record<string, string> = {};
+          try {
+            const existing = localStorage.getItem("posEmpNameMap");
+            if (existing) Object.assign(map, JSON.parse(existing));
+          } catch {}
+          list.forEach((e: any) => {
+            const id = e.empId ?? e.id;
+            const name = e.empName ?? e.name;
+            if (id && name) map[String(id)] = name;
+          });
+          localStorage.setItem("posEmpNameMap", JSON.stringify(map));
+          if (map[idStr] && !["waiter", "cashier"].includes(String(map[idStr]).trim().toLowerCase())) {
+            return String(map[idStr]).trim();
+          }
+        }
+      } catch (e) {
+        console.warn("[DineInTableOrdersModal] getEmployeeNames fallback failed:", e);
+      }
+
+      // 4. Try fetching individual employee by ID
+      try {
+        const numId = parseInt(idStr, 10);
+        if (!isNaN(numId) && numId > 0) {
+          const empDetail = await getEmployeeById(numId);
+          const name = (empDetail as any)?.empName || (empDetail as any)?.name || (empDetail as any)?.firstName;
+          if (name && !["waiter", "cashier"].includes(String(name).trim().toLowerCase())) {
+            return String(name).trim();
+          }
+        }
+      } catch (e) {
+        console.warn("[DineInTableOrdersModal] getEmployeeById fallback failed:", e);
+      }
+    }
+
+    // 5. Try localStorage fallbacks
+    const defName = localStorage.getItem("defaultEmployeeName");
+    if (defName && !["waiter", "cashier"].includes(defName.trim().toLowerCase())) return defName.trim();
+    const authName = localStorage.getItem("authorizedEmployeeName");
+    if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) return authName.trim();
+    const empName = localStorage.getItem("employeeName");
+    if (empName && !["waiter", "cashier"].includes(empName.trim().toLowerCase())) return empName.trim();
+
+    return (currentName && currentName.trim()) || "Waiter";
+  };
+
+  /* ── GUEST PRINT ── */
   const handlePrint = async () => {
     if (!selectedMaster || !data || loading) return;
-    
+
     try {
       showToast(`Preparing receipt for Order #${selectedMaster.orderNo}...`, 'success');
-      
-      const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
-      
-      // Determine enableVat dynamically based on configs
-      const enableVat = getVatStatus();
 
-      // Prepare print data
+      const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
+
+      const enableVat = getVatStatus();
+      const netAmount = Number(master.netAmount || 0);
+
+      // ── Resolve date/time ──
+      const isValidDateStr = (s: any) => {
+        if (!s || typeof s !== 'string') return false;
+        if (s.startsWith('0001')) return false;
+        return true;
+      };
+      const candidateDates = [
+        master.voucherDate, master.orderDate, master.transDate, master.createdAt,
+      ];
+      const resolvedDateStr = candidateDates.find(isValidDateStr);
+      let printDate: string | undefined;
+      let printTime: string | undefined;
+      if (resolvedDateStr) {
+        try {
+          const d = new Date(resolvedDateStr);
+          if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
+            printDate = d.toLocaleDateString('en-GB');
+            printTime = d.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+          }
+        } catch {}
+      }
+      if (!printDate) {
+        const now = new Date();
+        printDate = now.toLocaleDateString('en-GB');
+        printTime = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+      }
+
+      // ── Resolve employee name ──
+      const rawEmpId = master.employeeId ?? master.empId ?? master.waiterId;
+      const resolvedWaiter = await resolveEmployeeNameForPrint(rawEmpId, master.employeeName);
+
+      // ── Resolve customer name ──
+      const resolvedCustomerName =
+        master.deliveryCustomerName ||
+        master.vehicleCustomerName ||
+        master.customerName ||
+        master.customer ||
+        "CASH CUSTOMER";
+
+      // ── Pre-map items with VAT ──
+      let detailsVatSum = 0;
+      const preMapped = mappedItems.map((item: any) => {
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        let lineBase = price * qty;
+        if (item.extras && item.extras.length > 0) {
+          item.extras.forEach((ex: any) => { lineBase += ex.price * ex.qty; });
+        }
+        const itemLineNetAmount = item.rawAmount || lineBase;
+        const itemVat = Number(item.rawVatAmount || 0);
+        detailsVatSum += itemVat;
+        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
+        return { ...item, lineBase, itemLineNetAmount, itemVat, itemVatBase };
+      });
+
+      // ── Resolve VAT amount ──
+      let resolvedVatAmount = Number(master.vatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
+      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
+        resolvedVatAmount = detailsVatSum;
+      }
+      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
+        const billingConfig = getBillingConfig("DINE IN");
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
+      }
+
+      // ── Resolve subTotal ──
+      let resolvedSubTotal = Number(master.vatExclAmount ?? master.subTotal ?? 0);
+      if (
+        resolvedSubTotal <= 0 ||
+        (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)
+      ) {
+        resolvedSubTotal = roundCalc(
+          netAmount -
+          resolvedVatAmount -
+          Number(master.serviceCharge || 0) -
+          Number(master.levyAmt || master.levy || 0) -
+          Number(master.deliveryCharge || 0)
+        );
+      }
+
+      // ── Build final mapped items with baseAmount, vatAmount, lineTotal ──
+      const printMappedItems = preMapped.map((item: any) => {
+        let itemVat = item.itemVat;
+        if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
+          const ratio = (item.itemLineNetAmount || 0) / netAmount;
+          itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
+        }
+        const itemLineNet = item.itemLineNetAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1));
+        const baseAmount = enableVat && itemVat > 0 ? (itemLineNet - itemVat) : (item.itemVatBase ?? itemLineNet);
+        return {
+          ...item,
+          baseAmount,
+          vatAmount: itemVat,
+          lineTotal: itemLineNet,
+          itemDiscount: item.discountValue || item.discAmount || 0,
+          product: { ...item.product, price: item.price },
+        };
+      });
+
+      const billArabic =
+        isBillArabicEnabled() ||
+        printMappedItems.some((it: any) =>
+          Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
+        );
+
       const printData: any = {
         orderNo: master.orderNo ?? String(master.orderId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? "Waiter",
+        waiter: resolvedWaiter,
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: table?.tableName || "",
         orderType: "DINE IN",
-        date: master.voucherDate ? new Date(master.voucherDate).toLocaleDateString('en-GB') : undefined,
-        time: master.voucherDate ? new Date(master.voucherDate).toLocaleTimeString('en-US') : undefined,
-        subTotal: master.netAmount - (master.vatAmount || 0) - (master.serviceCharge || 0) - (master.levyAmt || 0),
+        customerName: resolvedCustomerName,
+        date: printDate,
+        time: printTime,
+        subTotal: resolvedSubTotal,
         discount: master.discAmount || master.discount || 0,
         serviceCharge: master.serviceCharge || 0,
-        levy: master.levyAmt || 0,
-        vatAmount: master.vatAmount || 0,
-        netAmount: master.netAmount || 0,
+        levy: master.levyAmt || master.levy || 0,
+        vatAmount: resolvedVatAmount,
+        netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
-        billArabic: isBillArabicEnabled()
+        billArabic,
       };
-
-      // Since the backend might not provide subTotal explicitly, recalculate from items
-      let totalVatBase = 0;
-      mappedItems.forEach((item: any) => {
-        let lineBase = item.price * item.quantity;
-        if (item.extras && item.extras.length > 0) {
-          item.extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
-        }
-        item.lineBase = lineBase;
-        item.itemVatBase = (item.rawAmount || lineBase) - (item.rawVatAmount || 0);
-        totalVatBase += item.itemVatBase;
-      });
-
-      const calculatedSubTotal = master.vatExclAmount || totalVatBase;
-      
-      const printMappedItems = mappedItems.map((item: any) => {
-        return {
-          ...item,
-          price: item.price,
-          extras: item.extras,
-          itemDiscount: item.discAmount || item.discountValue || 0,
-          lineTotal: item.netAmount || item.rawAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1)),
-          product: { ...item.product, price: item.price }
-        };
-      });
-
-      printData.subTotal = calculatedSubTotal;
-      (printData as any).discount = master.discAmount || master.discount || 0;
-      printData.vatAmount = master.vatAmount || 0;
-      const billArabic = isBillArabicEnabled() || printMappedItems.some((it: any) => 
-        Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
-      );
-      printData.billArabic = billArabic;
 
       const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
 
@@ -667,12 +966,13 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       }
 
       if (!billPrinter || billPrinter === "No Printer") {
-        billPrinter = localStorage.getItem('cachedBillPrinter') || 
-                      localStorage.getItem('cachedBillPrinterIp') ||
-                      localStorage.getItem('cachedKotPrinter') || 
-                      localStorage.getItem('cachedKotPrinterIp') || 
-                      localStorage.getItem('printerIpAddress') || 
-                      undefined;
+        billPrinter =
+          localStorage.getItem('cachedBillPrinter') ||
+          localStorage.getItem('cachedBillPrinterIp') ||
+          localStorage.getItem('cachedKotPrinter') ||
+          localStorage.getItem('cachedKotPrinterIp') ||
+          localStorage.getItem('printerIpAddress') ||
+          undefined;
       }
 
       await printHtmlReceipt(htmlContent, billPrinter);
@@ -702,8 +1002,13 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         {/* Header — explicit dark bg so it overrides Modal's bg-white */}
         <div className="bg-[#111] border-b border-white/10 px-5 py-3.5 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white">
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
               Table Orders
+              {isTableReserved && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  Reserved Table
+                </span>
+              )}
             </h2>
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mt-0.5">
               {table?.tableName} · {data?.masterData.length ?? 0} order(s)
@@ -740,7 +1045,18 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
               <svg className="w-10 h-10 opacity-30" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
               </svg>
-              <p className="text-xs font-black uppercase tracking-widest">No orders on this table</p>
+              <p className="text-xs font-black uppercase tracking-widest">
+                {isTableReserved ? "Table is reserved · No active orders" : "No orders on this table"}
+              </p>
+              {isTableReserved && (
+                <button
+                  onClick={handleNew}
+                  className="mt-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center gap-2"
+                >
+                  <PlusIcon />
+                  Start Order
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -799,14 +1115,16 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
                   disabled={!selectedMaster || loading}
                   tabIndex={3}
                 />
-                <ActionBtn
-                  label="PRINT"
-                  color="bg-stone-700 hover:bg-stone-600"
-                  icon={<PrintIcon />}
-                  onClick={handlePrint}
-                  disabled={!selectedMaster || loading}
-                  tabIndex={4}
-                />
+                {!isTableReserved && (
+                  <ActionBtn
+                    label="GUEST"
+                    color="bg-stone-700 hover:bg-stone-600"
+                    icon={<PrintIcon />}
+                    onClick={handlePrint}
+                    disabled={!selectedMaster || loading}
+                    tabIndex={4}
+                  />
+                )}
                 {/* Spacer (desktop only) */}
                 <div className="hidden lg:flex flex-1" />
                 <ActionBtn

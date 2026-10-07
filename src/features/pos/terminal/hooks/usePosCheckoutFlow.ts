@@ -74,9 +74,9 @@ export const usePosCheckoutFlow = ({
   getRuntimePosConfig,
 }: UsePosCheckoutFlowProps) => {
   const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
-  const settleShouldPrintRef = useRef<boolean>(true);
+  const settleShouldPrintRef = useRef<boolean>(false);
 
-  const submitOrderForEmployee = useEvent(async (employeeId: number, shouldPrint: boolean = true) => {
+  const submitOrderForEmployee = useEvent(async (employeeId: number, shouldPrint: boolean = false) => {
     if (!status) return;
     const orderId = await submitOrder({
       dayId: status.dayId,
@@ -136,7 +136,9 @@ export const usePosCheckoutFlow = ({
         showToast("Sales saved successfully", "success");
     }
     handleClearCart();
+    sessionStorage.removeItem("pos_current_delivery_details");
     setSettledPrintPayload(null);
+    settleShouldPrintRef.current = false;
   });
 
   const submitSettlementForEmployee = useEvent(async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
@@ -242,7 +244,58 @@ export const usePosCheckoutFlow = ({
 
         let orderNoStr = finalSaleId.toString();
         let ticketNoStr = finalSaleId.toString();
-        let waiterStr = waiterName || localStorage.getItem("defaultEmployeeName") || localStorage.getItem("employeeName") || "Waiter";
+        const resolveEmployeeNameById = async (empId?: number | string | null): Promise<string | null> => {
+          if (!empId) return null;
+          const idStr = String(empId).trim();
+          if (!idStr || idStr === "0" || idStr === "NaN") return null;
+
+          try {
+            const mapRaw = localStorage.getItem("posEmpNameMap");
+            if (mapRaw) {
+              const map: Record<string, string> = JSON.parse(mapRaw);
+              if (map[idStr]) return map[idStr];
+            }
+          } catch {}
+
+          if (idStr === localStorage.getItem("authorizedEmployeeId")) {
+            const authName = localStorage.getItem("authorizedEmployeeName");
+            if (authName) return authName;
+          }
+
+          try {
+            const branchId =
+              Number(localStorage.getItem("systemBranchId")) ||
+              Number(localStorage.getItem("activeBranchId")) ||
+              Number(localStorage.getItem("branchId")) ||
+              0;
+            const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
+            const list = await getEmployeeNames(branchId);
+            if (Array.isArray(list) && list.length > 0) {
+              const map: Record<string, string> = {};
+              try {
+                const existing = localStorage.getItem("posEmpNameMap");
+                if (existing) Object.assign(map, JSON.parse(existing));
+              } catch {}
+              list.forEach((e: any) => {
+                const id = e.empId ?? e.id;
+                const name = e.empName ?? e.name;
+                if (id && name) map[String(id)] = name;
+              });
+              localStorage.setItem("posEmpNameMap", JSON.stringify(map));
+              if (map[idStr]) return map[idStr];
+            }
+          } catch {}
+
+          return null;
+        };
+
+        let waiterStr = (await resolveEmployeeNameById(employeeId))
+          || (waiterId && waiterId === employeeId ? waiterName : null)
+          || localStorage.getItem("defaultEmployeeName")
+          || localStorage.getItem("authorizedEmployeeName")
+          || waiterName
+          || localStorage.getItem("employeeName")
+          || "Waiter";
         let sectionStr = orderPayload.sectionId ? String(orderPayload.sectionId) : "DINE IN";
         let tableStr = orderPayload.tableNo ? orderPayload.tableNo : (orderPayload.tableId ? String(orderPayload.tableId) : "");
         let masterData: any = null;
@@ -289,6 +342,11 @@ export const usePosCheckoutFlow = ({
             modifiersData = saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData || saleRes.data?.modifiers || [];
           }
 
+          const masterEmp = masterData?.employeeName || (await resolveEmployeeNameById(masterData?.employeeId ?? masterData?.empId ?? masterData?.waiterId));
+          if (masterEmp) {
+            waiterStr = masterEmp;
+          }
+
           if (isCombinedOrder) {
             const primaryNo = masterData?.orderNo
               ? String(masterData.orderNo)
@@ -298,13 +356,11 @@ export const usePosCheckoutFlow = ({
             const uniqueNos = Array.from(new Set(allNos));
             orderNoStr = uniqueNos.join(", ");
             ticketNoStr = masterData?.ticketNo ? String(masterData.ticketNo) : (uniqueNos[0] || ticketNoStr);
-            waiterStr = masterData?.employeeName || waiterStr;
             sectionStr = masterData?.sectionName || sectionStr;
             tableStr = masterData?.tableNo || masterData?.tableName || tableStr;
           } else if (masterData) {
             orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
             ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
-            waiterStr = masterData.employeeName || waiterStr;
             sectionStr = masterData.sectionName || sectionStr;
             tableStr = masterData.tableNo || masterData.tableName || tableStr;
           }
@@ -357,10 +413,15 @@ export const usePosCheckoutFlow = ({
               const qty = d.qty ?? d.Qty ?? 1;
               const price = d.price ?? d.Price ?? 0;
               const cartMatch = cartDetails.find(c => c.productId === (d.productId || d.itemId));
+              const itemVat = Number(d.vatAmount ?? d.VatAmount ?? cartMatch?.vatAmount ?? 0);
+              const lineTotal = d.netAmount ?? d.amount ?? d.lineBase ?? (price * qty);
+              const baseAmount = cartMatch?.baseAmount ?? (itemVat > 0 ? (lineTotal - itemVat) : undefined);
               return {
                 productId: d.productId || d.itemId || 0,
                 quantity: qty,
                 price: price,
+                baseAmount,
+                vatAmount: itemVat,
                 variantName: d.variantName || d.VariantName || cartMatch?.variantName,
                 variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic || cartMatch?.variantArabic,
                 product: {
@@ -372,7 +433,7 @@ export const usePosCheckoutFlow = ({
                 modifiers: d.modifiers,
                 messages: d.messages || [],
                 itemDiscount: d.discAmount || 0,
-                lineTotal: d.netAmount ?? d.amount ?? d.lineBase ?? (price * qty)
+                lineTotal: lineTotal
               };
             });
           } catch (err) {
@@ -380,6 +441,23 @@ export const usePosCheckoutFlow = ({
             mappedPrintItems = cartDetails;
           }
         }
+
+        let cachedDelivery: any = null;
+        try {
+          const rawDelivery = sessionStorage.getItem("pos_current_delivery_details");
+          if (rawDelivery) cachedDelivery = JSON.parse(rawDelivery);
+        } catch {}
+
+        const finalContactNo = masterData?.mobileNo || masterData?.contactNo || orderPayload.contactNo || cachedDelivery?.contactNo || "";
+        const finalCustomerName = masterData?.deliveryCustomerName || masterData?.vehicleCustomerName || masterData?.customerName || (orderPayload as any).deliveryCustomerName || orderPayload.customerName || (orderPayload as any).vehicleCustomerName || cachedDelivery?.customerName || (mappedOrderType === "DELIVERY" ? "DELIVERY CUSTOMER" : "WALK IN");
+        const finalFlatNo = masterData?.flatNo || masterData?.flat || masterData?.flatNumber || (orderPayload as any).flatNo || cachedDelivery?.flatNo || "";
+        const finalBuildingNo = masterData?.buildingNo || masterData?.building || masterData?.buildingNumber || (orderPayload as any).buildingNo || cachedDelivery?.buildingNo || "";
+        const finalBlockNo = masterData?.blockNo || masterData?.block || masterData?.blockNumber || (orderPayload as any).blockNo || cachedDelivery?.blockNo || "";
+        const finalRoadNo = masterData?.roadNo || masterData?.road || masterData?.roadNumber || masterData?.street || (orderPayload as any).roadNo || cachedDelivery?.roadNo || "";
+        const finalArea = masterData?.area || masterData?.areaName || (orderPayload as any).area || cachedDelivery?.area || "";
+        const finalAddress = masterData?.address || masterData?.customerAddress || masterData?.deliveryAddress || cachedDelivery?.address || "";
+        const finalVehicleNo = masterData?.vehicleNo || orderPayload.vehicleNo || "";
+        const finalProviderNo = masterData?.providerNo || masterData?.providerOrderNo || orderPayload.providerNo || orderPayload.providerOrderNo || "";
 
         const printPayloadObj = {
           mappedItems: mappedPrintItems,
@@ -394,7 +472,16 @@ export const usePosCheckoutFlow = ({
             orderType: mappedOrderType,
             date: now.toLocaleDateString('en-GB'),
             time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
-            customerName: orderPayload.customerName || "WALK IN",
+            customerName: finalCustomerName,
+            contactNo: finalContactNo,
+            flatNo: finalFlatNo,
+            buildingNo: finalBuildingNo,
+            blockNo: finalBlockNo,
+            roadNo: finalRoadNo,
+            area: finalArea,
+            address: finalAddress,
+            vehicleNo: finalVehicleNo,
+            providerNo: finalProviderNo,
             payments: payments.map(p => ({
               name: paymentNames[p.paymodeId] || "Other",
               amount: p.amount

@@ -46,14 +46,12 @@ export const receiptVoucherSchema = z.object({
 
 export type ReceiptVoucherForm = z.infer<typeof receiptVoucherSchema>;
 
-export interface ReceiptVoucherPayload {
-  transId?: number;
+export interface ReceiptVoucherCreatePayload {
   seriesId: number;
   prefix: string;
   branchId: number;
   accountId: number;
   paymodeId: number;
-  counterId: number;
   dayId: number;
   shiftId: number;
   employeeId: number;
@@ -61,10 +59,25 @@ export interface ReceiptVoucherPayload {
   amount: number;
   refNo?: string;
   narration?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  paymodes?: { paymodeId: number; amount: number }[];
+  createdAt: string;
+  paymodes: { paymodeId: number; amount: number }[];
 }
+
+export interface ReceiptVoucherUpdatePayload {
+  transId: number;
+  branchId: number;
+  accountId: number;
+  paymodeId: number;
+  employeeId: number;
+  voucherDate: string;
+  amount: number;
+  refNo?: string;
+  narration?: string;
+  updatedAt: string;
+  paymodes: { paymodeId: number; amount: number }[];
+}
+
+export type ReceiptVoucherPayload = ReceiptVoucherCreatePayload | ReceiptVoucherUpdatePayload;
 
 export interface ReceiptMasterData {
   series: { seriesId: number; seriesName: string; prefix: string; startNo: number; branchId: number; }[];

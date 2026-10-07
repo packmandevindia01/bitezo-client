@@ -72,8 +72,7 @@ export interface ReceiptAgainstPaymodePayload {
   amount: number;
 }
 
-export interface ReceiptAgainstPayload {
-  transId?: number;
+export interface ReceiptAgainstCreatePayload {
   seriesId: number;
   prefix: string;
   branchId: number;
@@ -82,16 +81,33 @@ export interface ReceiptAgainstPayload {
   dayId: number;
   shiftId: number;
   employeeId: number;
-  voucherDate: string;
+  voucherDate: string; // YYYY-MM-DD
   discount: number;
   amount: number;
   refNo: string;
   narration: string;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string; // ISO string
   details: ReceiptAgainstDetailPayload[];
-  paymodes?: ReceiptAgainstPaymodePayload[];
+  paymodes: ReceiptAgainstPaymodePayload[];
 }
+
+export interface ReceiptAgainstUpdatePayload {
+  transId: number;
+  branchId: number;
+  accountId: number;
+  paymodeId: number;
+  employeeId: number;
+  voucherDate: string; // YYYY-MM-DD
+  discount: number;
+  amount: number;
+  refNo: string;
+  narration: string;
+  updatedAt: string; // ISO string
+  details: ReceiptAgainstDetailPayload[];
+  paymodes: ReceiptAgainstPaymodePayload[];
+}
+
+export type ReceiptAgainstPayload = ReceiptAgainstCreatePayload | ReceiptAgainstUpdatePayload;
 
 export interface ReceiptAgainstListItem {
   transId: number;

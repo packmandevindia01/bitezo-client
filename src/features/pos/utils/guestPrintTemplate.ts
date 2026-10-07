@@ -23,6 +23,7 @@ export interface GuestPrintData {
   blockNo?: string;
   roadNo?: string;
   area?: string;
+  address?: string;
   providerNo?: string;
   subTotal: number;
   discount?: number;
@@ -155,7 +156,8 @@ export const generateGuestPrintHtml = async (
   const isTakeOut = data.orderType?.toLowerCase().includes("take");
   const isDriveThru = data.orderType?.toLowerCase().includes("drive");
   const isDineIn = data.orderType?.toLowerCase().includes("dine");
-  const isDelivery = data.orderType?.toLowerCase().includes("delivery");
+  const hasDeliveryAddress = Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
+  const isDelivery = Boolean(data.orderType?.toLowerCase().includes("delivery") || hasDeliveryAddress);
 
   const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
 
@@ -181,6 +183,19 @@ export const generateGuestPrintHtml = async (
     return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
   };
 
+  // Calculate VAT totals and conversion ratio prior to item iteration
+  const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
+  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
+  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0);
+  const totalNet = Number(data.netAmount || 0);
+  const authoritativeSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0) ? Number(data.subTotal) : 0;
+  const authoritativeVatAmount = (data.vatAmount !== undefined && Number(data.vatAmount) > 0) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+
+  // Conversion ratio for inclusive pricing when baseAmount is missing
+  const vatRatio = (authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0 && Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05)
+    ? (authoritativeSubTotal / totalNet)
+    : (isVatActive ? (1 / 1.10) : 1);
+
   let itemsHtml = "";
   let displaySubTotal = 0; // Sum of rounded display amounts for consistency
   cartDetails.forEach((item) => {
@@ -202,15 +217,19 @@ export const generateGuestPrintHtml = async (
     // Shape B (API direct):     no baseAmount, item.price is already the exclusive price
     const itemBaseAmount: number | undefined = (item as any).baseAmount;
     const itemLineTotal: number | undefined = (item as any).lineTotal;
+    const itemVat: number = Number((item as any).vatAmount || 0);
 
     // ── RATE: always the exclusive (pre-VAT) unit price ────────────────────────
-    // Shape A: baseAmount = qty × exclusiveUnitPrice → divide to get exclusive unit price
-    //          This correctly handles inclusive items (calculateOrder already reverses VAT into baseAmount)
-    // Shape B: item.price is already exclusive from API → use directly
-    const exclusiveUnitPrice =
-      itemBaseAmount !== undefined && qty > 0
-        ? Math.max(0, itemBaseAmount / qty)
-        : origUnitPrice;
+    let exclusiveUnitPrice: number;
+    if (itemBaseAmount !== undefined && qty > 0) {
+      exclusiveUnitPrice = Math.max(0, itemBaseAmount / qty);
+    } else if (itemVat > 0 && qty > 0 && itemLineTotal !== undefined && itemLineTotal > 0) {
+      exclusiveUnitPrice = Math.max(0, (itemLineTotal - extrasSum - itemVat) / qty);
+    } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && origUnitPrice > 0) {
+      exclusiveUnitPrice = origUnitPrice * vatRatio;
+    } else {
+      exclusiveUnitPrice = origUnitPrice;
+    }
 
     // ── AMT: always the VAT-inclusive line total ────────────────────────────────
     // lineTotal from calculateOrder = inclusive total for the whole line (product + extras).
@@ -223,11 +242,10 @@ export const generateGuestPrintHtml = async (
         : origUnitPrice * qty;
 
     // displaySubTotal accumulates exclusive amounts as a fallback for the Sub Total row
-    // (only used when data.subTotal is not provided by the caller)
     const exclusiveBase =
       itemBaseAmount !== undefined
         ? Math.max(0, itemBaseAmount)
-        : origUnitPrice * qty;
+        : exclusiveUnitPrice * qty;
     displaySubTotal += parseFloat(fmt(exclusiveBase));
 
     let totalItemDisc = Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
@@ -305,30 +323,21 @@ export const generateGuestPrintHtml = async (
     }
   });
 
-  // Calculate VAT Amount from item cartDetails sum (exact same logic as KOT template)
-  const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
-  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
-
   displaySubTotal = parseFloat(fmt(displaySubTotal));
   
-  // Show VAT if explicitly enabled OR if vatAmount / cartVatSum / netAmount difference indicates VAT presence
-  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
-
   const cartTotalDiscounts = cartDetails.reduce((sum, item: any) => {
     return sum + Number(item.itemDiscount ?? item.discAmount ?? 0);
   }, 0);
   const totalDiscount = (data.discount && data.discount > 0) ? data.discount : cartTotalDiscounts;
 
-  const hasAuthoritativeTotals = data.subTotal !== undefined && Number(data.subTotal) > 0;
-  const authoritativeSubTotal = hasAuthoritativeTotals ? Number(data.subTotal) : displaySubTotal;
-  const authoritativeVatAmount = (data.vatAmount !== undefined && Number(data.vatAmount) > 0) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+  const hasAuthoritativeTotals = authoritativeSubTotal > 0;
 
   if (isVatActive) {
     data.enableVat = true;
     data.vatAmount = parseFloat(fmt(authoritativeVatAmount > 0 ? authoritativeVatAmount : (data.netAmount - displaySubTotal)));
     data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : (data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
   } else {
-    data.subTotal = parseFloat(fmt(authoritativeSubTotal));
+    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : displaySubTotal));
     data.vatAmount = 0;
   }
 
@@ -620,7 +629,7 @@ export const generateGuestPrintHtml = async (
         </table>
         ` : '<div class="dashed-hr"></div>'}
         
-        ${(isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.providerNo) ? `
+        ${(isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo) ? `
         <div style="margin-top: 10px; font-size: 12px;">
           <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
             ${isDelivery ? 'DELIVERY DETAILS' : 'CUSTOMER DETAILS'}
@@ -635,6 +644,7 @@ export const generateGuestPrintHtml = async (
             ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
             ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
             ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
+            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Address</td><td style="font-weight: bold;">${data.address}</td></tr>` : ''}
             ${data.vehicleNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Vehicle No</td><td style="font-weight: bold;">${data.vehicleNo}</td></tr>` : ''}
             ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
           </table>

@@ -754,6 +754,12 @@ export const PosTerminalPage = () => {
         orderLoading={terminal.orderLoading}
         tenderOptions={terminal.tenderOptions}
         selectedCustomerId={terminal.selectedCustomerId}
+        onBeforeSettle={() => {
+          checkoutFlow.settleShouldPrintRef.current = true;
+        }}
+        onCancelSettle={() => {
+          checkoutFlow.settleShouldPrintRef.current = false;
+        }}
       />
 
       <EmployeePasswordModal

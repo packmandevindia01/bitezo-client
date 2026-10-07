@@ -6,7 +6,8 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
 import { usePermissions } from "../../../../hooks/usePermissions";
-import { formatAmount } from "../../../../utils/currency";
+import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 const getFirstDayOfMonth = () => {
   const d = new Date();
@@ -33,6 +34,8 @@ const PurchaseReturnListPage = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { hasPermission } = usePermissions();
+  const { initialBranchId } = useBranchScope();
+  const { formatAmount, decimalPart } = useCurrency();
   
   const [invoices, setInvoices] = useState<PurchaseReturnRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,10 +49,15 @@ const PurchaseReturnListPage = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const data = await purchaseReturnApi.getPurchaseReturnList({
-        FromDate: fromDate,
-        ToDate: toDate,
-      });
+      const params: any = {
+        FromDate: fromDate.includes("T") ? fromDate.split("T")[0] : fromDate,
+        ToDate: toDate.includes("T") ? toDate.split("T")[0] : toDate,
+      };
+      if (initialBranchId) {
+        params.BranchId = Number(initialBranchId);
+      }
+      params.Decimals = decimalPart || 3;
+      const data = await purchaseReturnApi.getPurchaseReturnList(params);
       setInvoices(data || []);
     } catch (error: any) {
       showToast(error.message || "Failed to load invoices", "error");
@@ -60,7 +68,7 @@ const PurchaseReturnListPage = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, initialBranchId, decimalPart]);
 
   const handleCancel = async () => {
     if (!cancelModal.id) return;
@@ -110,14 +118,15 @@ const PurchaseReturnListPage = () => {
     { 
       header: "Amount", 
       accessor: "netAmount" as keyof PurchaseReturnRow,
-      align: "center",
-      render: (row: PurchaseReturnRow) => <span className="font-semibold">{formatAmount(Number(row.netAmount || 0))}</span>
+      align: "right",
+      render: (row: PurchaseReturnRow) => <span className="font-semibold text-right block">{formatAmount(Number(row.netAmount || 0))}</span>
     },
     {
       header: "Actions",
       accessor: "purchaseReturnId" as keyof PurchaseReturnRow,
+      align: "center",
       render: (row: PurchaseReturnRow) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-center">
           {!row.isCancelled && hasPermission("Purchase Return", "Edit") && (
             <button
               onClick={() => navigate(`/dashboard/purchase-return/edit/${row.purchaseReturnId || row.id}`)}

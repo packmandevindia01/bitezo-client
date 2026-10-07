@@ -166,6 +166,14 @@ export const usePosConfiguration = () => {
 
         if (!active) return;
 
+        const empNameMap: Record<string, string> = {};
+        employees.forEach((employee: any) => {
+          if (employee.empId) {
+            empNameMap[String(employee.empId)] = employee.empName || "";
+          }
+        });
+        localStorage.setItem("posEmpNameMap", JSON.stringify(empNameMap));
+
         setEmployeeOptions(
           employees.map((employee: any) => ({
             label: employee.empName,

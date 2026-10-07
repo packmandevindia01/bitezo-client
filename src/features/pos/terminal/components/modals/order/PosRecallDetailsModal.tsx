@@ -3,6 +3,7 @@ import Modal from "../../../../../../components/common/Modal";
 import { Loader } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { menuApi } from "../../../../services/menuApi";
+import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../../../app/hooks";
 import { loadRecalledOrder } from "../../../store/posSlice";
@@ -12,7 +13,7 @@ import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus } from "../../../utils/billing";
+import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 
 import { usePosProducts } from "../../../hooks/usePosProducts";
@@ -221,16 +222,72 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         };
       });
 
+      let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
+      let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
+      let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
+      let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
+      let resolvedArea = master.area || master.areaName || "";
+      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+      let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
+
+      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
+        try {
+          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
+          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : (addrRes?.data || addrRes);
+          if (addrData) {
+            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
+            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
+            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
+            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
+            resolvedArea = addrData.area || resolvedArea;
+            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
+              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
+            }
+          }
+        } catch (fetchAddrErr) {
+          console.warn("[PosRecallDetailsModal] Could not fetch delivery address fallback for KOT:", fetchAddrErr);
+        }
+      }
+
       const basePrintOptions = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? fallbackDetails?.employeeName ?? "Waiter",
+        waiter: (() => {
+          const rawName = master.employeeName ?? fallbackDetails?.employeeName;
+          if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
+            return String(rawName).trim();
+          }
+          try {
+            const mapRaw = localStorage.getItem("posEmpNameMap");
+            if (mapRaw) {
+              const m = JSON.parse(mapRaw);
+              const n = m[String(master.employeeId ?? master.empId ?? "")];
+              if (n && !["waiter", "cashier"].includes(String(n).trim().toLowerCase())) return String(n).trim();
+            }
+          } catch {}
+          return (
+            localStorage.getItem("defaultEmployeeName") ||
+            localStorage.getItem("authorizedEmployeeName") ||
+            localStorage.getItem("employeeName") ||
+            "Waiter"
+          );
+        })(),
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
         orderType: orderTypeName,
         vehicleNo: master.vehicleNo || "",
-        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
+        customerName: resolvedCustomerName,
+        contactNo: resolvedContactNo,
+        flatNo: resolvedFlatNo,
+        buildingNo: resolvedBuildingNo,
+        blockNo: resolvedBlockNo,
+        roadNo: resolvedRoadNo,
+        area: resolvedArea,
+        address: resolvedAddress,
+        providerNo: master.providerNo || master.providerOrderNo || "",
         kotArabic: isKotArabicEnabled()
       };
 
@@ -272,30 +329,49 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         return m ? m[1] : "";
       })();
       
-      const voucherDateStr = master.voucherDate ?? master.orderDate ?? master.createdAt ?? timeFromDetails;
+      const isValidDateStr = (s: any) => {
+        if (!s || typeof s !== 'string') return false;
+        if (s.startsWith('0001')) return false;
+        return true;
+      };
+
+      const candidateDates = [
+        master.voucherDate,
+        master.orderDate,
+        master.createdAt,
+        timeFromDetails
+      ];
+
+      let resolvedDateStr = candidateDates.find(isValidDateStr);
       let date: string | undefined;
       let time: string | undefined;
       
-      if (voucherDateStr) {
+      if (resolvedDateStr) {
         try {
-          const d = new Date(voucherDateStr);
-          if (!isNaN(d.getTime())) {
+          const d = new Date(resolvedDateStr);
+          if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
             date = d.toLocaleDateString('en-GB');
-            time = d.toLocaleTimeString('en-US');
-          } else if (/am|pm/i.test(voucherDateStr)) {
+            time = d.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+          } else if (/am|pm/i.test(resolvedDateStr)) {
             const today = new Date();
             date = today.toLocaleDateString('en-GB');
-            time = voucherDateStr;
+            time = resolvedDateStr;
           }
         } catch { /* ignore */ }
       }
 
+      if (!date) {
+        const now = new Date();
+        date = now.toLocaleDateString('en-GB');
+        time = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+      }
+
+      const netAmount = Number(master.netAmount ?? order.netAmount ?? 0);
+      const enableVat = getVatStatus();
+
+      let detailsVatSum = 0;
       let totalVatBase = 0;
       const preMapped = details.map((d: any) => {
-        const itemLineNetAmount = d.amount ?? d.netAmount ?? ((d.price || 0) * (d.qty || 1));
-        const itemVatBase = itemLineNetAmount - (d.vatAmount || 0);
-        totalVatBase += itemVatBase;
-        
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1, typeId: m.typeId
@@ -307,21 +383,65 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           id: m.modifierId, name: m.modifierName || m.name || ""
         }));
         
-        let lineBase = (d.price || 0) * (d.qty || 1);
+        const qty = d.qty ?? d.Qty ?? 1;
+        const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
+        const price = d.price ?? d.Price ?? (qty > 0 ? amount / qty : 0);
+
+        let lineBase = price * qty;
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
+
+        const itemLineNetAmount = amount || lineBase;
+        const itemVat = Number(d.vatAmount ?? d.VatAmount ?? 0);
+        detailsVatSum += itemVat;
+
+        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
+        totalVatBase += itemVatBase;
         
-        return { ...d, itemVatBase, extras, modifiers, messages, lineBase };
+        return {
+          ...d,
+          qty,
+          price,
+          extras,
+          modifiers,
+          messages,
+          lineBase,
+          itemLineNetAmount,
+          itemVat,
+          itemVatBase
+        };
       });
 
-      const calculatedSubTotal = master.vatExclAmount || totalVatBase;
-      let calculatedVatTotal = master.vatAmount || details.reduce((sum: number, d: any) => sum + (d.vatAmount || 0), 0);
+      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
+      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
+        resolvedVatAmount = detailsVatSum;
+      }
+
+      // If VAT is active in system settings and prices are inclusive but vatAmount was 0
+      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
+        const billingConfig = getBillingConfig(orderTypeName);
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
+      }
+
+      let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
+      if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
+        resolvedSubTotal = roundCalc(netAmount - resolvedVatAmount - Number(master.serviceCharge || 0) - Number(master.levyAmt || master.levy || 0) - Number(master.deliveryCharge || 0));
+      }
 
       const mappedItems = preMapped.map((d: any) => {
         const pId = d.productId || d.itemId || 0;
+        let itemVat = d.itemVat;
+        if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
+          const ratio = (d.itemLineNetAmount || 0) / netAmount;
+          itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
+        }
+        const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
+        const itemBase = enableVat && itemVat > 0 ? (itemLineNet - itemVat) : (d.itemVatBase ?? itemLineNet);
         return {
           productId: pId,
           quantity: d.qty || 1,
           price: d.price || 0,
+          baseAmount: itemBase,
           variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
           product: { 
             name: d.productName || d.ProductName || `Product #${pId}`, 
@@ -332,37 +452,84 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           modifiers: d.modifiers,
           messages: d.messages || [],
           itemDiscount: d.discAmount || 0,
-          lineTotal: d.netAmount || d.amount || d.lineBase || ((d.price || 0) * (d.qty || 1))
+          lineTotal: itemLineNet,
+          vatAmount: itemVat
         };
       });
 
-      // Determine enableVat dynamically based on configs
-      const enableVat = getVatStatus();
+      let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
+      let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
+      let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
+      let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
+      let resolvedArea = master.area || master.areaName || "";
+      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+      let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
+
+      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
+        try {
+          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
+          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : (addrRes?.data || addrRes);
+          if (addrData) {
+            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
+            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
+            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
+            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
+            resolvedArea = addrData.area || resolvedArea;
+            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
+              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
+            }
+          }
+        } catch (fetchAddrErr) {
+          console.warn("[PosRecallDetailsModal] Could not fetch delivery address fallback for Guest:", fetchAddrErr);
+        }
+      }
 
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
-        waiter: master.employeeName ?? fallbackDetails?.employeeName ?? "Waiter",
+        waiter: (() => {
+          const rawName = master.employeeName ?? fallbackDetails?.employeeName;
+          if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
+            return String(rawName).trim();
+          }
+          try {
+            const mapRaw = localStorage.getItem("posEmpNameMap");
+            if (mapRaw) {
+              const m = JSON.parse(mapRaw);
+              const n = m[String(master.employeeId ?? master.empId ?? "")];
+              if (n && !["waiter", "cashier"].includes(String(n).trim().toLowerCase())) return String(n).trim();
+            }
+          } catch {}
+          return (
+            localStorage.getItem("defaultEmployeeName") ||
+            localStorage.getItem("authorizedEmployeeName") ||
+            localStorage.getItem("employeeName") ||
+            "Waiter"
+          );
+        })(),
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
         orderType: orderTypeName,
         date, time,
-        customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
+        customerName: resolvedCustomerName,
         vehicleNo: master.vehicleNo,
-        contactNo: master.mobileNo || master.contactNo,
-        flatNo: master.flatNo,
-        buildingNo: master.buildingNo,
-        blockNo: master.blockNo,
-        roadNo: master.roadNo,
-        area: master.area,
-        providerNo: master.providerNo,
-        subTotal: calculatedSubTotal,
+        contactNo: resolvedContactNo,
+        flatNo: resolvedFlatNo,
+        buildingNo: resolvedBuildingNo,
+        blockNo: resolvedBlockNo,
+        roadNo: resolvedRoadNo,
+        area: resolvedArea,
+        address: resolvedAddress,
+        providerNo: master.providerNo || master.providerOrderNo || "",
+        subTotal: resolvedSubTotal,
         discount: master.discAmount || master.discount || 0,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
-        vatAmount: calculatedVatTotal,
-        netAmount: master.netAmount || 0,
+        vatAmount: resolvedVatAmount,
+        netAmount: netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
@@ -751,9 +918,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         comingTime: master.comingTime,
         vehicleCustomerName: master.vehicleCustomerName,
         vehicleNo: master.vehicleNo,
+        deliveryCustomerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
+        flatNo: master.flatNo || master.flat || master.flatNumber || "",
+        buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
+        blockNo: master.blockNo || master.block || master.blockNumber || "",
+        roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
+        area: master.area || master.areaName || "",
         isSettling: true,
         prevUpdatedAt,
       }));
+
+      if (orderTypeName.toLowerCase().includes("delivery")) {
+        const deliveryCache = {
+          customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
+          contactNo: master.mobileNo || master.contactNo || "",
+          flatNo: master.flatNo || master.flat || master.flatNumber || "",
+          buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
+          roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
+          blockNo: master.blockNo || master.block || master.blockNumber || "",
+          area: master.area || master.areaName || "",
+          note: master.note || "",
+          addressId: master.addressId || 0,
+        };
+        sessionStorage.setItem("pos_current_delivery_details", JSON.stringify(deliveryCache));
+      }
 
       onSettleSuccess?.(master.netAmount || 0);
       onClose();
@@ -770,7 +958,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const ticketNo = master.ticketNo ?? order?.ticketNo ?? "1";
-  const employeeName = master.employeeName ?? order?.employeeName ?? fallbackDetails?.employeeName ?? "Waiter";
+  const resolveEmpName = (empId?: number | string | null) => {
+    if (!empId) return null;
+    try {
+      const mapRaw = localStorage.getItem("posEmpNameMap");
+      if (mapRaw) { const m = JSON.parse(mapRaw); if (m[String(empId)]) return m[String(empId)]; }
+    } catch {}
+    return null;
+  };
+  const rawEmpName = master.employeeName ?? order?.employeeName ?? fallbackDetails?.employeeName;
+  const employeeName = (rawEmpName && !["waiter", "cashier", "null", "undefined"].includes(String(rawEmpName).trim().toLowerCase()))
+    ? String(rawEmpName).trim()
+    : (resolveEmpName(master.employeeId ?? master.empId ?? master.salespersonId)
+      || localStorage.getItem("defaultEmployeeName")
+      || localStorage.getItem("authorizedEmployeeName")
+      || localStorage.getItem("employeeName")
+      || "Waiter");
   
   const orderTypeMap: Record<number, string> = {
     1: "DineIn",
