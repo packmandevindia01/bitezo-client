@@ -75,6 +75,7 @@ export const usePosCheckoutFlow = ({
 }: UsePosCheckoutFlowProps) => {
   const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
   const settleShouldPrintRef = useRef<boolean>(false);
+  const settlementCashChangeRef = useRef<number>(0);
 
   const submitOrderForEmployee = useEvent(async (employeeId: number, shouldPrint: boolean = false) => {
     if (!status) return;
@@ -136,7 +137,6 @@ export const usePosCheckoutFlow = ({
         showToast("Sales saved successfully", "success");
     }
     handleClearCart();
-    sessionStorage.removeItem("pos_current_delivery_details");
     setSettledPrintPayload(null);
     settleShouldPrintRef.current = false;
   });
@@ -299,6 +299,7 @@ export const usePosCheckoutFlow = ({
         let sectionStr = orderPayload.sectionId ? String(orderPayload.sectionId) : "DINE IN";
         let tableStr = orderPayload.tableNo ? orderPayload.tableNo : (orderPayload.tableId ? String(orderPayload.tableId) : "");
         let masterData: any = null;
+        let origOrderMaster: any = null;
         let detailsData: any[] | null = null;
         let modifiersData: any[] = [];
 
@@ -325,11 +326,14 @@ export const usePosCheckoutFlow = ({
             }
           }
 
-          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && targetOrderId > 0) {
+          if (targetOrderId > 0) {
             try {
               const orderRes = await orderApi.getOrderDetails(targetOrderId);
               if (orderRes) {
-                saleRes = orderRes?.data || orderRes;
+                origOrderMaster = orderRes?.data?.masterData || orderRes?.masterData || orderRes?.data || orderRes;
+                if (!saleRes || (!saleRes.detailsData && !saleRes.details)) {
+                  saleRes = orderRes?.data || orderRes;
+                }
               }
             } catch (err) {
               console.warn("getOrderDetails fallback failed:", err);
@@ -340,6 +344,31 @@ export const usePosCheckoutFlow = ({
             masterData = saleRes.masterData || saleRes.master || saleRes.data?.masterData || saleRes.data?.master || saleRes;
             detailsData = saleRes.detailsData || saleRes.details || saleRes.data?.detailsData || saleRes.data?.details || null;
             modifiersData = saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData || saleRes.data?.modifiers || [];
+          }
+
+          if (origOrderMaster && masterData) {
+            const origChange = origOrderMaster.change ?? origOrderMaster.keepChanges;
+            const curChange = masterData.change ?? masterData.keepChanges;
+            const isCurChangeZero = !curChange || curChange === "0.00" || curChange === "0" || curChange === "0.000";
+            if (isCurChangeZero && origChange && origChange !== "0.00" && origChange !== "0" && origChange !== "0.000") {
+              masterData.change = String(origChange);
+              masterData.keepChanges = String(origChange);
+            }
+            if (!masterData.callBack && origOrderMaster.callBack) {
+              masterData.callBack = origOrderMaster.callBack;
+            }
+            if (!masterData.flatNo && origOrderMaster.flatNo) masterData.flatNo = origOrderMaster.flatNo;
+            if (!masterData.buildingNo && origOrderMaster.buildingNo) masterData.buildingNo = origOrderMaster.buildingNo;
+            if (!masterData.roadNo && origOrderMaster.roadNo) masterData.roadNo = origOrderMaster.roadNo;
+            if (!masterData.blockNo && origOrderMaster.blockNo) masterData.blockNo = origOrderMaster.blockNo;
+            if (!masterData.area && origOrderMaster.area) masterData.area = origOrderMaster.area;
+            if (!masterData.address && origOrderMaster.address) masterData.address = origOrderMaster.address;
+            if (!masterData.deliveryCustomerName && origOrderMaster.deliveryCustomerName) {
+              masterData.deliveryCustomerName = origOrderMaster.deliveryCustomerName;
+            }
+            if (!masterData.contactNo && (origOrderMaster.contactNo || origOrderMaster.mobileNo)) {
+              masterData.contactNo = origOrderMaster.contactNo || origOrderMaster.mobileNo;
+            }
           }
 
           const masterEmp = masterData?.employeeName || (await resolveEmployeeNameById(masterData?.employeeId ?? masterData?.empId ?? masterData?.waiterId));
@@ -442,22 +471,76 @@ export const usePosCheckoutFlow = ({
           }
         }
 
-        let cachedDelivery: any = null;
-        try {
-          const rawDelivery = sessionStorage.getItem("pos_current_delivery_details");
-          if (rawDelivery) cachedDelivery = JSON.parse(rawDelivery);
-        } catch {}
-
-        const finalContactNo = masterData?.mobileNo || masterData?.contactNo || orderPayload.contactNo || cachedDelivery?.contactNo || "";
-        const finalCustomerName = masterData?.deliveryCustomerName || masterData?.vehicleCustomerName || masterData?.customerName || (orderPayload as any).deliveryCustomerName || orderPayload.customerName || (orderPayload as any).vehicleCustomerName || cachedDelivery?.customerName || (mappedOrderType === "DELIVERY" ? "DELIVERY CUSTOMER" : "WALK IN");
-        const finalFlatNo = masterData?.flatNo || masterData?.flat || masterData?.flatNumber || (orderPayload as any).flatNo || cachedDelivery?.flatNo || "";
-        const finalBuildingNo = masterData?.buildingNo || masterData?.building || masterData?.buildingNumber || (orderPayload as any).buildingNo || cachedDelivery?.buildingNo || "";
-        const finalBlockNo = masterData?.blockNo || masterData?.block || masterData?.blockNumber || (orderPayload as any).blockNo || cachedDelivery?.blockNo || "";
-        const finalRoadNo = masterData?.roadNo || masterData?.road || masterData?.roadNumber || masterData?.street || (orderPayload as any).roadNo || cachedDelivery?.roadNo || "";
-        const finalArea = masterData?.area || masterData?.areaName || (orderPayload as any).area || cachedDelivery?.area || "";
-        const finalAddress = masterData?.address || masterData?.customerAddress || masterData?.deliveryAddress || cachedDelivery?.address || "";
+        const isDeliveryOrder = mappedOrderType.toLowerCase().includes("delivery");
+        const finalContactNo = masterData?.mobileNo || masterData?.contactNo || orderPayload.contactNo || "";
+        const finalCallBack = isDeliveryOrder ? (masterData?.callBack || masterData?.callback || (orderPayload as any)?.callBack || "") : "";
+        const finalCustomerName = masterData?.deliveryCustomerName || masterData?.vehicleCustomerName || masterData?.customerName || (orderPayload as any).deliveryCustomerName || orderPayload.customerName || (orderPayload as any).vehicleCustomerName || (isDeliveryOrder ? "DELIVERY CUSTOMER" : "WALK IN");
+        const finalFlatNo = isDeliveryOrder ? (masterData?.flatNo || masterData?.flat || masterData?.flatNumber || (orderPayload as any).flatNo || "") : "";
+        const finalBuildingNo = isDeliveryOrder ? (masterData?.buildingNo || masterData?.building || masterData?.buildingNumber || (orderPayload as any).buildingNo || "") : "";
+        const finalBlockNo = isDeliveryOrder ? (masterData?.blockNo || masterData?.block || masterData?.blockNumber || (orderPayload as any).blockNo || "") : "";
+        const finalRoadNo = isDeliveryOrder ? (masterData?.roadNo || masterData?.road || masterData?.roadNumber || masterData?.street || (orderPayload as any).roadNo || "") : "";
+        const finalArea = isDeliveryOrder ? (masterData?.area || masterData?.areaName || (orderPayload as any).area || "") : "";
+        const finalAddress = isDeliveryOrder ? (masterData?.address || masterData?.customerAddress || masterData?.deliveryAddress || "") : "";
         const finalVehicleNo = masterData?.vehicleNo || orderPayload.vehicleNo || "";
         const finalProviderNo = masterData?.providerNo || masterData?.providerOrderNo || orderPayload.providerNo || orderPayload.providerOrderNo || "";
+
+        const rawKeepChange = isDeliveryOrder
+          ? ((orderPayload.change && orderPayload.change !== "0.00" && orderPayload.change !== "0" && orderPayload.change !== "0.000")
+              ? String(orderPayload.change)
+              : ((masterData as any)?.change && (masterData as any)?.change !== "0.00" && (masterData as any)?.change !== "0" && (masterData as any)?.change !== "0.000")
+              ? String((masterData as any)?.change)
+              : ((masterData as any)?.keepChanges && (masterData as any)?.keepChanges !== "0.00" && (masterData as any)?.keepChanges !== "0" && (masterData as any)?.keepChanges !== "0.000")
+              ? String((masterData as any)?.keepChanges)
+              : ((origOrderMaster as any)?.change && (origOrderMaster as any)?.change !== "0.00" && (origOrderMaster as any)?.change !== "0" && (origOrderMaster as any)?.change !== "0.000")
+              ? String((origOrderMaster as any)?.change)
+              : ((origOrderMaster as any)?.keepChanges && (origOrderMaster as any)?.keepChanges !== "0.00" && (origOrderMaster as any)?.keepChanges !== "0" && (origOrderMaster as any)?.keepChanges !== "0.000")
+              ? String((origOrderMaster as any)?.keepChanges)
+              : undefined)
+          : undefined;
+
+        let resolvedDriver =
+          masterData?.driverName ||
+          masterData?.allocatedDriverName ||
+          masterData?.driver ||
+          masterData?.driverEmployeeName ||
+          origOrderMaster?.driverName ||
+          origOrderMaster?.allocatedDriverName ||
+          origOrderMaster?.driver ||
+          origOrderMaster?.driverEmployeeName ||
+          "";
+
+        if (!resolvedDriver && origOrderMaster && typeof origOrderMaster.details === "string") {
+          const match = origOrderMaster.details.match(/\(Driver:\s*([^)]+)\)/i) || origOrderMaster.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+          if (match && match[1]) {
+            resolvedDriver = match[1].trim();
+          }
+        }
+
+        if (!resolvedDriver && masterData && typeof masterData.details === "string") {
+          const match = masterData.details.match(/\(Driver:\s*([^)]+)\)/i) || masterData.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+          if (match && match[1]) {
+            resolvedDriver = match[1].trim();
+          }
+        }
+
+        const activeDriverId = masterData?.driverId || origOrderMaster?.driverId || orderPayload?.driverId;
+        if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
+          try {
+            const branchId =
+              Number(localStorage.getItem("systemBranchId")) ||
+              Number(localStorage.getItem("activeBranchId")) ||
+              Number(localStorage.getItem("branchId")) ||
+              1;
+            const { employeeService } = await import("../../../general/employee/services/employeeService");
+            const dList = await employeeService.getDrivers(branchId);
+            const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
+            if (dFound) {
+              resolvedDriver = dFound.driverName;
+            }
+          } catch (err) {
+            console.warn("[usePosCheckoutFlow] Failed to resolve driver name by id:", err);
+          }
+        }
 
         const printPayloadObj = {
           mappedItems: mappedPrintItems,
@@ -473,13 +556,18 @@ export const usePosCheckoutFlow = ({
             date: now.toLocaleDateString('en-GB'),
             time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
             customerName: finalCustomerName,
-            contactNo: finalContactNo,
-            flatNo: finalFlatNo,
-            buildingNo: finalBuildingNo,
-            blockNo: finalBlockNo,
-            roadNo: finalRoadNo,
-            area: finalArea,
-            address: finalAddress,
+            driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+            driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+            contactNo: isDeliveryOrder ? (finalContactNo || undefined) : undefined,
+            callBack: isDeliveryOrder ? (finalCallBack || undefined) : undefined,
+            change: isDeliveryOrder ? rawKeepChange : undefined,
+            keepChanges: isDeliveryOrder ? rawKeepChange : undefined,
+            flatNo: isDeliveryOrder ? (finalFlatNo || undefined) : undefined,
+            buildingNo: isDeliveryOrder ? (finalBuildingNo || undefined) : undefined,
+            blockNo: isDeliveryOrder ? (finalBlockNo || undefined) : undefined,
+            roadNo: isDeliveryOrder ? (finalRoadNo || undefined) : undefined,
+            area: isDeliveryOrder ? (finalArea || undefined) : undefined,
+            address: isDeliveryOrder ? (finalAddress || undefined) : undefined,
             vehicleNo: finalVehicleNo,
             providerNo: finalProviderNo,
             payments: payments.map(p => ({
@@ -494,7 +582,7 @@ export const usePosCheckoutFlow = ({
             deliveryCharge: isCombinedOrder ? deliveryCharge : (masterData?.deliveryCharge ?? deliveryCharge),
             // Prefer the server-stored net amount to avoid frontend rounding accumulation errors
             netAmount: isCombinedOrder ? total : (masterData?.netAmount ?? total),
-            changeAmount: Number(orderPayload.change) || 0,
+            changeAmount: settlementCashChangeRef.current > 0 ? settlementCashChangeRef.current : undefined,
             isSettlement: true,
             billArabic: isBillArabicEnabled()
           }
@@ -513,6 +601,7 @@ export const usePosCheckoutFlow = ({
   });
 
   const handleCompleteSettlement = useEvent(async (payments: { paymodeId: number, amount: number }[], changeAmount: number) => {
+    settlementCashChangeRef.current = Number(changeAmount) || 0;
     setChange(changeAmount.toFixed(decimalPart));
     if (!status) return;
 

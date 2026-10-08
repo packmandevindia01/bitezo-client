@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput, SelectInput } from "../../../../components/common";
-import { usePaymentAgainstVoucherList } from "../hooks/usePaymentAgainstVoucherList";
+import { usePaymentAgainstVoucherList, formatDateOnly } from "../hooks/usePaymentAgainstVoucherList";
 import { paymentAgainstVoucherApi } from "../services/paymentAgainstVoucherApi";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
@@ -14,8 +14,8 @@ const PaymentAgainstVoucherListPage = () => {
   
   // Date filters defaulting to current month
   const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0];
+  const firstDay = formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 1));
+  const lastDay = formatDateOnly(new Date(today.getFullYear(), today.getMonth() + 1, 0));
   
   const [fromDate, setFromDate] = useState(firstDay);
   const [toDate, setToDate] = useState(lastDay);
@@ -45,7 +45,7 @@ const PaymentAgainstVoucherListPage = () => {
       setDeleteId(null);
     },
     onError: (error: any) => {
-      showToast(error?.response?.data?.message || "Failed to cancel voucher", "error", "Error");
+      showToast(error.message || error?.response?.data?.message || "Failed to cancel voucher", "error", "Error");
     },
   });
 
@@ -56,7 +56,7 @@ const PaymentAgainstVoucherListPage = () => {
   };
 
   const renderActions = (item: any) => (
-    <div className="flex gap-1 justify-end">
+    <div className="flex gap-2 justify-center">
       <button
         onClick={() => navigate(`/dashboard/payment-against-voucher/${item.transId}`)}
         className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
@@ -79,7 +79,7 @@ const PaymentAgainstVoucherListPage = () => {
   );
   
   const renderDate = (item: any) => (
-    <span>{item.voucherDate ? item.voucherDate.split("T")[0] : ""}</span>
+    <span>{item.voucherDate ? formatDateOnly(item.voucherDate) : ""}</span>
   );
 
   return (

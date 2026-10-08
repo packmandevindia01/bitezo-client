@@ -88,6 +88,9 @@ export const useProductionList = () => {
         Decimals: getDecimalPart()
       });
       return (data || []).sort((a: any, b: any) => {
+        const dateA = new Date(a.productionDate || a.transDate || 0).getTime();
+        const dateB = new Date(b.productionDate || b.transDate || 0).getTime();
+        if (dateA !== dateB) return dateB - dateA;
         return (b.transId || b.id || b.productionId || 0) - (a.transId || a.id || a.productionId || 0);
       });
     },

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import { internalStockTransferApi, formatDateOnly } from "../services/internalStockTransferApi";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
@@ -17,8 +17,8 @@ export const useInternalStockTransferList = () => {
   const [filters, setFilters] = useState({
     branchId: initialBranchId ? String(initialBranchId) : "",
     isBranchLocked,
-    fromDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split("T")[0],
-    toDate: new Date().toISOString().split("T")[0],
+    fromDate: formatDateOnly(new Date(new Date().setDate(new Date().getDate() - 30))),
+    toDate: formatDateOnly(new Date()),
   });
 
   const handleFilterChange = (key: string, value: string) => {
@@ -165,8 +165,8 @@ export const useInternalStockTransferList = () => {
         Decimals: getDecimalPart(),
       };
       if (filters.branchId) params.FromBranchId = parseInt(filters.branchId, 10);
-      if (filters.fromDate) params.FromDate = filters.fromDate;
-      if (filters.toDate) params.ToDate = filters.toDate;
+      if (filters.fromDate) params.FromDate = formatDateOnly(filters.fromDate);
+      if (filters.toDate) params.ToDate = formatDateOnly(filters.toDate);
 
       const data = await internalStockTransferApi.getTransferList(params);
       return (data || []).sort((a: any, b: any) => {

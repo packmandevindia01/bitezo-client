@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { PageShell, FormInput, SearchableSelect, Button, ConfirmDialog } from "../../../../components/common";
-import { usePaymentVoucher } from "../hooks/usePaymentVoucher";
+import { usePaymentVoucher, formatDateOnly } from "../hooks/usePaymentVoucher";
 import { BackofficeMultiPayModal } from "../../shared/components/BackofficeMultiPayModal";
 import { VoucherPrintPreviewModal } from "../../shared/components/VoucherPrintPreviewModal";
 import type { VoucherPrintData } from "../../shared/components/VoucherPrintTemplate";
@@ -59,7 +59,7 @@ const PaymentVoucherFormPage = () => {
     return {
       voucherType: "PAYMENT",
       voucherNo: vals.voucherNo || "",
-      date: vals.voucherDate || "",
+      date: vals.voucherDate ? formatDateOnly(vals.voucherDate) : "",
       paymentType: paymode?.paymodeName || "CASH PAYMENT",
       partyName: account?.accountName || "",
       amount: Number(vals.amount) || 0,
@@ -112,7 +112,7 @@ const PaymentVoucherFormPage = () => {
               label="DATE"
               required
               type="date"
-              max={new Date().toISOString().split("T")[0]}
+              max={formatDateOnly(new Date())}
               value={watch("voucherDate")}
               onChange={(e) => setValue("voucherDate", e.target.value, { shouldValidate: true })}
               onKeyDown={(e) => handleKeyDown(e, "pv-employee")}

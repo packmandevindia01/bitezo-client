@@ -10,6 +10,7 @@ import {
   ConfirmDialog
 } from "../../../../components/common";
 import { usePhysicalEntry, calculateLine } from "../hooks/usePhysicalEntry";
+import { formatDateOnly } from "../services/physicalEntryApi";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import type { PhysicalEntryLineItem } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
@@ -192,7 +193,7 @@ const PhysicalEntryPage = () => {
             {/* ── Header Fields ── Extremely dense padding to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
               <FormInput inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pe-refNo" label="Ref No" {...register("refNo")} readOnly={true} tabIndex={-1} error={errors.refNo?.message as string} />
-              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pe-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "pe-branch")} readOnly={!canSave || loadingMaster} error={errors.date?.message as string} max={new Date().toISOString().split("T")[0]} />
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pe-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "pe-branch")} readOnly={!canSave || loadingMaster} error={errors.date?.message as string} max={formatDateOnly(new Date())} />
               
               <Controller name="branch" control={control} render={({ field }) => (
                 <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-branch" label="Branch" value={field.value} options={branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "pe-salesman")} disabled={!canSave || loadingMaster || isEditMode || isBranchLocked || hasProductsAdded} error={errors.branch?.message as string} />

@@ -22,6 +22,12 @@ export const productionSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
   employeeId: z.string().min(1, "Employee is required"),
   productionNo: z.string().optional(),
+  date: z.string().min(1, "Date is required").refine((date) => {
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return selectedDate <= today;
+  }, { message: "Future dates are not allowed" }),
   
   finishedProduct: z.string().min(1, "Finished Product is required"),
   finishedProductCode: z.string().optional(),
@@ -47,9 +53,16 @@ export interface ProductionDetailParams {
   ToDate?: string;
 }
 
-export interface ProductionPayload {
-  transId?: number;
-  productionNo?: string | number;
+export interface ProductionDetailItem {
+  productId: number;
+  unitId: number;
+  qty: number;
+  cost: number;
+  amount: number;
+  baseQty: number;
+}
+
+export interface ProductionCreatePayload {
   productionDate: string;
   productId: number;
   unitId: number;
@@ -61,14 +74,31 @@ export interface ProductionPayload {
   branchId: number;
   employeeId: number;
   narration: string;
-  createdAt?: string;
-  updateAt?: string;
-  details: {
-    productId: number;
-    unitId: number;
-    qty: number;
-    cost: number;
-    amount: number;
-    baseQty: number;
-  }[];
+  createdAt: string;
+  details: ProductionDetailItem[];
 }
+
+export interface ProductionUpdatePayload {
+  transId: number;
+  productionDate: string;
+  productId: number;
+  unitId: number;
+  qty: number;
+  cost: number;
+  totalWage: number;
+  amount: number;
+  baseQty: number;
+  branchId: number;
+  employeeId: number;
+  narration: string;
+  updateAt: string;
+  updatedAt?: string;
+  details: ProductionDetailItem[];
+}
+
+export type ProductionPayload = ProductionCreatePayload & {
+  transId?: number;
+  productionNo?: string | number;
+  updateAt?: string;
+  updatedAt?: string;
+};

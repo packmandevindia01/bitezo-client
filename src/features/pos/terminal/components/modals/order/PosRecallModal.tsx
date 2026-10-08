@@ -267,6 +267,39 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       let resolvedArea = master.area || master.areaName || "";
       let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
       let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      let resolvedCallBack = isDeliveryOrder
+        ? (master.callBack ||
+          master.callback ||
+          master.callBackNo ||
+          master.callbackNo ||
+          master.callBackNumber ||
+          master.callbackNumber ||
+          (order as any)?.callBack ||
+          (order as any)?.callback ||
+          (order as any)?.orderMaster?.callBack ||
+          (order as any)?.orderMaster?.callback ||
+          (order as any)?.master?.callBack ||
+          "")
+        : "";
+
+      let rawChange =
+        master.change ??
+        master.keepChanges ??
+        (order as any)?.change ??
+        (order as any)?.keepChanges ??
+        (order as any)?.orderMaster?.change ??
+        (order as any)?.orderMaster?.keepChanges ??
+        (order as any)?.master?.change ??
+        "";
+
+      const validKeepChange = (isDeliveryOrder && rawChange !== undefined && rawChange !== null &&
+        String(rawChange).trim() !== "" &&
+        String(rawChange).trim() !== "0" &&
+        String(rawChange).trim() !== "0.00" &&
+        String(rawChange).trim() !== "0.000")
+        ? String(rawChange).trim()
+        : undefined;
       const matchedOrder = orders.find(o => o.orderId === transId);
 
       // Extract employee name and customer name from details string if needed
@@ -299,7 +332,6 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         custFromDetails ||
         "";
 
-      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
       if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
         try {
           const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
@@ -394,6 +426,50 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           "Waiter";
       }
 
+      let resolvedDriver =
+        master.driverName ||
+        master.allocatedDriverName ||
+        master.driver ||
+        master.driverEmployeeName ||
+        matchedOrder?.driverName ||
+        matchedOrder?.allocatedDriverName ||
+        matchedOrder?.driver ||
+        matchedOrder?.driverEmployeeName ||
+        "";
+
+      if (!resolvedDriver && matchedOrder && typeof matchedOrder.details === "string") {
+        const match = matchedOrder.details.match(/\(Driver:\s*([^)]+)\)/i) || matchedOrder.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      if (!resolvedDriver && typeof master.details === "string") {
+        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      const activeDriverId = master.driverId || matchedOrder?.driverId;
+      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
+        try {
+          const branchId =
+            Number(localStorage.getItem("systemBranchId")) ||
+            Number(localStorage.getItem("activeBranchId")) ||
+            Number(localStorage.getItem("branchId")) ||
+            1;
+          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
+          const dList = await employeeService.getDrivers(branchId);
+          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
+          if (dFound) {
+            resolvedDriver = dFound.driverName;
+          }
+        } catch (err) {
+          console.warn("[PosRecallModal] Failed to resolve driver name by id:", err);
+        }
+      }
+
       const printData = {
         orderNo: master.orderNo ?? String(transId),
         ticketNo: master.ticketNo ?? "1",
@@ -404,14 +480,19 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         orderType: orderTypeName,
         date, time,
         customerName: resolvedCustomerName,
+        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
         vehicleNo: master.vehicleNo,
-        contactNo: resolvedContactNo,
-        flatNo: resolvedFlatNo,
-        buildingNo: resolvedBuildingNo,
-        blockNo: resolvedBlockNo,
-        roadNo: resolvedRoadNo,
-        area: resolvedArea,
-        address: resolvedAddress,
+        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
+        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        change: isDeliveryOrder ? validKeepChange : undefined,
+        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
+        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
+        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
+        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
+        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
+        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
+        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo || "",
         subTotal: resolvedSubTotal,
         discount: master.discAmount || master.discount || 0,

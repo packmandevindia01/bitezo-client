@@ -1,8 +1,9 @@
 import type { PhysicalEntryForm } from "./types";
+import { formatDateOnly } from "./services/physicalEntryApi";
 
 export const createEmptyPhysicalEntryForm = (): PhysicalEntryForm => ({
   refNo: "",
-  date: new Date().toISOString().split("T")[0],
+  date: formatDateOnly(new Date()),
   branch: "",
   salesman: "",
   narration: "",

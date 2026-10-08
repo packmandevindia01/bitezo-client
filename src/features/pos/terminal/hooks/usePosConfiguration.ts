@@ -18,7 +18,7 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
   return {
     ...INITIAL_CONFIG,
     discCalc: (configs.discountCalc as any) || "Exclusive",
-    kotHeader: (configs.kotHeader as any) || "QTY,DESCRIPTION,AMT",
+    kotHeader: (configs.kotHeader as any) || "QTY,DESCRIPTION",
     kotArabic: configs.kotArabic === "Enable",
     billArabic: configs.billArabic === "Enable",
     kotPrintSettle: configs.kotPrintSettle === "Enable",

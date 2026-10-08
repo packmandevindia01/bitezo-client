@@ -11,7 +11,7 @@ import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert, X } from "lucide-r
 import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
 import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
 import { formatAmount } from "../../../../utils/currency";
-import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import { internalStockTransferApi, formatDateOnly } from "../services/internalStockTransferApi";
 import type { InternalStockTransferLineItem } from "../types";
 import { generateUUID } from "../../../../utils/uuid";
 import { useToast } from "../../../../app/providers/useToast";
@@ -163,9 +163,11 @@ const InternalStockTransferPage = () => {
   // Map forms/items to display names for the print template
   const printForm = useMemo(() => {
     const vals = getValues();
+    const vDate = vals.date ? formatDateOnly(vals.date) : formatDateOnly(new Date());
     return {
       refNo: vals.refNo || "",
-      date: vals.date || "",
+      date: vDate,
+      transDate: vDate,
       fromBranch: vals.fromBranch || "",
       toBranch: vals.toBranch || "",
       salesman: vals.salesman || "",
@@ -295,7 +297,7 @@ const InternalStockTransferPage = () => {
             {/* ── Header Fields ── Extremely dense padding to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-2 gap-y-1.5 mb-2">
               <FormInput inputClassName="!h-8 !px-2 !text-xs font-mono font-bold bg-gray-50 cursor-not-allowed" id="st-refNo" label="Ref No" type="text" {...register("refNo")} readOnly />
-              <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
+              <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" max={formatDateOnly(new Date())} {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="fromBranch" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.fromBranch?.message as string} />

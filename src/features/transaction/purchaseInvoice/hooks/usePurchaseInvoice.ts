@@ -77,6 +77,58 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const [searchingProducts, setSearchingProducts] = useState(false);
   const [searchingSuppliers, setSearchingSuppliers] = useState(false);
   const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
+  const [masterUnits, setMasterUnits] = useState<{ label: string; value: string; category?: string; currentValue: number }[]>([]);
+
+  // Load all system units on mount to ensure conversion factors are always available
+  useEffect(() => {
+    purchaseInvoiceApi.getAllUnits().then(units => {
+      if (units && units.length > 0) {
+        const mapped = units.map((u: any) => ({
+          label: u.name,
+          value: String(u.unitId),
+          category: u.category,
+          currentValue: Number(u.currentValue ?? 1)
+        }));
+        setMasterUnits(prev => {
+          const existingIds = new Set(prev.map(p => p.value));
+          const newEntries = mapped.filter((m: any) => !existingIds.has(m.value));
+          return [...prev, ...newEntries];
+        });
+        setCategoryUnits(prev => {
+          const updated = { ...prev };
+          mapped.forEach((u: any) => {
+            const cat = u.category || "Quantity";
+            if (!updated[cat]) updated[cat] = [];
+            if (!updated[cat].some((x: any) => x.value === u.value)) {
+              updated[cat].push(u);
+            }
+          });
+          return updated;
+        });
+      }
+    }).catch(err => console.error("Failed to load all units", err));
+  }, []);
+
+  const getUnitCurrentValue = useCallback((unitId: string | number | undefined | null, loadedUnits?: { value: string, currentValue: number }[]): number => {
+    if (unitId === undefined || unitId === null) return 1;
+    const uStr = String(unitId);
+    if (!uStr || uStr === "0") return 1;
+
+    if (loadedUnits && loadedUnits.length > 0) {
+      const found = loadedUnits.find(u => String(u.value) === uStr);
+      if (found && !isNaN(found.currentValue) && found.currentValue > 0) return found.currentValue;
+    }
+
+    const foundMaster = masterUnits.find(u => String(u.value) === uStr);
+    if (foundMaster && !isNaN(foundMaster.currentValue) && foundMaster.currentValue > 0) return foundMaster.currentValue;
+
+    for (const units of Object.values(categoryUnits)) {
+      const found = units.find(u => String(u.value) === uStr);
+      if (found && !isNaN(found.currentValue) && found.currentValue > 0) return found.currentValue;
+    }
+
+    return 1;
+  }, [masterUnits, categoryUnits]);
 
   const loadCategoryUnits = useCallback(async (unitCategory: string) => {
     if (!unitCategory) return;
@@ -467,9 +519,31 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       ]);
       if (data) {
         const unitsRes = productMaster?.unit || [];
+        const mappedUnits = unitsRes.map((u: any) => ({
+          label: u.name || u.unitName,
+          value: String(u.id || u.unitId),
+          category: u.category,
+          currentValue: Number(u.currentvalue ?? u.currentValue ?? 1)
+        }));
+        setMasterUnits(prev => {
+          const existingIds = new Set(prev.map(p => p.value));
+          const newEntries = mappedUnits.filter((m: any) => !existingIds.has(m.value));
+          return [...prev, ...newEntries];
+        });
+        setCategoryUnits(prev => {
+          const updated = { ...prev };
+          mappedUnits.forEach((u: any) => {
+            const cat = u.category || "Quantity";
+            if (!updated[cat]) updated[cat] = [];
+            if (!updated[cat].some((x: any) => x.value === u.value)) {
+              updated[cat].push(u);
+            }
+          });
+          return updated;
+        });
         const enrichedData = {
           ...data,
-          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName, value: String(u.id || u.unitId) })),
+          units: mappedUnits,
         };
         setMasterData(enrichedData as any);
         // Pre-select first series and branch if available
@@ -755,14 +829,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         netAmount: totals.grandTotal,
         details: validItems.map((item) => {
           const l = calculateLine(item as PurchaseInvoiceLineItem, grossTotal, toNumber(data.discAmount));
-          // Find the unit's currentValue from loaded categoryUnits
-          const unitCurrentValue = (() => {
-            for (const units of Object.values(categoryUnits)) {
-              const found = units.find(u => String(u.value) === String(item.unit));
-              if (found && !isNaN(found.currentValue)) return found.currentValue;
-            }
-            return 1; // default to 1 (base unit)
-          })();
+          const unitCurrentValue = getUnitCurrentValue(item.unit);
           return {
             productId: parseInt(item.product || "") || 0,
             unitId: parseInt(item.unit || "") || 0,
@@ -870,6 +937,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     handleProductSelect,
     handleUnitChange,
     categoryUnits,
+    masterUnits,
+    getUnitCurrentValue,
     saving,
   };
 };

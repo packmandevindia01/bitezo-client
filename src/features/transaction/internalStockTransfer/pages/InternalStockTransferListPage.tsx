@@ -4,7 +4,7 @@ import { useInternalStockTransferList } from "../hooks/useInternalStockTransferL
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import { internalStockTransferApi, formatDateOnly } from "../services/internalStockTransferApi";
 import { useToast } from "../../../../app/providers/useToast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -101,7 +101,7 @@ const InternalStockTransferListPage = () => {
           loading={loading}
           columns={[
             { header: "SL NO", accessor: "transId", render: (_, index) => index + 1 },
-            { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString() },
+            { header: "Date", accessor: "transDate", render: (row) => row.transDate ? formatDateOnly(row.transDate) : "" },
             { header: "Ref No", accessor: "refNo" },
             { header: "From Branch", accessor: "fromBranch" },
             { header: "To Branch", accessor: "toBranch" },
@@ -109,9 +109,9 @@ const InternalStockTransferListPage = () => {
             {
               header: "Actions",
               accessor: "transId",
-              align: "right",
+              align: "center",
               render: (row) => (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-center gap-2">
                   <button 
                     onClick={() => navigate(`/dashboard/internal-stock-transfer/edit/${row.transId}`)} 
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"

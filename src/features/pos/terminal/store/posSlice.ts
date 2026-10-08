@@ -43,6 +43,7 @@ interface PosState {
   guestNo: number;
   missedCall: boolean;
   contactNo: string;
+  callBack: string;
   note: string;
   change: string;
   isComing: boolean;
@@ -66,6 +67,22 @@ interface PosState {
   isSettling: boolean;
   isCartModified: boolean;
   combinedOrderIds: number[];
+  deliveryDetails?: {
+    customerName?: string;
+    contactNo?: string;
+    callBack?: string;
+    flatNo?: string;
+    buildingNo?: string;
+    blockNo?: string;
+    roadNo?: string;
+    area?: string;
+    note?: string;
+    change?: string;
+    isComing?: boolean;
+    comingTime?: string;
+    isMissedCall?: boolean;
+    addressId?: number;
+  } | null;
 }
 
 const loadCart = (): PosCartItem[] => {
@@ -135,6 +152,7 @@ const initialState: PosState = {
   guestNo: 0,
   missedCall: false,
   contactNo: '',
+  callBack: '',
   note: '',
   change: '',
   isComing: false,
@@ -158,6 +176,7 @@ const initialState: PosState = {
   isSettledEdit: false,
   isCartModified: false,
   combinedOrderIds: [],
+  deliveryDetails: null,
 };
 
 const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().replace(/[\s_-]/g, "");
@@ -517,6 +536,7 @@ const posSlice = createSlice({
     setDeliveryDetails: (state, action: PayloadAction<{
       customerName?: string;
       contactNo?: string;
+      callBack?: string;
       flatNo?: string;
       buildingNo?: string;
       blockNo?: string;
@@ -534,6 +554,7 @@ const posSlice = createSlice({
         state.vehicleCustomerName = p.customerName;
       }
       if (p.contactNo !== undefined) state.contactNo = p.contactNo;
+      if (p.callBack !== undefined) state.callBack = p.callBack;
       if (p.flatNo !== undefined) state.flatNo = p.flatNo;
       if (p.buildingNo !== undefined) state.buildingNo = p.buildingNo;
       if (p.blockNo !== undefined) state.blockNo = p.blockNo;
@@ -544,6 +565,25 @@ const posSlice = createSlice({
       if (p.change !== undefined) state.change = p.change;
       if (p.isMissedCall !== undefined) state.missedCall = p.isMissedCall;
       if (p.isComing !== undefined) state.isComing = p.isComing;
+      state.deliveryDetails = {
+        ...state.deliveryDetails,
+        customerName: p.customerName !== undefined ? p.customerName : state.deliveryCustomerName,
+        contactNo: p.contactNo !== undefined ? p.contactNo : state.contactNo,
+        callBack: p.callBack !== undefined ? p.callBack : state.callBack,
+        flatNo: p.flatNo !== undefined ? p.flatNo : state.flatNo,
+        buildingNo: p.buildingNo !== undefined ? p.buildingNo : state.buildingNo,
+        blockNo: p.blockNo !== undefined ? p.blockNo : state.blockNo,
+        roadNo: p.roadNo !== undefined ? p.roadNo : state.roadNo,
+        area: p.area !== undefined ? p.area : state.area,
+        note: p.note !== undefined ? p.note : state.note,
+        addressId: p.addressId !== undefined ? p.addressId : state.selectedAddressId,
+        change: p.change !== undefined ? p.change : state.change,
+        isMissedCall: p.isMissedCall !== undefined ? p.isMissedCall : state.missedCall,
+        isComing: p.isComing !== undefined ? p.isComing : state.isComing,
+      };
+    },
+    setCallBack: (state, action: PayloadAction<string>) => {
+      state.callBack = action.payload;
     },
     loadRecalledOrder: (state, action: PayloadAction<{
       editingOrderId?: number | null;
@@ -564,6 +604,7 @@ const posSlice = createSlice({
       deliveryCharge?: number;
       customDeliveryCharge?: number | null;
       contactNo?: string;
+      callBack?: string;
       note?: string;
       change?: string;
       isComing?: boolean;
@@ -576,6 +617,8 @@ const posSlice = createSlice({
       blockNo?: string;
       roadNo?: string;
       area?: string;
+      isMissedCall?: boolean;
+      missedCall?: boolean;
       isCartModified?: boolean;
       prevUpdatedAt?: string | null;
     }>) => {
@@ -597,6 +640,7 @@ const posSlice = createSlice({
         deliveryCharge,
         customDeliveryCharge,
         contactNo,
+        callBack,
         note,
         change,
         isComing,
@@ -637,6 +681,7 @@ const posSlice = createSlice({
         state.customDeliveryCharge = customDeliveryCharge;
       }
       if (contactNo !== undefined) state.contactNo = contactNo;
+      if (callBack !== undefined) state.callBack = callBack;
       if (note !== undefined) state.note = note;
       if (change !== undefined) state.change = change;
       if (isComing !== undefined) state.isComing = isComing;
@@ -649,6 +694,26 @@ const posSlice = createSlice({
       if (blockNo !== undefined) state.blockNo = blockNo;
       if (roadNo !== undefined) state.roadNo = roadNo;
       if (area !== undefined) state.area = area;
+      const effMissedCall = action.payload.missedCall ?? action.payload.isMissedCall;
+      if (effMissedCall !== undefined) {
+        state.missedCall = Boolean(effMissedCall);
+      }
+      state.deliveryDetails = {
+        ...state.deliveryDetails,
+        customerName: deliveryCustomerName || vehicleCustomerName || state.deliveryDetails?.customerName || '',
+        contactNo: contactNo || state.deliveryDetails?.contactNo || '',
+        callBack: callBack || state.deliveryDetails?.callBack || '',
+        flatNo: flatNo || '',
+        buildingNo: buildingNo || '',
+        blockNo: blockNo || '',
+        roadNo: roadNo || '',
+        area: area || '',
+        note: note || '',
+        change: change || '',
+        isComing: isComing ?? false,
+        isMissedCall: effMissedCall !== undefined ? Boolean(effMissedCall) : state.missedCall,
+        addressId: addressId || 0,
+      };
     },
     addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
       state.isCartModified = true;
@@ -714,6 +779,7 @@ export const {
   setGuestNo,
   setMissedCall,
   setContactNo,
+  setCallBack,
   setNote,
   setChange,
   setIsComing,

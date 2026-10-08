@@ -14,7 +14,7 @@ import type { VoucherPrintData } from "../../shared/components/VoucherPrintTempl
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { getDecimalPart } from "../../../../utils/currency";
 import { numberToWords } from "../../../../utils/numberToWords";
-import { usePaymentAgainstVoucherForm } from "../hooks/usePaymentAgainstVoucherForm";
+import { usePaymentAgainstVoucherForm, formatDateOnly } from "../hooks/usePaymentAgainstVoucherForm";
 import { paymentAgainstVoucherApi } from "../services/paymentAgainstVoucherApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectActiveBranchId } from "../../../auth/store/authSlice";
@@ -138,7 +138,7 @@ const PaymentAgainstVoucherPage = () => {
       invoiceId: manualItem.invoiceId || 0,
       voucherType: manualItem.voucherType,
       invoiceNo: manualItem.invoiceNo,
-      invoiceDate: new Date().toISOString().split("T")[0],
+      invoiceDate: formatDateOnly(new Date()),
       invoiceAmount: Number(manualItem.invoiceAmount) || 0,
       balance: Number(manualItem.balance) || 0,
       amount: Number(manualItem.amount).toFixed(getDecimalPart()),
@@ -161,7 +161,7 @@ const PaymentAgainstVoucherPage = () => {
       ...form.getValues(),
       accountId: 0,
       paymodeId: 0,
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       discount: 0,
       refNo: "",
       narration: "",
@@ -213,7 +213,7 @@ const PaymentAgainstVoucherPage = () => {
         navigate("/dashboard/payment-against-voucher");
       },
       onError: (error: any) => {
-        showToast(error?.response?.data?.message || "Failed to save voucher", "error", "Error");
+        showToast(error.message || error?.response?.data?.message || "Failed to save voucher", "error", "Error");
       }
     });
   };
@@ -266,7 +266,7 @@ const PaymentAgainstVoucherPage = () => {
     return {
       voucherType: "PAYMENT AGAINST",
       voucherNo: vals.vchNo || "",
-      date: vals.voucherDate || "",
+      date: vals.voucherDate ? formatDateOnly(vals.voucherDate) : "",
       paymentType: paymode?.paymodeName || "CASH PAYMENT",
       partyName: selectedAccountName || "",
       amount: totalAmount,
@@ -278,7 +278,7 @@ const PaymentAgainstVoucherPage = () => {
         sNo: i + 1,
         voucherType: f.voucherType,
         invoiceNo: f.invoiceNo || "",
-        invoiceDate: f.invoiceDate || "",
+        invoiceDate: f.invoiceDate ? formatDateOnly(f.invoiceDate) : "",
         invoiceAmount: Number(f.invoiceAmount) || 0,
         receivedAmount: Number(f.amount) || 0,
       }))
@@ -382,7 +382,7 @@ const PaymentAgainstVoucherPage = () => {
                 label="Date" 
                 required
                 type="date" 
-                max={new Date().toISOString().split("T")[0]}
+                max={formatDateOnly(new Date())}
                 {...form.register("voucherDate", {
                   onChange: (e) => form.setValue("voucherDate", e.target.value, { shouldValidate: true })
                 })}
@@ -587,7 +587,7 @@ const PaymentAgainstVoucherPage = () => {
                             {item.invoiceNo}
                           </td>
                           <td className="px-4 py-3 text-center">{item.voucherType}</td>
-                          <td className="px-4 py-3 text-gray-500 text-center">{item.invoiceDate}</td>
+                          <td className="px-4 py-3 text-gray-500 text-center">{item.invoiceDate ? formatDateOnly(item.invoiceDate) : ""}</td>
                           <td className="px-4 py-3 text-right font-mono">{formatAmount(item.invoiceAmount || 0)}</td>
                           <td className="px-4 py-3 text-right font-mono">{formatAmount(item.balance || 0)}</td>
                           <td className="px-2 py-2">

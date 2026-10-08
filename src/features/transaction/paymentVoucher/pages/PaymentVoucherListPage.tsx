@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, RecordTableCard, SelectInput, FormInput, Button, SearchBar, ConfirmDialog } from "../../../../components/common";
-import { usePaymentVoucher } from "../hooks/usePaymentVoucher";
+import { usePaymentVoucher, formatDateOnly } from "../hooks/usePaymentVoucher";
 import { formatCurrency } from "../../../../utils/formatters";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
@@ -108,7 +108,7 @@ const PaymentVoucherListPage = () => {
             { 
               header: "Date", 
               accessor: "voucherDate",
-              render: (row) => <span>{row.voucherDate?.split("T")[0]}</span>
+              render: (row) => <span>{row.voucherDate ? formatDateOnly(row.voucherDate) : ""}</span>
             },
             { 
               header: "Vch No", 
@@ -127,7 +127,7 @@ const PaymentVoucherListPage = () => {
               header: "Actions",
               accessor: "transId",
               render: (row) => (
-                <div className="flex gap-2">
+                <div className="flex gap-2 justify-center">
                   <button 
                     onClick={() => navigate(`/dashboard/payment-voucher/edit/${row.transId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"

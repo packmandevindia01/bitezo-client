@@ -2,7 +2,7 @@
 import { Trash2, Pencil, Plus } from "lucide-react";
 import { Button, PageShell, RecordTableCard, ConfirmDialog, SelectInput, SearchableSelect } from "../../../../components/common";
 import { useProductionList } from "../hooks/useProductionList";
-import { productionApi } from "../services/productionApi";
+import { productionApi, formatDateOnly } from "../services/productionApi";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useToast } from "../../../../app/providers/useToast";
@@ -101,17 +101,19 @@ const ProductionListPage = () => {
           rowKey="transId"
           loading={loading || deleteMutation.isPending}
           columns={[
-            { header: "S.No", accessor: "sNo" },
-            { header: "Prod No.", accessor: "productionNo" },
-            { header: "Branch", accessor: "branchName" },
-            { header: "Product", accessor: "productName" },
-            { header: "Unit", accessor: "unitName" },
-            { header: "Qty", accessor: "qty" },
+            { header: "S.No", accessor: "sNo", align: "center", render: (_, index) => (index !== undefined ? index + 1 : "-") },
+            { header: "Date", accessor: "productionDate", align: "center", render: (row) => (row.productionDate || row.transDate) ? formatDateOnly(row.productionDate || row.transDate) : "" },
+            { header: "Prod No.", accessor: "productionNo", align: "center" },
+            { header: "Branch", accessor: "branchName", align: "center" },
+            { header: "Product", accessor: "productName", align: "center" },
+            { header: "Unit", accessor: "unitName", align: "center" },
+            { header: "Qty", accessor: "qty", align: "right" },
             {
               header: "Actions",
               accessor: "transId",
+              align: "center",
               render: (row) => (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => navigate(`/dashboard/production/${row.transId || row.id || row.productionId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"

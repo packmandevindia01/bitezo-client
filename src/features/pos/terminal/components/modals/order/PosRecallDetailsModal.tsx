@@ -6,7 +6,7 @@ import { menuApi } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../../../app/hooks";
-import { loadRecalledOrder } from "../../../store/posSlice";
+import { loadRecalledOrder, setDeliveryDetails } from "../../../store/posSlice";
 import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
 import { generateKotHtml } from "../../../../utils/kotTemplate";
@@ -164,6 +164,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
   const handlePrintKOT = async () => {
     if (!orderId || !order) return;
+    let mappedItems: any[] = [];
+    let basePrintOptions: any = null;
     try {
       showToast(`Preparing KOT for Order #${orderId}...`, "info");
       
@@ -176,7 +178,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       };
       const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
       
-      const mappedItems = details.map((d: any) => {
+      mappedItems = details.map((d: any) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
@@ -228,10 +230,52 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
       let resolvedArea = master.area || master.areaName || "";
       let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-      let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
-      let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
+      let resolvedContactNo =
+        master.contactNo ||
+        master.mobileNo ||
+        master.phone ||
+        master.mobile ||
+        order?.contactNo ||
+        order?.mobileNo ||
+        (order as any)?.orderMaster?.contactNo ||
+        (order as any)?.orderMaster?.mobileNo ||
+        fallbackDetails?.deliveryDetails?.mobile ||
+        "";
+      let resolvedCallBack =
+        master.callBack ||
+        master.callback ||
+        master.callBackNo ||
+        master.callbackNo ||
+        master.callBackNumber ||
+        master.callbackNumber ||
+        (order as any)?.callBack ||
+        (order as any)?.callback ||
+        (order as any)?.orderMaster?.callBack ||
+        (order as any)?.orderMaster?.callback ||
+        (order as any)?.master?.callBack ||
+        "";
 
       const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
+
+      let rawChange =
+        master.change ??
+        master.keepChanges ??
+        (order as any)?.change ??
+        (order as any)?.keepChanges ??
+        (order as any)?.orderMaster?.change ??
+        (order as any)?.orderMaster?.keepChanges ??
+        (order as any)?.master?.change ??
+        "";
+
+      const validKeepChange = (isDeliveryOrder && rawChange !== undefined && rawChange !== null &&
+        String(rawChange).trim() !== "" &&
+        String(rawChange).trim() !== "0" &&
+        String(rawChange).trim() !== "0.00" &&
+        String(rawChange).trim() !== "0.000")
+        ? String(rawChange).trim()
+        : undefined;
+
       if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
         try {
           const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
@@ -251,7 +295,51 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }
       }
 
-      const basePrintOptions = {
+      let resolvedDriver =
+        master.driverName ||
+        master.allocatedDriverName ||
+        master.driver ||
+        master.driverEmployeeName ||
+        order?.driverName ||
+        order?.allocatedDriverName ||
+        order?.driver ||
+        order?.driverEmployeeName ||
+        "";
+
+      if (!resolvedDriver && orderDetailsStr) {
+        const match = orderDetailsStr.match(/\(Driver:\s*([^)]+)\)/i) || orderDetailsStr.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      if (!resolvedDriver && typeof master.details === "string") {
+        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      const activeDriverId = master.driverId || order?.driverId;
+      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
+        try {
+          const branchId =
+            Number(localStorage.getItem("systemBranchId")) ||
+            Number(localStorage.getItem("activeBranchId")) ||
+            Number(localStorage.getItem("branchId")) ||
+            1;
+          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
+          const dList = await employeeService.getDrivers(branchId);
+          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
+          if (dFound) {
+            resolvedDriver = dFound.driverName;
+          }
+        } catch (err) {
+          console.warn("[PosRecallDetailsModal] Failed to resolve driver name by id for KOT:", err);
+        }
+      }
+
+      basePrintOptions = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
         waiter: (() => {
@@ -280,15 +368,21 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderType: orderTypeName,
         vehicleNo: master.vehicleNo || "",
         customerName: resolvedCustomerName,
-        contactNo: resolvedContactNo,
-        flatNo: resolvedFlatNo,
-        buildingNo: resolvedBuildingNo,
-        blockNo: resolvedBlockNo,
-        roadNo: resolvedRoadNo,
-        area: resolvedArea,
-        address: resolvedAddress,
+        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
+        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        change: isDeliveryOrder ? validKeepChange : undefined,
+        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
+        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
+        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
+        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
+        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
+        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
+        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo || "",
-        kotArabic: isKotArabicEnabled()
+        kotArabic: isKotArabicEnabled(),
+        forcedPrint: true
       };
 
       await executeKotRouting(
@@ -302,9 +396,28 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       );
       
       showToast("KOT sent to printers successfully!", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Print KOT Error:", err);
-      showToast("Printing KOT failed", "error");
+      // Fallback: If direct printer communication fails, open browser print preview window
+      try {
+        const headerTitle = "KOT";
+        const kotHtml = await generateKotHtml(mappedItems as any, { ...basePrintOptions, headerTitle });
+        const printWindow = window.open("", "_blank", "width=400,height=600");
+        if (printWindow) {
+          printWindow.document.write(kotHtml);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 300);
+          showToast("Opened KOT in print preview", "info");
+          return;
+        }
+      } catch (fallbackErr) {
+        console.error("KOT fallback window error:", fallbackErr);
+      }
+      showToast(err?.message ? `Printing KOT failed: ${err.message}` : "Printing KOT failed", "error");
     }
   };
 
@@ -463,10 +576,53 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
       let resolvedArea = master.area || master.areaName || "";
       let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-      let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      let resolvedContactNo =
+        master.contactNo ||
+        master.mobileNo ||
+        master.phone ||
+        master.mobile ||
+        order?.contactNo ||
+        order?.mobileNo ||
+        (order as any)?.orderMaster?.contactNo ||
+        (order as any)?.orderMaster?.mobileNo ||
+        fallbackDetails?.deliveryDetails?.mobile ||
+        "";
+      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      let resolvedCallBack = isDeliveryOrder
+        ? (master.callBack ||
+          master.callback ||
+          master.callBackNo ||
+          master.callbackNo ||
+          master.callBackNumber ||
+          master.callbackNumber ||
+          (order as any)?.callBack ||
+          (order as any)?.callback ||
+          (order as any)?.orderMaster?.callBack ||
+          (order as any)?.orderMaster?.callback ||
+          (order as any)?.master?.callBack ||
+          "")
+        : "";
+
       let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
 
-      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
+      let rawChange =
+        master.change ??
+        master.keepChanges ??
+        (order as any)?.change ??
+        (order as any)?.keepChanges ??
+        (order as any)?.orderMaster?.change ??
+        (order as any)?.orderMaster?.keepChanges ??
+        (order as any)?.master?.change ??
+        "";
+
+      const validKeepChange = (isDeliveryOrder && rawChange !== undefined && rawChange !== null &&
+        String(rawChange).trim() !== "" &&
+        String(rawChange).trim() !== "0" &&
+        String(rawChange).trim() !== "0.00" &&
+        String(rawChange).trim() !== "0.000")
+        ? String(rawChange).trim()
+        : undefined;
+
       if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
         try {
           const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
@@ -483,6 +639,50 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           }
         } catch (fetchAddrErr) {
           console.warn("[PosRecallDetailsModal] Could not fetch delivery address fallback for Guest:", fetchAddrErr);
+        }
+      }
+
+      let resolvedDriver =
+        master.driverName ||
+        master.allocatedDriverName ||
+        master.driver ||
+        master.driverEmployeeName ||
+        order?.driverName ||
+        order?.allocatedDriverName ||
+        order?.driver ||
+        order?.driverEmployeeName ||
+        "";
+
+      if (!resolvedDriver && orderDetailsStr) {
+        const match = orderDetailsStr.match(/\(Driver:\s*([^)]+)\)/i) || orderDetailsStr.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      if (!resolvedDriver && typeof master.details === "string") {
+        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      const activeDriverId = master.driverId || order?.driverId;
+      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
+        try {
+          const branchId =
+            Number(localStorage.getItem("systemBranchId")) ||
+            Number(localStorage.getItem("activeBranchId")) ||
+            Number(localStorage.getItem("branchId")) ||
+            1;
+          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
+          const dList = await employeeService.getDrivers(branchId);
+          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
+          if (dFound) {
+            resolvedDriver = dFound.driverName;
+          }
+        } catch (err) {
+          console.warn("[PosRecallDetailsModal] Failed to resolve driver name by id for Guest:", err);
         }
       }
 
@@ -515,14 +715,19 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderType: orderTypeName,
         date, time,
         customerName: resolvedCustomerName,
+        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
         vehicleNo: master.vehicleNo,
-        contactNo: resolvedContactNo,
-        flatNo: resolvedFlatNo,
-        buildingNo: resolvedBuildingNo,
-        blockNo: resolvedBlockNo,
-        roadNo: resolvedRoadNo,
-        area: resolvedArea,
-        address: resolvedAddress,
+        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
+        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        change: isDeliveryOrder ? validKeepChange : undefined,
+        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
+        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
+        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
+        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
+        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
+        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
+        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo || "",
         subTotal: resolvedSubTotal,
         discount: master.discAmount || master.discount || 0,
@@ -537,8 +742,9 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         )
       };
 
+      let htmlContent = "";
       try {
-        const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
+        htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
         
         let billPrinter: string | undefined;
         try {
@@ -562,6 +768,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         showToast("Guest receipt sent to printer!", "success");
       } catch (err: any) {
         console.error("Printer error:", err);
+        try {
+          const printWindow = window.open("", "_blank", "width=400,height=600");
+          if (printWindow) {
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+              printWindow.print();
+              printWindow.close();
+            }, 300);
+            showToast("Opened Guest receipt in print preview", "info");
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error("Guest fallback window error:", fallbackErr);
+        }
         showToast(err?.message ? `Print failed: ${err.message}` : "Failed to connect to printer", "error");
       }
       
@@ -737,14 +959,36 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
         contactNo: master.mobileNo || master.contactNo,
+        callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber,
         note: master.note,
-        change: master.change,
+        change: master.change || master.keepChanges,
         isComing: master.isComing,
         comingTime: master.comingTime,
         vehicleCustomerName: master.vehicleCustomerName,
         vehicleNo: master.vehicleNo,
+        isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
         prevUpdatedAt,
       }));
+
+      if (orderTypeName.toLowerCase().includes("delivery")) {
+        const resolvedChangeVal = master.change ?? master.keepChanges ?? (order as any)?.change ?? (order as any)?.keepChanges ?? "";
+        const resolvedCallBackVal = master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber || "";
+        dispatch(setDeliveryDetails({
+          customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
+          contactNo: master.mobileNo || master.contactNo || "",
+          callBack: resolvedCallBackVal,
+          flatNo: master.flatNo || master.flat || master.flatNumber || "",
+          buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
+          roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
+          blockNo: master.blockNo || master.block || master.blockNumber || "",
+          area: master.area || master.areaName || "",
+          note: master.note || "",
+          addressId: master.addressId || 0,
+          isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
+          isComing: Boolean(master.isComing),
+          change: resolvedChangeVal,
+        }));
+      }
 
       onEditSuccess?.();
       onClose();
@@ -912,8 +1156,9 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
         contactNo: master.mobileNo || master.contactNo,
+        callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber,
         note: master.note,
-        change: master.change,
+        change: master.change || master.keepChanges,
         isComing: master.isComing,
         comingTime: master.comingTime,
         vehicleCustomerName: master.vehicleCustomerName,
@@ -924,14 +1169,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         blockNo: master.blockNo || master.block || master.blockNumber || "",
         roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
         area: master.area || master.areaName || "",
+        isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
         isSettling: true,
         prevUpdatedAt,
       }));
 
       if (orderTypeName.toLowerCase().includes("delivery")) {
-        const deliveryCache = {
+        const resolvedChangeVal = master.change ?? master.keepChanges ?? (order as any)?.change ?? (order as any)?.keepChanges ?? "";
+        const resolvedCallBackVal = master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber || "";
+        dispatch(setDeliveryDetails({
           customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
           contactNo: master.mobileNo || master.contactNo || "",
+          callBack: resolvedCallBackVal,
           flatNo: master.flatNo || master.flat || master.flatNumber || "",
           buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
           roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
@@ -939,8 +1188,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           area: master.area || master.areaName || "",
           note: master.note || "",
           addressId: master.addressId || 0,
-        };
-        sessionStorage.setItem("pos_current_delivery_details", JSON.stringify(deliveryCache));
+          isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
+          isComing: Boolean(master.isComing),
+          change: resolvedChangeVal,
+        }));
       }
 
       onSettleSuccess?.(master.netAmount || 0);
@@ -1045,15 +1296,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   };
   const netAmount = master.netAmount ?? order?.netAmount ?? 0;
 
-  const hasDelivery = !!master.mobileNo;
+  const hasDelivery = !!master.mobileNo || !!master.contactNo || !!master.deliveryCustomerName;
   const deliveryDetails = hasDelivery ? {
-    mobile: master.mobileNo,
+    mobile: master.mobileNo || master.contactNo || "",
     customerName: master.deliveryCustomerName || master.customerName || "",
+    callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || "",
     area: master.area || "",
     block: master.blockNo || "",
     road: master.roadNo || "",
     building: master.buildingNo || "",
     flat: master.flatNo || "",
+    change: master.change || master.keepChanges || "",
   } : order?.deliveryDetails;
 
   return (
@@ -1206,12 +1459,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                 <div className="border-t border-dashed border-stone-400 pt-3 mt-3 text-[10px] space-y-0.5 text-stone-600">
                   <div className="font-bold uppercase tracking-wider text-stone-400 mb-1">Delivery Details</div>
                   {deliveryDetails.mobile && <div><span className="font-bold text-stone-500">Mobile: </span>{deliveryDetails.mobile}</div>}
+                  {deliveryDetails.callBack && <div><span className="font-bold text-stone-500">Call Back: </span>{deliveryDetails.callBack}</div>}
                   {deliveryDetails.customerName && <div><span className="font-bold text-stone-500">Customer: </span>{deliveryDetails.customerName}</div>}
                   {deliveryDetails.flat && <div><span className="font-bold text-stone-500">Flat No: </span>{deliveryDetails.flat}</div>}
                   {deliveryDetails.building && <div><span className="font-bold text-stone-500">Building: </span>{deliveryDetails.building}</div>}
                   {deliveryDetails.block && <div><span className="font-bold text-stone-500">Block: </span>{deliveryDetails.block}</div>}
                   {deliveryDetails.road && <div><span className="font-bold text-stone-500">Road: </span>{deliveryDetails.road}</div>}
                   {deliveryDetails.area && <div><span className="font-bold text-stone-500">Area: </span>{deliveryDetails.area}</div>}
+                  {deliveryDetails.change && <div><span className="font-bold text-stone-500">Keep Change: </span>{deliveryDetails.change}</div>}
                 </div>
               )}
             </div>

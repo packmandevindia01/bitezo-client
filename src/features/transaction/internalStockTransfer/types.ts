@@ -33,8 +33,16 @@ export const InternalStockTransferFormSchema = z.object({
 
 export type InternalStockTransferForm = z.infer<typeof InternalStockTransferFormSchema>;
 
-export interface InternalStockTransferPayload {
-  transId?: number;
+export interface StockTransferDetailItem {
+  productId: number;
+  unitId: number;
+  qty: number;
+  price: number;
+  amount: number;
+  baseQty: number;
+}
+
+export interface InternalStockTransferCreatePayload {
   transDate: string;
   fromBranchId: number;
   toBranchId: number;
@@ -42,12 +50,31 @@ export interface InternalStockTransferPayload {
   netAmount: number;
   narration: string;
   createdAt: string;
-  details: {
-    productId: number;
-    unitId: number;
-    qty: number;
-    price: number;
-    amount: number;
-    baseQty: number;
-  }[];
+  details: StockTransferDetailItem[];
+}
+
+export interface InternalStockTransferUpdatePayload {
+  transId: number;
+  transDate: string;
+  fromBranchId: number;
+  toBranchId: number;
+  employeeId: number;
+  netAmount: number;
+  narration: string;
+  updatedAt: string;
+  details: StockTransferDetailItem[];
+}
+
+export type InternalStockTransferPayload = InternalStockTransferCreatePayload & {
+  transId?: number;
+  updatedAt?: string;
+};
+
+export interface StockTransferListParams {
+  FromBranchId?: number;
+  ToBranchId?: number;
+  FromDate?: string;
+  ToDate?: string;
+  RefNo?: string;
+  Decimals: number;
 }

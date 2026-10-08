@@ -92,6 +92,7 @@ export interface MenuOrderRequest {
   addressId: number;
   missedCall: boolean;
   contactNo: string;
+  callBack?: string;
   note: string;
   change: string;
   isComing: boolean;
@@ -130,6 +131,7 @@ export interface MenuOrderUpdateRequest {
   addressId: number;
   missedCall: boolean;
   contactNo: string;
+  callBack?: string;
   note: string;
   change: string;
   isComing: boolean;

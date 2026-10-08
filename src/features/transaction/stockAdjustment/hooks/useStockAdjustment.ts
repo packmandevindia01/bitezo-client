@@ -2,12 +2,19 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
+import { stockAdjustmentApi, formatDateOnly } from "../services/stockAdjustmentApi";
 import { stockAdjustmentTypeApi } from "../../../inventory/stockAdjustmentType/services/stockAdjustmentTypeApi";
 import { productService } from "../../../inventory/product/services/productService";
 import { createEmptyStockAdjustmentForm } from "../constants";
 import { stockAdjustmentSchema } from "../types";
-import type { StockAdjustmentForm, StockAdjustmentLineItem, StockAdjustmentPayload } from "../types";
+import type { 
+  StockAdjustmentForm, 
+  StockAdjustmentLineItem, 
+  StockAdjustmentCreatePayload,
+  StockAdjustmentUpdatePayload 
+} from "../types";
+
+export { formatDateOnly };
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
@@ -366,7 +373,7 @@ export const useStockAdjustment = (id?: string | null) => {
       const formPayload: any = {
         series: master.narration || master.series || master.seriesName || "",
         refNo: String(master.refNo || transId || ""),
-        date: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
+        date: master.transDate ? formatDateOnly(master.transDate) : formatDateOnly(new Date()),
         branch: String(master.branchId || ""),
         salesman: String(master.employeeId || ""),
         narration: master.narration || master.series || "",
@@ -764,45 +771,56 @@ export const useStockAdjustment = (id?: string | null) => {
         return acc + (line.amount * effect);
       }, 0);
 
-      const payload: StockAdjustmentPayload = {
-        transDate: data.date,
-        branchId: parseInt(data.branch, 10),
-        employeeId: parseInt(data.salesman || "", 10) || 0,
-        netAmount,
-        narration: data.narration || data.series || "",
-        createdAt: new Date().toISOString(),
-        details: validItems.map(item => {
-          const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
-          const unitCurrentValue = (() => {
-            for (const units of Object.values(categoryUnits)) {
-              const found = units.find(u => String(u.value) === String(unitId));
-              if (found && !isNaN(found.currentValue)) return found.currentValue;
-            }
-            const foundMaster = typesData.units?.find((u: any) => String(u.value) === String(unitId));
-            if (foundMaster && !isNaN(foundMaster.currentValue)) return foundMaster.currentValue;
-            return 1;
-          })();
-          return {
-            productId: parseInt(item.product, 10) || 0,
-            unitId,
-            qty: toNumber(item.qty),
-            price: toNumber(item.cost),
-            amount: toNumber(item.qty) * toNumber(item.cost),
-            baseQty: toNumber(item.qty) * unitCurrentValue,
-            typeId: item.typeId || parseInt(item.type, 10) || 0,
-            effect: item.effect || "+",
-          };
-        })
-      };
-
-      console.log("Saving Stock Adjustment payload:", JSON.stringify(payload, null, 2));
+      const vDate = formatDateOnly(data.date);
+      const detailsPayload = validItems.map(item => {
+        const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
+        const unitCurrentValue = (() => {
+          for (const units of Object.values(categoryUnits)) {
+            const found = units.find(u => String(u.value) === String(unitId));
+            if (found && !isNaN(found.currentValue)) return found.currentValue;
+          }
+          const foundMaster = typesData.units?.find((u: any) => String(u.value) === String(unitId));
+          if (foundMaster && !isNaN(foundMaster.currentValue)) return foundMaster.currentValue;
+          return 1;
+        })();
+        return {
+          productId: parseInt(item.product, 10) || 0,
+          unitId,
+          qty: toNumber(item.qty),
+          price: toNumber(item.cost),
+          amount: toNumber(item.qty) * toNumber(item.cost),
+          baseQty: toNumber(item.qty) * unitCurrentValue,
+          typeId: item.typeId || parseInt(item.type, 10) || 0,
+          effect: item.effect || "+",
+        };
+      });
 
       if (id) {
-        payload.transId = Number(id);
-        await stockAdjustmentApi.updateStockAdjustment(Number(id), payload);
+        const updatePayload: StockAdjustmentUpdatePayload = {
+          transId: Number(id),
+          transDate: vDate,
+          branchId: parseInt(data.branch, 10),
+          employeeId: parseInt(data.salesman || "", 10) || 0,
+          netAmount,
+          narration: data.narration || data.series || "",
+          updatedAt: new Date().toISOString(),
+          details: detailsPayload,
+        };
+        console.log("Saving Stock Adjustment update payload:", JSON.stringify(updatePayload, null, 2));
+        await stockAdjustmentApi.updateStockAdjustment(Number(id), updatePayload);
         showToast("Stock adjustment updated successfully", "success");
       } else {
-        await stockAdjustmentApi.createStockAdjustment(payload);
+        const createPayload: StockAdjustmentCreatePayload = {
+          transDate: vDate,
+          branchId: parseInt(data.branch, 10),
+          employeeId: parseInt(data.salesman || "", 10) || 0,
+          netAmount,
+          narration: data.narration || data.series || "",
+          createdAt: new Date().toISOString(),
+          details: detailsPayload,
+        };
+        console.log("Saving Stock Adjustment create payload:", JSON.stringify(createPayload, null, 2));
+        await stockAdjustmentApi.createStockAdjustment(createPayload);
         showToast("Stock adjustment saved successfully", "success");
       }
 

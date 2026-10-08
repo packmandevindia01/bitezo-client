@@ -3,8 +3,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { paymentVoucherSchema } from "../types";
-import type { PaymentVoucherForm, PaymentVoucherPayload } from "../types";
-import { paymentVoucherApi } from "../services/paymentVoucherApi";
+import type { 
+  PaymentVoucherForm, 
+  PaymentVoucherCreatePayload,
+  PaymentVoucherUpdatePayload 
+} from "../types";
+import { paymentVoucherApi, formatDateOnly } from "../services/paymentVoucherApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import type { BranchRecord } from "../../../inventory/branches/types";
 import { useToast } from "../../../../app/providers/useToast";
@@ -16,6 +20,8 @@ import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supp
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { getEmployeeNames, getEmployees } from "../../../general/employee/services/employeeService";
+
+export { formatDateOnly };
 
 export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => void) => {
   const { showToast } = useToast();
@@ -33,7 +39,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
     defaultValues: {
       seriesId: 0,
       prefix: "",
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       voucherNo: "",
       accountId: 0,
       accountName: "",
@@ -336,15 +342,15 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   // 3. Payment Details List
   const currentYear = new Date().getFullYear();
   const [fromDate, setFromDate] = useState<string>(`${currentYear}-01-01`);
-  const [toDate, setToDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState<string>(formatDateOnly(new Date()));
 
   const { data: paymentVouchers = [], isLoading: isLoadingList } = useQuery({
     queryKey: ["paymentVouchers", searchBranchId, fromDate, toDate],
     queryFn: () => paymentVoucherApi.getPaymentDetails({
       BranchId: searchBranchId,
       SeriesId: 0, // 0 for all
-      FromDate: fromDate,
-      ToDate: toDate,
+      FromDate: formatDateOnly(fromDate),
+      ToDate: formatDateOnly(toDate),
       Decimals: decimalPart,
     }),
     enabled: searchBranchId !== 0,
@@ -368,7 +374,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
         reset({
           seriesId: d.seriesId || 0,
           prefix: "",
-          voucherDate: d.voucherDate ? d.voucherDate.split("T")[0] : new Date().toISOString().split("T")[0],
+          voucherDate: formatDateOnly(d.voucherDate),
           voucherNo: d.voucherNo || "",
           accountId: d.accountId || 0,
           accountName: d.accountName || "",
@@ -389,51 +395,53 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
 
   const saveMutation = useMutation({
     mutationFn: async (data: PaymentVoucherForm) => {
-      const payload: PaymentVoucherPayload = {
-        seriesId: Number(data.seriesId),
-        prefix: data.prefix || "",
-        branchId: Number(data.branchId),
-        accountId: Number(data.accountId),
-        paymodeId: Number(data.paymodeId),
-        counterId: 0,
-        dayId: 0,
-        shiftId: 0,
-        employeeId: Number(data.employeeId),
-        voucherDate: data.voucherDate,
-        amount: Number(data.amount),
-        refNo: data.refNo,
-        narration: data.narration,
-        createdAt: new Date().toISOString(),
-      };
-      
-      if (Number(data.paymodeId) === 3 && data.paymodes) {
-        payload.paymodes = data.paymodes;
+      const vDate = formatDateOnly(data.voucherDate);
+      const selectedPaymodeId = Number(data.paymodeId) || 1;
+      const voucherAmount = Number(Number(data.amount).toFixed(decimalPart));
+
+      let paymodesPayload: { paymodeId: number; amount: number }[] = [];
+      if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+        paymodesPayload = data.paymodes.map((p) => ({
+          paymodeId: Number(p.paymodeId),
+          amount: Number(Number(p.amount).toFixed(decimalPart)),
+        }));
       } else {
-        payload.paymodes = [];
+        paymodesPayload = [{ paymodeId: selectedPaymodeId, amount: voucherAmount }];
       }
-      
+
       if (transId) {
-        const updatePayload = {
-          transId: transId,
+        const updatePayload: PaymentVoucherUpdatePayload = {
+          transId: Number(transId),
           branchId: Number(data.branchId),
           accountId: Number(data.accountId),
-          paymodeId: Number(data.paymodeId),
+          paymodeId: selectedPaymodeId,
           employeeId: Number(data.employeeId),
-          voucherDate: data.voucherDate,
-          amount: Number(data.amount),
+          voucherDate: vDate,
+          amount: voucherAmount,
           refNo: data.refNo || "",
           narration: data.narration || "",
           updatedAt: new Date().toISOString(),
+          paymodes: paymodesPayload,
         };
-        
-        if (Number(data.paymodeId) === 3 && data.paymodes) {
-          (updatePayload as any).paymodes = data.paymodes;
-        } else {
-          (updatePayload as any).paymodes = [];
-        }
-        await paymentVoucherApi.updatePayment(transId, updatePayload as any);
+        await paymentVoucherApi.updatePayment(Number(transId), updatePayload);
       } else {
-        await paymentVoucherApi.createPayment(payload);
+        const createPayload: PaymentVoucherCreatePayload = {
+          seriesId: Number(data.seriesId),
+          prefix: data.prefix || "",
+          branchId: Number(data.branchId),
+          accountId: Number(data.accountId),
+          paymodeId: selectedPaymodeId,
+          dayId: 0,
+          shiftId: 0,
+          employeeId: Number(data.employeeId),
+          voucherDate: vDate,
+          amount: voucherAmount,
+          refNo: data.refNo || "",
+          narration: data.narration || "",
+          createdAt: new Date().toISOString(),
+          paymodes: paymodesPayload,
+        };
+        await paymentVoucherApi.createPayment(createPayload);
       }
     },
     onSuccess: () => {
@@ -490,7 +498,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
     reset({
       seriesId: 0,
       prefix: "",
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       voucherNo: "",
       accountId: 0,
       accountName: "",
@@ -502,6 +510,13 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
       narration: "",
     });
   };
+
+  // Auto-select first series if available and not set
+  useEffect(() => {
+    if (!transId && seriesList.length > 0 && (!watch("seriesId") || watch("seriesId") === 0)) {
+      setValue("seriesId", seriesList[0].seriesId, { shouldValidate: true });
+    }
+  }, [seriesList, transId, setValue, watch]);
 
   // Watch for Series change to fetch voucher number
   const selectedSeriesId = watch("seriesId");

@@ -2,10 +2,15 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { physicalEntryApi } from "../services/physicalEntryApi";
+import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { createEmptyPhysicalEntryForm } from "../constants";
 import { physicalEntrySchema } from "../types";
-import type { PhysicalEntryForm, PhysicalEntryLineItem, PhysicalEntryPayload } from "../types";
+import type {
+  PhysicalEntryForm,
+  PhysicalEntryLineItem,
+  PhysicalEntryCreatePayload,
+  PhysicalEntryUpdatePayload,
+} from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
@@ -262,7 +267,7 @@ export const usePhysicalEntry = (id?: string | null) => {
 
         const refNo = (master.refNo ?? master.RefNo ?? id ?? "").toString();
         const transDate = master.transDate ?? master.TransDate;
-        const date = transDate ? String(transDate).split("T")[0] : new Date().toISOString().split("T")[0];
+        const date = transDate ? formatDateOnly(transDate) : formatDateOnly(new Date());
         const branch = (master.branchId ?? master.BranchId ?? "").toString();
         const salesman = (master.employeeId ?? master.EmployeeId ?? "").toString();
         const narration = (master.narration ?? master.Narration ?? "").toString();
@@ -675,22 +680,32 @@ export const usePhysicalEntry = (id?: string | null) => {
         return false;
       }
 
-      const payload: PhysicalEntryPayload = {
-        transDate: data.date,
-        branchId: Number(data.branch),
-        employeeId: Number(data.salesman),
-        netAmount: totals.grandTotal,
-        narration: data.narration || "",
-        createdAt: new Date().toISOString(),
-        details,
-      };
+      const vDate = formatDateOnly(data.date);
 
       if (id) {
-        payload.transId = Number(id);
-        await physicalEntryApi.updatePhysicalEntry(Number(id), payload);
+        const updatePayload: PhysicalEntryUpdatePayload = {
+          transId: Number(id),
+          transDate: vDate,
+          branchId: Number(data.branch),
+          employeeId: Number(data.salesman),
+          netAmount: totals.grandTotal,
+          narration: data.narration || "",
+          updatedAt: new Date().toISOString(),
+          details,
+        };
+        await physicalEntryApi.updatePhysicalEntry(Number(id), updatePayload);
         showToast("Physical entry updated successfully");
       } else {
-        await physicalEntryApi.createPhysicalEntry(payload);
+        const createPayload: PhysicalEntryCreatePayload = {
+          transDate: vDate,
+          branchId: Number(data.branch),
+          employeeId: Number(data.salesman),
+          netAmount: totals.grandTotal,
+          narration: data.narration || "",
+          createdAt: new Date().toISOString(),
+          details,
+        };
+        await physicalEntryApi.createPhysicalEntry(createPayload);
         showToast("Physical entry created successfully");
       }
 

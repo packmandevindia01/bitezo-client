@@ -2,9 +2,13 @@ import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { paymentAgainstVoucherApi } from "../services/paymentAgainstVoucherApi";
+import { paymentAgainstVoucherApi, formatDateOnly } from "../services/paymentAgainstVoucherApi";
 import { paymentAgainstVoucherSchema } from "../schema/paymentAgainstVoucherSchema";
 import type { PaymentAgainstVoucherFormData } from "../schema/paymentAgainstVoucherSchema";
+import type { 
+  PaymentAgainstCreatePayload,
+  PaymentAgainstUpdatePayload
+} from "../types";
 import { useAppSelector } from "../../../../app/hooks";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
@@ -15,6 +19,8 @@ import { paymodeService } from "../../../general/paymode/services/paymodeService
 import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+
+export { formatDateOnly };
 
 export const usePaymentAgainstVoucherForm = (transId?: number) => {
   const queryClient = useQueryClient();
@@ -39,7 +45,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
       accountId: 0,
       paymodeId: 0,
       employeeId,
-      voucherDate: new Date().toISOString().split("T")[0],
+      voucherDate: formatDateOnly(new Date()),
       discount: 0,
       refNo: "",
       narration: "",
@@ -394,7 +400,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
         accountId: md.accountId,
         paymodeId: md.paymodeId,
         employeeId: md.employeeId,
-        voucherDate: md.voucherDate?.split("T")[0] || "",
+        voucherDate: formatDateOnly(md.voucherDate),
         discount: md.discount,
         refNo: md.refNo || "",
         narration: md.narration || "",
@@ -402,7 +408,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
           invoiceId: d.invoiceId,
           voucherType: d.voucherType,
           invoiceNo: d.invoiceNo,
-          invoiceDate: d.invoiceDate?.split("T")[0] || "",
+          invoiceDate: formatDateOnly(d.invoiceDate),
           invoiceAmount: d.invoiceAmount,
           balance: d.invoiceAmount - d.receivedAmount, // Adjust as needed
           amount: Number(d.receivedAmount).toFixed(getDecimalPart())
@@ -414,38 +420,66 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
 
   const saveMutation = useMutation({
     mutationFn: async (data: PaymentAgainstVoucherFormData) => {
-      // Calculate total amount from details
-      const totalAmount = data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const { vchNo: _unusedVchNo, ...restData } = data;
-      
-      const payload: any = {
-        ...restData,
-        transId: transId || 0,
-        details: data.details.map(d => ({ 
-          invoiceId: d.invoiceId,
-          voucherType: d.voucherType,
-          amount: Number(d.amount) 
-        })),
-        amount: totalAmount,
-        dayId: 0,
-        shiftId: 0,
-        createdAt: transId ? undefined : new Date().toISOString(),
-        updatedAt: transId ? new Date().toISOString() : undefined
-      };
+      const vDate = formatDateOnly(data.voucherDate);
+      const decimals = getDecimalPart();
+      const totalAmount = Number(data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0).toFixed(decimals));
+      const selectedPaymodeId = Number(data.paymodeId) || 1;
 
-      if (Number(data.paymodeId) === 3 && data.paymodes) {
-        payload.paymodes = data.paymodes;
+      let paymodesPayload: { paymodeId: number; amount: number }[] = [];
+      if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+        paymodesPayload = data.paymodes.map((p) => ({
+          paymodeId: Number(p.paymodeId),
+          amount: Number(Number(p.amount).toFixed(decimals)),
+        }));
       } else {
-        payload.paymodes = [];
+        paymodesPayload = [{ paymodeId: selectedPaymodeId, amount: totalAmount }];
       }
 
-      console.log("PAYMENT AGAINST PAYLOAD SENT TO BACKEND:", JSON.stringify(payload, null, 2));
+      const detailsPayload = data.details.map((d) => ({
+        invoiceId: Number(d.invoiceId),
+        voucherType: String(d.voucherType || ""),
+        amount: Number(Number(d.amount).toFixed(decimals)),
+      }));
 
       if (transId) {
-        await paymentAgainstVoucherApi.updatePaymentAgainstVoucher(transId, payload);
+        const updatePayload: PaymentAgainstUpdatePayload = {
+          transId: Number(transId),
+          branchId: Number(data.branchId),
+          accountId: Number(data.accountId),
+          paymodeId: selectedPaymodeId,
+          employeeId: Number(data.employeeId),
+          voucherDate: vDate,
+          discount: Number(data.discount || 0),
+          amount: totalAmount,
+          refNo: data.refNo || "",
+          narration: data.narration || "",
+          updatedAt: new Date().toISOString(),
+          details: detailsPayload,
+          paymodes: paymodesPayload,
+        };
+        await paymentAgainstVoucherApi.updatePaymentAgainstVoucher(Number(transId), updatePayload);
         return { id: transId };
       }
-      return paymentAgainstVoucherApi.createPaymentAgainstVoucher(payload);
+
+      const createPayload: PaymentAgainstCreatePayload = {
+        seriesId: Number(data.seriesId),
+        prefix: data.prefix || "",
+        branchId: Number(data.branchId),
+        accountId: Number(data.accountId),
+        paymodeId: selectedPaymodeId,
+        dayId: 0,
+        shiftId: 0,
+        employeeId: Number(data.employeeId),
+        voucherDate: vDate,
+        discount: Number(data.discount || 0),
+        amount: totalAmount,
+        refNo: data.refNo || "",
+        narration: data.narration || "",
+        createdAt: new Date().toISOString(),
+        details: detailsPayload,
+        paymodes: paymodesPayload,
+      };
+      return await paymentAgainstVoucherApi.createPaymentAgainstVoucher(createPayload);
     },
   });
 

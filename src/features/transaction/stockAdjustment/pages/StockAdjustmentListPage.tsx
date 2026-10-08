@@ -5,7 +5,7 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
+import { stockAdjustmentApi, formatDateOnly } from "../services/stockAdjustmentApi";
 
 const StockAdjustmentListPage = () => {
   const navigate = useNavigate();
@@ -124,16 +124,15 @@ const StockAdjustmentListPage = () => {
           loading={loading}
           columns={[
             { header: "Sl No", accessor: "sl" as any, render: (_, index) => (index !== undefined ? index + 1 : "-") },
-            { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString() },
+            { header: "Date", accessor: "transDate", render: (row) => (row.transDate ? formatDateOnly(row.transDate) : "") },
             { header: "Ref No", accessor: "refNo" },
             { header: "Branch", accessor: "branch" },
             { header: "Total Amount", accessor: "netAmount", render: (row) => formatAmount(Number(row.netAmount)), align: "right" },
             {
               header: "Actions",
               accessor: "transId",
-              align: "right",
               render: (row) => (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => navigate(`/dashboard/stock-adjustment?id=${row.transId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"

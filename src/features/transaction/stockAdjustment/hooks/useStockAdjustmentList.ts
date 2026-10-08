@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { stockAdjustmentApi } from "../services/stockAdjustmentApi";
+import { stockAdjustmentApi, formatDateOnly } from "../services/stockAdjustmentApi";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import axiosInstance from "../../../../api/axiosInstance";
+
+export { formatDateOnly };
 
 export const useStockAdjustmentList = () => {
   const queryClient = useQueryClient();
@@ -16,8 +18,8 @@ export const useStockAdjustmentList = () => {
   const [filters, setFilters] = useState({
     branchId: initialBranchId ? String(initialBranchId) : "",
     isBranchLocked,
-    fromDate: new Date(new Date().setDate(1)).toISOString().split("T")[0], 
-    toDate: new Date().toISOString().split("T")[0],
+    fromDate: formatDateOnly(new Date(new Date().setDate(1))), 
+    toDate: formatDateOnly(new Date()),
   });
 
   const { data: branches = [], refetch: refetchBranches } = useQuery({
@@ -141,6 +143,13 @@ export const useStockAdjustmentList = () => {
     return Array.from(branchMap.entries()).map(([value, label]) => ({ value, label }));
   }, [branches, fallbackBranches]);
 
+  // Auto-select first branch if none selected and not locked
+  useEffect(() => {
+    if (!filters.branchId && resolvedBranches.length > 0 && !filters.isBranchLocked) {
+      setFilters(prev => ({ ...prev, branchId: resolvedBranches[0].value }));
+    }
+  }, [filters.branchId, resolvedBranches, filters.isBranchLocked]);
+
   // Always re-fetch branches on mount so newly created branches appear immediately
   useEffect(() => {
     void dispatch(fetchGlobalBranches());
@@ -162,8 +171,8 @@ export const useStockAdjustmentList = () => {
     queryFn: async () => {
       const data = await stockAdjustmentApi.getStockAdjustmentDetails({
         BranchId: filters.branchId ? parseInt(filters.branchId, 10) : undefined,
-        FromDate: filters.fromDate || undefined,
-        ToDate: filters.toDate || undefined,
+        FromDate: formatDateOnly(filters.fromDate),
+        ToDate: formatDateOnly(filters.toDate),
         Decimals: 3
       });
       return (data || []).sort((a: any, b: any) => {

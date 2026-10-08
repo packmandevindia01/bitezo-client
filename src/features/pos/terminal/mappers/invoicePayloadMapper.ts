@@ -37,6 +37,28 @@ export const formatDateOnly = (dateVal: string | Date | undefined | null): strin
   return `${year}-${month}-${day}`;
 };
 
+export const resolveExactTransDate = (sessionDate?: string): string => {
+  const now = new Date();
+  if (!sessionDate) {
+    return now.toISOString();
+  }
+
+  // If sessionDate already has a non-midnight time (e.g. not ending with T00:00:00...)
+  if (sessionDate.includes("T") && !sessionDate.includes("T00:00:00")) {
+    return sessionDate;
+  }
+
+  const datePart = sessionDate.split("T")[0];
+  if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return now.toISOString();
+  }
+
+  const [year, month, day] = datePart.split("-").map(Number);
+  const combined = new Date();
+  combined.setFullYear(year, month - 1, day);
+  return combined.toISOString();
+};
+
 /**
  * Pure Mapper: Builds the SalesInvoicePayload for POST/PUT /sales-invoices.
  * Guarantees that paymodes balance and line totals conform to backend DTO specs.
@@ -63,9 +85,7 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     systemSeriesId = 1;
   }
 
-  const activeTransDateIso = transDate && transDate.includes("T")
-    ? transDate
-    : (transDate ? new Date(transDate).toISOString() : new Date().toISOString());
+  const activeTransDateIso = resolveExactTransDate(transDate);
 
   const activeTransDateOnly = activeTransDateIso.split("T")[0];
   const activeDriverId = orderPayload.driverId || Number(localStorage.getItem("selectedDriverId") || 0);
@@ -120,6 +140,7 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     vatAmount: orderPayload.vatAmount,
     netAmount: orderPayload.netAmount,
     deliveryCharge: orderPayload.deliveryCharge,
+    callBack: orderPayload.orderTypeId === 4 ? (orderPayload.callBack || "") : "",
     createdAt: new Date().toISOString(),
     updateAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -133,8 +154,9 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       addressId: orderPayload.addressId,
       missedCall: orderPayload.missedCall,
       contactNo: orderPayload.contactNo,
+      callBack: orderPayload.orderTypeId === 4 ? (orderPayload.callBack || "") : "",
       note: orderPayload.note,
-      change: orderPayload.change || "0.00",
+      change: (orderPayload.orderTypeId === 4 && orderPayload.change && orderPayload.change !== "0.00" && orderPayload.change !== "0" && orderPayload.change !== "0.000") ? String(orderPayload.change) : "",
       isComing: orderPayload.isComing,
       comingTime: orderPayload.comingTime || new Date().toISOString(),
       providerNo: orderPayload.providerNo,

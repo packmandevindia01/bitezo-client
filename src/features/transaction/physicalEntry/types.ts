@@ -39,8 +39,7 @@ export interface PhysicalEntryPayloadDetail {
   baseQty: number;
 }
 
-export interface PhysicalEntryPayload {
-  transId?: number;
+export interface PhysicalEntryCreatePayload {
   transDate: string;
   branchId: number;
   employeeId: number;
@@ -49,6 +48,22 @@ export interface PhysicalEntryPayload {
   createdAt: string;
   details: PhysicalEntryPayloadDetail[];
 }
+
+export interface PhysicalEntryUpdatePayload {
+  transId: number;
+  transDate: string;
+  branchId: number;
+  employeeId: number;
+  netAmount: number;
+  narration: string;
+  updatedAt: string;
+  details: PhysicalEntryPayloadDetail[];
+}
+
+export type PhysicalEntryPayload = PhysicalEntryCreatePayload & {
+  transId?: number;
+  updatedAt?: string;
+};
 
 export interface PhysicalEntryDetailParams {
   BranchId?: number;

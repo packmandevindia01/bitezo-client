@@ -2,13 +2,19 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { internalStockTransferApi } from "../services/internalStockTransferApi";
+import { internalStockTransferApi, formatDateOnly } from "../services/internalStockTransferApi";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { productService } from "../../../inventory/product/services/productService";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { formatAmount } from "../../../../utils/currency";
-import { InternalStockTransferFormSchema, type InternalStockTransferForm, type InternalStockTransferLineItem, type InternalStockTransferPayload } from "../types";
+import {
+  InternalStockTransferFormSchema,
+  type InternalStockTransferForm,
+  type InternalStockTransferLineItem,
+  type InternalStockTransferCreatePayload,
+  type InternalStockTransferUpdatePayload
+} from "../types";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
@@ -28,7 +34,7 @@ const calculateLine = (item: any) => {
 
 export const initialTransferForm: InternalStockTransferForm = {
   refNo: "",
-  date: new Date().toISOString().split("T")[0],
+  date: formatDateOnly(new Date()),
   fromBranch: "",
   toBranch: "",
   salesman: "",
@@ -265,7 +271,7 @@ export const useInternalStockTransfer = (id?: string) => {
       
       const formPayload: any = {
         refNo: String(master.refNo || transId || ""),
-        date: master.transDate ? master.transDate.split("T")[0] : new Date().toISOString().split("T")[0],
+        date: master.transDate ? formatDateOnly(master.transDate) : formatDateOnly(new Date()),
         fromBranch: String(master.fromBranchId || master.branchId || ""),
         toBranch: String(master.toBranchId || ""),
         salesman: String(master.employeeId || ""),
@@ -441,40 +447,52 @@ export const useInternalStockTransfer = (id?: string) => {
         return acc + line.amount;
       }, 0);
 
-      const payload: InternalStockTransferPayload = {
-        transDate: data.date,
-        fromBranchId: parseInt(data.fromBranch, 10),
-        toBranchId: parseInt(data.toBranch, 10),
-        employeeId: parseInt(data.salesman || "", 10) || 0,
-        netAmount,
-        narration: data.narration || "",
-        createdAt: new Date().toISOString(),
-        details: validItems.map(item => {
-          const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
-          const unitCurrentValue = (() => {
-            for (const units of Object.values(categoryUnits)) {
-              const found = units.find(u => String(u.value) === String(unitId));
-              if (found && !isNaN(found.currentValue)) return found.currentValue;
-            }
-            return 1;
-          })();
-          return {
-            productId: parseInt(item.product, 10) || 0,
-            unitId,
-            qty: toNumber(item.qty),
-            price: toNumber(item.cost),
-            amount: toNumber(item.qty) * toNumber(item.cost),
-            baseQty: toNumber(item.qty) * unitCurrentValue
-          };
-        })
-      };
+      const vDate = formatDateOnly(data.date);
+      const details = validItems.map(item => {
+        const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
+        const unitCurrentValue = (() => {
+          for (const units of Object.values(categoryUnits)) {
+            const found = units.find(u => String(u.value) === String(unitId));
+            if (found && !isNaN(found.currentValue)) return found.currentValue;
+          }
+          return 1;
+        })();
+        return {
+          productId: parseInt(item.product, 10) || 0,
+          unitId,
+          qty: toNumber(item.qty),
+          price: toNumber(item.cost),
+          amount: toNumber(item.qty) * toNumber(item.cost),
+          baseQty: toNumber(item.qty) * unitCurrentValue
+        };
+      });
 
       if (id) {
-        payload.transId = Number(id);
-        await internalStockTransferApi.updateTransfer(Number(id), payload);
+        const updatePayload: InternalStockTransferUpdatePayload = {
+          transId: Number(id),
+          transDate: vDate,
+          fromBranchId: parseInt(data.fromBranch, 10),
+          toBranchId: parseInt(data.toBranch, 10),
+          employeeId: parseInt(data.salesman || "", 10) || 0,
+          netAmount,
+          narration: data.narration || "",
+          updatedAt: new Date().toISOString(),
+          details
+        };
+        await internalStockTransferApi.updateTransfer(Number(id), updatePayload);
         showToast("Stock transfer updated successfully", "success");
       } else {
-        await internalStockTransferApi.createTransfer(payload);
+        const createPayload: InternalStockTransferCreatePayload = {
+          transDate: vDate,
+          fromBranchId: parseInt(data.fromBranch, 10),
+          toBranchId: parseInt(data.toBranch, 10),
+          employeeId: parseInt(data.salesman || "", 10) || 0,
+          netAmount,
+          narration: data.narration || "",
+          createdAt: new Date().toISOString(),
+          details
+        };
+        await internalStockTransferApi.createTransfer(createPayload);
         showToast("Stock transfer saved successfully", "success");
       }
 

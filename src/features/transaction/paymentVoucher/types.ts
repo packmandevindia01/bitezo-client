@@ -46,25 +46,38 @@ export const paymentVoucherSchema = z.object({
 
 export type PaymentVoucherForm = z.infer<typeof paymentVoucherSchema>;
 
-export interface PaymentVoucherPayload {
-  transId?: number;
+export interface PaymentVoucherCreatePayload {
   seriesId: number;
   prefix: string;
   branchId: number;
   accountId: number;
   paymodeId: number;
-  counterId: number;
   dayId: number;
   shiftId: number;
   employeeId: number;
-  voucherDate: string;
+  voucherDate: string; // YYYY-MM-DD
   amount: number;
   refNo?: string;
   narration?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  paymodes?: { paymodeId: number; amount: number }[];
+  createdAt: string; // ISO
+  paymodes: { paymodeId: number; amount: number }[];
 }
+
+export interface PaymentVoucherUpdatePayload {
+  transId: number;
+  branchId: number;
+  accountId: number;
+  paymodeId: number;
+  employeeId: number;
+  voucherDate: string; // YYYY-MM-DD
+  amount: number;
+  refNo?: string;
+  narration?: string;
+  updatedAt: string; // ISO
+  paymodes: { paymodeId: number; amount: number }[];
+}
+
+export type PaymentVoucherPayload = PaymentVoucherCreatePayload | PaymentVoucherUpdatePayload;
 
 export interface PaymentMasterData {
   series: { seriesId: number; seriesName: string; prefix: string; startNo: number; branchId: number; }[];

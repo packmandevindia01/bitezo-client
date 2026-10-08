@@ -24,6 +24,13 @@ export const orderApi = {
     } else {
       payload.voucherDate = new Date().toISOString().split("T")[0];
     }
+
+    if (!payload.createdAt) {
+      payload.createdAt = new Date().toISOString();
+    } else if (!payload.createdAt.includes("T")) {
+      payload.createdAt = new Date(payload.createdAt).toISOString();
+    }
+
     // Remove fields not in CreateKotOrderDto
     delete (payload as any).orderId;
     delete (payload as any).driverId;

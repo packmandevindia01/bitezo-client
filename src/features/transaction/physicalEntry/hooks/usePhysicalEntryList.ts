@@ -1,25 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { physicalEntryApi } from "../services/physicalEntryApi";
+import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
-
-const toYYYYMMDD = (val?: string): string | undefined => {
-  if (!val) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-  const parts = val.split(/[-/]/);
-  if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  }
-  try {
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
-  } catch {}
-  return val;
-};
 
 export const usePhysicalEntryList = () => {
   const queryClient = useQueryClient();
@@ -29,8 +15,8 @@ export const usePhysicalEntryList = () => {
   const [filters, setFilters] = useState({
     branchId: initialBranchId ? String(initialBranchId) : "",
     isBranchLocked,
-    fromDate: new Date(new Date().setDate(1)).toISOString().split("T")[0], 
-    toDate: new Date().toISOString().split("T")[0],
+    fromDate: formatDateOnly(new Date(new Date().setDate(1))), 
+    toDate: formatDateOnly(new Date()),
   });
 
   const { data: branches = [], refetch: refetchBranches } = useQuery({
@@ -128,8 +114,8 @@ export const usePhysicalEntryList = () => {
     queryFn: async () => {
       const data = await physicalEntryApi.getPhysicalEntryDetails({
         BranchId: filters.branchId ? parseInt(filters.branchId, 10) : undefined,
-        FromDate: toYYYYMMDD(filters.fromDate),
-        ToDate: toYYYYMMDD(filters.toDate),
+        FromDate: formatDateOnly(filters.fromDate),
+        ToDate: formatDateOnly(filters.toDate),
         Decimals: 3
       });
       const list: any[] = Array.isArray(data) ? data : ((data as any)?.data || []);

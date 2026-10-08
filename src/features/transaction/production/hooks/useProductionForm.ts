@@ -4,10 +4,14 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { productionApi } from "../services/productionApi";
+import { productionApi, formatDateOnly } from "../services/productionApi";
 import { productService } from "../../../inventory/product/services/productService";
 import { productionSchema } from "../types";
-import type { ProductionForm, ProductionPayload } from "../types";
+import type {
+  ProductionForm,
+  ProductionCreatePayload,
+  ProductionUpdatePayload,
+} from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
@@ -45,6 +49,7 @@ export const useProductionForm = (initialTransId?: number) => {
       branchId: "",
       employeeId: "",
       productionNo: "",
+      date: formatDateOnly(new Date()),
       finishedProduct: "",
       finishedProductCode: "",
       finishedProductUnit: "",
@@ -268,10 +273,12 @@ export const useProductionForm = (initialTransId?: number) => {
       if (finishedUnits && finishedUnits.length > 0) {
         setFinishedProductUnits(finishedUnits);
       }
+      const transDate = master.productionDate || master.transDate || master.Date || master.date;
       reset({
         branchId: String(master.branchId || ""),
         employeeId: String(master.employeeId || ""),
         productionNo: String(master.productionNo || master.prodNo || master.refNo || initialTransId),
+        date: transDate ? formatDateOnly(transDate) : formatDateOnly(new Date()),
         finishedProduct: String(master.productId || ""),
         finishedProductCode: finishedProdCode,
         finishedProductName: finishedProdName,
@@ -537,45 +544,61 @@ export const useProductionForm = (initialTransId?: number) => {
   const saveMutation = useMutation({
     mutationFn: async (data: ProductionForm) => {
       const fpVal = finishedProductUnits.find(u => String(u.value) === String(data.finishedProductUnit))?.currentValue ?? 1;
-      const payload: ProductionPayload = {
-        transId: initialTransId || 0,
-        productionDate: new Date().toISOString().split('T')[0],
-        productId: Number(data.finishedProduct),
-        unitId: Number(data.finishedProductUnit),
-        qty: Number(data.finishedProductQty),
-        cost: totals.grandTotal,
-        totalWage: Number(data.otherCharge),
-        amount: totals.grandTotal,
-        baseQty: Number(data.finishedProductQty) * fpVal,
-        branchId: Number(data.branchId),
-        employeeId: Number(data.employeeId),
-        narration: data.narration || "",
-        createdAt: new Date().toISOString(),
-        details: data.items.filter(item => item.product).map(item => {
-          const uId = Number(item.unitId || item.unit);
-          const uVal = (() => {
-            for (const units of Object.values(categoryUnits)) {
-              const found = units.find(u => String(u.value) === String(uId));
-              if (found && !isNaN(found.currentValue)) return found.currentValue;
-            }
-            return 1;
-          })();
-          return {
-            productId: Number(item.productId || item.product),
-            unitId: uId,
-            qty: Number(item.qty),
-            cost: Number(item.cost),
-            amount: Number(item.qty) * Number(item.cost),
-            baseQty: Number(item.qty) * uVal
-          };
-        })
-      };
+      const vDate = formatDateOnly(data.date);
+      const details = data.items.filter(item => item.product).map(item => {
+        const uId = Number(item.unitId || item.unit);
+        const uVal = (() => {
+          for (const units of Object.values(categoryUnits)) {
+            const found = units.find(u => String(u.value) === String(uId));
+            if (found && !isNaN(found.currentValue)) return found.currentValue;
+          }
+          return 1;
+        })();
+        return {
+          productId: Number(item.productId || item.product),
+          unitId: uId,
+          qty: Number(item.qty),
+          cost: Number(item.cost),
+          amount: Number(item.qty) * Number(item.cost),
+          baseQty: Number(item.qty) * uVal
+        };
+      });
 
       if (initialTransId) {
-        payload.transId = initialTransId;
-        await productionApi.updateProduction(initialTransId, payload);
+        const updatePayload: ProductionUpdatePayload = {
+          transId: initialTransId,
+          productionDate: vDate,
+          productId: Number(data.finishedProduct),
+          unitId: Number(data.finishedProductUnit),
+          qty: Number(data.finishedProductQty),
+          cost: totals.grandTotal,
+          totalWage: Number(data.otherCharge),
+          amount: totals.grandTotal,
+          baseQty: Number(data.finishedProductQty) * fpVal,
+          branchId: Number(data.branchId),
+          employeeId: Number(data.employeeId),
+          narration: data.narration || "",
+          updateAt: new Date().toISOString(),
+          details
+        };
+        await productionApi.updateProduction(initialTransId, updatePayload);
       } else {
-        await productionApi.createProduction(payload);
+        const createPayload: ProductionCreatePayload = {
+          productionDate: vDate,
+          productId: Number(data.finishedProduct),
+          unitId: Number(data.finishedProductUnit),
+          qty: Number(data.finishedProductQty),
+          cost: totals.grandTotal,
+          totalWage: Number(data.otherCharge),
+          amount: totals.grandTotal,
+          baseQty: Number(data.finishedProductQty) * fpVal,
+          branchId: Number(data.branchId),
+          employeeId: Number(data.employeeId),
+          narration: data.narration || "",
+          createdAt: new Date().toISOString(),
+          details
+        };
+        await productionApi.createProduction(createPayload);
       }
     },
     onSuccess: () => {

@@ -241,6 +241,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const isDriveThru = data.orderType?.toLowerCase().includes("drive");
   const isDineIn   = data.orderType?.toLowerCase().includes("dine");
   const isDelivery = data.orderType?.toLowerCase().includes("delivery");
+  const driverVal = (data.driverName || data.driver || "").trim();
 
   const cartVatSum = cartDetails.reduce((s: number, it: any) => s + (it.vatAmount || 0), 0);
   const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
@@ -293,7 +294,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     markup += twoCol(`Inv No: ${invDisplay}`, `Order No ${formatOrderNo(data.orderNo)}`) + "\n";
     markup += twoCol(`Ticket No #${data.ticketNo}`, `Date: ${dateStr}`) + "\n";
     markup += twoCol(`Time: ${timeStr}`, `Employee: ${data.waiter}`) + "\n";
-    if (data.counter) markup += twoCol(`Counter: ${data.counter}`, isDineIn ? `Section: ${data.section}` : "") + "\n";
+    if (data.counter) markup += twoCol(`Counter: ${data.counter}`, isDineIn ? `Section: ${data.section}` : (driverVal ? `Driver: ${driverVal}` : "")) + "\n";
     if (isDineIn && data.table) markup += `[L]Table: ${data.table}\n`;
   } else {
     markup += twoCol(`Order No ${formatOrderNo(data.orderNo)}`, `Ticket No #${data.ticketNo}`) + "\n";
@@ -301,6 +302,8 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     markup += twoCol(`Employee: ${data.waiter}`, `Counter: ${data.counter}`) + "\n";
     if (isDineIn) {
       markup += twoCol(`Section: ${data.section}`, `Table: ${data.table}`) + "\n";
+    } else if (driverVal) {
+      markup += twoCol(`Driver: ${driverVal}`, "") + "\n";
     }
   }
   markup += `[L]${DASH_SEP}\n`;
@@ -435,20 +438,25 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     markup += `[L]${DASH_SEP}\n`;
   }
 
-  // ── Delivery / Drive-thru details ─────────────────────────────────────────
-  if ((isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) {
+  // ── Delivery details (ONLY for Delivery orders) ─────────────────────────
+  const keepChangeVal = (data.change || data.keepChanges || "").trim();
+  const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
+
+  if (isDelivery && (data.customerName || driverVal || data.contactNo || data.callBack || hasValidKeepChange || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) {
     markup += `[L]${DASH_SEP}\n`;
-    markup += `[C]<b>${isDelivery ? "DELIVERY DETAILS" : "CUSTOMER DETAILS"}</b>\n`;
+    markup += `[C]<b>DELIVERY DETAILS</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     if (data.contactNo)  markup += twoCol("Mob No",      data.contactNo)  + "\n";
+    if (data.callBack)   markup += twoCol("Call Back",    data.callBack)   + "\n";
+    if (hasValidKeepChange) markup += twoCol("Keep Change", keepChangeVal) + "\n";
     if (data.customerName) markup += twoCol("Customer",  data.customerName) + "\n";
+    if (driverVal)       markup += twoCol("Driver",       driverVal)       + "\n";
     if (data.flatNo)     markup += twoCol("Flat No",     data.flatNo)     + "\n";
     if (data.buildingNo) markup += twoCol("Building",    data.buildingNo) + "\n";
     if (data.blockNo)    markup += twoCol("Block",       data.blockNo)    + "\n";
     if (data.roadNo)     markup += twoCol("Road",        data.roadNo)     + "\n";
     if (data.area)       markup += twoCol("Area",        data.area)       + "\n";
     if (data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo) markup += twoCol("Address", data.address) + "\n";
-    if (data.vehicleNo)  markup += twoCol("Vehicle No",  data.vehicleNo)  + "\n";
     if (data.providerNo) markup += twoCol("Provider No", data.providerNo) + "\n";
   }
 
@@ -506,13 +514,11 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const orderTypeAr = orderTypeArabicMap[orderTypeStr] || "";
 
   const isDineIn = orderTypeStr === "DINE IN";
+  const isDelivery = orderTypeStr === "DELIVERY" || Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
   const headerTitle = (data.headerTitle || "KOT").toUpperCase();
   const kotTitleDisplay = headerTitle + (isKotArabic && headerTitle === "KOT" ? " / طلب المطبخ" : "");
-  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
 
   let markup = "";
-  let totalVat = 0;
-  let grandTotal = 0;
 
   // ── KOT Header ──────────────────────────────────────────────────────────────
   markup += `[C]${SEPARATOR}\n`;
@@ -529,25 +535,37 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   }
   if (data.vehicleNo)   markup += `[L]Vehicle No: ${data.vehicleNo}\n`;
   if (data.customerName) markup += `[L]Customer: ${data.customerName}\n`;
+  if (isDelivery) {
+    const kotKeepChange = (data.change || data.keepChanges || "").trim();
+    const hasKotKeepChange = kotKeepChange !== "" && kotKeepChange !== "0" && kotKeepChange !== "0.00" && kotKeepChange !== "0.000";
+    const driverVal = (data.driverName || data.driver || "").trim();
+    if (data.contactNo)    markup += `[L]Mob No: ${data.contactNo}\n`;
+    if (data.callBack)     markup += `[L]Call Back: ${data.callBack}\n`;
+    if (hasKotKeepChange)  markup += `[L]Keep Change: ${kotKeepChange}\n`;
+    if (driverVal)         markup += `[L]Driver: ${driverVal}\n`;
+    if (data.flatNo)       markup += `[L]Flat No: ${data.flatNo}\n`;
+    if (data.buildingNo)   markup += `[L]Building: ${data.buildingNo}\n`;
+    if (data.blockNo)      markup += `[L]Block: ${data.blockNo}\n`;
+    if (data.roadNo)       markup += `[L]Road: ${data.roadNo}\n`;
+    if (data.area)         markup += `[L]Area: ${data.area}\n`;
+    if (data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo) {
+      markup += `[L]Address: ${data.address}\n`;
+    }
+  }
 
-  const rawKotHeader = data.kotHeader || localStorage.getItem("kotHeader") || "QTY,DESCRIPTION,AMT";
+  const rawKotHeader = data.kotHeader || localStorage.getItem("kotHeader") || "QTY,DESCRIPTION";
   const kotHeaderStyle = rawKotHeader.toUpperCase().replace(/\s+/g, "");
 
   markup += `[L]${SEPARATOR}\n`;
-  if (kotHeaderStyle === "QTY,DESCRIPTION") {
+  if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+    markup += `[L]<b>${padRight("Description", LINE_WIDTH - 6)} ${padLeft("Qty", 5)}</b>\n`;
+    if (isKotArabic) {
+      markup += `[L]<b>${padRight("الصنف", LINE_WIDTH - 6)} ${padLeft("الكمية", 5)}</b>\n`;
+    }
+  } else {
     markup += `[L]<b>${padRight("Qty", 5)} ${padRight("Description", LINE_WIDTH - 6)}</b>\n`;
     if (isKotArabic) {
       markup += `[L]<b>${padRight("الكمية", 5)} ${padRight("الصنف", LINE_WIDTH - 6)}</b>\n`;
-    }
-  } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-    markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Qty", 4)} ${padLeft("Amount", 10)}</b>\n`;
-    if (isKotArabic) {
-      markup += `[L]<b>${padRight("الصنف", LINE_WIDTH - 16)} ${padLeft("الكمية", 4)} ${padLeft("المبلغ", 10)}</b>\n`;
-    }
-  } else {
-    markup += `[L]<b>${padRight("Qty", 4)} ${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Amount", 10)}</b>\n`;
-    if (isKotArabic) {
-      markup += `[L]<b>${padRight("الكمية", 4)} ${padRight("الصنف", LINE_WIDTH - 16)} ${padLeft("المبلغ", 10)}</b>\n`;
     }
   }
   markup += `[L]${SEPARATOR}\n`;
@@ -559,33 +577,17 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
       name += ` - ${item.variantName.toUpperCase()}`;
     }
     const qty = item.quantity;
-    let extrasSum = 0;
-    if (item.extras && item.extras.length > 0) {
-      item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
-    }
 
-    let baseAmt = (item as any).lineTotal;
-    if (baseAmt !== undefined) baseAmt -= extrasSum;
-    else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
-    const amtStr = Number(baseAmt || 0).toFixed(decimalPart);
-
-    if (kotHeaderStyle === "QTY,DESCRIPTION") {
+    if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+      const qStr = padLeft(`x${qty}`, 5);
+      const maxName = LINE_WIDTH - qStr.length - 1;
+      const nameStr = padRight(trunc(name, maxName), maxName);
+      markup += `[L]${nameStr} ${qStr}\n`;
+    } else {
       const qtyStr = padRight(`x${qty}`, 4);
       const maxName = LINE_WIDTH - qtyStr.length - 1;
       const nameStr = padRight(trunc(name, maxName), maxName);
       markup += `[L]${qtyStr} ${nameStr}\n`;
-    } else if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-      const aStr = padLeft(amtStr, 10);
-      const qStr = padLeft(String(qty), 4);
-      const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
-      const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]${nameStr} ${qStr} ${aStr}\n`;
-    } else {
-      const aStr = padLeft(amtStr, 10);
-      const qStr = padRight(`x${qty}`, 4);
-      const maxName = LINE_WIDTH - aStr.length - qStr.length - 2;
-      const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]${qStr} ${nameStr} ${aStr}\n`;
     }
 
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
@@ -598,12 +600,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
       item.extras.forEach(ex => {
         const exName = `  + ${(ex.name || "EXTRA").toUpperCase()}`;
         const exQty = padLeft(String(ex.qty || 1), 5);
-        if (kotHeaderStyle === "QTY,DESCRIPTION") {
-          markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
-        } else {
-          const exAmt = Number(ex.price * (ex.qty || 1)).toFixed(decimalPart);
-          markup += itemLine(exName, ex.qty || 1, exAmt) + "\n";
-        }
+        markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
       });
     }
 
@@ -620,25 +617,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
         markup += `[L]  NOTE: ${(msg.name || "").toUpperCase()}\n`;
       });
     }
-
-    // Accumulate totals
-    const itemVat = (item as any).vatAmount || 0;
-    let itemNet = (item as any).lineTotal;
-    if (itemNet === undefined) {
-      itemNet = baseAmt + extrasSum + itemVat;
-    }
-    totalVat += itemVat;
-    grandTotal += itemNet;
   });
-
-  const showTotals = kotHeaderStyle.includes("AMT");
-  if (showTotals && grandTotal > 0) {
-    markup += `[L]${DASH_SEP}\n`;
-    if (totalVat > 0) {
-      markup += totalsLine(isKotArabic ? "VAT Amount (الضريبة)" : "VAT Amount", Number(totalVat).toFixed(decimalPart), true) + "\n";
-    }
-    markup += totalsLine(isKotArabic ? "Total (المجموع)" : "Total", Number(grandTotal).toFixed(decimalPart), true) + "\n";
-  }
 
   markup += `[L]${SEPARATOR}\n`;
   markup += `[L] \n[L] \n`; // feed before cut

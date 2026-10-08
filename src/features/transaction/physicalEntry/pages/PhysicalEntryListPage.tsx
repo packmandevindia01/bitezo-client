@@ -4,7 +4,7 @@ import { usePhysicalEntryList } from "../hooks/usePhysicalEntryList";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
-import { physicalEntryApi } from "../services/physicalEntryApi";
+import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { useQueryClient } from "@tanstack/react-query";
 
 const PhysicalEntryListPage = () => {
@@ -123,16 +123,16 @@ const PhysicalEntryListPage = () => {
           loading={loading}
           columns={[
             { header: "Sl No", accessor: "sl" as any, render: (_, index) => (index !== undefined ? index + 1 : "-"), align: "center" },
-            { header: "Date", accessor: "transDate", render: (row) => new Date(row.transDate).toLocaleDateString(), align: "center" },
+            { header: "Date", accessor: "transDate", render: (row) => row.transDate ? formatDateOnly(row.transDate) : "", align: "center" },
             { header: "Ref No", accessor: "refNo", align: "center" },
             { header: "Branch", accessor: "branch", align: "center" },
             { header: "Total Amount", accessor: "netAmount", render: (row) => formatAmount(Number(row.netAmount)), align: "right" },
             {
               header: "Actions",
               accessor: "transId",
-              align: "right",
+              align: "center",
               render: (row) => (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => navigate(`/dashboard/physical-entry?id=${row.transId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"

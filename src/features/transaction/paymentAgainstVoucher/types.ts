@@ -54,8 +54,7 @@ export interface PaymentAgainstPaymodePayload {
   amount: number;
 }
 
-export interface PaymentAgainstPayload {
-  transId?: number;
+export interface PaymentAgainstCreatePayload {
   seriesId: number;
   prefix: string;
   branchId: number;
@@ -64,16 +63,33 @@ export interface PaymentAgainstPayload {
   dayId: number;
   shiftId: number;
   employeeId: number;
-  voucherDate: string;
+  voucherDate: string; // YYYY-MM-DD
   discount: number;
   amount: number;
-  refNo: string;
-  narration: string;
-  createdAt?: string; // e.g. "2026-06-28T18:48:37.268Z"
-  updatedAt?: string; // used for PUT
+  refNo?: string;
+  narration?: string;
+  createdAt: string; // ISO
   details: PaymentAgainstDetailPayload[];
-  paymodes?: PaymentAgainstPaymodePayload[];
+  paymodes: PaymentAgainstPaymodePayload[];
 }
+
+export interface PaymentAgainstUpdatePayload {
+  transId: number;
+  branchId: number;
+  accountId: number;
+  paymodeId: number;
+  employeeId: number;
+  voucherDate: string; // YYYY-MM-DD
+  discount: number;
+  amount: number;
+  refNo?: string;
+  narration?: string;
+  updatedAt: string; // ISO
+  details: PaymentAgainstDetailPayload[];
+  paymodes: PaymentAgainstPaymodePayload[];
+}
+
+export type PaymentAgainstPayload = PaymentAgainstCreatePayload | PaymentAgainstUpdatePayload;
 
 export interface PaymentAgainstListItem {
   transId: number;

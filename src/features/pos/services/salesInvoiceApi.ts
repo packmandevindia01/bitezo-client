@@ -103,10 +103,17 @@ export const salesInvoiceApi = {
       if (!postPayload.createdAt) {
         postPayload.createdAt = new Date().toISOString();
       }
-      if (!postPayload.transDate) {
-        postPayload.transDate = new Date().toISOString();
-      } else if (!postPayload.transDate.includes("T")) {
-        postPayload.transDate = new Date(postPayload.transDate).toISOString();
+      if (!postPayload.transDate || postPayload.transDate.includes("T00:00:00") || !postPayload.transDate.includes("T")) {
+        const now = new Date();
+        const datePart = (postPayload.transDate || "").split("T")[0];
+        if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          const [year, month, day] = datePart.split("-").map(Number);
+          const combined = new Date();
+          combined.setFullYear(year, month - 1, day);
+          postPayload.transDate = combined.toISOString();
+        } else {
+          postPayload.transDate = now.toISOString();
+        }
       }
 
       const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));

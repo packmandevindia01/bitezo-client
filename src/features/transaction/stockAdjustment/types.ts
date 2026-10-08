@@ -47,16 +47,28 @@ export interface StockAdjustmentPayloadDetail {
   effect: string;
 }
 
-export interface StockAdjustmentPayload {
-  transId?: number;
-  transDate: string;
+export interface StockAdjustmentCreatePayload {
+  transDate: string; // YYYY-MM-DD
   branchId: number;
   employeeId: number;
   netAmount: number;
-  narration: string;
-  createdAt: string;
+  narration?: string;
+  createdAt: string; // ISO
   details: StockAdjustmentPayloadDetail[];
 }
+
+export interface StockAdjustmentUpdatePayload {
+  transId: number;
+  transDate: string; // YYYY-MM-DD
+  branchId: number;
+  employeeId: number;
+  netAmount: number;
+  narration?: string;
+  updatedAt: string; // ISO
+  details: StockAdjustmentPayloadDetail[];
+}
+
+export type StockAdjustmentPayload = StockAdjustmentCreatePayload | StockAdjustmentUpdatePayload;
 
 export interface StockAdjustmentDetailParams {
   BranchId?: number;

@@ -3,6 +3,7 @@ import { Save, Trash2, Plus, PackagePlus, Loader2, X as CloseIcon } from "lucide
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useProductionForm } from "../hooks/useProductionForm";
+import { formatDateOnly } from "../services/productionApi";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { FormProvider, Controller } from "react-hook-form";
@@ -84,7 +85,7 @@ const ProductionPage = () => {
     }
   };
 
-  useEffect(() => { setTimeout(() => { document.getElementById("prod-branch")?.focus(); }, 200); }, []);
+  useEffect(() => { setTimeout(() => { document.getElementById("prod-date")?.focus(); }, 200); }, []);
 
   const watchedItems = watch("items") || [];
   const [activeRowIndex, setActiveRowIndex] = useState<number>(0);
@@ -118,7 +119,19 @@ const ProductionPage = () => {
           {/* ── Scrollable Body ── */}
           <div className="flex-1 overflow-y-auto p-3 md:p-4">
           
-            <div className="mb-2 grid gap-x-2 gap-y-1.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 border-b border-gray-100 pb-2">
+            <div className="mb-2 grid gap-x-2 gap-y-1.5 grid-cols-2 sm:grid-cols-4 md:grid-cols-5 border-b border-gray-100 pb-2">
+              <FormInput
+                id="prod-date"
+                label="Date"
+                type="date"
+                autoFocus
+                max={formatDateOnly(new Date())}
+                {...register("date")}
+                error={form.formState.errors.date?.message as string}
+                inputClassName="!h-8 !px-2 !text-xs"
+                onKeyDown={(e) => hk(e, "prod-branch")}
+                required
+              />
               <Controller
                 name="branchId"
                 control={control}

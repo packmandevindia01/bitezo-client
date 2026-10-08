@@ -74,6 +74,8 @@ export const usePosCartActions = () => {
     guestNo,
     missedCall,
     contactNo,
+    callBack,
+    deliveryDetails,
     note,
     change,
     isComing,
@@ -170,8 +172,9 @@ export const usePosCartActions = () => {
     guestNo,
     missedCall,
     contactNo,
+    callBack: callBack || deliveryDetails?.callBack || "",
     note,
-    change,
+    change: change || deliveryDetails?.change || "",
     isComing,
     comingTime,
     vehicleCustomerName,
@@ -421,20 +424,16 @@ export const usePosCartActions = () => {
       const { executeKotRouting } = await import("../../utils/printerRouting");
       const { isKotArabicEnabled, isBillArabicEnabled } = await import("../../utils/alternativeHelpers");
 
-      let cachedDelivery: any = null;
-      try {
-        const rawDelivery = sessionStorage.getItem("pos_current_delivery_details");
-        if (rawDelivery) cachedDelivery = JSON.parse(rawDelivery);
-      } catch {}
-
-      let resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || cachedDelivery?.contactNo || "";
-      let resolvedCustomerName = (masterData as any)?.deliveryCustomerName || (masterData as any)?.vehicleCustomerName || (masterData as any)?.customerName || customerNameStr || cachedDelivery?.customerName || "";
-      let resolvedFlatNo = (masterData as any)?.flatNo || (masterData as any)?.flat || (masterData as any)?.flatNumber || flatNo || cachedDelivery?.flatNo || "";
-      let resolvedBuildingNo = (masterData as any)?.buildingNo || (masterData as any)?.building || (masterData as any)?.buildingNumber || buildingNo || cachedDelivery?.buildingNo || "";
-      let resolvedBlockNo = (masterData as any)?.blockNo || (masterData as any)?.block || (masterData as any)?.blockNumber || blockNo || cachedDelivery?.blockNo || "";
-      let resolvedRoadNo = (masterData as any)?.roadNo || (masterData as any)?.road || (masterData as any)?.roadNumber || (masterData as any)?.street || roadNo || cachedDelivery?.roadNo || "";
-      let resolvedArea = (masterData as any)?.area || (masterData as any)?.areaName || area || cachedDelivery?.area || "";
-      let resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || cachedDelivery?.address || "";
+      let resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "";
+      let resolvedCallBack = (masterData as any)?.callBack || (masterData as any)?.callback || callBack || deliveryDetails?.callBack || "";
+      let resolvedChange = (masterData as any)?.change || (masterData as any)?.keepChanges || change || (deliveryDetails as any)?.change || "";
+      let resolvedCustomerName = (masterData as any)?.deliveryCustomerName || (masterData as any)?.vehicleCustomerName || (masterData as any)?.customerName || customerNameStr || "";
+      let resolvedFlatNo = (masterData as any)?.flatNo || (masterData as any)?.flat || (masterData as any)?.flatNumber || flatNo || "";
+      let resolvedBuildingNo = (masterData as any)?.buildingNo || (masterData as any)?.building || (masterData as any)?.buildingNumber || buildingNo || "";
+      let resolvedBlockNo = (masterData as any)?.blockNo || (masterData as any)?.block || (masterData as any)?.blockNumber || blockNo || "";
+      let resolvedRoadNo = (masterData as any)?.roadNo || (masterData as any)?.road || (masterData as any)?.roadNumber || (masterData as any)?.street || roadNo || "";
+      let resolvedArea = (masterData as any)?.area || (masterData as any)?.areaName || area || "";
+      let resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || "";
 
       const isDeliveryOrder = orderTypeStr.toLowerCase().includes("delivery");
       if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
@@ -456,6 +455,26 @@ export const usePosCartActions = () => {
         }
       }
 
+      const hasValidKeepChange = isDeliveryOrder && resolvedChange !== undefined && resolvedChange !== null &&
+        String(resolvedChange).trim() !== "" &&
+        String(resolvedChange).trim() !== "0" &&
+        String(resolvedChange).trim() !== "0.00" &&
+        String(resolvedChange).trim() !== "0.000";
+
+      let resolvedDriver =
+        (masterData as any)?.driverName ||
+        (masterData as any)?.allocatedDriverName ||
+        (masterData as any)?.driver ||
+        (masterData as any)?.driverEmployeeName ||
+        "";
+
+      if (!resolvedDriver && (masterData as any)?.details && typeof (masterData as any).details === "string") {
+        const match = (masterData as any).details.match(/\(Driver:\s*([^)]+)\)/i) || (masterData as any).details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
       const commonPrintData = {
         orderNo: orderNoStr,
         ticketNo: ticketNoStr,
@@ -467,13 +486,18 @@ export const usePosCartActions = () => {
         orderTypeId: selectedOrderTypeId,
         vehicleNo: vehicleNoStr,
         customerName: resolvedCustomerName,
-        contactNo: resolvedContactNo,
-        flatNo: resolvedFlatNo,
-        buildingNo: resolvedBuildingNo,
-        blockNo: resolvedBlockNo,
-        roadNo: resolvedRoadNo,
-        area: resolvedArea,
-        address: resolvedAddress,
+        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
+        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        change: hasValidKeepChange ? String(resolvedChange) : undefined,
+        keepChanges: hasValidKeepChange ? String(resolvedChange) : undefined,
+        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
+        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
+        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
+        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
+        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
+        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: (masterData as any)?.providerOrderNo || session.providerOrderNo || "",
         kotArabic: isKotArabicEnabled(),
         billArabic: isBillArabicEnabled(),

@@ -40,6 +40,7 @@ export interface OrderFormContext {
   guestNo?: number;
   missedCall?: boolean;
   contactNo?: string;
+  callBack?: string;
   note?: string;
   change?: string;
   isComing?: boolean;
@@ -94,6 +95,7 @@ export interface DirectSettleOrderBase {
   addressId: number;
   missedCall: boolean;
   contactNo: string;
+  callBack?: string;
   note: string;
   change: string;
   isComing: boolean;
@@ -135,6 +137,7 @@ export const buildDirectSettleOrderPayload = (
     guestNo,
     missedCall = false,
     contactNo = "",
+    callBack = "",
     note = "",
     change = "",
     isComing = false,
@@ -245,28 +248,23 @@ export const buildDirectSettleOrderPayload = (
     return [...extrasRows, ...modifierRows, ...messageRows];
   });
 
-  let cachedDelivery: any = null;
-  try {
-    const rawDelivery = sessionStorage.getItem("pos_current_delivery_details");
-    if (rawDelivery) cachedDelivery = JSON.parse(rawDelivery);
-  } catch {}
-
   const isDeliveryOrder = selectedOrderTypeId === 4 || normalizedTypeName.includes("delivery");
   const isDriveThruOrder = selectedOrderTypeId === 3 || normalizedTypeName.includes("drive");
 
   const resolvedCustomerName = isDriveThruOrder
     ? vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || ""
     : isDeliveryOrder
-    ? deliveryCustomerName || vehicleCustomerName || cachedDelivery?.customerName || ""
+    ? deliveryCustomerName || vehicleCustomerName || ""
     : vehicleCustomerName || "";
 
-  const resolvedFlatNo = flatNo || (isDeliveryOrder ? cachedDelivery?.flatNo : "") || "";
-  const resolvedBuildingNo = buildingNo || (isDeliveryOrder ? cachedDelivery?.buildingNo : "") || "";
-  const resolvedBlockNo = blockNo || (isDeliveryOrder ? cachedDelivery?.blockNo : "") || "";
-  const resolvedRoadNo = roadNo || (isDeliveryOrder ? cachedDelivery?.roadNo : "") || "";
-  const resolvedArea = area || (isDeliveryOrder ? cachedDelivery?.area : "") || "";
-  const resolvedContactNo = contactNo || (isDeliveryOrder ? cachedDelivery?.contactNo : "") || "";
-  const resolvedAddressId = selectedAddressId || (isDeliveryOrder ? cachedDelivery?.addressId : 0) || 0;
+  const resolvedFlatNo = flatNo || "";
+  const resolvedBuildingNo = buildingNo || "";
+  const resolvedBlockNo = blockNo || "";
+  const resolvedRoadNo = roadNo || "";
+  const resolvedArea = area || "";
+  const resolvedContactNo = contactNo || "";
+  const resolvedCallBack = isDeliveryOrder ? (callBack || "") : "";
+  const resolvedAddressId = selectedAddressId || 0;
 
   return {
     orderId: editingOrderId || 0,
@@ -301,8 +299,9 @@ export const buildDirectSettleOrderPayload = (
     addressId: resolvedAddressId,
     missedCall,
     contactNo: resolvedContactNo,
+    callBack: resolvedCallBack,
     note,
-    change,
+    change: isDeliveryOrder ? (change || "") : "",
     isComing,
     comingTime: comingTime || new Date().toISOString(),
     providerId: session.providerId || 0,
@@ -357,6 +356,7 @@ export const buildNewOrderPayload = (
     addressId: base.addressId,
     missedCall: base.missedCall,
     contactNo: base.contactNo || "",
+    callBack: base.callBack || "",
     note: base.note || "",
     change: base.change || "",
     isComing: base.isComing,
@@ -422,6 +422,7 @@ export const buildUpdateOrderPayload = (
     addressId: base.addressId,
     missedCall: base.missedCall,
     contactNo: base.contactNo || "",
+    callBack: base.callBack || "",
     note: base.note || "",
     change: base.change || "",
     isComing: base.isComing,

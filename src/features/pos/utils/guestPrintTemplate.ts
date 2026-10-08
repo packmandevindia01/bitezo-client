@@ -16,8 +16,13 @@ export interface GuestPrintData {
   date?: string;
   time?: string;
   customerName?: string;
+  driver?: string;
+  driverName?: string;
   vehicleNo?: string;
   contactNo?: string;
+  callBack?: string;
+  change?: string;
+  keepChanges?: string;
   flatNo?: string;
   buildingNo?: string;
   blockNo?: string;
@@ -158,6 +163,7 @@ export const generateGuestPrintHtml = async (
   const isDineIn = data.orderType?.toLowerCase().includes("dine");
   const hasDeliveryAddress = Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
   const isDelivery = Boolean(data.orderType?.toLowerCase().includes("delivery") || hasDeliveryAddress);
+  const driverVal = (data.driverName || data.driver || "").trim();
 
   const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
 
@@ -501,7 +507,7 @@ export const generateGuestPrintHtml = async (
         </div>
         <div class="meta-row">
           <div style="width: 50%;">Counter &nbsp; <span style="font-weight: normal">${data.counter}</span></div>
-          ${isDineIn ? `<div style="width: 50%;">Section &nbsp; <span style="font-weight: normal">${data.section}</span></div>` : '<div style="width: 50%;"></div>'}
+          ${isDineIn ? `<div style="width: 50%;">Section &nbsp; <span style="font-weight: normal">${data.section}</span></div>` : (driverVal ? `<div style="width: 50%;">Driver &nbsp; <span style="font-weight: bold;">${driverVal}</span></div>` : '<div style="width: 50%;"></div>')}
         </div>
         ${isDineIn ? `
         <div class="meta-row">
@@ -527,7 +533,12 @@ export const generateGuestPrintHtml = async (
           <div style="width: 50%;">Section &nbsp; <span style="font-weight: normal">${data.section}</span></div>
           <div style="width: 50%;">Table &nbsp; <span style="font-weight: normal">${data.table}</span></div>
         </div>
-        ` : ''}
+        ` : (driverVal ? `
+        <div class="meta-row">
+          <div style="width: 50%;">Driver &nbsp; <span style="font-weight: bold;">${driverVal}</span></div>
+          <div style="width: 50%;"></div>
+        </div>
+        ` : '')}
         `}
         
         <div class="dashed-hr"></div>
@@ -629,27 +640,36 @@ export const generateGuestPrintHtml = async (
         </table>
         ` : '<div class="dashed-hr"></div>'}
         
-        ${(isDriveThru || isDelivery) && (data.vehicleNo || data.customerName || data.contactNo || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo) ? `
+        ${(() => {
+          const keepChangeVal = (data.change || data.keepChanges || "").trim();
+          const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
+          if (!isDelivery) return '';
+          if (!(data.contactNo || data.callBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
+
+          return `
         <div style="margin-top: 10px; font-size: 12px;">
           <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
-            ${isDelivery ? 'DELIVERY DETAILS' : 'CUSTOMER DETAILS'}
-            ${isBillArabic ? `<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(${isDelivery ? 'بيانات التوصيل' : 'بيانات العميل'})</bdi>` : ''}
+            DELIVERY DETAILS
+            ${isBillArabic ? '<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(بيانات التوصيل)</bdi>' : ''}
           </div>
           <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
           <table style="width: 100%; font-size: 12px; margin-top: 5px;">
             ${data.contactNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Mob No</td><td style="font-weight: bold;">${data.contactNo}</td></tr>` : ''}
+            ${data.callBack ? `<tr><td style="width: 35%; padding-bottom: 2px;">Call Back</td><td style="font-weight: bold;">${data.callBack}</td></tr>` : ''}
+            ${hasValidKeepChange ? `<tr><td style="width: 35%; padding-bottom: 2px;">Keep Change</td><td style="font-weight: bold;">${keepChangeVal}</td></tr>` : ''}
             ${data.customerName ? `<tr><td style="width: 35%; padding-bottom: 2px;">Customer</td><td style="font-weight: bold;">${data.customerName}</td></tr>` : ''}
+            ${driverVal ? `<tr><td style="width: 35%; padding-bottom: 2px;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(السائق)</bdi>' : ''}</td><td style="font-weight: bold;">${driverVal}</td></tr>` : ''}
             ${data.flatNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Flat No</td><td style="font-weight: bold;">${data.flatNo}</td></tr>` : ''}
             ${data.buildingNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Building</td><td style="font-weight: bold;">${data.buildingNo}</td></tr>` : ''}
             ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
             ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
             ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
             ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Address</td><td style="font-weight: bold;">${data.address}</td></tr>` : ''}
-            ${data.vehicleNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Vehicle No</td><td style="font-weight: bold;">${data.vehicleNo}</td></tr>` : ''}
             ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
           </table>
         </div>
-        ` : ''}
+        `;
+        })()}
 
         <div class="barcode-container">*${String(data.orderNo || '').split(',')[0].trim()}*</div>
         

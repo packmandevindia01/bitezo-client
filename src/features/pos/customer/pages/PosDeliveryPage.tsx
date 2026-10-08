@@ -6,11 +6,12 @@ import { PosDeliveryKeyboard } from "../components/PosDeliveryKeyboard";
 import { useDelivery } from "../hooks/useDelivery";
 import { PosMoreAddressModal } from "../components/PosMoreAddressModal";
 import type { DeliveryAddress } from "../types/delivery";
-import { useAppDispatch } from "../../../../app/hooks";
+import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import {
   setOrderTypeByName,
   setAddressId,
   setContactNo,
+  setCallBack,
   setNote,
   setMissedCall,
   setIsComing,
@@ -32,6 +33,13 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
 }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const reduxMissedCall = useAppSelector((state) => state.pos.missedCall);
+  const reduxDeliveryDetails = useAppSelector((state) => state.pos.deliveryDetails);
+  const reduxContactNo = useAppSelector((state) => state.pos.contactNo);
+  const reduxCallBack = useAppSelector((state) => state.pos.callBack || state.pos.deliveryDetails?.callBack);
+  const reduxChange = useAppSelector((state) => state.pos.change || state.pos.deliveryDetails?.change);
+  const reduxCustomerName = useAppSelector((state) => state.pos.deliveryCustomerName || state.pos.vehicleCustomerName);
+
   const { showToast } = useToast();
   const { loading, fetchAddressByMobile, saveAddress } = useDelivery();
 
@@ -99,65 +107,54 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     setCurrentAddressId(null);
     lastLookedUpMobileRef.current = "";
     lastLoadedAddressRef.current = null;
-    sessionStorage.removeItem("pos_current_delivery_details");
     setTimeout(() => mobileRef.current?.focus(), 50);
   };
 
   useEffect(() => {
-    let prefilled = false;
-    try {
-      const raw = sessionStorage.getItem("pos_current_delivery_details");
-      if (raw) {
-        const d = JSON.parse(raw);
-        if (d.contactNo || d.customerName) {
-          let prefilledComingTime = "";
-          if (d.comingTime) {
-            try {
-              if (d.comingTime.includes("T")) {
-                const dateObj = new Date(d.comingTime);
-                if (!isNaN(dateObj.getTime())) {
-                  prefilledComingTime = `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`;
-                }
-              } else if (/^\d{1,2}:\d{2}/.test(d.comingTime)) {
-                prefilledComingTime = d.comingTime.slice(0, 5);
-              }
-            } catch {}
+    if (reduxContactNo || reduxCustomerName || reduxCallBack || reduxMissedCall || reduxDeliveryDetails?.isMissedCall || reduxDeliveryDetails?.contactNo) {
+      let prefilledComingTime = "";
+      if (reduxDeliveryDetails?.comingTime) {
+        try {
+          if (reduxDeliveryDetails.comingTime.includes("T")) {
+            const dateObj = new Date(reduxDeliveryDetails.comingTime);
+            if (!isNaN(dateObj.getTime())) {
+              prefilledComingTime = `${String(dateObj.getHours()).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`;
+            }
+          } else if (/^\d{1,2}:\d{2}/.test(reduxDeliveryDetails.comingTime)) {
+            prefilledComingTime = reduxDeliveryDetails.comingTime.slice(0, 5);
           }
-          const addrData = {
-            mobileNo: d.contactNo || "",
-            customerName: d.customerName || "",
-            isComing: Boolean(d.isComing),
-            comingTime: prefilledComingTime,
-            flatNo: d.flatNo || "",
-            buildingNo: d.buildingNo || "",
-            roadNo: d.roadNo || "",
-            blockNo: d.blockNo || "",
-            area: d.area || "",
-            note: d.note || "",
-            callBack: "",
-            isMissedCall: Boolean(d.isMissedCall),
-            keepChanges: d.change || ""
-          };
-          setForm(addrData);
-          if (d.addressId) {
-            setCurrentAddressId(d.addressId);
-            lastLoadedAddressRef.current = {
-              customerName: d.customerName || "",
-              flatNo: d.flatNo || "",
-              buildingNo: d.buildingNo || "",
-              roadNo: d.roadNo || "",
-              blockNo: d.blockNo || "",
-              area: d.area || "",
-              note: d.note || "",
-              addressId: d.addressId
-            };
-          }
-          prefilled = true;
-        }
+        } catch {}
       }
-    } catch {}
 
-    if (!prefilled) {
+      setForm({
+        mobileNo: reduxContactNo || reduxDeliveryDetails?.contactNo || "",
+        customerName: reduxCustomerName || reduxDeliveryDetails?.customerName || "",
+        isComing: Boolean(reduxDeliveryDetails?.isComing),
+        comingTime: prefilledComingTime,
+        flatNo: reduxDeliveryDetails?.flatNo || "",
+        buildingNo: reduxDeliveryDetails?.buildingNo || "",
+        roadNo: reduxDeliveryDetails?.roadNo || "",
+        blockNo: reduxDeliveryDetails?.blockNo || "",
+        area: reduxDeliveryDetails?.area || "",
+        note: reduxDeliveryDetails?.note || "",
+        callBack: reduxCallBack || reduxDeliveryDetails?.callBack || "",
+        isMissedCall: Boolean(reduxMissedCall || reduxDeliveryDetails?.isMissedCall),
+        keepChanges: reduxChange || reduxDeliveryDetails?.change || ""
+      });
+      if (reduxDeliveryDetails?.addressId) {
+        setCurrentAddressId(reduxDeliveryDetails.addressId);
+        lastLoadedAddressRef.current = {
+          customerName: reduxCustomerName || reduxDeliveryDetails?.customerName || "",
+          flatNo: reduxDeliveryDetails?.flatNo || "",
+          buildingNo: reduxDeliveryDetails?.buildingNo || "",
+          roadNo: reduxDeliveryDetails?.roadNo || "",
+          blockNo: reduxDeliveryDetails?.blockNo || "",
+          area: reduxDeliveryDetails?.area || "",
+          note: reduxDeliveryDetails?.note || "",
+          addressId: reduxDeliveryDetails.addressId
+        };
+      }
+    } else {
       handleClearForm();
     }
     setTimeout(() => mobileRef.current?.focus(), 100);
@@ -314,6 +311,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       : new Date().toISOString();
 
     dispatch(setContactNo(form.mobileNo));
+    dispatch(setCallBack(form.callBack));
     dispatch(setNote(form.note));
     dispatch(setMissedCall(form.isMissedCall));
     dispatch(setIsComing(form.isComing));
@@ -323,6 +321,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     dispatch(setDeliveryDetails({
       customerName: form.customerName,
       contactNo: form.mobileNo,
+      callBack: form.callBack,
       flatNo: form.flatNo,
       buildingNo: form.buildingNo,
       roadNo: form.roadNo,
@@ -334,22 +333,6 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       isMissedCall: form.isMissedCall,
       isComing: form.isComing,
     }));
-    const deliveryCache = {
-      customerName: form.customerName,
-      contactNo: form.mobileNo,
-      flatNo: form.flatNo,
-      buildingNo: form.buildingNo,
-      roadNo: form.roadNo,
-      blockNo: form.blockNo,
-      area: form.area,
-      note: form.note,
-      addressId: effAddrId,
-      change: form.keepChanges,
-      isMissedCall: form.isMissedCall,
-      isComing: form.isComing,
-      comingTime: resolvedComingTime,
-    };
-    sessionStorage.setItem("pos_current_delivery_details", JSON.stringify(deliveryCache));
   };
 
   const handleSave = async () => {
@@ -714,18 +697,12 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
               </div>
 
               <div className="col-span-12 md:col-span-2 flex flex-col justify-end pb-[4px]">
-                <div
+                <button
+                  type="button"
                   role="switch"
                   aria-checked={form.isMissedCall}
-                  tabIndex={0}
                   onClick={toggleMissedCall}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleMissedCall();
-                    }
-                  }}
-                  className={`w-full h-9 px-3 border rounded-lg flex items-center gap-2.5 cursor-pointer transition-all select-none ${
+                  className={`w-full h-9 px-3 border rounded-lg flex items-center gap-2.5 cursor-pointer transition-all select-none focus:outline-none ${
                     form.isMissedCall
                       ? "bg-purple-50/80 border-[#49293e] text-[#49293e]"
                       : "bg-slate-50 border-slate-300 hover:bg-slate-100 text-[#49293e]"
@@ -745,7 +722,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
                   <span className="font-extrabold text-[10px] tracking-wider uppercase whitespace-nowrap">
                     Missed Call
                   </span>
-                </div>
+                </button>
               </div>
 
               <div className="col-span-12 md:col-span-3 grid grid-cols-2 gap-2 pb-[4px]">

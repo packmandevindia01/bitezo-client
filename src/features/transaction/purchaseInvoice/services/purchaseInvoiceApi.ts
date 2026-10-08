@@ -163,23 +163,27 @@ export const purchaseInvoiceApi = {
 
   getProductCostDataById: async (productId: number) => {
     const response = await axiosInstance.get<{
-      data: {
-        productId: number;
-        productCode: string;
-        productName: string;
-        baseUnitId: number;
-        cost: number;
-        altUnitId: number;
-        vatId: number;
-        vatName: string;
-        vatValue: number;
-        unitCategory: string;
-      };
+      data: any;
       isSuccess: boolean;
       message: string;
     }>(`/product/${productId}/productid-data`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
-    return response.data.data;
+    const d = response.data.data;
+    if (d?.product) {
+      return {
+        productId: d.product.productId,
+        productCode: d.product.code,
+        productName: d.product.name,
+        baseUnitId: d.product.unitId,
+        cost: d.product.cost,
+        altUnitId: d.product.altUnitId,
+        vatId: d.product.pVatId || d.product.vatId || 0,
+        vatName: "",
+        vatValue: d.product.vatValue ?? 0,
+        unitCategory: d.product.unitCategory || "",
+      };
+    }
+    return d;
   },
 
   getUnitCost: async (productId: number, unitId: number) => {
@@ -276,5 +280,26 @@ export const purchaseInvoiceApi = {
     });
     if (!response.data.isSuccess) throw new Error(response.data.message);
     return response.data.data;
+  },
+
+  getAllUnits: async () => {
+    try {
+      const response = await axiosInstance.get<{
+        data: {
+          unitId: number;
+          name: string;
+          category: string;
+          currentValue: number;
+        }[];
+        isSuccess: boolean;
+        message: string;
+      }>("/unit/unit-list");
+      if (response.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    } catch {
+      return [];
+    }
   },
 };

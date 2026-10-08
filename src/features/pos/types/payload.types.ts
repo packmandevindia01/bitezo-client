@@ -43,6 +43,7 @@ export interface SalesInvoicePayload {
   vatAmount: number;
   netAmount: number;
   deliveryCharge?: number;
+  callBack?: string;
   orderMaster: {
     isOrderEdited?: boolean;
     sectionId?: number;
@@ -53,6 +54,7 @@ export interface SalesInvoicePayload {
     addressId?: number;
     missedCall?: boolean;
     contactNo?: string;
+    callBack?: string;
     note?: string;
     change?: string;
     isComing?: boolean;

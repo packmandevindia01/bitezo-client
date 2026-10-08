@@ -255,6 +255,19 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             const curEmpName = master?.employeeName;
             const shouldReplaceName = !curEmpName || ["waiter", "cashier"].includes(String(curEmpName).toLowerCase());
 
+            const validOrderChange = (oMaster?.change !== undefined && oMaster?.change !== null && String(oMaster.change).trim() !== "" && String(oMaster.change).trim() !== "0" && String(oMaster.change).trim() !== "0.00" && String(oMaster.change).trim() !== "0.000")
+              ? String(oMaster.change)
+              : (oMaster?.keepChanges !== undefined && oMaster?.keepChanges !== null && String(oMaster.keepChanges).trim() !== "" && String(oMaster.keepChanges).trim() !== "0" && String(oMaster.keepChanges).trim() !== "0.00" && String(oMaster.keepChanges).trim() !== "0.000")
+              ? String(oMaster.keepChanges)
+              : undefined;
+
+            const validSaleChange = (master?.change !== undefined && master?.change !== null && String(master.change).trim() !== "" && String(master.change).trim() !== "0" && String(master.change).trim() !== "0.00" && String(master.change).trim() !== "0.000")
+              ? String(master.change)
+              : undefined;
+
+            const effectiveChange = validSaleChange || validOrderChange || "";
+            const effectiveCallBack = master?.callBack || master?.callback || oMaster?.callBack || oMaster?.callback || "";
+
             orderData = {
               ...orderData,
               masterData: {
@@ -266,6 +279,17 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 deliveryCustomerName: master?.deliveryCustomerName || oMaster?.deliveryCustomerName,
                 tableNo: master?.tableNo || oMaster?.tableNo,
                 sectionName: master?.sectionName || oMaster?.sectionName,
+                change: effectiveChange,
+                keepChanges: effectiveChange,
+                callBack: effectiveCallBack,
+                flatNo: master?.flatNo || oMaster?.flatNo,
+                buildingNo: master?.buildingNo || oMaster?.buildingNo,
+                roadNo: master?.roadNo || oMaster?.roadNo,
+                blockNo: master?.blockNo || oMaster?.blockNo,
+                area: master?.area || oMaster?.area,
+                address: master?.address || oMaster?.address,
+                mobileNo: master?.mobileNo || oMaster?.mobileNo || oMaster?.contactNo,
+                contactNo: master?.contactNo || oMaster?.contactNo || oMaster?.mobileNo,
               },
             };
             master = orderData.masterData;
@@ -605,10 +629,23 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       if (!resolvedCustomerName) {
         resolvedCustomerName = "CASH CUSTOMER";
       }
+      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
       let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      let resolvedCallBack = isDeliveryOrder
+        ? (master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber || (order as any)?.callBack || (order as any)?.callback || "")
+        : "";
+
+      const rawChangeVal = master.change ?? master.keepChanges ?? (order as any)?.change ?? (order as any)?.keepChanges ?? "";
+      const validKeepChange = (isDeliveryOrder && rawChangeVal !== undefined && rawChangeVal !== null &&
+        String(rawChangeVal).trim() !== "" &&
+        String(rawChangeVal).trim() !== "0" &&
+        String(rawChangeVal).trim() !== "0.00" &&
+        String(rawChangeVal).trim() !== "0.000")
+        ? String(rawChangeVal).trim()
+        : undefined;
+
       let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
 
-      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
       if (
         isDeliveryOrder &&
         !resolvedFlatNo &&
@@ -650,6 +687,52 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         master.employeeName || order?.employeeName || resolvedEmployeeName
       );
 
+      let resolvedDriver =
+        master.driverName ||
+        master.allocatedDriverName ||
+        master.driver ||
+        master.driverEmployeeName ||
+        orderSummary?.driverName ||
+        orderSummary?.allocatedDriverName ||
+        orderSummary?.driver ||
+        order?.driverName ||
+        order?.allocatedDriverName ||
+        order?.driver ||
+        "";
+
+      if (!resolvedDriver && orderSummary && typeof orderSummary.details === "string") {
+        const match = orderSummary.details.match(/\(Driver:\s*([^)]+)\)/i) || orderSummary.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      if (!resolvedDriver && typeof master.details === "string") {
+        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
+        if (match && match[1]) {
+          resolvedDriver = match[1].trim();
+        }
+      }
+
+      const activeDriverId = master.driverId || orderSummary?.driverId || order?.driverId;
+      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
+        try {
+          const branchId =
+            Number(localStorage.getItem("systemBranchId")) ||
+            Number(localStorage.getItem("activeBranchId")) ||
+            Number(localStorage.getItem("branchId")) ||
+            1;
+          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
+          const dList = await employeeService.getDrivers(branchId);
+          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
+          if (dFound) {
+            resolvedDriver = dFound.driverName;
+          }
+        } catch (err) {
+          console.warn("[PosSettledDetailsModal] Failed to resolve driver name by id:", err);
+        }
+      }
+
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
@@ -662,14 +745,19 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         date,
         time,
         customerName: resolvedCustomerName || "CASH CUSTOMER",
+        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
+        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
         vehicleNo: master.vehicleNo,
-        contactNo: resolvedContactNo,
-        flatNo: resolvedFlatNo,
-        buildingNo: resolvedBuildingNo,
-        blockNo: resolvedBlockNo,
-        roadNo: resolvedRoadNo,
-        area: resolvedArea,
-        address: resolvedAddress,
+        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
+        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        change: isDeliveryOrder ? validKeepChange : undefined,
+        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
+        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
+        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
+        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
+        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
+        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
+        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo,
         subTotal: resolvedSubTotal,
         discount: master.discAmount || master.discount || 0,

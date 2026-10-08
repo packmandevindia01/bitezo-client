@@ -5,7 +5,7 @@ import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import StockAdjustmentPrintModal from "../components/StockAdjustmentPrintModal";
 import type { StockAdjustmentLineItem } from "../types";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { useStockAdjustment } from "../hooks/useStockAdjustment";
+import { useStockAdjustment, formatDateOnly } from "../hooks/useStockAdjustment";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { FormProvider, Controller } from "react-hook-form";
 import { useToast } from "../../../../app/providers/useToast";
@@ -102,7 +102,7 @@ const StockAdjustmentPage = () => {
     return {
       series: vals.series || "",
       refNo: vals.refNo || "",
-      transDate: vals.date || "",
+      transDate: vals.date ? formatDateOnly(vals.date) : formatDateOnly(new Date()),
       branch: vals.branch || "",
       salesman: vals.salesman || "",
       product: "",
@@ -205,7 +205,7 @@ const StockAdjustmentPage = () => {
             {/* ── Header Fields ── Dense padding */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 mb-2">
               <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs font-mono font-bold bg-gray-50 cursor-not-allowed" id="sa-refNo" label="Ref No" type="text" {...register("refNo")} readOnly error={errors.refNo?.message as string} />
-              <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
+              <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="sa-date" label="Date" type="date" max={formatDateOnly(new Date())} {...register("date")} onKeyDown={(e) => hk(e, "sa-branch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="branch" control={control} render={({ field }) => (
                 <SearchableSelect required={true} className="!h-8 !px-2 !text-xs" id="sa-branch" label="Branch" value={field.value} options={masterData.branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "sa-salesman")} disabled={!canSave || loadingMaster || isBranchLocked || Boolean(id)} clearable={!id} error={errors.branch?.message as string} />
