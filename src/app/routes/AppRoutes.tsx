@@ -10,6 +10,7 @@ import RoleGuard from "./RoleGuard";
 import ShiftGuard from "./ShiftGuard";
 
 const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
+const BackofficeSubscriptionWrapper = lazy(() => import("../../features/company/components/BackofficeSubscriptionWrapper"));
 const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("../../features/auth/pages/ForgotPasswordPage"));
 const VerifyOtpPage = lazy(() => import("../../features/auth/pages/VerifyOtpPage"));
@@ -180,7 +181,14 @@ const AppRoutes = () => {
                 </Route>
 
                 {/* Dashboard — fully guarded */}
-                <Route path="/dashboard" element={<MainLayout />}>
+                <Route
+                  path="/dashboard"
+                  element={
+                    <BackofficeSubscriptionWrapper>
+                      <MainLayout />
+                    </BackofficeSubscriptionWrapper>
+                  }
+                >
                   <Route index element={<RoleGuard moduleName={["Admin Dashboard", "User Dashboard"]}><DashboardPage /></RoleGuard>} />
                   <Route path="users" element={<RoleGuard moduleName="User Master"><UserList /></RoleGuard>} />
                   <Route path="user-roles" element={<RoleGuard moduleName="User Role"><UserRolePage /></RoleGuard>} />

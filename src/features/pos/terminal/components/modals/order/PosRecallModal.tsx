@@ -19,6 +19,7 @@ import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
+import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 
 
 interface PosRecallModalProps {
@@ -110,7 +111,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       const order = orderRes.data;
       
       const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
+      const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
       
       const orderTypeMap: Record<number, string> = {
         1: "DineIn", 2: "TakeOut", 3: "DriveThru",

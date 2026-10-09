@@ -73,6 +73,8 @@ export interface PosCartItem {
   };
 
   // Pre-calculated line fields (7-decimal precision from billing.ts)
+  basePrice?: number;
+  exclusivePrice?: number;
   baseAmount?: number;
   extrasTotal?: number;
   amount?: number;

@@ -9,6 +9,7 @@ import {
   CreditCard,
   Banknote
 } from "lucide-react";
+import { SubscriptionStatusBadge } from "../../company/components/SubscriptionStatusBadge";
 
 // Lazy loaded charts
 const MonthlySalesChart = lazy(() => import("../components/MonthlySalesChart"));
@@ -61,6 +62,7 @@ const DashboardPage = () => {
           <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-sm ${theme.badgeBg}`}>
             {theme.badgeText}
           </span>
+          <SubscriptionStatusBadge theme="light" />
         </div>
       </div>
 

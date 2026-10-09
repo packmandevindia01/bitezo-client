@@ -9,6 +9,8 @@ import { Search, X } from "lucide-react";
 import { usePosVoid } from "../../../hooks/usePosVoid";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
+import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
+import { clearCart } from "../../../store/posSlice";
 
 interface PosVoidModalProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ const ORDER_TYPES = [
 ];
 
 export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) => {
+  const dispatch = useAppDispatch();
+  const editingOrderId = useAppSelector((state) => state.pos.editingOrderId);
   const { orders, loading, fetchOrders, executeVoidOrder } = usePosVoid();
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
@@ -77,6 +81,9 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
     }
     const success = await executeVoidOrder(selectedOrderId, reason);
     if (success) {
+      if (editingOrderId && selectedOrderId === editingOrderId) {
+        dispatch(clearCart());
+      }
       setSelectedOrderId(null);
       setReason("");
       // Don't close immediately so they can see success and remaining orders

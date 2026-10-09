@@ -78,6 +78,7 @@ const LoginForm = () => {
             userRoles: data.userRoles ?? [],
             decimalPart,
             currencySymbol,
+            sessionExpiresAt: data.session?.expiresAt,
           })
         );
 

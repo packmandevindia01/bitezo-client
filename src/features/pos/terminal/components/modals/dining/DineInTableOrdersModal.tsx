@@ -11,8 +11,16 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
-import { getVatStatus, roundCalc, getBillingConfig } from '../../../utils/billing';
+import {
+  getVatStatus,
+  roundCalc,
+  getBillingConfig,
+  CALC_PRECISION,
+  getTaxExclusivePrice,
+  getTaxExclusiveExtraPrice,
+} from '../../../utils/billing';
 import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
+import { sortOrderDetailsBySequence } from '../../../utils/orderSort';
 import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
 import { PosMultiPayModal, type MultiPaymentLine } from '../payment/PosMultiPayModal';
 import { EmployeePasswordModal } from '../system/EmployeePasswordModal';
@@ -242,7 +250,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     
     const fullOrder = res.data;
     const master = fullOrder.masterData || fullOrder;
-    const details = fullOrder.detailsData || fullOrder.details || [];
+    const details = sortOrderDetailsBySequence(fullOrder.detailsData || fullOrder.details || []);
     const modifiersData = fullOrder.modifiersData || [];
 
     // Deduplicate modifiersData (SQL Cartesian fix)
@@ -288,7 +296,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         price: detail.price || 0,
         isIncl: isIncl,
         discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
-        discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
+        discountType: (detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount') as 'percentage' | 'amount',
         extras,
         modifiers,
         isExisting: true,
@@ -388,7 +396,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const targetOrderId = settleOrderData.orderId || selectedMaster.orderId;
       const rawOrder = settleOrderData.rawData;
       const master = rawOrder.masterData || rawOrder.master || rawOrder;
-      const details = rawOrder.detailsData || rawOrder.details || [];
+      const details = sortOrderDetailsBySequence(rawOrder.detailsData || rawOrder.details || []);
       const modifiersData = rawOrder.modifiersData || rawOrder.modifiers || [];
 
       const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
@@ -431,32 +439,56 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         providerOrderNo: master.providerOrderNo || "",
         providerNo: master.providerNo || "",
         driverId: master.driverId || 0,
-        details: details.map((d: any) => ({
-          productId: d.productId || d.itemId || 0,
-          unitId: d.unitId || 1,
-          qty: d.qty || 1,
-          price: d.price || 0,
-          discPer: d.discPer || 0,
-          discAmount: d.discAmount || 0,
-          serviceCharge: d.serviceCharge || 0,
-          levy: d.levy || 0,
-          vatId: d.vatId || 0,
-          vatAmount: d.vatAmount || 0,
-          netAmount: d.netAmount ?? ((d.price || 0) * (d.qty || 1)),
-          mapId: d.mapId || 0,
-          complimentaryStatus: Boolean(d.complimentaryStatus || (d.discPer && Number(d.discPer) === 100)),
-          baseQty: d.baseQty || d.qty || 1,
-        })),
-        modifiers: modifiersData.map((m: any) => ({
-          mapId: m.mapId,
-          modifierId: m.modifierId,
-          qty: m.qty || 1,
-          amount: m.amount || m.price || 0,
-          typeId: m.typeId || 0,
-          modifierName: m.modifierName || "",
-          arabicName: m.arabicName || "",
-          status: m.status || (m.price > 0 ? "extras" : "modifier"),
-        })),
+        details: details.map((d: any) => {
+          const exclPrice = getTaxExclusivePrice(d);
+          return {
+            productId: d.productId || d.itemId || 0,
+            unitId: d.unitId || 1,
+            qty: d.qty || 1,
+            price: exclPrice,
+            basePrice: exclPrice,
+            exclusivePrice: exclPrice,
+            isPriceTaxExclusive: true,
+            discPer: d.discPer || 0,
+            discAmount: d.discAmount || 0,
+            serviceCharge: d.serviceCharge || 0,
+            levy: d.levy || 0,
+            vatId: d.vatId || 0,
+            vatAmount: d.vatAmount || 0,
+            netAmount: d.netAmount ?? ((d.price || 0) * (d.qty || 1)),
+            mapId: d.mapId || 0,
+            complimentaryStatus: Boolean(d.complimentaryStatus || (d.discPer && Number(d.discPer) === 100)),
+            baseQty: d.baseQty || d.qty || 1,
+          };
+        }),
+        modifiers: modifiersData.map((m: any) => {
+          const isExtras = (m.price && Number(m.price) > 0) || (m.status || "").toLowerCase() === "extras";
+          const rawModPrice = Number(m.price || m.amount || 0);
+          const rawVatRate = Number(master.vatRate ?? master.vatValue ?? 0);
+          const priceView = (() => {
+            try {
+              const saved = localStorage.getItem('posConfigs');
+              const full = saved ? JSON.parse(saved) : {};
+              return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
+            } catch { return 'Exclusive'; }
+          })();
+          const isIncl = priceView === 'Inclusive';
+          const exclModPrice = isExtras
+            ? getTaxExclusiveExtraPrice(rawModPrice, rawVatRate, isIncl)
+            : 0;
+          const qty = m.qty || 1;
+          return {
+            mapId: m.mapId,
+            modifierId: m.modifierId,
+            qty,
+            price: exclModPrice,
+            amount: isExtras ? roundCalc(exclModPrice * qty, CALC_PRECISION) : 0,
+            typeId: m.typeId || 0,
+            modifierName: m.modifierName || "",
+            arabicName: m.arabicName || "",
+            status: m.status || (rawModPrice > 0 ? "extras" : "modifier"),
+          };
+        }),
         voidProducts: [],
         voidModifiers: [],
         combinedOrderIds: [],
@@ -1068,7 +1100,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
                 {/* Mobile: vertical stack / Desktop: horizontal row */}
                 <div className="flex flex-col sm:flex-row sm:flex-nowrap gap-4 sm:pb-1 h-full min-h-0">
                   {data.masterData.map(order => {
-                    const orderDetails = data.detailsData.filter(d => d.orderId === order.orderId);
+                    const orderDetails = sortOrderDetailsBySequence(data.detailsData.filter(d => d.orderId === order.orderId));
                     const orderMods = allModifiers.filter(m => m.orderId === order.orderId);
                     const isSelected = selectedOrderId === order.orderId;
                     return (

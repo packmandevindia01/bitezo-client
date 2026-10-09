@@ -252,7 +252,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     let extrasSum = 0;
     if (item.extras && item.extras.length > 0) item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
     let baseAmt = (item as any).lineTotal;
-    if (baseAmt !== undefined) baseAmt -= extrasSum;
+    if (baseAmt !== undefined) baseAmt = Math.max(0, baseAmt - extrasSum);
     else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
     displaySubTotal += parseFloat(fmt(baseAmt));
   });
@@ -332,10 +332,10 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
     let baseAmt = (item as any).lineTotal;
     const itemVat = (item as any).vatAmount || 0;
-    if (baseAmt !== undefined && baseAmt > 0) {
-      baseAmt -= extrasSum;
+    if (baseAmt !== undefined) {
+      baseAmt = Math.max(0, baseAmt - extrasSum);
       if (itemVat > 0 && baseAmt > itemVat && Math.abs(baseAmt - ((item.price || item.product?.price || 0) * item.quantity)) > 0.001) {
-        baseAmt -= itemVat;
+        baseAmt = Math.max(0, baseAmt - itemVat);
       }
     } else {
       baseAmt = (item.price || item.product?.price || 0) * item.quantity;
@@ -391,13 +391,16 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   displaySubTotal = parseFloat(fmt(displaySubTotal));
   const hasAuthoritativeTotals = data.subTotal !== undefined && Number(data.subTotal) > 0;
   const authoritativeSubTotal = hasAuthoritativeTotals ? Number(data.subTotal) : displaySubTotal;
-  const authoritativeVatAmount = (data.vatAmount !== undefined && Number(data.vatAmount) > 0) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
 
   let subTotal = authoritativeSubTotal;
   let vatAmount = 0;
   if (isVatActive) {
-    vatAmount  = parseFloat(fmt(authoritativeVatAmount > 0 ? authoritativeVatAmount : (data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
-    subTotal   = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : (data.netAmount - vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
+    const computedVat = data.vatAmount !== undefined
+      ? Number(data.vatAmount)
+      : (authoritativeVatAmount > 0 ? authoritativeVatAmount : Math.max(0, data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)));
+    vatAmount  = parseFloat(fmt(Math.max(0, computedVat)));
+    subTotal   = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : Math.max(0, data.netAmount - vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
   }
 
   const subTotalBeforeDiscount = subTotal + (totalDiscount > 0 ? totalDiscount : 0);

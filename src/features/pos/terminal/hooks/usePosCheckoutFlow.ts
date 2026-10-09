@@ -6,6 +6,7 @@ import { settledOrdersApi } from '../../services/settledOrdersApi';
 import { getVatStatus } from '../utils/billing';
 import { isBillArabicEnabled } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
+import { sortOrderDetailsBySequence } from '../utils/orderSort';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -189,8 +190,18 @@ export const usePosCheckoutFlow = ({
         return;
       }
 
+      let effectiveOrderPayload = { ...orderPayload };
+      if (orderPayload.combinedOrderIds && orderPayload.combinedOrderIds.length > 0) {
+        const allIds = [orderPayload.orderId || editingOrderId, ...orderPayload.combinedOrderIds].filter(Boolean).map(Number);
+        const maxId = Math.max(...allIds);
+        if (maxId !== orderPayload.orderId) {
+          effectiveOrderPayload.orderId = maxId;
+          effectiveOrderPayload.combinedOrderIds = allIds.filter(id => id !== maxId);
+        }
+      }
+
       const salesPayload = buildSalesInvoicePayload({
-        orderPayload,
+        orderPayload: effectiveOrderPayload,
         payments: validPayments,
         employeeId,
         dayId: status.dayId,
@@ -406,7 +417,8 @@ export const usePosCheckoutFlow = ({
         let mappedPrintItems = cartDetails;
         if (!isCombinedOrder && detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
           try {
-            const preMapped = detailsData.map((d: any) => {
+            const sortedDetails = sortOrderDetailsBySequence(detailsData);
+            const preMapped = sortedDetails.map((d: any) => {
               const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
               const extras = itemMods
                 .filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0))

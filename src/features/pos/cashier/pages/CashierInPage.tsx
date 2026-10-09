@@ -193,6 +193,7 @@ const CashierInPage = () => {
             userRoles: data.userRoles ?? [],
             decimalPart,
             currencySymbol,
+            sessionExpiresAt: data.session?.expiresAt,
           })
         );
 

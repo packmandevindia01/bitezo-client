@@ -7,11 +7,13 @@ import {
   Truck,
   Car,
   Users,
+  User,
   Maximize,
   Minimize
 } from "lucide-react";
 import PosActionButton from "./PosActionButton";
 import type { PosOrderType, MenuProvider } from "../../../types";
+import { SubscriptionStatusBadge } from "../../../../company/components/SubscriptionStatusBadge";
 
 
 interface PosTopNavProps {
@@ -19,6 +21,7 @@ interface PosTopNavProps {
   onCashierOut?: () => void;
   onDelivery?: () => void;
   onDriveThrough?: () => void;
+  onCustomer?: () => void;
   orderTypes?: PosOrderType[];
   selectedOrderTypeId?: number;
   onSelectOrderType?: (type: PosOrderType) => void;
@@ -53,6 +56,7 @@ const PosTopNav = ({
   onDelivery,
   onDriveThrough,
   onProvider,
+  onCustomer,
   orderTypes = fallbackOrderTypes,
   selectedOrderTypeId,
   onSelectOrderType,
@@ -60,7 +64,21 @@ const PosTopNav = ({
 }: PosTopNavProps) => {
 
   const navigate = useNavigate();
-  const { editingOrderId, selectedOrderTypeName, selectedTableNo, waiterName } = useAppSelector(state => state.pos);
+  const {
+    editingOrderId,
+    selectedOrderTypeName,
+    selectedTableNo,
+    waiterName,
+    selectedCustomerId,
+    selectedCustomerName,
+    vehicleCustomerName,
+    deliveryCustomerName,
+  } = useAppSelector(state => state.pos);
+
+  const isCustomCustomerSelected = Boolean(selectedCustomerId && Number(selectedCustomerId) !== 1);
+  const displayCustomerName = isCustomCustomerSelected
+    ? (selectedCustomerName || deliveryCustomerName || vehicleCustomerName || `Customer #${selectedCustomerId}`)
+    : (selectedCustomerName || "Cash Customer");
   const visibleOrderTypes = orderTypes.length > 0 ? orderTypes : fallbackOrderTypes;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -149,8 +167,29 @@ const PosTopNav = ({
 
       <div className="flex items-center gap-1 lg:gap-1.5 max-[1100px]:gap-1 max-[800px]:gap-0.5 shrink-0">
 
-        <div className="hidden lg:flex flex-col text-right mr-4 lg:mr-6 max-[1100px]:mr-3 max-[800px]:mr-1.5 leading-tight justify-center max-[1100px]:!flex">
-          <div className="flex gap-3 max-[1100px]:gap-2 justify-end text-white font-bold text-sm max-[1100px]:text-[12px] max-[800px]:text-[9px] max-[700px]:text-[8px]">
+        <div className="hidden lg:flex flex-col text-right mr-3 lg:mr-5 max-[1100px]:mr-2.5 max-[800px]:mr-1 leading-tight justify-center max-[1100px]:!flex">
+          <div className="flex gap-2.5 lg:gap-3 max-[1100px]:gap-2 justify-end items-center text-white font-bold text-sm max-[1100px]:text-[12px] max-[800px]:text-[9px] max-[700px]:text-[8px]">
+            <button
+              type="button"
+              onClick={onCustomer}
+              className={`inline-flex items-center gap-1 transition-all ${
+                onCustomer ? "hover:opacity-80 cursor-pointer" : "cursor-default"
+              }`}
+              title={isCustomCustomerSelected ? `Assigned Customer: ${displayCustomerName}` : "Customer"}
+            >
+              <User size={12} className={isCustomCustomerSelected ? "text-emerald-400" : "text-white/60"} />
+              <span className="text-white/60 font-semibold mr-0.5">Customer:</span>
+              <span
+                className={`truncate max-w-[110px] sm:max-w-[140px] md:max-w-[180px] ${
+                  isCustomCustomerSelected
+                    ? "text-emerald-300 font-black drop-shadow-xs"
+                    : "text-white/90 font-bold"
+                }`}
+              >
+                {displayCustomerName}
+              </span>
+            </button>
+            <span className="text-white/30">|</span>
             <span><span className="text-white/70 font-semibold mr-1">Order:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
             <span className="text-white/30">|</span>
             <span><span className="text-white/70 font-semibold mr-1">Ticket:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
@@ -167,6 +206,8 @@ const PosTopNav = ({
             )}
           </div>
         </div>
+
+        <SubscriptionStatusBadge theme="dark" className="mr-1.5 max-[800px]:hidden shrink-0" />
 
         <PosActionButton
           accent="gray"

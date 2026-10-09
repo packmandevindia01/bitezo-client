@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getDayEndReport, getBranchList } from "../services/dayEndReportApi";
+import { getDayEndReport, getBranchList, getDayEndCashierLogDetail } from "../services/dayEndReportApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption } from "../types";
@@ -30,13 +30,50 @@ export const useDayEndReport = () => {
   // Report query
   const { data: reportData, isLoading: reportLoading, isFetching, refetch } = useQuery({
     queryKey: ["dayEndReport", { fromDate, toDate, branchId, decimalPart }],
-    queryFn: () =>
-      getDayEndReport({
+    queryFn: async () => {
+      const res = await getDayEndReport({
         BranchId: Number(branchId),
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
-      }),
+      });
+
+      const rawRows = res?.rows || [];
+      const enrichedRows = await Promise.all(
+        rawRows.map(async (row) => {
+          // If already in row, return with normalized fields
+          if (row["Pay In"] !== undefined || row["PayIn"] !== undefined || row.payIn !== undefined) {
+            return {
+              ...row,
+              "Pay In": Number(row["Pay In"] ?? row["PayIn"] ?? row.payIn ?? 0),
+              "Pay Out": Number(row["Pay Out"] ?? row["PayOut"] ?? row.payOut ?? 0),
+            };
+          }
+
+          // Fetch from cashier log if DayId is available
+          if (row.DayId) {
+            const detail = await getDayEndCashierLogDetail(row.DayId);
+            const cf = detail?.cashFlow || detail?.data?.cashFlow || detail || {};
+            return {
+              ...row,
+              "Pay In": Number(cf.payIn ?? detail?.payIn ?? 0),
+              "Pay Out": Number(cf.payOut ?? detail?.payOut ?? 0),
+            };
+          }
+
+          return {
+            ...row,
+            "Pay In": 0,
+            "Pay Out": 0,
+          };
+        })
+      );
+
+      return {
+        columns: res?.columns || [],
+        rows: enrichedRows,
+      };
+    },
   });
 
   const resetFilters = () => {

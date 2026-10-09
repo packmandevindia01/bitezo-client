@@ -230,40 +230,69 @@ export const usePosCartActions = () => {
       const context = getFormContext();
 
       if (editingOrderId) {
-        let effectivePrevUpdatedAt =
-          context.prevUpdatedAt ||
-          sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) ||
-          undefined;
-
-        if (!effectivePrevUpdatedAt) {
-          try {
-            const detailsRes = await orderApi.getOrderDetails(editingOrderId);
-            const m = detailsRes?.data?.masterData || detailsRes?.data;
-            if (m?.updatedAt) {
-              effectivePrevUpdatedAt = String(m.updatedAt);
-              sessionStorage.setItem(`order_prevUpdatedAt_${editingOrderId}`, effectivePrevUpdatedAt);
-            }
-          } catch (e) {
-            console.warn("Could not fetch order updatedAt for concurrency check:", e);
+        // Resolve Target Order for combined orders:
+        // The backend only permits updating the latest (highest) order in the combined group
+        let targetOrderId = editingOrderId;
+        let targetCombinedIds = combinedOrderIds || [];
+        if (targetCombinedIds.length > 0) {
+          const allCombineIds = [editingOrderId, ...targetCombinedIds].map(Number);
+          const maxCombineId = Math.max(...allCombineIds);
+          if (maxCombineId !== editingOrderId) {
+            targetOrderId = maxCombineId;
+            targetCombinedIds = allCombineIds.filter((id) => id !== maxCombineId);
           }
         }
-        context.prevUpdatedAt = effectivePrevUpdatedAt;
 
-        const updatePayload = buildUpdateOrderPayload(editingOrderId, context, session);
+        // Concurrency token resolution:
+        // Query server for fresh order master data to get current DB updatedAt / createdAt timestamp
+        let effectivePrevUpdatedAt: string | undefined = undefined;
+        try {
+          const detailsRes = await orderApi.getOrderDetails(targetOrderId);
+          const m = detailsRes?.data?.masterData || detailsRes?.masterData || detailsRes?.data || detailsRes;
+          const freshTimestamp =
+            m?.updatedAt ||
+            m?.updated_at ||
+            m?.prevUpdatedAt ||
+            m?.createdAt ||
+            m?.created_at ||
+            m?.voucherDate;
+          if (freshTimestamp) {
+            effectivePrevUpdatedAt = String(freshTimestamp);
+            sessionStorage.setItem(`order_prevUpdatedAt_${targetOrderId}`, effectivePrevUpdatedAt);
+          }
+        } catch (e) {
+          console.warn("Could not fetch fresh order updatedAt for concurrency check:", e);
+        }
+
+        if (!effectivePrevUpdatedAt) {
+          effectivePrevUpdatedAt =
+            sessionStorage.getItem(`order_prevUpdatedAt_${targetOrderId}`) ||
+            context.prevUpdatedAt ||
+            sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) ||
+            undefined;
+        }
+        context.prevUpdatedAt = effectivePrevUpdatedAt;
+        context.combinedOrderIds = targetCombinedIds;
+
+        const updatePayload = buildUpdateOrderPayload(targetOrderId, context, session);
         const invalidDetail = updatePayload.details.find((d) => !d.productId || d.productId === 0);
         if (invalidDetail) {
           throw new Error("CRITICAL: A cart item is missing a valid productId!");
         }
 
         console.log("[UPDATE ORDER PAYLOAD]:", updatePayload);
-        const response = await orderApi.updateOrder(editingOrderId, updatePayload as MenuOrderUpdateRequest);
+        const response = await orderApi.updateOrder(targetOrderId, updatePayload as MenuOrderUpdateRequest);
 
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
 
+          // Clean up concurrency token
+          sessionStorage.removeItem(`order_prevUpdatedAt_${targetOrderId}`);
+          sessionStorage.removeItem(`order_prevUpdatedAt_${editingOrderId}`);
+
           const shouldPrintKot = Boolean(shouldPrint);
           if (shouldPrintKot) {
-            await handleOrderPrinting(editingOrderId, session, true, shouldPrint);
+            await handleOrderPrinting(targetOrderId, session, true, shouldPrint);
           }
 
           dispatch(clearCart());
@@ -299,12 +328,19 @@ export const usePosCartActions = () => {
       console.error("[ORDER ERROR]", responseData ? JSON.stringify(responseData, null, 2) : err?.message || err);
 
       let msg = responseData?.message || "";
-      if (responseData?.errors) {
+      if (Array.isArray(responseData?.errors)) {
+        const errorMsgs = responseData.errors
+          .map((e: any) => e?.message || (typeof e === "string" ? e : ""))
+          .filter(Boolean);
+        if (errorMsgs.length > 0) {
+          msg = errorMsgs.join(" | ");
+        }
+      } else if (responseData?.errors && typeof responseData.errors === "object") {
         try {
           const fieldErrors = Object.entries(responseData.errors).map(([field, val]) => {
             if (Array.isArray(val)) return `${field}: ${val.join(", ")}`;
             if (typeof val === "string") return `${field}: ${val}`;
-            return `${field}: ${JSON.stringify(val)}`;
+            return `${field}: ${(val as any)?.message || JSON.stringify(val)}`;
           });
           const detailedErrors = fieldErrors.join(" | ");
           msg = msg ? `${msg} - Details: ${detailedErrors}` : detailedErrors;
@@ -314,6 +350,9 @@ export const usePosCartActions = () => {
       }
 
       msg = msg || responseData?.title || err?.message || "Order submission failed";
+      if (msg.includes("Unable to update. This order has already been edited") || msg.includes("INVALID_ORDER_ID")) {
+        msg = "Unable to update: The server only permits updating the latest active order (subsequent orders have already been punched in the system).";
+      }
       setOrderError(msg);
       showToast(msg, "error");
     } finally {

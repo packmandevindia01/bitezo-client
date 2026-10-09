@@ -9,6 +9,7 @@ import type {
   PosProduct
 } from '../../types';
 import { isItemSeperationEnabled } from '../../services/posConfigApi';
+import { sortOrderDetailsBySequence } from '../utils/orderSort';
 
 interface PosState {
   cartItems: PosCartItem[];
@@ -36,6 +37,7 @@ interface PosState {
   error: string | null;
 
   selectedCustomerId: number;
+  selectedCustomerName: string;
   selectedAddressId: number;
   selectedSectionId: number;
   selectedTableId: number;
@@ -145,6 +147,7 @@ const initialState: PosState = {
   error: null,
 
   selectedCustomerId: 1, // Default to 1 (General Customer)
+  selectedCustomerName: 'Cash Customer',
   selectedAddressId: 0,
   selectedSectionId: 0,
   selectedTableId: 0,
@@ -290,6 +293,20 @@ const posSlice = createSlice({
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.quantity += 1;
+        // If an existing item previously had voided quantities, incrementing it restores the quantity
+        if (item.isExisting && item.mapId && state.voidProducts.length > 0) {
+          const vpIdx = state.voidProducts.findIndex((vp) => vp.mapId === item.mapId);
+          if (vpIdx >= 0) {
+            const vp = state.voidProducts[vpIdx];
+            if (vp.qty > 1) {
+              const unitAmount = vp.amount / vp.qty;
+              vp.qty -= 1;
+              vp.amount = Math.max(0, vp.amount - unitAmount);
+            } else {
+              state.voidProducts.splice(vpIdx, 1);
+            }
+          }
+        }
       }
     },
     decrementItem: (state, action: PayloadAction<{ uniqueId: string }>) => {
@@ -322,6 +339,7 @@ const posSlice = createSlice({
       state.combinedOrderIds = [];
       state.billDiscountValue = 0;
       state.selectedCustomerId = 1;
+      state.selectedCustomerName = 'Cash Customer';
       state.selectedAddressId = 0;
       state.selectedSectionId = 0;
       state.selectedTableId = 0;
@@ -456,7 +474,23 @@ const posSlice = createSlice({
       const { uniqueId, quantity } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
+        const prevQty = item.quantity;
         item.quantity = Math.max(1, quantity);
+
+        if (item.isExisting && item.mapId && item.quantity > prevQty && state.voidProducts.length > 0) {
+          const diff = item.quantity - prevQty;
+          const vpIdx = state.voidProducts.findIndex((vp) => vp.mapId === item.mapId);
+          if (vpIdx >= 0) {
+            const vp = state.voidProducts[vpIdx];
+            if (vp.qty > diff) {
+              const unitAmount = vp.amount / vp.qty;
+              vp.qty -= diff;
+              vp.amount = Math.max(0, vp.amount - (unitAmount * diff));
+            } else {
+              state.voidProducts.splice(vpIdx, 1);
+            }
+          }
+        }
       }
     },
     setItemCustomizations: (state, action: PayloadAction<{ 
@@ -493,6 +527,26 @@ const posSlice = createSlice({
     },
     setCustomerId: (state, action: PayloadAction<number>) => {
       state.selectedCustomerId = action.payload;
+      if (action.payload === 1) {
+        state.selectedCustomerName = 'Cash Customer';
+      }
+    },
+    setSelectedCustomer: (state, action: PayloadAction<{ id: number; name: string; mobileNo?: string }>) => {
+      state.selectedCustomerId = action.payload.id;
+      state.selectedCustomerName = action.payload.name || (action.payload.id === 1 ? 'Cash Customer' : `Customer #${action.payload.id}`);
+      if (action.payload.id !== 1) {
+        if (action.payload.name) {
+          state.vehicleCustomerName = action.payload.name;
+          state.deliveryCustomerName = action.payload.name;
+        }
+        if (action.payload.mobileNo) {
+          state.contactNo = action.payload.mobileNo;
+        }
+      }
+    },
+    clearSelectedCustomer: (state) => {
+      state.selectedCustomerId = 1;
+      state.selectedCustomerName = 'Cash Customer';
     },
     setAddressId: (state, action: PayloadAction<number>) => {
       state.selectedAddressId = action.payload;
@@ -665,7 +719,7 @@ const posSlice = createSlice({
       state.isCartModified = isCartModified ?? false;
       state.voidProducts = [];
       state.voidModifiers = [];
-      state.cartItems = cartItems;
+      state.cartItems = sortOrderDetailsBySequence(cartItems);
       state.selectedOrderTypeId = orderTypeId;
       state.selectedOrderTypeName = orderTypeName;
       state.selectedCustomerId = customerId;
@@ -717,11 +771,28 @@ const posSlice = createSlice({
     },
     addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
       state.isCartModified = true;
-      state.voidProducts.push(action.payload);
+      const existing = state.voidProducts.find((vp) => 
+        (action.payload.mapId && vp.mapId === action.payload.mapId) ||
+        (!action.payload.mapId && vp.productId === action.payload.productId && vp.unitId === action.payload.unitId)
+      );
+      if (existing) {
+        existing.qty += action.payload.qty;
+        existing.amount = Number((existing.amount + action.payload.amount).toFixed(4));
+      } else {
+        state.voidProducts.push(action.payload);
+      }
     },
     addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number; typeId?: number }>) => {
       state.isCartModified = true;
-      state.voidModifiers.push({ ...action.payload, typeId: action.payload.typeId || 1 });
+      const existing = state.voidModifiers.find((vm) => 
+        vm.mapId === action.payload.mapId && vm.modifierId === action.payload.modifierId
+      );
+      if (existing) {
+        existing.qty += action.payload.qty;
+        existing.amount = Number((existing.amount + action.payload.amount).toFixed(4));
+      } else {
+        state.voidModifiers.push({ ...action.payload, typeId: action.payload.typeId || 1 });
+      }
     },
     setIsSettling: (state, action: PayloadAction<boolean>) => {
       state.isSettling = action.payload;
@@ -772,6 +843,8 @@ export const {
   setLoading,
   setError,
   setCustomerId,
+  setSelectedCustomer,
+  clearSelectedCustomer,
   setAddressId,
   setSectionId,
   setTableId,

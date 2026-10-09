@@ -21,6 +21,7 @@ import { POS_MENU_SYNC_CHANNEL, POS_MENU_STORAGE_KEY } from "../../utils/posMenu
 import { useCategories } from "../../../inventory/category/hooks/useCategoryQueries";
 import { subscribeToCategoryUpdates } from "../../../inventory/category/utils/categorySync";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { isBackofficeMode } from "../../../../utils/authUtils";
 import type { PosCategory } from "../../types";
 
 export const alternativesCache: Record<string, any[]> = {}; // key: `${productId}-${orderTypeId}`
@@ -35,7 +36,7 @@ export const clearAllPosCache = () => {
 export const usePosProducts = () => {
   const dispatch = useAppDispatch();
   const { hasPermission } = usePermissions();
-  const canViewCategoryMaster = hasPermission("Category Master", "View");
+  const canViewCategoryMaster = isBackofficeMode() && hasPermission("Category Master", "View");
 
   const { 
     activeGroupId,
@@ -59,9 +60,13 @@ export const usePosProducts = () => {
   
   const { data: subCategories = [], isLoading: subsLoading } = usePosSubCategories(activeCategoryId);
 
+  // In folder drill-down mode:
+  // - If user clicked a specific subcategory, use activeSubCategoryId.
+  // - If subcategories finished loading and there are none, fetch category products directly (subCategoryId: 0).
+  // - Otherwise (viewing subcategories folder level, or subs still loading), effectiveSubCategoryId is null so products are not queried.
   const effectiveSubCategoryId = activeSubCategoryId !== null 
     ? activeSubCategoryId 
-    : (subCategories.length > 0 ? subCategories[0].subCategoryId : 0);
+    : (!subsLoading && subCategories.length === 0 ? 0 : null);
 
   const { data: products = [], isLoading: prodsLoading } = usePosProductsList(activeCategoryId, effectiveSubCategoryId, selectedOrderTypeId);
 
@@ -225,12 +230,6 @@ export const usePosProducts = () => {
     }
   }, [displayCategories, activeCategoryId, dispatch]);
 
-  // Auto-select first subcategory if only 1 subcategory exists
-  useEffect(() => {
-    if (subCategories.length === 1 && !activeSubCategoryId) {
-      dispatch(setSubCategory(subCategories[0].subCategoryId));
-    }
-  }, [subCategories, activeSubCategoryId, dispatch]);
 
   // Keep productCache updated for the cart calculation selectors
   useEffect(() => {

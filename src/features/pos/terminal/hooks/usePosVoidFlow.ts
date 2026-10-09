@@ -56,12 +56,14 @@ export const usePosVoidFlow = ({
             onConfirmed: () => {
               const unitId = item.product?.unitId || 1;
               const mapId = item.mapId || 0;
+              const origQty = item.originalQty ?? item.quantity;
+              const voidQty = Math.max(1, Math.min(item.quantity, origQty));
               addVoidProduct({
                 productId: item.productId,
                 productName: item.product?.name || `Product #${item.productId}`,
                 unitId,
-                qty: item.quantity,
-                amount: roundCalc((item.price || 0) * item.quantity),
+                qty: voidQty,
+                amount: roundCalc((item.price || 0) * voidQty),
                 mapId,
               });
 
@@ -104,6 +106,13 @@ export const usePosVoidFlow = ({
     if (!item) return;
 
     if (editingOrderId && item.isExisting) {
+      const origQty = item.originalQty ?? 0;
+      // If quantity is higher than originalQty, decrementing only reverses an unsaved increase
+      if (item.quantity > origQty) {
+        decrementItem(uniqueId);
+        return;
+      }
+
       if (item.quantity === 1) {
         handleRemoveItem(uniqueId);
         return;

@@ -129,6 +129,7 @@ export const orderApi = {
     delete (payload as any).shiftId;
     delete (payload as any).createdAt;
     delete (payload as any).transDate;
+    delete (payload as any).callBack;
 
     return unwrap<MenuOrderResponse>(
       axiosInstance.put(`/menu/order/${orderId}`, payload)

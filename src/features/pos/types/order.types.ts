@@ -59,6 +59,9 @@ export interface MenuOrderDetail {
   mapId: number;
   complimentaryStatus: boolean;
   baseQty?: number;
+  basePrice?: number;
+  exclusivePrice?: number;
+  isPriceTaxExclusive?: boolean;
 }
 
 export interface MenuOrderModifier {

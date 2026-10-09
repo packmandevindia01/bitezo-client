@@ -1,5 +1,7 @@
+import axios from "axios";
 import axiosInstance from "../../../api/axiosInstance";
-import type { LoginResponse } from "../types";
+import { getConfig } from "../../../config";
+import type { LoginResponse, RefreshTokenResponse } from "../types";
 
 export interface PosMasterDataResponse {
   company: {
@@ -64,3 +66,54 @@ export const fetchPosMasterDataApi = async (
 
   return data;
 };
+
+export const backofficeRefreshTokenApi = async (
+  accessToken: string
+): Promise<RefreshTokenResponse> => {
+  const baseURL = getConfig().apiBaseUrl;
+  const tenantId = localStorage.getItem("tenantId") || "bitezo_db";
+
+  const response = await axios.post<RefreshTokenResponse | { data: RefreshTokenResponse }>(
+    `${baseURL}/auth/backoffice-refresh-token`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        clientDb: tenantId,
+        Accept: "*/*",
+      },
+    }
+  );
+
+  const resData = response.data;
+  if (resData && typeof resData === "object" && "data" in resData && (resData as any).data?.accessToken) {
+    return (resData as any).data as RefreshTokenResponse;
+  }
+  return resData as RefreshTokenResponse;
+};
+
+export const posRefreshTokenApi = async (
+  accessToken: string
+): Promise<RefreshTokenResponse> => {
+  const baseURL = getConfig().apiBaseUrl;
+  const tenantId = localStorage.getItem("tenantId") || "bitezo_db";
+
+  const response = await axios.post<RefreshTokenResponse | { data: RefreshTokenResponse }>(
+    `${baseURL}/auth/pos-refresh-token`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        clientDb: tenantId,
+        Accept: "*/*",
+      },
+    }
+  );
+
+  const resData = response.data;
+  if (resData && typeof resData === "object" && "data" in resData && (resData as any).data?.accessToken) {
+    return (resData as any).data as RefreshTokenResponse;
+  }
+  return resData as RefreshTokenResponse;
+};
+

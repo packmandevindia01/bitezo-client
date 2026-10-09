@@ -19,6 +19,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
+import { roundCalc } from "../utils/billing";
 import { PosProductSearchDropdown } from "../components/menu/PosProductSearchDropdown";
 import type { PosProductSearchResult } from "../../types";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
@@ -31,6 +32,7 @@ import { clearAllPosCache } from "../hooks/usePosProducts";
 import { useTerminalInit } from "../hooks/system/useTerminalInit";
 import { useProductSelection } from "../hooks/menu/useProductSelection";
 import { EmployeePasswordModal } from "../components/modals/system/EmployeePasswordModal";
+import { SubscriptionBanner } from "../../../company/components/SubscriptionBanner";
 
 export const PosTerminalPage = () => {
   const navigate = useNavigate();
@@ -116,6 +118,7 @@ export const PosTerminalPage = () => {
   const isSettledEdit = useAppSelector((state) => state.pos.isSettledEdit);
   const isCartModified = useAppSelector((state) => state.pos.isCartModified);
   const editingSaleId = useAppSelector((state) => state.pos.editingSaleId);
+  const selectedCustomerName = useAppSelector((state) => state.pos.selectedCustomerName);
 
   const activeCategory = terminal.categories.find((c) => c.id === terminal.activeCategoryId);
   const activeSubCategory = terminal.subCategories.find(
@@ -299,32 +302,37 @@ export const PosTerminalPage = () => {
       const item = terminal.cartDetails.find((i) => i.uniqueId === selectedKey);
       if (item && terminal.editingOrderId && item.isExisting) {
         if (numValue < item.quantity) {
-          requestAuthorization({
-            actionLabel: "Void Item Qty",
-            permissionId: 8,
-            onAuthorized: () => {
-              const diff = item.quantity - numValue;
-              const unitId = item.product?.unitId || 1;
-              const mapId = item.mapId || 0;
+          const origQty = item.originalQty ?? item.quantity;
+          const effectiveSavedQty = Math.min(item.quantity, origQty);
+          const voidDiff = Math.max(0, effectiveSavedQty - numValue);
 
-              terminal.addVoidProduct({
-                productId: item.productId,
-                productName: item.product?.name || `Product #${item.productId}`,
-                unitId,
-                qty: diff,
-                amount: (item.price || 0) * diff,
-                mapId,
-              });
+          if (voidDiff > 0) {
+            requestAuthorization({
+              actionLabel: "Void Item Qty",
+              permissionId: 8,
+              onAuthorized: () => {
+                const unitId = item.product?.unitId || 1;
+                const mapId = item.mapId || 0;
 
-              terminal.updateItemQty(selectedKey, numValue);
-              showToast(
-                `Reduced quantity for ${item.product?.name || `Product #${item.productId}`} by ${diff}`,
-                "success"
-              );
-            },
-          });
-          modals.setIsQtyModalOpen(false);
-          return;
+                terminal.addVoidProduct({
+                  productId: item.productId,
+                  productName: item.product?.name || `Product #${item.productId}`,
+                  unitId,
+                  qty: voidDiff,
+                  amount: roundCalc((item.price || 0) * voidDiff),
+                  mapId,
+                });
+
+                terminal.updateItemQty(selectedKey, numValue);
+                showToast(
+                  `Reduced quantity for ${item.product?.name || `Product #${item.productId}`} by ${voidDiff}`,
+                  "success"
+                );
+              },
+            });
+            modals.setIsQtyModalOpen(false);
+            return;
+          }
         }
       }
       terminal.updateItemQty(selectedKey, numValue);
@@ -506,6 +514,7 @@ export const PosTerminalPage = () => {
 
   return (
     <div className="flex h-dvh flex-col bg-[#ebe6e8] font-sans text-slate-900 overflow-hidden relative">
+      <SubscriptionBanner />
       <PosTopNav
         onDelivery={() => modals.setIsDeliveryModalOpen(true)}
         onDriveThrough={() => modals.setIsDriveThroughModalOpen(true)}
@@ -516,6 +525,7 @@ export const PosTerminalPage = () => {
             onAuthorized: () => modals.setIsProviderModalOpen(true),
           });
         }}
+        onCustomer={() => modals.setIsCustomerModalOpen(true)}
         onCashierOut={() => modals.setIsCashierSessionOpen(true)}
         status={status}
         orderTypes={terminal.orderTypes}
@@ -592,6 +602,7 @@ export const PosTerminalPage = () => {
                     categoryName={activeCategory?.name}
                     subCategoryName={activeSubCategory?.subCategoryName}
                     selectedProduct={productSelection.selectedProduct}
+                    isLoading={terminal.loading}
                   />
                 </ErrorBoundary>
 
@@ -652,6 +663,8 @@ export const PosTerminalPage = () => {
                 onMore={() => modals.setIsMoreModalOpen(true)}
                 isOrderEditing={!!terminal.editingOrderId}
                 isCustomerLocked={isCreditProviderActive}
+                selectedCustomerName={selectedCustomerName}
+                selectedCustomerId={terminal.selectedCustomerId}
               />
             </div>
           </main>

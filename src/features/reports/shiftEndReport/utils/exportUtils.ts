@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { formatAmount } from "../../../../utils/currency";
+import { getReportCellValue } from "../pages/ShiftEndReportPage";
 
 const formatDateTime = (dateStr: string) => {
   if (!dateStr || dateStr.startsWith("1900")) return "-";
@@ -57,7 +58,7 @@ export const exportShiftEndReportPDF = (
       row.Counter || "-",
     ];
     dynamicColumns.forEach(col => {
-      rowData.push(formatAmount(Number(row[col] || 0)));
+      rowData.push(formatAmount(getReportCellValue(row, col)));
     });
     return rowData;
   });
@@ -65,7 +66,7 @@ export const exportShiftEndReportPDF = (
   // Calculate Totals
   const totalsRow = ["", "", "", "", "Totals:"];
   dynamicColumns.forEach(col => {
-    const total = rows.reduce((sum, row) => sum + Number(row[col] || 0), 0);
+    const total = rows.reduce((sum, row) => sum + getReportCellValue(row, col), 0);
     totalsRow.push(formatAmount(total));
   });
   body.push(totalsRow);
@@ -119,7 +120,7 @@ export const exportShiftEndReportExcel = (
       "Counter": row.Counter || "-",
     };
     dynamicColumns.forEach(col => {
-      exportRow[col] = Number(row[col] || 0);
+      exportRow[col] = getReportCellValue(row, col);
     });
     return exportRow;
   });
@@ -133,7 +134,7 @@ export const exportShiftEndReportExcel = (
     "Counter": "Totals:",
   };
   dynamicColumns.forEach(col => {
-    totalsRow[col] = rows.reduce((sum, row) => sum + Number(row[col] || 0), 0);
+    totalsRow[col] = rows.reduce((sum, row) => sum + getReportCellValue(row, col), 0);
   });
   excelData.push(totalsRow);
 

@@ -1,4 +1,11 @@
-import { roundCalc } from "../utils/billing";
+import {
+  roundCalc,
+  CALC_PRECISION,
+  getBillingConfig,
+  getVatStatus,
+  getTaxExclusivePrice,
+  getTaxExclusiveExtraPrice,
+} from "../utils/billing";
 import { formatDateOnly } from "./invoicePayloadMapper";
 import type {
   PosCartItem,
@@ -183,17 +190,25 @@ export const buildDirectSettleOrderPayload = (
     mapId: item.mapId || nextNewMapId++,
   }));
 
+  const billingConfig = getBillingConfig(selectedOrderTypeName || "DineIn");
+  const isVatEnabled = getVatStatus();
+
   const details: MenuOrderDetail[] = itemsWithMapId.map(({ item, mapId }) => {
     const mainNetAmount = item.mainNetAmount !== undefined ? item.mainNetAmount : (item.lineTotal || 0);
     const mainVatAmount = item.mainVatAmount !== undefined ? item.mainVatAmount : (item.vatAmount || 0);
     const mainSc = item.mainSc !== undefined ? item.mainSc : (item.sc || 0);
     const mainLevy = item.mainLevy !== undefined ? item.mainLevy : (item.levy || 0);
 
+    const taxExclusivePrice = getTaxExclusivePrice(item, billingConfig);
+
     return {
       productId: item.productId || item.product?.id || 0,
       unitId: item.unitId || item.product?.unitId || 1,
       qty: item.quantity,
-      price: roundCalc(item.price ?? item.product?.price ?? 0),
+      price: taxExclusivePrice,
+      basePrice: taxExclusivePrice,
+      exclusivePrice: taxExclusivePrice,
+      isPriceTaxExclusive: true,
       discPer:
         item.discountType === "percentage"
           ? roundCalc(item.discountValue || 0)
@@ -206,8 +221,8 @@ export const buildDirectSettleOrderPayload = (
       serviceCharge: roundCalc(mainSc),
       levy: roundCalc(mainLevy),
       vatId: (item.product as any)?.sVatId || (item as any)?.vatId || 1,
-      vatAmount: roundCalc(mainVatAmount),
-      netAmount: roundCalc(mainNetAmount),
+      vatAmount: roundCalc(Math.max(0, mainVatAmount)),
+      netAmount: roundCalc(Math.max(0, mainNetAmount)),
       mapId,
       complimentaryStatus: Boolean(
         (item.discountType === "percentage" && Number(item.discountValue) === 100) ||
@@ -218,14 +233,30 @@ export const buildDirectSettleOrderPayload = (
   });
 
   const modifiers: MenuOrderModifier[] = itemsWithMapId.flatMap(({ item, mapId }) => {
-    const extrasRows = (item.extras || []).map((extra) => ({
-      mapId,
-      modifierId: extra.id,
-      qty: extra.qty || 1,
-      price: roundCalc(extra.price),
-      amount: roundCalc((extra.price || 0) * (extra.qty || 1)),
-      typeId: extra.typeId,
-    }));
+    const rawVatRate = (item.product?.vatValue !== undefined && item.product?.vatValue !== null)
+      ? Number(item.product.vatValue)
+      : (item.vatRate !== undefined && item.vatRate !== null)
+      ? Number(item.vatRate)
+      : (billingConfig.vatRate * 100);
+    const effectiveVatRate = isVatEnabled ? rawVatRate : 0;
+    const isItemInclusive =
+      item.isIncl === true ? true :
+      item.isIncl === false ? false :
+      billingConfig.vatType === "Inclusive";
+
+    const extrasRows = (item.extras || []).map((extra) => {
+      const exPrice = Number(extra.price) || 0;
+      const exQty = Number(extra.qty) || 1;
+      const exclExtraPrice = getTaxExclusiveExtraPrice(exPrice, effectiveVatRate, isItemInclusive);
+      return {
+        mapId,
+        modifierId: extra.id,
+        qty: exQty,
+        price: exclExtraPrice,
+        amount: roundCalc(exclExtraPrice * exQty, CALC_PRECISION),
+        typeId: extra.typeId,
+      };
+    });
 
     const modifierRows = (item.modifiers || []).map((mod) => ({
       mapId,
@@ -275,10 +306,10 @@ export const buildDirectSettleOrderPayload = (
     discPer: billDiscountType === "percentage" ? billDiscountValue : 0,
     serviceCharge: roundCalc(totalServiceCharge),
     levy: roundCalc(totalLevy),
-    vatExclAmount: roundCalc(subtotal),
-    vatAmount: roundCalc(tax),
-    netAmount: roundCalc(total),
-    deliveryCharge: roundCalc(deliveryCharge),
+    vatExclAmount: roundCalc(Math.max(0, subtotal)),
+    vatAmount: roundCalc(Math.max(0, tax)),
+    netAmount: roundCalc(Math.max(0, total)),
+    deliveryCharge: roundCalc(Math.max(0, deliveryCharge)),
     updatedAt: new Date().toISOString(),
     orderTypeId: session.providerId || selectedOrderTypeId,
     sectionId: isDineIn ? selectedSectionId || 0 : 0,
@@ -385,55 +416,79 @@ export const buildUpdateOrderPayload = (
     undefined;
 
   const cleanedDetails: MenuOrderDetail[] = base.details.map((d) => ({
-    productId: d.productId,
-    unitId: d.unitId,
-    qty: d.qty,
-    price: d.price,
-    discPer: d.discPer,
-    discAmount: d.discAmount,
-    serviceCharge: d.serviceCharge,
-    levy: d.levy,
-    vatId: d.vatId,
-    vatAmount: d.vatAmount,
-    netAmount: d.netAmount,
-    mapId: d.mapId,
-    complimentaryStatus: d.complimentaryStatus,
+    productId: Number(d.productId),
+    unitId: Number(d.unitId || 1),
+    qty: Number(d.qty || 1),
+    price: roundCalc(d.basePrice ?? d.exclusivePrice ?? d.price ?? 0, CALC_PRECISION),
+    discPer: roundCalc(d.discPer || 0),
+    discAmount: roundCalc(d.discAmount || 0),
+    serviceCharge: roundCalc(d.serviceCharge || 0),
+    levy: roundCalc(d.levy || 0),
+    vatId: Number(d.vatId || 1),
+    vatAmount: roundCalc(d.vatAmount || 0),
+    netAmount: roundCalc(d.netAmount || 0),
+    mapId: Number(d.mapId || 1),
+    complimentaryStatus: Boolean(d.complimentaryStatus),
+  }));
+
+  const cleanedModifiers: MenuOrderModifier[] = (base.modifiers || []).map((m) => ({
+    mapId: Number(m.mapId || 1),
+    modifierId: Number(m.modifierId || 0),
+    qty: Number(m.qty || 1),
+    price: roundCalc(m.price || 0, CALC_PRECISION),
+    amount: roundCalc(m.amount || 0, CALC_PRECISION),
+    typeId: Number(m.typeId || 1),
+  }));
+
+  const cleanedVoidProducts = (base.voidProducts || []).map((vp) => ({
+    productId: Number(vp.productId),
+    unitId: Number(vp.unitId || 1),
+    qty: Number(vp.qty || 1),
+    amount: roundCalc(vp.amount || 0),
+    mapId: Number(vp.mapId || 1),
+  }));
+
+  const cleanedVoidModifiers = (base.voidModifiers || []).map((vm) => ({
+    mapId: Number(vm.mapId || 1),
+    modifierId: Number(vm.modifierId || 0),
+    qty: Number(vm.qty || 1),
+    amount: roundCalc(vm.amount || 0),
+    typeId: Number(vm.typeId || 1),
   }));
 
   return {
-    orderId,
-    customerId: base.customerId,
-    employeeId: base.employeeId,
-    discAmount: base.discAmount,
-    discPer: base.discPer,
-    serviceCharge: base.serviceCharge,
-    levy: base.levy,
-    vatExclAmount: base.vatExclAmount,
-    vatAmount: base.vatAmount,
-    netAmount: base.netAmount,
+    orderId: Number(orderId),
+    customerId: Number(base.customerId || 1),
+    employeeId: Number(base.employeeId || 1),
+    discAmount: roundCalc(base.discAmount || 0),
+    discPer: roundCalc(base.discPer || 0),
+    serviceCharge: roundCalc(base.serviceCharge || 0),
+    levy: roundCalc(base.levy || 0),
+    vatExclAmount: roundCalc(base.vatExclAmount || 0),
+    vatAmount: roundCalc(base.vatAmount || 0),
+    netAmount: roundCalc(base.netAmount || 0),
     updatedAt: new Date().toISOString(),
     prevUpdatedAt: resolvedPrevUpdatedAt || new Date().toISOString(),
-    orderTypeId: base.orderTypeId,
-    sectionId: base.sectionId,
-    tableId: base.tableId,
-    guestNo: base.guestNo,
+    orderTypeId: Number(base.orderTypeId || 1),
+    sectionId: Number(base.sectionId || 0),
+    tableId: Number(base.tableId || 0),
+    guestNo: Number(base.guestNo || 0),
     vehicleCustomerName: base.vehicleCustomerName || "",
     vehicleNo: base.vehicleNo || "",
-    addressId: base.addressId,
-    missedCall: base.missedCall,
+    addressId: Number(base.addressId || 0),
+    missedCall: Boolean(base.missedCall),
     contactNo: base.contactNo || "",
-    callBack: base.callBack || "",
     note: base.note || "",
     change: base.change || "",
-    isComing: base.isComing,
-    comingTime: base.comingTime,
+    isComing: Boolean(base.isComing),
+    comingTime: base.comingTime || new Date().toISOString(),
     providerNo: base.providerNo || "",
-    deliveryCharge: base.deliveryCharge,
-    driverId: base.driverId,
+    deliveryCharge: roundCalc(base.deliveryCharge || 0),
+    driverId: Number(base.driverId || 0),
     details: cleanedDetails,
-    modifiers: base.modifiers,
-    voidProducts: base.voidProducts,
-    voidModifiers: base.voidModifiers,
-    combinedOrderIds: base.combinedOrderIds,
+    modifiers: cleanedModifiers,
+    voidProducts: cleanedVoidProducts,
+    voidModifiers: cleanedVoidModifiers,
+    combinedOrderIds: (base.combinedOrderIds || []).map(Number),
   };
 };

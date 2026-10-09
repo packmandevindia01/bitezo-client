@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerApi } from "../services/customerApi";
 import { useToast } from "../../../../app/providers/useToast";
 import { customerSchema, type Customer } from "../types/customer";
@@ -26,7 +26,7 @@ export const initialForm: Customer = {
   callType: ""
 };
 
-export const useCustomer = (onSuccess?: () => void) => {
+export const useCustomer = (onSuccess?: (savedCustomer?: Customer) => void) => {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -40,11 +40,12 @@ export const useCustomer = (onSuccess?: () => void) => {
 
   const saveMutation = useMutation({
     mutationFn: (data: Customer) => customerApi.saveCustomer(data),
-    onSuccess: () => {
+    onSuccess: (result) => {
       showToast("Customer saved successfully", "success");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["menuCustomers"] });
       reset(initialForm);
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(result?.data);
     },
     onError: (error: any) => {
       const errMsg = error?.response?.data?.message || error?.message || "Failed to save customer";
@@ -57,6 +58,7 @@ export const useCustomer = (onSuccess?: () => void) => {
     onSuccess: () => {
       showToast("Customer deleted successfully", "success");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["menuCustomers"] });
       reset(initialForm);
       if (onSuccess) onSuccess();
     },
@@ -75,3 +77,13 @@ export const useCustomer = (onSuccess?: () => void) => {
     resetForm: () => reset(initialForm),
   };
 };
+
+export const useCustomerList = (params?: { Code?: string; Name?: string; MobileNo?: string }) => {
+  return useQuery({
+    queryKey: ["menuCustomers", params],
+    queryFn: () => customerApi.getCustomers(params),
+    select: (res) => res.data || [],
+    staleTime: 30 * 1000,
+  });
+};
+

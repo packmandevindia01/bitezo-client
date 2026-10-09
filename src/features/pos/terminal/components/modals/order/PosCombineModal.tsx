@@ -7,6 +7,7 @@ import { useToast } from "../../../../../../app/providers/useToast";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { getDecimalPart } from "../../../../../../utils/currency";
 import { loadRecalledOrder, setCombinedOrderIds } from "../../../store/posSlice";
+import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useCashierLog } from "../../../../cashier";
 
 interface CombineOrder {
@@ -121,7 +122,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       const combinedData = response?.data || response;
 
       if (combinedData && (combinedData.detailsData || combinedData.details)) {
-        const detailsData = combinedData.detailsData || combinedData.details || [];
+        const detailsData = sortOrderDetailsBySequence(combinedData.detailsData || combinedData.details || []);
         const modifiersData = combinedData.modifiersData || combinedData.modifiers || [];
 
         const mappedCartItems = detailsData.map((detail: any, idx: number) => {
@@ -208,7 +209,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             price: detail.price || 0,
             isIncl: itemIsIncl,
             discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
-            discountType: detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount',
+            discountType: (detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount') as 'percentage' | 'amount',
             extras,
             modifiers,
             isExisting: true,
@@ -227,24 +228,46 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           };
         });
 
-        // Load the new combined cart entirely, keeping primary order properties
+        // Determine target order: the backend only permits updating the latest (highest) order in the combined group
+        const targetOrderId = Math.max(...orderIdsToCombine);
+        const absorbedOrderIds = orderIdsToCombine.filter(id => id !== targetOrderId);
+
+        let targetPrevUpdatedAt: string | undefined = undefined;
+        let targetMaster: any = null;
+        try {
+          const targetRes = await orderApi.getOrderDetails(targetOrderId);
+          targetMaster = targetRes?.data?.masterData || targetRes?.masterData || targetRes?.data;
+          const ts = targetMaster?.updatedAt || targetMaster?.updated_at || targetMaster?.createdAt;
+          if (ts) {
+            targetPrevUpdatedAt = String(ts);
+            sessionStorage.setItem(`order_prevUpdatedAt_${targetOrderId}`, targetPrevUpdatedAt);
+          }
+        } catch (e) {
+          console.warn("Could not fetch target order details for combine:", e);
+        }
+
+        if (!targetPrevUpdatedAt && editingOrderId) {
+          targetPrevUpdatedAt = sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) || undefined;
+        }
+
+        // Load the new combined cart entirely, setting the latest order as primary
         dispatch(loadRecalledOrder({
-          editingOrderId: editingOrderId,
+          editingOrderId: targetOrderId,
           cartItems: mappedCartItems,
-          orderTypeId: selectedOrderTypeId,
-          orderTypeName: selectedOrderTypeName,
-          customerId: selectedCustomerId,
-          addressId: selectedAddressId,
+          orderTypeId: targetMaster?.orderTypeId || selectedOrderTypeId,
+          orderTypeName: targetMaster?.orderTypeName || selectedOrderTypeName,
+          customerId: targetMaster?.customerId || selectedCustomerId,
+          addressId: targetMaster?.addressId || selectedAddressId,
           billDiscountValue: billDiscountValue,
           billDiscountType: billDiscountType,
-          sectionId: selectedSectionId,
-          tableId: selectedTableId,
+          sectionId: targetMaster?.sectionId || selectedSectionId,
+          tableId: targetMaster?.tableId || selectedTableId,
           isCartModified: true,
-          prevUpdatedAt: editingOrderId ? sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) || undefined : undefined,
+          prevUpdatedAt: targetPrevUpdatedAt || undefined,
         }));
 
-        // Set the extra combined IDs in the store to be sent during submitOrder
-        dispatch(setCombinedOrderIds(selectedIds));
+        // Set the absorbed order IDs in the store to be sent during submitOrder / settle
+        dispatch(setCombinedOrderIds(absorbedOrderIds));
 
         showToast("Orders combined successfully!", "success");
         onClose();

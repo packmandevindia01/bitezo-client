@@ -12,13 +12,14 @@ interface PosProductGridProps {
   alternatives?: PosAlternative[];
   activeSubCategoryId: number | null;
   onSelectSubCategory: (id: number) => void;
-  onBack: () => void;
+  onBack?: () => void;
   onAdd: (productId: number) => void;
   onLongPress?: (productId: number) => void;
   onSelectAlt?: (variant: PosAlternative) => void;
   categoryName?: string;
   subCategoryName?: string;
   selectedProduct?: PosProduct | null;
+  isLoading?: boolean;
 }
 
 const PosProductGrid = ({
@@ -27,12 +28,14 @@ const PosProductGrid = ({
   alternatives = [],
   activeSubCategoryId,
   onSelectSubCategory,
+  onBack: _onBack,
   onAdd,
   onLongPress,
   onSelectAlt,
   categoryName,
   subCategoryName,
   selectedProduct,
+  isLoading,
 }: PosProductGridProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -150,6 +153,7 @@ const PosProductGrid = ({
     if (showAlternatives && selectedProduct) segments.push(selectedProduct.name);
     return segments;
   }, [categoryName, subCategoryName, showAlternatives, selectedProduct]);
+
   const sortedAlternatives = useMemo(() => {
     if (!showAlternatives) return alternatives;
     return sortAlternatives(alternatives);
@@ -157,7 +161,7 @@ const PosProductGrid = ({
 
   const allItems = useMemo(() => {
     if (showAlternatives) return sortedAlternatives;
-    if (showSubCategories) return [...subCategories, ...products];
+    if (showSubCategories) return subCategories;
     return products;
   }, [showAlternatives, showSubCategories, sortedAlternatives, subCategories, products]);
 
@@ -183,8 +187,6 @@ const PosProductGrid = ({
     }
   }, [showAlternatives]);
 
-
-
   return (
     <section className="relative flex-1 bg-transparent overflow-hidden flex flex-col">
       {/* Breadcrumb Bar */}
@@ -203,13 +205,19 @@ const PosProductGrid = ({
         </div>
       )}
 
+
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-scroll overflow-x-hidden p-1 lg:p-2 scroll-smooth scrollbar-wide"
       >
-        {allItems.length === 0 ? (
+        {isLoading && allItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
+            <div className="w-8 h-8 border-3 border-[#49293e]/20 border-t-[#49293e] rounded-full animate-spin" />
+            <p className="text-xs font-bold text-[#49293e] uppercase tracking-wider">Loading Menu...</p>
+          </div>
+        ) : allItems.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm font-bold uppercase tracking-widest">
-            {showAlternatives ? "No Alternatives" : showSubCategories ? "No Categories" : "No Products"}
+            {showAlternatives ? "No Alternatives" : showSubCategories ? "No Subcategories" : "No Products"}
           </div>
         ) : (
           <div 
@@ -236,20 +244,43 @@ const PosProductGrid = ({
                       return (
                         <button
                           key={`sub-${sub.subCategoryId}`}
+                          type="button"
                           onClick={() => onSelectSubCategory(sub.subCategoryId)}
-                          className="flex flex-col items-center justify-center gap-1 sm:gap-1 lg:gap-2 min-h-[75px] sm:min-h-[85px] md:min-h-[95px] xl:min-h-[110px] h-full rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm border border-slate-200 active:scale-95 outline-none focus:ring-2 focus:ring-[#49293e]/20 p-2"
+                          className="
+                            relative flex flex-col justify-between items-center overflow-hidden
+                            rounded-xl bg-white border border-slate-200/80 shadow-sm text-center
+                            transition-all duration-300 hover:border-[#49293e]/40 hover:shadow-[0_8px_16px_rgba(73,41,62,0.12)] hover:-translate-y-[2px]
+                            active:scale-[0.98] group shrink-0
+                            h-[75px] sm:h-[95px] md:h-[105px] lg:h-[100px] xl:h-[115px] w-full min-w-0 outline-none focus:ring-2 focus:ring-[#49293e]/20 cursor-pointer
+                          "
                         >
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="relative w-full h-[55%] shrink-0 overflow-hidden rounded-t-xl border-b border-slate-100/50 bg-slate-50 flex items-center justify-center">
                             {sub.imageUrl ? (
-                              <img src={sub.imageUrl} alt={sub.subCategoryName} className="w-full h-full object-cover" />
+                              <img 
+                                src={sub.imageUrl} 
+                                alt={sub.subCategoryName} 
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
                             ) : (
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 w-4 h-4 sm:w-6 sm:h-6">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                              </svg>
+                              <span className="text-[12px] md:text-[14px] font-black uppercase select-none text-slate-300 group-hover:text-[#49293e] transition-colors">
+                                {sub.subCategoryName.substring(0, 2)}
+                              </span>
                             )}
                           </div>
-                          <h3 className="text-[11px] sm:text-xs font-extrabold text-[#49293e] tracking-tight text-center uppercase line-clamp-2 break-words px-1 leading-snug">{sub.subCategoryName}</h3>
-                          <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 mt-0 sm:mt-0.5 tracking-wide text-center line-clamp-2 break-words px-1 leading-snug">{sub.arabicName || "ITEMS"}</p>
+
+                          <div className="flex flex-col flex-1 min-h-0 min-w-0 items-center justify-center w-full px-1 py-0.5 overflow-hidden bg-white">
+                            <p className="text-[9px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-[1.15] line-clamp-2 break-words text-center text-[#49293e]">
+                              {sub.subCategoryName}
+                            </p>
+                            {sub.arabicName && (
+                              <p className="text-[8px] md:text-[9px] xl:text-[10px] font-bold leading-[1.15] mt-0.5 line-clamp-1 break-words text-center text-slate-500">
+                                {sub.arabicName}
+                              </p>
+                            )}
+                          </div>
                         </button>
                       );
                     } else if (showAlternatives) {

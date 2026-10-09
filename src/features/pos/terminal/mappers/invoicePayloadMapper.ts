@@ -1,4 +1,4 @@
-import { roundCalc } from "../utils/billing";
+import { roundCalc, CALC_PRECISION, getTaxExclusivePrice } from "../utils/billing";
 import type { SalesInvoicePayload, PaymodeItem } from "../../types";
 import type { DirectSettleOrderBase } from "./orderPayloadMapper";
 
@@ -86,8 +86,6 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
   }
 
   const activeTransDateIso = resolveExactTransDate(transDate);
-
-  const activeTransDateOnly = activeTransDateIso.split("T")[0];
   const activeDriverId = orderPayload.driverId || Number(localStorage.getItem("selectedDriverId") || 0);
 
   const resolvedCustomerId =
@@ -136,14 +134,11 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     discPer: orderPayload.discPer,
     serviceCharge: orderPayload.serviceCharge,
     levy: orderPayload.levy,
-    vatExclAmount: orderPayload.vatExclAmount,
-    vatAmount: orderPayload.vatAmount,
-    netAmount: orderPayload.netAmount,
-    deliveryCharge: orderPayload.deliveryCharge,
-    callBack: orderPayload.orderTypeId === 4 ? (orderPayload.callBack || "") : "",
+    vatExclAmount: Math.max(0, orderPayload.vatExclAmount),
+    vatAmount: Math.max(0, orderPayload.vatAmount),
+    netAmount: Math.max(0, orderPayload.netAmount),
+    deliveryCharge: Math.max(0, orderPayload.deliveryCharge),
     createdAt: new Date().toISOString(),
-    updateAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     orderMaster: {
       isOrderEdited,
       sectionId: orderPayload.sectionId,
@@ -154,25 +149,23 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       addressId: orderPayload.addressId,
       missedCall: orderPayload.missedCall,
       contactNo: orderPayload.contactNo,
-      callBack: orderPayload.orderTypeId === 4 ? (orderPayload.callBack || "") : "",
       note: orderPayload.note,
       change: (orderPayload.orderTypeId === 4 && orderPayload.change && orderPayload.change !== "0.00" && orderPayload.change !== "0" && orderPayload.change !== "0.000") ? String(orderPayload.change) : "",
       isComing: orderPayload.isComing,
       comingTime: orderPayload.comingTime || new Date().toISOString(),
       providerNo: orderPayload.providerNo,
       driverId: activeDriverId,
-      transDate: activeTransDateOnly,
     },
     combinedOrderIds: orderPayload.combinedOrderIds,
     modifiers: orderPayload.modifiers,
     voidProducts: orderPayload.voidProducts,
     voidModifiers: orderPayload.voidModifiers,
-    details: orderPayload.details.map((d) => ({
+    details: orderPayload.details.map((d: any) => ({
       productId: d.productId,
       unitId: d.unitId,
       vatId: d.vatId,
       qty: d.qty,
-      price: d.price,
+      price: roundCalc(d.basePrice ?? d.exclusivePrice ?? getTaxExclusivePrice(d), CALC_PRECISION),
       discPer: d.discPer,
       discAmount: d.discAmount,
       serviceCharge: d.serviceCharge,

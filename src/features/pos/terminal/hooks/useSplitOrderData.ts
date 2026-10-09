@@ -5,8 +5,9 @@ import { usePosProducts } from "./usePosProducts";
 import { useAppSelector } from "../../../../app/hooks";
 import { useCashierLog } from "../../cashier";
 import type { SplitBucket, SplitCartItem } from "./useSplitBuckets";
-import { calculateOrder, roundCalc } from "../utils/billing";
+import { calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice } from "../utils/billing";
 import { formatItemDisplayName } from "../../utils/alternativeHelpers";
+import { sortOrderDetailsBySequence } from "../utils/orderSort";
 
 interface UseSplitOrderDataProps {
   orderId: number | null;
@@ -59,7 +60,7 @@ export const useSplitOrderData = ({
       try {
         const res = orderDetailsData;
         const masterData = res.data?.masterData || res.masterData || {};
-        const detailsData = res.data?.detailsData || res.detailsData || [];
+        const detailsData = sortOrderDetailsBySequence(res.data?.detailsData || res.detailsData || []);
         const rawModifiersData = res.data?.modifiersData || res.modifiersData || [];
         
         // Deduplicate modifiersData (backend SQL JOIN Cartesian product fix)
@@ -208,7 +209,7 @@ export const useSplitOrderData = ({
         mapId: newMapId,
         productId: pId,
         qty: item.currentQty,
-        price: roundCalc(item.price),
+        price: roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item), CALC_PRECISION),
         netAmount: roundCalc(lineCalc?.mainNetAmount ?? lineCalc?.lineTotal ?? 0),
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),

@@ -80,3 +80,15 @@ export const getCounterList = async (branchId: number): Promise<CounterOption[]>
     counterName: c.counterName,
   }));
 };
+
+export const getShiftEndCashierLogDetail = async (dayId: number, shiftId: number): Promise<any> => {
+  try {
+    const data = await unwrap(
+      axiosInstance.get<ApiResponse<any>>(`/Cashier-log/shiftend-report/${dayId}/${shiftId}`)
+    );
+    return data;
+  } catch {
+    return null;
+  }
+};
+

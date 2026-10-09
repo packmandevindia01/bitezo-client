@@ -94,3 +94,21 @@ export interface CompanyMasterloadResponse {
   message?: string;
   isSuccess?: boolean;
 }
+
+export interface SubscriptionStatusData {
+  isExpired: boolean;
+  daysLeft: number;
+  expiresAt: string;
+}
+
+export interface SubscriptionStatusResponse {
+  data: SubscriptionStatusData;
+  status: number;
+  message: string;
+  correlationId?: string;
+  errors?: string[];
+  isSuccess: boolean;
+  timestamp?: string;
+  debug?: any;
+}
+

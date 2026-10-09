@@ -6,6 +6,14 @@ export interface UserRole {
   moduleType?: string;
 }
 
+export interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  session?: {
+    expiresAt?: string;
+  };
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;

@@ -51,7 +51,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0 border-l border-slate-200/50 pl-2 lg:pl-3">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>Net Value</span>
-            <span>{formatAmount(subtotal - discount + charges)}</span>
+            <span>{formatAmount(Math.max(0, subtotal - discount) + charges)}</span>
           </div>
           {(isDelivery || deliveryCharge > 0) && (
             <div
@@ -78,7 +78,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
           )}
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>VAT</span>
-            <span>{formatAmount(tax)}</span>
+            <span>{formatAmount(Math.max(0, tax))}</span>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="flex flex-col items-end leading-none mt-1 [@media(max-height:800px)]:mt-0">
           <span className="text-[9px] [@media(max-height:800px)]:text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Grand Total</span>
           <span className="text-[24px] lg:text-[28px] [@media(max-height:800px)]:text-[18px] font-black text-slate-900 tracking-tighter">
-            {formatAmount(total || 0)}
+            {formatAmount(Math.max(0, total || 0))}
           </span>
         </div>
       </div>

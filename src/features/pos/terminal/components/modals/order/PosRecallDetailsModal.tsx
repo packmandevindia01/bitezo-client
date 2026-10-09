@@ -15,6 +15,7 @@ import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
+import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 
 import { usePosProducts } from "../../../hooks/usePosProducts";
 
@@ -170,7 +171,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       showToast(`Preparing KOT for Order #${orderId}...`, "info");
       
       const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
+      const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
       
       const orderTypeMap: Record<number, string> = {
         1: "DineIn", 2: "TakeOut", 3: "DriveThru",
@@ -428,7 +429,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       showToast(`Preparing Guest Receipt for Order #${orderId}...`, "success");
       
       const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
+      const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
       
       const orderTypeMap: Record<number, string> = {
         1: "DineIn", 2: "TakeOut", 3: "DriveThru",
@@ -798,7 +799,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     
     try {
       const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
+      const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
 
       const priceView = (() => {
         try {
@@ -898,7 +899,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             : detail.discPer && detail.discPer > 0
             ? detail.discPer
             : (detail.discAmount || 0),
-          discountType: isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount',
+          discountType: (isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount') as 'percentage' | 'amount',
           extras,
           modifiers,
           messages,
@@ -1003,7 +1004,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     
     try {
       const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
+      const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
 
       const priceView = (() => {
         try {
@@ -1098,7 +1099,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             : detail.discPer && detail.discPer > 0
             ? detail.discPer
             : (detail.discAmount || 0),
-          discountType: isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount',
+          discountType: (isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount') as 'percentage' | 'amount',
           extras,
           modifiers,
           isExisting: true,
@@ -1205,7 +1206,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   if (!isOpen) return null;
 
   const master = order?.masterData || order || {};
-  const details = order?.detailsData || order?.details || [];
+  const details = sortOrderDetailsBySequence(order?.detailsData || order?.details || []);
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const ticketNo = master.ticketNo ?? order?.ticketNo ?? "1";

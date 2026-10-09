@@ -168,10 +168,24 @@ const authSlice = createSlice({
         localStorage.setItem("userRoles", JSON.stringify(action.payload));
       }
     },
+    tokenRefreshed: (
+      state,
+      action: PayloadAction<{
+        accessToken: string;
+        refreshToken?: string;
+        sessionExpiresAt?: string;
+      }>
+    ) => {
+      state.accessToken = action.payload.accessToken;
+      if (action.payload.refreshToken) {
+        state.refreshToken = action.payload.refreshToken;
+      }
+      state.isAuthenticated = true;
+    },
   },
 });
 
-export const { setCredentials, logout, setCompanyConfig, setActiveBranchId, setUserRoles } = authSlice.actions;
+export const { setCredentials, logout, setCompanyConfig, setActiveBranchId, setUserRoles, tokenRefreshed } = authSlice.actions;
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
 import type { RootState } from '../../../app/store';

@@ -76,10 +76,10 @@ export const usePosProductsList = (
 ) => {
   const activeOrderTypeId = orderTypeId || 1;
   return useQuery({
-    // If subCategoryId is null, we pass 0 to the API as per previous logic
+    // When subCategoryId is null, we are on the SubCategories selection screen, so don't fetch products
     queryKey: POS_QUERY_KEYS.products(categoryId!, subCategoryId ?? 0, activeOrderTypeId),
     queryFn: () => menuApi.getProducts(categoryId!, subCategoryId ?? 0, activeOrderTypeId),
-    enabled: !!categoryId, // Must have a category to fetch products
+    enabled: !!categoryId && subCategoryId !== null && subCategoryId !== undefined,
     ...CACHE_CONFIG,
   });
 };

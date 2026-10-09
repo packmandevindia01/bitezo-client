@@ -14,6 +14,31 @@ const formatDate = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
+export const getCategoryName = (row: any): string => {
+  return String(
+    row.catgeory ||
+    row.category ||
+    row.categoryName ||
+    row.catName ||
+    row.Catgeory ||
+    row.Category ||
+    row.CategoryName ||
+    row.name ||
+    "-"
+  );
+};
+
+export const getCategoryCode = (row: any): string => {
+  return String(
+    row.categoryCode ||
+    row.catCode ||
+    row.code ||
+    row.categoryId ||
+    row.catId ||
+    "-"
+  );
+};
+
 export const exportCategoryWiseSalesReportPDF = (
   rows: CategoryWiseSalesRow[],
   totalData: CategoryWiseTotalData | null,
@@ -85,9 +110,9 @@ export const exportCategoryWiseSalesReportPDF = (
     sumNetAmount += netAmount;
 
     return [
-      String(index + 1),
-      String(row.categoryCode || row.catCode || row.code || row.categoryId || row.catId || "-"),
-      String(row.categoryName || row.catName || row.name || row.category || "-"),
+      String(row.sNo ?? index + 1),
+      getCategoryCode(row),
+      getCategoryName(row),
       String(qty),
       formatAmount(amount),
       formatAmount(discount),
@@ -180,9 +205,9 @@ export const exportCategoryWiseSalesReportExcel = (
     sumNetAmount += netAmount;
 
     return {
-      "S.No": index + 1,
-      "Category Code": String(row.categoryCode || row.catCode || row.code || row.categoryId || row.catId || "-"),
-      "Category Name": String(row.categoryName || row.catName || row.name || row.category || "-"),
+      "S.No": row.sNo ?? (index + 1),
+      "Category Code": getCategoryCode(row),
+      "Category Name": getCategoryName(row),
       "Qty": qty,
       "Amount": amount,
       "Discount": discount,

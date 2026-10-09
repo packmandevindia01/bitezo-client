@@ -7,11 +7,14 @@ export interface CategoryWiseSalesReportParams {
 }
 
 export interface CategoryWiseSalesRow {
+  sNo?: number;
   categoryId?: number;
   catId?: number;
   categoryCode?: string;
   catCode?: string;
   code?: string;
+  catgeory?: string; // Backend API spelling
+  Catgeory?: string;
   categoryName?: string;
   catName?: string;
   name?: string;

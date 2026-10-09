@@ -2,6 +2,7 @@ import { forwardRef, useMemo } from "react";
 import { X, Download, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { formatAmount } from "../../../../utils/currency";
+import { getReportCellValue } from "../pages/DayEndReportPage";
 
 interface PrintData {
   dynamicColumns: string[];
@@ -62,7 +63,7 @@ const DayEndPrintTemplate = forwardRef<HTMLDivElement, { data: PrintData }>(
     // Dynamically calculate totals for the footer
     const colTotals = useMemo(() => {
       return data.dynamicColumns.map((col) => {
-        return data.rows.reduce((sum, row) => sum + Number(row[col] || 0), 0);
+        return data.rows.reduce((sum, row) => sum + getReportCellValue(row, col), 0);
       });
     }, [data.rows, data.dynamicColumns]);
 
@@ -105,9 +106,9 @@ const DayEndPrintTemplate = forwardRef<HTMLDivElement, { data: PrintData }>(
                   <td className="text-left p-2 text-[10px] text-slate-800 font-medium">{formatDateTime(row.StartDate)}</td>
                   <td className="text-left p-2 text-[10px] text-slate-800 font-medium">{formatDateTime(row.EndDate)}</td>
                   {data.dynamicColumns.map((col) => {
-                    const val = Number(row[col] || 0);
+                    const val = getReportCellValue(row, col);
                     return (
-                      <td key={col} className={`text-right p-2 text-[10px] tabular-nums ${col === 'Total' ? 'font-bold text-slate-900 bg-slate-50/50' : 'text-slate-800'}`}>
+                      <td key={col} className={`text-right p-2 text-[10px] tabular-nums ${col === 'Total' ? 'font-bold text-slate-900 bg-slate-100/50' : 'text-slate-800'}`}>
                         {formatAmount(val)}
                       </td>
                     );

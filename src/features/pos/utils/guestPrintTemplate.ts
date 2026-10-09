@@ -195,7 +195,7 @@ export const generateGuestPrintHtml = async (
   const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0);
   const totalNet = Number(data.netAmount || 0);
   const authoritativeSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0) ? Number(data.subTotal) : 0;
-  const authoritativeVatAmount = (data.vatAmount !== undefined && Number(data.vatAmount) > 0) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
 
   // Conversion ratio for inclusive pricing when baseAmount is missing
   const vatRatio = (authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0 && Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05)
@@ -243,7 +243,7 @@ export const generateGuestPrintHtml = async (
     // Deduct extras since they are printed as separate rows below.
     // IMPORTANT: No VAT stripping — lineTotal is already the correct inclusive total.
     const lineInclusiveAmt =
-      itemLineTotal !== undefined && itemLineTotal > 0
+      itemLineTotal !== undefined
         ? Math.max(0, itemLineTotal - extrasSum)
         : origUnitPrice * qty;
 
@@ -340,10 +340,13 @@ export const generateGuestPrintHtml = async (
 
   if (isVatActive) {
     data.enableVat = true;
-    data.vatAmount = parseFloat(fmt(authoritativeVatAmount > 0 ? authoritativeVatAmount : (data.netAmount - displaySubTotal)));
-    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : (data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
+    const computedVat = data.vatAmount !== undefined
+      ? Number(data.vatAmount)
+      : (authoritativeVatAmount > 0 ? authoritativeVatAmount : Math.max(0, data.netAmount - displaySubTotal));
+    data.vatAmount = parseFloat(fmt(Math.max(0, computedVat)));
+    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : Math.max(0, data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
   } else {
-    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : displaySubTotal));
+    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : Math.max(0, displaySubTotal)));
     data.vatAmount = 0;
   }
 

@@ -5,6 +5,8 @@ import { useCategoryWiseSalesReport } from "../hooks/useCategoryWiseSalesReport"
 import {
   exportCategoryWiseSalesReportPDF,
   exportCategoryWiseSalesReportExcel,
+  getCategoryName,
+  getCategoryCode,
 } from "../utils/exportUtils";
 import { formatAmount } from "../../../../utils/currency";
 import {
@@ -243,13 +245,13 @@ export const CategoryWiseSalesReportPage = () => {
                         className="hover:bg-gray-50/70 transition-colors odd:bg-white even:bg-gray-50/20"
                       >
                         <td className="px-3 py-2 text-center text-gray-600 border-r border-gray-100/60 font-medium">
-                          {rIdx + 1}
+                          {row.sNo ?? (rIdx + 1)}
                         </td>
                         <td className="px-3 py-2 text-center text-gray-700 border-r border-gray-100/60 font-mono">
-                          {String(row.categoryCode || row.catCode || row.code || row.categoryId || row.catId || "-")}
+                          {getCategoryCode(row)}
                         </td>
                         <td className="px-3 py-2 text-left text-gray-900 border-r border-gray-100/60 font-medium truncate">
-                          {String(row.categoryName || row.catName || row.name || row.category || "-")}
+                          {getCategoryName(row)}
                         </td>
                         <td className="px-3 py-2 text-right text-gray-700 border-r border-gray-100/60 font-mono">
                           {qty}

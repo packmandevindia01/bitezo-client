@@ -1,5 +1,10 @@
 import axiosInstance from "../../../api/axiosInstance";
-import type { CompanyFormData, CompanyMasterloadResponse, CurrencyOption } from "../types";
+import type {
+  CompanyFormData,
+  CompanyMasterloadResponse,
+  CurrencyOption,
+  SubscriptionStatusData,
+} from "../types";
 
 export const fetchCompanyMasterload = async (clientDb?: string) => {
   const headers = clientDb ? { clientDb } : undefined;
@@ -118,4 +123,13 @@ export const fetchCurrencyList = async (clientDb?: string) => {
   const { data } = await axiosInstance.get<{ data: CurrencyOption[] }>("/currency/company-list-name", { headers });
   return data.data;
 };
+
+/** Fetch subscription status for the company */
+export const fetchSubscriptionStatus = async (): Promise<SubscriptionStatusData | null> => {
+  const { data } = await axiosInstance.get<{ data: SubscriptionStatusData; isSuccess: boolean }>(
+    "/company/subscription-status"
+  );
+  return data?.data ?? null;
+};
+
 

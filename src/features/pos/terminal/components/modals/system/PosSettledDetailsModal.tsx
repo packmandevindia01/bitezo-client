@@ -14,6 +14,7 @@ import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, roundCalc, getBillingConfig } from "../../../utils/billing";
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
+import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -391,7 +392,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       showToast(`Preparing Receipt for Order #${orderId}...`, "success");
 
       const master = order.masterData || order;
-      const details = order.detailsData || order.details || [];
+      const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
 
       const orderTypeMap: Record<number, string> = {
         1: "DineIn",
@@ -808,7 +809,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   if (!isOpen) return null;
 
   const master = order?.masterData || order || {};
-  const details = order?.detailsData || order?.details || [];
+  const details = sortOrderDetailsBySequence(order?.detailsData || order?.details || []);
 
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const orderTypeMap: Record<number, string> = {

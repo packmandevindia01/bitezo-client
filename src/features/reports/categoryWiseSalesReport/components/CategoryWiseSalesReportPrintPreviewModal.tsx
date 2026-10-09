@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Printer, Download } from "lucide-react";
 import { Button, Modal } from "../../../../components/common";
 import { formatAmount } from "../../../../utils/currency";
+import { getCategoryName, getCategoryCode } from "../utils/exportUtils";
 import type { CategoryWiseSalesRow, CategoryWiseTotalData } from "../types";
 
 const formatDate = (dateStr: string) => {
@@ -159,12 +160,12 @@ export const CategoryWiseSalesReportPrintPreviewModal = ({
                 ) : (
                   rows.map((row, idx) => (
                     <tr key={idx} className="border border-gray-300">
-                      <td className="py-1.5 px-2.5 text-center border border-gray-300">{idx + 1}</td>
+                      <td className="py-1.5 px-2.5 text-center border border-gray-300">{row.sNo ?? (idx + 1)}</td>
                       <td className="py-1.5 px-2.5 text-center border border-gray-300 font-mono">
-                        {String(row.categoryCode || row.catCode || row.code || row.categoryId || row.catId || "-")}
+                        {getCategoryCode(row)}
                       </td>
                       <td className="py-1.5 px-2.5 text-left border border-gray-300 font-medium text-gray-900">
-                        {String(row.categoryName || row.catName || row.name || row.category || "-")}
+                        {getCategoryName(row)}
                       </td>
                       <td className="py-1.5 px-2.5 text-right border border-gray-300 font-mono">
                         {Number(row.qty ?? row.quantity ?? row.totalQty ?? 0)}

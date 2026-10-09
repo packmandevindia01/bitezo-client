@@ -28,6 +28,17 @@ const formatDateTime = (dateStr: string) => {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 };
 
+export const getReportCellValue = (row: any, col: string): number => {
+  const norm = col.toLowerCase().replace(/[\s_]/g, '');
+  if (norm === 'payin') {
+    return Number(row['Pay In'] ?? row['PayIn'] ?? row.payIn ?? row.Pay_In ?? 0);
+  }
+  if (norm === 'payout') {
+    return Number(row['Pay Out'] ?? row['PayOut'] ?? row.payOut ?? row.Pay_Out ?? 0);
+  }
+  return Number(row[col] ?? 0);
+};
+
 export const ShiftEndReportPage = () => {
   const navigate = useNavigate();
   const { filters, masterData, report } = useShiftEndReport();
@@ -58,13 +69,26 @@ export const ShiftEndReportPage = () => {
   const excludedColumns = ["DayId", "ShiftId", "SNo", "StartDate", "EndDate", "User", "Counter"];
   
   const dynamicColumns = useMemo(() => {
-    return report.columns.filter((c) => !excludedColumns.includes(c));
+    const rawCols = (report.columns || []).filter((c) => !excludedColumns.includes(c));
+
+    const hasPayIn = rawCols.some(c => c.toLowerCase().replace(/[\s_]/g, '') === 'payin');
+    const hasPayOut = rawCols.some(c => c.toLowerCase().replace(/[\s_]/g, '') === 'payout');
+
+    const otherCols = rawCols.filter(c => c.toLowerCase() !== 'total');
+    const hasTotal = rawCols.some(c => c.toLowerCase() === 'total');
+
+    const result = [...otherCols];
+    if (!hasPayIn) result.push("Pay In");
+    if (!hasPayOut) result.push("Pay Out");
+    if (hasTotal) result.push("Total");
+
+    return result;
   }, [report.columns]);
 
   // Dynamically calculate column totals for the footer
   const colTotals = useMemo(() => {
     return dynamicColumns.map((col) => {
-      return report.rows.reduce((sum, row) => sum + Number(row[col] || 0), 0);
+      return report.rows.reduce((sum, row) => sum + getReportCellValue(row, col), 0);
     });
   }, [report.rows, dynamicColumns]);
 
@@ -259,7 +283,7 @@ export const ShiftEndReportPage = () => {
                           {row.Counter || "-"}
                         </td>
                         {dynamicColumns.map((col) => {
-                          const val = Number(row[col] || 0);
+                          const val = getReportCellValue(row, col);
                           return (
                             <td 
                               key={col} 
