@@ -1,6 +1,6 @@
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../../../app/store';
-import { calculateOrder, getStoredDefaultDeliveryCharge } from '../utils/billing';
+import { calculateOrder, roundCalc, getStoredDefaultDeliveryCharge } from '../utils/billing';
 export { getStoredDefaultDeliveryCharge };
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
@@ -30,8 +30,17 @@ export const selectBaseSubtotal = createSelector(
 );
 
 export const selectSubtotal = createSelector(
-  [selectCartCalculation],
-  (calc) => calc.summary.subtotal
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      pos.authoritativeSubtotal !== null &&
+      pos.authoritativeSubtotal !== undefined &&
+      !pos.isCartModified
+    ) {
+      return roundCalc(pos.authoritativeSubtotal);
+    }
+    return calc.summary.subtotal;
+  }
 );
 
 export const selectItemTotalDiscount = createSelector(
@@ -45,8 +54,17 @@ export const selectBillDiscount = createSelector(
 );
 
 export const selectDiscount = createSelector(
-  [selectCartCalculation],
-  (calc) => calc.summary.totalDiscount
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      pos.authoritativeDiscount !== null &&
+      pos.authoritativeDiscount !== undefined &&
+      !pos.isCartModified
+    ) {
+      return roundCalc(pos.authoritativeDiscount);
+    }
+    return calc.summary.totalDiscount;
+  }
 );
 
 export const selectTotalExtras = createSelector(
@@ -70,8 +88,17 @@ export const selectTotalLevy = createSelector(
 );
 
 export const selectTax = createSelector(
-  [selectCartCalculation],
-  (calc) => calc.summary.vatAmount
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      pos.authoritativeTax !== null &&
+      pos.authoritativeTax !== undefined &&
+      !pos.isCartModified
+    ) {
+      return roundCalc(pos.authoritativeTax);
+    }
+    return calc.summary.vatAmount;
+  }
 );
 
 export const selectDeliveryCharge = createSelector(
@@ -80,8 +107,17 @@ export const selectDeliveryCharge = createSelector(
 );
 
 export const selectTotal = createSelector(
-  [selectCartCalculation],
-  (calc) => calc.summary.grandTotal
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      pos.authoritativeNetAmount !== null &&
+      pos.authoritativeNetAmount !== undefined &&
+      !pos.isCartModified
+    ) {
+      return roundCalc(pos.authoritativeNetAmount);
+    }
+    return calc.summary.grandTotal;
+  }
 );
 
 export const selectItemCount = createSelector(

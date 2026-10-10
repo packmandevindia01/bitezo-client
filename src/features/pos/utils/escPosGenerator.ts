@@ -21,6 +21,7 @@ import type { KotPrintData } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
+import { getModifierTypeNameById } from "../services/menuApi";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // standard 48 chars per line on 80mm thermal paper
@@ -368,7 +369,27 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     // Modifiers (no price, just name note)
     if (item.modifiers && item.modifiers.length > 0) {
       item.modifiers.forEach(mod => {
-        markup += `[L]  * ${(mod.name || "MODIFIER").toUpperCase()}\n`;
+        const rawTypeName = (mod.typeName || (mod as any).modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
+        const rawModName = (mod.name || (mod as any).modifierName || "MODIFIER").trim();
+        const typeUpper = rawTypeName.toUpperCase();
+        const nameUpper = rawModName.toUpperCase();
+        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+
+        let text = "";
+        if (typeUpper) {
+          if (nameUpper.startsWith(`${typeUpper}:`)) {
+            text = nameUpper;
+          } else if (nameUpper.startsWith(typeUpper)) {
+            const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
+            text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
+          } else {
+            text = `${typeUpper}: ${qtyPart}${nameUpper}`;
+          }
+        } else {
+          text = `${qtyPart}${nameUpper}`;
+        }
+
+        markup += `[L]  * ${text}\n`;
       });
     }
 
@@ -393,17 +414,29 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const authoritativeSubTotal = hasAuthoritativeTotals ? Number(data.subTotal) : displaySubTotal;
   const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
 
-  let subTotal = authoritativeSubTotal;
   let vatAmount = 0;
   if (isVatActive) {
     const computedVat = data.vatAmount !== undefined
       ? Number(data.vatAmount)
       : (authoritativeVatAmount > 0 ? authoritativeVatAmount : Math.max(0, data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)));
     vatAmount  = parseFloat(fmt(Math.max(0, computedVat)));
-    subTotal   = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : Math.max(0, data.netAmount - vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
   }
 
-  const subTotalBeforeDiscount = subTotal + (totalDiscount > 0 ? totalDiscount : 0);
+  const netTaxableBase = Math.max(
+    0,
+    Number(data.netAmount || 0) -
+      Number(vatAmount || 0) -
+      Number(data.serviceCharge || 0) -
+      Number(data.levy || 0) -
+      Number(data.deliveryCharge || 0)
+  );
+
+  const subTotalBeforeDiscount =
+    hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0))) < 0.05
+      ? authoritativeSubTotal
+      : hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - netTaxableBase) < 0.05
+      ? authoritativeSubTotal + (totalDiscount > 0 ? totalDiscount : 0)
+      : (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0));
   markup += totalsLine(isBillArabic ? "Sub Total (المجموع الفرعي)" : "Sub Total", fmt(subTotalBeforeDiscount)) + "\n";
   if (totalDiscount > 0) {
     markup += totalsLine(isBillArabic ? "Discount (الخصم)" : "Discount", `-${fmt(totalDiscount)}`) + "\n";
@@ -519,7 +552,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const isDineIn = orderTypeStr === "DINE IN";
   const isDelivery = orderTypeStr === "DELIVERY" || Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
   const headerTitle = (data.headerTitle || "KOT").toUpperCase();
-  const kotTitleDisplay = headerTitle + (isKotArabic && headerTitle === "KOT" ? " / طلب المطبخ" : "");
+  const kotTitleDisplay = headerTitle + (isKotArabic ? (headerTitle === "KOT" ? " / طلب المطبخ" : (headerTitle === "VOID ITEMS" || headerTitle.includes("VOID")) ? " / أصناف ملغاة" : "") : "");
 
   let markup = "";
 
@@ -601,7 +634,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     // Extras
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach(ex => {
-        const exName = `  + ${(ex.name || "EXTRA").toUpperCase()}`;
+        const exName = `  + ${(ex.name || (ex as any).modifierName || "EXTRA").toUpperCase()}`;
         const exQty = padLeft(String(ex.qty || 1), 5);
         markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
       });
@@ -610,7 +643,27 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     // Modifiers
     if (item.modifiers && item.modifiers.length > 0) {
       item.modifiers.forEach(mod => {
-        markup += `[L]  * ${(mod.name || "").toUpperCase()}\n`;
+        const rawTypeName = (mod.typeName || (mod as any).modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
+        const rawModName = (mod.name || (mod as any).modifierName || "").trim();
+        const typeUpper = rawTypeName.toUpperCase();
+        const nameUpper = rawModName.toUpperCase();
+        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+
+        let text = "";
+        if (typeUpper) {
+          if (nameUpper.startsWith(`${typeUpper}:`)) {
+            text = nameUpper;
+          } else if (nameUpper.startsWith(typeUpper)) {
+            const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
+            text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
+          } else {
+            text = `${typeUpper}: ${qtyPart}${nameUpper}`;
+          }
+        } else {
+          text = `${qtyPart}${nameUpper}`;
+        }
+
+        markup += `[L]  * ${text}\n`;
       });
     }
 

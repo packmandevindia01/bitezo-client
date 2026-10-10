@@ -30,13 +30,20 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement === inputRef.current) return;
       if (loading) return;
-      if (document.activeElement?.tagName === "INPUT") return;
-      if (e.key >= "0" && e.key <= "9") {
-        onChange(value + e.key);
+
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        handleNumClick(e.key);
       } else if (e.key === "Backspace") {
-        onChange(value.slice(0, -1));
+        e.preventDefault();
+        handleDelete();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleClear();
       } else if (e.key === "Enter") {
+        e.preventDefault();
         if (value.length > 0) {
           onSubmit();
         }
@@ -49,12 +56,11 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
   const buttons = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Del"];
 
   return (
-    <div className="w-full max-w-sm mx-auto">
-      {/* Centered Password Input Box */}
-      <div className="mb-3 xl:mb-6">
+    <div className="flex flex-col items-center gap-3 w-full max-w-[280px] sm:max-w-[320px]">
+      {/* PIN Input Display */}
+      <div className="w-full">
         <input
           ref={inputRef}
-          id="cashier-pin-input"
           type="password"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -70,37 +76,35 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
         />
       </div>
 
-      {/* Grid - Reduced button height and gaps */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {buttons.map((btn) => (
-          <button
-            key={btn}
-            tabIndex={-1}
-            onClick={() => {
-              if (btn === "Clear") handleClear();
-              else if (btn === "Del") handleDelete();
-              else handleNumClick(btn);
-              setTimeout(() => {
-                if (inputRef.current) {
-                  inputRef.current.focus();
-                  try {
-                    const len = inputRef.current.value.length;
-                    inputRef.current.setSelectionRange(len, len);
-                  } catch (e) {}
-                }
-              }, 10);
-            }}
-            disabled={loading}
-            className={`h-11 sm:h-12 xl:h-14 rounded-xl flex items-center justify-center text-lg md:text-xl font-black transition-all active:scale-95 shadow-sm border-2 ${btn === "Clear" || btn === "Del"
-                ? "bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200"
-                : "bg-white border-slate-300 text-[#49293e] hover:border-[#49293e]/20 hover:shadow-md"
+      {/* Grid of keys */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full">
+        {buttons.map((btn, idx) => {
+          const isNum = !isNaN(Number(btn));
+          return (
+            <button
+              key={idx}
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                if (isNum) handleNumClick(btn);
+                else if (btn === "Clear") handleClear();
+                else if (btn === "Del") handleDelete();
+              }}
+              className={`h-11 sm:h-12 xl:h-13 rounded-xl flex items-center justify-center font-black transition-all select-none active:scale-95 disabled:opacity-50 ${
+                isNum
+                  ? "bg-white text-[#49293e] text-lg sm:text-xl border border-slate-200 hover:border-[#49293e]/30 hover:bg-slate-50 shadow-sm"
+                  : btn === "Clear"
+                  ? "bg-slate-100 text-slate-500 text-[10px] sm:text-xs tracking-wider uppercase hover:bg-slate-200 border border-slate-200"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200"
               }`}
-          >
-            {btn === "Del" ? <Delete size={20} /> : btn}
-          </button>
-        ))}
+            >
+              {btn === "Del" ? <Delete size={18} /> : btn}
+            </button>
+          );
+        })}
       </div>
 
+      {/* Action / Submit Button */}
       <div className="w-full">
         <button
           onClick={onSubmit}
@@ -113,8 +117,6 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
     </div>
   );
 };
-
-
 
 const CashierInPage = () => {
   const navigate = useNavigate();

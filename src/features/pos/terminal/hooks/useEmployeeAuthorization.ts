@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { employeeService } from "../../../general/employee/services/employeeService";
+import { getDefaultEmployeeConfig } from "../../utils/defaultEmployee";
 
 interface EmployeeAuthorizationOptions {
   actionLabel: string;
@@ -17,6 +18,16 @@ export const useEmployeeAuthorization = () => {
   const [pendingAuthorization, setPendingAuthorization] = useState<EmployeeAuthorizationOptions | null>(null);
 
   const requestAuthorization = (options: EmployeeAuthorizationOptions) => {
+    const defaultEmp = getDefaultEmployeeConfig();
+    if (defaultEmp.isEnabled && defaultEmp.employeeId > 0) {
+      localStorage.setItem("authorizedEmployeeId", String(defaultEmp.employeeId));
+      if (defaultEmp.employeeName) {
+        localStorage.setItem("authorizedEmployeeName", defaultEmp.employeeName);
+      }
+      void options.onAuthorized(defaultEmp.employeeId);
+      return;
+    }
+
     setPendingAuthorization(options);
     setError(null);
     setIsAdminOverride(false);
@@ -42,9 +53,21 @@ export const useEmployeeAuthorization = () => {
     const authAction = pendingAuthorization; // capture before clearing state
 
     try {
-      const response = await employeeService.validateEmployeePassword(password, pendingAuthorization.permissionId);
-      const employeeId = response.data?.employeeId ?? 0;
-      const hasPrivilege = Boolean(response.data?.hasPrivilege);
+      const defaultEmp = getDefaultEmployeeConfig();
+      if (defaultEmp.isEnabled && defaultEmp.employeeId > 0 && (!password || password.trim() === "")) {
+        authorized = true;
+        verifiedEmployeeId = defaultEmp.employeeId;
+        localStorage.setItem("authorizedEmployeeId", String(defaultEmp.employeeId));
+        if (defaultEmp.employeeName) {
+          localStorage.setItem("authorizedEmployeeName", defaultEmp.employeeName);
+        }
+        setIsOpen(false);
+        setIsAdminOverride(false);
+        setPendingAuthorization(null);
+      } else {
+        const response = await employeeService.validateEmployeePassword(password, pendingAuthorization.permissionId);
+        const employeeId = response.data?.employeeId ?? 0;
+        const hasPrivilege = Boolean(response.data?.hasPrivilege);
 
       if (employeeId <= 0) {
         setError(isAdminOverride ? "Invalid Admin Password" : "Invalid Employee Password");
@@ -79,6 +102,7 @@ export const useEmployeeAuthorization = () => {
       setIsOpen(false);
       setIsAdminOverride(false);
       setPendingAuthorization(null);
+      }
     } catch {
       // Only password validation errors reach here
       const errorMsg = isAdminOverride ? "Invalid Admin Password" : "Invalid Employee Password";

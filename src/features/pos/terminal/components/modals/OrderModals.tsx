@@ -104,7 +104,7 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
             isOpen={modals.isRecallModalOpen}
             onClose={() => modals.setIsRecallModalOpen(false)}
             initialEmployeeId={modals.recallEmployeeId}
-            onSettleSuccess={() => {
+            onSettleSuccess={(_amount) => {
               props.onBeforeSettle?.();
               modals.setReturnToRecallOnCancel(true);
               // Close the recall modal first so the settle (MultiPay) modal

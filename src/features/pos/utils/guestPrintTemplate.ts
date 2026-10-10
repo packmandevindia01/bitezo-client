@@ -3,6 +3,7 @@ import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
 import { getDecimalPart } from "../../../utils/currency";
+import { getModifierTypeNameById } from "../services/menuApi";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -294,11 +295,30 @@ export const generateGuestPrintHtml = async (
 
     if (item.modifiers && item.modifiers.length > 0) {
       item.modifiers.forEach((mod: any) => {
-        const modName = (mod.name || "MODIFIER").toUpperCase();
+        const rawTypeName = (mod.typeName || mod.modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
+        const rawModName = (mod.name || mod.modifierName || "MODIFIER").trim();
+        const typeUpper = rawTypeName.toUpperCase();
+        const nameUpper = rawModName.toUpperCase();
+        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+
+        let text = "";
+        if (typeUpper) {
+          if (nameUpper.startsWith(`${typeUpper}:`)) {
+            text = nameUpper;
+          } else if (nameUpper.startsWith(typeUpper)) {
+            const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
+            text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
+          } else {
+            text = `${typeUpper}: ${qtyPart}${nameUpper}`;
+          }
+        } else {
+          text = `${qtyPart}${nameUpper}`;
+        }
+
         const modArabic = isBillArabic ? (mod.arabicName || mod.arabic || "") : "";
         const modDisplay = modArabic
-          ? `* ${modName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
-          : `* ${modName}`;
+          ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
+          : `* ${text}`;
         itemsHtml += `
           <tr>
             <td style="text-align: left; vertical-align: top;"></td>
@@ -338,15 +358,31 @@ export const generateGuestPrintHtml = async (
 
   const hasAuthoritativeTotals = authoritativeSubTotal > 0;
 
+  const netTaxableBase = Math.max(
+    0,
+    Number(data.netAmount || 0) -
+      Number(data.vatAmount || 0) -
+      Number(data.serviceCharge || 0) -
+      Number(data.levy || 0) -
+      Number(data.deliveryCharge || 0)
+  );
+
+  const subTotalBeforeDiscount =
+    hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0))) < 0.05
+      ? authoritativeSubTotal
+      : hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - netTaxableBase) < 0.05
+      ? authoritativeSubTotal + (totalDiscount > 0 ? totalDiscount : 0)
+      : (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0));
+
   if (isVatActive) {
     data.enableVat = true;
     const computedVat = data.vatAmount !== undefined
       ? Number(data.vatAmount)
       : (authoritativeVatAmount > 0 ? authoritativeVatAmount : Math.max(0, data.netAmount - displaySubTotal));
     data.vatAmount = parseFloat(fmt(Math.max(0, computedVat)));
-    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : Math.max(0, data.netAmount - data.vatAmount - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0))));
+    data.subTotal = parseFloat(fmt(subTotalBeforeDiscount));
   } else {
-    data.subTotal = parseFloat(fmt(hasAuthoritativeTotals ? authoritativeSubTotal : Math.max(0, displaySubTotal)));
+    data.subTotal = parseFloat(fmt(subTotalBeforeDiscount));
     data.vatAmount = 0;
   }
 
@@ -565,7 +601,7 @@ export const generateGuestPrintHtml = async (
         <table class="totals-table">
           <tr>
             <td class="totals-label">Sub Total${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المجموع الفرعي)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(data.subTotal + (totalDiscount > 0 ? totalDiscount : 0))}</td>
+            <td class="totals-value">${fmt(subTotalBeforeDiscount)}</td>
           </tr>
           ${totalDiscount > 0 ? `
           <tr>
@@ -635,7 +671,7 @@ export const generateGuestPrintHtml = async (
           <tbody>
             <tr>
               <td style="text-align: left; font-weight: normal; width: 20%;">10%</td>
-              <td style="text-align: right; font-weight: normal; width: 30%;">${fmt(data.netAmount - data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 30%;">${fmt(Math.max(0, data.netAmount - (data.deliveryCharge || 0) - data.vatAmount))}</td>
               <td style="text-align: right; font-weight: normal; width: 24%;">${fmt(data.vatAmount)}</td>
               <td style="text-align: right; font-weight: normal; width: 26%;">${fmt(data.netAmount)}</td>
             </tr>

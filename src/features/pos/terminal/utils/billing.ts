@@ -11,16 +11,28 @@ export interface BillingConfig {
 
 export const getBillingConfig = (orderType: string): BillingConfig => {
   try {
-    const savedConfigs = localStorage.getItem('posConfigs');
-    const fullConfig = savedConfigs ? JSON.parse(savedConfigs) : {};
-    const configs = fullConfig.configs || {};
+    let configs: any = {};
+    for (const key of ['posConfigs', 'posConfig', 'pos_configs', 'pos_config']) {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        configs = parsed?.configs || parsed;
+        if (configs && Object.keys(configs).length > 0) break;
+      }
+    }
     
+    const rawDiscCalc = configs.discCalc || configs.discountCalc || configs.DiscCalc || configs.DiscountCalc || '';
+    const rawPriceView = configs.priceView || configs.PriceView || '';
+    const rawVat = configs.vat ?? configs.Vat ?? configs.vatRate ?? configs.VatRate ?? 0;
+    const rawSc = configs.serviceCharges ?? configs.serviceCharge ?? configs.ServiceCharges ?? 0;
+    const rawLevy = configs.levy ?? configs.Levy ?? 0;
+
     return {
-      serviceChargeRate: (configs.serviceCharges ?? 0) / 100,
-      levyRate: (configs.levy ?? 0) / 100,
-      vatRate: (configs.vat ?? 0) / 100, // No fallback, use 0 if not found
-      vatType: (configs.priceView || '').toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
-      discountType: (configs.discountCalc || '').toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
+      serviceChargeRate: Number(rawSc) / 100,
+      levyRate: Number(rawLevy) / 100,
+      vatRate: Number(rawVat) / 100,
+      vatType: String(rawPriceView).toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
+      discountType: String(rawDiscCalc).toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
       orderType
     };
   } catch {
@@ -51,6 +63,10 @@ export const getVatStatus = (): boolean => {
           String(val).toLowerCase() === '1'
         );
       }
+      const vatRateVal = configs?.vat ?? configs?.Vat ?? configs?.vatRate ?? configs?.VatRate ?? parsed?.vat ?? parsed?.Vat;
+      if (vatRateVal !== undefined && vatRateVal !== null && Number(vatRateVal) > 0) {
+        return true;
+      }
     }
     return false;
   } catch {
@@ -63,7 +79,8 @@ export const CALC_PRECISION = 7;
 export const roundCalc = (val: number | string | undefined | null, decimals: number = CALC_PRECISION): number => {
   const num = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
   if (!Number.isFinite(num)) return 0;
-  return Number(num.toFixed(decimals));
+  const factor = Math.pow(10, decimals);
+  return Math.round((num + Number.EPSILON) * factor) / factor;
 };
 
 export const calculateLineItem = (
@@ -297,7 +314,10 @@ export const calculateOrder = (
   // ── PASS 1: Pre-calculate gross amounts for proportional bill discount ──────
   let totalGross = 0;
   const preCalculated = items.map((item) => {
-    const product = (options.productCache && options.productCache[item.productId]) || item.product || {};
+    const cachedProduct = (options.productCache && options.productCache[item.productId]);
+    const product = cachedProduct
+      ? { ...item.product, ...cachedProduct, vatValue: cachedProduct.vatValue ?? item.product?.vatValue ?? item.vatValue }
+      : (item.product || {});
     const price = Number(item.price ?? product.price ?? 0);
     const quantity = Number(item.quantity ?? 1);
 
@@ -327,9 +347,33 @@ export const calculateOrder = (
     };
   });
 
+  // Remainder-adjusted distribution of flat bill discount across lines
+  const allocatedBillDiscounts = preCalculated.map(({ itemGross }) => {
+    if (billDiscVal > 0 && totalGross > 0 && billDiscType === 'amount') {
+      return (itemGross / totalGross) * billDiscVal;
+    }
+    return 0;
+  });
+
+  if (billDiscVal > 0 && totalGross > 0 && billDiscType === 'amount') {
+    const sumAlloc = allocatedBillDiscounts.reduce((a, b) => a + b, 0);
+    const delta = billDiscVal - sumAlloc;
+    if (Math.abs(delta) > 0.00000001) {
+      let maxIdx = 0;
+      let maxGross = -1;
+      preCalculated.forEach(({ itemGross }, idx) => {
+        if (itemGross > maxGross) {
+          maxGross = itemGross;
+          maxIdx = idx;
+        }
+      });
+      allocatedBillDiscounts[maxIdx] += delta;
+    }
+  }
+
   // ── PASS 2: Calculate line items and allocate discounts ─────────────────────
   const calculatedLines: CalculatedLineItem[] = preCalculated.map(
-    ({ item, product, price, quantity, extras, modifiers, messages, totalExtrasForLine, itemGross }) => {
+    ({ item, product, price, quantity, extras, modifiers, messages, totalExtrasForLine, itemGross: _itemGross }, idx) => {
       const displayName = item.variantName ? `${product.name || 'Item'} - ${item.variantName}` : (product.name || 'Item');
 
       let discountObj: { type: 'percentage' | 'amount'; value: number } | number = 0;
@@ -340,9 +384,7 @@ export const calculateOrder = (
         if (billDiscType === 'percentage') {
           discountObj = { type: 'percentage', value: billDiscVal };
         } else {
-          // Proportional distribution of flat bill discount
-          const allocatedAmount = (itemGross / totalGross) * billDiscVal;
-          discountObj = { type: 'amount', value: allocatedAmount };
+          discountObj = { type: 'amount', value: allocatedBillDiscounts[idx] };
         }
       } else if (item.discountValue && Number(item.discountValue) > 0) {
         discountObj = { type: item.discountType || 'amount', value: Number(item.discountValue) };
@@ -350,6 +392,12 @@ export const calculateOrder = (
 
       const rawVatRate = (product.vatValue !== undefined && product.vatValue !== null)
         ? Number(product.vatValue)
+        : (item.product?.vatValue !== undefined && item.product?.vatValue !== null)
+        ? Number(item.product.vatValue)
+        : (item.vatValue !== undefined && item.vatValue !== null)
+        ? Number(item.vatValue)
+        : (item.vatRate !== undefined && item.vatRate !== null)
+        ? Number(item.vatRate)
         : (config.vatRate * 100);
       const effectiveVatRate = isVatEnabled ? rawVatRate : 0;
 
@@ -480,7 +528,9 @@ export const calculateOrder = (
   const itemCount = calculatedLines.reduce((sum, l) => sum + l.quantity, 0);
   const totalExtras = roundCalc(calculatedLines.reduce((sum, l) => sum + l.extrasTotal, 0));
 
-  const grandTotal = roundCalc(Math.max(0, (subtotal - totalDiscount) + charges + vatAmount + deliveryCharge));
+  // Align grandTotal directly with sum of line net amounts to prevent floating-point accumulation drift
+  const linesNetTotal = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.lineNetAmount, 0)));
+  const grandTotal = roundCalc(Math.max(0, linesNetTotal + deliveryCharge));
 
   return {
     lines: calculatedLines,
@@ -536,6 +586,19 @@ export const getTaxExclusivePrice = (
 
   const rawPrice = Number(item.price ?? item.product?.price ?? 0);
   if (!rawPrice || isNaN(rawPrice)) return 0;
+
+  // If line math shows price is already tax-exclusive: (lineBase - disc) + vatAmt == netAmt
+  if (item.netAmount !== undefined && item.vatAmount !== undefined && Number(item.vatAmount) > 0.001) {
+    const qty = Number(item.qty ?? item.quantity ?? 1);
+    const lineBase = rawPrice * qty;
+    const discAmt = Number(item.discAmount ?? 0);
+    const vatAmt = Number(item.vatAmount);
+    const netAmt = Number(item.netAmount);
+    const remainingBase = lineBase - discAmt;
+    if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.02) {
+      return roundCalc(rawPrice, CALC_PRECISION);
+    }
+  }
 
   const isVatEnabled = getVatStatus();
   if (!isVatEnabled) return roundCalc(rawPrice, CALC_PRECISION);

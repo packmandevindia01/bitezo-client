@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { Modal } from "../../../../../../components/common";
+import { Modal, ConfirmDialog } from "../../../../../../components/common";
 import { formatCurrency } from "../../../../../../utils/currency";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { orderApi } from "../../../../services/orderApi";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
-import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc } from "../../../utils/billing";
+import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc, getTaxExclusivePrice } from "../../../utils/billing";
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
+import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
   
   const [showTableModal, setShowTableModal] = useState(false);
+  const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
 
   const lastClickRef = useRef<{ id: string, time: number }>({ id: "", time: 0 });
 
@@ -86,78 +88,33 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
       setOriginalOrder(masterData);
 
-      const initialItems: SplitCartItem[] = detailsData.map((d: any) => {
+      const initialItems: SplitCartItem[] = detailsData.map((d: any, idx: number) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         
-        let pId = d.productId ?? d.ProductId ?? d.itemId ?? d.ItemId ?? d.product?.id ?? d.Product?.id;
-        let matchedProduct: any = null;
-        if (pId) {
-          matchedProduct = products.find((p: any) => p.id === pId);
-        }
-        if (!matchedProduct && (d.productName || d.ProductName)) {
-          matchedProduct = products.find((p: any) => p.name === (d.productName || d.ProductName));
-          if (matchedProduct) pId = matchedProduct.id;
-        }
-        const realProduct = matchedProduct || {};
-
-        let itemIsIncl = true;
-        // Try getting it from global config first (like recall modal does)
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          if (full?.configs?.priceView === 'Exclusive') {
-            itemIsIncl = false;
-          }
-        } catch {}
-
-        const explicitDetailIsIncl = d.isIncl ?? d.PriceIsIncl ?? d.priceIsIncl;
-        if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
-          itemIsIncl = Boolean(explicitDetailIsIncl);
-        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-          itemIsIncl = Boolean(realProduct.isIncl);
-        }
-
-        if (d.netAmount !== undefined && d.price !== undefined) {
-          const lineBase = (d.price || 0) * (d.qty || 1);
-          const discAmt = d.discAmount || 0;
-          const vatAmt = d.vatAmount || 0;
-          const netAmt = d.netAmount;
-          const remainingBase = lineBase - discAmt;
-          
-          if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
-            if (Math.abs(netAmt - remainingBase) < 0.01) {
-              itemIsIncl = true;
-            } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
-              itemIsIncl = false;
-            }
-          }
-        }
-
-        let calculatedVatValue: number | undefined = undefined;
-        if (d.vatAmount !== undefined && d.netAmount !== undefined && d.netAmount > 0) {
-          const vatBase = d.netAmount - d.vatAmount;
-          if (vatBase > 0) {
-            calculatedVatValue = Math.round((d.vatAmount / vatBase) * 100);
-          }
-        }
+        const cartItem = mapOrderDetailToCartItem({
+          detail: d,
+          idx,
+          modifiersData,
+          products,
+        });
 
         const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || "";
-        const baseName = d.productName || d.ProductName || realProduct.name || (pId ? `Product #${pId}` : "Item");
+        const baseName = d.productName || d.ProductName || cartItem.product?.name || "Item";
         const displayName = formatItemDisplayName(baseName, rawAlt);
 
         return {
           mapId: d.mapId,
           name: displayName,
           variantName: rawAlt || undefined,
-          price: d.price || 0,
+          price: cartItem.price || 0,
           currentQty: d.qty || 1,
           detail: {
             ...d,
-            vatValue: d.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
-            vatId: d.vatId ?? realProduct.sVatId ?? undefined
+            vatValue: cartItem.vatValue,
+            vatId: cartItem.product?.sVatId,
           },
           modifiers: itemMods,
-          isIncl: itemIsIncl
+          isIncl: cartItem.isIncl,
         };
       });
 
@@ -385,7 +342,25 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       showToast("No items have been moved to a split order.", "warning");
       return;
     }
-    
+
+    // Check if original order contains a bill discount
+    const hasBillDiscount = Boolean(
+      originalOrder?.complimentaryStatus ||
+      originalOrder?.ComplimentaryStatus ||
+      (originalOrder?.discPer !== undefined && originalOrder?.discPer !== null && Number(originalOrder.discPer) > 0) ||
+      Number(originalOrder?.discAmount || 0) > 0 ||
+      Number(originalOrder?.billDiscountValue || 0) > 0
+    );
+
+    if (hasBillDiscount) {
+      setShowBillDiscountConfirm(true);
+      return;
+    }
+
+    proceedWithSplit();
+  };
+
+  const proceedWithSplit = () => {
     // Check if Dine In
     if (originalOrder?.orderTypeId === 1) {
       setShowTableModal(true);
@@ -439,7 +414,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         mapId: newMapId,
         productId: pId,
         qty: item.currentQty,
-        price: roundCalc(item.price),
+        price: roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item)),
         netAmount: roundCalc(lineCalc?.mainNetAmount ?? lineCalc?.lineTotal ?? 0),
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
@@ -705,6 +680,21 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           onConfirm={(assignments) => submitSplitOrder(assignments)}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={showBillDiscountConfirm}
+        title="Warning"
+        message="Bill discount will be erased while performing this action. Do you want to continue?"
+        confirmLabel="Continue"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        loading={saving}
+        onConfirm={() => {
+          setShowBillDiscountConfirm(false);
+          proceedWithSplit();
+        }}
+        onCancel={() => setShowBillDiscountConfirm(false)}
+      />
     </>
   );
 };

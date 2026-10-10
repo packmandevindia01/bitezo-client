@@ -5,6 +5,7 @@ import { setOrderType, setOrderTypeByName } from "../../store/posSlice";
 import { posConfigApi, POS_CONFIGS_STORAGE_KEY, type RuntimePosConfig } from "../../../services/posConfigApi";
 import { branchApi } from "../../../../inventory/branches/services/branchApi";
 import { getEmployeeNames } from "../../../../general/employee/services/employeeService";
+import { menuApi } from "../../../services/menuApi";
 import type { PosOrderType } from "../../../types";
 
 interface UseTerminalInitProps {
@@ -110,6 +111,11 @@ export const useTerminalInit = ({
       .catch((err) => {
         console.warn("Failed to load branch print data:", err);
       });
+
+    // Load and cache modifier types for printing & display
+    menuApi.getModifierTypes().catch((err) => {
+      console.warn("Failed to load modifier types:", err);
+    });
 
     // Load and cache employee names in posEmpNameMap
     const branchId =

@@ -102,10 +102,16 @@ export const PosExtrasModifierModal = ({
       const data = type === 'extras'
         ? await menuApi.getExtraTypes()
         : await menuApi.getModifierTypes();
-      const normalized = data.map((t: any) => ({
-        ...t,
-        typeId: t.typeId || t.id || Math.random(),
-      }));
+      const normalized = (data || []).map((t: any) => {
+        const typeId = t.typeId || t.id || Math.random();
+        const typeName = String(t.typeName || t.name || t.modifierTypeName || "").trim();
+        return {
+          ...t,
+          typeId,
+          typeName,
+          name: typeName,
+        };
+      });
       setTypes(normalized);
       if (normalized.length > 0) setActiveTypeId(normalized[0].typeId);
     } catch (err) { console.error(err); }
@@ -162,11 +168,14 @@ export const PosExtrasModifierModal = ({
             return true;
           });
         }
+        const activeType = types.find(t => t.typeId === activeTypeId);
+        const typeName = String(activeType?.typeName || activeType?.name || activeType?.modifierTypeName || "").trim();
         setItems(list.map((m: any) => ({
           ...m,
           id:    m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
           name:  getName(m),
           typeId: activeTypeId || 0,
+          typeName,
         })));
       }
     } catch (err) { console.error(err); }
@@ -192,8 +201,15 @@ export const PosExtrasModifierModal = ({
         );
       } else {
         const activeType = types.find(t => t.typeId === activeTypeId);
-        const prefix = activeType?.typeName?.trim() ? `${activeType.typeName.trim()} ` : "";
-        setModifiersSelections(prev => [...prev, { ...item, name: `${prefix}${item.name}`, qty: 1 }]);
+        const typeName = String(activeType?.typeName || activeType?.name || activeType?.modifierTypeName || item.typeName || "").trim();
+        setModifiersSelections(prev => [...prev, {
+          ...item,
+          id: item.id,
+          name: item.name,
+          qty: 1,
+          typeId: activeTypeId || item.typeId || 0,
+          typeName,
+        }]);
       }
     }
   };
@@ -527,7 +543,9 @@ export const PosExtrasModifierModal = ({
                         }`}
                       >
                         <span className={`text-sm font-black min-w-[20px] text-center ${isHighlighted ? "text-[#ff9500]" : "text-slate-400"}`}>{item.qty}</span>
-                        <p className={`flex-1 text-[10px] font-black uppercase truncate ${isHighlighted ? "text-[#49293e]" : "text-slate-700"}`}>{item.name}</p>
+                        <p className={`flex-1 text-[10px] font-black uppercase truncate ${isHighlighted ? "text-[#49293e]" : "text-slate-700"}`}>
+                          {item.typeName ? `${item.typeName}: ` : ""}{item.name}
+                        </p>
                         <button
                           onClick={e => { e.stopPropagation(); removeModifier(uniqueKey); }}
                           className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center transition-all shrink-0 active:scale-95"

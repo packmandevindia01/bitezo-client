@@ -8,6 +8,7 @@ import type { SplitBucket, SplitCartItem } from "./useSplitBuckets";
 import { calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice } from "../utils/billing";
 import { formatItemDisplayName } from "../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../utils/orderSort";
+import { mapOrderDetailToCartItem } from "../mappers/orderDetailToCartMapper";
 
 interface UseSplitOrderDataProps {
   orderId: number | null;
@@ -74,78 +75,32 @@ export const useSplitOrderData = ({
 
         setOriginalOrder(masterData);
 
-        const initialItems: SplitCartItem[] = detailsData.map((d: any) => {
+        const initialItems: SplitCartItem[] = detailsData.map((d: any, idx: number) => {
           const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-          
-          let pId = d.productId ?? d.ProductId ?? d.itemId ?? d.ItemId ?? d.product?.id ?? d.Product?.id;
-          let matchedProduct: any = null;
-          if (pId) {
-            matchedProduct = products.find(p => p.id === pId);
-          }
-          if (!matchedProduct && (d.productName || d.ProductName)) {
-            matchedProduct = products.find(p => p.name === (d.productName || d.ProductName));
-            if (matchedProduct) pId = matchedProduct.id;
-          }
-          const realProduct = matchedProduct || {};
-
-          let itemIsIncl = true;
-          // Try getting it from global config first (like recall modal does)
-          try {
-            const saved = localStorage.getItem('posConfigs');
-            const full = saved ? JSON.parse(saved) : {};
-            if (full?.configs?.priceView === 'Exclusive') {
-              itemIsIncl = false;
-            }
-          } catch {}
-
-          const explicitDetailIsIncl = d.isIncl ?? d.PriceIsIncl ?? d.priceIsIncl;
-          if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
-            itemIsIncl = Boolean(explicitDetailIsIncl);
-          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-            itemIsIncl = Boolean(realProduct.isIncl);
-          }
-
-          if (d.netAmount !== undefined && d.price !== undefined) {
-            const lineBase = (d.price || 0) * (d.qty || 1);
-            const discAmt = d.discAmount || 0;
-            const vatAmt = d.vatAmount || 0;
-            const netAmt = d.netAmount;
-            const remainingBase = lineBase - discAmt;
-            
-            if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
-              if (Math.abs(netAmt - remainingBase) < 0.01) {
-                itemIsIncl = true;
-              } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
-                itemIsIncl = false;
-              }
-            }
-          }
-
-          let calculatedVatValue: number | undefined = undefined;
-          if (d.vatAmount !== undefined && d.netAmount !== undefined && d.netAmount > 0) {
-            const vatBase = d.netAmount - d.vatAmount;
-            if (vatBase > 0) {
-              calculatedVatValue = Math.round((d.vatAmount / vatBase) * 100);
-            }
-          }
+          const cartItem = mapOrderDetailToCartItem({
+            detail: d,
+            idx,
+            modifiersData,
+            products,
+          });
 
           const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || "";
-          const baseName = d.productName || d.ProductName || realProduct.name || (pId ? `Product #${pId}` : "Item");
+          const baseName = d.productName || d.ProductName || cartItem.product?.name || "Item";
           const displayName = formatItemDisplayName(baseName, rawAlt);
 
           return {
             mapId: d.mapId,
             name: displayName,
             variantName: rawAlt || undefined,
-            price: d.price || 0,
+            price: cartItem.price || 0,
             currentQty: d.qty || 1,
             detail: {
               ...d,
-              vatValue: d.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
-              vatId: d.vatId ?? realProduct.sVatId ?? undefined
+              vatValue: cartItem.product?.vatValue ?? (cartItem as any).vatValue,
+              vatId: cartItem.product?.sVatId,
             },
             modifiers: itemMods,
-            isIncl: itemIsIncl
+            isIncl: Boolean(cartItem.isIncl),
           };
         });
 

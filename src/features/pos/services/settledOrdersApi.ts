@@ -23,7 +23,7 @@ const unwrap = <T = any>(promise: Promise<{ data: any }>): Promise<ApiResponse<T
   promise.then(res => {
     const body = res?.data;
     if (Array.isArray(body)) {
-      return { isSuccess: true, data: body as unknown as T, statusCode: 200, message: null };
+      return { isSuccess: true, data: body as unknown as T, statusCode: 200, message: "" };
     }
     if (body && typeof body === 'object') {
       if (body.isSuccess === false) {
@@ -65,9 +65,23 @@ export const settledOrdersApi = {
     return unwrap<any>(axiosInstance.get("/settled-orders", { params }));
   },
 
-  getSettledOrderDetails: async (orderId: number): Promise<ApiResponse<any>> => {
-    const priceView = getPriceView();
-    return unwrap<any>(axiosInstance.get(`/settled-orders/settled-data/${orderId}`, { params: { priceView } }));
+  getSettledOrderDetails: async (orderId: number, priceViewOverride?: string): Promise<ApiResponse<any>> => {
+    const priceView = priceViewOverride || getPriceView();
+    const res = await axiosInstance.get(`/settled-orders/settled-data/${orderId}`, { params: { priceView } });
+    const body = res?.data;
+    if (body && typeof body === 'object') {
+      if (body.isSuccess === false) {
+        throw new Error(body.message || "An unexpected error occurred");
+      }
+      const dataObj = body.data !== undefined ? body.data : body;
+      return {
+        isSuccess: true,
+        data: dataObj,
+        statusCode: body.statusCode || res.status || 200,
+        message: body.message || "",
+      };
+    }
+    return { isSuccess: true, data: body, statusCode: res.status || 200, message: "" };
   },
 
   cancelSalesInvoice: async (orderId: number): Promise<ApiResponse<any>> => {

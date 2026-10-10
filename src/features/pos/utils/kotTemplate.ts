@@ -2,6 +2,7 @@ import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
+import { getModifierTypeNameById } from "../services/menuApi";
 
 export interface KotPrintData {
   orderNo: string;
@@ -139,7 +140,7 @@ export const generateKotHtml = async (
     : orderTypeStr;
 
   const kotHeaderTitleDisplay = data.headerTitle 
-    ? data.headerTitle 
+    ? (isKotArabic && (data.headerTitle === "VOID ITEMS" || data.headerTitle.includes("VOID")) ? `${data.headerTitle} / أصناف ملغاة` : data.headerTitle)
     : (isKotArabic ? "KOT / طلب المطبخ" : "KOT");
 
   let itemsHtml = "";
@@ -162,7 +163,7 @@ export const generateKotHtml = async (
     // Sub-items: extras
     if (item.extras && item.extras.length > 0) {
       item.extras.forEach((ex: any) => {
-        const exName = (ex.name || "EXTRA").toUpperCase();
+        const exName = (ex.name || ex.modifierName || "EXTRA").toUpperCase();
         const exArabic = isKotArabic ? (ex.arabicName || ex.arabic || "") : "";
         const exDisplay = exArabic
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
@@ -178,11 +179,30 @@ export const generateKotHtml = async (
     // Sub-items: modifiers
     if (item.modifiers && item.modifiers.length > 0) {
       item.modifiers.forEach((mod: any) => {
-        const modName = (mod.name || "MODIFIER").toUpperCase();
+        const rawTypeName = (mod.typeName || mod.modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
+        const rawModName = (mod.name || mod.modifierName || "MODIFIER").trim();
+        const typeUpper = rawTypeName.toUpperCase();
+        const nameUpper = rawModName.toUpperCase();
+        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+
+        let text = "";
+        if (typeUpper) {
+          if (nameUpper.startsWith(`${typeUpper}:`)) {
+            text = nameUpper;
+          } else if (nameUpper.startsWith(typeUpper)) {
+            const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
+            text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
+          } else {
+            text = `${typeUpper}: ${qtyPart}${nameUpper}`;
+          }
+        } else {
+          text = `${qtyPart}${nameUpper}`;
+        }
+
         const modArabic = isKotArabic ? (mod.arabicName || mod.arabic || "") : "";
         const modDisplay = modArabic
-          ? `* ${modName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
-          : `* ${modName}`;
+          ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
+          : `* ${text}`;
         subRowsHtml += `
           <div style="font-size: 11px; font-weight: normal; font-style: italic; padding: 1px 0 1px 6px; color: #000000;">
             ${modDisplay}

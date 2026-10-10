@@ -577,28 +577,67 @@ export const usePosCartActions = () => {
         }
 
         if (voidProducts.length > 0) {
-          const voidCartItems = voidProducts.map((vp: any) => ({
-            productId: vp.productId,
-            quantity: vp.qty,
-            price: vp.amount > 0 ? roundCalc(vp.amount / vp.qty) : 0,
-            lineTotal: vp.amount,
-            product: {
-              name: vp.productName || `Product #${vp.productId}`,
+          const voidCartItems = voidProducts.map((vp: any) => {
+            const vpExtras = (vp.extras && vp.extras.length > 0)
+              ? vp.extras.map((ex: any) => ({
+                  id: ex.id || ex.modifierId,
+                  name: ex.name || ex.modifierName || "Extra",
+                  arabicName: ex.arabicName || ex.arabic,
+                  price: ex.price || 0,
+                  qty: ex.qty || 1,
+                  typeId: ex.typeId || 2,
+                }))
+              : voidModifiers
+                  .filter((vm: any) => vm.mapId === vp.mapId && (vm.typeId === 2 || (vm.amount || 0) > 0))
+                  .map((vm: any) => ({
+                    id: vm.modifierId,
+                    qty: vm.qty || 1,
+                    price: vm.amount > 0 ? roundCalc(vm.amount / (vm.qty || 1)) : 0,
+                    name: vm.name || vm.modifierName || "Extra",
+                    arabicName: vm.arabicName,
+                    typeId: vm.typeId || 2,
+                  }));
+
+            const vpModifiers = (vp.modifiers && vp.modifiers.length > 0)
+              ? vp.modifiers.map((mod: any) => ({
+                  id: mod.id || mod.modifierId,
+                  name: mod.name || mod.modifierName || "Modifier",
+                  arabicName: mod.arabicName || mod.arabic,
+                  qty: mod.qty || 1,
+                  typeId: mod.typeId || 1,
+                  typeName: mod.typeName,
+                }))
+              : voidModifiers
+                  .filter((vm: any) => vm.mapId === vp.mapId && vm.typeId !== 2 && (vm.amount || 0) <= 0)
+                  .map((vm: any) => ({
+                    id: vm.modifierId,
+                    qty: vm.qty || 1,
+                    name: vm.name || vm.modifierName || "Modifier",
+                    arabicName: vm.arabicName,
+                    typeId: vm.typeId || 1,
+                    typeName: vm.typeName,
+                  }));
+
+            return {
+              productId: vp.productId,
+              quantity: vp.qty,
               price: vp.amount > 0 ? roundCalc(vp.amount / vp.qty) : 0,
-              categoryId: vp.categoryId || 0,
-            },
-            vatAmount: vp.vatAmount || 0,
-            netAmount: vp.netAmount || vp.amount + (vp.vatAmount || 0),
-            extras: voidModifiers
-              .filter((vm) => vm.mapId === vp.mapId && vm.amount > 0)
-              .map((vm) => ({
-                id: vm.modifierId,
-                qty: vm.qty,
-                price: vm.amount > 0 ? roundCalc(vm.amount / vm.qty) : 0,
-                name: "Extra",
-              })),
-            modifiers: [],
-          })) as any;
+              lineTotal: vp.amount,
+              variantName: vp.variantName,
+              variantArabic: vp.variantArabic,
+              product: {
+                id: vp.productId,
+                name: vp.productName || `Product #${vp.productId}`,
+                price: vp.amount > 0 ? roundCalc(vp.amount / vp.qty) : 0,
+                categoryId: vp.categoryId || 0,
+              },
+              vatAmount: vp.vatAmount || 0,
+              netAmount: vp.netAmount || vp.amount + (vp.vatAmount || 0),
+              extras: vpExtras,
+              modifiers: vpModifiers,
+              messages: vp.messages || [],
+            };
+          }) as any;
 
           await executeKotRouting(
             voidCartItems,

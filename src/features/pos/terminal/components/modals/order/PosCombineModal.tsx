@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Button } from "../../../../../../components/common";
+import { Modal, Button, ConfirmDialog } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { useAppSelector, useAppDispatch } from "../../../../../../app/hooks";
@@ -9,6 +9,7 @@ import { getDecimalPart } from "../../../../../../utils/currency";
 import { loadRecalledOrder, setCombinedOrderIds } from "../../../store/posSlice";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useCashierLog } from "../../../../cashier";
+import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
 
 interface CombineOrder {
   orderId: number;
@@ -31,7 +32,9 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
   const [selectedAvailableId, setSelectedAvailableId] = useState<number | null>(null);
   const [selectedSelectedId, setSelectedSelectedId] = useState<number | null>(null);
+  const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
 
+  const productCache = useAppSelector(state => state.pos.productCache);
   const { 
     selectedOrderTypeId, 
     editingOrderId, 
@@ -39,7 +42,6 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
     selectedCustomerId,
     selectedAddressId,
     billDiscountValue,
-    billDiscountType,
     selectedSectionId,
     selectedTableId
   } = useAppSelector(state => state.pos);
@@ -56,6 +58,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       setSelectedOrders([]);
       setSelectedAvailableId(null);
       setSelectedSelectedId(null);
+      setShowBillDiscountConfirm(false);
     }
   }, [isOpen, editingOrderId]);
 
@@ -112,6 +115,85 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       return;
     }
 
+    // Check if any order to be combined contains a bill discount
+    let currentOrderHasBillDisc = Number(billDiscountValue || 0) > 0;
+    if (!currentOrderHasBillDisc && editingOrderId) {
+      try {
+        const curRes = await orderApi.getOrderDetails(editingOrderId as number);
+        const curMaster = curRes?.data?.masterData || curRes?.masterData || curRes?.data || curRes;
+        const curDetails = curRes?.data?.detailsData || curRes?.detailsData || curRes?.data?.details || curRes?.details || [];
+        const hasLineDiscounts = Array.isArray(curDetails) && curDetails.some((d: any) => Number(d.discAmount || d.discountValue || 0) > 0);
+        if (
+          Boolean(curMaster?.complimentaryStatus || curMaster?.ComplimentaryStatus) ||
+          (curMaster?.discPer !== undefined && curMaster?.discPer !== null && Number(curMaster.discPer) > 0) ||
+          (!hasLineDiscounts && Number(curMaster?.discAmount || 0) > 0) ||
+          Number(curMaster?.billDiscountValue || 0) > 0
+        ) {
+          currentOrderHasBillDisc = true;
+        }
+      } catch (err) {
+        console.warn("Could not check current order for bill discount:", err);
+      }
+    }
+    let anyOrderHasBillDisc = currentOrderHasBillDisc;
+
+    if (!anyOrderHasBillDisc) {
+      // Check selected orders for bill discount flags or details string
+      anyOrderHasBillDisc = selectedOrders.some((o: any) => {
+        if (!o) return false;
+        if (Number(o.billDiscountValue || o.billDiscount || 0) > 0) return true;
+        if (Number(o.discPer || 0) > 0) return true;
+        if (Number(o.discAmount || 0) > 0) return true;
+        if (Boolean(o.complimentaryStatus || o.ComplimentaryStatus)) return true;
+        if (typeof o.details === "string") {
+          const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
+          if (discMatch && parseFloat(discMatch[1]) > 0) return true;
+        }
+        return false;
+      });
+    }
+
+    if (!anyOrderHasBillDisc) {
+      // Deep check selected orders via getOrderDetails
+      try {
+        const detailsResponses = await Promise.all(
+          selectedOrders.map((o) => orderApi.getOrderDetails(o.orderId))
+        );
+        for (const res of detailsResponses) {
+          const m = res?.data?.masterData || res?.masterData || res?.data || res;
+          const details =
+            res?.data?.detailsData ||
+            res?.detailsData ||
+            res?.data?.details ||
+            res?.details ||
+            [];
+          const hasLineDiscounts =
+            Array.isArray(details) &&
+            details.some((d: any) => Number(d.discAmount || d.discountValue || 0) > 0);
+          const isBillDisc =
+            Boolean(m?.complimentaryStatus || m?.ComplimentaryStatus) ||
+            (m?.discPer !== undefined && m?.discPer !== null && Number(m.discPer) > 0) ||
+            (!hasLineDiscounts && Number(m?.discAmount || 0) > 0) ||
+            Number(m?.billDiscountValue || 0) > 0;
+          if (isBillDisc) {
+            anyOrderHasBillDisc = true;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not check selected orders for bill discount:", e);
+      }
+    }
+
+    if (anyOrderHasBillDisc) {
+      setShowBillDiscountConfirm(true);
+      return;
+    }
+
+    await executeCombine();
+  };
+
+  const executeCombine = async () => {
     setIsCombining(true);
     try {
       const selectedIds = selectedOrders.map(o => o.orderId);
@@ -125,108 +207,14 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         const detailsData = sortOrderDetailsBySequence(combinedData.detailsData || combinedData.details || []);
         const modifiersData = combinedData.modifiersData || combinedData.modifiers || [];
 
-        const mappedCartItems = detailsData.map((detail: any, idx: number) => {
-          // Match modifiers by mapId AND orderId (if the backend provides orderId on modifiers)
-          const itemModifiers = modifiersData.filter((m: any) => {
-            if (m.orderId && detail.orderId) {
-              return m.mapId === detail.mapId && m.orderId === detail.orderId;
-            }
-            return m.mapId === detail.mapId; // Fallback if backend doesn't provide orderId
-          });
-          
-          const extras = itemModifiers.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
-            id: m.modifierId,
-            name: m.modifierName,
-            price: m.price || 0,
-            qty: m.qty || 1,
-            typeId: m.typeId
-          }));
-
-          const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
-            id: m.modifierId,
-            name: m.modifierName,
-            qty: m.qty || 1,
-            typeId: m.typeId,
-            typeName: m.typeName
-          }));
-
-          let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
-          
-          if (!pId && detail.productName) {
-            const matched = products.find((p: any) => p.name === detail.productName || p.name === detail.ProductName);
-            if (matched) pId = matched.id;
-          }
-
-          let realProduct: any = products.find((p: any) => p.id === pId) || {};
-
-          let itemIsIncl = (() => {
-            try {
-              const saved = localStorage.getItem('posConfigs');
-              const full = saved ? JSON.parse(saved) : {};
-              return full?.configs?.priceView === 'Inclusive';
-            } catch { return true; }
-          })();
-
-          const explicitDetailIsIncl = detail.isIncl ?? detail.PriceIsIncl ?? detail.priceIsIncl;
-          if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
-            itemIsIncl = Boolean(explicitDetailIsIncl);
-          } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-            itemIsIncl = Boolean(realProduct.isIncl);
-          }
-
-          if (detail.netAmount !== undefined && detail.price !== undefined) {
-            const lineBase = (detail.price || 0) * (detail.qty || 1);
-            const discAmt = detail.discAmount || 0;
-            const vatAmt = detail.vatAmount || 0;
-            const netAmt = detail.netAmount;
-            const remainingBase = lineBase - discAmt;
-            
-            if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
-              if (Math.abs(netAmt - remainingBase) < 0.01) {
-                itemIsIncl = true;
-              } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
-                itemIsIncl = false;
-              }
-            }
-          }
-
-          let calculatedVatValue: number | undefined = undefined;
-          if (detail.vatAmount !== undefined && detail.netAmount !== undefined && detail.netAmount > 0) {
-            const vatBase = detail.netAmount - detail.vatAmount;
-            if (vatBase > 0) {
-              calculatedVatValue = Math.round((detail.vatAmount / vatBase) * 100);
-            }
-          }
-
-          if (!pId) {
-            console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
-          }
-
-          return {
-            uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
-            productId: pId,
-            quantity: detail.qty || 1,
-            price: detail.price || 0,
-            isIncl: itemIsIncl,
-            discountValue: detail.discPer && detail.discPer > 0 ? detail.discPer : (detail.discAmount || 0),
-            discountType: (detail.discPer && detail.discPer > 0 ? 'percentage' : 'amount') as 'percentage' | 'amount',
-            extras,
-            modifiers,
-            isExisting: true,
-            mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
-            originalQty: detail.qty || 1,
-            product: {
-              id: pId,
-              name: detail.productName || detail.ProductName || `Product #${pId}`,
-              price: detail.price || 0,
-              categoryId: 1,
-              unitId: detail.unitId || 1,
-              vatValue: detail.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
-              sVatId: detail.vatId ?? realProduct.sVatId ?? undefined,
-              isIncl: itemIsIncl
-            }
-          };
+        const rawMappedCartItems = mapOrderDetailsToCartItems(detailsData, modifiersData, {
+          products,
+          productCache,
         });
+        const mappedCartItems = rawMappedCartItems.map((item, idx) => ({
+          ...item,
+          mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
+        }));
 
         // Determine target order: the backend only permits updating the latest (highest) order in the combined group
         const targetOrderId = Math.max(...orderIdsToCombine);
@@ -250,7 +238,8 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           targetPrevUpdatedAt = sessionStorage.getItem(`order_prevUpdatedAt_${editingOrderId}`) || undefined;
         }
 
-        // Load the new combined cart entirely, setting the latest order as primary
+        // Load the new combined cart entirely, setting the latest order as primary.
+        // Bill discount is erased when performing combine; line item discounts are preserved on items.
         dispatch(loadRecalledOrder({
           editingOrderId: targetOrderId,
           cartItems: mappedCartItems,
@@ -258,8 +247,8 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           orderTypeName: targetMaster?.orderTypeName || selectedOrderTypeName,
           customerId: targetMaster?.customerId || selectedCustomerId,
           addressId: targetMaster?.addressId || selectedAddressId,
-          billDiscountValue: billDiscountValue,
-          billDiscountType: billDiscountType,
+          billDiscountValue: 0,
+          billDiscountType: 'percentage',
           sectionId: targetMaster?.sectionId || selectedSectionId,
           tableId: targetMaster?.tableId || selectedTableId,
           isCartModified: true,
@@ -321,7 +310,8 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Combine Order"
@@ -395,5 +385,21 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
       </div>
     </Modal>
+
+    <ConfirmDialog
+      isOpen={showBillDiscountConfirm}
+      title="Warning"
+      message="Bill discount will be erased while performing this action. Do you want to continue?"
+      confirmLabel="Continue"
+      cancelLabel="Cancel"
+      confirmVariant="danger"
+      loading={isCombining}
+      onConfirm={async () => {
+        setShowBillDiscountConfirm(false);
+        await executeCombine();
+      }}
+      onCancel={() => setShowBillDiscountConfirm(false)}
+    />
+  </>
   );
 };

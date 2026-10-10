@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchBranches, fetchTerminals } from "../services/branchService";
+import { fetchBranches, fetchTerminals, updateTerminalStatus } from "../services/branchService";
 import { counterService } from "../../general/counter/services/counterService";
 import { useToast } from "../../../app/providers/useToast";
 import type { BranchOption, CounterOption, TerminalOption, SystemType } from "../types";
@@ -105,6 +105,10 @@ export const useSystemRegistration = () => {
 
     setSaving(true);
     try {
+      if (systemType === "pos") {
+        await updateTerminalStatus(branchId, terminalId);
+      }
+
       const selectedBranch = branches.find((b) => String(b.id) === branchId);
       const selectedCounter = counters.find((c) => String(c.id) === counterId);
       const selectedTerminal = terminals.find((t) => String(t.id) === terminalId);
@@ -132,6 +136,10 @@ export const useSystemRegistration = () => {
       } else {
         navigate("/dashboard", { replace: true });
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The selected Terminal ID is already linked to another Machine";
+      setErrors((prev) => ({ ...prev, terminalId: message }));
+      showToast(message, "error");
     } finally {
       setSaving(false);
     }

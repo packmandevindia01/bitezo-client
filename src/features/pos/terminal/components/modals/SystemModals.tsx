@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import { PosMoreModal } from "./system/PosMoreModal";
+import { isDefaultEmployeeActive } from "../../../utils/defaultEmployee";
 
 const PosReportModal = React.lazy(() =>
   import("./system/PosReportModal").then((m) => ({ default: m.PosReportModal }))
@@ -49,6 +50,11 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
         onItemComplimentary={props.handleItemComplimentary}
         onBillComplimentary={props.handleBillComplimentary}
         onSettledOrders={() => {
+          if (isDefaultEmployeeActive()) {
+            modals.setIsMoreModalOpen(false);
+            modals.setIsSettledModalOpen(true);
+            return;
+          }
           props.requestAuthorization({
             actionLabel: "Settled order",
             permissionId: 20, // Settled order
@@ -59,6 +65,11 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
           });
         }}
         onReport={() => {
+          if (isDefaultEmployeeActive()) {
+            modals.setIsMoreModalOpen(false);
+            modals.setIsReportModalOpen(true);
+            return;
+          }
           props.requestAuthorization({
             actionLabel: "Report",
             permissionId: 26, // Report
@@ -69,6 +80,11 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
           });
         }}
         onVoidOrder={() => {
+          if (isDefaultEmployeeActive()) {
+            modals.setIsMoreModalOpen(false);
+            modals.setIsVoidModalOpen(true);
+            return;
+          }
           props.requestAuthorization({
             actionLabel: "Order Void",
             permissionId: 17, // Order Void
@@ -100,7 +116,7 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
             }}
             onEditSuccess={() => {
               modals.setIsSettledModalOpen(false);
-              modals.setIsMoreModalOpen(true);
+              modals.setIsMoreModalOpen(false);
             }}
           />
         )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader, Button } from "../../../../../../components/common";
-import { Printer, X } from "lucide-react";
+import { Printer, X, Pencil } from "lucide-react";
 import { settledOrdersApi } from "../../../../services/settledOrdersApi";
 import { salesInvoiceApi } from "../../../../services/salesInvoiceApi";
 import { orderApi } from "../../../../services/orderApi";
@@ -15,6 +15,10 @@ import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, roundCalc, getBillingConfig } from "../../../utils/billing";
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
+import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
+import { usePosProducts } from "../../../hooks/usePosProducts";
+import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
+import { getModifierTypeNameById } from "../../../../services/menuApi";
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -152,8 +156,12 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   orderId,
   orderDetailsStr = "",
   orderSummary,
+  onEditSuccess,
 }) => {
   const { showToast } = useToast();
+  const dispatch = useAppDispatch();
+  const productCache = useAppSelector((state) => state.pos.productCache);
+  const { products } = usePosProducts();
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<any>(null);
   const [resolvedEmployeeName, setResolvedEmployeeName] = useState<string>("Waiter");
@@ -481,6 +489,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             name: m.modifierName,
             qty: m.qty || 1,
             typeId: m.typeId,
+            typeName: m.typeName || m.modifierTypeName || getModifierTypeNameById(m.typeId) || "",
+            arabicName: m.arabicName || "",
           }));
 
         const qty = d.qty ?? d.Qty ?? 1;
@@ -524,6 +534,17 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         resolvedVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
       }
 
+      let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+      if (resolvedDiscount <= 0) {
+        const lineDiscounts = details.reduce((acc: number, d: any) => acc + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
+        if (lineDiscounts > 0) resolvedDiscount = roundCalc(lineDiscounts);
+      }
+
+      const serviceCharge = Number(master.serviceCharge || 0);
+      const levy = Number(master.levyAmt || master.levy || 0);
+      const deliveryCharge = Number(master.deliveryCharge || 0);
+
+      const netTaxableBase = roundCalc(netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge);
       let resolvedSubTotal = Number(
         master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0
       );
@@ -531,13 +552,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         resolvedSubTotal <= 0 ||
         (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)
       ) {
-        resolvedSubTotal = roundCalc(
-          netAmount -
-            resolvedVatAmount -
-            Number(master.serviceCharge || 0) -
-            Number(master.levyAmt || master.levy || 0) -
-            Number(master.deliveryCharge || 0)
-        );
+        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
 
       const mappedItems = preMapped.map((d: any) => {
@@ -547,7 +562,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || (d.price || 0) * (d.qty || 1);
-        const itemBase = enableVat && itemVat > 0 ? itemLineNet - itemVat : d.itemVatBase ?? itemLineNet;
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.price || 0) * (d.qty || 1);
         return {
           productId: d.productId || d.itemId || 0,
           quantity: d.qty || 1,
@@ -761,7 +776,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo,
         subTotal: resolvedSubTotal,
-        discount: master.discAmount || master.discount || 0,
+        discount: resolvedDiscount,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: resolvedVatAmount,
@@ -806,6 +821,22 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     }
   };
 
+  const handleEdit = () => {
+    if (!orderId || !order) return;
+    loadSettledOrderIntoCart({
+      orderId,
+      orderData: order,
+      dispatch,
+      products,
+      productCache,
+      showToast,
+      onEditSuccess: () => {
+        onEditSuccess?.();
+        onClose();
+      },
+    });
+  };
+
   if (!isOpen) return null;
 
   const master = order?.masterData || order || {};
@@ -847,6 +878,48 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     order?.createdAt;
 
   const displayDateStr = formatVoucherDate(rawDateStr);
+  const enableVat = getVatStatus();
+
+  let detailsVatSum = 0;
+  let lineDiscountsSum = 0;
+  details.forEach((d: any) => {
+    detailsVatSum += Number(d.vatAmount ?? d.VatAmount ?? 0);
+    lineDiscountsSum += Number(d.discAmount ?? d.DiscAmount ?? 0);
+  });
+
+  let displayVatAmount = Number(
+    master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0
+  );
+  if (displayVatAmount <= 0 && detailsVatSum > 0) {
+    displayVatAmount = detailsVatSum;
+  }
+  if (enableVat && displayVatAmount <= 0 && netAmount > 0) {
+    const billingConfig = getBillingConfig(orderTypeName);
+    const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.1;
+    displayVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
+  }
+
+  let displayDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+  if (displayDiscount <= 0 && lineDiscountsSum > 0) {
+    displayDiscount = roundCalc(lineDiscountsSum);
+  }
+
+  const displayServiceCharge = Number(master.serviceCharge || 0);
+  const displayLevy = Number(master.levyAmt || master.levy || 0);
+  const displayDeliveryCharge = Number(master.deliveryCharge || 0);
+
+  const netTaxableBase = roundCalc(
+    netAmount - displayVatAmount - displayServiceCharge - displayLevy - displayDeliveryCharge
+  );
+  let displaySubTotal = Number(
+    master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0
+  );
+  if (
+    displaySubTotal <= 0 ||
+    (enableVat && Math.abs(displaySubTotal - netAmount) < 0.001 && displayVatAmount > 0)
+  ) {
+    displaySubTotal = roundCalc(netTaxableBase + displayDiscount);
+  }
 
   return (
     <Modal
@@ -940,19 +1013,73 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 const amount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
                 const price = detail.price ?? detail.Price ?? (qty > 0 ? amount / qty : 0);
 
+                const itemMods = (order?.modifiersData || []).filter((m: any) => m.mapId === detail.mapId);
                 return (
-                  <div key={i} className="grid grid-cols-[24px_1fr_60px_60px] gap-2 text-[11px]">
-                    <div className="font-bold text-stone-500">{qty}</div>
-                    <div className="font-bold text-stone-800">{detail.productName || detail.ProductName}</div>
-                    <div className="text-right text-stone-500">{formatAmount(price)}</div>
-                    <div className="text-right font-bold text-stone-900">{formatAmount(amount)}</div>
+                  <div key={i} className="space-y-0.5">
+                    <div className="grid grid-cols-[24px_1fr_60px_60px] gap-2 text-[11px]">
+                      <div className="font-bold text-stone-500">{qty}</div>
+                      <div className="font-bold text-stone-800">{detail.productName || detail.ProductName}</div>
+                      <div className="text-right text-stone-500">{formatAmount(price)}</div>
+                      <div className="text-right font-bold text-stone-900">{formatAmount(amount)}</div>
+                    </div>
+                    {itemMods.map((mod: any, mIdx: number) => {
+                      const typeName = mod.typeName || mod.modifierTypeName || getModifierTypeNameById(mod.typeId) || "";
+                      const typePrefix = typeName ? `${typeName.toUpperCase()}: ` : "";
+                      return (
+                        <div key={mIdx} className="grid grid-cols-[24px_1fr_60px_60px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic">
+                          <div className="col-span-3">
+                            * {typePrefix}{mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName || mod.name}
+                          </div>
+                          <div className="text-right">
+                            {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
             </div>
-            <div className="border-t border-dashed border-stone-400 pt-4 mt-6 flex justify-between font-bold text-xs uppercase">
-              <span>Grand Total</span>
-              <span className="text-base font-black text-[#f48120]">{formatAmount(netAmount)}</span>
+            {/* Receipt Footer with Sub Total, Discount, Charges, VAT and Grand Total */}
+            <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
+              <div className="flex justify-between items-center text-stone-600">
+                <span>Sub Total</span>
+                <span>{formatAmount(displaySubTotal)}</span>
+              </div>
+              {displayDiscount > 0 && (
+                <div className="flex justify-between items-center text-red-600">
+                  <span>Discount</span>
+                  <span>-{formatAmount(displayDiscount)}</span>
+                </div>
+              )}
+              {displayServiceCharge > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Service Charge</span>
+                  <span>{formatAmount(displayServiceCharge)}</span>
+                </div>
+              )}
+              {displayLevy > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Levy(5%)</span>
+                  <span>{formatAmount(displayLevy)}</span>
+                </div>
+              )}
+              {displayDeliveryCharge > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Delivery Charge</span>
+                  <span>{formatAmount(displayDeliveryCharge)}</span>
+                </div>
+              )}
+              {displayVatAmount > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>VAT</span>
+                  <span>{formatAmount(displayVatAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
+                <span>Grand Total</span>
+                <span className="text-base font-black text-[#f48120]">{formatAmount(netAmount)}</span>
+              </div>
             </div>
           </div>
 
@@ -966,6 +1093,15 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               <Printer size={18} strokeWidth={2.5} />
               PRINT
             </Button>
+
+            <button
+              onClick={handleEdit}
+              disabled={loading || !order}
+              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-[#49293e] hover:bg-[#5c3450] active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
+            >
+              <Pencil size={18} strokeWidth={2.5} />
+              EDIT
+            </button>
 
             <button
               onClick={onClose}

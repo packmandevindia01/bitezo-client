@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Check, Delete, XCircle } from "lucide-react";
 import { Modal } from "../../../../../../components/common";
+import { getDefaultEmployeeConfig } from "../../../../utils/defaultEmployee";
 
 interface EmployeePasswordModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const EmployeePasswordModal = ({
   onSubmit,
 }: EmployeePasswordModalProps) => {
   const [password, setPassword] = useState("");
+  const isDefaultEmp = getDefaultEmployeeConfig().isEnabled;
 
   const handleKeyPress = (key: string) => {
     if (loading) return;
@@ -42,7 +44,7 @@ export const EmployeePasswordModal = ({
   };
 
   const handleSubmit = () => {
-    if (!password || loading) return;
+    if ((!isDefaultEmp && !password) || loading) return;
     const passwordToValidate = password;
     setPassword("");
     onSubmit(passwordToValidate);
@@ -61,7 +63,7 @@ export const EmployeePasswordModal = ({
         } else if (e.key === "Escape") {
           onClose();
         }
-      } else if (e.key === "Enter" && password) {
+      } else if (e.key === "Enter" && (password || isDefaultEmp)) {
         handleSubmit();
       }
     };
@@ -134,7 +136,7 @@ export const EmployeePasswordModal = ({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!password || loading}
+            disabled={(!isDefaultEmp && !password) || loading}
             className="h-14 bg-[#ff9500] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-[0_4px_15px_rgba(255,149,0,0.3)] hover:bg-[#e68600] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (

@@ -67,26 +67,24 @@ export const usePosDiscountFlow = ({
     const finalValue = isNaN(numValue) ? 0 : numValue;
 
     const itemTotalDiscount = cartDetails.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
-    const remainingSubtotal = Math.max(0, subtotal - itemTotalDiscount);
+    const totalGross = cartDetails.reduce(
+      (sum, item) => sum + (Number(item.price ?? item.product?.price ?? 0) * Number(item.quantity ?? 1)) + (item.extrasTotal ?? 0),
+      0
+    );
+    const billCeiling = totalGross > subtotal ? totalGross : subtotal;
+    const remainingSubtotal = Math.max(0, billCeiling - itemTotalDiscount);
 
     if (discountType === 'bill') {
-      let proposedBillDiscount = 0;
       if (discountMode === 'percentage') {
         if (finalValue > 100) {
           showToast("Discount percentage cannot exceed 100%", "error");
           return;
         }
-        proposedBillDiscount = (subtotal * finalValue) / 100;
       } else {
-        proposedBillDiscount = finalValue;
-      }
-
-      if (proposedBillDiscount > remainingSubtotal) {
-        const limitMsg = discountMode === 'percentage'
-          ? `Discount percentage would exceed the remaining bill subtotal`
-          : `Discount amount cannot exceed the remaining bill subtotal`;
-        showToast(limitMsg, "error");
-        return;
+        if (finalValue > remainingSubtotal) {
+          showToast("Discount amount cannot exceed the remaining bill total", "error");
+          return;
+        }
       }
       
       if (itemTotalDiscount > 0) {

@@ -31,3 +31,36 @@ export const fetchTerminals = async (branchId: string, companyId?: string | numb
     name: t.terminalName ?? t.name ?? "Unknown",
   }));
 };
+
+export const updateTerminalStatus = async (
+  branchId: string | number,
+  terminalId: string | number,
+  clientDb?: string
+): Promise<{ isSuccess: boolean; message?: string }> => {
+  const targetDb = clientDb || localStorage.getItem("tenantId") || "";
+  const headers: Record<string, string> = {};
+  if (targetDb) {
+    headers["clientDb"] = targetDb;
+  }
+
+  try {
+    const { data } = await axiosInstance.patch<any>(
+      `/Branch/branches/${branchId}/terminals/${terminalId}/status`,
+      {},
+      { headers }
+    );
+
+    if (data && data.isSuccess === false) {
+      throw new Error(data.message || "Failed to update terminal status");
+    }
+
+    return { isSuccess: true, message: data?.message };
+  } catch (error: any) {
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.title ||
+      error?.message ||
+      "The selected Terminal ID is already linked to another Machine";
+    throw new Error(backendMessage);
+  }
+};

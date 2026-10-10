@@ -47,6 +47,38 @@ const getProviderOwnStatus = (orderTypeId?: number) => {
   }
 };
 
+const MODIFIER_TYPES_CACHE_KEY = "bitezo_modifier_types_cache";
+let cachedModifierTypes: { typeId: number; typeName: string }[] = [];
+
+export const getCachedModifierTypes = (): { typeId: number; typeName: string }[] => {
+  if (cachedModifierTypes.length > 0) return cachedModifierTypes;
+  try {
+    const raw = sessionStorage.getItem(MODIFIER_TYPES_CACHE_KEY);
+    if (raw) {
+      cachedModifierTypes = JSON.parse(raw);
+    }
+  } catch { /* ignore */ }
+  return cachedModifierTypes;
+};
+
+export const setCachedModifierTypes = (types: any[]) => {
+  if (!Array.isArray(types)) return;
+  cachedModifierTypes = types.map((t: any) => ({
+    typeId: Number(t.typeId ?? t.id ?? 0),
+    typeName: String(t.typeName ?? t.name ?? t.modifierTypeName ?? "").trim(),
+  }));
+  try {
+    sessionStorage.setItem(MODIFIER_TYPES_CACHE_KEY, JSON.stringify(cachedModifierTypes));
+  } catch { /* ignore */ }
+};
+
+export const getModifierTypeNameById = (typeId?: number): string => {
+  if (!typeId) return "";
+  const list = getCachedModifierTypes();
+  const found = list.find((t) => t.typeId === Number(typeId));
+  return found?.typeName || "";
+};
+
 export const menuApi = {
   /** GET /api/menu/master-data */
   getMasterData: async () => {
@@ -313,8 +345,27 @@ export const menuApi = {
     unwrap(axiosInstance.get<ApiResponse<{ modifier: any[] | null }>>("/menu/modifiers", { params: { clientDb: localStorage.getItem("tenantId") || "", typeId, categoryId } })),
 
   /** GET /api/menu/modifier-type */
-  getModifierTypes: () =>
-    unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/modifier-type${getTenantQuery()}`)),
+  getModifierTypes: async (): Promise<any[]> => {
+    try {
+      const res = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/modifier-type${getTenantQuery()}`));
+      const list = Array.isArray(res) ? res : ((res as any)?.data || []);
+      const normalized = list.map((t: any) => {
+        const typeId = Number(t.typeId ?? t.id ?? 0);
+        const typeName = String(t.typeName ?? t.name ?? t.modifierTypeName ?? "").trim();
+        return {
+          ...t,
+          typeId,
+          typeName,
+          name: typeName,
+        };
+      });
+      setCachedModifierTypes(normalized);
+      return normalized;
+    } catch (e) {
+      console.error("[menuApi] getModifierTypes error:", e);
+      return [];
+    }
+  },
 
   /** GET /api/menu/providers */
   getProviders: () =>

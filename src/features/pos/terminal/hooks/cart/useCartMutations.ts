@@ -231,6 +231,13 @@ export const useCartMutations = () => {
       qty: number;
       amount: number;
       mapId: number;
+      variantName?: string;
+      variantArabic?: string;
+      categoryId?: number;
+      extras?: any[];
+      modifiers?: any[];
+      messages?: any[];
+      note?: string;
     }) => dispatch(addVoidProduct(payload)),
     addVoidModifier: (payload: {
       mapId: number;
@@ -238,6 +245,9 @@ export const useCartMutations = () => {
       qty: number;
       amount: number;
       typeId?: number;
+      name?: string;
+      arabicName?: string;
+      typeName?: string;
     }) => dispatch(addVoidModifier(payload)),
   };
 };

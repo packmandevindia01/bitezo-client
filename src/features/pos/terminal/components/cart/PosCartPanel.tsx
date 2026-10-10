@@ -154,7 +154,9 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
                   showToast("Please select a delivery address before settling.", "warning");
                   return;
                 }
-                if (tenderId === '3') {
+                const selectedTenderObj = (tenderOptions || []).find((t) => String(t.id) === String(tenderId));
+                const label = (selectedTenderObj?.label || "").toLowerCase();
+                if (label.includes("multi") || tenderId === "3") {
                   setIsMultiPayModalOpen(true);
                 }
               }

@@ -176,15 +176,18 @@ const SYSTEM_ITEMS: ActionItem[] = [
   },
 ];
 
+import { isDefaultEmployeeActive } from '../../../../utils/defaultEmployee';
+
 interface SectionCardProps {
   title: string;
   badge: string;
   badgeColor: string;
   items: ActionItem[];
+  isDefaultEmployee?: boolean;
   onItemClick: (item: ActionItem) => void;
 }
 
-const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, items, onItemClick }) => (
+const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, items, isDefaultEmployee, onItemClick }) => (
   <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3 flex flex-col gap-2 shadow-2xs">
     <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
       <div className="flex items-center gap-2">
@@ -215,7 +218,7 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, ite
                 <span className="text-[11px] font-bold text-slate-800 group-hover:text-[#49293e] tracking-tight truncate leading-tight">
                   {item.label}
                 </span>
-                {item.requiresAuth && (
+                {item.requiresAuth && !isDefaultEmployee && (
                   <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200/60 rounded px-1 py-0.2" title="Manager approval required">
                     <Shield size={9} strokeWidth={2.5} />
                     PIN
@@ -251,11 +254,17 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
   requestAuthorization
 }) => {
   const navigate = useNavigate();
+  const isDefaultEmployee = isDefaultEmployeeActive();
 
   if (!isOpen) return null;
 
   const handleItemClick = (item: ActionItem) => {
     if (item.action === 'printer') {
+      if (isDefaultEmployee) {
+        onClose();
+        navigate('/pos/more');
+        return;
+      }
       requestAuthorization({
         actionLabel: "Printer",
         permissionId: 25,
@@ -272,6 +281,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'lock') {
+      if (isDefaultEmployee) {
+        onClose();
+        navigate('/pos/lock-item');
+        return;
+      }
       requestAuthorization({
         actionLabel: "Lock Products",
         permissionId: 18,
@@ -288,6 +302,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'bulkSettlement') {
+      if (isDefaultEmployee) {
+        onClose();
+        navigate('/pos/bulk-settlement');
+        return;
+      }
       requestAuthorization({
         actionLabel: "Bulk Settlement",
         permissionId: 22,
@@ -299,6 +318,11 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       return;
     }
     if (item.action === 'payInOut') {
+      if (isDefaultEmployee) {
+        onClose();
+        navigate('/pos/pay-in-out');
+        return;
+      }
       requestAuthorization({
         actionLabel: "Pay In Out",
         permissionId: 22,
@@ -377,6 +401,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
           badge="Orders & Dining"
           badgeColor="bg-[#49293e]"
           items={ORDER_ITEMS}
+          isDefaultEmployee={isDefaultEmployee}
           onItemClick={handleItemClick}
         />
 
@@ -386,6 +411,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
           badge="Shift Services"
           badgeColor="bg-amber-500"
           items={CASHIER_ITEMS}
+          isDefaultEmployee={isDefaultEmployee}
           onItemClick={handleItemClick}
         />
 
@@ -395,6 +421,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
           badge="Offers & 86"
           badgeColor="bg-emerald-500"
           items={DISCOUNT_ITEMS}
+          isDefaultEmployee={isDefaultEmployee}
           onItemClick={handleItemClick}
         />
 
@@ -404,6 +431,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
           badge="Setup & Devices"
           badgeColor="bg-indigo-500"
           items={SYSTEM_ITEMS}
+          isDefaultEmployee={isDefaultEmployee}
           onItemClick={handleItemClick}
         />
       </div>

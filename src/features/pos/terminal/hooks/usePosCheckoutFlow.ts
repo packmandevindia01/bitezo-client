@@ -7,6 +7,7 @@ import { getVatStatus } from '../utils/billing';
 import { isBillArabicEnabled } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
+import { getModifierTypeNameById } from '../../services/menuApi';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -431,12 +432,19 @@ export const usePosCheckoutFlow = ({
                 }));
               const modifiers = itemMods
                 .filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0))
-                .map((m: any) => ({
-                  id: m.modifierId,
-                  name: m.modifierName,
-                  qty: m.qty || 1,
-                  typeId: m.typeId
-                }));
+                .map((m: any) => {
+                  const cartMatch = cartDetails.find(c => c.productId === (d.productId || d.itemId));
+                  const cartMod = cartMatch?.modifiers?.find((cm: any) => cm.id === m.modifierId || cm.name === m.modifierName);
+                  const typeName = m.typeName || m.modifierTypeName || cartMod?.typeName || getModifierTypeNameById(m.typeId) || "";
+                  return {
+                    id: m.modifierId,
+                    name: m.modifierName || m.name || "",
+                    qty: m.qty || 1,
+                    typeId: m.typeId,
+                    typeName,
+                    arabicName: m.arabicName || cartMod?.arabicName || "",
+                  };
+                });
               const messages = itemMods
                 .filter((m: any) => (m.status || "").toLowerCase() === "message")
                 .map((m: any) => ({

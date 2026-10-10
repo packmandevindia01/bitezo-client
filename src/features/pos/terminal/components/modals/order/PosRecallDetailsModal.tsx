@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
-import { menuApi } from "../../../../services/menuApi";
+import { menuApi, getModifierTypeNameById } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
-import { useAppDispatch } from "../../../../../../app/hooks";
+import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { loadRecalledOrder, setDeliveryDetails } from "../../../store/posSlice";
 import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
@@ -16,6 +16,7 @@ import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
+import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
 
 import { usePosProducts } from "../../../hooks/usePosProducts";
 
@@ -26,7 +27,17 @@ interface PosRecallDetailsModalProps {
   orderDetailsStr?: string; // Fallback string parsed from the recall list (e.g. details text)
   onEditSuccess?: () => void; // Triggered when loading into POS cart to close the parent modals
   onSettleSuccess?: (amount: number) => void; // Triggered when proceeding to settlement
+  onOrderVoided?: () => void;
 }
+
+const orderTypeNameMap: Record<string, number> = {
+  DineIn: 1,
+  TakeOut: 2,
+  DriveThru: 3,
+  Delivery: 4,
+  Providers: 5,
+  Coming: 6,
+};
 
 export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   isOpen,
@@ -35,9 +46,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   orderDetailsStr = "",
   onEditSuccess,
   onSettleSuccess,
+  onOrderVoided: _onOrderVoided,
 }) => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
+  const productCache = useAppSelector((state) => state.pos.productCache);
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<any>(null);
   const { products } = usePosProducts();
@@ -184,9 +197,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
         }));
-        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
-        }));
+        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => {
+          const typeName = m.typeName || m.modifierTypeName || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.name || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.typeName || getModifierTypeNameById(m.typeId) || "";
+          return {
+            id: m.modifierId,
+            name: m.modifierName,
+            qty: m.qty || 1,
+            typeId: m.typeId,
+            typeName,
+            arabicName: m.arabicName || ""
+          };
+        });
         const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
           id: m.modifierId, name: m.modifierName || m.name || ""
         }));
@@ -490,9 +511,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1, typeId: m.typeId
         }));
-        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, qty: m.qty || 1, typeId: m.typeId
-        }));
+        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => {
+          const typeName = m.typeName || m.modifierTypeName || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.name || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.typeName || getModifierTypeNameById(m.typeId) || "";
+          return {
+            id: m.modifierId,
+            name: m.modifierName,
+            qty: m.qty || 1,
+            typeId: m.typeId,
+            typeName,
+            arabicName: m.arabicName || ""
+          };
+        });
         const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
           id: m.modifierId, name: m.modifierName || m.name || ""
         }));
@@ -537,9 +566,20 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
       }
 
+      let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+      if (resolvedDiscount <= 0) {
+        const lineDiscounts = details.reduce((acc: number, d: any) => acc + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
+        if (lineDiscounts > 0) resolvedDiscount = roundCalc(lineDiscounts);
+      }
+
+      const serviceCharge = Number(master.serviceCharge || 0);
+      const levy = Number(master.levyAmt || master.levy || 0);
+      const deliveryCharge = Number(master.deliveryCharge || 0);
+
+      const netTaxableBase = roundCalc(netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge);
       let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
       if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
-        resolvedSubTotal = roundCalc(netAmount - resolvedVatAmount - Number(master.serviceCharge || 0) - Number(master.levyAmt || master.levy || 0) - Number(master.deliveryCharge || 0));
+        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
 
       const mappedItems = preMapped.map((d: any) => {
@@ -550,7 +590,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
-        const itemBase = enableVat && itemVat > 0 ? (itemLineNet - itemVat) : (d.itemVatBase ?? itemLineNet);
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.price || 0) * (d.qty || 1);
         return {
           productId: pId,
           quantity: d.qty || 1,
@@ -731,7 +771,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo || "",
         subTotal: resolvedSubTotal,
-        discount: master.discAmount || master.discount || 0,
+        discount: resolvedDiscount,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: resolvedVatAmount,
@@ -810,122 +850,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       })();
       const isIncl = priceView === 'Inclusive';
 
-      const mappedCartItems = details.map((detail: any, idx: number) => {
-        const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
-        
-        const extras = itemModifiers.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
-          id: m.modifierId,
-          name: m.modifierName,
-          price: m.price || 0,
-          qty: m.qty || 1,
-          typeId: m.typeId
-        }));
-
-        const modifiers = itemModifiers.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
-          id: m.modifierId,
-          name: m.modifierName,
-          qty: m.qty || 1,
-          typeId: m.typeId,
-          typeName: m.typeName
-        }));
-
-        const messages = itemModifiers.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
-          id: m.modifierId,
-          name: m.modifierName || m.name || ""
-        }));
-
-        let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
-        
-        let matchedProduct: any = null;
-        if (pId) {
-          matchedProduct = products.find((p: any) => p.id === pId);
-        }
-        if (!matchedProduct && detail.productName) {
-          matchedProduct = products.find((p: any) => p.name === detail.productName || p.name === detail.ProductName);
-          if (matchedProduct) pId = matchedProduct.id;
-        }
-        const realProduct = matchedProduct || {};
-
-        if (!pId) {
-          console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
-        }
-
-        let itemIsIncl = isIncl;
-        const explicitDetailIsIncl = detail.isIncl ?? detail.PriceIsIncl ?? detail.priceIsIncl;
-        if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
-          itemIsIncl = Boolean(explicitDetailIsIncl);
-        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-          itemIsIncl = Boolean(realProduct.isIncl);
-        }
-
-        if (detail.netAmount !== undefined && detail.price !== undefined) {
-          const lineBase = (detail.price || 0) * (detail.qty || 1);
-          const discAmt = detail.discAmount || 0;
-          const vatAmt = detail.vatAmount || 0;
-          const netAmt = detail.netAmount;
-          const remainingBase = lineBase - discAmt;
-          
-          if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
-            if (Math.abs(netAmt - remainingBase) < 0.01) {
-              itemIsIncl = true;
-            } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
-              itemIsIncl = false;
-            }
-          }
-        }
-
-        let calculatedVatValue: number | undefined = undefined;
-        if (detail.vatAmount !== undefined && detail.netAmount !== undefined && detail.netAmount > 0) {
-          const vatBase = detail.netAmount - detail.vatAmount;
-          if (vatBase > 0) {
-            calculatedVatValue = Math.round((detail.vatAmount / vatBase) * 100);
-          }
-        }
-
-        const isDetailComplimentary = Boolean(
-          detail.complimentaryStatus ||
-          detail.ComplimentaryStatus ||
-          (detail.discPer && Number(detail.discPer) === 100)
-        );
-
-        return {
-          uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
-          productId: pId,
-          quantity: detail.qty || 1,
-          price: detail.price || 0,
-          isIncl: itemIsIncl,
-          discountValue: isDetailComplimentary
-            ? 100
-            : detail.discPer && detail.discPer > 0
-            ? detail.discPer
-            : (detail.discAmount || 0),
-          discountType: (isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount') as 'percentage' | 'amount',
-          extras,
-          modifiers,
-          messages,
-          isExisting: true,
-          mapId: detail.mapId,
-          originalQty: detail.qty || 1,
-          variantName: detail.variantName || detail.altName || detail.VariantName || detail.AltName,
-          variantArabic: detail.variantArabic || detail.altArabic || detail.VariantArabic || detail.AltArabic,
-          product: {
-            id: pId,
-            name: detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`,
-            price: detail.price || realProduct.price || 0,
-            categoryId: realProduct.categoryId || 1,
-            unitId: detail.unitId || realProduct.unitId || 1,
-            vatValue: detail.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
-            sVatId: detail.vatId ?? realProduct.sVatId ?? undefined,
-            arabicName: realProduct.arabicName
-          }
-        };
-      });
-
-      const orderTypeNameMap: Record<string, number> = {
-        "DineIn": 1, "TakeOut": 2, "DriveThru": 3,
-        "Delivery": 4, "Providers": 5, "Coming": 6
-      };
-
       const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
       const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
 
@@ -939,6 +863,72 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
       }
 
+      const billingConfig = getBillingConfig(orderTypeName);
+      const enableVat = getVatStatus();
+      const netAmount = Number(master.netAmount ?? order?.netAmount ?? 0);
+      const masterDiscPer = Number(master.discPer || 0);
+
+      let detailsVatSum = 0;
+      let lineDiscountsSum = 0;
+      details.forEach((d: any) => {
+        detailsVatSum += Number(d.vatAmount ?? d.VatAmount ?? 0);
+        lineDiscountsSum += Number(d.discAmount ?? d.DiscAmount ?? 0);
+      });
+
+      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
+      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
+        resolvedVatAmount = detailsVatSum;
+      }
+      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
+      }
+
+      let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+      if (resolvedDiscount <= 0 && lineDiscountsSum > 0) {
+        resolvedDiscount = roundCalc(lineDiscountsSum);
+      }
+
+      const hasLineItemDiscounts = lineDiscountsSum > 0;
+      const isBillLevelDiscount =
+        Boolean(master.complimentaryStatus || master.ComplimentaryStatus) ||
+        masterDiscPer > 0 ||
+        (!hasLineItemDiscounts && resolvedDiscount > 0);
+
+      const resolvedBillDiscType: 'percentage' | 'amount' =
+        (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100) || masterDiscPer > 0)
+          ? 'percentage'
+          : 'amount';
+      let resolvedBillDiscVal = (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100))
+        ? 100
+        : masterDiscPer > 0
+        ? masterDiscPer
+        : isBillLevelDiscount
+        ? resolvedDiscount
+        : 0;
+
+      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
+      }
+
+      const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
+        products,
+        productCache,
+        priceView,
+        masterDiscPer,
+        isOrderBillDiscount: isBillLevelDiscount,
+      });
+
+      const serviceCharge = Number(master.serviceCharge || 0);
+      const levy = Number(master.levyAmt || master.levy || 0);
+      const deliveryCharge = Number(master.deliveryCharge || 0);
+      const netTaxableBase = roundCalc(netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge);
+      let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
+      if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
+        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
+      }
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
         editingSaleId: saleId,
@@ -948,14 +938,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100))
-          ? 100
-          : master.discPer && master.discPer > 0
-          ? master.discPer
-          : (master.discAmount || 0),
-        billDiscountType: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100) || (master.discPer && master.discPer > 0))
-          ? 'percentage'
-          : 'amount',
+        billDiscountValue: resolvedBillDiscVal,
+        billDiscountType: resolvedBillDiscType,
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
@@ -968,6 +952,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         vehicleCustomerName: master.vehicleCustomerName,
         vehicleNo: master.vehicleNo,
         isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
+        authoritativeSubtotal: resolvedSubTotal,
+        authoritativeDiscount: resolvedDiscount,
+        authoritativeTax: resolvedVatAmount,
+        authoritativeNetAmount: netAmount,
         prevUpdatedAt,
       }));
 
@@ -1015,114 +1003,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       })();
       const isIncl = priceView === 'Inclusive';
 
-      const mappedCartItems = details.map((detail: any, idx: number) => {
-        const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
-        
-        const extras = itemModifiers.filter((m: any) => (m.price || 0) > 0).map((m: any) => ({
-          id: m.modifierId,
-          name: m.modifierName,
-          price: m.price || 0,
-          qty: m.qty || 1,
-          typeId: m.typeId
-        }));
-
-        const modifiers = itemModifiers.filter((m: any) => (m.price || 0) <= 0).map((m: any) => ({
-          id: m.modifierId,
-          name: m.modifierName,
-          qty: m.qty || 1,
-          typeId: m.typeId,
-          typeName: m.typeName
-        }));
-
-        let pId = detail.productId ?? detail.ProductId ?? detail.itemId ?? detail.ItemId ?? detail.product?.id ?? detail.Product?.id;
-        
-        let matchedProduct: any = null;
-        if (pId) {
-          matchedProduct = products.find((p: any) => p.id === pId);
-        }
-        if (!matchedProduct && detail.productName) {
-          matchedProduct = products.find((p: any) => p.name === detail.productName || p.name === detail.ProductName);
-          if (matchedProduct) pId = matchedProduct.id;
-        }
-        const realProduct = matchedProduct || {};
-
-        if (!pId) {
-          console.error("RAW API DETAIL MISSING ID:", JSON.stringify(detail, null, 2));
-        }
-
-        let itemIsIncl = isIncl;
-        const explicitDetailIsIncl = detail.isIncl ?? detail.PriceIsIncl ?? detail.priceIsIncl;
-        if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
-          itemIsIncl = Boolean(explicitDetailIsIncl);
-        } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-          itemIsIncl = Boolean(realProduct.isIncl);
-        }
-
-        if (detail.netAmount !== undefined && detail.price !== undefined) {
-          const lineBase = (detail.price || 0) * (detail.qty || 1);
-          const discAmt = detail.discAmount || 0;
-          const vatAmt = detail.vatAmount || 0;
-          const netAmt = detail.netAmount;
-          const remainingBase = lineBase - discAmt;
-          
-          if (remainingBase > 0.01 && netAmt > 0.01 && vatAmt > 0.001) {
-            if (Math.abs(netAmt - remainingBase) < 0.01) {
-              itemIsIncl = true;
-            } else if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.01) {
-              itemIsIncl = false;
-            }
-          }
-        }
-
-        let calculatedVatValue: number | undefined = undefined;
-        if (detail.vatAmount !== undefined && detail.netAmount !== undefined && detail.netAmount > 0) {
-          const vatBase = detail.netAmount - detail.vatAmount;
-          if (vatBase > 0) {
-            calculatedVatValue = Math.round((detail.vatAmount / vatBase) * 100);
-          }
-        }
-
-        const isDetailComplimentary = Boolean(
-          detail.complimentaryStatus ||
-          detail.ComplimentaryStatus ||
-          (detail.discPer && Number(detail.discPer) === 100)
-        );
-
-        return {
-          uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
-          productId: pId,
-          quantity: detail.qty || 1,
-          price: detail.price || 0,
-          isIncl: itemIsIncl,
-          discountValue: isDetailComplimentary
-            ? 100
-            : detail.discPer && detail.discPer > 0
-            ? detail.discPer
-            : (detail.discAmount || 0),
-          discountType: (isDetailComplimentary || (detail.discPer && detail.discPer > 0) ? 'percentage' : 'amount') as 'percentage' | 'amount',
-          extras,
-          modifiers,
-          isExisting: true,
-          mapId: detail.mapId,
-          originalQty: detail.qty || 1,
-          product: {
-            id: pId,
-            name: detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`,
-            price: detail.price || realProduct.price || 0,
-            categoryId: realProduct.categoryId || 1,
-            unitId: detail.unitId || realProduct.unitId || 1,
-            vatValue: detail.vatValue ?? calculatedVatValue ?? realProduct.vatValue ?? undefined,
-            sVatId: detail.vatId ?? realProduct.sVatId ?? undefined,
-            arabicName: realProduct.arabicName
-          }
-        };
-      });
-
-      const orderTypeNameMap: Record<string, number> = {
-        "DineIn": 1, "TakeOut": 2, "DriveThru": 3,
-        "Delivery": 4, "Providers": 5, "Coming": 6
-      };
-
       const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
       const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
 
@@ -1136,6 +1016,72 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
       }
 
+      const billingConfig = getBillingConfig(orderTypeName);
+      const enableVat = getVatStatus();
+      const netAmount = Number(master.netAmount ?? order?.netAmount ?? 0);
+      const masterDiscPer = Number(master.discPer || 0);
+
+      let detailsVatSum = 0;
+      let lineDiscountsSum = 0;
+      details.forEach((d: any) => {
+        detailsVatSum += Number(d.vatAmount ?? d.VatAmount ?? 0);
+        lineDiscountsSum += Number(d.discAmount ?? d.DiscAmount ?? 0);
+      });
+
+      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
+      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
+        resolvedVatAmount = detailsVatSum;
+      }
+      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
+      }
+
+      let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+      if (resolvedDiscount <= 0 && lineDiscountsSum > 0) {
+        resolvedDiscount = roundCalc(lineDiscountsSum);
+      }
+
+      const hasLineItemDiscounts = lineDiscountsSum > 0;
+      const isBillLevelDiscount =
+        Boolean(master.complimentaryStatus || master.ComplimentaryStatus) ||
+        masterDiscPer > 0 ||
+        (!hasLineItemDiscounts && resolvedDiscount > 0);
+
+      const resolvedBillDiscType: 'percentage' | 'amount' =
+        (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100) || masterDiscPer > 0)
+          ? 'percentage'
+          : 'amount';
+      let resolvedBillDiscVal = (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100))
+        ? 100
+        : masterDiscPer > 0
+        ? masterDiscPer
+        : isBillLevelDiscount
+        ? resolvedDiscount
+        : 0;
+
+      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
+      }
+
+      const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
+        products,
+        productCache,
+        priceView,
+        masterDiscPer,
+        isOrderBillDiscount: isBillLevelDiscount,
+      });
+
+      const serviceCharge = Number(master.serviceCharge || 0);
+      const levy = Number(master.levyAmt || master.levy || 0);
+      const deliveryCharge = Number(master.deliveryCharge || 0);
+      const netTaxableBase = roundCalc(netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge);
+      let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
+      if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
+        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
+      }
+
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
         editingSaleId: saleId,
@@ -1145,14 +1091,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100))
-          ? 100
-          : master.discPer && master.discPer > 0
-          ? master.discPer
-          : (master.discAmount || 0),
-        billDiscountType: (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100) || (master.discPer && master.discPer > 0))
-          ? 'percentage'
-          : 'amount',
+        billDiscountValue: resolvedBillDiscVal,
+        billDiscountType: resolvedBillDiscType,
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
@@ -1172,6 +1112,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         area: master.area || master.areaName || "",
         isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
         isSettling: true,
+        authoritativeSubtotal: resolvedSubTotal,
+        authoritativeDiscount: resolvedDiscount,
+        authoritativeTax: resolvedVatAmount,
+        authoritativeNetAmount: netAmount,
         prevUpdatedAt,
       }));
 
@@ -1296,6 +1240,39 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     } catch { return raw; }
   };
   const netAmount = master.netAmount ?? order?.netAmount ?? 0;
+  const enableVat = getVatStatus();
+
+  let detailsVatSum = 0;
+  let lineDiscountsSum = 0;
+  details.forEach((d: any) => {
+    detailsVatSum += Number(d.vatAmount ?? d.VatAmount ?? 0);
+    lineDiscountsSum += Number(d.discAmount ?? d.DiscAmount ?? 0);
+  });
+
+  let displayVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
+  if (displayVatAmount <= 0 && detailsVatSum > 0) {
+    displayVatAmount = detailsVatSum;
+  }
+  if (enableVat && displayVatAmount <= 0 && netAmount > 0) {
+    const billingConfig = getBillingConfig(orderTypeName);
+    const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+    displayVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
+  }
+
+  let displayDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+  if (displayDiscount <= 0 && lineDiscountsSum > 0) {
+    displayDiscount = roundCalc(lineDiscountsSum);
+  }
+
+  const displayServiceCharge = Number(master.serviceCharge || 0);
+  const displayLevy = Number(master.levyAmt || master.levy || 0);
+  const displayDeliveryCharge = Number(master.deliveryCharge || 0);
+
+  const netTaxableBase = roundCalc(netAmount - displayVatAmount - displayServiceCharge - displayLevy - displayDeliveryCharge);
+  let displaySubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
+  if (displaySubTotal <= 0 || (enableVat && Math.abs(displaySubTotal - netAmount) < 0.001 && displayVatAmount > 0)) {
+    displaySubTotal = roundCalc(netTaxableBase + displayDiscount);
+  }
 
   const hasDelivery = !!master.mobileNo || !!master.contactNo || !!master.deliveryCustomerName;
   const deliveryDetails = hasDelivery ? {
@@ -1472,24 +1449,40 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               )}
             </div>
 
-            {/* Receipt Footer with Delivery Charge, VAT and Grand Total */}
+            {/* Receipt Footer with Sub Total, Discount, Charges, VAT and Grand Total */}
             <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
-              {master.vatExclAmount !== undefined && master.vatExclAmount > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>Net Value</span>
-                  <span>{formatAmount(master.vatExclAmount)}</span>
+              <div className="flex justify-between items-center text-stone-600">
+                <span>Sub Total</span>
+                <span>{formatAmount(displaySubTotal)}</span>
+              </div>
+              {displayDiscount > 0 && (
+                <div className="flex justify-between items-center text-red-600">
+                  <span>Discount</span>
+                  <span>-{formatAmount(displayDiscount)}</span>
                 </div>
               )}
-              {master.deliveryCharge !== undefined && master.deliveryCharge > 0 && (
+              {displayServiceCharge > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Service Charge</span>
+                  <span>{formatAmount(displayServiceCharge)}</span>
+                </div>
+              )}
+              {displayLevy > 0 && (
+                <div className="flex justify-between items-center text-stone-600">
+                  <span>Levy(5%)</span>
+                  <span>{formatAmount(displayLevy)}</span>
+                </div>
+              )}
+              {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>Delivery Charge</span>
-                  <span>{formatAmount(master.deliveryCharge)}</span>
+                  <span>{formatAmount(displayDeliveryCharge)}</span>
                 </div>
               )}
-              {master.vatAmount !== undefined && master.vatAmount > 0 && (
+              {displayVatAmount > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>VAT</span>
-                  <span>{formatAmount(master.vatAmount)}</span>
+                  <span>{formatAmount(displayVatAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">

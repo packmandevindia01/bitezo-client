@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { useCurrency } from "../../../../../hooks/useCurrency";
+import { getModifierTypeNameById } from "../../../services/menuApi";
 
 export interface CartRow {
   uniqueId: string;
@@ -77,11 +78,31 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
         {/* Modifiers Display */}
         {(item.modifiers && item.modifiers.length > 0) && (
           <div className="mt-0.5 space-y-0.5">
-            {item.modifiers.map((mod, i) => (
-              <p key={i} className="text-[9px] font-bold text-orange-600 uppercase leading-none italic">
-                {mod.typeName ? `${mod.typeName}` : "*"} {mod.name}
-              </p>
-            ))}
+            {item.modifiers.map((mod: any, i: number) => {
+              const rawTypeName = (mod.typeName || mod.modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
+              const rawModName = (mod.name || mod.modifierName || "").trim();
+              const typeUpper = rawTypeName.toUpperCase();
+              const nameUpper = rawModName.toUpperCase();
+              const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+              let text = "";
+              if (typeUpper) {
+                if (nameUpper.startsWith(`${typeUpper}:`)) {
+                  text = nameUpper;
+                } else if (nameUpper.startsWith(typeUpper)) {
+                  const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
+                  text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
+                } else {
+                  text = `${typeUpper}: ${qtyPart}${nameUpper}`;
+                }
+              } else {
+                text = `${qtyPart}${nameUpper}`;
+              }
+              return (
+                <p key={i} className="text-[9px] font-bold text-orange-600 uppercase leading-none italic">
+                  * {text}
+                </p>
+              );
+            })}
           </div>
         )}
 

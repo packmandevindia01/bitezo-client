@@ -266,6 +266,24 @@ export const useConfigurationManager = () => {
         localStorage.setItem("billArabic", payload.billArabic);
       }
 
+      if (form.defaultEmployee && form.employeeId) {
+        const match = employeeOptions.find((e) => e.value === form.employeeId);
+        localStorage.setItem(
+          "posDefaultEmployeeOverride",
+          JSON.stringify({
+            defaultEmployee: "Enable",
+            employeeId: Number(form.employeeId),
+            employeeName: match?.label || "",
+          })
+        );
+        if (match) {
+          localStorage.setItem("defaultEmployeeName", match.label);
+        }
+      } else {
+        localStorage.removeItem("posDefaultEmployeeOverride");
+        localStorage.removeItem("defaultEmployeeName");
+      }
+
       // Update runtime posConfigs in localStorage
       try {
         const saved = localStorage.getItem("posConfigs");
@@ -277,6 +295,8 @@ export const useConfigurationManager = () => {
           parsed.configs.billArabic = payload.billArabic;
           parsed.configs.masterKot = payload.masterKot;
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
+          parsed.configs.defaultEmployee = payload.defaultEmployee;
+          parsed.configs.employeeId = payload.employeeId;
           parsed.configs.itemSeperation = payload.itemSeperation;
         }
         parsed.itemSeperation = payload.itemSeperation;

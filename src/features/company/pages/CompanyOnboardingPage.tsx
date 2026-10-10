@@ -13,6 +13,7 @@ import {
   fetchOnboardSeries,
   fetchOnboardTerminals,
   sendCompanyOtp,
+  updateTerminalStatus,
   verifyCompanyOtp,
 } from "../services/companyOnboardingApi";
 import type { CompanyOnboardingState } from "../types";
@@ -436,7 +437,7 @@ const CompanyOnboardingPage = () => {
     }
   };
 
-  const handleCompletePosSetup = () => {
+  const handleCompletePosSetup = async () => {
     const nextErrors = { branchId: "", counterId: "", seriesId: "", terminalId: "" };
 
     if (!posBranchId) nextErrors.branchId = "Please select a branch";
@@ -447,7 +448,17 @@ const CompanyOnboardingPage = () => {
     setPosSetupErrors(nextErrors);
     if (nextErrors.branchId || nextErrors.counterId || nextErrors.seriesId || nextErrors.terminalId) return;
 
-    setupPosSession(clientDatabase, posBranchId, posCounterId, posSeriesId, posTerminalId);
+    setLoadingPosSetup(true);
+    try {
+      await updateTerminalStatus(posBranchId, posTerminalId, clientDatabase);
+      setupPosSession(clientDatabase, posBranchId, posCounterId, posSeriesId, posTerminalId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The selected Terminal ID is already linked to another Machine";
+      setPosSetupErrors((prev) => ({ ...prev, terminalId: message }));
+      showToast(message, "error");
+    } finally {
+      setLoadingPosSetup(false);
+    }
   };
 
   const handleResendOtp = async () => {

@@ -10,7 +10,7 @@ import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
 import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
 import { orderApi } from "../../../../services/orderApi";
-import { menuApi } from "../../../../services/menuApi";
+import { menuApi, getModifierTypeNameById } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import type { PosWaiter } from "../../../../types";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
@@ -181,7 +181,12 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
         }));
         const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, qty: m.qty || 1
+          id: m.modifierId,
+          name: m.modifierName,
+          qty: m.qty || 1,
+          typeId: m.typeId,
+          typeName: m.typeName || m.modifierTypeName || getModifierTypeNameById(m.typeId) || "",
+          arabicName: m.arabicName || ""
         }));
         const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
           id: m.modifierId, name: m.modifierName || m.name || ""
@@ -227,9 +232,20 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
       }
 
+      let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+      if (resolvedDiscount <= 0) {
+        const lineDiscounts = details.reduce((acc: number, d: any) => acc + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
+        if (lineDiscounts > 0) resolvedDiscount = roundCalc(lineDiscounts);
+      }
+
+      const serviceCharge = Number(master.serviceCharge || 0);
+      const levy = Number(master.levyAmt || master.levy || 0);
+      const deliveryCharge = Number(master.deliveryCharge || 0);
+
+      const netTaxableBase = roundCalc(netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge);
       let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
       if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
-        resolvedSubTotal = roundCalc(netAmount - resolvedVatAmount - Number(master.serviceCharge || 0) - Number(master.levyAmt || master.levy || 0) - Number(master.deliveryCharge || 0));
+        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
 
       const mappedItems = preMapped.map((d: any) => {
@@ -240,7 +256,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
-        const itemBase = enableVat && itemVat > 0 ? (itemLineNet - itemVat) : (d.itemVatBase ?? itemLineNet);
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.price || 0) * (d.qty || 1);
         return {
           productId: pId,
           quantity: d.qty || 1,
@@ -496,7 +512,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo || "",
         subTotal: resolvedSubTotal,
-        discount: master.discAmount || master.discount || 0,
+        discount: resolvedDiscount,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: resolvedVatAmount,

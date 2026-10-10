@@ -74,6 +74,18 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <TrendingUp size={13} className="shrink-0" />
             <span>Category Wise Sales Report</span>
           </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-output-vat")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Product Output VAT Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/bill-wise-levy")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Bill Wise Levy Report</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-wise-levy")} className={itemClassName}>
+            <TrendingUp size={13} className="shrink-0" />
+            <span>Product Wise Levy Report</span>
+          </div>
           <div onClick={() => handleItemClick("/dashboard/reports/monthly-sales")} className={itemClassName}>
             <TrendingUp size={13} className="shrink-0" />
             <span>Monthly Sales Report</span>
@@ -102,6 +114,10 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
           <div onClick={() => handleItemClick("/dashboard/reports/product-wise-purchase")} className={itemClassName}>
             <ShoppingCart size={13} className="shrink-0" />
             <span>Product Wise Purchase</span>
+          </div>
+          <div onClick={() => handleItemClick("/dashboard/reports/product-input-vat")} className={itemClassName}>
+            <ShoppingCart size={13} className="shrink-0" />
+            <span>Product Input VAT Report</span>
           </div>
           <div onClick={() => handleItemClick("/dashboard/reports/purchase-return")} className={itemClassName}>
             <ShoppingCart size={13} className="shrink-0" />

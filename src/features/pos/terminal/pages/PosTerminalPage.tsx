@@ -313,6 +313,30 @@ export const PosTerminalPage = () => {
               onAuthorized: () => {
                 const unitId = item.product?.unitId || 1;
                 const mapId = item.mapId || 0;
+                const ratio = item.quantity > 0 ? voidDiff / item.quantity : 1;
+
+                const voidExtras = (item.extras || []).map((ex: any) => ({
+                  id: ex.id || ex.modifierId,
+                  name: ex.name || ex.modifierName || "Extra",
+                  arabicName: ex.arabicName || ex.arabic,
+                  price: ex.price || 0,
+                  qty: Math.max(1, Math.round((ex.qty || 1) * ratio)),
+                  typeId: ex.typeId || 2,
+                }));
+
+                const voidModifiers = (item.modifiers || []).map((mod: any) => ({
+                  id: mod.id || mod.modifierId,
+                  name: mod.name || mod.modifierName || "Modifier",
+                  arabicName: mod.arabicName || mod.arabic,
+                  qty: Math.max(1, Math.round((mod.qty || 1) * ratio)),
+                  typeId: mod.typeId || 1,
+                  typeName: mod.typeName,
+                }));
+
+                const voidMessages = (item.messages || []).map((msg: any) => ({
+                  id: msg.id,
+                  name: msg.name,
+                }));
 
                 terminal.addVoidProduct({
                   productId: item.productId,
@@ -321,6 +345,31 @@ export const PosTerminalPage = () => {
                   qty: voidDiff,
                   amount: roundCalc((item.price || 0) * voidDiff),
                   mapId,
+                  variantName: item.variantName,
+                  variantArabic: item.variantArabic,
+                  categoryId: item.product?.categoryId || (item as any).categoryId,
+                  extras: voidExtras,
+                  modifiers: voidModifiers,
+                  messages: voidMessages,
+                });
+
+                const allModifiers = [
+                  ...voidExtras,
+                  ...voidModifiers,
+                ];
+
+                allModifiers.forEach((mod: any) => {
+                  const modPrice = mod.price || 0;
+                  terminal.addVoidModifier({
+                    mapId,
+                    modifierId: mod.id,
+                    qty: mod.qty || 1,
+                    amount: roundCalc(modPrice * (mod.qty || 1)),
+                    typeId: mod.typeId || 1,
+                    name: mod.name,
+                    arabicName: mod.arabicName || mod.arabic,
+                    typeName: mod.typeName,
+                  });
                 });
 
                 terminal.updateItemQty(selectedKey, numValue);

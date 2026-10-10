@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader } from "../../../../../../components/common";
-import { Search, X, XCircle } from "lucide-react";
+import { Search, X, XCircle, Pencil } from "lucide-react";
 import { usePosSettled } from "../../../hooks/usePosSettled";
 import { PosSettledSearchModal } from "./PosSettledSearchModal";
 import { PosSettledDetailsModal } from "./PosSettledDetailsModal";
-
-
 import { ConfirmDialog } from "../../../../../../components/common";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
+import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
+import { usePosProducts } from "../../../hooks/usePosProducts";
+import { useToast } from "../../../../../../app/providers/useToast";
+import { settledOrdersApi } from "../../../../services/settledOrdersApi";
+import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
 
 interface PosSettledModalProps {
   isOpen: boolean;
@@ -28,6 +31,10 @@ const ORDER_TYPES = [
 
 export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClose, onEditSuccess }) => {
   const { orders, loading, fetchOrders, cancelOrder } = usePosSettled();
+  const dispatch = useAppDispatch();
+  const productCache = useAppSelector((state) => state.pos.productCache);
+  const { products } = usePosProducts();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<number>(0);
   const [search, setSearch] = useState("");
   const [includeDeliveryOut] = useState(false);
@@ -37,6 +44,35 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("ORDER NO");
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+
+  const handleEditOrder = async (orderId: number) => {
+    try {
+      setEditingOrderId(orderId);
+      const response = await settledOrdersApi.getSettledOrderDetails(orderId);
+      if (!response || !response.isSuccess || !response.data) {
+        showToast(response?.message || `Failed to fetch settled order #${orderId}`, "error");
+        return;
+      }
+      loadSettledOrderIntoCart({
+        orderId,
+        orderData: response.data,
+        dispatch,
+        products,
+        productCache,
+        showToast,
+        onEditSuccess: () => {
+          onEditSuccess?.();
+          onClose();
+        },
+      });
+    } catch (err: any) {
+      console.error("[PosSettledModal] Edit error:", err);
+      showToast(err?.message || `Failed to load order #${orderId}`, "error");
+    } finally {
+      setEditingOrderId(null);
+    }
+  };
 
   // Filter handlers
   useEffect(() => {
@@ -200,23 +236,41 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {/* Cancel Button Wrapper */}
-            <div className="w-[100px] shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancelOrder(order.orderId);
-                }}
-                className={`
-                  w-full h-full flex flex-col items-center justify-center gap-1 transition-all
-                  bg-[#9c142c] hover:bg-[#850f24] text-white
-                `}
-              >
-                <XCircle size={18} strokeWidth={3} />
-                <div className="font-black text-[10px] uppercase tracking-widest">
-                  Cancel
-                </div>
-              </button>
+            {/* Action Buttons Wrapper */}
+            <div className="flex shrink-0">
+              {/* Edit Button */}
+              <div className="w-[80px] shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleEditOrder(order.orderId);
+                  }}
+                  disabled={editingOrderId === order.orderId}
+                  className="w-full h-full flex flex-col items-center justify-center gap-1 transition-all bg-[#49293e] hover:bg-[#5c3450] text-white disabled:opacity-50"
+                  title="Edit Settled Order"
+                >
+                  <Pencil size={18} strokeWidth={2.5} />
+                  <div className="font-black text-[10px] uppercase tracking-widest">
+                    {editingOrderId === order.orderId ? "..." : "Edit"}
+                  </div>
+                </button>
+              </div>
+
+              {/* Cancel Button */}
+              <div className="w-[80px] shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelOrder(order.orderId);
+                  }}
+                  className="w-full h-full flex flex-col items-center justify-center gap-1 transition-all bg-[#9c142c] hover:bg-[#850f24] text-white"
+                >
+                  <XCircle size={18} strokeWidth={3} />
+                  <div className="font-black text-[10px] uppercase tracking-widest">
+                    Cancel
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         ))}

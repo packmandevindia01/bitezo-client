@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import { isItemSeperationEnabled } from '../../services/posConfigApi';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
+import { getDefaultEmployeeConfig } from '../../utils/defaultEmployee';
 
 interface PosState {
   cartItems: PosCartItem[];
@@ -63,11 +64,38 @@ interface PosState {
   editingOrderId: number | null;
   editingSaleId: number | null;
   prevUpdatedAt: string | null;
-  voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
-  voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
+  voidProducts: {
+    productId: number;
+    productName?: string;
+    unitId: number;
+    qty: number;
+    amount: number;
+    mapId: number;
+    variantName?: string;
+    variantArabic?: string;
+    categoryId?: number;
+    extras?: any[];
+    modifiers?: any[];
+    messages?: any[];
+    note?: string;
+  }[];
+  voidModifiers: {
+    mapId: number;
+    modifierId: number;
+    qty: number;
+    amount: number;
+    typeId: number;
+    name?: string;
+    arabicName?: string;
+    typeName?: string;
+  }[];
   isSettledEdit: boolean;
   isSettling: boolean;
   isCartModified: boolean;
+  authoritativeNetAmount?: number | null;
+  authoritativeSubtotal?: number | null;
+  authoritativeDiscount?: number | null;
+  authoritativeTax?: number | null;
   combinedOrderIds: number[];
   deliveryDetails?: {
     customerName?: string;
@@ -113,13 +141,23 @@ const getInitialWaiter = () => {
   try {
     const id = localStorage.getItem("selectedWaiterId");
     const name = localStorage.getItem("selectedWaiterName");
-    return {
-      id: id && !isNaN(Number(id)) ? Number(id) : null,
-      name: name || null,
-    };
+    if (id && !isNaN(Number(id))) {
+      return {
+        id: Number(id),
+        name: name || null,
+      };
+    }
+    const def = getDefaultEmployeeConfig();
+    if (def.isEnabled && def.employeeId > 0) {
+      return {
+        id: def.employeeId,
+        name: def.employeeName || null,
+      };
+    }
   } catch {
     return { id: null, name: null };
   }
+  return { id: null, name: null };
 };
 
 const initialWaiter = getInitialWaiter();
@@ -178,6 +216,10 @@ const initialState: PosState = {
   isSettling: false,
   isSettledEdit: false,
   isCartModified: false,
+  authoritativeNetAmount: null,
+  authoritativeSubtotal: null,
+  authoritativeDiscount: null,
+  authoritativeTax: null,
   combinedOrderIds: [],
   deliveryDetails: null,
 };
@@ -335,6 +377,10 @@ const posSlice = createSlice({
       state.voidModifiers = [];
       state.isSettledEdit = false;
       state.isCartModified = false;
+      state.authoritativeNetAmount = null;
+      state.authoritativeSubtotal = null;
+      state.authoritativeDiscount = null;
+      state.authoritativeTax = null;
       state.isSettling = false;
       state.combinedOrderIds = [];
       state.billDiscountValue = 0;
@@ -416,10 +462,13 @@ const posSlice = createSlice({
       state.selectedOrderTypeId = type.orderTypeId;
       state.selectedOrderTypeName = type.orderType;
     },
-    setEditingOrder: (state, action: PayloadAction<{ orderId: number; orderType: string; isSettledEdit?: boolean; customerId?: number; employeeId?: number; prevUpdatedAt?: string | null }>) => {
+    setEditingOrder: (state, action: PayloadAction<{ orderId: number; orderType: string; isSettledEdit?: boolean; customerId?: number; employeeId?: number; prevUpdatedAt?: string | null; authoritativeNetAmount?: number | null }>) => {
       state.editingOrderId = action.payload.orderId;
       state.isSettledEdit = action.payload.isSettledEdit || false;
       state.prevUpdatedAt = action.payload.prevUpdatedAt || null;
+      if (action.payload.authoritativeNetAmount !== undefined) {
+        state.authoritativeNetAmount = action.payload.authoritativeNetAmount !== null ? Number(action.payload.authoritativeNetAmount) : null;
+      }
       const ot = fallbackOrderTypeByName(action.payload.orderType);
       state.selectedOrderTypeId = ot.orderTypeId;
       state.selectedOrderTypeName = ot.orderType;
@@ -496,7 +545,7 @@ const posSlice = createSlice({
     setItemCustomizations: (state, action: PayloadAction<{ 
       uniqueId: string; 
       extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
-      modifiers?: { id: number; name: string; qty: number; typeId: number }[];
+      modifiers?: { id: number; name: string; qty: number; typeId: number; typeName?: string; modifierTypeName?: string; arabicName?: string }[];
       messages?: { id?: number; name: string; qty?: number }[];
     }>) => {
       state.isCartModified = true;
@@ -674,6 +723,10 @@ const posSlice = createSlice({
       isMissedCall?: boolean;
       missedCall?: boolean;
       isCartModified?: boolean;
+      authoritativeNetAmount?: number | null;
+      authoritativeSubtotal?: number | null;
+      authoritativeDiscount?: number | null;
+      authoritativeTax?: number | null;
       prevUpdatedAt?: string | null;
     }>) => {
       const { 
@@ -708,6 +761,7 @@ const posSlice = createSlice({
         roadNo,
         area,
         isCartModified,
+        authoritativeNetAmount: _authoritativeNetAmount,
         prevUpdatedAt,
       } = action.payload;
       state.editingOrderId = editingOrderId ?? null;
@@ -717,6 +771,22 @@ const posSlice = createSlice({
       state.isSettledEdit = isSettledEdit ?? false;
       state.waiterName = waiterName ?? null;
       state.isCartModified = isCartModified ?? false;
+      state.authoritativeNetAmount =
+        action.payload.authoritativeNetAmount !== undefined
+          ? (action.payload.authoritativeNetAmount !== null ? Number(action.payload.authoritativeNetAmount) : null)
+          : null;
+      state.authoritativeSubtotal =
+        action.payload.authoritativeSubtotal !== undefined
+          ? (action.payload.authoritativeSubtotal !== null ? Number(action.payload.authoritativeSubtotal) : null)
+          : null;
+      state.authoritativeDiscount =
+        action.payload.authoritativeDiscount !== undefined
+          ? (action.payload.authoritativeDiscount !== null ? Number(action.payload.authoritativeDiscount) : null)
+          : null;
+      state.authoritativeTax =
+        action.payload.authoritativeTax !== undefined
+          ? (action.payload.authoritativeTax !== null ? Number(action.payload.authoritativeTax) : null)
+          : null;
       state.voidProducts = [];
       state.voidModifiers = [];
       state.cartItems = sortOrderDetailsBySequence(cartItems);
@@ -769,7 +839,21 @@ const posSlice = createSlice({
         addressId: addressId || 0,
       };
     },
-    addVoidProduct: (state, action: PayloadAction<{ productId: number; productName?: string; unitId: number; qty: number; amount: number; mapId: number }>) => {
+    addVoidProduct: (state, action: PayloadAction<{
+      productId: number;
+      productName?: string;
+      unitId: number;
+      qty: number;
+      amount: number;
+      mapId: number;
+      variantName?: string;
+      variantArabic?: string;
+      categoryId?: number;
+      extras?: any[];
+      modifiers?: any[];
+      messages?: any[];
+      note?: string;
+    }>) => {
       state.isCartModified = true;
       const existing = state.voidProducts.find((vp) => 
         (action.payload.mapId && vp.mapId === action.payload.mapId) ||
@@ -778,11 +862,65 @@ const posSlice = createSlice({
       if (existing) {
         existing.qty += action.payload.qty;
         existing.amount = Number((existing.amount + action.payload.amount).toFixed(4));
+        if (action.payload.productName && !existing.productName) existing.productName = action.payload.productName;
+        if (action.payload.variantName && !existing.variantName) existing.variantName = action.payload.variantName;
+        if (action.payload.variantArabic && !existing.variantArabic) existing.variantArabic = action.payload.variantArabic;
+        if (action.payload.categoryId && !existing.categoryId) existing.categoryId = action.payload.categoryId;
+
+        if (action.payload.extras && action.payload.extras.length > 0) {
+          if (!existing.extras || existing.extras.length === 0) {
+            existing.extras = action.payload.extras.map((e) => ({ ...e }));
+          } else {
+            action.payload.extras.forEach((newEx: any) => {
+              const ex = existing.extras?.find((e: any) => (e.id || e.modifierId) === (newEx.id || newEx.modifierId));
+              if (ex) {
+                ex.qty = (ex.qty || 1) + (newEx.qty || 1);
+              } else {
+                existing.extras?.push({ ...newEx });
+              }
+            });
+          }
+        }
+
+        if (action.payload.modifiers && action.payload.modifiers.length > 0) {
+          if (!existing.modifiers || existing.modifiers.length === 0) {
+            existing.modifiers = action.payload.modifiers.map((m) => ({ ...m }));
+          } else {
+            action.payload.modifiers.forEach((newMod: any) => {
+              const mod = existing.modifiers?.find((m: any) => (m.id || m.modifierId) === (newMod.id || newMod.modifierId));
+              if (mod) {
+                mod.qty = (mod.qty || 1) + (newMod.qty || 1);
+              } else {
+                existing.modifiers?.push({ ...newMod });
+              }
+            });
+          }
+        }
+
+        if (action.payload.messages && action.payload.messages.length > 0) {
+          if (!existing.messages || existing.messages.length === 0) {
+            existing.messages = action.payload.messages.map((m) => ({ ...m }));
+          }
+        }
       } else {
-        state.voidProducts.push(action.payload);
+        state.voidProducts.push({
+          ...action.payload,
+          extras: action.payload.extras ? action.payload.extras.map((e) => ({ ...e })) : [],
+          modifiers: action.payload.modifiers ? action.payload.modifiers.map((m) => ({ ...m })) : [],
+          messages: action.payload.messages ? action.payload.messages.map((m) => ({ ...m })) : [],
+        });
       }
     },
-    addVoidModifier: (state, action: PayloadAction<{ mapId: number; modifierId: number; qty: number; amount: number; typeId?: number }>) => {
+    addVoidModifier: (state, action: PayloadAction<{
+      mapId: number;
+      modifierId: number;
+      qty: number;
+      amount: number;
+      typeId?: number;
+      name?: string;
+      arabicName?: string;
+      typeName?: string;
+    }>) => {
       state.isCartModified = true;
       const existing = state.voidModifiers.find((vm) => 
         vm.mapId === action.payload.mapId && vm.modifierId === action.payload.modifierId
@@ -790,6 +928,9 @@ const posSlice = createSlice({
       if (existing) {
         existing.qty += action.payload.qty;
         existing.amount = Number((existing.amount + action.payload.amount).toFixed(4));
+        if (action.payload.name && !existing.name) existing.name = action.payload.name;
+        if (action.payload.arabicName && !existing.arabicName) existing.arabicName = action.payload.arabicName;
+        if (action.payload.typeName && !existing.typeName) existing.typeName = action.payload.typeName;
       } else {
         state.voidModifiers.push({ ...action.payload, typeId: action.payload.typeId || 1 });
       }
