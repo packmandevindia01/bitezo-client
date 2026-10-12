@@ -161,10 +161,12 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       }
 
       // Deduplicate modifiersData mapped in order
-      const rawModifiers = order?.modifiersData || [];
+      const rawModifiers = order?.modifiersData || order?.modifiers || order?.ModifiersData || order?.Modifiers || [];
       const seen = new Set<string>();
       const orderModifiersData = rawModifiers.filter((m: any) => {
-        const key = `${m.mapId}-${m.modifierId}`;
+        const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
+        const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
+        const key = `${mMapId}-${mModId}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -176,20 +178,41 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       let detailsVatSum = 0;
       let totalVatBase = 0;
       const preMapped = details.map((d: any) => {
-        const itemMods = orderModifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+        const dMapId = d.mapId ?? d.MapId ?? d.mapID;
+        const itemMods = orderModifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
+        const extras = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return statusStr === "extras" || statusStr === "extra" || typeId === 2 || (statusStr === "" && price > 0);
+        }).map((m: any) => ({
+          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+          name: m.modifierName || m.ModifierName || m.name || m.Name || "Extra",
+          price: Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0),
+          qty: Number(m.qty ?? m.Qty ?? 1)
         }));
-        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => ({
-          id: m.modifierId,
-          name: m.modifierName,
-          qty: m.qty || 1,
-          typeId: m.typeId,
-          typeName: m.typeName || m.modifierTypeName || getModifierTypeNameById(m.typeId) || "",
-          arabicName: m.arabicName || ""
-        }));
-        const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
-          id: m.modifierId, name: m.modifierName || m.name || ""
+        const modifiers = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return statusStr === "modifier" || statusStr === "modifiers" || typeId === 1 || (statusStr === "" && price <= 0);
+        }).map((m: any) => {
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return {
+            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+            name: m.modifierName || m.ModifierName || m.name || m.Name || "",
+            qty: Number(m.qty ?? m.Qty ?? 1),
+            typeId,
+            typeName: m.typeName || m.TypeName || m.modifierTypeName || m.ModifierTypeName || getModifierTypeNameById(typeId) || "",
+            arabicName: m.arabicName || m.ArabicName || m.arabic || m.Arabic || ""
+          };
+        });
+        const messages = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          return statusStr === "message" || statusStr === "messages";
+        }).map((m: any) => ({
+          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+          name: m.modifierName || m.ModifierName || m.name || m.Name || ""
         }));
         
         const qty = d.qty ?? d.Qty ?? 1;
@@ -262,6 +285,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           quantity: d.qty || 1,
           price: d.price || 0,
           baseAmount: itemBase,
+          variantName: d.altName || d.variantName || d.AltName || d.VariantName,
           variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
           product: { 
             name: d.productName || d.ProductName || `Product #${pId}`, 

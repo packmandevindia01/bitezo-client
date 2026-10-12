@@ -98,7 +98,7 @@ const StockTransferReportPage = () => {
             <X size={18} />
           </button>
 
-          <ResetButton onReset={filters.resetFilters} className="absolute bottom-3 right-3" />
+          <ResetButton onReset={filters.resetFilters} className="absolute bottom-3 right-3 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white" />
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
 

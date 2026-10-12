@@ -24,13 +24,6 @@ export const useCategoryWiseSalesReport = () => {
 
   const decimalPart = useAppSelector(selectDecimalPart) ?? 3;
 
-  const resetFilters = () => {
-    setBranchId(defaultBranchId);
-    setCategoryId("0");
-    setFromDate(defaultDate);
-    setToDate(defaultDate);
-  };
-
   const { data: branches = [], isLoading: isLoadingBranches } = useQuery<BranchOption[]>({
     queryKey: ["branches-list-for-category-wise-sales"],
     queryFn: getBranchList,
@@ -55,6 +48,7 @@ export const useCategoryWiseSalesReport = () => {
     isLoading: isLoadingReport,
     isFetching,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["category-wise-sales-report", branchId, categoryId, fromDate, toDate, decimalPart],
     queryFn: () =>
@@ -66,7 +60,19 @@ export const useCategoryWiseSalesReport = () => {
         Decimals: decimalPart,
       }),
     enabled: !!fromDate && !!toDate,
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  const resetFilters = () => {
+    setBranchId(defaultBranchId);
+    setCategoryId("0");
+    setFromDate(defaultDate);
+    setToDate(defaultDate);
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  };
 
   const rows: CategoryWiseSalesRow[] = useMemo(() => {
     return reportData?.categoryData || [];
@@ -100,6 +106,7 @@ export const useCategoryWiseSalesReport = () => {
       totalData,
       isLoading: isLoadingReport || isFetching,
       error,
+      refetch,
     },
   };
 };

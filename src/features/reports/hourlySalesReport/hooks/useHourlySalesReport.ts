@@ -37,6 +37,8 @@ export const useHourlySalesReport = () => {
         ToDate: toDate,
         Decimals: decimalPart,
       }),
+    staleTime: 0,
+    refetchOnMount: true,
     select: (data) => {
       if (!data?.columns || !data?.rows) return data;
       
@@ -67,6 +69,9 @@ export const useHourlySalesReport = () => {
     setFromDate(defaultFrom);
     setToDate(defaultTo);
     setBranchId(defaultBranch);
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   const parsedReportData: HourlySalesReportData = reportData || {

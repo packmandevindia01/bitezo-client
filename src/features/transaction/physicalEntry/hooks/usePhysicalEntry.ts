@@ -361,11 +361,21 @@ export const usePhysicalEntry = (id?: string | null) => {
       }
       reset(recordData.formPayload);
       setProductOptions(recordData.productOptions);
+
+      // Fetch full unit lists for each item's unitCategory so the dropdown
+      // shows all available units (not just the single saved one from the record)
+      const seenCategories = new Set<string>();
+      (recordData.formPayload.items || []).forEach((item: PhysicalEntryLineItem) => {
+        if (item.unitCategory && !seenCategories.has(item.unitCategory)) {
+          seenCategories.add(item.unitCategory);
+          loadCategoryUnits(item.unitCategory);
+        }
+      });
     } else if (!id) {
       reset(initialForm);
       setProductOptions([]);
     }
-  }, [id, recordData, reset, initialForm]);
+  }, [id, recordData, reset, initialForm, loadCategoryUnits]);
 
   // Pre-select first branch when branches finish loading (Add Mode)
   useEffect(() => {

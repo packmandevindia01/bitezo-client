@@ -116,6 +116,7 @@ export interface DirectSettleOrderBase {
   voidProducts: { productId: number; unitId: number; qty: number; amount: number; mapId: number }[];
   voidModifiers: { mapId: number; modifierId: number; qty: number; amount: number; typeId: number }[];
   combinedOrderIds: number[];
+  complimentaryStatus?: boolean;
 }
 
 /**
@@ -304,6 +305,11 @@ export const buildDirectSettleOrderPayload = (
     transDate: activeTransDate,
     discAmount: roundCalc(discount),
     discPer: billDiscountType === "percentage" ? billDiscountValue : 0,
+    complimentaryStatus: Boolean(
+      (billDiscountType === "percentage" && Number(billDiscountValue) === 100) ||
+      (context as any).complimentaryStatus ||
+      (cartDetails.length > 0 && cartDetails.every((i) => (i.discountType === "percentage" && Number(i.discountValue) === 100) || (i as any).complimentaryStatus))
+    ),
     serviceCharge: roundCalc(totalServiceCharge),
     levy: roundCalc(totalLevy),
     vatExclAmount: roundCalc(Math.max(0, subtotal)),
@@ -342,13 +348,13 @@ export const buildDirectSettleOrderPayload = (
     details,
     modifiers,
     voidProducts: voidProducts.map((vp) => ({
-      productId: vp.productId,
-      unitId: vp.unitId,
-      qty: vp.qty,
-      amount: vp.amount,
-      mapId: vp.mapId,
+      productId: Number(vp.productId),
+      unitId: Number(vp.unitId || 1),
+      qty: Number(vp.qty || 1),
+      amount: roundCalc(vp.amount || 0),
+      mapId: Number(vp.mapId || 0),
     })),
-    voidModifiers: voidModifiers.filter((vm) => !voidProducts.some((vp) => vp.mapId === vm.mapId)),
+    voidModifiers: voidModifiers.filter((vm) => !voidProducts.some((vp) => Number(vp.mapId) === Number(vm.mapId))),
     combinedOrderIds,
     prevUpdatedAt:
       prevUpdatedAt ||
@@ -372,6 +378,7 @@ export const buildNewOrderPayload = (
     shiftId: session.shiftId || 1,
     discAmount: base.discAmount,
     discPer: base.discPer,
+    complimentaryStatus: Boolean(base.complimentaryStatus || Number(base.discPer) === 100),
     serviceCharge: base.serviceCharge,
     levy: base.levy,
     vatExclAmount: base.vatExclAmount,
@@ -445,11 +452,11 @@ export const buildUpdateOrderPayload = (
     unitId: Number(vp.unitId || 1),
     qty: Number(vp.qty || 1),
     amount: roundCalc(vp.amount || 0),
-    mapId: Number(vp.mapId || 1),
+    mapId: Number(vp.mapId !== undefined && vp.mapId !== null ? vp.mapId : 1),
   }));
 
   const cleanedVoidModifiers = (base.voidModifiers || []).map((vm) => ({
-    mapId: Number(vm.mapId || 1),
+    mapId: Number(vm.mapId !== undefined && vm.mapId !== null ? vm.mapId : 1),
     modifierId: Number(vm.modifierId || 0),
     qty: Number(vm.qty || 1),
     amount: roundCalc(vm.amount || 0),
@@ -462,6 +469,7 @@ export const buildUpdateOrderPayload = (
     employeeId: Number(base.employeeId || 1),
     discAmount: roundCalc(base.discAmount || 0),
     discPer: roundCalc(base.discPer || 0),
+    complimentaryStatus: Boolean(base.complimentaryStatus || Number(base.discPer) === 100),
     serviceCharge: roundCalc(base.serviceCharge || 0),
     levy: roundCalc(base.levy || 0),
     vatExclAmount: roundCalc(base.vatExclAmount || 0),

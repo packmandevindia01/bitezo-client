@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useCallback } from "react";
-import { Printer, X, Download } from "lucide-react";
+import { Printer, X, Download, RefreshCw } from "lucide-react";
 import { useGroupWiseSalesReport } from "../hooks/useGroupWiseSalesReport";
 import {
   exportGroupWiseSalesReportPDF,
@@ -117,7 +117,7 @@ export const GroupWiseSalesReportPage = () => {
 
           <ResetButton
             onReset={filters.resetFilters}
-            className="absolute top-1/2 -translate-y-1/2 right-12"
+            className="absolute top-1/2 -translate-y-1/2 right-12 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white"
           />
 
           <div className="px-4 py-3 flex flex-col xl:flex-row gap-3.5 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">
@@ -326,6 +326,15 @@ export const GroupWiseSalesReportPage = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              icon={<RefreshCw size={15} className={report.isLoading ? "animate-spin" : ""} />}
+              onClick={() => report.refetch()}
+              disabled={report.isLoading}
+              variant="secondary"
+            >
+              Refresh
+            </Button>
             <Button
               size="sm"
               icon={<Printer size={15} />}

@@ -18,7 +18,7 @@ import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alter
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
 
-import { usePosProducts } from "../../../hooks/usePosProducts";
+import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -151,7 +151,47 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const response = await orderApi.getOrderDetails(orderId);
       if (response && response.isSuccess && response.data) {
         console.log("ORDER DETAILS RAW RESPONSE:", JSON.stringify(response.data, null, 2));
-        setOrder(response.data);
+        const orderData = response.data;
+        const master = orderData.masterData || orderData;
+        const details = orderData.detailsData || orderData.details || [];
+        const safeOrderTypeId = master.orderTypeId || (master.orderType && orderTypeNameMap[master.orderType]) || 1;
+
+        // Ensure alternatives are fetched and cached for products in this order
+        const pIds = Array.from(new Set(details.map((d: any) => d.productId || d.ProductId || d.itemId || d.ItemId).filter(Boolean)));
+        await Promise.all(
+          pIds.map(async (pId: any) => {
+            const key = `${pId}-${safeOrderTypeId}`;
+            if (!alternativesCache[key]) {
+              try {
+                const alts = await menuApi.getAlternatives(Number(pId), safeOrderTypeId);
+                if (alts && alts.length > 0) {
+                  alternativesCache[key] = alts;
+                }
+              } catch {}
+            }
+          })
+        );
+
+        // Enrich detail rows with accurate alternative / variant names
+        details.forEach((d: any) => {
+          const pId = d.productId || d.ProductId || d.itemId || d.ItemId;
+          const uId = d.unitId ?? d.UnitId;
+          const altsKey = `${pId}-${safeOrderTypeId}`;
+          const alts = alternativesCache[altsKey] || [];
+          const matchedAlt = alts.find((a: any) => (a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId);
+
+          if (matchedAlt) {
+            d.altName = matchedAlt.altName;
+            d.variantName = matchedAlt.altName;
+            d.variantArabic = matchedAlt.altArabic;
+            d.unitName = matchedAlt.altName;
+          } else if (d.altName || d.variantName) {
+            d.variantName = d.altName || d.variantName;
+            d.unitName = d.variantName;
+          }
+        });
+
+        setOrder(orderData);
       } else {
         // Fall back to parsed details from order string
         setOrder(fallbackDetails);
@@ -166,15 +206,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
   // Deduplicate modifiersData to prevent Cartesian product duplicates from backend SQL joins
   const modifiersData = React.useMemo(() => {
-    const rawModifiers = order?.modifiersData || [];
+    const rawModifiers = order?.modifiersData || order?.modifiers || order?.ModifiersData || order?.Modifiers || order?.data?.modifiersData || order?.data?.modifiers || [];
     const seen = new Set<string>();
     return rawModifiers.filter((m: any) => {
-      const key = `${m.mapId}-${m.modifierId}`;
+      const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
+      const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
+      const key = `${mMapId}-${mModId}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-  }, [order?.modifiersData]);
+  }, [order?.modifiersData, order?.modifiers, order?.ModifiersData, order?.Modifiers, order?.data]);
 
   const handlePrintKOT = async () => {
     if (!orderId || !order) return;
@@ -193,23 +235,42 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
       
       mappedItems = details.map((d: any) => {
-        const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1
+        const dMapId = d.mapId ?? d.MapId ?? d.mapID;
+        const itemMods = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
+        const extras = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return statusStr === "extras" || statusStr === "extra" || typeId === 2 || (statusStr === "" && price > 0);
+        }).map((m: any) => ({
+          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+          name: m.modifierName || m.ModifierName || m.name || m.Name || "Extra",
+          price: Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0),
+          qty: Number(m.qty ?? m.Qty ?? 1)
         }));
-        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => {
-          const typeName = m.typeName || m.modifierTypeName || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.name || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.typeName || getModifierTypeNameById(m.typeId) || "";
+        const modifiers = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return statusStr === "modifier" || statusStr === "modifiers" || typeId === 1 || (statusStr === "" && price <= 0);
+        }).map((m: any) => {
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          const typeName = m.typeName || m.TypeName || m.modifierTypeName || m.ModifierTypeName || modifierTypes.find((t: any) => Number(t.typeId || t.id) === typeId)?.name || modifierTypes.find((t: any) => Number(t.typeId || t.id) === typeId)?.typeName || getModifierTypeNameById(typeId) || "";
           return {
-            id: m.modifierId,
-            name: m.modifierName,
-            qty: m.qty || 1,
-            typeId: m.typeId,
+            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+            name: m.modifierName || m.ModifierName || m.name || m.Name || "",
+            qty: Number(m.qty ?? m.Qty ?? 1),
+            typeId,
             typeName,
-            arabicName: m.arabicName || ""
+            arabicName: m.arabicName || m.ArabicName || m.arabic || m.Arabic || ""
           };
         });
-        const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
-          id: m.modifierId, name: m.modifierName || m.name || ""
+        const messages = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          return statusStr === "message" || statusStr === "messages";
+        }).map((m: any) => ({
+          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+          name: m.modifierName || m.ModifierName || m.name || m.Name || ""
         }));
         
         let lineBase = (d.price || 0) * (d.qty || 1);
@@ -230,6 +291,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           categoryId: d.categoryId || matchedProduct?.categoryId || 0,
           quantity: d.qty || 1,
           price: d.price || 0,
+          variantName: d.altName || d.variantName || d.AltName || d.VariantName,
           variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
           product: { 
             name: d.productName || d.ProductName || matchedProduct?.name || `Product #${pId}`, 
@@ -507,23 +569,43 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let detailsVatSum = 0;
       let totalVatBase = 0;
       const preMapped = details.map((d: any) => {
-        const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0)).map((m: any) => ({
-          id: m.modifierId, name: m.modifierName, price: m.price || 0, qty: m.qty || 1, typeId: m.typeId
+        const dMapId = d.mapId ?? d.MapId ?? d.mapID;
+        const itemMods = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
+        const extras = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return statusStr === "extras" || statusStr === "extra" || typeId === 2 || (statusStr === "" && price > 0);
+        }).map((m: any) => ({
+          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+          name: m.modifierName || m.ModifierName || m.name || m.Name || "Extra",
+          price: Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0),
+          qty: Number(m.qty ?? m.Qty ?? 1),
+          typeId: Number(m.typeId ?? m.TypeId ?? 2)
         }));
-        const modifiers = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0)).map((m: any) => {
-          const typeName = m.typeName || m.modifierTypeName || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.name || modifierTypes.find((t: any) => t.typeId === m.typeId || t.id === m.typeId)?.typeName || getModifierTypeNameById(m.typeId) || "";
+        const modifiers = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          return statusStr === "modifier" || statusStr === "modifiers" || typeId === 1 || (statusStr === "" && price <= 0);
+        }).map((m: any) => {
+          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+          const typeName = m.typeName || m.TypeName || m.modifierTypeName || m.ModifierTypeName || modifierTypes.find((t: any) => Number(t.typeId || t.id) === typeId)?.name || modifierTypes.find((t: any) => Number(t.typeId || t.id) === typeId)?.typeName || getModifierTypeNameById(typeId) || "";
           return {
-            id: m.modifierId,
-            name: m.modifierName,
-            qty: m.qty || 1,
-            typeId: m.typeId,
+            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+            name: m.modifierName || m.ModifierName || m.name || m.Name || "",
+            qty: Number(m.qty ?? m.Qty ?? 1),
+            typeId,
             typeName,
-            arabicName: m.arabicName || ""
+            arabicName: m.arabicName || m.ArabicName || m.arabic || m.Arabic || ""
           };
         });
-        const messages = itemMods.filter((m: any) => (m.status || "").toLowerCase() === "message").map((m: any) => ({
-          id: m.modifierId, name: m.modifierName || m.name || ""
+        const messages = itemMods.filter((m: any) => {
+          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+          return statusStr === "message" || statusStr === "messages";
+        }).map((m: any) => ({
+          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+          name: m.modifierName || m.ModifierName || m.name || m.Name || ""
         }));
         
         const qty = d.qty ?? d.Qty ?? 1;
@@ -596,6 +678,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           quantity: d.qty || 1,
           price: d.price || 0,
           baseAmount: itemBase,
+          variantName: d.altName || d.variantName || d.AltName || d.VariantName,
           variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
           product: { 
             name: d.productName || d.ProductName || `Product #${pId}`, 
@@ -865,8 +948,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
       const billingConfig = getBillingConfig(orderTypeName);
       const enableVat = getVatStatus();
-      const netAmount = Number(master.netAmount ?? order?.netAmount ?? 0);
-      const masterDiscPer = Number(master.discPer || 0);
+      const netAmount = Number(master.netAmount ?? master.NetAmount ?? order?.netAmount ?? order?.NetAmount ?? 0);
+      const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
 
       let detailsVatSum = 0;
       let lineDiscountsSum = 0;
@@ -889,17 +972,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         resolvedDiscount = roundCalc(lineDiscountsSum);
       }
 
+      const isBillComplimentary = Boolean(
+        master.complimentaryStatus ||
+        master.ComplimentaryStatus ||
+        masterDiscPer === 100 ||
+        (details.length > 0 && details.every((d: any) =>
+          Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+        )) ||
+        (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
+      );
+
       const hasLineItemDiscounts = lineDiscountsSum > 0;
       const isBillLevelDiscount =
-        Boolean(master.complimentaryStatus || master.ComplimentaryStatus) ||
+        isBillComplimentary ||
         masterDiscPer > 0 ||
         (!hasLineItemDiscounts && resolvedDiscount > 0);
 
       const resolvedBillDiscType: 'percentage' | 'amount' =
-        (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100) || masterDiscPer > 0)
+        (isBillComplimentary || masterDiscPer > 0)
           ? 'percentage'
           : 'amount';
-      let resolvedBillDiscVal = (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100))
+      let resolvedBillDiscVal = isBillComplimentary
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
@@ -916,7 +1009,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         products,
         productCache,
         priceView,
-        masterDiscPer,
+        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
         isOrderBillDiscount: isBillLevelDiscount,
       });
 
@@ -954,8 +1047,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
         authoritativeSubtotal: resolvedSubTotal,
         authoritativeDiscount: resolvedDiscount,
-        authoritativeTax: resolvedVatAmount,
-        authoritativeNetAmount: netAmount,
+        authoritativeTax: isBillComplimentary ? 0 : resolvedVatAmount,
+        authoritativeNetAmount: isBillComplimentary ? 0 : netAmount,
         prevUpdatedAt,
       }));
 
@@ -1018,8 +1111,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
       const billingConfig = getBillingConfig(orderTypeName);
       const enableVat = getVatStatus();
-      const netAmount = Number(master.netAmount ?? order?.netAmount ?? 0);
-      const masterDiscPer = Number(master.discPer || 0);
+      const netAmount = Number(master.netAmount ?? master.NetAmount ?? order?.netAmount ?? order?.NetAmount ?? 0);
+      const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
 
       let detailsVatSum = 0;
       let lineDiscountsSum = 0;
@@ -1042,17 +1135,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         resolvedDiscount = roundCalc(lineDiscountsSum);
       }
 
+      const isBillComplimentary = Boolean(
+        master.complimentaryStatus ||
+        master.ComplimentaryStatus ||
+        masterDiscPer === 100 ||
+        (details.length > 0 && details.every((d: any) =>
+          Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+        )) ||
+        (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
+      );
+
       const hasLineItemDiscounts = lineDiscountsSum > 0;
       const isBillLevelDiscount =
-        Boolean(master.complimentaryStatus || master.ComplimentaryStatus) ||
+        isBillComplimentary ||
         masterDiscPer > 0 ||
         (!hasLineItemDiscounts && resolvedDiscount > 0);
 
       const resolvedBillDiscType: 'percentage' | 'amount' =
-        (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100) || masterDiscPer > 0)
+        (isBillComplimentary || masterDiscPer > 0)
           ? 'percentage'
           : 'amount';
-      let resolvedBillDiscVal = (master.complimentaryStatus || master.ComplimentaryStatus || (masterDiscPer === 100))
+      let resolvedBillDiscVal = isBillComplimentary
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
@@ -1069,7 +1172,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         products,
         productCache,
         priceView,
-        masterDiscPer,
+        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
         isOrderBillDiscount: isBillLevelDiscount,
       });
 
@@ -1114,8 +1217,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         isSettling: true,
         authoritativeSubtotal: resolvedSubTotal,
         authoritativeDiscount: resolvedDiscount,
-        authoritativeTax: resolvedVatAmount,
-        authoritativeNetAmount: netAmount,
+        authoritativeTax: isBillComplimentary ? 0 : resolvedVatAmount,
+        authoritativeNetAmount: isBillComplimentary ? 0 : netAmount,
         prevUpdatedAt,
       }));
 
@@ -1382,13 +1485,19 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
                 <div className="space-y-2.5 overflow-y-auto max-h-[200px] pr-1">
                   {details.map((detail: any, i: number) => {
-                    const itemModifiers = modifiersData.filter((m: any) => m.mapId === detail.mapId);
+                    const dMapId = detail.mapId ?? detail.MapId ?? detail.mapID;
+                    const itemModifiers = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
                     return (
                       <div key={i} className="flex flex-col">
                         <div className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
                           <div className="font-bold text-stone-500">{detail.qty}</div>
                           <div className="pl-2 flex flex-col font-bold text-stone-800">
-                            <span>{detail.productName || `Product #${detail.productId}`}{detail.unitName ? ` - ${detail.unitName}` : ""}</span>
+                            <span>
+                              {detail.productName || `Product #${detail.productId}`}
+                              {(detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName)
+                                ? ` - ${detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName}`
+                                : ""}
+                            </span>
                             {detail.price > 0 && (
                               <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
                             )}
@@ -1400,7 +1509,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                         
                         {/* Modifiers and Messages display as separate rows */}
                         {itemModifiers.map((mod: any, idx: number) => {
-                          const isMessage = (mod.status || "").toLowerCase() === "message";
+                          const isMessage = (mod.status || mod.Status || "").toLowerCase() === "message";
                           let prefix = "+";
                           
                           if (isMessage) {
@@ -1414,11 +1523,13 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                             }
                           }
 
+                          const modDisplayName = mod.modifierName || mod.ModifierName || mod.name || mod.Name || "";
+
                           return (
                             <div key={idx} className="grid grid-cols-[24px_1fr_60px] items-start text-[9px] leading-tight mt-0.5">
                               <div></div>
                               <div className={`pl-3 font-medium ${isMessage ? "text-purple-600" : "text-[#f48120]"}`}>
-                                {prefix} {!isMessage && mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName}
+                                {prefix} {!isMessage && mod.qty > 1 ? `${mod.qty} x ` : ""}{modDisplayName}
                               </div>
                               <div className="text-right font-medium text-[#f48120]">
                                 {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}

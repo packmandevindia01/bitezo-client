@@ -84,7 +84,7 @@ export const useSplitOrderData = ({
             products,
           });
 
-          const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || "";
+          const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || cartItem.variantName || "";
           const baseName = d.productName || d.ProductName || cartItem.product?.name || "Item";
           const displayName = formatItemDisplayName(baseName, rawAlt);
 

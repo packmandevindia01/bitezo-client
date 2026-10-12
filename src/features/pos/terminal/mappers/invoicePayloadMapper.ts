@@ -138,6 +138,7 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     vatAmount: Math.max(0, orderPayload.vatAmount),
     netAmount: Math.max(0, orderPayload.netAmount),
     deliveryCharge: Math.max(0, orderPayload.deliveryCharge),
+    complimentaryStatus: Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100),
     createdAt: new Date().toISOString(),
     orderMaster: {
       isOrderEdited,
@@ -155,6 +156,7 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       comingTime: orderPayload.comingTime || new Date().toISOString(),
       providerNo: orderPayload.providerNo,
       driverId: activeDriverId,
+      complimentaryStatus: Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100),
     },
     combinedOrderIds: orderPayload.combinedOrderIds,
     modifiers: orderPayload.modifiers,

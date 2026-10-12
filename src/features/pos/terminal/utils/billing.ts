@@ -451,23 +451,25 @@ export const calculateOrder = (
         });
       }
 
-      return {
-        ...item,
-        uniqueId: item.uniqueId || `${item.productId}-${Date.now()}-${Math.random()}`,
-        productId: item.productId || product.id || 0,
-        unitId: item.unitId || product.unitId || 1,
-        quantity,
-        price,
-        basePrice: calcs.basePrice,
-        exclusivePrice: calcs.basePrice,
-        isIncl: item.isIncl,
-        variantName: item.variantName,
-        variantArabic: item.variantArabic,
-        product: {
-          ...product,
-          name: displayName,
+        const resolvedUnitId = item.unitId || product.unitId || 1;
+        return {
+          ...item,
+          uniqueId: item.uniqueId || `${item.productId}-${Date.now()}-${Math.random()}`,
+          productId: item.productId || product.id || 0,
+          unitId: resolvedUnitId,
+          quantity,
           price,
-        },
+          basePrice: calcs.basePrice,
+          exclusivePrice: calcs.basePrice,
+          isIncl: item.isIncl,
+          variantName: item.variantName,
+          variantArabic: item.variantArabic,
+          product: {
+            ...product,
+            unitId: resolvedUnitId,
+            name: displayName,
+            price,
+          },
         extras,
         modifiers,
         messages,
@@ -490,7 +492,10 @@ export const calculateOrder = (
         vatBase: calcs.netValue + calcs.sc + calcs.levy,
         vatRate: effectiveVatRate,
         vatAmount: calcs.vatAmount,
-        lineTotal: calcs.lineNetAmount,
+        // When a bill-level discount is active, show the original (pre-bill-discount)
+        // line total in the TOTAL column. lineNetAmount (discounted) is still used
+        // for grand total computation and the backend payload.
+        lineTotal: isBillDisc ? noDiscountCalcs.lineNetAmount : calcs.lineNetAmount,
         lineNetAmount: calcs.lineNetAmount,
         originalLineTotal: noDiscountCalcs.lineNetAmount,
 

@@ -126,6 +126,8 @@ export const useProductWiseMarginReport = () => {
         Decimals: getDecimalPart(),
       }),
     enabled: !!fromDate && !!toDate,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const data = useMemo(() => {
@@ -144,7 +146,10 @@ export const useProductWiseMarginReport = () => {
     setSubcategoryId("0");
     setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
     setToDate(todayStr);
-  }, [today, todayStr, initialBranchId]);
+    setTimeout(() => {
+      reportQuery.refetch();
+    }, 0);
+  }, [today, todayStr, initialBranchId, reportQuery]);
 
   return {
     filters: {
@@ -166,5 +171,6 @@ export const useProductWiseMarginReport = () => {
     data,
     isLoading: reportQuery.isLoading || reportQuery.isFetching,
     handleReset,
+    refetch: reportQuery.refetch,
   };
 };

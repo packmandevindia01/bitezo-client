@@ -108,7 +108,7 @@ export const ProductTransactionLogReportPage = () => {
           >
             <X size={18} />
           </button>
-          <ResetButton onReset={filters.resetFilters} className="absolute top-1/2 -translate-y-1/2 right-12 z-30" />
+          <ResetButton onReset={filters.resetFilters} className="absolute top-1/2 -translate-y-1/2 right-12 z-30 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white" />
 
           <div className="p-4">
             <div className="flex flex-wrap gap-3 items-end">

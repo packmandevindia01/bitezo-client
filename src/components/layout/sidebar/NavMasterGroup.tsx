@@ -151,6 +151,13 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
             <span>Branch</span>
           </div>
         )}
+
+        {hasPermission("Voucher Series Master", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/voucher-series")} className={itemClassName}>
+            <Ticket size={13} className="shrink-0" />
+            <span>Voucher Series</span>
+          </div>
+        )}
       </SidebarDropdown>
 
       <SidebarDropdown label="Order" icon={<UtensilsCrossed size={14} />} nested defaultOpen>
@@ -241,12 +248,6 @@ const NavMasterGroup = ({ navigate, onClose, itemClassName, onOpenDenomination }
           </div>
         )}
 
-        {hasPermission("Voucher Series Master", "View") && (
-          <div onClick={() => handleItemClick("/dashboard/voucher-series")} className={itemClassName}>
-            <Ticket size={13} className="shrink-0" />
-            <span>Voucher Series</span>
-          </div>
-        )}
 
         {hasPermission("Stock Adjustment Type", "View") && (
           <div onClick={() => handleItemClick("/dashboard/stock-adjustment-type")} className={itemClassName}>

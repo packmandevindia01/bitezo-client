@@ -125,8 +125,9 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         const hasLineDiscounts = Array.isArray(curDetails) && curDetails.some((d: any) => Number(d.discAmount || d.discountValue || 0) > 0);
         if (
           Boolean(curMaster?.complimentaryStatus || curMaster?.ComplimentaryStatus) ||
-          (curMaster?.discPer !== undefined && curMaster?.discPer !== null && Number(curMaster.discPer) > 0) ||
-          (!hasLineDiscounts && Number(curMaster?.discAmount || 0) > 0) ||
+          ((curMaster?.discPer !== undefined && curMaster?.discPer !== null && Number(curMaster.discPer) > 0) ||
+           (curMaster?.DiscPer !== undefined && curMaster?.DiscPer !== null && Number(curMaster.DiscPer) > 0)) ||
+          (!hasLineDiscounts && Number(curMaster?.discAmount || curMaster?.DiscAmount || 0) > 0) ||
           Number(curMaster?.billDiscountValue || 0) > 0
         ) {
           currentOrderHasBillDisc = true;

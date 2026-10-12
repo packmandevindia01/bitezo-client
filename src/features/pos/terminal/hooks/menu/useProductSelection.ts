@@ -166,6 +166,19 @@ export const useProductSelection = ({
         }
       }
 
+      const altUnitId = variant.unitId ?? (variant as any).UnitId;
+
+      dispatch(
+        cacheProducts([
+          {
+            ...selectedProduct,
+            price: variant.price,
+            unitId: altUnitId ?? selectedProduct.unitId,
+            isIncl,
+          },
+        ])
+      );
+
       const newKey = addProduct(
         selectedProduct.id,
         variant.altName,
@@ -173,7 +186,7 @@ export const useProductSelection = ({
         isIncl,
         discountValue,
         discountType,
-        variant.unitId,
+        altUnitId,
         variant.altArabic
       );
       setSelectedKey(newKey);

@@ -337,7 +337,7 @@ const posSlice = createSlice({
         item.quantity += 1;
         // If an existing item previously had voided quantities, incrementing it restores the quantity
         if (item.isExisting && item.mapId && state.voidProducts.length > 0) {
-          const vpIdx = state.voidProducts.findIndex((vp) => vp.mapId === item.mapId);
+          const vpIdx = state.voidProducts.findIndex((vp) => Number(vp.mapId) === Number(item.mapId));
           if (vpIdx >= 0) {
             const vp = state.voidProducts[vpIdx];
             if (vp.qty > 1) {
@@ -528,7 +528,7 @@ const posSlice = createSlice({
 
         if (item.isExisting && item.mapId && item.quantity > prevQty && state.voidProducts.length > 0) {
           const diff = item.quantity - prevQty;
-          const vpIdx = state.voidProducts.findIndex((vp) => vp.mapId === item.mapId);
+          const vpIdx = state.voidProducts.findIndex((vp) => Number(vp.mapId) === Number(item.mapId));
           if (vpIdx >= 0) {
             const vp = state.voidProducts[vpIdx];
             if (vp.qty > diff) {
@@ -855,9 +855,10 @@ const posSlice = createSlice({
       note?: string;
     }>) => {
       state.isCartModified = true;
+      const targetMapId = action.payload.mapId ? Number(action.payload.mapId) : 0;
       const existing = state.voidProducts.find((vp) => 
-        (action.payload.mapId && vp.mapId === action.payload.mapId) ||
-        (!action.payload.mapId && vp.productId === action.payload.productId && vp.unitId === action.payload.unitId)
+        (targetMapId > 0 && Number(vp.mapId) === targetMapId) ||
+        (!targetMapId && vp.productId === action.payload.productId && vp.unitId === action.payload.unitId)
       );
       if (existing) {
         existing.qty += action.payload.qty;
@@ -872,9 +873,16 @@ const posSlice = createSlice({
             existing.extras = action.payload.extras.map((e) => ({ ...e }));
           } else {
             action.payload.extras.forEach((newEx: any) => {
-              const ex = existing.extras?.find((e: any) => (e.id || e.modifierId) === (newEx.id || newEx.modifierId));
+              const newId = newEx.id || newEx.modifierId;
+              const ex = existing.extras?.find((e: any) => {
+                const curId = e.id || e.modifierId;
+                if (curId && newId && Number(curId) === Number(newId)) return true;
+                if (e.name && newEx.name && e.name.trim().toLowerCase() === newEx.name.trim().toLowerCase()) return true;
+                return false;
+              });
               if (ex) {
                 ex.qty = (ex.qty || 1) + (newEx.qty || 1);
+                if (newEx.arabicName && !ex.arabicName) ex.arabicName = newEx.arabicName;
               } else {
                 existing.extras?.push({ ...newEx });
               }
@@ -887,9 +895,17 @@ const posSlice = createSlice({
             existing.modifiers = action.payload.modifiers.map((m) => ({ ...m }));
           } else {
             action.payload.modifiers.forEach((newMod: any) => {
-              const mod = existing.modifiers?.find((m: any) => (m.id || m.modifierId) === (newMod.id || newMod.modifierId));
+              const newId = newMod.id || newMod.modifierId;
+              const mod = existing.modifiers?.find((m: any) => {
+                const curId = m.id || m.modifierId;
+                if (curId && newId && Number(curId) === Number(newId)) return true;
+                if (m.name && newMod.name && m.name.trim().toLowerCase() === newMod.name.trim().toLowerCase()) return true;
+                return false;
+              });
               if (mod) {
                 mod.qty = (mod.qty || 1) + (newMod.qty || 1);
+                if (newMod.typeName && !mod.typeName) mod.typeName = newMod.typeName;
+                if (newMod.arabicName && !mod.arabicName) mod.arabicName = newMod.arabicName;
               } else {
                 existing.modifiers?.push({ ...newMod });
               }
@@ -905,6 +921,7 @@ const posSlice = createSlice({
       } else {
         state.voidProducts.push({
           ...action.payload,
+          mapId: targetMapId,
           extras: action.payload.extras ? action.payload.extras.map((e) => ({ ...e })) : [],
           modifiers: action.payload.modifiers ? action.payload.modifiers.map((m) => ({ ...m })) : [],
           messages: action.payload.messages ? action.payload.messages.map((m) => ({ ...m })) : [],
@@ -922,8 +939,10 @@ const posSlice = createSlice({
       typeName?: string;
     }>) => {
       state.isCartModified = true;
+      const targetMapId = Number(action.payload.mapId || 0);
+      const targetModId = Number(action.payload.modifierId || 0);
       const existing = state.voidModifiers.find((vm) => 
-        vm.mapId === action.payload.mapId && vm.modifierId === action.payload.modifierId
+        Number(vm.mapId) === targetMapId && Number(vm.modifierId) === targetModId
       );
       if (existing) {
         existing.qty += action.payload.qty;
@@ -932,7 +951,7 @@ const posSlice = createSlice({
         if (action.payload.arabicName && !existing.arabicName) existing.arabicName = action.payload.arabicName;
         if (action.payload.typeName && !existing.typeName) existing.typeName = action.payload.typeName;
       } else {
-        state.voidModifiers.push({ ...action.payload, typeId: action.payload.typeId || 1 });
+        state.voidModifiers.push({ ...action.payload, mapId: targetMapId, modifierId: targetModId, typeId: action.payload.typeId || 1 });
       }
     },
     setIsSettling: (state, action: PayloadAction<boolean>) => {

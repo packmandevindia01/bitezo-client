@@ -33,6 +33,12 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
     if (key === "name" && value.length > 15) {
       value = value.slice(0, 15);
     }
+    if (key === "value") {
+      const num = parseFloat(value);
+      if (!isNaN(num) && num > 100) {
+        value = "100";
+      }
+    }
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) {
       setErrors((prev) => ({ ...prev, [key]: undefined }));
@@ -55,6 +61,8 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
     }
     if (!form.value || isNaN(Number(form.value)) || Number(form.value) < 0) {
       newErrors.value = "required";
+    } else if (Number(form.value) > 100) {
+      newErrors.value = "max 100%";
     }
     if (!form.expireAt) {
       newErrors.expireAt = "required";
@@ -120,6 +128,8 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
           label="Tax Value (%)"
           type="number"
           step="0.01"
+          min="0"
+          max="100"
           inputClassName="text-right"
           value={form.value}
           error={errors.value}

@@ -109,6 +109,7 @@ export interface MenuOrderRequest {
   providerNo?: string;
   deliveryCharge?: number;
   driverId?: number;
+  complimentaryStatus?: boolean;
 }
 
 export interface MenuOrderUpdateRequest {
@@ -147,6 +148,7 @@ export interface MenuOrderUpdateRequest {
   combinedOrderIds: number[];
   deliveryCharge?: number;
   driverId?: number;
+  complimentaryStatus?: boolean;
 }
 
 export interface SplitOrderData {

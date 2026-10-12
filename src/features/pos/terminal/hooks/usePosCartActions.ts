@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
 import { deliveryApi } from "../../customer/services/deliveryApi";
+import { getModifierTypeNameById } from "../../services/menuApi";
 import type { MenuOrderRequest, MenuOrderUpdateRequest } from "../../types";
 import {
   clearCart,
@@ -581,42 +582,52 @@ export const usePosCartActions = () => {
             const vpExtras = (vp.extras && vp.extras.length > 0)
               ? vp.extras.map((ex: any) => ({
                   id: ex.id || ex.modifierId,
-                  name: ex.name || ex.modifierName || "Extra",
+                  name: (ex.name && ex.name !== "Extra") ? ex.name : (ex.modifierName || ex.name || "Extra"),
                   arabicName: ex.arabicName || ex.arabic,
                   price: ex.price || 0,
                   qty: ex.qty || 1,
                   typeId: ex.typeId || 2,
                 }))
               : voidModifiers
-                  .filter((vm: any) => vm.mapId === vp.mapId && (vm.typeId === 2 || (vm.amount || 0) > 0))
+                  .filter((vm: any) => Number(vm.mapId) === Number(vp.mapId) && (Number(vm.typeId) === 2 || (vm.amount || 0) > 0))
                   .map((vm: any) => ({
                     id: vm.modifierId,
                     qty: vm.qty || 1,
                     price: vm.amount > 0 ? roundCalc(vm.amount / (vm.qty || 1)) : 0,
-                    name: vm.name || vm.modifierName || "Extra",
+                    name: (vm.name && vm.name !== "Extra") ? vm.name : (vm.modifierName || vm.name || "Extra"),
                     arabicName: vm.arabicName,
-                    typeId: vm.typeId || 2,
+                    typeId: Number(vm.typeId || 2),
                   }));
 
             const vpModifiers = (vp.modifiers && vp.modifiers.length > 0)
-              ? vp.modifiers.map((mod: any) => ({
-                  id: mod.id || mod.modifierId,
-                  name: mod.name || mod.modifierName || "Modifier",
-                  arabicName: mod.arabicName || mod.arabic,
-                  qty: mod.qty || 1,
-                  typeId: mod.typeId || 1,
-                  typeName: mod.typeName,
-                }))
+              ? vp.modifiers.map((mod: any) => {
+                  const typeId = Number(mod.typeId ?? 1);
+                  const typeName = mod.typeName || mod.modifierTypeName || (typeId ? getModifierTypeNameById(typeId) : "") || "";
+                  const name = (mod.name && mod.name !== "Modifier") ? mod.name : (mod.modifierName || mod.name || "Modifier");
+                  return {
+                    id: mod.id || mod.modifierId,
+                    name,
+                    arabicName: mod.arabicName || mod.arabic,
+                    qty: mod.qty || 1,
+                    typeId,
+                    typeName,
+                  };
+                })
               : voidModifiers
-                  .filter((vm: any) => vm.mapId === vp.mapId && vm.typeId !== 2 && (vm.amount || 0) <= 0)
-                  .map((vm: any) => ({
-                    id: vm.modifierId,
-                    qty: vm.qty || 1,
-                    name: vm.name || vm.modifierName || "Modifier",
-                    arabicName: vm.arabicName,
-                    typeId: vm.typeId || 1,
-                    typeName: vm.typeName,
-                  }));
+                  .filter((vm: any) => Number(vm.mapId) === Number(vp.mapId) && Number(vm.typeId) !== 2 && (vm.amount || 0) <= 0)
+                  .map((vm: any) => {
+                    const typeId = Number(vm.typeId ?? 1);
+                    const typeName = vm.typeName || vm.modifierTypeName || (typeId ? getModifierTypeNameById(typeId) : "") || "";
+                    const name = (vm.name && vm.name !== "Modifier") ? vm.name : (vm.modifierName || vm.name || "Modifier");
+                    return {
+                      id: vm.modifierId,
+                      qty: vm.qty || 1,
+                      name,
+                      arabicName: vm.arabicName,
+                      typeId,
+                      typeName,
+                    };
+                  });
 
             return {
               productId: vp.productId,

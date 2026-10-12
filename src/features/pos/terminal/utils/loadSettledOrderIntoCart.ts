@@ -44,10 +44,12 @@ export const loadSettledOrderIntoCart = ({
       orderData.detailsData || orderData.details || []
     );
 
-    const rawModifiers = orderData.modifiersData || orderData.modifiers || [];
+    const rawModifiers = orderData.modifiersData || orderData.modifiers || orderData.ModifiersData || orderData.Modifiers || [];
     const seen = new Set<string>();
     const modifiersData = rawModifiers.filter((m: any) => {
-      const key = `${m.mapId}-${m.modifierId}`;
+      const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
+      const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
+      const key = `${mMapId}-${mModId}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -111,8 +113,8 @@ export const loadSettledOrderIntoCart = ({
 
     const billingConfig = getBillingConfig(orderTypeName);
     const enableVat = getVatStatus();
-    const netAmount = Number(master.netAmount ?? orderData?.netAmount ?? 0);
-    const masterDiscPer = Number(master.discPer || 0);
+    const netAmount = Number(master.netAmount ?? master.NetAmount ?? orderData?.netAmount ?? orderData?.NetAmount ?? 0);
+    const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
 
     let detailsVatSum = 0;
     let lineDiscountsSum = 0;
@@ -137,30 +139,34 @@ export const loadSettledOrderIntoCart = ({
       resolvedDiscount = roundCalc(lineDiscountsSum);
     }
 
+    const isBillComplimentary = Boolean(
+      master.complimentaryStatus ||
+      master.ComplimentaryStatus ||
+      masterDiscPer === 100 ||
+      (details.length > 0 && details.every((d: any) =>
+        Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+      )) ||
+      (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
+    );
+
     const hasLineItemDiscounts = lineDiscountsSum > 0;
     const isBillLevelDiscount =
-      Boolean(master.complimentaryStatus || master.ComplimentaryStatus) ||
+      isBillComplimentary ||
       masterDiscPer > 0 ||
       (!hasLineItemDiscounts && resolvedDiscount > 0);
 
     const resolvedBillDiscType: "percentage" | "amount" =
-      master.complimentaryStatus ||
-      master.ComplimentaryStatus ||
-      (masterDiscPer === 100) ||
-      masterDiscPer > 0
+      isBillComplimentary || masterDiscPer > 0
         ? "percentage"
         : "amount";
 
-    let resolvedBillDiscVal =
-      master.complimentaryStatus ||
-      master.ComplimentaryStatus ||
-      (masterDiscPer === 100)
-        ? 100
-        : masterDiscPer > 0
-        ? masterDiscPer
-        : isBillLevelDiscount
-        ? resolvedDiscount
-        : 0;
+    let resolvedBillDiscVal = isBillComplimentary
+      ? 100
+      : masterDiscPer > 0
+      ? masterDiscPer
+      : isBillLevelDiscount
+      ? resolvedDiscount
+      : 0;
 
     if (
       isBillLevelDiscount &&
@@ -176,7 +182,7 @@ export const loadSettledOrderIntoCart = ({
       products,
       productCache,
       priceView,
-      masterDiscPer,
+      masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
       isOrderBillDiscount: isBillLevelDiscount,
     });
 
@@ -231,8 +237,8 @@ export const loadSettledOrderIntoCart = ({
         isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
         authoritativeSubtotal: resolvedSubTotal,
         authoritativeDiscount: resolvedDiscount,
-        authoritativeTax: resolvedVatAmount,
-        authoritativeNetAmount: netAmount,
+        authoritativeTax: isBillComplimentary ? 0 : resolvedVatAmount,
+        authoritativeNetAmount: isBillComplimentary ? 0 : netAmount,
         prevUpdatedAt,
       })
     );

@@ -24,23 +24,21 @@ export const useGroupWiseSalesReport = () => {
 
   const decimalPart = useAppSelector(selectDecimalPart) ?? 3;
 
-  const resetFilters = () => {
-    setBranchId(defaultBranchId);
-    setGroupId("0");
-    setFromDate(defaultDate);
-    setToDate(defaultDate);
-  };
-
+  // Master-data queries — cached for 5 min, won't refetch on every navigation
   const { data: branches = [], isLoading: isLoadingBranches } = useQuery<BranchOption[]>({
     queryKey: ["branches-list-for-group-wise-sales"],
     queryFn: getBranchList,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const { data: groupsData = [], isLoading: isLoadingGroups } = useQuery<GroupOption[]>({
     queryKey: ["groups-list-for-group-wise-sales"],
     queryFn: getGroupList,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const groupOptions = useMemo(() => {
@@ -50,11 +48,13 @@ export const useGroupWiseSalesReport = () => {
     return [{ value: "0", label: "All" }, ...opts];
   }, [groupsData]);
 
+  // Report query — always fresh: staleTime 0, refetch on mount and window focus
   const {
     data: reportData,
     isLoading: isLoadingReport,
     isFetching,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["group-wise-sales-report", branchId, groupId, fromDate, toDate, decimalPart],
     queryFn: () =>
@@ -66,7 +66,20 @@ export const useGroupWiseSalesReport = () => {
         Decimals: decimalPart,
       }),
     enabled: !!fromDate && !!toDate,
+    staleTime: 0,               // always consider report data stale
+    refetchOnMount: true,       // re-fetch whenever the page is mounted/revisited
+    refetchOnWindowFocus: true, // re-fetch when user switches back to this tab
   });
+
+  const resetFilters = () => {
+    setBranchId(defaultBranchId);
+    setGroupId("0");
+    setFromDate(defaultDate);
+    setToDate(defaultDate);
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  };
 
   const rows: GroupWiseSalesRow[] = useMemo(() => {
     return reportData?.groupData || [];
@@ -100,6 +113,7 @@ export const useGroupWiseSalesReport = () => {
       totalData,
       isLoading: isLoadingReport || isFetching,
       error,
+      refetch,
     },
   };
 };

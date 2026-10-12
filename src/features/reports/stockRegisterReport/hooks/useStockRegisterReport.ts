@@ -90,6 +90,7 @@ export const useStockRegisterReport = () => {
       return getStockRegisterReport(params);
     },
     refetchOnMount: "always",
+    staleTime: 0,
   });
 
   // Client-side filtering fallback
@@ -148,6 +149,9 @@ export const useStockRegisterReport = () => {
     setProductTypeId("0");
     setProductId("0");
     setSearchTerm("");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

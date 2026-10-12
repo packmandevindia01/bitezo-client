@@ -94,6 +94,8 @@ export const useShiftEndReport = () => {
         rows: enrichedRows,
       };
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const resetFilters = () => {
@@ -106,6 +108,9 @@ export const useShiftEndReport = () => {
     setBranchId(isBranchLocked ? initialBranchId : "");
     setUserId("0");
     setCounterId("0");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

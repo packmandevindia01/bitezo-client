@@ -26,7 +26,7 @@ export const useMonthlySalesReport = () => {
   const toYear = parseInt(toPeriod.split("-")[0] || String(currentYear), 10);
   const toMonth = parseInt(toPeriod.split("-")[1] || "12", 10);
 
-  const { data: reportData, isLoading, isFetching } = useQuery({
+  const { data: reportData, isLoading, isFetching, refetch } = useQuery({
     queryKey: [
       "monthlySalesReport",
       branchId,
@@ -44,6 +44,8 @@ export const useMonthlySalesReport = () => {
         ToYear: toYear,
         Decimals: getDecimalPart(),
       }),
+    staleTime: 0,
+    refetchOnMount: true,
     select: (data) => {
       if (!data?.columns || !data?.rows) return data;
       
@@ -81,7 +83,10 @@ export const useMonthlySalesReport = () => {
     }
     setFromPeriod(`${currentYear}-01`);
     setToPeriod(`${currentYear}-12`);
-  }, [currentYear, isBranchLocked]);
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  }, [currentYear, isBranchLocked, refetch]);
 
   const filters = useMemo(
     () => ({
@@ -102,5 +107,6 @@ export const useMonthlySalesReport = () => {
     reportData,
     isLoading: isLoading || isFetching,
     handleReset,
+    refetch,
   };
 };

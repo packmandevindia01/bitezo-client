@@ -1,6 +1,7 @@
 import { roundCalc } from "../utils/billing";
 import type { PosCartItem } from "../../types";
 import { getModifierTypeNameById } from "../../services/menuApi";
+import { alternativesCache } from "../hooks/usePosProducts";
 
 export interface MapOrderDetailOptions {
   detail: any;
@@ -73,11 +74,18 @@ export const mapOrderDetailToCartItem = ({
     })();
 
   // 3. Resolve Line Item Modifiers, Extras, and Messages
+  const dMapId = detail.mapId ?? detail.MapId ?? detail.mapID ?? detail.sNo ?? detail.SNo;
+  const dOrderId = detail.orderId ?? detail.OrderId;
+
   const itemModifiers = modifiersData.filter((m: any) => {
-    if (m.orderId && detail.orderId) {
-      return m.mapId === detail.mapId && m.orderId === detail.orderId;
+    const mMapId = m.mapId ?? m.MapId ?? m.mapID;
+    const mOrderId = m.orderId ?? m.OrderId;
+
+    if (mOrderId !== undefined && dOrderId !== undefined && Number(mOrderId) !== Number(dOrderId)) {
+      return false;
     }
-    return m.mapId === detail.mapId;
+    if (mMapId === undefined || dMapId === undefined) return false;
+    return Number(mMapId) === Number(dMapId);
   });
 
   // 4. Resolve VAT Rate
@@ -168,74 +176,92 @@ export const mapOrderDetailToCartItem = ({
 
   // 7. Modifiers and Extras Mapping
   const extras = itemModifiers
-    .filter(
-      (m: any) =>
-        (m.status || "").toLowerCase() === "extras" ||
-        ((m.status || "") === "" && (m.price || 0) > 0)
-    )
+    .filter((m: any) => {
+      const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+      const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+      const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+      return statusStr === "extras" || statusStr === "extra" || typeId === 2 || (statusStr === "" && price > 0);
+    })
     .map((m: any) => {
-      const rawExtraPrice = Number(m.price || m.amount || 0);
+      const rawExtraPrice = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
       let restoredExtraPrice = rawExtraPrice;
       if (itemIsIncl && activeVatFraction > 0) {
         // Extras saved via orderPayloadMapper are tax-exclusive
         restoredExtraPrice = roundCalc(rawExtraPrice * (1 + activeVatFraction), 4);
       }
       return {
-        id: m.modifierId ?? m.id,
-        name: m.modifierName || m.name || "",
+        id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0,
+        name: m.modifierName || m.ModifierName || m.name || m.Name || "Extra",
         price: restoredExtraPrice,
-        qty: m.qty || 1,
-        typeId: m.typeId || 0,
+        qty: Number(m.qty ?? m.Qty ?? 1),
+        typeId: Number(m.typeId ?? m.TypeId ?? 2),
       };
     });
 
   const modifiers = itemModifiers
-    .filter(
-      (m: any) =>
-        (m.status || "").toLowerCase() === "modifier" ||
-        ((m.status || "") === "" && (m.price || 0) <= 0)
-    )
-    .map((m: any) => ({
-      id: m.modifierId ?? m.id,
-      name: m.modifierName || m.name || "",
-      qty: m.qty || 1,
-      typeId: m.typeId || 0,
-      typeName: m.typeName || m.modifierTypeName || m.typeNameEn || getModifierTypeNameById(m.typeId) || "",
-      arabicName: m.arabicName || m.arabic || "",
-    }));
+    .filter((m: any) => {
+      const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+      const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+      const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+      return statusStr === "modifier" || statusStr === "modifiers" || typeId === 1 || (statusStr === "" && price <= 0);
+    })
+    .map((m: any) => {
+      const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+      const typeName = m.typeName || m.TypeName || m.modifierTypeName || m.ModifierTypeName || m.typeNameEn || getModifierTypeNameById(typeId) || "";
+      return {
+        id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0,
+        name: m.modifierName || m.ModifierName || m.name || m.Name || "",
+        qty: Number(m.qty ?? m.Qty ?? 1),
+        typeId,
+        typeName,
+        arabicName: m.arabicName || m.ArabicName || m.arabic || m.Arabic || "",
+      };
+    });
 
   const messages = itemModifiers
-    .filter((m: any) => (m.status || "").toLowerCase() === "message")
+    .filter((m: any) => {
+      const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+      return statusStr === "message" || statusStr === "messages";
+    })
     .map((m: any) => ({
-      id: m.modifierId ?? m.id,
-      name: m.modifierName || m.name || "",
+      id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
+      name: m.modifierName || m.ModifierName || m.name || m.Name || "",
     }));
 
   // 8. Complimentary & Discount
   const isDetailComplimentary = Boolean(
     detail.complimentaryStatus ||
     detail.ComplimentaryStatus ||
-    (detail.discPer && Number(detail.discPer) === 100)
+    (detail.discPer && Number(detail.discPer) === 100) ||
+    (detail.DiscPer && Number(detail.DiscPer) === 100)
   );
 
   const detailDiscPer =
     detail.discPer !== undefined && detail.discPer !== null
       ? Number(detail.discPer)
+      : detail.DiscPer !== undefined && detail.DiscPer !== null
+      ? Number(detail.DiscPer)
       : 0;
 
   // Determine if this detail's discount was purely inherited from an order-level bill discount
   const isFromBillDiscount = Boolean(
     (masterDiscPer !== undefined && masterDiscPer > 0 && Math.abs(detailDiscPer - masterDiscPer) < 0.01) ||
-    (isOrderBillDiscount && (!masterDiscPer || masterDiscPer === 0))
+    (isOrderBillDiscount && (!masterDiscPer || masterDiscPer === 0 || Math.abs(detailDiscPer - masterDiscPer) < 0.01)) ||
+    (isOrderBillDiscount && (masterDiscPer === 100 || detailDiscPer === 100 || isDetailComplimentary))
   );
 
   let discountValue = 0;
   let discountType: "percentage" | "amount" = "percentage";
 
-  if (isDetailComplimentary) {
+  if (isFromBillDiscount) {
+    // Discount is applied at the bill level (e.g. 100% complimentary bill discount),
+    // so individual line items do not carry conflicting line discounts.
+    discountValue = 0;
+    discountType = "percentage";
+  } else if (isDetailComplimentary) {
     discountValue = 100;
     discountType = "percentage";
-  } else if (!isFromBillDiscount) {
+  } else {
     if (detailDiscPer > 0) {
       discountValue = detailDiscPer;
       discountType = "percentage";
@@ -251,21 +277,38 @@ export const mapOrderDetailToCartItem = ({
     discountValue = roundCalc(discountValue * (1 + activeVatFraction), 4);
   }
 
-  const rawAlt =
+  const effectiveUnitId = detail.unitId ?? detail.UnitId ?? realProduct.unitId ?? 1;
+
+  let rawAlt =
     detail.variantName ||
     detail.altName ||
     detail.VariantName ||
     detail.AltName;
 
-  const rawAltArabic =
+  let rawAltArabic =
     detail.variantArabic ||
     detail.altArabic ||
     detail.VariantArabic ||
     detail.AltArabic;
 
+  // If variant name is not explicitly returned on the order row, look it up in alternativesCache by unitId
+  if (!rawAlt && effectiveUnitId && pId) {
+    const allCachedAlts = Object.entries(alternativesCache)
+      .filter(([k]) => k.startsWith(`${pId}-`))
+      .flatMap(([, alts]) => alts);
+    const matchedAlt = allCachedAlts.find(
+      (a: any) => (a.unitId ?? a.UnitId ?? a.id ?? a.Id) === effectiveUnitId
+    );
+    if (matchedAlt) {
+      rawAlt = matchedAlt.altName;
+      rawAltArabic = matchedAlt.altArabic;
+    }
+  }
+
   return {
     uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
     productId: pId,
+    unitId: effectiveUnitId,
     quantity: qty,
     price: restoredPrice,
     isIncl: itemIsIncl,
@@ -275,7 +318,7 @@ export const mapOrderDetailToCartItem = ({
     modifiers,
     messages,
     isExisting: true,
-    mapId: detail.mapId,
+    mapId: dMapId !== undefined ? Number(dMapId) : undefined,
     originalQty: qty,
     variantName: rawAlt,
     variantArabic: rawAltArabic,
@@ -286,7 +329,7 @@ export const mapOrderDetailToCartItem = ({
       arabicName: detail.arabicName || detail.ArabicName || realProduct.arabicName,
       price: restoredPrice,
       categoryId: realProduct.categoryId || 1,
-      unitId: detail.unitId || realProduct.unitId || 1,
+      unitId: effectiveUnitId,
       vatValue: resolvedVatValue,
       sVatId: detail.vatId ?? detail.sVatId ?? realProduct.sVatId ?? undefined,
     },

@@ -32,14 +32,6 @@ export const useProductOutputVatReport = () => {
 
   const decimalPart = useAppSelector(selectDecimalPart) ?? 3;
 
-  const resetFilters = () => {
-    setBranchId(defaultBranchId);
-    setProductId("0");
-    setVatId("0");
-    setFromDate(defaultDate);
-    setToDate(defaultDate);
-  };
-
   const { data: branches = [], isLoading: isLoadingBranches } = useQuery<BranchOption[]>({
     queryKey: ["branches-list-for-product-output-vat"],
     queryFn: getBranchList,
@@ -118,7 +110,20 @@ export const useProductOutputVatReport = () => {
         Decimals: decimalPart,
       }),
     enabled: !!fromDate && !!toDate && !!branchId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  const resetFilters = () => {
+    setBranchId(defaultBranchId);
+    setProductId("0");
+    setVatId("0");
+    setFromDate(defaultDate);
+    setToDate(defaultDate);
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  };
 
   const rows: ProductOutputVatRow[] = useMemo(() => {
     return reportData?.outPutData || [];

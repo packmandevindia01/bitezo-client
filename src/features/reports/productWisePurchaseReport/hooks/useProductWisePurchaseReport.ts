@@ -61,6 +61,8 @@ export const useProductWisePurchaseReport = () => {
       if (supplierId && supplierId !== "0") params.supplierId = Number(supplierId);
       return getProductWisePurchaseReport(params);
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Client-side filtering fallback for search term and filter selections
@@ -110,6 +112,9 @@ export const useProductWisePurchaseReport = () => {
     setProductId("0");
     setSupplierId("0");
     setSearchTerm("");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

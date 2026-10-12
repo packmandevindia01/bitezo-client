@@ -8,6 +8,7 @@ export interface CartRow {
   quantity: number;
   lineTotal: number;
   itemDiscount?: number;
+  billDiscountAmount?: number;
   amount: number;
   netValue: number;
   sc: number;
@@ -145,6 +146,12 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
             {formatAmount(item.lineTotal || 0)}
           </p>
         )}
+        {/* Bill discount indicator — shows the discount is applied even though column shows full price */}
+        {item.billDiscountAmount && item.billDiscountAmount > 0 ? (
+          <span className="mt-0.5 text-[8px] font-bold text-[#f37021] leading-none">
+            -{formatAmount(item.billDiscountAmount)}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -157,6 +164,7 @@ export const PosCartItemCard = memo(PosCartItemCardBase, (prev, next) => {
     prev.item.quantity === next.item.quantity &&
     prev.item.lineTotal === next.item.lineTotal &&
     prev.item.itemDiscount === next.item.itemDiscount &&
+    prev.item.billDiscountAmount === next.item.billDiscountAmount &&
     prev.item.netValue === next.item.netValue &&
     prev.item.extras?.length === next.item.extras?.length &&
     prev.item.modifiers?.length === next.item.modifiers?.length &&

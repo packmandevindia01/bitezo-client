@@ -27,7 +27,7 @@ export const useAllTransactionReport = () => {
   });
 
   // Fetch report data
-  const { data: reportData = [], isLoading, isFetching } = useQuery({
+  const { data: reportData = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["allTransactionReport", branchId, fromDate, toDate, decimalPart],
     queryFn: () =>
       allTransactionReportApi.getAllTransactionReport({
@@ -37,6 +37,8 @@ export const useAllTransactionReport = () => {
         Decimals: decimalPart,
       }),
     enabled: !!fromDate && !!toDate,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const handleReset = () => {
@@ -45,6 +47,9 @@ export const useAllTransactionReport = () => {
     if (!isBranchLocked) {
       setBranchId("1");
     }
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {
@@ -60,6 +65,7 @@ export const useAllTransactionReport = () => {
     reportData,
     isLoading: isLoading || isFetching,
     handleReset,
+    refetch,
     isBranchLocked,
   };
 };

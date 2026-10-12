@@ -26,12 +26,6 @@ export const useProductWiseLevyReport = () => {
 
   const decimalPart = useAppSelector(selectDecimalPart) ?? 3;
 
-  const resetFilters = () => {
-    setBranchId(defaultBranchId);
-    setFromDate(defaultDate);
-    setToDate(defaultDate);
-  };
-
   const { data: branches = [], isLoading: isLoadingBranches } = useQuery<BranchOption[]>({
     queryKey: ["branches-list-for-product-wise-levy"],
     queryFn: getBranchList,
@@ -68,7 +62,18 @@ export const useProductWiseLevyReport = () => {
         Decimals: decimalPart,
       }),
     enabled: !!fromDate && !!toDate && !!branchId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  const resetFilters = () => {
+    setBranchId(defaultBranchId);
+    setFromDate(defaultDate);
+    setToDate(defaultDate);
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  };
 
   const rows: ProductWiseLevyRow[] = useMemo(() => {
     return reportData?.productData || [];

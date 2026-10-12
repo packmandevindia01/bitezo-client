@@ -58,6 +58,8 @@ export const useProductTransactionLogReport = () => {
         ToDate: toDate,
       }),
     enabled: productId !== "0" && productId !== "",
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // ── Parse API response ────────────────────────────────────────────────────────
@@ -112,6 +114,9 @@ export const useProductTransactionLogReport = () => {
     setProductId("");
     setTransactionType("All");
     setSearchTerm("");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

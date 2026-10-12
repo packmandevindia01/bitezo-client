@@ -20,11 +20,6 @@ export const useOrderTypeSalesReport = () => {
 
   const decimalPart = useAppSelector(selectDecimalPart) ?? 3;
 
-  const resetFilters = () => {
-    setBranchId(defaultBranchId);
-    setFromDate(defaultDate);
-    setToDate(defaultDate);
-  };
 
   const { data: branches = [], isLoading: isLoadingBranches } = useQuery<BranchOption[]>({
     queryKey: ["branches-list"],
@@ -37,6 +32,7 @@ export const useOrderTypeSalesReport = () => {
     isLoading: isLoadingReport,
     isFetching,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["order-type-sales-report", branchId, fromDate, toDate, decimalPart],
     queryFn: () =>
@@ -47,6 +43,8 @@ export const useOrderTypeSalesReport = () => {
         Decimals: decimalPart,
       }),
     enabled: !!fromDate && !!toDate,
+    staleTime: 0,
+    refetchOnMount: true,
     select: (response): OrderTypeSalesReportData => {
       const data = response?.data;
       if (!data || !data.rows || !data.columns) {
@@ -86,6 +84,15 @@ export const useOrderTypeSalesReport = () => {
     },
   });
 
+  const resetFilters = () => {
+    setBranchId(defaultBranchId);
+    setFromDate(defaultDate);
+    setToDate(defaultDate);
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  };
+
   return {
     filters: {
       branchId,
@@ -106,6 +113,7 @@ export const useOrderTypeSalesReport = () => {
       rows: reportData?.rows || [],
       isLoading: isLoadingReport || isFetching,
       error,
+      refetch,
     },
   };
 };

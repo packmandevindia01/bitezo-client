@@ -285,21 +285,28 @@ export const menuApi = {
         currentDateTime
       }
     }));
-    const mapped = raw.map((a: any) => ({
-      ...a,
-      id: a.id ?? a.altId ?? a.altProductId ?? a.productId ?? a.unitId,
-      unitId: a.unitId ?? a.id,
-      altName: a.altName ?? a.altname ?? a.name ?? "",
-      altArabic: a.altArabic ?? a.altarabic ?? "",
-      price: Number(a.price) || 0,
-      isIncl: a.isIncl !== undefined ? Boolean(a.isIncl) :
-              a.priceIsIncl !== undefined ? Boolean(a.priceIsIncl) :
-              a.isincl !== undefined ? Boolean(a.isincl) :
-              a.priceView !== undefined ? (a.priceView === 'Inclusive') :
-              false,
-      promoPrice: a.promoPrice !== undefined ? Number(a.promoPrice) : undefined,
-      promoIsIncl: a.promoIsIncl !== undefined ? Boolean(a.promoIsIncl) : undefined,
-    })) as PosAlternative[];
+    const mapped = raw.map((a: any) => {
+      const resolvedUnitId = a.unitId ?? a.UnitId ?? a.unitID ?? a.UnitID ?? a.altId ?? a.AltId ?? a.id ?? a.Id;
+      const resolvedAltName = a.altName ?? a.AltName ?? a.altname ?? a.name ?? a.Name ?? "";
+      const resolvedAltArabic = a.altArabic ?? a.AltArabic ?? a.altarabic ?? a.arabic ?? a.Arabic ?? "";
+      return {
+        ...a,
+        id: a.id ?? a.Id ?? a.altId ?? a.AltId ?? a.altProductId ?? a.AltProductId ?? resolvedUnitId,
+        unitId: resolvedUnitId,
+        altName: resolvedAltName,
+        altArabic: resolvedAltArabic,
+        price: Number(a.price ?? a.Price ?? 0),
+        isIncl: a.isIncl !== undefined ? Boolean(a.isIncl) :
+                a.IsIncl !== undefined ? Boolean(a.IsIncl) :
+                a.priceIsIncl !== undefined ? Boolean(a.priceIsIncl) :
+                a.PriceIsIncl !== undefined ? Boolean(a.PriceIsIncl) :
+                a.isincl !== undefined ? Boolean(a.isincl) :
+                a.priceView !== undefined ? (a.priceView === 'Inclusive') :
+                false,
+        promoPrice: (a.promoPrice ?? a.PromoPrice) !== undefined ? Number(a.promoPrice ?? a.PromoPrice) : undefined,
+        promoIsIncl: (a.promoIsIncl ?? a.PromoIsIncl) !== undefined ? Boolean(a.promoIsIncl ?? a.PromoIsIncl) : undefined,
+      };
+    }) as PosAlternative[];
 
     return sortAlternatives(mapped);
   },

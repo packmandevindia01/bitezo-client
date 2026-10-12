@@ -77,6 +77,8 @@ export const useBillWiseMarginReport = () => {
         ToDate: toDate,
         Decimals: getDecimalPart(),
       }),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const rows = useMemo(() => reportQuery.data?.salesData || [], [reportQuery.data]);
@@ -94,7 +96,10 @@ export const useBillWiseMarginReport = () => {
     setCustomerId("0");
     setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
     setToDate(todayStr);
-  }, [today, todayStr, initialBranchId]);
+    setTimeout(() => {
+      reportQuery.refetch();
+    }, 0);
+  }, [today, todayStr, initialBranchId, reportQuery]);
 
   return {
     filters: {

@@ -62,6 +62,8 @@ export const useStockTransferReport = () => {
         ToDate: toDate,
         Decimals: decimalPart,
       }),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // ── Client-side search ──────────────────────────────────────────────────────
@@ -102,6 +104,9 @@ export const useStockTransferReport = () => {
     setToBranchId("0");
     setEmployeeId("0");
     setSearchTerm("");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

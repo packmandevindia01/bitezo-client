@@ -75,6 +75,7 @@ export const useProductWiseStockAdjustmentReport = () => {
         Decimals: decimalPart,
       }),
     refetchOnMount: "always",
+    staleTime: 0,
   });
 
   // ── Client-side search filter ───────────────────────────────────────────────
@@ -121,6 +122,9 @@ export const useProductWiseStockAdjustmentReport = () => {
     setTypeId("0");
     setEffect("");
     setSearchTerm("");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

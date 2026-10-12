@@ -74,6 +74,8 @@ export const useDayEndReport = () => {
         rows: enrichedRows,
       };
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const resetFilters = () => {
@@ -84,6 +86,9 @@ export const useDayEndReport = () => {
     setFromDate(defaultFrom);
     setToDate(defaultTo);
     setBranchId(isBranchLocked ? initialBranchId : "");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

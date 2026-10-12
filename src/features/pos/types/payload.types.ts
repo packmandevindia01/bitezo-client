@@ -44,6 +44,7 @@ export interface SalesInvoicePayload {
   netAmount: number;
   deliveryCharge?: number;
   callBack?: string;
+  complimentaryStatus?: boolean;
   orderMaster: {
     isOrderEdited?: boolean;
     sectionId?: number;
@@ -62,6 +63,7 @@ export interface SalesInvoicePayload {
     providerNo?: string;
     driverId?: number;
     transDate?: string;
+    complimentaryStatus?: boolean;
   };
   combinedOrderIds?: number[];
   modifiers?: any[];

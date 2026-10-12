@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2, Save, RotateCcw, X } from "lucide-react";
+import { Trash2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import SearchableSelect from "../../../../components/common/Searchableselect";
 import { unitCategoryOptions } from "../constants";
@@ -11,7 +11,7 @@ interface Props {
   saving?: boolean;
   error?: string | null;
   onSubmit: (form: UnitFormState) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   onDelete?: () => void;
   onClear?: () => void;
 }
@@ -24,7 +24,7 @@ const createInitialForm = (initialData?: UnitDetail | null): UnitFormState => ({
   parentId: initialData?.parentId ?? 0,
 });
 
-const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDelete, onClear }: Props) => {
+const UnitForm = ({ initialData, saving = false, error, onSubmit, onDelete, onClear }: Props) => {
   const [form, setForm] = useState<UnitFormState>(() => createInitialForm(initialData));
   const [errors, setErrors] = useState<{ name?: string; category?: string; conversion?: string }>({});
   const [parentOptions, setParentOptions] = useState<UnitNameListItem[]>([]);
@@ -227,17 +227,6 @@ const UnitForm = ({ initialData, saving = false, error, onSubmit, onCancel, onDe
       </section>
 
       <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
-        <Button 
-          variant="secondary" 
-          onClick={onCancel} 
-          type="button" 
-          disabled={saving} 
-          tabIndex={-1}
-          isAction
-          icon={<X size={18} />}
-        >
-          Cancel
-        </Button>
         <Button 
           variant="secondary" 
           onClick={handleClear} 

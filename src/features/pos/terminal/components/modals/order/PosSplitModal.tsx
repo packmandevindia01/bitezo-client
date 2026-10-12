@@ -98,7 +98,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           products,
         });
 
-        const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || "";
+        const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || cartItem.variantName || "";
         const baseName = d.productName || d.ProductName || cartItem.product?.name || "Item";
         const displayName = formatItemDisplayName(baseName, rawAlt);
 
@@ -347,8 +347,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     const hasBillDiscount = Boolean(
       originalOrder?.complimentaryStatus ||
       originalOrder?.ComplimentaryStatus ||
-      (originalOrder?.discPer !== undefined && originalOrder?.discPer !== null && Number(originalOrder.discPer) > 0) ||
-      Number(originalOrder?.discAmount || 0) > 0 ||
+      ((originalOrder?.discPer !== undefined && originalOrder?.discPer !== null && Number(originalOrder.discPer) > 0) ||
+       (originalOrder?.DiscPer !== undefined && originalOrder?.DiscPer !== null && Number(originalOrder.DiscPer) > 0)) ||
+      Number(originalOrder?.discAmount || originalOrder?.DiscAmount || 0) > 0 ||
       Number(originalOrder?.billDiscountValue || 0) > 0
     );
 

@@ -37,6 +37,8 @@ export const useDailySalesReport = () => {
         ToDate: toDate,
         Decimals: decimalPart,
       }),
+    staleTime: 0,
+    refetchOnMount: true,
     select: (data) => {
       if (!data?.columns || !data?.rows) return data;
       
@@ -80,6 +82,9 @@ export const useDailySalesReport = () => {
     setFromDate(defaultFrom);
     setToDate(defaultTo);
     setBranchId(defaultBranch);
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   const parsedReportData: DailySalesReportData = reportData || {

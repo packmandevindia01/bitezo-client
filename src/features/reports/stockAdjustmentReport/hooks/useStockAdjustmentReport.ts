@@ -30,13 +30,6 @@ export const useStockAdjustmentReport = () => {
   const [fromDate, setFromDate] = useState<string>(getFirstDayOfMonthString());
   const [toDate, setToDate] = useState<string>(getTodayString());
 
-  const resetFilters = useCallback(() => {
-    setBranchId(initialBranchId);
-    setEmployeeId("0");
-    setFromDate(getFirstDayOfMonthString());
-    setToDate(getTodayString());
-  }, [initialBranchId]);
-
   const { data: branches = [] } = useQuery({
     queryKey: ["stockAdjustmentBranchList"],
     queryFn: getBranchList,
@@ -57,7 +50,19 @@ export const useStockAdjustmentReport = () => {
   } = useQuery({
     queryKey: ["stockAdjustmentReport", branchId, employeeId, fromDate, toDate],
     queryFn: () => getStockAdjustmentReport({ branchId, employeeId, fromDate, toDate }),
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  const resetFilters = useCallback(() => {
+    setBranchId(initialBranchId);
+    setEmployeeId("0");
+    setFromDate(getFirstDayOfMonthString());
+    setToDate(getTodayString());
+    setTimeout(() => {
+      refetch();
+    }, 0);
+  }, [initialBranchId, refetch]);
 
   return {
     filters: {

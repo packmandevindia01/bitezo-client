@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
 import { roundCalc } from '../utils/billing';
+import { getModifierTypeNameById } from '../../services/menuApi';
 
 interface UsePosVoidFlowProps {
   cartDetails: any[];
@@ -55,27 +56,32 @@ export const usePosVoidFlow = ({
             productName: item.product?.name || `Product #${item.productId}`,
             onConfirmed: () => {
               const unitId = item.product?.unitId || 1;
-              const mapId = item.mapId || 0;
+              const mapId = Number(item.mapId || 0);
               const origQty = item.originalQty ?? item.quantity;
               const voidQty = Math.max(1, Math.min(item.quantity, origQty));
 
               const voidExtras = (item.extras || []).map((ex: any) => ({
                 id: ex.id || ex.modifierId,
-                name: ex.name || ex.modifierName || "Extra",
+                name: (ex.name && ex.name !== "Extra") ? ex.name : (ex.modifierName || ex.name || "Extra"),
                 arabicName: ex.arabicName || ex.arabic,
                 price: ex.price || 0,
                 qty: ex.qty || 1,
                 typeId: ex.typeId || 2,
               }));
 
-              const voidModifiers = (item.modifiers || []).map((mod: any) => ({
-                id: mod.id || mod.modifierId,
-                name: mod.name || mod.modifierName || "Modifier",
-                arabicName: mod.arabicName || mod.arabic,
-                qty: mod.qty || 1,
-                typeId: mod.typeId || 1,
-                typeName: mod.typeName,
-              }));
+              const voidModifiers = (item.modifiers || []).map((mod: any) => {
+                const typeId = Number(mod.typeId ?? 1);
+                const typeName = mod.typeName || mod.modifierTypeName || (typeId ? getModifierTypeNameById(typeId) : "") || "";
+                const name = (mod.name && mod.name !== "Modifier") ? mod.name : (mod.modifierName || mod.name || "Modifier");
+                return {
+                  id: mod.id || mod.modifierId,
+                  name,
+                  arabicName: mod.arabicName || mod.arabic,
+                  qty: mod.qty || 1,
+                  typeId,
+                  typeName,
+                };
+              });
 
               const voidMessages = (item.messages || []).map((msg: any) => ({
                 id: msg.id,
@@ -156,26 +162,31 @@ export const usePosVoidFlow = ({
         permissionId: 8, // Product Void
         onAuthorized: () => {
           const unitId = item.product?.unitId || 1;
-          const mapId = item.mapId || 0;
+          const mapId = Number(item.mapId || 0);
           const ratio = item.quantity > 0 ? 1 / item.quantity : 1;
 
           const voidExtras = (item.extras || []).map((ex: any) => ({
             id: ex.id || ex.modifierId,
-            name: ex.name || ex.modifierName || "Extra",
+            name: (ex.name && ex.name !== "Extra") ? ex.name : (ex.modifierName || ex.name || "Extra"),
             arabicName: ex.arabicName || ex.arabic,
             price: ex.price || 0,
             qty: Math.max(1, Math.round((ex.qty || 1) * ratio)),
             typeId: ex.typeId || 2,
           }));
 
-          const voidModifiers = (item.modifiers || []).map((mod: any) => ({
-            id: mod.id || mod.modifierId,
-            name: mod.name || mod.modifierName || "Modifier",
-            arabicName: mod.arabicName || mod.arabic,
-            qty: Math.max(1, Math.round((mod.qty || 1) * ratio)),
-            typeId: mod.typeId || 1,
-            typeName: mod.typeName,
-          }));
+          const voidModifiers = (item.modifiers || []).map((mod: any) => {
+            const typeId = Number(mod.typeId ?? 1);
+            const typeName = mod.typeName || mod.modifierTypeName || (typeId ? getModifierTypeNameById(typeId) : "") || "";
+            const name = (mod.name && mod.name !== "Modifier") ? mod.name : (mod.modifierName || mod.name || "Modifier");
+            return {
+              id: mod.id || mod.modifierId,
+              name,
+              arabicName: mod.arabicName || mod.arabic,
+              qty: Math.max(1, Math.round((mod.qty || 1) * ratio)),
+              typeId,
+              typeName,
+            };
+          });
 
           const voidMessages = (item.messages || []).map((msg: any) => ({
             id: msg.id,

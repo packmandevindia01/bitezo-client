@@ -61,6 +61,8 @@ export const useSalesReport = () => {
         PaymodeId: Number(paymodeId),
         Decimals: decimalPart,
       }),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Client-side filtering
@@ -122,6 +124,9 @@ export const useSalesReport = () => {
     setPaymodeId("0");
     setSeriesId("0");
     setSearchTerm("");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

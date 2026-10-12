@@ -285,10 +285,15 @@ const PhysicalEntryPage = () => {
                                 <select
                                   id={`unit-select-${index}`}
                                   {...f}
-                                  className="w-full h-7 bg-transparent border border-transparent rounded px-1 py-0 text-xs outline-none cursor-not-allowed text-gray-500 bg-gray-50"
-                                  disabled={true}
-                                  tabIndex={-1}
+                                  className={`w-full h-7 border rounded px-1 py-0 text-xs outline-none transition-colors
+                                    ${!itemWatch.product || unitOptions.length <= 1
+                                      ? "bg-gray-50 border-transparent text-gray-400 cursor-not-allowed"
+                                      : "bg-transparent border-transparent hover:border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-700 cursor-pointer"
+                                    }`}
+                                  disabled={!canSave || !itemWatch.product || unitOptions.length <= 1}
+                                  tabIndex={unitOptions.length > 1 && !!itemWatch.product ? 0 : -1}
                                   onChange={(e) => {
+                                    f.onChange(e);
                                     handleUnitChange(index, e.target.value);
                                     setTimeout(() => document.getElementById(`qty-input-${index}`)?.focus(), 50);
                                   }}

@@ -37,6 +37,8 @@ export const useEmployeeSalesReport = () => {
         ToDate: toDate,
         Decimals: decimalPart,
       }),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const resetFilters = () => {
@@ -47,6 +49,9 @@ export const useEmployeeSalesReport = () => {
     setFromDate(defaultFrom);
     setToDate(defaultTo);
     setBranchId(initialBranchId);
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

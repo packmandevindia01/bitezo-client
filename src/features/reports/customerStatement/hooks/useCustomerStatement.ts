@@ -42,6 +42,8 @@ export const useCustomerStatement = () => {
       CustomerId: Number(customerId),
       Decimals: decimalPart !== undefined ? decimalPart : 3,
     }),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Reset Filters Function
@@ -51,6 +53,9 @@ export const useCustomerStatement = () => {
     setToDate(today.toISOString().split("T")[0]);
     setBranchId(initialBranchId);
     setCustomerId("0");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {

@@ -253,12 +253,14 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     const fullOrder = res.data;
     const master = fullOrder.masterData || fullOrder;
     const details = sortOrderDetailsBySequence(fullOrder.detailsData || fullOrder.details || []);
-    const modifiersData = fullOrder.modifiersData || [];
+    const modifiersData = fullOrder.modifiersData || fullOrder.modifiers || fullOrder.ModifiersData || fullOrder.Modifiers || [];
 
     // Deduplicate modifiersData (SQL Cartesian fix)
     const seenMods = new Set<string>();
     const dedupedModifiers = modifiersData.filter((m: any) => {
-      const key = `${m.mapId}-${m.modifierId}`;
+      const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
+      const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
+      const key = `${mMapId}-${mModId}`;
       if (seenMods.has(key)) return false;
       seenMods.add(key);
       return true;
@@ -272,20 +274,42 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       } catch { return 'Exclusive'; }
     })();
 
+    const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
+    const lineDiscountsSum = details.reduce((sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
+    const resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? lineDiscountsSum);
+    const netAmount = Number(master.netAmount ?? master.NetAmount ?? 0);
+
+    const isBillComplimentary = Boolean(
+      master.complimentaryStatus ||
+      master.ComplimentaryStatus ||
+      masterDiscPer === 100 ||
+      (details.length > 0 && details.every((d: any) =>
+        Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+      )) ||
+      (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
+    );
+
+    const hasLineItemDiscounts = lineDiscountsSum > 0;
+    const isBillLevelDiscount =
+      isBillComplimentary ||
+      masterDiscPer > 0 ||
+      (!hasLineItemDiscounts && resolvedDiscount > 0);
+
     const mappedItems = mapOrderDetailsToCartItems(details, dedupedModifiers, {
       productCache,
       priceView,
+      masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
+      isOrderBillDiscount: isBillLevelDiscount,
     });
 
-    return { master, mappedItems, fullOrder };
+    return { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount };
   };
 
   /* ── EDIT — load selected order into cart ── */
   const handleEdit = async () => {
     if (!selectedMaster || !data || loading) return;
     try {
-      const { master, mappedItems, fullOrder } = await fetchAndMapFullOrder(selectedMaster.orderId);
-      const details = fullOrder?.detailsData || fullOrder?.details || [];
+      const { master, mappedItems, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount } = await fetchAndMapFullOrder(selectedMaster.orderId);
       const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
       const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
       if (prevUpdatedAt) {
@@ -301,22 +325,17 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       })();
       const billingConfig = getBillingConfig('DineIn');
       const isIncl = priceView === 'Inclusive';
-      const hasLineItemDiscounts = details.some((d: any) => Number(d.discAmount || d.discountValue || 0) > 0);
-      const isBillLevelDiscount =
-        Boolean(master.complimentaryStatus || master.ComplimentaryStatus) ||
-        (master.discPer !== undefined && master.discPer !== null && Number(master.discPer) > 0) ||
-        (!hasLineItemDiscounts && Number(master.discAmount || 0) > 0);
 
       const resolvedBillDiscType: 'percentage' | 'amount' =
-        (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100) || (master.discPer && Number(master.discPer) > 0))
+        (isBillComplimentary || masterDiscPer > 0)
           ? 'percentage'
           : 'amount';
-      let resolvedBillDiscVal = (master.complimentaryStatus || master.ComplimentaryStatus || (master.discPer && Number(master.discPer) === 100))
+      let resolvedBillDiscVal = isBillComplimentary
         ? 100
-        : master.discPer && Number(master.discPer) > 0
-        ? Number(master.discPer)
+        : masterDiscPer > 0
+        ? masterDiscPer
         : isBillLevelDiscount
-        ? Number(master.discAmount || 0)
+        ? resolvedDiscount
         : 0;
 
       if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
@@ -337,7 +356,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         tableId: table!.tableId,
         deliveryCharge: master.deliveryCharge || 0,
         waiterName: master.employeeName ?? "Waiter",
-        authoritativeNetAmount: Number(master.netAmount ?? selectedMaster.netAmount ?? 0),
+        authoritativeNetAmount: isBillComplimentary ? 0 : Number(master.netAmount ?? selectedMaster.netAmount ?? 0),
         prevUpdatedAt,
       }));
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
@@ -401,8 +420,13 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         customerId: master.customerId || 1,
         employeeId,
         transDate: master.transDate || master.voucherDate || activeTransDate,
-        discAmount: master.discAmount || master.discount || 0,
-        discPer: master.discPer || 0,
+        discAmount: Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0),
+        discPer: Number(master.discPer ?? master.DiscPer ?? 0),
+        complimentaryStatus: Boolean(
+          master.complimentaryStatus ||
+          master.ComplimentaryStatus ||
+          Number(master.discPer ?? master.DiscPer ?? 0) === 100
+        ),
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatExclAmount: master.vatExclAmount || 0,
@@ -443,15 +467,19 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
             basePrice: exclPrice,
             exclusivePrice: exclPrice,
             isPriceTaxExclusive: true,
-            discPer: d.discPer || 0,
-            discAmount: d.discAmount || 0,
+            discPer: Number(d.discPer ?? d.DiscPer ?? 0),
+            discAmount: Number(d.discAmount ?? d.DiscAmount ?? 0),
             serviceCharge: d.serviceCharge || 0,
             levy: d.levy || 0,
             vatId: d.vatId || 0,
             vatAmount: d.vatAmount || 0,
             netAmount: d.netAmount ?? ((d.price || 0) * (d.qty || 1)),
             mapId: d.mapId || 0,
-            complimentaryStatus: Boolean(d.complimentaryStatus || (d.discPer && Number(d.discPer) === 100)),
+            complimentaryStatus: Boolean(
+              d.complimentaryStatus ||
+              d.ComplimentaryStatus ||
+              Number(d.discPer ?? d.DiscPer ?? 0) === 100
+            ),
             baseQty: d.baseQty || d.qty || 1,
           };
         }),

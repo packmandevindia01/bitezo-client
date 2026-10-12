@@ -180,7 +180,7 @@ const StockRegisterReportPage = () => {
 
           <ResetButton
             onReset={handleReset}
-            className="absolute bottom-3 right-3 z-30"
+            className="absolute bottom-3 right-3 z-30 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white"
           />
 
           <div className="px-2 py-2 flex flex-col xl:flex-row gap-2 divide-y xl:divide-y-0 xl:divide-x divide-gray-200">

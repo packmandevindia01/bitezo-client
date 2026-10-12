@@ -55,6 +55,8 @@ export const useSupplierStatement = () => {
       SupplierId: Number(supplierId),
       Decimals: decimalPart !== undefined ? decimalPart : 3,
     }),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Reset Filters Function
@@ -64,6 +66,9 @@ export const useSupplierStatement = () => {
     setToDate(today.toISOString().split("T")[0]);
     setBranchId(initialBranchId);
     setSupplierId("0");
+    setTimeout(() => {
+      refetch();
+    }, 0);
   };
 
   return {
