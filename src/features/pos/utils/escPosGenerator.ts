@@ -358,7 +358,22 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
     // Extras
     if (item.extras && item.extras.length > 0) {
+      const dedupedExtrasMap = new Map<string, any>();
       item.extras.forEach(ex => {
+        const rawExName = (ex.name || (ex as any).modifierName || "").trim();
+        if (!rawExName) return;
+        const exId = ex.id || (ex as any).modifierId || 0;
+        const typeId = ex.typeId || 0;
+        const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${rawExName.toLowerCase()}`;
+        if (dedupedExtrasMap.has(key)) {
+          const existing = dedupedExtrasMap.get(key);
+          existing.qty = (existing.qty || 1) + (ex.qty || 1);
+        } else {
+          dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
+        }
+      });
+
+      Array.from(dedupedExtrasMap.values()).forEach(ex => {
         const exName  = `  + ${(ex.name || "EXTRA").toUpperCase()}`;
         const exAmt   = fmt(ex.price * (ex.qty || 1));
         displaySubTotal += parseFloat(exAmt);
@@ -368,7 +383,22 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
     // Modifiers (no price, just name note)
     if (item.modifiers && item.modifiers.length > 0) {
+      const dedupedModsMap = new Map<string, any>();
       item.modifiers.forEach(mod => {
+        const rawModName = (mod.name || (mod as any).modifierName || "").trim();
+        if (!rawModName) return;
+        const modId = mod.id || (mod as any).modifierId || 0;
+        const typeId = mod.typeId || 0;
+        const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${rawModName.toLowerCase()}`;
+        if (dedupedModsMap.has(key)) {
+          const existing = dedupedModsMap.get(key);
+          existing.qty = (existing.qty || 1) + (mod.qty || 1);
+        } else {
+          dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
+        }
+      });
+
+      Array.from(dedupedModsMap.values()).forEach(mod => {
         const rawTypeName = (mod.typeName || (mod as any).modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
         const rawModName = (mod.name || (mod as any).modifierName || "MODIFIER").trim();
         const typeUpper = rawTypeName.toUpperCase();
@@ -395,7 +425,14 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
 
     // Messages / Notes
     if (item.messages && item.messages.length > 0) {
-      item.messages.forEach(msg => {
+      const seenMsgs = new Set<string>();
+      const dedupedMsgs = item.messages.filter((msg: any) => {
+        const k = String(msg.name || "").trim().toLowerCase();
+        if (!k || seenMsgs.has(k)) return false;
+        seenMsgs.add(k);
+        return true;
+      });
+      dedupedMsgs.forEach(msg => {
         markup += `[L]  MSG: ${(msg.name || "").toUpperCase()}\n`;
       });
     }
@@ -633,7 +670,22 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
     // Extras
     if (item.extras && item.extras.length > 0) {
+      const dedupedExtrasMap = new Map<string, any>();
       item.extras.forEach(ex => {
+        const rawExName = (ex.name || (ex as any).modifierName || "").trim();
+        if (!rawExName) return;
+        const exId = ex.id || (ex as any).modifierId || 0;
+        const typeId = ex.typeId || 0;
+        const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${rawExName.toLowerCase()}`;
+        if (dedupedExtrasMap.has(key)) {
+          const existing = dedupedExtrasMap.get(key);
+          existing.qty = (existing.qty || 1) + (ex.qty || 1);
+        } else {
+          dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
+        }
+      });
+
+      Array.from(dedupedExtrasMap.values()).forEach(ex => {
         const exName = `  + ${(ex.name || (ex as any).modifierName || "EXTRA").toUpperCase()}`;
         const exQty = padLeft(String(ex.qty || 1), 5);
         markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
@@ -642,7 +694,22 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
     // Modifiers
     if (item.modifiers && item.modifiers.length > 0) {
+      const dedupedModsMap = new Map<string, any>();
       item.modifiers.forEach(mod => {
+        const rawModName = (mod.name || (mod as any).modifierName || "").trim();
+        if (!rawModName) return;
+        const modId = mod.id || (mod as any).modifierId || 0;
+        const typeId = mod.typeId || 0;
+        const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${rawModName.toLowerCase()}`;
+        if (dedupedModsMap.has(key)) {
+          const existing = dedupedModsMap.get(key);
+          existing.qty = (existing.qty || 1) + (mod.qty || 1);
+        } else {
+          dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
+        }
+      });
+
+      Array.from(dedupedModsMap.values()).forEach(mod => {
         const rawTypeName = (mod.typeName || (mod as any).modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
         const rawModName = (mod.name || (mod as any).modifierName || "").trim();
         const typeUpper = rawTypeName.toUpperCase();
@@ -669,7 +736,14 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
     // Messages / Kitchen Notes
     if (item.messages && item.messages.length > 0) {
-      item.messages.forEach(msg => {
+      const seenMsgs = new Set<string>();
+      const dedupedMsgs = item.messages.filter((msg: any) => {
+        const k = String(msg.name || "").trim().toLowerCase();
+        if (!k || seenMsgs.has(k)) return false;
+        seenMsgs.add(k);
+        return true;
+      });
+      dedupedMsgs.forEach(msg => {
         markup += `[L]  NOTE: ${(msg.name || "").toUpperCase()}\n`;
       });
     }

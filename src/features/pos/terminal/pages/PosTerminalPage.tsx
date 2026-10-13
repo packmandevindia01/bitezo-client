@@ -581,7 +581,8 @@ export const PosTerminalPage = () => {
           });
         }}
         onCustomer={() => modals.setIsCustomerModalOpen(true)}
-        onCashierOut={() => modals.setIsCashierSessionOpen(true)}
+        onLogout={() => modals.setIsLogoutChoiceOpen(true)}
+        onCashierOut={() => modals.setIsLogoutChoiceOpen(true)}
         status={status}
         orderTypes={terminal.orderTypes}
         selectedOrderTypeId={terminal.selectedOrderTypeId}
@@ -751,6 +752,8 @@ export const PosTerminalPage = () => {
           handleSettle={stableHandleSettle}
           orderLoading={terminal.orderLoading}
           isSettledEdit={isSettledEdit}
+          editingSaleId={editingSaleId}
+          onCancelSettledEdit={handleClearCart}
           selectedTender={selectedTender}
           setSelectedTender={setSelectedTender}
           setIsMultiPayModalOpen={modals.setIsMultiPayModalOpen}

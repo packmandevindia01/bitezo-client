@@ -48,13 +48,12 @@ const CustomerStatementPage = () => {
     }));
   }, [masterData.branches]);
 
-  const customerOptions = useMemo(() => [
-    { label: "All", value: "0" },
-    ...(masterData.customers as any[]).map((s: any) => ({
+  const customerOptions = useMemo(() => {
+    return (masterData.customers as any[]).map((s: any) => ({
       label: s.code ? `[${s.code}] ${s.customerName}` : s.customerName,
       value: String(s.customerId)
-    })),
-  ], [masterData.customers]);
+    }));
+  }, [masterData.customers]);
 
   const statementData = report.statementData;
 
@@ -113,8 +112,8 @@ const CustomerStatementPage = () => {
             <div className="pb-3 xl:pb-0 xl:pr-4 flex flex-col gap-2 shrink-0 justify-start">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">Customer</span>
-                <div className="w-44">
-                  <SearchableSelect id="ss-customer" options={customerOptions} value={filters.customerId} onChange={filters.setCustomerId} placeholder="All" />
+                <div className="w-52">
+                  <SearchableSelect id="ss-customer" options={customerOptions} value={filters.customerId} onChange={filters.setCustomerId} placeholder="Select a Customer" />
                 </div>
               </div>
             </div>
@@ -175,7 +174,9 @@ const CustomerStatementPage = () => {
                 ) : statementData.length === 0 ? (
                   <tr>
                     <td colSpan={COLS.length} className="text-center py-20 text-gray-400 text-sm">
-                      No records found. Adjust filters.
+                      {!filters.customerId || Number(filters.customerId) === 0
+                        ? "Please select a customer to view statement."
+                        : "No records found. Adjust filters."}
                     </td>
                   </tr>
                 ) : (

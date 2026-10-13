@@ -18,6 +18,8 @@ export const usePosModals = () => {
   const [isSplitOpen, setIsSplitOpen] = useState(false);
   const [isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isLogoutChoiceOpen, setIsLogoutChoiceOpen] = useState(false);
+  const [sessionInitialTab, setSessionInitialTab] = useState<"SHIFT" | "DAY">("SHIFT");
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [isQtyModalOpen, setIsQtyModalOpen] = useState(false);
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
@@ -44,6 +46,7 @@ export const usePosModals = () => {
       case 'split': setIsSplitOpen(true); break;
       case 'deliveryCharge': setIsDeliveryChargeModalOpen(true); break;
       case 'logoutConfirm': setIsLogoutConfirmOpen(true); break;
+      case 'logoutChoice': setIsLogoutChoiceOpen(true); break;
       case 'price': setIsPriceModalOpen(true); break;
       case 'qty': setIsQtyModalOpen(true); break;
       case 'cash': setIsCashModalOpen(true); break;
@@ -72,6 +75,7 @@ export const usePosModals = () => {
       case 'split': setIsSplitOpen(false); break;
       case 'deliveryCharge': setIsDeliveryChargeModalOpen(false); break;
       case 'logoutConfirm': setIsLogoutConfirmOpen(false); break;
+      case 'logoutChoice': setIsLogoutChoiceOpen(false); break;
       case 'price': setIsPriceModalOpen(false); break;
       case 'qty': setIsQtyModalOpen(false); break;
       case 'cash': setIsCashModalOpen(false); break;
@@ -102,6 +106,8 @@ export const usePosModals = () => {
     isSplitOpen, setIsSplitOpen,
     isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen,
     isLogoutConfirmOpen, setIsLogoutConfirmOpen,
+    isLogoutChoiceOpen, setIsLogoutChoiceOpen,
+    sessionInitialTab, setSessionInitialTab,
     isPriceModalOpen, setIsPriceModalOpen,
     isQtyModalOpen, setIsQtyModalOpen,
     isCashModalOpen, setIsCashModalOpen,

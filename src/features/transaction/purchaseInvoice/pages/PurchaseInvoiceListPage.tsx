@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput } from "../../../../components/common";
+import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput, Checkbox } from "../../../../components/common";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { purchaseInvoiceApi } from "../services/purchaseInvoiceApi";
 import { usePermissions } from "../../../../hooks/usePermissions";
+import { useCurrency } from "../../../../hooks/useCurrency";
 
 const getFirstDayOfMonth = () => {
   const d = new Date();
@@ -32,12 +33,14 @@ const PurchaseInvoiceListPage = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { hasPermission } = usePermissions();
+  const { formatAmount, decimalPart } = useCurrency();
   
   const [invoices, setInvoices] = useState<PurchaseInvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [fromDate, setFromDate] = useState(getFirstDayOfMonth());
   const [toDate, setToDate] = useState(getToday());
+  const [includeCancelled, setIncludeCancelled] = useState(false);
 
   const [cancelModal, setCancelModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [cancelling, setCancelling] = useState(false);
@@ -54,6 +57,8 @@ const PurchaseInvoiceListPage = () => {
       const params: any = {
         FromDate: fromDate ? fromDate.split("T")[0] : getFirstDayOfMonth(),
         ToDate: toDate ? toDate.split("T")[0] : getToday(),
+        IncludeCancelled: includeCancelled,
+        Decimals: decimalPart || 3,
       };
       if (activeBranch > 1) {
         params.BranchId = activeBranch;
@@ -69,7 +74,7 @@ const PurchaseInvoiceListPage = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, includeCancelled]);
 
   const handleCancel = async () => {
     if (!cancelModal.id) return;
@@ -107,27 +112,51 @@ const PurchaseInvoiceListPage = () => {
     { 
       header: "Sl No", 
       accessor: "purchaseId" as keyof PurchaseInvoiceRow,
+      align: "center",
       render: (_: PurchaseInvoiceRow, index: number) => <span className="text-gray-500 font-medium">{index + 1}</span>
     },
-    { header: "Invoice No", accessor: "invoiceNo" as keyof PurchaseInvoiceRow },
+    { header: "Invoice No", accessor: "invoiceNo" as keyof PurchaseInvoiceRow, align: "center" },
     { 
       header: "Date", 
       accessor: "purchaseDate" as keyof PurchaseInvoiceRow,
+      align: "center",
       render: (row: PurchaseInvoiceRow) => row.purchaseDate ? new Date(row.purchaseDate).toLocaleDateString("en-GB") : "-"
     },
-    { header: "Supplier", accessor: "supplier" as keyof PurchaseInvoiceRow, render: (row: PurchaseInvoiceRow) => row.supplier || row.supplierName || "-" },
+    { 
+      header: "Supplier", 
+      accessor: "supplier" as keyof PurchaseInvoiceRow, 
+      align: "center", 
+      render: (row: PurchaseInvoiceRow) => row.supplier || row.supplierName || "-" 
+    },
     { 
       header: "Amount", 
       accessor: "netAmount" as keyof PurchaseInvoiceRow,
       align: "right",
-      render: (row: PurchaseInvoiceRow) => <span className="font-semibold text-right block">{Number(row.netAmount || 0).toFixed(3)}</span>
+      render: (row: PurchaseInvoiceRow) => <span className="font-semibold text-right block">{formatAmount(Number(row.netAmount || 0))}</span>
+    },
+    {
+      header: "Status",
+      accessor: "isCancelled" as keyof PurchaseInvoiceRow,
+      align: "center",
+      render: (row: PurchaseInvoiceRow) => (
+        row.isCancelled ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+            Cancelled
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+            Active
+          </span>
+        )
+      ),
     },
     {
       header: "Actions",
       accessor: "purchaseId" as keyof PurchaseInvoiceRow,
+      align: "center",
       render: (row: PurchaseInvoiceRow) => (
-        <div className="flex gap-2">
-          {!row.isCancelled && hasPermission("Purchase Invoice", "Edit") && (
+        <div className="flex gap-2 justify-center">
+          {hasPermission("Purchase Invoice", "Edit") && (
             <button
               onClick={() => navigate(`/dashboard/purchase-invoice/edit/${row.purchaseId || row.id}`)}
               className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
@@ -136,11 +165,16 @@ const PurchaseInvoiceListPage = () => {
               <Pencil size={16} />
             </button>
           )}
-          {!row.isCancelled && hasPermission("Purchase Invoice", "Delete") && (
+          {hasPermission("Purchase Invoice", "Delete") && (
             <button
-              onClick={() => setCancelModal({ open: true, id: row.purchaseId || row.id || 0 })}
-              className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
-              title="Cancel"
+              onClick={() => !row.isCancelled && setCancelModal({ open: true, id: row.purchaseId || row.id || 0 })}
+              disabled={row.isCancelled}
+              className={`inline-flex rounded-lg p-2 transition-colors ${
+                row.isCancelled
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-red-500 hover:bg-red-50"
+              }`}
+              title={row.isCancelled ? "Invoice already cancelled" : "Cancel"}
             >
               <Trash2 size={16} />
             </button>
@@ -153,7 +187,7 @@ const PurchaseInvoiceListPage = () => {
   return (
     <PageShell title="Purchase Invoices">
       <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-        <div className="flex gap-4 items-end flex-1">
+        <div className="flex flex-wrap gap-4 items-end flex-1">
           <div className="w-40">
             <FormInput
               label="From Date"
@@ -178,6 +212,13 @@ const PurchaseInvoiceListPage = () => {
               value={searchTerm}
               onChange={setSearchTerm}
               placeholder="Search by Purchase No, Invoice No, or Supplier..."
+            />
+          </div>
+          <div className="mb-2">
+            <Checkbox
+              label="Include Cancelled"
+              checked={includeCancelled}
+              onChange={(e) => setIncludeCancelled(e.target.checked)}
             />
           </div>
         </div>

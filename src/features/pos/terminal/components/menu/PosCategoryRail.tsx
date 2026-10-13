@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import type { PosCategory } from "../../../types";
+import { getLocalizedName } from "../../../utils/posLocalization";
 
 interface PosCategoryRailProps {
   categories: PosCategory[];
@@ -44,6 +45,7 @@ const PosCategoryRailComponent = ({
       >
         {categories.map((category) => {
           const isActive = category.id.toString() === activeCategoryId.toString();
+          const localized = getLocalizedName(category.name, category.arabicName);
 
           return (
             <button
@@ -66,7 +68,7 @@ const PosCategoryRailComponent = ({
                 {category.imageUrl ? (
                   <img 
                     src={category.imageUrl} 
-                    alt={category.name} 
+                    alt={localized.primary} 
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
@@ -74,17 +76,17 @@ const PosCategoryRailComponent = ({
                   />
                 ) : (
                   <span className={`text-[12px] md:text-[14px] font-black uppercase select-none ${isActive ? 'text-[#49293e]' : 'text-slate-300'}`}>
-                    {category.name.substring(0, 2)}
+                    {localized.primary.substring(0, 2)}
                   </span>
                 )}
               </div>
               <div className="flex flex-col flex-1 min-h-0 min-w-0 items-center justify-center w-full px-1 py-0.5 overflow-hidden">
                 <p className={`text-[9px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-[1.15] line-clamp-2 break-words text-center ${isActive ? "text-white" : "text-[#49293e]"}`}>
-                  {category.name}
+                  {localized.primary}
                 </p>
-                {category.arabicName && (
+                {localized.secondary && (
                   <p className={`text-[8px] md:text-[9px] xl:text-[10px] font-bold leading-[1.15] mt-0.5 line-clamp-1 break-words text-center ${isActive ? "text-white/90" : "text-slate-500"}`}>
-                    {category.arabicName}
+                    {localized.secondary}
                   </p>
                 )}
               </div>

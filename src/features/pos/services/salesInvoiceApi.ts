@@ -126,31 +126,92 @@ export const salesInvoiceApi = {
   
   updateSalesInvoice: async (saleId: number, payload: SalesInvoicePayload): Promise<boolean> => {
     try {
-      const putPayload: any = { ...payload };
-      putPayload.saleId = saleId;
-      putPayload.updateAt = new Date().toISOString();
+      const numSaleId = Number(saleId);
+      const voucherDateStr = payload.voucherDate
+        ? (payload.voucherDate.includes("T") ? payload.voucherDate.split("T")[0] : payload.voucherDate)
+        : new Date().toISOString().split("T")[0];
 
-      // Ensure voucherDate is strictly Date-Only (YYYY-MM-DD)
-      if (putPayload.voucherDate) {
-        putPayload.voucherDate = putPayload.voucherDate.includes("T")
-          ? putPayload.voucherDate.split("T")[0]
-          : putPayload.voucherDate;
-      } else {
-        putPayload.voucherDate = new Date().toISOString().split("T")[0];
-      }
+      const putPayload = {
+        saleId: numSaleId,
+        customerId: Number(payload.customerId || 1),
+        paymodeId: Number(payload.paymodeId || 1),
+        employeeId: Number(payload.employeeId || 1),
+        orderTypeId: Number(payload.orderTypeId || 1),
+        orderId: Number(payload.orderId || 0),
+        voucherDate: voucherDateStr,
+        discAmount: Number(payload.discAmount || 0),
+        discPer: Number(payload.discPer || 0),
+        serviceCharge: Number(payload.serviceCharge || 0),
+        levy: Number(payload.levy || 0),
+        vatExclAmount: Number(payload.vatExclAmount || 0),
+        vatAmount: Number(payload.vatAmount || 0),
+        deliveryCharge: Number(payload.deliveryCharge || 0),
+        netAmount: Number(payload.netAmount || 0),
+        updateAt: new Date().toISOString(),
+        details: (payload.details || []).map((d: any) => ({
+          productId: Number(d.productId || 0),
+          unitId: Number(d.unitId || 1),
+          vatId: Number(d.vatId || 1),
+          qty: Number(d.qty || 0),
+          price: Number(d.price || 0),
+          discPer: Number(d.discPer || 0),
+          discAmount: Number(d.discAmount || 0),
+          serviceCharge: Number(d.serviceCharge || 0),
+          levy: Number(d.levy || 0),
+          vatAmount: Number(d.vatAmount || 0),
+          netAmount: Number(d.netAmount || 0),
+          baseQty: Number(d.baseQty || d.qty || 1),
+          mapId: Number(d.mapId || 0),
+          complimentaryStatus: Boolean(d.complimentaryStatus),
+        })),
+        paymodes: (payload.paymodes || []).map((p: any) => ({
+          paymodeId: Number(p.paymodeId || 1),
+          amount: Number(p.amount || 0),
+        })),
+        orderMaster: {
+          isOrderEdited: Boolean(payload.orderMaster?.isOrderEdited ?? true),
+          sectionId: Number(payload.orderMaster?.sectionId || 0),
+          tableId: Number(payload.orderMaster?.tableId || 0),
+          guestNo: Number(payload.orderMaster?.guestNo || 0),
+          vehicleCustomerName: String(payload.orderMaster?.vehicleCustomerName || ""),
+          vehicleNo: String(payload.orderMaster?.vehicleNo || ""),
+          addressId: Number(payload.orderMaster?.addressId || 0),
+          missedCall: Boolean(payload.orderMaster?.missedCall),
+          contactNo: String(payload.orderMaster?.contactNo || ""),
+          note: String(payload.orderMaster?.note || ""),
+          change: String(payload.orderMaster?.change || ""),
+          isComing: Boolean(payload.orderMaster?.isComing),
+          comingTime: payload.orderMaster?.comingTime
+            ? (payload.orderMaster.comingTime.includes("T") ? payload.orderMaster.comingTime : new Date(payload.orderMaster.comingTime).toISOString())
+            : new Date().toISOString(),
+          providerNo: String(payload.orderMaster?.providerNo || ""),
+          driverId: Number(payload.orderMaster?.driverId || 0),
+        },
+        modifiers: (payload.modifiers || []).map((m: any) => ({
+          mapId: Number(m.mapId || 0),
+          modifierId: Number(m.modifierId || 0),
+          qty: Number(m.qty || 0),
+          price: Number(m.price || 0),
+          amount: Number(m.amount || 0),
+          typeId: Number(m.typeId || 1),
+        })),
+        voidProducts: (payload.voidProducts || []).map((vp: any) => ({
+          productId: Number(vp.productId || 0),
+          unitId: Number(vp.unitId || 1),
+          qty: Number(vp.qty || 0),
+          amount: Number(vp.amount || 0),
+          mapId: Number(vp.mapId || 0),
+        })),
+        voidModifiers: (payload.voidModifiers || []).map((vm: any) => ({
+          mapId: Number(vm.mapId || 0),
+          modifierId: Number(vm.modifierId || 0),
+          qty: Number(vm.qty || 0),
+          amount: Number(vm.amount || 0),
+          typeId: Number(vm.typeId || 1),
+        })),
+      };
 
-      // Remove fields not present in PUT UpdateSalesInvoiceDto
-      delete putPayload.seriesId;
-      delete putPayload.prefix;
-      delete putPayload.dayId;
-      delete putPayload.shiftId;
-      delete putPayload.transDate;
-      delete putPayload.androidStatus;
-      delete putPayload.createdAt;
-      delete putPayload.updatedAt;
-      delete putPayload.combinedOrderIds;
-
-      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${saleId}`, putPayload));
+      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${numSaleId}`, putPayload));
       return true;
     } catch (e: any) {
       console.error("Sales invoice update failed:", e);

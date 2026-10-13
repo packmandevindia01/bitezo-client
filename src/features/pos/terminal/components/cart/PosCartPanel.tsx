@@ -30,6 +30,8 @@ interface PosCartPanelProps {
   handleSettle: (shouldPrint: boolean) => void;
   orderLoading: boolean;
   isSettledEdit: boolean;
+  editingSaleId?: number | null;
+  onCancelSettledEdit?: () => void;
   selectedTender: string;
   setSelectedTender: (tender: string) => void;
   setIsMultiPayModalOpen: (open: boolean) => void;
@@ -70,6 +72,8 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   handleSettle,
   orderLoading,
   isSettledEdit,
+  editingSaleId,
+  onCancelSettledEdit,
   selectedTender,
   setSelectedTender,
   setIsMultiPayModalOpen,
@@ -144,6 +148,8 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
             onSettle={handleSettle}
             orderLoading={orderLoading}
             isSettledEdit={isSettledEdit}
+            editingSaleId={editingSaleId}
+            onCancelSettledEdit={onCancelSettledEdit}
             selectedTender={selectedTender}
             tenderOptions={tenderOptions}
             selectedCustomerId={selectedCustomerId}

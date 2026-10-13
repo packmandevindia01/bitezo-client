@@ -355,7 +355,17 @@ export const usePosCheckoutFlow = ({
           if (saleRes) {
             masterData = saleRes.masterData || saleRes.master || saleRes.data?.masterData || saleRes.data?.master || saleRes;
             detailsData = saleRes.detailsData || saleRes.details || saleRes.data?.detailsData || saleRes.data?.details || null;
-            modifiersData = saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData || saleRes.data?.modifiers || [];
+            const rawModData = saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData || saleRes.data?.modifiers || [];
+            const seenModDataKeys = new Set<string>();
+            modifiersData = (rawModData || []).filter((m: any) => {
+              const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
+              const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
+              const mName = String(m.modifierName ?? m.ModifierName ?? m.name ?? m.Name ?? "").trim().toLowerCase();
+              const key = `${mMapId}-${mModId || mName}`;
+              if (seenModDataKeys.has(key)) return false;
+              seenModDataKeys.add(key);
+              return true;
+            });
           }
 
           if (origOrderMaster && masterData) {
@@ -420,37 +430,92 @@ export const usePosCheckoutFlow = ({
           try {
             const sortedDetails = sortOrderDetailsBySequence(detailsData);
             const preMapped = sortedDetails.map((d: any) => {
+              const cartMatch = cartDetails.find(c => 
+                (c.mapId && d.mapId && Number(c.mapId) === Number(d.mapId)) || 
+                c.productId === (d.productId || d.itemId)
+              );
+
               const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-              const extras = itemMods
-                .filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0))
-                .map((m: any) => ({
-                  id: m.modifierId,
-                  name: m.modifierName,
-                  price: m.price || 0,
-                  qty: m.qty || 1,
-                  typeId: m.typeId
-                }));
-              const modifiers = itemMods
-                .filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0))
-                .map((m: any) => {
-                  const cartMatch = cartDetails.find(c => c.productId === (d.productId || d.itemId));
-                  const cartMod = cartMatch?.modifiers?.find((cm: any) => cm.id === m.modifierId || cm.name === m.modifierName);
-                  const typeName = m.typeName || m.modifierTypeName || cartMod?.typeName || getModifierTypeNameById(m.typeId) || "";
-                  return {
-                    id: m.modifierId,
-                    name: m.modifierName || m.name || "",
-                    qty: m.qty || 1,
-                    typeId: m.typeId,
-                    typeName,
-                    arabicName: m.arabicName || cartMod?.arabicName || "",
-                  };
-                });
-              const messages = itemMods
-                .filter((m: any) => (m.status || "").toLowerCase() === "message")
-                .map((m: any) => ({
-                  id: m.modifierId,
-                  name: m.modifierName || m.name || ""
-                }));
+
+              // If order was edited or cart was modified, prioritize user's active cart extras
+              const rawExtras = (cartMatch?.extras && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
+                ? cartMatch.extras
+                : itemMods
+                    .filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0))
+                    .map((m: any) => ({
+                      id: m.modifierId,
+                      name: m.modifierName,
+                      price: m.price || 0,
+                      qty: m.qty || 1,
+                      typeId: m.typeId
+                    }));
+
+              const dedupedExtrasMap = new Map<string, any>();
+              (rawExtras || []).forEach((ex: any) => {
+                const exName = String(ex.name || ex.modifierName || "").trim().toLowerCase();
+                if (!exName) return;
+                const exId = ex.id || ex.modifierId || 0;
+                const typeId = ex.typeId || 0;
+                const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${exName}`;
+                if (dedupedExtrasMap.has(key)) {
+                  const existing = dedupedExtrasMap.get(key);
+                  existing.qty = (existing.qty || 1) + (ex.qty || 1);
+                } else {
+                  dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
+                }
+              });
+              const extras = Array.from(dedupedExtrasMap.values());
+
+              // If order was edited or cart was modified, prioritize user's active cart modifiers
+              const rawModifiers = (cartMatch?.modifiers && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
+                ? cartMatch.modifiers
+                : itemMods
+                    .filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0))
+                    .map((m: any) => {
+                      const cartMod = cartMatch?.modifiers?.find((cm: any) => cm.id === m.modifierId || cm.name === m.modifierName);
+                      const typeName = m.typeName || m.modifierTypeName || cartMod?.typeName || getModifierTypeNameById(m.typeId) || "";
+                      return {
+                        id: m.modifierId,
+                        name: m.modifierName || m.name || "",
+                        qty: m.qty || 1,
+                        typeId: m.typeId,
+                        typeName,
+                        arabicName: m.arabicName || cartMod?.arabicName || "",
+                      };
+                    });
+
+              const dedupedModsMap = new Map<string, any>();
+              (rawModifiers || []).forEach((mod: any) => {
+                const mName = String(mod.name || mod.modifierName || "").trim().toLowerCase();
+                if (!mName) return;
+                const mId = mod.id || mod.modifierId || 0;
+                const typeId = mod.typeId || 0;
+                const key = mId > 0 ? `${mId}-${typeId}` : `${typeId}-${mName}`;
+                if (dedupedModsMap.has(key)) {
+                  const existing = dedupedModsMap.get(key);
+                  existing.qty = (existing.qty || 1) + (mod.qty || 1);
+                } else {
+                  dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
+                }
+              });
+              const modifiers = Array.from(dedupedModsMap.values());
+
+              const rawMessages = (cartMatch?.messages && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
+                ? cartMatch.messages
+                : itemMods
+                    .filter((m: any) => (m.status || "").toLowerCase() === "message")
+                    .map((m: any) => ({
+                      id: m.modifierId,
+                      name: m.modifierName || m.name || ""
+                    }));
+
+              const seenMsgs = new Set<string>();
+              const messages = (rawMessages || []).filter((msg: any) => {
+                const k = String(msg.name || "").trim().toLowerCase();
+                if (!k || seenMsgs.has(k)) return false;
+                seenMsgs.add(k);
+                return true;
+              });
 
               let lineBase = (d.price || 0) * (d.qty || 1);
               extras.forEach((ex: any) => lineBase += ex.price * ex.qty);

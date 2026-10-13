@@ -73,7 +73,15 @@ const StockAdjustmentReportPage = () => {
     },
     companyName: localStorage.getItem("companyName") || "FEKRA advertising",
     companyAddress: localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21",
-  }), [report.data, totalNetAmount, filters.fromDate, filters.toDate]);
+  }), [report.data, totalNetAmount, filters]);
+
+  const handleClose = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   return (
     <PageShell title="Stock Adjustment Report">
@@ -81,7 +89,7 @@ const StockAdjustmentReportPage = () => {
         {/* ── Filter Panel ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-28">
           <button
-            onClick={() => navigate("/dashboard/reports")}
+            onClick={handleClose}
             className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >

@@ -175,7 +175,7 @@ export const mapOrderDetailToCartItem = ({
   }
 
   // 7. Modifiers and Extras Mapping
-  const extras = itemModifiers
+  const rawExtras = itemModifiers
     .filter((m: any) => {
       const statusStr = (m.status || m.Status || "").toLowerCase().trim();
       const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
@@ -198,7 +198,23 @@ export const mapOrderDetailToCartItem = ({
       };
     });
 
-  const modifiers = itemModifiers
+  const dedupedExtrasMap = new Map<string, any>();
+  rawExtras.forEach((ex: any) => {
+    const exId = ex.id || 0;
+    const exName = String(ex.name || "").trim().toLowerCase();
+    const typeId = ex.typeId || 0;
+    if (!exName) return;
+    const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${exName}`;
+    if (dedupedExtrasMap.has(key)) {
+      const existing = dedupedExtrasMap.get(key);
+      existing.qty = (existing.qty || 1) + (ex.qty || 1);
+    } else {
+      dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
+    }
+  });
+  const extras = Array.from(dedupedExtrasMap.values());
+
+  const rawModifiers = itemModifiers
     .filter((m: any) => {
       const statusStr = (m.status || m.Status || "").toLowerCase().trim();
       const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
@@ -218,7 +234,23 @@ export const mapOrderDetailToCartItem = ({
       };
     });
 
-  const messages = itemModifiers
+  const dedupedModsMap = new Map<string, any>();
+  rawModifiers.forEach((mod: any) => {
+    const modId = mod.id || 0;
+    const modName = String(mod.name || "").trim().toLowerCase();
+    const typeId = mod.typeId || 0;
+    if (!modName) return;
+    const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${modName}`;
+    if (dedupedModsMap.has(key)) {
+      const existing = dedupedModsMap.get(key);
+      existing.qty = (existing.qty || 1) + (mod.qty || 1);
+    } else {
+      dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
+    }
+  });
+  const modifiers = Array.from(dedupedModsMap.values());
+
+  const rawMessages = itemModifiers
     .filter((m: any) => {
       const statusStr = (m.status || m.Status || "").toLowerCase().trim();
       return statusStr === "message" || statusStr === "messages";
@@ -227,6 +259,14 @@ export const mapOrderDetailToCartItem = ({
       id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
       name: m.modifierName || m.ModifierName || m.name || m.Name || "",
     }));
+
+  const seenMsgs = new Set<string>();
+  const messages = rawMessages.filter((msg: any) => {
+    const k = String(msg.name || "").trim().toLowerCase();
+    if (!k || seenMsgs.has(k)) return false;
+    seenMsgs.add(k);
+    return true;
+  });
 
   // 8. Complimentary & Discount
   const isDetailComplimentary = Boolean(

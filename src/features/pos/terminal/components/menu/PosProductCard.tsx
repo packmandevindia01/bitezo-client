@@ -2,6 +2,7 @@ import { useRef, useState, memo } from "react";
 import type { PosProduct } from "../../../types";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { Lock } from "lucide-react";
+import { getLocalizedName } from "../../../utils/posLocalization";
 
 interface PosProductCardProps {
   product: PosProduct;
@@ -19,6 +20,7 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
 
   const finalPrice = price !== undefined ? price : product.price;
   const showPrice = finalPrice >= 0 && !hasAlts;
+  const localized = getLocalizedName(product.name, product.arabicName);
 
   const startPress = () => {
     setIsLongPressTriggered(false);
@@ -94,11 +96,11 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
       <div className="w-full flex-1 min-h-0 flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
         <div className="w-full flex flex-col items-center justify-center text-center">
           <h3 className="text-[8.5px] sm:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
-            {product.name}
+            {localized.primary}
           </h3>
-          {product.arabicName && (
+          {localized.secondary && (
             <p className="text-[7.5px] sm:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
-              {product.arabicName}
+              {localized.secondary}
             </p>
           )}
         </div>

@@ -17,6 +17,7 @@ export interface SettledOrdersParams {
   Decimals?: number;
   DeliveryOutStatus?: boolean;
   DeliveryOutOnlyStatus?: boolean;
+  IncludeCancelled?: boolean;
 }
 
 const unwrap = <T = any>(promise: Promise<{ data: any }>): Promise<ApiResponse<T>> => 

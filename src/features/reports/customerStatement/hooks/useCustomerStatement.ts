@@ -19,7 +19,7 @@ export const useCustomerStatement = () => {
     return new Date().toISOString().split("T")[0];
   });
   const [branchId, setBranchId] = useState<string>(initialBranchId);
-  const [customerId, setCustomerId] = useState<string>("0");
+  const [customerId, setCustomerId] = useState<string>("");
 
   // 2. Fetch Dropdown Options (Master Data)
   const { data: branches = [] as any[], isLoading: branchesLoading } = useQuery({
@@ -42,6 +42,7 @@ export const useCustomerStatement = () => {
       CustomerId: Number(customerId),
       Decimals: decimalPart !== undefined ? decimalPart : 3,
     }),
+    enabled: Boolean(Number(customerId) > 0),
     staleTime: 0,
     refetchOnMount: true,
   });
@@ -52,10 +53,7 @@ export const useCustomerStatement = () => {
     setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
     setToDate(today.toISOString().split("T")[0]);
     setBranchId(initialBranchId);
-    setCustomerId("0");
-    setTimeout(() => {
-      refetch();
-    }, 0);
+    setCustomerId("");
   };
 
   return {

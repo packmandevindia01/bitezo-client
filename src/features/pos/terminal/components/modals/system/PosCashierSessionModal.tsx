@@ -17,6 +17,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSessionReady?: () => void;
+  initialTab?: CloseTab;
 }
 
 type Mode = "OPEN_DAY" | "OPEN_SHIFT" | "CLOSE_SHIFT" | "CLOSE_DAY";
@@ -29,7 +30,7 @@ const MODE_CONFIG: Record<Mode, { label: string; buttonLabel: string; balLabel: 
   CLOSE_DAY:   { label: "Close Business Day",  buttonLabel: "Confirm Close Day",     balLabel: "Closing Balance", color: "#10b981", bgColor: "#d1fae5", icon: <LogOut size={20} /> },
 };
 
-export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSessionReady }) => {
+export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSessionReady, initialTab = "SHIFT" }) => {
   const { showToast } = useToast();
   const { formatAmount } = useCurrency();
   const queryClient = useQueryClient();
@@ -39,7 +40,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
   const [denoms, setDenoms] = useState<DenominationItem[]>([]);
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [closeTab, setCloseTab] = useState<CloseTab>("SHIFT");
+  const [closeTab, setCloseTab] = useState<CloseTab>(initialTab || "SHIFT");
   const [showCloseBothConfirm, setShowCloseBothConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showOpenCancelConfirm, setShowOpenCancelConfirm] = useState(false);
@@ -130,7 +131,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
         if (formattedTransDate) {
           setSelectedDate(formattedTransDate);
         }
-        setCloseTab("SHIFT");
+        setCloseTab(initialTab || "SHIFT");
       } else {
         localStorage.removeItem("activeShift");
         localStorage.removeItem("transDate");
@@ -157,7 +158,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
     } finally {
       setStatusLoading(false);
     }
-  }, []);
+  }, [initialTab]);
 
   useEffect(() => {
     if (isOpen && !statusLoading && viewScreen === "MANUAL") {
@@ -171,12 +172,13 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
   useEffect(() => { 
     if (isOpen) {
       resetSessionModalState();
+      setCloseTab(initialTab || "SHIFT");
       setSelectedDate(new Date().toISOString().split("T")[0]);
       void loadAll();
     } else {
       resetSessionModalState();
     }
-  }, [isOpen, loadAll, resetSessionModalState]);
+  }, [isOpen, initialTab, loadAll, resetSessionModalState]);
 
   const handleCountChange = (id: number, val: string) => {
     if (val.length > 5) return;

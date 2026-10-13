@@ -3,6 +3,7 @@ import { Search, X, Loader2, ChevronRight, ChevronDown, Layers, Plus } from "luc
 import { menuApi } from "../../../services/menuApi";
 import type { PosProductSearchResult, PosAlternative } from "../../../types";
 import { useCurrency } from "../../../../../hooks/useCurrency";
+import { getLocalizedName, t } from "../../../utils/posLocalization";
 
 interface PosProductSearchDropdownProps {
   orderTypeId: number;
@@ -142,7 +143,7 @@ export const PosProductSearchDropdown: React.FC<PosProductSearchDropdownProps> =
             }
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search product by name..."
+          placeholder={t("Search product by name...")}
           className="w-full bg-slate-50 border border-slate-200 rounded-xl py-1.5 md:py-2 pl-8 md:pl-9 pr-8 md:pr-9 text-[11px] md:text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-[#f37021] focus:ring-2 focus:ring-[#f37021]/15 transition-all outline-none shadow-sm"
         />
 
@@ -209,24 +210,29 @@ export const PosProductSearchDropdown: React.FC<PosProductSearchDropdownProps> =
                         )}
                       </div>
 
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-[#49293e] truncate">
-                            {product.productName}
-                          </span>
-                          {product.hasAlternatives && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-[#ffefe5] text-[#f37021] border border-[#f37021]/20">
-                              <Layers size={9} />
-                              Variations
-                            </span>
-                          )}
-                        </div>
-                        {product.arabicName && (
-                          <span className="text-[10px] text-slate-400 font-medium truncate" dir="rtl">
-                            {product.arabicName}
-                          </span>
-                        )}
-                      </div>
+                      {(() => {
+                        const localized = getLocalizedName(product.productName, product.arabicName);
+                        return (
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-black text-[#49293e] truncate">
+                                {localized.primary}
+                              </span>
+                              {product.hasAlternatives && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-[#ffefe5] text-[#f37021] border border-[#f37021]/20">
+                                  <Layers size={9} />
+                                  {t("Variations")}
+                                </span>
+                              )}
+                            </div>
+                            {localized.secondary && (
+                              <span className="text-[10px] text-slate-400 font-medium truncate" dir="rtl">
+                                {localized.secondary}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Price and Action */}

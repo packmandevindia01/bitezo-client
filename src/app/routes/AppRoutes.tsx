@@ -298,6 +298,8 @@ const AppRoutes = () => {
                   <Route path="reports/employee-sales-report" element={<RoleGuard moduleName="Sales Report"><EmployeeSalesReportPage /></RoleGuard>} />
                   <Route path="reports/day-end-report" element={<RoleGuard moduleName="Sales Report"><DayEndReportPage /></RoleGuard>} />
                   <Route path="reports/shift-end-report" element={<RoleGuard moduleName="Sales Report"><ShiftEndReportPage /></RoleGuard>} />
+                  <Route path="reports" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Route>
 
               </Route>

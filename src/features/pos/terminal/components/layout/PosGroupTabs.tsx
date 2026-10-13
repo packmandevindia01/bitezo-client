@@ -1,5 +1,6 @@
 import React from "react";
 import type { PosMenuTime, MenuGroup } from "../../../types";
+import { getLocalizedName } from "../../../utils/posLocalization";
 
 interface PosGroupTabsProps {
   groups?: MenuGroup[];
@@ -25,6 +26,7 @@ const PosGroupTabs = ({
     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-4 bg-white border-b border-slate-100">
       {items.map((item) => {
         const isActive = item.id === activeGroupId;
+        const localized = getLocalizedName(item.name, item.arabicName);
         return (
           <button
             type="button"
@@ -37,10 +39,10 @@ const PosGroupTabs = ({
                 : "bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200"}
             `}
           >
-            <span className="line-clamp-2 break-words leading-tight">{item.name}</span>
-            {item.arabicName && (
+            <span className="line-clamp-2 break-words leading-tight">{localized.primary}</span>
+            {localized.secondary && (
               <span className={`text-[10px] ${isActive ? "text-white/80" : "text-slate-400"} font-medium mt-0.5 line-clamp-2 break-words leading-tight`}>
-                {item.arabicName}
+                {localized.secondary}
               </span>
             )}
           </button>

@@ -273,7 +273,22 @@ export const generateGuestPrintHtml = async (
     `;
 
     if (item.extras && item.extras.length > 0) {
+      const dedupedExtrasMap = new Map<string, any>();
       item.extras.forEach((ex: any) => {
+        const rawExName = (ex.name || ex.modifierName || "").trim();
+        if (!rawExName) return;
+        const exId = ex.id || ex.modifierId || 0;
+        const typeId = ex.typeId || 0;
+        const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${rawExName.toLowerCase()}`;
+        if (dedupedExtrasMap.has(key)) {
+          const existing = dedupedExtrasMap.get(key);
+          existing.qty = (existing.qty || 1) + (ex.qty || 1);
+        } else {
+          dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
+        }
+      });
+
+      Array.from(dedupedExtrasMap.values()).forEach((ex: any) => {
         const exName = (ex.name || "EXTRA").toUpperCase();
         const exArabic = isBillArabic ? (ex.arabicName || ex.arabic || "") : "";
         const exDisplay = exArabic
@@ -294,7 +309,22 @@ export const generateGuestPrintHtml = async (
     }
 
     if (item.modifiers && item.modifiers.length > 0) {
+      const dedupedModsMap = new Map<string, any>();
       item.modifiers.forEach((mod: any) => {
+        const rawModName = (mod.name || mod.modifierName || "").trim();
+        if (!rawModName) return;
+        const modId = mod.id || mod.modifierId || 0;
+        const typeId = mod.typeId || 0;
+        const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${rawModName.toLowerCase()}`;
+        if (dedupedModsMap.has(key)) {
+          const existing = dedupedModsMap.get(key);
+          existing.qty = (existing.qty || 1) + (mod.qty || 1);
+        } else {
+          dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
+        }
+      });
+
+      Array.from(dedupedModsMap.values()).forEach((mod: any) => {
         const rawTypeName = (mod.typeName || mod.modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
         const rawModName = (mod.name || mod.modifierName || "MODIFIER").trim();
         const typeUpper = rawTypeName.toUpperCase();
@@ -331,7 +361,14 @@ export const generateGuestPrintHtml = async (
     }
 
     if (item.messages && item.messages.length > 0) {
-      item.messages.forEach((msg: any) => {
+      const seenMsgs = new Set<string>();
+      const dedupedMsgs = item.messages.filter((msg: any) => {
+        const k = String(msg.name || "").trim().toLowerCase();
+        if (!k || seenMsgs.has(k)) return false;
+        seenMsgs.add(k);
+        return true;
+      });
+      dedupedMsgs.forEach((msg: any) => {
         const rawName = msg.name || "NOTE";
         const isMsgArabic = containsArabic(rawName);
         const msgDisplay = isMsgArabic

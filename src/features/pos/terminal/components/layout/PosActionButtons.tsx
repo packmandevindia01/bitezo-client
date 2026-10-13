@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
+import { t } from '../../../utils/posLocalization';
 
 interface PosActionButtonsProps {
   onClearCart: () => void;
@@ -37,7 +38,7 @@ export const PosActionButtons = React.memo(function PosActionButtons({
         className="h-7 md:h-8 lg:h-9 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
         tabIndex={-1}
       >
-        Clear
+        {t("Clear")}
       </button>
       <button
         onClick={onCustomer}
@@ -53,7 +54,7 @@ export const PosActionButtons = React.memo(function PosActionButtons({
             ? 'Customer locked to configured Post Account'
             : selectedCustomerName && selectedCustomerId && Number(selectedCustomerId) !== 1
             ? `Assigned Customer: ${selectedCustomerName}`
-            : 'Select Customer'
+            : t('Select Customer')
         }
         tabIndex={-1}
       >
@@ -62,10 +63,10 @@ export const PosActionButtons = React.memo(function PosActionButtons({
           {selectedCustomerName && selectedCustomerId && Number(selectedCustomerId) !== 1 ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-xs"></span>
-              <span className="truncate max-w-[55px] sm:max-w-[75px]">{selectedCustomerName}</span>
+              <span className="truncate max-w-[55px] sm:max-w-[75px]">{t(selectedCustomerName)}</span>
             </>
           ) : (
-            'Customer'
+            t('Customer')
           )}
         </span>
       </button>
@@ -76,16 +77,16 @@ export const PosActionButtons = React.memo(function PosActionButtons({
             ? 'bg-[#d95f16] hover:bg-[#c45310] ring-1 ring-white/40'
             : 'bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md'
         }`}
-        title={selectedWaiterName ? `Assigned Waiter: ${selectedWaiterName}` : 'Select Waiter'}
+        title={selectedWaiterName ? `${t('Assigned Waiter')}: ${t(selectedWaiterName)}` : t('Select Waiter')}
       >
         <span className="truncate max-w-full flex items-center justify-center gap-1">
           {selectedWaiterName ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-xs"></span>
-              <span className="truncate max-w-[55px] sm:max-w-[75px]">{selectedWaiterName}</span>
+              <span className="truncate max-w-[55px] sm:max-w-[75px]">{t(selectedWaiterName)}</span>
             </>
           ) : (
-            'Waiter'
+            t('Waiter')
           )}
         </span>
       </button>
@@ -94,26 +95,26 @@ export const PosActionButtons = React.memo(function PosActionButtons({
         className="h-7 md:h-8 lg:h-9 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 px-0.5"
         disabled={!isOrderEditing}
       >
-        Split
+        {t("Split")}
       </button>
       <button
         onClick={onCombine}
         className="h-7 md:h-8 lg:h-9 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 px-0.5"
         disabled={!isOrderEditing}
       >
-        Combine
+        {t("Combine")}
       </button>
       <button
         onClick={onRecall}
         className="h-7 md:h-8 lg:h-9 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
       >
-        Recall
+        {t("Recall")}
       </button>
       <button
         onClick={onMore}
         className="h-7 md:h-8 lg:h-9 rounded bg-[#f37021] hover:bg-[#e0661a] hover:-translate-y-0.5 hover:shadow-md text-white text-[7.5px] sm:text-[8.5px] lg:text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 active:translate-y-0 shadow-sm px-0.5"
       >
-        More
+        {t("More")}
       </button>
     </div>
   );

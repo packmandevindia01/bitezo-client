@@ -53,6 +53,11 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     defaultOrderTypeId: String(configs.defaultOrderTypeId ? configs.defaultOrderTypeId : 1),
     groupInMenu: configs.showGroup === "Enable",
     providerOwnMenuStatus: configs.providerOwnStatus ?? true,
+    posLanguage: (() => {
+      const stored = localStorage.getItem("posLanguage") || ((configs as any)?.posLanguage as any);
+      return stored === "Arabic" ? "Arabic" : "English";
+    })(),
+    productView: localStorage.getItem("productView") || ((configs as any)?.productView as any) || "English",
 
     dayEnd: {
       category: configs.categoryDayend === "Enable",
@@ -138,7 +143,11 @@ export const mapStateToApi = (state: ConfigurationState, branchId: number): PosC
 
 export const usePosConfiguration = () => {
   const { showToast } = useToast();
-  const [form, setForm] = useState<ConfigurationState>(INITIAL_CONFIG);
+  const [form, setForm] = useState<ConfigurationState>(() => ({
+    ...INITIAL_CONFIG,
+    posLanguage: (localStorage.getItem("posLanguage") === "Arabic" ? "Arabic" : "English"),
+    productView: ((localStorage.getItem("productView") as any) || "English"),
+  }));
   const [employeeOptions, setEmployeeOptions] = useState<ConfigurationEmployeeOption[]>([]);
   const [orderTypeOptions, setOrderTypeOptions] = useState<{ label: string; value: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -214,6 +223,12 @@ export const usePosConfiguration = () => {
           if (stateData.kotHeader) {
             localStorage.setItem("kotHeader", stateData.kotHeader);
           }
+          if (stateData.posLanguage) {
+            localStorage.setItem("posLanguage", stateData.posLanguage);
+          }
+          if (stateData.productView) {
+            localStorage.setItem("productView", stateData.productView);
+          }
         }
       } catch (error) {
         console.error("Failed to load POS configuration", error);
@@ -283,6 +298,12 @@ export const usePosConfiguration = () => {
       if (payload.billArabic) {
         localStorage.setItem("billArabic", payload.billArabic);
       }
+      if (form.posLanguage) {
+        localStorage.setItem("posLanguage", form.posLanguage);
+      }
+      if (form.productView) {
+        localStorage.setItem("productView", form.productView);
+      }
 
       // ─── Frontend override for default employee ───────────────────────────────
       // The backend does not persist defaultEmployee/employeeId to the DB.
@@ -335,8 +356,12 @@ export const usePosConfiguration = () => {
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
           parsed.configs.itemSeperation = payload.itemSeperation;
+          parsed.configs.posLanguage = form.posLanguage || "English";
+          parsed.configs.productView = form.productView || "English";
         }
         parsed.itemSeperation = payload.itemSeperation;
+        parsed.posLanguage = form.posLanguage || "English";
+        parsed.productView = form.productView || "English";
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;

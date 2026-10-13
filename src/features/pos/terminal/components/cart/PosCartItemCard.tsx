@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { getModifierTypeNameById } from "../../../services/menuApi";
+import { getLocalizedName } from "../../../utils/posLocalization";
 
 export interface CartRow {
   uniqueId: string;
@@ -18,6 +19,7 @@ export interface CartRow {
   vatAmount: number;
   originalLineTotal?: number;
   variantName?: string;
+  variantArabic?: string;
   extras?: { id: number; name: string; price: number; qty: number }[];
   modifiers?: { id: number; name: string; qty: number; typeName?: string }[];
   messages?: { id?: number; name: string; qty?: number }[];
@@ -38,6 +40,8 @@ interface PosCartItemCardProps {
 const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardProps) => {
   const { formatAmount } = useCurrency();
   const key = item.uniqueId;
+  const localized = getLocalizedName(item.product?.name, item.product?.arabicName);
+  const variantLocalized = item.variantName ? getLocalizedName(item.variantName, item.variantArabic) : null;
 
   return (
     <div
@@ -54,11 +58,11 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
     >
       <div className="min-w-0">
         <p className={`truncate text-[11px] font-normal leading-tight uppercase ${isSelected ? "text-[#49293e]" : "text-slate-800"}`}>
-          {item.product.name}
+          {localized.primary} {variantLocalized?.primary ? `(${variantLocalized.primary})` : ""}
         </p>
-        {item.product.arabicName && (
+        {(localized.secondary || variantLocalized?.secondary) && (
           <p className="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5">
-            {item.product.arabicName}
+            {localized.secondary || ""} {variantLocalized?.secondary ? `(${variantLocalized.secondary})` : ""}
           </p>
         )}
 

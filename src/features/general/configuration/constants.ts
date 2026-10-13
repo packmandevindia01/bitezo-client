@@ -11,6 +11,8 @@ export const INITIAL_CONFIG: ConfigurationState = {
   groupInMenu: false,
   packagerHeader: false,
   enableVat: false,
+  posLanguage: "English",
+  productView: "English",
   
   discCalc: "Exclusive",
   kotHeader: "QTY,DESCRIPTION",

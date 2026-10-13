@@ -20,6 +20,7 @@ import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billin
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
+import { t } from "../../../../utils/posLocalization";
 
 
 interface PosRecallModalProps {
@@ -657,7 +658,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
                   border-r border-white/10
                 `}
               >
-                {type.label}
+                {t(type.label)}
               </button>
             ))}
           </div>
@@ -678,7 +679,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
                 onChange={(e) => setIncludeDeliveryOut(e.target.checked)} 
               />
               <span className="text-[10px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase tracking-tight">
-                Including Delivery Out
+                {t("Including Delivery Out")}
               </span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer group">
@@ -687,7 +688,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
                 onChange={(e) => setDeliveryOutOnly(e.target.checked)} 
               />
               <span className="text-[10px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase tracking-tight">
-                Delivery Out Only
+                {t("Delivery Out Only")}
               </span>
             </label>
           </div>
@@ -699,7 +700,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
             >
               <Search size={18} strokeWidth={3} />
               <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">
-                {search ? `${searchStatus}: ${search}` : "Search..."}
+                {search ? `${t(searchStatus)}: ${search}` : t("Search...")}
               </span>
             </button>
             {search && (
@@ -707,7 +708,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
                 onClick={() => handleApplySearch("", "ORDER NO")}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-widest"
               >
-                Clear
+                {t("Clear")}
               </button>
             )}
           </div>
@@ -718,7 +719,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative">
         {loading && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-            <Loader text="Retrieving Orders..." />
+            <Loader text={t("Retrieving Orders...") || "Retrieving Orders..."} />
           </div>
         )}
 
@@ -727,7 +728,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
               <Search size={32} />
             </div>
-            <p className="font-bold uppercase tracking-widest text-xs">No orders found</p>
+            <p className="font-bold uppercase tracking-widest text-xs">{t("No orders found")}</p>
           </div>
         )}
 
@@ -792,7 +793,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
                   >
                     <Truck size={18} strokeWidth={2.5} />
                     <div className="font-black text-[10px] uppercase tracking-widest text-center truncate max-w-[100px]">
-                      {hasDriver ? driverName : "Driver"}
+                      {hasDriver ? driverName : t("Driver")}
                     </div>
                   </button>
                 );
@@ -813,7 +814,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
               >
                 <Printer size={18} strokeWidth={3} />
                 <div className="font-black text-[10px] uppercase tracking-widest">
-                  Print
+                  {t("Print")}
                 </div>
               </button>
             </div>

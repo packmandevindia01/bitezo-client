@@ -1,4 +1,5 @@
 import { useCurrency } from "../../../../../hooks/useCurrency";
+import { t } from "../../../utils/posLocalization";
 
 interface PosOrderSummaryProps {
   subtotal: number;
@@ -32,25 +33,25 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
       <div className="flex gap-1.5 lg:gap-2.5 border-b border-slate-200/60 pb-1.5 [@media(max-height:800px)]:pb-0.5">
         <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-            <span>Sub Total</span>
+            <span>{t("Sub Total")}</span>
             <span>{formatAmount(subtotal)}</span>
           </div>
           {discount > 0 && (
             <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-              <span>Discount</span>
+              <span>{t("Discount")}</span>
               <span>{formatAmount(discount)}</span>
             </div>
           )}
           {charges > 0 && (
             <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-              <span>Charges</span>
+              <span>{t("Charges")}</span>
               <span>{formatAmount(charges)}</span>
             </div>
           )}
         </div>
         <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0 border-l border-slate-200/50 pl-2 lg:pl-3">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-            <span>Net Value</span>
+            <span>{t("Net Value")}</span>
             <span>{formatAmount(Math.max(0, subtotal - discount) + charges)}</span>
           </div>
           {(isDelivery || deliveryCharge > 0) && (
@@ -65,7 +66,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
               title="Double-click to change delivery zone"
             >
               <span className="flex items-center gap-1">
-                Delivery Charge
+                {t("Delivery Charge")}
                 {onDeliveryChargeDoubleClick && (
                   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 group-hover:opacity-80 transition-opacity">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -77,7 +78,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             </div>
           )}
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-            <span>VAT</span>
+            <span>{t("VAT")}</span>
             <span>{formatAmount(Math.max(0, tax))}</span>
           </div>
         </div>
@@ -89,17 +90,17 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             onClick={onDiscount}
             className="h-7 md:h-8 lg:h-9 [@media(max-height:800px)]:h-6 px-2 md:px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[10px] md:text-[11px] xl:text-[12px] [@media(max-height:800px)]:text-[9px] font-extrabold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
           >
-            Discount
+            {t("Discount")}
           </button>
           <button 
             onClick={onCom}
             className="h-7 md:h-8 lg:h-9 [@media(max-height:800px)]:h-6 px-2 md:px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[10px] md:text-[11px] xl:text-[12px] [@media(max-height:800px)]:text-[9px] font-extrabold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
           >
-            COM
+            {t("COM")}
           </button>
         </div>
         <div className="flex flex-col items-end leading-none mt-1 [@media(max-height:800px)]:mt-0">
-          <span className="text-[9px] [@media(max-height:800px)]:text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Grand Total</span>
+          <span className="text-[9px] [@media(max-height:800px)]:text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t("Grand Total")}</span>
           <span className="text-[24px] lg:text-[28px] [@media(max-height:800px)]:text-[18px] font-black text-slate-900 tracking-tighter">
             {formatAmount(Math.max(0, total || 0))}
           </span>
@@ -131,7 +132,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
                     : "border-slate-300 bg-white text-slate-800 hover:border-[#f48120] hover:text-[#f48120] hover:bg-orange-50/60 hover:shadow"}
               `}
             >
-              {mode.label}
+              {t(mode.label)}
             </button>
           );
         })}
@@ -146,15 +147,24 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             disabled={orderLoading || isSettling || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
-            Settle
+            {isSettledEdit ? t("Update") : t("Settle")}
           </button>
           <button
             onClick={() => onSettle && onSettle(true)}
             disabled={orderLoading || isSettling || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
-            <span>Settle &</span>
-            <span>Print</span>
+            {isSettledEdit ? (
+              <>
+                <span>{t("Update &")}</span>
+                <span>{t("Print")}</span>
+              </>
+            ) : (
+              <>
+                <span>{t("Settle &")}</span>
+                <span>{t("Print")}</span>
+              </>
+            )}
           </button>
         </div>
         <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
@@ -163,7 +173,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
-            {orderLoading ? "Wait..." : "Order"}
+            {orderLoading ? t("Wait...") : t("Order")}
           </button>
           <button
             onClick={() => onOrder && onOrder(true)}
@@ -171,11 +181,11 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
             {orderLoading ? (
-              <span>Wait...</span>
+              <span>{t("Wait...")}</span>
             ) : (
               <>
-                <span>Order &</span>
-                <span>Print</span>
+                <span>{t("Order &")}</span>
+                <span>{t("Print")}</span>
               </>
             )}
           </button>

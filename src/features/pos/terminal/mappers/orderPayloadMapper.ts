@@ -245,37 +245,62 @@ export const buildDirectSettleOrderPayload = (
       item.isIncl === false ? false :
       billingConfig.vatType === "Inclusive";
 
-    const extrasRows = (item.extras || []).map((extra) => {
+    const seenExtraKeys = new Set<string>();
+    const extrasRows: any[] = [];
+    (item.extras || []).forEach((extra) => {
+      const exId = extra.id || 0;
+      const key = `${mapId}-${exId}-${String(extra.name || "").trim().toLowerCase()}`;
+      if (seenExtraKeys.has(key)) return;
+      seenExtraKeys.add(key);
+
       const exPrice = Number(extra.price) || 0;
       const exQty = Number(extra.qty) || 1;
       const exclExtraPrice = getTaxExclusiveExtraPrice(exPrice, effectiveVatRate, isItemInclusive);
-      return {
+      extrasRows.push({
         mapId,
-        modifierId: extra.id,
+        modifierId: exId,
         qty: exQty,
         price: exclExtraPrice,
         amount: roundCalc(exclExtraPrice * exQty, CALC_PRECISION),
         typeId: extra.typeId,
-      };
+      });
     });
 
-    const modifierRows = (item.modifiers || []).map((mod) => ({
-      mapId,
-      modifierId: mod.id,
-      qty: mod.qty || 1,
-      price: 0,
-      amount: 0,
-      typeId: mod.typeId,
-    }));
+    const seenModKeys = new Set<string>();
+    const modifierRows: any[] = [];
+    (item.modifiers || []).forEach((mod) => {
+      const modId = mod.id || (mod as any).modifierId || 0;
+      const key = `${mapId}-${modId}-${String(mod.name || "").trim().toLowerCase()}`;
+      if (seenModKeys.has(key)) return;
+      seenModKeys.add(key);
 
-    const messageRows = (item.messages || []).map((msg) => ({
-      mapId,
-      modifierId: msg.id || 0,
-      qty: 1,
-      price: 0,
-      amount: 0,
-      typeId: 1,
-    }));
+      modifierRows.push({
+        mapId,
+        modifierId: modId,
+        qty: mod.qty || 1,
+        price: 0,
+        amount: 0,
+        typeId: mod.typeId || 1,
+      });
+    });
+
+    const seenMsgKeys = new Set<string>();
+    const messageRows: any[] = [];
+    (item.messages || []).forEach((msg) => {
+      const msgName = String(msg.name || "").trim().toLowerCase();
+      const key = `${mapId}-${msgName}`;
+      if (seenMsgKeys.has(key)) return;
+      seenMsgKeys.add(key);
+
+      messageRows.push({
+        mapId,
+        modifierId: msg.id || 0,
+        qty: 1,
+        price: 0,
+        amount: 0,
+        typeId: 1,
+      });
+    });
 
     return [...extrasRows, ...modifierRows, ...messageRows];
   });

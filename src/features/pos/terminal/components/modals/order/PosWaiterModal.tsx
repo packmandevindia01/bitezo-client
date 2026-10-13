@@ -6,6 +6,7 @@ import { setWaiter } from "../../../store/posSlice";
 import { menuApi } from "../../../../services/menuApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import type { PosWaiter } from "../../../../types";
+import { t } from "../../../../utils/posLocalization";
 
 interface PosWaiterModalProps {
   isOpen: boolean;
@@ -106,10 +107,10 @@ export const PosWaiterModal: React.FC<PosWaiterModalProps> = ({ isOpen, onClose 
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold text-slate-900">Select Waiter / Employee</span>
+              <span className="text-lg font-extrabold text-slate-900">{t("Select Waiter / Employee")}</span>
               {!loading && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#f48120]/10 text-[#f48120] border border-[#f48120]/20">
-                  {filteredWaiters.length} {filteredWaiters.length === 1 ? "Employee" : "Employees"}
+                  {filteredWaiters.length} {filteredWaiters.length === 1 ? t("Employee") : t("Employees")}
                 </span>
               )}
             </div>
@@ -129,13 +130,13 @@ export const PosWaiterModal: React.FC<PosWaiterModalProps> = ({ isOpen, onClose 
                 className="!text-red-600 hover:!bg-red-50 !border-red-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer"
               >
                 <UserX size={16} />
-                <span>Unassign Waiter</span>
+                <span>{t("Unassign Waiter")}</span>
               </Button>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={onClose} className="text-xs sm:text-sm cursor-pointer">
-              Cancel
+              {t("Cancel")}
             </Button>
           </div>
         </div>
@@ -160,7 +161,7 @@ export const PosWaiterModal: React.FC<PosWaiterModalProps> = ({ isOpen, onClose 
             className="h-10.5 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs text-xs font-bold"
           >
             <RotateCw size={15} className={loading ? "animate-spin text-[#f48120]" : ""} />
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">{t("Refresh")}</span>
           </button>
         </div>
 
@@ -170,7 +171,7 @@ export const PosWaiterModal: React.FC<PosWaiterModalProps> = ({ isOpen, onClose 
             <div className="flex items-center gap-2">
               <Sparkles size={15} className="text-[#f48120] shrink-0" />
               <span className="text-xs text-orange-950 font-medium">
-                Active Order Waiter: <strong className="font-extrabold text-orange-900">{currentWaiterName}</strong>
+                {t("Active Order Waiter")}: <strong className="font-extrabold text-orange-900">{currentWaiterName}</strong>
               </span>
             </div>
             <button
@@ -178,7 +179,7 @@ export const PosWaiterModal: React.FC<PosWaiterModalProps> = ({ isOpen, onClose 
               onClick={handleClearWaiter}
               className="text-[11px] font-bold text-orange-700 hover:text-red-600 hover:underline cursor-pointer"
             >
-              Clear
+              {t("Clear")}
             </button>
           </div>
         )}

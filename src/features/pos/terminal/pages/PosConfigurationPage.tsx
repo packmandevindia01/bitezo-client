@@ -10,6 +10,7 @@ import PosSettingsTab from '../../../general/configuration/components/PosSetting
 import PrintingTab from '../../../general/configuration/components/PrintingTab';
 import ChargesTab from '../../../general/configuration/components/ChargesTab';
 import DayEndTab from '../../../general/configuration/components/DayEndTab';
+import { t } from '../../utils/posLocalization';
 
 type PosConfigTab = "pos" | "printing" | "charges" | "dayend";
 
@@ -67,11 +68,11 @@ export const PosConfigurationPage: React.FC = () => {
           </button>
           <div className="space-y-0.5">
             <h1 className="text-2xl font-black text-[#49293e] uppercase tracking-tight">
-              POS Configuration
+              {t("POS Configuration", form.posLanguage)}
             </h1>
             <div className="flex items-center gap-2">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                {getSubtitle()}
+                {t(getSubtitle(), form.posLanguage)}
               </p>
             </div>
           </div>
@@ -95,7 +96,7 @@ export const PosConfigurationPage: React.FC = () => {
               }`}
             >
               {tab.icon}
-              <span className="hidden md:inline">{tab.label}</span>
+              <span className="hidden md:inline">{t(tab.label, form.posLanguage)}</span>
             </button>
           ))}
         </div>
@@ -106,7 +107,7 @@ export const PosConfigurationPage: React.FC = () => {
             className={`p-2 rounded-lg border transition-all ${
               showKeyboard ? "bg-[#49293e] text-white border-[#49293e]" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
             }`}
-            title="Toggle Virtual Keyboard"
+            title={t("Toggle Virtual Keyboard", form.posLanguage)}
           >
             <Keyboard size={18} />
           </button>
@@ -118,7 +119,7 @@ export const PosConfigurationPage: React.FC = () => {
             loading={saving}
             icon={<Save size={18} />}
           >
-            Save Changes
+            {t("Save Changes", form.posLanguage)}
           </Button>
         </div>
       </header>

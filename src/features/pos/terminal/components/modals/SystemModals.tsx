@@ -11,6 +11,9 @@ const PosSettledModal = React.lazy(() =>
 const PosCashierSessionModal = React.lazy(() =>
   import("./system/PosCashierSessionModal").then((m) => ({ default: m.PosCashierSessionModal }))
 );
+const PosLogoutChoiceModal = React.lazy(() =>
+  import("./system/PosLogoutChoiceModal").then((m) => ({ default: m.PosLogoutChoiceModal }))
+);
 const LockItemModal = React.lazy(() =>
   import("../../../lockItem/components/LockItemModal").then((m) => ({ default: m.default }))
 );
@@ -41,7 +44,7 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
         onClose={() => modals.setIsMoreModalOpen(false)}
         onCashierOut={() => {
           modals.setIsMoreModalOpen(false);
-          modals.setIsCashierSessionOpen(true);
+          modals.setIsLogoutChoiceOpen(true);
         }}
         onCustomerMaster={() => {
           modals.setIsMoreModalOpen(false);
@@ -117,6 +120,7 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
             onEditSuccess={() => {
               modals.setIsSettledModalOpen(false);
               modals.setIsMoreModalOpen(false);
+              modals.setIsCartOpen?.(true);
             }}
           />
         )}
@@ -131,8 +135,25 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
             onSuccess={() => props.refreshLockedProducts()}
           />
         )}
+        {modals.isLogoutChoiceOpen && (
+          <PosLogoutChoiceModal
+            isOpen={modals.isLogoutChoiceOpen}
+            onClose={() => modals.setIsLogoutChoiceOpen(false)}
+            onSelectShiftEnd={() => {
+              modals.setSessionInitialTab("SHIFT");
+              modals.setIsLogoutChoiceOpen(false);
+              modals.setIsCashierSessionOpen(true);
+            }}
+            onSelectDayEnd={() => {
+              modals.setSessionInitialTab("DAY");
+              modals.setIsLogoutChoiceOpen(false);
+              modals.setIsCashierSessionOpen(true);
+            }}
+          />
+        )}
         <PosCashierSessionModal
           isOpen={modals.isCashierSessionOpen}
+          initialTab={modals.sessionInitialTab}
           onClose={() => modals.closeModal("cashierSession")}
           onSessionReady={() => modals.closeModal("cashierSession")}
         />

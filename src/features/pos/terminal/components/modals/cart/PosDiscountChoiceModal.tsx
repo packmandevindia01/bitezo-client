@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal } from "../../../../../../components/common";
 import { XCircle, Receipt, Tag, ChevronRight } from "lucide-react";
+import { t } from "../../../../utils/posLocalization";
 
 interface PosDiscountChoiceModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const PosDiscountChoiceModal: React.FC<PosDiscountChoiceModalProps> = ({
       className="max-w-[400px] border-none shadow-2xl rounded-2xl overflow-hidden"
     >
       <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">
-        <h2 className="text-lg font-black uppercase tracking-[0.1em]">Discount Type</h2>
+        <h2 className="text-lg font-black uppercase tracking-[0.1em]">{t("Discount Type")}</h2>
         <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full" tabIndex={-1}>
           <XCircle size={24} />
         </button>
@@ -43,8 +44,8 @@ export const PosDiscountChoiceModal: React.FC<PosDiscountChoiceModalProps> = ({
             <Receipt size={24} />
           </div>
           <div className="flex-1 text-left">
-            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">Whole Order</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Global Bill Reduction</p>
+            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">{t("Whole Order")}</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{t("Global Bill Reduction")}</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 group-hover:text-[#ff9500]" />
         </button>
@@ -67,8 +68,8 @@ export const PosDiscountChoiceModal: React.FC<PosDiscountChoiceModalProps> = ({
             <Tag size={24} />
           </div>
           <div className="flex-1 text-left">
-            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">Item Wise</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Specific Product Reduction</p>
+            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">{t("Item Wise")}</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{t("Specific Product Reduction")}</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 group-hover:text-[#ff9500]" />
         </button>

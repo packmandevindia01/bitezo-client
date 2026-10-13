@@ -6,6 +6,7 @@ import PosSettingsTab from "../components/PosSettingsTab";
 import PrintingTab from "../components/PrintingTab";
 import ChargesTab from "../components/ChargesTab";
 import DayEndTab from "../components/DayEndTab";
+import { t } from "../../../pos/utils/posLocalization";
 
 const ConfigurationPage = () => {
   const { form, employeeOptions, orderTypeOptions, saving, setField, setDayEndField, addDeliveryCharge, removeDeliveryCharge, handleSave } = useConfigurationManager();
@@ -19,7 +20,7 @@ const ConfigurationPage = () => {
   ] as const;
 
   return (
-    <PageShell title="POS Configuration">
+    <PageShell title={t("POS Configuration", form.posLanguage)}>
       <div className="flex flex-col gap-4">
         {/* Header Actions */}
         <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
@@ -35,7 +36,7 @@ const ConfigurationPage = () => {
                 }`}
               >
                 {tab.icon}
-                <span>{tab.label}</span>
+                <span>{t(tab.label, form.posLanguage)}</span>
               </button>
             ))}
           </div>
@@ -47,7 +48,7 @@ const ConfigurationPage = () => {
             loading={saving}
             icon={<Save size={18} />}
           >
-            Save Changes
+            {t("Save Changes", form.posLanguage)}
           </Button>
         </div>
 

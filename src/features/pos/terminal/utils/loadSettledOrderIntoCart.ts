@@ -90,14 +90,26 @@ export const loadSettledOrderIntoCart = ({
     const parsedVoucher = rawVoucher
       ? parseInt(String(rawVoucher).replace(/\D/g, ""), 10)
       : NaN;
-    const resolvedSaleId =
+    let finalSaleId =
       typeof master.saleId === "number" && master.saleId > 0
         ? master.saleId
         : typeof orderData.saleId === "number" && orderData.saleId > 0
         ? orderData.saleId
         : !isNaN(parsedVoucher) && parsedVoucher > 0
         ? parsedVoucher
-        : orderId || null;
+        : null;
+
+    if (!finalSaleId) {
+      const detailsStr = orderData.details || master.details || "";
+      if (typeof detailsStr === "string") {
+        const vchMatch = detailsStr.match(/VchNo\s*:\s*(\d+)/i);
+        if (vchMatch && vchMatch[1]) {
+          finalSaleId = parseInt(vchMatch[1], 10);
+        }
+      }
+    }
+
+    const resolvedSaleId = finalSaleId || orderId || null;
 
     const rawUpdatedAt =
       master.updatedAt ||

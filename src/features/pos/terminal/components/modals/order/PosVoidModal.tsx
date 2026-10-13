@@ -11,6 +11,7 @@ import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { clearCart } from "../../../store/posSlice";
+import { t } from "../../../../utils/posLocalization";
 
 interface PosVoidModalProps {
   isOpen: boolean;
@@ -126,7 +127,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
                   border-r border-white/10
                 `}
               >
-                {type.label}
+                {t(type.label)}
               </button>
             ))}
           </div>
@@ -141,7 +142,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
                 onChange={(e) => setIncludeDeliveryOut(e.target.checked)} 
               />
               <span className="text-[10px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase tracking-tight">
-                Including Delivery Out
+                {t("Including Delivery Out")}
               </span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer group">
@@ -150,7 +151,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
                 onChange={(e) => setDeliveryOutOnly(e.target.checked)} 
               />
               <span className="text-[10px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase tracking-tight">
-                Delivery Out Only
+                {t("Delivery Out Only")}
               </span>
             </label>
           </div>
@@ -162,7 +163,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
             >
               <Search size={18} strokeWidth={3} />
               <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">
-                {search ? `${searchStatus}: ${search}` : "Search..."}
+                {search ? `${t(searchStatus)}: ${search}` : t("Search...")}
               </span>
             </button>
             {search && (
@@ -170,7 +171,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
                 onClick={() => handleApplySearch("", "ORDER NO")}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-widest"
               >
-                Clear
+                {t("Clear")}
               </button>
             )}
           </div>
@@ -190,7 +191,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
               <Search size={32} />
             </div>
-            <p className="font-bold uppercase tracking-widest text-xs">No orders found</p>
+            <p className="font-bold uppercase tracking-widest text-xs">{t("No orders found")}</p>
           </div>
         )}
 
@@ -226,7 +227,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
                 }}
                 className="w-full h-full flex items-center justify-center bg-red-600 hover:bg-red-700 text-white transition-colors"
               >
-                <span className="text-xs font-bold uppercase tracking-widest">Void</span>
+                <span className="text-xs font-bold uppercase tracking-widest">{t("Void")}</span>
               </button>
             </div>
           </div>
@@ -240,12 +241,12 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
           setSelectedOrderId(null);
           setReason("");
         }}
-        title="Reason for Voiding"
+        title={t("Reason for Voiding")}
         size="xl"
       >
         <div className="flex flex-col gap-4">
           <FormInput
-            placeholder="Enter reason..."
+            placeholder={t("Enter reason...")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             autoFocus
@@ -270,7 +271,7 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
             className="w-full h-14 mt-2 shadow-lg"
             isAction
           >
-            Submit
+            {t("Submit")}
           </Button>
         </div>
       </Modal>

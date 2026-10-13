@@ -1,4 +1,5 @@
 import type { MenuSubCategory } from "../../../types";
+import { getLocalizedName, t } from "../../../utils/posLocalization";
 
 interface PosSubCategoryRailProps {
   subCategories: MenuSubCategory[];
@@ -19,11 +20,12 @@ const PosSubCategoryRail = ({
       lg:flex-col lg:w-[150px] xl:w-[180px] lg:h-full lg:border-r lg:p-3 xl:p-4 lg:gap-3 xl:gap-4 lg:bg-slate-50/30
     ">
       <div className="hidden lg:block mb-2 px-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Sub Category</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">{t("Sub Category")}</p>
       </div>
       
       {subCategories.map((sub) => {
         const isActive = sub.subCategoryId === activeSubCategoryId;
+        const localized = getLocalizedName(sub.subCategoryName, sub.arabicName);
         return (
           <button
             key={sub.subCategoryId}
@@ -42,11 +44,13 @@ const PosSubCategoryRail = ({
             `}
           >
             <p className="text-xs font-bold tracking-tight line-clamp-2 break-words leading-tight">
-              {sub.subCategoryName}
+              {localized.primary}
             </p>
-            <p className={`text-[9px] mt-0.5 font-medium ${isActive ? "text-white/60" : "text-slate-400"} line-clamp-2 break-words leading-tight`}>
-              {sub.arabicName || "View Items"}
-            </p>
+            {localized.secondary && (
+              <p className={`text-[9px] mt-0.5 font-medium ${isActive ? "text-white/60" : "text-slate-400"} line-clamp-2 break-words leading-tight`}>
+                {localized.secondary}
+              </p>
+            )}
           </button>
         );
       })}

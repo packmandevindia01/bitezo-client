@@ -19,6 +19,7 @@ import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
 
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
+import { t, getLocalizedName } from "../../../../utils/posLocalization";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -1478,26 +1479,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               {/* Items Table */}
               <div className="mb-4">
                 <div className="grid grid-cols-[24px_1fr_60px] font-bold text-stone-500 text-[10px] uppercase border-b border-stone-300 pb-1 mb-2">
-                  <div>Qty</div>
-                  <div className="pl-2">Description</div>
-                  <div className="text-right">Amount</div>
+                  <div>{t("Qty")}</div>
+                  <div className="pl-2">{t("ITEM")}</div>
+                  <div className="text-right">{t("Amount")}</div>
                 </div>
 
                 <div className="space-y-2.5 overflow-y-auto max-h-[200px] pr-1">
                   {details.map((detail: any, i: number) => {
                     const dMapId = detail.mapId ?? detail.MapId ?? detail.mapID;
                     const itemModifiers = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
+                    const localized = getLocalizedName(detail.productName || `Product #${detail.productId}`, detail.productNameAr || detail.arabicName);
                     return (
                       <div key={i} className="flex flex-col">
                         <div className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
                           <div className="font-bold text-stone-500">{detail.qty}</div>
                           <div className="pl-2 flex flex-col font-bold text-stone-800">
                             <span>
-                              {detail.productName || `Product #${detail.productId}`}
+                              {localized.primary}
                               {(detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName)
                                 ? ` - ${detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName}`
                                 : ""}
                             </span>
+                            {localized.secondary && (
+                              <span className="text-[10px] text-stone-500 font-semibold">{localized.secondary}</span>
+                            )}
                             {detail.price > 0 && (
                               <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
                             )}
@@ -1546,16 +1551,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               {/* Delivery Details Block */}
               {deliveryDetails && (
                 <div className="border-t border-dashed border-stone-400 pt-3 mt-3 text-[10px] space-y-0.5 text-stone-600">
-                  <div className="font-bold uppercase tracking-wider text-stone-400 mb-1">Delivery Details</div>
-                  {deliveryDetails.mobile && <div><span className="font-bold text-stone-500">Mobile: </span>{deliveryDetails.mobile}</div>}
+                  <div className="font-bold uppercase tracking-wider text-stone-400 mb-1">{t("Delivery Details")}</div>
+                  {deliveryDetails.mobile && <div><span className="font-bold text-stone-500">{t("Mobile")}: </span>{deliveryDetails.mobile}</div>}
                   {deliveryDetails.callBack && <div><span className="font-bold text-stone-500">Call Back: </span>{deliveryDetails.callBack}</div>}
-                  {deliveryDetails.customerName && <div><span className="font-bold text-stone-500">Customer: </span>{deliveryDetails.customerName}</div>}
-                  {deliveryDetails.flat && <div><span className="font-bold text-stone-500">Flat No: </span>{deliveryDetails.flat}</div>}
-                  {deliveryDetails.building && <div><span className="font-bold text-stone-500">Building: </span>{deliveryDetails.building}</div>}
-                  {deliveryDetails.block && <div><span className="font-bold text-stone-500">Block: </span>{deliveryDetails.block}</div>}
-                  {deliveryDetails.road && <div><span className="font-bold text-stone-500">Road: </span>{deliveryDetails.road}</div>}
-                  {deliveryDetails.area && <div><span className="font-bold text-stone-500">Area: </span>{deliveryDetails.area}</div>}
-                  {deliveryDetails.change && <div><span className="font-bold text-stone-500">Keep Change: </span>{deliveryDetails.change}</div>}
+                  {deliveryDetails.customerName && <div><span className="font-bold text-stone-500">{t("Customer")}: </span>{deliveryDetails.customerName}</div>}
+                  {deliveryDetails.flat && <div><span className="font-bold text-stone-500">{t("Flat No")}: </span>{deliveryDetails.flat}</div>}
+                  {deliveryDetails.building && <div><span className="font-bold text-stone-500">{t("Building")}: </span>{deliveryDetails.building}</div>}
+                  {deliveryDetails.block && <div><span className="font-bold text-stone-500">{t("Block")}: </span>{deliveryDetails.block}</div>}
+                  {deliveryDetails.road && <div><span className="font-bold text-stone-500">{t("Road")}: </span>{deliveryDetails.road}</div>}
+                  {deliveryDetails.area && <div><span className="font-bold text-stone-500">{t("Area")}: </span>{deliveryDetails.area}</div>}
+                  {deliveryDetails.change && <div><span className="font-bold text-stone-500">{t("Keep Change")}: </span>{deliveryDetails.change}</div>}
                 </div>
               )}
             </div>
@@ -1563,18 +1568,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             {/* Receipt Footer with Sub Total, Discount, Charges, VAT and Grand Total */}
             <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
               <div className="flex justify-between items-center text-stone-600">
-                <span>Sub Total</span>
+                <span>{t("Sub Total")}</span>
                 <span>{formatAmount(displaySubTotal)}</span>
               </div>
               {displayDiscount > 0 && (
                 <div className="flex justify-between items-center text-red-600">
-                  <span>Discount</span>
+                  <span>{t("Discount")}</span>
                   <span>-{formatAmount(displayDiscount)}</span>
                 </div>
               )}
               {displayServiceCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>Service Charge</span>
+                  <span>{t("Service Charge")}</span>
                   <span>{formatAmount(displayServiceCharge)}</span>
                 </div>
               )}
@@ -1586,18 +1591,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               )}
               {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>Delivery Charge</span>
+                  <span>{t("Delivery Charge")}</span>
                   <span>{formatAmount(displayDeliveryCharge)}</span>
                 </div>
               )}
               {displayVatAmount > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>VAT</span>
+                  <span>{t("VAT")}</span>
                   <span>{formatAmount(displayVatAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
-                <span>Grand Total</span>
+                <span>{t("Grand Total")}</span>
                 <span className="text-base font-black text-[#f48120]">
                   {formatAmount(netAmount)}
                 </span>
@@ -1624,7 +1629,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-7.5 0h.008v.008H10.5V10.5Zm-3 0h.008v.008H7.5V10.5Z" />
               </svg>
-              GUEST
+              {t("GUEST")}
             </button>
 
             <button
@@ -1634,7 +1639,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
               </svg>
-              EDIT
+              {t("EDIT")}
             </button>
 
             <button
@@ -1644,7 +1649,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5M4.5 9h15M5.25 13.5h13.5M2.25 18.75V16.5a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5v2.25" />
               </svg>
-              SETTLE
+              {t("SETTLE")}
             </button>
 
             <button
@@ -1654,7 +1659,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
-              CLOSE
+              {t("CLOSE")}
             </button>
           </div>
         </div>
@@ -1663,7 +1668,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           <svg className="w-12 h-12 text-stone-600 mb-3 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
           </svg>
-          <p className="text-xs font-bold uppercase tracking-widest">No Order Data Available</p>
+          <p className="text-xs font-bold uppercase tracking-widest">{t("No Order Data Available")}</p>
         </div>
       )}
     </Modal>

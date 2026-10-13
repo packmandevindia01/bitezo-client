@@ -1,7 +1,7 @@
 // trigger rebuild
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput } from "../../../../components/common";
+import { PageShell, RecordTableCard, SearchBar, Button, ConfirmDialog, FormInput, Checkbox } from "../../../../components/common";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { purchaseReturnApi } from "../services/purchaseReturnApi";
@@ -42,6 +42,7 @@ const PurchaseReturnListPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [fromDate, setFromDate] = useState(getFirstDayOfMonth());
   const [toDate, setToDate] = useState(getToday());
+  const [includeCancelled, setIncludeCancelled] = useState(false);
 
   const [cancelModal, setCancelModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [cancelling, setCancelling] = useState(false);
@@ -52,6 +53,7 @@ const PurchaseReturnListPage = () => {
       const params: any = {
         FromDate: fromDate.includes("T") ? fromDate.split("T")[0] : fromDate,
         ToDate: toDate.includes("T") ? toDate.split("T")[0] : toDate,
+        IncludeCancelled: includeCancelled,
       };
       if (initialBranchId) {
         params.BranchId = Number(initialBranchId);
@@ -68,7 +70,7 @@ const PurchaseReturnListPage = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, [fromDate, toDate, initialBranchId, decimalPart]);
+  }, [fromDate, toDate, initialBranchId, decimalPart, includeCancelled]);
 
   const handleCancel = async () => {
     if (!cancelModal.id) return;
@@ -116,10 +118,32 @@ const PurchaseReturnListPage = () => {
       render: (row: PurchaseReturnRow) => row.purchaseReturnDate ? new Date(row.purchaseReturnDate).toLocaleDateString("en-GB") : "-"
     },
     { 
+      header: "Supplier", 
+      accessor: "supplier" as keyof PurchaseReturnRow, 
+      align: "center", 
+      render: (row: PurchaseReturnRow) => row.supplier || "-" 
+    },
+    { 
       header: "Amount", 
       accessor: "netAmount" as keyof PurchaseReturnRow,
       align: "right",
       render: (row: PurchaseReturnRow) => <span className="font-semibold text-right block">{formatAmount(Number(row.netAmount || 0))}</span>
+    },
+    {
+      header: "Status",
+      accessor: "isCancelled" as keyof PurchaseReturnRow,
+      align: "center",
+      render: (row: PurchaseReturnRow) => (
+        row.isCancelled ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+            Cancelled
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+            Active
+          </span>
+        )
+      ),
     },
     {
       header: "Actions",
@@ -127,7 +151,7 @@ const PurchaseReturnListPage = () => {
       align: "center",
       render: (row: PurchaseReturnRow) => (
         <div className="flex gap-2 justify-center">
-          {!row.isCancelled && hasPermission("Purchase Return", "Edit") && (
+          {hasPermission("Purchase Return", "Edit") && (
             <button
               onClick={() => navigate(`/dashboard/purchase-return/edit/${row.purchaseReturnId || row.id}`)}
               className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
@@ -136,11 +160,16 @@ const PurchaseReturnListPage = () => {
               <Pencil size={16} />
             </button>
           )}
-          {!row.isCancelled && hasPermission("Purchase Return", "Delete") && (
+          {hasPermission("Purchase Return", "Delete") && (
             <button
-              onClick={() => setCancelModal({ open: true, id: row.purchaseReturnId || row.id || 0 })}
-              className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
-              title="Cancel"
+              onClick={() => !row.isCancelled && setCancelModal({ open: true, id: row.purchaseReturnId || row.id || 0 })}
+              disabled={row.isCancelled}
+              className={`inline-flex rounded-lg p-2 transition-colors ${
+                row.isCancelled
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-red-500 hover:bg-red-50"
+              }`}
+              title={row.isCancelled ? "Invoice already cancelled" : "Cancel"}
             >
               <Trash2 size={16} />
             </button>
@@ -153,7 +182,7 @@ const PurchaseReturnListPage = () => {
   return (
     <PageShell title="Purchase Returns">
       <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-        <div className="flex gap-4 items-end flex-1">
+        <div className="flex flex-wrap gap-4 items-end flex-1">
           <div className="w-40">
             <FormInput
               label="From Date"
@@ -178,6 +207,13 @@ const PurchaseReturnListPage = () => {
               value={searchTerm}
               onChange={setSearchTerm}
               placeholder="Search by Return No or Supplier..."
+            />
+          </div>
+          <div className="mb-2">
+            <Checkbox
+              label="Include Cancelled"
+              checked={includeCancelled}
+              onChange={(e) => setIncludeCancelled(e.target.checked)}
             />
           </div>
         </div>

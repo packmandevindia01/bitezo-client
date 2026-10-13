@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
 import { getModifierTypeNameById } from "../../../../services/menuApi";
+import { t, getLocalizedName } from "../../../../utils/posLocalization";
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -473,7 +474,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
       const preMapped = details.map((d: any) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
-        const extras = itemMods
+        const rawExtras = itemMods
           .filter((m: any) => (m.price || 0) > 0)
           .map((m: any) => ({
             id: m.modifierId,
@@ -482,7 +483,22 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             qty: m.qty || 1,
             typeId: m.typeId,
           }));
-        const modifiers = itemMods
+        const dedupedExtrasMap = new Map<string, any>();
+        rawExtras.forEach((ex: any) => {
+          const exName = String(ex.name || "").trim().toLowerCase();
+          if (!exName) return;
+          const exId = ex.id || 0;
+          const key = exId > 0 ? `${exId}-${ex.typeId || 0}` : `${ex.typeId || 0}-${exName}`;
+          if (dedupedExtrasMap.has(key)) {
+            const existing = dedupedExtrasMap.get(key);
+            existing.qty = (existing.qty || 1) + (ex.qty || 1);
+          } else {
+            dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
+          }
+        });
+        const extras = Array.from(dedupedExtrasMap.values());
+
+        const rawModifiers = itemMods
           .filter((m: any) => (m.price || 0) <= 0)
           .map((m: any) => ({
             id: m.modifierId,
@@ -492,6 +508,20 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             typeName: m.typeName || m.modifierTypeName || getModifierTypeNameById(m.typeId) || "",
             arabicName: m.arabicName || "",
           }));
+        const dedupedModsMap = new Map<string, any>();
+        rawModifiers.forEach((mod: any) => {
+          const modName = String(mod.name || "").trim().toLowerCase();
+          if (!modName) return;
+          const modId = mod.id || 0;
+          const key = modId > 0 ? `${modId}-${mod.typeId || 0}` : `${mod.typeId || 0}-${modName}`;
+          if (dedupedModsMap.has(key)) {
+            const existing = dedupedModsMap.get(key);
+            existing.qty = (existing.qty || 1) + (mod.qty || 1);
+          } else {
+            dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
+          }
+        });
+        const modifiers = Array.from(dedupedModsMap.values());
 
         const qty = d.qty ?? d.Qty ?? 1;
         const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
@@ -821,6 +851,22 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     }
   };
 
+  const isCancelled = Boolean(
+    order?.isCancelled === true ||
+    order?.isCancelled === "true" ||
+    order?.isCancelled === 1 ||
+    order?.masterData?.isCancelled === true ||
+    order?.masterData?.isCancelled === "true" ||
+    order?.masterData?.isCancelled === 1 ||
+    orderSummary?.isCancelled === true ||
+    orderSummary?.isCancelled === "true" ||
+    orderSummary?.isCancelled === 1 ||
+    String(order?.action || "").toLowerCase() === "cancelled" ||
+    String(orderSummary?.action || "").toLowerCase() === "cancelled" ||
+    String(order?.status || "").toLowerCase() === "cancelled" ||
+    String(orderSummary?.status || "").toLowerCase() === "cancelled"
+  );
+
   const handleEdit = () => {
     if (!orderId || !order) return;
     loadSettledOrderIntoCart({
@@ -831,8 +877,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       productCache,
       showToast,
       onEditSuccess: () => {
-        onEditSuccess?.();
         onClose();
+        onEditSuccess?.();
       },
     });
   };
@@ -930,7 +976,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden max-w-[500px]"
     >
       <div className="bg-[#1e1e1e] border-b border-stone-800 text-stone-100 py-3.5 px-6 flex justify-between items-center">
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#f48120]">ORDER DETAILS</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#f48120]">{t("ORDER DETAILS")}</h2>
+          {isCancelled && (
+            <span className="px-2.5 py-0.5 rounded-full bg-red-600/30 text-red-400 border border-red-500/50 text-[10px] font-black uppercase tracking-wider">
+              {t("CANCELLED")}
+            </span>
+          )}
+        </div>
         <button onClick={onClose} className="p-1 hover:bg-stone-800 rounded-full transition-colors text-stone-400">
           <X size={18} />
         </button>
@@ -945,36 +998,41 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           <div className="flex-1 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs overflow-y-auto">
             <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
               <div className="text-sm font-black uppercase tracking-wide">BITEZO POS</div>
-              <div className="text-[10px] text-stone-500 font-medium">SETTLED ORDER TICKET</div>
+              <div className="text-[10px] text-stone-500 font-medium">{t("SETTLED ORDER TICKET")}</div>
+              {isCancelled && (
+                <div className="mt-2 inline-block px-3 py-0.5 rounded-full bg-red-100 text-red-700 font-black text-xs uppercase tracking-widest border border-red-300">
+                  *** {t("CANCELLED")} ***
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
               {(master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo) && (
                 <div>
-                  <span className="text-stone-500">Invoice: </span>
+                  <span className="text-stone-500">{t("Invoice")}: </span>
                   <span className="font-bold">
                     {master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo}
                   </span>
                 </div>
               )}
               <div>
-                <span className="text-stone-500">Order: </span>
+                <span className="text-stone-500">{t("Order No")}: </span>
                 <span className="font-bold">{orderNo}</span>
               </div>
               <div>
-                <span className="text-stone-500">Emp: </span>
+                <span className="text-stone-500">{t("Emp")}: </span>
                 <span className="font-bold">{resolvedEmployeeName}</span>
               </div>
               <div className="text-right">
-                <span className="text-stone-500">Type: </span>
-                <span className="font-bold text-[#49293e]">{orderTypeName}</span>
+                <span className="text-stone-500">{t("Type")}: </span>
+                <span className="font-bold text-[#49293e]">{t(orderTypeName)}</span>
               </div>
               <div>
-                <span className="text-stone-500">Customer: </span>
+                <span className="text-stone-500">{t("Customer")}: </span>
                 <span className="font-bold">{displayCustomerName}</span>
               </div>
               {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
                 <div className="text-right">
-                  <span className="text-stone-500">Table: </span>
+                  <span className="text-stone-500">{t("Table")}: </span>
                   <span className="font-bold">
                     {master.sectionName ? `${master.sectionName} - ` : ""}
                     {master.tableNo}
@@ -983,13 +1041,13 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               )}
               {master.note && (
                 <div className="col-span-2 mt-1">
-                  <span className="text-stone-500">Note: </span>
+                  <span className="text-stone-500">{t("Note")}: </span>
                   <span className="font-bold italic text-stone-600">"{master.note}"</span>
                 </div>
               )}
               {master.vehicleNo && (
                 <div className="col-span-2 mt-1">
-                  <span className="text-stone-500">Vehicle: </span>
+                  <span className="text-stone-500">{t("Vehicle")}: </span>
                   <span className="font-bold uppercase">
                     {master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}
                   </span>
@@ -1002,23 +1060,29 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               )}
             </div>
             <div className="grid grid-cols-[24px_1fr_60px_60px] gap-2 border-b border-dashed border-stone-400 pb-2 mb-2 text-[10px] font-bold text-stone-500 uppercase">
-              <div>Qty</div>
-              <div>Item</div>
-              <div className="text-right">Price</div>
-              <div className="text-right">Total</div>
+              <div>{t("Qty")}</div>
+              <div>{t("Item")}</div>
+              <div className="text-right">{t("Price")}</div>
+              <div className="text-right">{t("Total")}</div>
             </div>
             <div className="space-y-2.5">
               {details.map((detail: any, i: number) => {
                 const qty = detail.qty ?? detail.Qty ?? 1;
                 const amount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
                 const price = detail.price ?? detail.Price ?? (qty > 0 ? amount / qty : 0);
+                const localizedItem = getLocalizedName(detail.productName || detail.ProductName, detail.productArabic || detail.arabicName);
 
                 const itemMods = (order?.modifiersData || []).filter((m: any) => m.mapId === detail.mapId);
                 return (
                   <div key={i} className="space-y-0.5">
                     <div className="grid grid-cols-[24px_1fr_60px_60px] gap-2 text-[11px]">
                       <div className="font-bold text-stone-500">{qty}</div>
-                      <div className="font-bold text-stone-800">{detail.productName || detail.ProductName}</div>
+                      <div>
+                        <div className="font-bold text-stone-800">{localizedItem.primary}</div>
+                        {localizedItem.secondary && (
+                          <div className="text-[9px] text-stone-500 font-medium">{localizedItem.secondary}</div>
+                        )}
+                      </div>
                       <div className="text-right text-stone-500">{formatAmount(price)}</div>
                       <div className="text-right font-bold text-stone-900">{formatAmount(amount)}</div>
                     </div>
@@ -1043,18 +1107,18 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             {/* Receipt Footer with Sub Total, Discount, Charges, VAT and Grand Total */}
             <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
               <div className="flex justify-between items-center text-stone-600">
-                <span>Sub Total</span>
+                <span>{t("Sub Total")}</span>
                 <span>{formatAmount(displaySubTotal)}</span>
               </div>
               {displayDiscount > 0 && (
                 <div className="flex justify-between items-center text-red-600">
-                  <span>Discount</span>
+                  <span>{t("Discount")}</span>
                   <span>-{formatAmount(displayDiscount)}</span>
                 </div>
               )}
               {displayServiceCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>Service Charge</span>
+                  <span>{t("Service Charge")}</span>
                   <span>{formatAmount(displayServiceCharge)}</span>
                 </div>
               )}
@@ -1066,18 +1130,18 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               )}
               {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>Delivery Charge</span>
+                  <span>{t("Delivery Charge")}</span>
                   <span>{formatAmount(displayDeliveryCharge)}</span>
                 </div>
               )}
               {displayVatAmount > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>VAT</span>
+                  <span>{t("VAT")}</span>
                   <span>{formatAmount(displayVatAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
-                <span>Grand Total</span>
+                <span>{t("Grand Total")}</span>
                 <span className="text-base font-black text-[#f48120]">{formatAmount(netAmount)}</span>
               </div>
             </div>
@@ -1091,16 +1155,17 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
             >
               <Printer size={18} strokeWidth={2.5} />
-              PRINT
+              {t("PRINT")}
             </Button>
 
             <button
               onClick={handleEdit}
               disabled={loading || !order}
               className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-[#49293e] hover:bg-[#5c3450] active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
+              title={t("EDIT")}
             >
               <Pencil size={18} strokeWidth={2.5} />
-              EDIT
+              {t("EDIT")}
             </button>
 
             <button
@@ -1108,7 +1173,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-300 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 border border-stone-700/50 shadow-md"
             >
               <X size={18} strokeWidth={2.5} />
-              CLOSE
+              {t("CLOSE")}
             </button>
           </div>
         </div>
@@ -1127,7 +1192,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
             />
           </svg>
-          <p className="text-xs font-bold uppercase tracking-widest">No Order Data Available</p>
+          <p className="text-xs font-bold uppercase tracking-widest">{t("No Order Data Available")}</p>
         </div>
       )}
     </Modal>

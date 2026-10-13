@@ -1,6 +1,7 @@
 import React from "react";
 import type { ConfigurationState } from "../types";
 import { Checkbox, SelectInput, FormInput } from "../../../../components/common";
+import { t } from "../../../pos/utils/posLocalization";
 
 interface Props {
   form: ConfigurationState;
@@ -21,12 +22,14 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
       <div className="space-y-4">
-        <h3 className="text-[10px] font-bold text-[#49293e]/60 border-b border-gray-100 pb-2 mb-4 uppercase tracking-widest">KOT Settings</h3>
+        <h3 className="text-[10px] font-bold text-[#49293e]/60 border-b border-gray-100 pb-2 mb-4 uppercase tracking-widest">
+          {t("KOT Settings", form.posLanguage)}
+        </h3>
         
         <div className="grid gap-y-3">
           <SelectInput
             id="conf-print-kotheader"
-            label="KOT Header Style"
+            label={t("KOT Header Style", form.posLanguage)}
             autoFocus
             value={form.kotHeader}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("kotHeader", e.target.value as any)}
@@ -40,49 +43,42 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
           
           <Checkbox 
             id="conf-print-kotarabic"
-            label="KOT Arabic" 
+            label={t("KOT Arabic", form.posLanguage)} 
             checked={form.kotArabic} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("kotArabic", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-kotsettle")}
           />
           <Checkbox 
             id="conf-print-kotsettle"
-            label="KOT Print (Settle)" 
+            label={t("KOT Print (Settle)", form.posLanguage)} 
             checked={form.kotPrintSettle} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("kotPrintSettle", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-kotprint")}
           />
           <Checkbox 
             id="conf-print-kotprint"
-            label="Standard KOT Print" 
+            label={t("Standard KOT Print", form.posLanguage)} 
             checked={form.kotPrint} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("kotPrint", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-masterkot")}
           />
           <Checkbox 
             id="conf-print-masterkot"
-            label="Master KOT" 
+            label={t("Master KOT", form.posLanguage)} 
             checked={form.masterKot} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("masterKot", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-masterkotbill")}
           />
           <Checkbox 
             id="conf-print-masterkotbill"
-            label="Master KOT (Bill Printer)" 
+            label={t("Master KOT (Bill Printer)", form.posLanguage)} 
             checked={form.masterKotBillPrinter} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("masterKotBillPrinter", e.target.checked)} 
-            onKeyDown={(e) => handleKeyDown(e, "conf-print-itemsep-main")}
-          />
-          <Checkbox 
-            id="conf-print-itemsep-main"
-            label="Item Separation" 
-            checked={!!form.itemSeperation} 
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("itemSeperation", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-itemsep")}
           />
           <Checkbox 
             id="conf-print-itemsep"
-            label="Item Separation (After Edit)" 
+            label={t("Item Separation (After Edit)", form.posLanguage)} 
             checked={form.itemSeparationAfterEdit} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("itemSeparationAfterEdit", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-billarabic")}
@@ -91,33 +87,35 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-[10px] font-bold text-[#49293e]/60 border-b border-gray-100 pb-2 mb-4 uppercase tracking-widest">Bill & Packager</h3>
+        <h3 className="text-[10px] font-bold text-[#49293e]/60 border-b border-gray-100 pb-2 mb-4 uppercase tracking-widest">
+          {t("Bill & Packager", form.posLanguage)}
+        </h3>
         
         <div className="grid gap-y-3">
           <Checkbox 
             id="conf-print-billarabic"
-            label="Bill Arabic" 
+            label={t("Bill Arabic", form.posLanguage)} 
             checked={form.billArabic} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("billArabic", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-packagerheader")}
           />
           <Checkbox 
             id="conf-print-packagerheader"
-            label="Packager Header" 
+            label={t("Packager Header", form.posLanguage)} 
             checked={form.packagerHeader} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("packagerHeader", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-packagerprint")}
           />
           <Checkbox 
             id="conf-print-packagerprint"
-            label="Packager Print" 
+            label={t("Packager Print", form.posLanguage)} 
             checked={form.packagerPrint} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("packagerPrint", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-color")}
           />
           <Checkbox 
             id="conf-print-color"
-            label="Color Change (Guest Print)" 
+            label={t("Color Change (Guest Print)", form.posLanguage)} 
             checked={form.colorChangeGuestPrint} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("colorChangeGuestPrint", e.target.checked)} 
             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-print-billcopies")}
@@ -125,7 +123,7 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
 
           <FormInput
             id="conf-print-billcopies"
-            label="Bill Copies"
+            label={t("Bill Copies", form.posLanguage)}
             type="number"
             inputClassName="text-right"
             value={String(form.billCopies)}
@@ -144,11 +142,13 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
           />
           
           <div className="pt-2 space-y-4">
-            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50 pt-4">Device Ports</h4>
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50 pt-4">
+              {t("Device Ports", form.posLanguage)}
+            </h4>
             <div className="grid gap-y-3">
               <FormInput
                 id="conf-print-callerid"
-                label="Caller ID Port"
+                label={t("Caller ID Port", form.posLanguage)}
                 value={form.callerIdPort}
                 onChange={(e) => onChange("callerIdPort", e.target.value)}
                 onFocus={(e) => {
@@ -161,7 +161,7 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
               />
               <FormInput
                 id="conf-print-display"
-                label="Display Port"
+                label={t("Display Port", form.posLanguage)}
                 value={form.displayPort}
                 onChange={(e) => onChange("displayPort", e.target.value)}
                 onFocus={(e) => {

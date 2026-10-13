@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { ConfigurationState } from "../types";
 import { Button, Table, FormInput } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { t } from "../../../pos/utils/posLocalization";
 
 interface Props {
   form: ConfigurationState;
@@ -27,11 +28,13 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
     <div className="flex flex-col gap-6">
       {/* Standard Charges */}
       <div className="space-y-4">
-        <h3 className="text-[10px] font-bold text-[#49293e]/60 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Global Percentage Charges</h3>
+        <h3 className="text-[10px] font-bold text-[#49293e]/60 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">
+          {t("Global Percentage Charges", form.posLanguage)}
+        </h3>
         <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
           <FormInput
             id="conf-charge-service"
-            label="Service Charge (%)"
+            label={t("Service Charge (%)", form.posLanguage)}
             type="number"
             autoFocus
             inputClassName="text-right"
@@ -44,7 +47,7 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
           />
           <FormInput
             id="conf-charge-levy"
-            label="Levy (%)"
+            label={t("Levy (%)", form.posLanguage)}
             type="number"
             inputClassName="text-right"
             value={String(form.levy)}
@@ -56,7 +59,7 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
           />
           <FormInput
             id="conf-charge-default-delivery"
-            label="Default Delivery Charge"
+            label={t("Default Delivery Charge", form.posLanguage)}
             type="number"
             inputClassName="text-right"
             value={String(form.defaultDeliveryCharge)}
@@ -71,13 +74,15 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
 
       {/* Multi Delivery Charges Section */}
       <div className="space-y-4">
-        <h3 className="text-[10px] font-bold text-[#49293e]/60 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Multi Delivery Zones</h3>
+        <h3 className="text-[10px] font-bold text-[#49293e]/60 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">
+          {t("Multi Delivery Zones", form.posLanguage)}
+        </h3>
         
         <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
           <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1.5fr_1fr_auto]">
             <FormInput
               id="conf-charge-name"
-              label="Zone/Charge Name"
+              label={t("Zone/Charge Name", form.posLanguage)}
               placeholder="e.g. Zone 1, Remote..."
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -88,7 +93,7 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
             />
             <FormInput
               id="conf-charge-amount"
-              label="Amount"
+              label={t("Amount", form.posLanguage)}
               type="number"
               inputClassName="text-right"
               placeholder="0.00"
@@ -101,7 +106,7 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
             />
             <div className="pb-1">
               <Button onClick={handleAdd} className="h-10.5 whitespace-nowrap px-6" icon={<Plus size={18} />}>
-                Add Zone
+                {t("Add Zone", form.posLanguage)}
               </Button>
             </div>
           </div>
@@ -110,18 +115,18 @@ const ChargesTab = ({ form, onChange, onAddDelivery, onRemoveDelivery, onInputFo
             <Table
               columns={[
                 { 
-                  header: "NAME", 
+                  header: t("NAME", form.posLanguage), 
                   accessor: "name",
                   render: (row) => <span className="text-[11px] font-bold text-gray-600">{row.name}</span>
                 },
                 { 
-                  header: "AMOUNT", 
+                  header: t("AMOUNT", form.posLanguage), 
                   accessor: "charge",
                   align: "right",
                   render: (row) => <span className="font-bold text-[#49293e]">{formatAmount(row.charge)}</span>
                 },
-                {
-                  header: "ACTIONS",
+                { 
+                  header: t("ACTIONS", form.posLanguage), 
                   accessor: "id",
                   align: "right",
                   render: (row) => (

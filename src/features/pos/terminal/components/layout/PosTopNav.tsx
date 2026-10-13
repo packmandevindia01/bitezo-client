@@ -14,11 +14,13 @@ import {
 import PosActionButton from "./PosActionButton";
 import type { PosOrderType, MenuProvider } from "../../../types";
 import { SubscriptionStatusBadge } from "../../../../company/components/SubscriptionStatusBadge";
+import { t } from "../../../utils/posLocalization";
 
 
 interface PosTopNavProps {
   onProvider?: () => void;
   onCashierOut?: () => void;
+  onLogout?: () => void;
   onDelivery?: () => void;
   onDriveThrough?: () => void;
   onCustomer?: () => void;
@@ -53,6 +55,7 @@ const formatOrderTypeLabel = (name: string) => {
 
 const PosTopNav = ({
   onCashierOut,
+  onLogout,
   onDelivery,
   onDriveThrough,
   onProvider,
@@ -77,8 +80,8 @@ const PosTopNav = ({
 
   const isCustomCustomerSelected = Boolean(selectedCustomerId && Number(selectedCustomerId) !== 1);
   const displayCustomerName = isCustomCustomerSelected
-    ? (selectedCustomerName || deliveryCustomerName || vehicleCustomerName || `Customer #${selectedCustomerId}`)
-    : (selectedCustomerName || "Cash Customer");
+    ? (t(selectedCustomerName) || deliveryCustomerName || vehicleCustomerName || `${t("Customer")} #${selectedCustomerId}`)
+    : (t(selectedCustomerName) || t("Cash Customer"));
   const visibleOrderTypes = orderTypes.length > 0 ? orderTypes : fallbackOrderTypes;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -104,7 +107,9 @@ const PosTopNav = ({
   };
 
   const handleLogoutClick = () => {
-    if (onCashierOut) {
+    if (onLogout) {
+      onLogout();
+    } else if (onCashierOut) {
       onCashierOut(); // Open the Close Session modal
     }
   };
@@ -148,7 +153,7 @@ const PosTopNav = ({
               }}
             >
               <Icon size={13} className="xl:w-3.5 xl:h-3.5 max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50" />
-              <span className="inline whitespace-nowrap">{label}</span>
+              <span className="inline whitespace-nowrap">{t(label)}</span>
             </PosActionButton>
           )})}
           <PosActionButton
@@ -158,7 +163,7 @@ const PosTopNav = ({
           >
             <Users size={13} className="xl:w-3.5 xl:h-3.5 max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50" />
             <span className="inline uppercase whitespace-nowrap max-w-[100px] xl:max-w-[140px] max-[1100px]:!max-w-[80px] max-[800px]:!max-w-[50px] max-[700px]:!max-w-[40px] truncate" title={activeProvider ? activeProvider.provider.providerName : undefined}>
-              {activeProvider ? activeProvider.provider.providerName : "Provider"}
+              {activeProvider ? activeProvider.provider.providerName : t("Providers")}
             </span>
           </PosActionButton>
         </div>
@@ -175,10 +180,10 @@ const PosTopNav = ({
               className={`inline-flex items-center gap-1 transition-all ${
                 onCustomer ? "hover:opacity-80 cursor-pointer" : "cursor-default"
               }`}
-              title={isCustomCustomerSelected ? `Assigned Customer: ${displayCustomerName}` : "Customer"}
+              title={isCustomCustomerSelected ? `Assigned Customer: ${displayCustomerName}` : t("Customer")}
             >
               <User size={12} className={isCustomCustomerSelected ? "text-emerald-400" : "text-white/60"} />
-              <span className="text-white/60 font-semibold mr-0.5">Customer:</span>
+              <span className="text-white/60 font-semibold mr-0.5">{t("Customer")}:</span>
               <span
                 className={`truncate max-w-[110px] sm:max-w-[140px] md:max-w-[180px] ${
                   isCustomCustomerSelected
@@ -190,18 +195,18 @@ const PosTopNav = ({
               </span>
             </button>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/70 font-semibold mr-1">Order:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
+            <span><span className="text-white/70 font-semibold mr-1">{t("Order")}:</span>{editingOrderId || activeProvider?.orderNo || t("New")}</span>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/70 font-semibold mr-1">Ticket:</span>{editingOrderId || activeProvider?.orderNo || "New"}</span>
+            <span><span className="text-white/70 font-semibold mr-1">{t("Ticket")}:</span>{editingOrderId || activeProvider?.orderNo || t("New")}</span>
           </div>
           <div className="flex gap-3 max-[1100px]:gap-2 justify-end text-white/90 font-semibold text-[12px] max-[1100px]:text-[10px] max-[800px]:text-[8px] max-[700px]:text-[7px] mt-0.5">
-            <span><span className="text-white/50 font-medium mr-1">Section:</span>{activeProvider ? activeProvider.provider.providerName : (selectedOrderTypeName || "-")}</span>
+            <span><span className="text-white/50 font-medium mr-1">{t("Section")}:</span>{activeProvider ? activeProvider.provider.providerName : t(selectedOrderTypeName || "-")}</span>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/50 font-medium mr-1">Table:</span>{activeProvider ? "-" : (selectedTableNo || "-")}</span>
+            <span><span className="text-white/50 font-medium mr-1">{t("Table")}:</span>{activeProvider ? "-" : (selectedTableNo || "-")}</span>
             {waiterName && (
               <>
                 <span className="text-white/30">|</span>
-                <span className="text-[#fca311]"><span className="text-white/50 font-medium mr-1">Waiter:</span>{waiterName}</span>
+                <span className="text-[#fca311]"><span className="text-white/50 font-medium mr-1">{t("Waiter")}:</span>{t(waiterName)}</span>
               </>
             )}
           </div>

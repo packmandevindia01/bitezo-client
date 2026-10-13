@@ -5,6 +5,7 @@ import type { PosProduct, MenuSubCategory, PosAlternative } from "../../../types
 import { PosProductCard } from "./PosProductCard";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { sortAlternatives } from "../../../utils/alternativeHelpers";
+import { getLocalizedName } from "../../../utils/posLocalization";
 
 interface PosProductGridProps {
   products: PosProduct[];
@@ -271,20 +272,26 @@ const PosProductGrid = ({
                             )}
                           </div>
 
-                          <div className="flex flex-col flex-1 min-h-0 min-w-0 items-center justify-center w-full px-1 py-0.5 overflow-hidden bg-white">
-                            <p className="text-[9px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-[1.15] line-clamp-2 break-words text-center text-[#49293e]">
-                              {sub.subCategoryName}
-                            </p>
-                            {sub.arabicName && (
-                              <p className="text-[8px] md:text-[9px] xl:text-[10px] font-bold leading-[1.15] mt-0.5 line-clamp-1 break-words text-center text-slate-500">
-                                {sub.arabicName}
-                              </p>
-                            )}
-                          </div>
+                          {(() => {
+                            const localizedSub = getLocalizedName(sub.subCategoryName, sub.arabicName);
+                            return (
+                              <div className="flex flex-col flex-1 min-h-0 min-w-0 items-center justify-center w-full px-1 py-0.5 overflow-hidden bg-white">
+                                <p className="text-[9px] md:text-[10px] xl:text-[11px] font-extrabold tracking-tight uppercase leading-[1.15] line-clamp-2 break-words text-center text-[#49293e]">
+                                  {localizedSub.primary}
+                                </p>
+                                {localizedSub.secondary && (
+                                  <p className="text-[8px] md:text-[9px] xl:text-[10px] font-bold leading-[1.15] mt-0.5 line-clamp-1 break-words text-center text-slate-500">
+                                    {localizedSub.secondary}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </button>
                       );
                     } else if (showAlternatives) {
                       const alt = item as PosAlternative;
+                      const localizedAlt = getLocalizedName(alt.altName, alt.altArabic);
                       const isFirstAlt = sortedAlternatives.indexOf(alt) === 0;
                       
                       // Create a robust unique key from alternative properties
@@ -305,7 +312,7 @@ const PosProductGrid = ({
                         >
                           <div className="relative w-full h-[57%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
                             <span className="text-sm font-black text-slate-300 uppercase select-none">
-                              {alt.altName.substring(0, 2)}
+                              {localizedAlt.primary.substring(0, 2)}
                             </span>
                           </div>
 
@@ -332,11 +339,11 @@ const PosProductGrid = ({
                           <div className="w-full flex-1 min-h-0 flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
                             <div className="w-full flex flex-col items-center justify-center text-center">
                               <h3 className="text-[8.5px] sm:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
-                                {alt.altName}
+                                {localizedAlt.primary}
                               </h3>
-                              {alt.altArabic && (
+                              {localizedAlt.secondary && (
                                 <p className="text-[7.5px] sm:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
-                                  {alt.altArabic}
+                                  {localizedAlt.secondary}
                                 </p>
                               )}
                             </div>

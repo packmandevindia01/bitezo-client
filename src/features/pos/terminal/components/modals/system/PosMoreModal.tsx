@@ -19,6 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Modal } from '../../../../../../components/common';
+import { t } from '../../../../utils/posLocalization';
 
 interface PosMoreModalProps {
   isOpen: boolean;
@@ -193,11 +194,11 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, ite
       <div className="flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full ${badgeColor}`} />
         <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
-          {title}
+          {t(title)}
         </h3>
       </div>
       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-        {badge}
+        {t(badge)}
       </span>
     </div>
     <div className="grid grid-cols-1 gap-1.5">
@@ -216,7 +217,7 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, ite
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] font-bold text-slate-800 group-hover:text-[#49293e] tracking-tight truncate leading-tight">
-                  {item.label}
+                  {t(item.label)}
                 </span>
                 {item.requiresAuth && !isDefaultEmployee && (
                   <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-200/60 rounded px-1 py-0.2" title="Manager approval required">
@@ -231,7 +232,7 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, ite
                 )}
               </div>
               <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5 truncate">
-                {item.description}
+                {t(item.description)}
               </p>
             </div>
           </button>
@@ -381,8 +382,8 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
         <LayoutGrid size={18} strokeWidth={2.2} />
       </div>
       <div>
-        <h2 className="text-sm font-bold text-slate-900 leading-tight">Configuration & Operations</h2>
-        <p className="text-[10.5px] text-slate-400 font-medium">Quick actions, cashier shift tools, hardware & backoffice controls</p>
+        <h2 className="text-sm font-bold text-slate-900 leading-tight">{t("Configuration & Operations")}</h2>
+        <p className="text-[10.5px] text-slate-400 font-medium">{t("Quick actions, cashier shift tools, hardware & backoffice controls")}</p>
       </div>
     </div>
   );

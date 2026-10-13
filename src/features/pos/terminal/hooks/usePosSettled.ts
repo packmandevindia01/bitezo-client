@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
 import type { SettledOrdersParams } from '../../services/settledOrdersApi';
 import { useToast } from '../../../../app/providers/useToast';
@@ -10,9 +10,10 @@ export const usePosSettled = () => {
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
   const { status } = useCashierLog();
+  const lastParamsRef = useRef<SettledOrdersParams>({ OrderTypeId: 0, DeliveryOutStatus: false, IncludeCancelled: false });
 
   const fetchOrders = useCallback(async (params: SettledOrdersParams = {}) => {
-    let activeDayId = status?.dayId;
+    let activeDayId = params.DayId || status?.dayId;
     if (!activeDayId) {
       try {
         const savedShift = localStorage.getItem("activeShift");
@@ -25,7 +26,12 @@ export const usePosSettled = () => {
       }
     }
     if (!activeDayId) {
-      activeDayId = Number(localStorage.getItem("dayId")) || Number(localStorage.getItem("systemDayId")) || Number(localStorage.getItem("pos_dayId")) || 0;
+      activeDayId =
+        Number(localStorage.getItem("dayId")) ||
+        Number(localStorage.getItem("systemDayId")) ||
+        Number(sessionStorage.getItem("systemDayId")) ||
+        Number(localStorage.getItem("pos_dayId")) ||
+        0;
     }
 
     try {
@@ -38,6 +44,7 @@ export const usePosSettled = () => {
         DeliveryOutStatus: params.DeliveryOutStatus ?? false,
         DeliveryOutOnlyStatus: params.DeliveryOutOnlyStatus ?? false,
         Decimals: getDecimalPart(),
+        IncludeCancelled: Boolean(params.IncludeCancelled ?? false),
       };
 
       if (activeDayId > 0) {
@@ -52,6 +59,8 @@ export const usePosSettled = () => {
         cleanParams.SearchStatus = (params.SearchStatus?.trim() || "ORDER NO").toUpperCase();
       }
       if (params.ProviderName?.trim()) cleanParams.ProviderName = params.ProviderName.trim();
+
+      lastParamsRef.current = cleanParams;
 
       const response = await settledOrdersApi.getSettledOrders(cleanParams);
       
@@ -70,7 +79,7 @@ export const usePosSettled = () => {
   }, [status, showToast]);
 
   useEffect(() => {
-    void fetchOrders({ OrderTypeId: 0, DeliveryOutStatus: false });
+    void fetchOrders({ OrderTypeId: 0, DeliveryOutStatus: false, IncludeCancelled: false });
   }, [status?.dayId, fetchOrders]);
 
   const cancelOrder = useCallback(async (orderId: number) => {
@@ -79,7 +88,7 @@ export const usePosSettled = () => {
       const response = await settledOrdersApi.cancelSalesInvoice(orderId);
       if (response && response.isSuccess) {
         showToast(response.message || `Order #${orderId} cancelled successfully`, 'success');
-        await fetchOrders({ OrderTypeId: 0 });
+        await fetchOrders(lastParamsRef.current);
         return true;
       } else {
         showToast(response?.message || 'Failed to cancel order', 'error');

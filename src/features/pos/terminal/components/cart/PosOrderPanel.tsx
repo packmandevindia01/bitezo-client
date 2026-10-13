@@ -2,6 +2,7 @@ import type { PosQuickAction } from "../../../types";
 import { PosCartList } from "./PosCartList";
 import { PosOrderSummary } from "./PosOrderSummary";
 import { Tag, DollarSign } from "lucide-react";
+import { t } from "../../../utils/posLocalization";
 
 interface CartRow {
   uniqueId: string;
@@ -56,6 +57,8 @@ interface PosOrderPanelProps {
   orderLoading?: boolean;
   isSettling?: boolean;
   isSettledEdit?: boolean;
+  editingSaleId?: number | null;
+  onCancelSettledEdit?: () => void;
   selectedTender: string;
   onSelectTender: (tender: string) => void;
   onDeliveryChargeDoubleClick?: () => void;
@@ -92,6 +95,8 @@ export const PosOrderPanel = ({
   orderLoading = false,
   isSettling = false,
   isSettledEdit = false,
+  editingSaleId,
+  onCancelSettledEdit,
   selectedTender,
   onSelectTender,
   onDeliveryChargeDoubleClick,
@@ -138,6 +143,24 @@ export const PosOrderPanel = ({
         </button>
       )}
 
+      {/* Settled Order Edit Mode Banner */}
+      {isSettledEdit && (
+        <div className="bg-amber-500 text-white px-3 py-1.5 flex items-center justify-between text-xs font-bold shadow-sm shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span>{t("Editing Settled Invoice")} {editingSaleId ? `#${editingSaleId}` : ""}</span>
+          </div>
+          {onCancelSettledEdit && (
+            <button
+              onClick={onCancelSettledEdit}
+              className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white text-[10px] font-black uppercase transition-colors"
+            >
+              {t("Cancel")}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Utility Action Bar */}
       <div className="grid grid-cols-5 gap-1 lg:gap-1.5 [@media(max-height:800px)]:gap-0.5 p-1.5 lg:p-2 [@media(max-height:800px)]:p-1 shrink-0 border-b border-slate-100 bg-slate-50/50">
         
@@ -146,7 +169,7 @@ export const PosOrderPanel = ({
         <button
           onClick={onQty}
           disabled={!hasSelection}
-          title="Manual Quantity"
+          title={t("Manual Quantity")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -160,14 +183,14 @@ export const PosOrderPanel = ({
             <line x1="4" x2="20" y1="9" y2="9" /><line x1="4" x2="20" y1="15" y2="15" />
             <line x1="10" x2="8" y1="3" y2="21" /><line x1="16" x2="14" y1="3" y2="21" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Qty</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Qty")}</span>
         </button>
 
         {/* PRICE */}
         <button
           onClick={onPrice}
           disabled={!hasSelection}
-          title="Change Price"
+          title={t("Change Price")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -178,14 +201,14 @@ export const PosOrderPanel = ({
           `}
         >
           <DollarSign className="w-3 h-3 lg:w-3.5 lg:h-3.5" strokeWidth={2.5} color="currentColor" />
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Price</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Price")}</span>
         </button>
 
         {/* DISCOUNT */}
         <button
           onClick={onDiscount}
           disabled={cartDetails.length === 0}
-          title="Apply Discount"
+          title={t("Apply Discount")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -196,14 +219,14 @@ export const PosOrderPanel = ({
           `}
         >
           <Tag className="w-3 h-3 lg:w-3.5 lg:h-3.5" strokeWidth={2.5} color="currentColor" />
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Discount</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Discount")}</span>
         </button>
 
         {/* VOID ITEM */}
         <button
           onClick={handleVoid}
           disabled={!hasSelection}
-          title="Void selected item"
+          title={t("Void selected item")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -216,14 +239,14 @@ export const PosOrderPanel = ({
           <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Void</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Void")}</span>
         </button>
 
         {/* MESSAGE */}
         <button
           onClick={onMessage}
           disabled={!hasSelection}
-          title="Add Message"
+          title={t("Add Message")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -236,7 +259,7 @@ export const PosOrderPanel = ({
           <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Msg</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Msg")}</span>
         </button>
 
 
@@ -245,7 +268,7 @@ export const PosOrderPanel = ({
         <button
           onClick={handleDecrement}
           disabled={!hasSelection}
-          title="Decrease quantity"
+          title={t("Decrease quantity")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -258,14 +281,14 @@ export const PosOrderPanel = ({
           <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <path d="M5 12h14" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">QTY -</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Qty -")}</span>
         </button>
 
         {/* PLUS — increment selected row */}
         <button
           onClick={handleIncrement}
           disabled={!hasSelection}
-          title="Increase quantity"
+          title={t("Increase quantity")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -278,14 +301,14 @@ export const PosOrderPanel = ({
           <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">QTY +</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Qty +")}</span>
         </button>
 
         {/* MOD */}
         <button
           onClick={onMod}
           disabled={!hasSelection}
-          title="Mod"
+          title={t("Mod")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -299,14 +322,14 @@ export const PosOrderPanel = ({
             <path d="M20 7h-9" /><path d="M14 17H5" />
             <circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Mod</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Mod")}</span>
         </button>
 
         {/* EXTRAS */}
         <button
           onClick={onExtras}
           disabled={!hasSelection}
-          title="Extras"
+          title={t("Extras")}
           className={`
             h-7 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 [@media(max-height:800px)]:gap-0
             transition-all active:scale-95 border
@@ -319,7 +342,7 @@ export const PosOrderPanel = ({
           <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
           </svg>
-          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">Extras</span>
+          <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest">{t("Extras")}</span>
         </button>
 
         {/* EMPTY CELL FOR ALIGNMENT */}

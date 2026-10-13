@@ -95,6 +95,14 @@ export const ProductTransactionLogReportPage = () => {
     [report, filters]
   );
 
+  const handleClose = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate("/dashboard");
+    }
+  };
+
   return (
     <PageShell title="Product Transaction Log">
       <div className="flex flex-col h-auto md:h-[calc(100vh-92px)] md:overflow-hidden p-1 gap-3 relative">
@@ -102,7 +110,7 @@ export const ProductTransactionLogReportPage = () => {
         {/* ── Filter Panel ───────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 relative pr-28">
           <button
-            onClick={() => navigate("/dashboard/reports")}
+            onClick={handleClose}
             className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
             title="Close"
           >

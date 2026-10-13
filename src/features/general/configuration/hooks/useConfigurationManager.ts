@@ -17,7 +17,11 @@ export interface ConfigurationEmployeeOption {
 export const useConfigurationManager = () => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [form, setForm] = useState<ConfigurationState>(INITIAL_CONFIG);
+  const [form, setForm] = useState<ConfigurationState>(() => ({
+    ...INITIAL_CONFIG,
+    posLanguage: (localStorage.getItem("posLanguage") === "Arabic" ? "Arabic" : "English"),
+    productView: ((localStorage.getItem("productView") as any) || "English"),
+  }));
   const [backofficeForm, setBackofficeFormState] = useState<BackofficeConfigState>(INITIAL_BACKOFFICE_CONFIG);
   const [employeeOptions, setEmployeeOptions] = useState<ConfigurationEmployeeOption[]>([]);
   const [saving, setSaving] = useState(false);
@@ -265,6 +269,12 @@ export const useConfigurationManager = () => {
       if (payload.billArabic) {
         localStorage.setItem("billArabic", payload.billArabic);
       }
+      if (form.posLanguage) {
+        localStorage.setItem("posLanguage", form.posLanguage);
+      }
+      if (form.productView) {
+        localStorage.setItem("productView", form.productView);
+      }
 
       if (form.defaultEmployee && form.employeeId) {
         const match = employeeOptions.find((e) => e.value === form.employeeId);
@@ -298,6 +308,8 @@ export const useConfigurationManager = () => {
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
           parsed.configs.itemSeperation = payload.itemSeperation;
+          parsed.configs.posLanguage = form.posLanguage || "English";
+          parsed.configs.productView = form.productView || "English";
         }
         parsed.itemSeperation = payload.itemSeperation;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
@@ -305,6 +317,8 @@ export const useConfigurationManager = () => {
         parsed.kotPrint = payload.kotPrint;
         parsed.kotArabic = payload.kotArabic;
         parsed.billArabic = payload.billArabic;
+        parsed.posLanguage = form.posLanguage || "English";
+        parsed.productView = form.productView || "English";
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
       } catch {}
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '../../../../../../hooks/useCurrency';
 import { Modal, Button } from '../../../../../../components/common';
 import { Banknote, XCircle, Delete } from 'lucide-react';
+import { t } from '../../../../utils/posLocalization';
 
 interface PosCashTenderModalProps {
   isOpen: boolean;
@@ -91,19 +92,19 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Cash Settlement" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("Cash Settlement")} size="md">
       <form onSubmit={handleSubmit} className="space-y-4 py-1">
         <div>
           {/* Top Summary */}
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
-            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Total Due</span>
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">{t("Total Due")}</span>
             <span className="text-lg font-black text-slate-700 tracking-tight">
               {formatAmount(totalDue)}
             </span>
           </div>
           <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
-            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Amount Paid</span>
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">{t("Amount Paid")}</span>
             <span className="text-lg font-black text-blue-600 tracking-tight">
               {formatAmount(numTendered)}
             </span>
@@ -116,7 +117,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
             <span className={`text-[8px] font-bold uppercase tracking-widest mb-0.5 ${
               numTendered > 0 ? (isSufficient ? 'text-emerald-600' : 'text-red-500') : 'text-slate-500'
             }`}>
-              {numTendered > 0 && !isSufficient ? 'Short By' : 'Change'}
+              {t(numTendered > 0 && !isSufficient ? 'Short By' : 'Change')}
             </span>
             <span className={`text-lg font-black tracking-tight ${
               numTendered > 0 ? (isSufficient ? 'text-emerald-600' : 'text-red-500') : 'text-slate-400'
@@ -130,7 +131,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
         <div className="bg-[#1e293b] p-2.5 rounded-2xl shadow-md flex flex-col items-end relative overflow-hidden shrink-0">
           <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
           <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">
-            Amount Tendered ({currencySymbol})
+            {t("Amount Tendered")} ({currencySymbol})
           </span>
           <div className="w-full flex items-center relative pr-8">
             <input
@@ -198,7 +199,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
         {/* Actions */}
         <div className="flex gap-3 pt-3 mt-4 border-t border-slate-100">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1 h-14">
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button
             type="submit"
@@ -207,7 +208,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
             loading={loading}
           >
             <Banknote className="w-5 h-5 mr-2" />
-            Pay
+            {t("Pay")}
           </Button>
         </div>
       </form>
