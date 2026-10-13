@@ -1,4 +1,5 @@
 import axiosInstance from "../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 export interface ApiResponse<T> {
   isSuccess: boolean;
   message: string;
@@ -52,13 +53,28 @@ const unwrap = <T = any>(promise: Promise<{ data: any }>): Promise<ApiResponse<T
   });
 
 const getPriceView = (): string => {
-  try {
-    const saved = localStorage.getItem('posConfigs');
-    const full = saved ? JSON.parse(saved) : {};
-    return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-  } catch {
-    return 'Exclusive';
+  const directPrintPrice = localStorage.getItem('printPrice');
+  if (directPrintPrice === 'Inclusive' || directPrintPrice === 'Exclusive') {
+    return directPrintPrice;
   }
+  const directPriceView = localStorage.getItem('priceView');
+  if (directPriceView === 'Inclusive' || directPriceView === 'Exclusive') {
+    return directPriceView;
+  }
+  try {
+    for (const key of ['posConfigs', 'posConfig', 'pos_configs', 'pos_config']) {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const full = JSON.parse(saved);
+        const configs = full?.configs || full;
+        const pp = configs?.printPrice || configs?.PrintPrice;
+        if (pp === 'Inclusive' || pp === 'Exclusive') return pp;
+        const pv = configs?.priceView || configs?.PriceView;
+        if (pv === 'Inclusive' || pv === 'Exclusive') return pv;
+      }
+    }
+  } catch {}
+  return 'Exclusive';
 };
 
 export const settledOrdersApi = {
@@ -86,6 +102,8 @@ export const settledOrdersApi = {
   },
 
   cancelSalesInvoice: async (orderId: number): Promise<ApiResponse<any>> => {
-    return unwrap<any>(axiosInstance.put(`/settled-orders/cancel-sales-invoice/${orderId}`));
+    const res = await unwrap<any>(axiosInstance.put(`/settled-orders/cancel-sales-invoice/${orderId}`));
+    notifyTransactionsUpdated("sale");
+    return res;
   }
 };

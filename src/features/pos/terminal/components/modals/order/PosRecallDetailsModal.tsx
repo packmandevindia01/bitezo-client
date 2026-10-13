@@ -673,7 +673,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
-        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.price || 0) * (d.qty || 1);
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.itemVatBase !== undefined ? d.itemVatBase : ((d.price || 0) * (d.qty || 1)));
         return {
           productId: pId,
           quantity: d.qty || 1,
@@ -862,6 +862,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         netAmount: netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
+        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        priceView: (localStorage.getItem("priceView") as any) || undefined,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
           Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
         )

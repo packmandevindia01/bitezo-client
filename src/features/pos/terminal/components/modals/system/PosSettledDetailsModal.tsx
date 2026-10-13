@@ -592,7 +592,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || (d.price || 0) * (d.qty || 1);
-        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.price || 0) * (d.qty || 1);
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.itemVatBase !== undefined ? d.itemVatBase : (d.price || 0) * (d.qty || 1));
         return {
           productId: d.productId || d.itemId || 0,
           quantity: d.qty || 1,
@@ -815,6 +815,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         payments,
         enableVat,
         isSettlement: true,
+        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        priceView: (localStorage.getItem("priceView") as any) || undefined,
         billArabic:
           isBillArabicEnabled() ||
           mappedItems.some((it: any) =>

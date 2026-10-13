@@ -1,4 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../../utils/transactionSync";
 import type {
   PaymentAgainstMasterDataResponse,
   PaymentAgainstAccount,
@@ -204,16 +205,20 @@ export const paymentAgainstVoucherApi = {
 
   // Create a new payment against voucher
   createPaymentAgainstVoucher: async (payload: PaymentAgainstCreatePayload): Promise<{ id: number }> => {
-    return unwrap<{ id: number }>(axiosInstance.post<ApiResponse<{ id: number }>>(`/payment-against`, payload));
+    const res = await unwrap<{ id: number }>(axiosInstance.post<ApiResponse<{ id: number }>>(`/payment-against`, payload));
+    notifyTransactionsUpdated("payment");
+    return res;
   },
 
   // Update an existing payment against voucher
   updatePaymentAgainstVoucher: async (transId: number, payload: PaymentAgainstUpdatePayload): Promise<void> => {
     await unwrap<any>(axiosInstance.put<ApiResponse<null>>(`/payment-against/${transId}`, payload));
+    notifyTransactionsUpdated("payment");
   },
 
   // Cancel/Delete a payment against voucher
   cancelPaymentAgainstVoucher: async (transId: number): Promise<void> => {
     await unwrap<any>(axiosInstance.put<ApiResponse<null>>(`/payment-against/cancel/${transId}`));
+    notifyTransactionsUpdated("payment");
   },
 };

@@ -1,4 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../../utils/transactionSync";
 
 export interface PurchaseReturnMasterData {
   series: {
@@ -235,6 +236,7 @@ export const purchaseReturnApi = {
       message: string;
     }>("/purchase-return-invoice", payload);
     if (!response.data.isSuccess) throw new Error(response.data.message);
+    notifyTransactionsUpdated("purchase_return");
     return response.data;
   },
 
@@ -265,6 +267,7 @@ export const purchaseReturnApi = {
       message: string;
     }>(`/purchase-return-invoice/${purchaseReturnId}`, payload);
     if (!response.data.isSuccess) throw new Error(response.data.message);
+    notifyTransactionsUpdated("purchase_return");
     return response.data;
   },
 
@@ -275,6 +278,7 @@ export const purchaseReturnApi = {
       message: string;
     }>(`/purchase-return-invoice/cancel/${purchaseReturnId}`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
+    notifyTransactionsUpdated("purchase_return");
     return response.data;
   },
 

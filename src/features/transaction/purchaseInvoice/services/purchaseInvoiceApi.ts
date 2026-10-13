@@ -1,4 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../../utils/transactionSync";
 
 async function unwrap<T>(promise: Promise<{ data: any }>): Promise<T> {
   try {
@@ -219,7 +220,9 @@ export const purchaseInvoiceApi = {
   },
 
   savePurchaseInvoice: async (payload: any) => {
-    return unwrap(axiosInstance.post("/purchase-invoice", payload));
+    const res = await unwrap(axiosInstance.post("/purchase-invoice", payload));
+    notifyTransactionsUpdated("purchase");
+    return res;
   },
 
   getPurchaseInvoiceList: async (params: any) => {
@@ -243,7 +246,9 @@ export const purchaseInvoiceApi = {
   },
 
   updatePurchaseInvoice: async (purchaseId: string | number, payload: any) => {
-    return unwrap(axiosInstance.put(`/purchase-invoice/${purchaseId}`, payload));
+    const res = await unwrap(axiosInstance.put(`/purchase-invoice/${purchaseId}`, payload));
+    notifyTransactionsUpdated("purchase");
+    return res;
   },
 
   cancelPurchaseInvoice: async (purchaseId: string | number) => {
@@ -253,6 +258,7 @@ export const purchaseInvoiceApi = {
       message: string;
     }>(`/purchase-invoice/cancel/${purchaseId}`);
     if (!response.data.isSuccess) throw new Error(response.data.message);
+    notifyTransactionsUpdated("purchase");
     return response.data;
   },
 

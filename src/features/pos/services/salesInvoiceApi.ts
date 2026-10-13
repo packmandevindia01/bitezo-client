@@ -1,4 +1,5 @@
 import axiosInstance from "../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 
 export interface ApiResponse<T = any> {
   isSuccess: boolean;
@@ -117,6 +118,7 @@ export const salesInvoiceApi = {
       }
 
       const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));
+      notifyTransactionsUpdated("sale");
       return data ?? null;
     } catch (e: any) {
       console.error("Sales invoice creation failed:", e);
@@ -212,6 +214,7 @@ export const salesInvoiceApi = {
       };
 
       await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${numSaleId}`, putPayload));
+      notifyTransactionsUpdated("sale");
       return true;
     } catch (e: any) {
       console.error("Sales invoice update failed:", e);

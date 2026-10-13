@@ -1,4 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../../utils/transactionSync";
 import type {
   EntityOption,
   EntityType,
@@ -218,6 +219,7 @@ export const bulkSettlementApi = {
     if (data && typeof data === "object" && "isSuccess" in data && !data.isSuccess) {
       throw new Error(data.message || "Driver settlement failed");
     }
+    notifyTransactionsUpdated("settlement");
     return { isSuccess: true, message: data?.message || "Driver settlement completed successfully" };
   },
 
@@ -230,6 +232,7 @@ export const bulkSettlementApi = {
     if (data && typeof data === "object" && "isSuccess" in data && !data.isSuccess) {
       throw new Error(data.message || "Provider settlement failed");
     }
+    notifyTransactionsUpdated("settlement");
     return { isSuccess: true, message: data?.message || "Provider settlement completed successfully" };
   },
 
@@ -255,6 +258,7 @@ export const bulkSettlementApi = {
     if (data && typeof data === "object" && "isSuccess" in data && !data.isSuccess) {
       throw new Error(data.message || "Day settlement failed");
     }
+    notifyTransactionsUpdated("settlement");
     return { isSuccess: true, message: data?.message || "Day settlement completed successfully" };
   },
 };

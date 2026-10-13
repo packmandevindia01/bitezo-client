@@ -641,6 +641,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           })),
           isSettlement: true,
           enableVat,
+          printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+          priceView: (localStorage.getItem("priceView") as any) || undefined,
           billArabic:
             isBillArabicEnabled() ||
             printMappedItems.some((it: any) =>

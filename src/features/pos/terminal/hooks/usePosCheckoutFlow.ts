@@ -669,6 +669,8 @@ export const usePosCheckoutFlow = ({
             netAmount: isCombinedOrder ? total : (masterData?.netAmount ?? total),
             changeAmount: settlementCashChangeRef.current > 0 ? settlementCashChangeRef.current : undefined,
             isSettlement: true,
+            printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+            priceView: (localStorage.getItem("priceView") as any) || undefined,
             billArabic: isBillArabicEnabled()
           }
         };

@@ -275,6 +275,12 @@ export const useConfigurationManager = () => {
       if (form.productView) {
         localStorage.setItem("productView", form.productView);
       }
+      if (form.priceView || payload.priceView) {
+        localStorage.setItem("priceView", form.priceView || payload.priceView || "Exclusive");
+      }
+      if (form.printPrice || payload.printPrice) {
+        localStorage.setItem("printPrice", form.printPrice || payload.printPrice || "Exclusive");
+      }
 
       if (form.defaultEmployee && form.employeeId) {
         const match = employeeOptions.find((e) => e.value === form.employeeId);
@@ -310,6 +316,8 @@ export const useConfigurationManager = () => {
           parsed.configs.itemSeperation = payload.itemSeperation;
           parsed.configs.posLanguage = form.posLanguage || "English";
           parsed.configs.productView = form.productView || "English";
+          parsed.configs.priceView = form.priceView || payload.priceView;
+          parsed.configs.printPrice = form.printPrice || payload.printPrice;
         }
         parsed.itemSeperation = payload.itemSeperation;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
@@ -319,6 +327,8 @@ export const useConfigurationManager = () => {
         parsed.billArabic = payload.billArabic;
         parsed.posLanguage = form.posLanguage || "English";
         parsed.productView = form.productView || "English";
+        parsed.priceView = form.priceView || payload.priceView;
+        parsed.printPrice = form.printPrice || payload.printPrice;
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
       } catch {}
 

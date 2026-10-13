@@ -304,6 +304,12 @@ export const usePosConfiguration = () => {
       if (form.productView) {
         localStorage.setItem("productView", form.productView);
       }
+      if (form.priceView || payload.priceView) {
+        localStorage.setItem("priceView", form.priceView || payload.priceView || "Exclusive");
+      }
+      if (form.printPrice || payload.printPrice) {
+        localStorage.setItem("printPrice", form.printPrice || payload.printPrice || "Exclusive");
+      }
 
       // ─── Frontend override for default employee ───────────────────────────────
       // The backend does not persist defaultEmployee/employeeId to the DB.
@@ -358,10 +364,14 @@ export const usePosConfiguration = () => {
           parsed.configs.itemSeperation = payload.itemSeperation;
           parsed.configs.posLanguage = form.posLanguage || "English";
           parsed.configs.productView = form.productView || "English";
+          parsed.configs.priceView = form.priceView || payload.priceView;
+          parsed.configs.printPrice = form.printPrice || payload.printPrice;
         }
         parsed.itemSeperation = payload.itemSeperation;
         parsed.posLanguage = form.posLanguage || "English";
         parsed.productView = form.productView || "English";
+        parsed.priceView = form.priceView || payload.priceView;
+        parsed.printPrice = form.printPrice || payload.printPrice;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
