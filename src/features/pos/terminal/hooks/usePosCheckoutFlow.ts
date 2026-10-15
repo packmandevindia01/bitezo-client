@@ -8,6 +8,7 @@ import { isBillArabicEnabled } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getModifierTypeNameById } from '../../services/menuApi';
+import { alternativesCache } from '../hooks/usePosProducts';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -429,13 +430,59 @@ export const usePosCheckoutFlow = ({
         if (!isCombinedOrder && detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
           try {
             const sortedDetails = sortOrderDetailsBySequence(detailsData);
-            const preMapped = sortedDetails.map((d: any) => {
-              const cartMatch = cartDetails.find(c => 
-                (c.mapId && d.mapId && Number(c.mapId) === Number(d.mapId)) || 
-                c.productId === (d.productId || d.itemId)
-              );
+            const usedCartIndices = new Set<number>();
 
-              const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
+            // Helper to find the 1-to-1 corresponding cart item for detail d
+            const findCartMatch = (d: any) => {
+              const dPid = Number(d.productId || d.itemId || 0);
+              const dUnitId = Number(d.unitId ?? d.UnitId ?? 0);
+              const dMapId = d.mapId !== undefined ? Number(d.mapId) : undefined;
+
+              // 1. Match by mapId if available
+              if (dMapId !== undefined) {
+                const idx = cartDetails.findIndex((c, i) => !usedCartIndices.has(i) && c.mapId !== undefined && Number(c.mapId) === dMapId);
+                if (idx !== -1) {
+                  usedCartIndices.add(idx);
+                  return cartDetails[idx];
+                }
+              }
+
+              // 2. Match by productId AND unitId
+              if (dPid > 0 && dUnitId > 0) {
+                const idx = cartDetails.findIndex((c, i) => !usedCartIndices.has(i) && Number(c.productId) === dPid && Number(c.unitId ?? c.product?.unitId ?? 0) === dUnitId);
+                if (idx !== -1) {
+                  usedCartIndices.add(idx);
+                  return cartDetails[idx];
+                }
+              }
+
+              // 3. Match by productId AND price (within 0.02)
+              if (dPid > 0 && d.price !== undefined) {
+                const dPrice = Number(d.price);
+                const idx = cartDetails.findIndex((c, i) => !usedCartIndices.has(i) && Number(c.productId) === dPid && Math.abs(Number(c.price) - dPrice) < 0.02);
+                if (idx !== -1) {
+                  usedCartIndices.add(idx);
+                  return cartDetails[idx];
+                }
+              }
+
+              // 4. Fallback match by productId
+              if (dPid > 0) {
+                const idx = cartDetails.findIndex((c, i) => !usedCartIndices.has(i) && Number(c.productId) === dPid);
+                if (idx !== -1) {
+                  usedCartIndices.add(idx);
+                  return cartDetails[idx];
+                }
+              }
+
+              return undefined;
+            };
+
+            mappedPrintItems = sortedDetails.map((d: any) => {
+              const cartMatch = findCartMatch(d);
+              const dPid = Number(d.productId || d.itemId || cartMatch?.productId || 0);
+              const dUnitId = Number(d.unitId ?? d.UnitId ?? cartMatch?.unitId ?? cartMatch?.product?.unitId ?? 1);
+              const itemMods = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? 0) === Number(d.mapId ?? d.MapId ?? 0));
 
               // If order was edited or cart was modified, prioritize user's active cart extras
               const rawExtras = (cartMatch?.extras && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
@@ -517,36 +564,50 @@ export const usePosCheckoutFlow = ({
                 return true;
               });
 
-              let lineBase = (d.price || 0) * (d.qty || 1);
+              const qty = d.qty ?? d.Qty ?? cartMatch?.quantity ?? 1;
+              const price = d.price ?? d.Price ?? cartMatch?.price ?? 0;
+              let lineBase = price * qty;
               extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
 
-              return { ...d, extras, modifiers, messages, lineBase };
-            });
+              // Resolve variant name from cartMatch, detail row, or alternativesCache
+              let resolvedVariantName = cartMatch?.variantName || d.variantName || d.VariantName || d.altName || d.AltName;
+              let resolvedVariantArabic = cartMatch?.variantArabic || d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
 
-            mappedPrintItems = preMapped.map((d: any) => {
-              const qty = d.qty ?? d.Qty ?? 1;
-              const price = d.price ?? d.Price ?? 0;
-              const cartMatch = cartDetails.find(c => c.productId === (d.productId || d.itemId));
+              if (!resolvedVariantName && dPid > 0 && dUnitId > 0) {
+                const allCachedAlts = Object.entries(alternativesCache)
+                  .filter(([k]) => k.startsWith(`${dPid}-`))
+                  .flatMap(([, alts]) => alts);
+                const matchedAlt = allCachedAlts.find(
+                  (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === dUnitId
+                );
+                if (matchedAlt) {
+                  resolvedVariantName = matchedAlt.altName;
+                  resolvedVariantArabic = matchedAlt.altArabic;
+                }
+              }
+
               const itemVat = Number(d.vatAmount ?? d.VatAmount ?? cartMatch?.vatAmount ?? 0);
-              const lineTotal = d.netAmount ?? d.amount ?? d.lineBase ?? (price * qty);
-              const baseAmount = cartMatch?.baseAmount ?? (itemVat > 0 ? (lineTotal - itemVat) : undefined);
+              const lineTotal = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? lineBase;
+              const baseAmount = cartMatch?.baseAmount !== undefined ? cartMatch.baseAmount : (itemVat > 0 ? (lineTotal - itemVat) : (price * qty));
+
               return {
-                productId: d.productId || d.itemId || 0,
+                productId: dPid,
+                unitId: dUnitId,
                 quantity: qty,
                 price: price,
                 baseAmount,
                 vatAmount: itemVat,
-                variantName: d.variantName || d.VariantName || cartMatch?.variantName,
-                variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic || cartMatch?.variantArabic,
+                variantName: resolvedVariantName,
+                variantArabic: resolvedVariantArabic,
                 product: {
-                  name: d.productName || d.ProductName || cartMatch?.product?.name || `Product #${d.productId || 0}`,
+                  name: d.productName || d.ProductName || cartMatch?.product?.name || `Product #${dPid}`,
                   price: price,
                   arabicName: d.arabicName || d.ArabicName || (d as any).productArabicName || cartMatch?.product?.arabicName
                 },
-                extras: d.extras,
-                modifiers: d.modifiers,
-                messages: d.messages || [],
-                itemDiscount: d.discAmount || 0,
+                extras,
+                modifiers,
+                messages,
+                itemDiscount: d.discAmount || cartMatch?.itemDiscount || 0,
                 lineTotal: lineTotal
               };
             });

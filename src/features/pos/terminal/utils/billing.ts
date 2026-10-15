@@ -9,6 +9,39 @@ export interface BillingConfig {
   orderType: string;
 }
 
+export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
+  if (override) {
+    const norm = String(override).trim().toLowerCase();
+    if (norm === "inclusive") return "Inclusive";
+    if (norm === "exclusive") return "Exclusive";
+  }
+
+  const directPriceView = localStorage.getItem("priceView");
+  if (directPriceView) {
+    const norm = String(directPriceView).trim().toLowerCase();
+    if (norm === "inclusive") return "Inclusive";
+    if (norm === "exclusive") return "Exclusive";
+  }
+
+  for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const pv = configs?.priceView ?? configs?.PriceView ?? parsed?.priceView ?? parsed?.PriceView;
+        if (pv) {
+          const norm = String(pv).trim().toLowerCase();
+          if (norm === "inclusive") return "Inclusive";
+          if (norm === "exclusive") return "Exclusive";
+        }
+      }
+    } catch {}
+  }
+
+  return "Exclusive";
+};
+
 export const getBillingConfig = (orderType: string): BillingConfig => {
   try {
     let configs: any = {};
@@ -31,7 +64,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       serviceChargeRate: Number(rawSc) / 100,
       levyRate: Number(rawLevy) / 100,
       vatRate: Number(rawVat) / 100,
-      vatType: String(rawPriceView).toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
+      vatType: getPriceView(rawPriceView),
       discountType: String(rawDiscCalc).toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
       orderType
     };
@@ -40,7 +73,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       serviceChargeRate: 0.10,
       levyRate: 0.05,
       vatRate: 0.10,
-      vatType: 'Exclusive',
+      vatType: getPriceView(),
       discountType: 'Exclusive',
       orderType
     };

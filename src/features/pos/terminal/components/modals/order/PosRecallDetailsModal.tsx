@@ -13,7 +13,7 @@ import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
+import { getVatStatus, getBillingConfig, roundCalc, getPriceView } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
@@ -38,6 +38,15 @@ const orderTypeNameMap: Record<string, number> = {
   Delivery: 4,
   Providers: 5,
   Coming: 6,
+};
+
+const orderTypeIdToNameMap: Record<number, string> = {
+  1: "DineIn",
+  2: "TakeOut",
+  3: "DriveThru",
+  4: "Delivery",
+  5: "Providers",
+  6: "Coming",
 };
 
 export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
@@ -179,7 +188,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           const uId = d.unitId ?? d.UnitId;
           const altsKey = `${pId}-${safeOrderTypeId}`;
           const alts = alternativesCache[altsKey] || [];
-          const matchedAlt = alts.find((a: any) => (a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId);
+          const matchedAlt = alts.find((a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === Number(uId));
 
           if (matchedAlt) {
             d.altName = matchedAlt.altName;
@@ -287,13 +296,29 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           if (matchedProduct) pId = matchedProduct.id;
         }
         
+        const uId = Number(d.unitId ?? d.UnitId ?? 0);
+        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
+        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
+        if (!resolvedVariantName && pId > 0 && uId > 0) {
+          const allCachedAlts = Object.entries(alternativesCache)
+            .filter(([k]) => k.startsWith(`${pId}-`))
+            .flatMap(([, alts]) => alts);
+          const matchedAlt = allCachedAlts.find(
+            (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
+          );
+          if (matchedAlt) {
+            resolvedVariantName = matchedAlt.altName;
+            resolvedVariantArabic = matchedAlt.altArabic;
+          }
+        }
+
         return {
           productId: pId,
           categoryId: d.categoryId || matchedProduct?.categoryId || 0,
           quantity: d.qty || 1,
           price: d.price || 0,
-          variantName: d.altName || d.variantName || d.AltName || d.VariantName,
-          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          variantName: resolvedVariantName,
+          variantArabic: resolvedVariantArabic,
           product: { 
             name: d.productName || d.ProductName || matchedProduct?.name || `Product #${pId}`, 
             price: d.price || 0,
@@ -677,13 +702,29 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
         const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.itemVatBase !== undefined ? d.itemVatBase : ((d.price || 0) * (d.qty || 1)));
+        const uId = Number(d.unitId ?? d.UnitId ?? 0);
+        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
+        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
+        if (!resolvedVariantName && pId > 0 && uId > 0) {
+          const allCachedAlts = Object.entries(alternativesCache)
+            .filter(([k]) => k.startsWith(`${pId}-`))
+            .flatMap(([, alts]) => alts);
+          const matchedAlt = allCachedAlts.find(
+            (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
+          );
+          if (matchedAlt) {
+            resolvedVariantName = matchedAlt.altName;
+            resolvedVariantArabic = matchedAlt.altArabic;
+          }
+        }
+
         return {
           productId: pId,
           quantity: d.qty || 1,
           price: d.price || 0,
           baseAmount: itemBase,
-          variantName: d.altName || d.variantName || d.AltName || d.VariantName,
-          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          variantName: resolvedVariantName,
+          variantArabic: resolvedVariantArabic,
           product: { 
             name: d.productName || d.ProductName || `Product #${pId}`, 
             price: d.price || 0,
@@ -930,17 +971,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const master = order.masterData || order;
       const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
 
-      const priceView = (() => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-        } catch { return 'Exclusive'; }
-      })();
+      const priceView = getPriceView();
       const isIncl = priceView === 'Inclusive';
 
-      const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
-      const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
+      const orderTypeName =
+        master.orderType ||
+        master.orderTypeName ||
+        (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
+        "DineIn";
+      const orderTypeId =
+        master.orderTypeId ||
+        orderTypeNameMap[orderTypeName] ||
+        1;
 
       const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
@@ -992,7 +1034,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const isBillLevelDiscount =
         isBillComplimentary ||
         masterDiscPer > 0 ||
-        (!hasLineItemDiscounts && resolvedDiscount > 0);
+        (!hasLineItemDiscounts && resolvedDiscount > 0) ||
+        (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
 
       const resolvedBillDiscType: 'percentage' | 'amount' =
         (isBillComplimentary || masterDiscPer > 0)
@@ -1002,6 +1045,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
+        : (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001)
+        ? roundCalc(resolvedDiscount - lineDiscountsSum)
         : isBillLevelDiscount
         ? resolvedDiscount
         : 0;
@@ -1041,6 +1086,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         billDiscountType: resolvedBillDiscType,
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
+        tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
+        guestNo: master.guestNo || master.guests || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
         contactNo: master.mobileNo || master.contactNo,
         callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber,
@@ -1093,17 +1140,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const master = order.masterData || order;
       const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
 
-      const priceView = (() => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-        } catch { return 'Exclusive'; }
-      })();
+      const priceView = getPriceView();
       const isIncl = priceView === 'Inclusive';
 
-      const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
-      const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
+      const orderTypeName =
+        master.orderType ||
+        master.orderTypeName ||
+        (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
+        "DineIn";
+      const orderTypeId =
+        master.orderTypeId ||
+        orderTypeNameMap[orderTypeName] ||
+        1;
 
       const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
@@ -1155,7 +1203,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const isBillLevelDiscount =
         isBillComplimentary ||
         masterDiscPer > 0 ||
-        (!hasLineItemDiscounts && resolvedDiscount > 0);
+        (!hasLineItemDiscounts && resolvedDiscount > 0) ||
+        (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
 
       const resolvedBillDiscType: 'percentage' | 'amount' =
         (isBillComplimentary || masterDiscPer > 0)
@@ -1165,6 +1214,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
+        : (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001)
+        ? roundCalc(resolvedDiscount - lineDiscountsSum)
         : isBillLevelDiscount
         ? resolvedDiscount
         : 0;
@@ -1204,6 +1255,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         billDiscountType: resolvedBillDiscType,
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
+        tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
+        guestNo: master.guestNo || master.guests || 0,
         deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
         contactNo: master.mobileNo || master.contactNo,
         callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber,

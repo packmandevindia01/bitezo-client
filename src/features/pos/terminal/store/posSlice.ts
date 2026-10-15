@@ -454,6 +454,12 @@ const posSlice = createSlice({
     setOrderType: (state, action: PayloadAction<PosOrderType>) => {
       state.selectedOrderTypeId = action.payload.orderTypeId;
       state.selectedOrderTypeName = action.payload.orderType;
+      const normalized = normalizeOrderTypeName(action.payload.orderType);
+      if (!normalized.includes("dine")) {
+        state.selectedTableId = 0;
+        state.selectedTableNo = '';
+        state.selectedSectionId = 0;
+      }
     },
     setOrderTypeByName: (state, action: PayloadAction<string>) => {
       const normalized = normalizeOrderTypeName(action.payload);
@@ -461,6 +467,11 @@ const posSlice = createSlice({
       const type = match ?? fallbackOrderTypeByName(action.payload);
       state.selectedOrderTypeId = type.orderTypeId;
       state.selectedOrderTypeName = type.orderType;
+      if (!normalized.includes("dine")) {
+        state.selectedTableId = 0;
+        state.selectedTableNo = '';
+        state.selectedSectionId = 0;
+      }
     },
     setEditingOrder: (state, action: PayloadAction<{ orderId: number; orderType: string; isSettledEdit?: boolean; customerId?: number; employeeId?: number; prevUpdatedAt?: string | null; authoritativeNetAmount?: number | null }>) => {
       state.editingOrderId = action.payload.orderId;
@@ -701,6 +712,8 @@ const posSlice = createSlice({
       sectionId?: number;
       providerOrderNo?: string;
       tableId?: number;
+      tableNo?: string;
+      guestNo?: number;
       isSettling?: boolean;
       isSettledEdit?: boolean;
       waiterName?: string | null;
@@ -798,6 +811,16 @@ const posSlice = createSlice({
       state.billDiscountType = billDiscountType;
       state.selectedSectionId = sectionId ?? 0;
       state.selectedTableId = tableId ?? 0;
+      if (action.payload.tableNo !== undefined) {
+        state.selectedTableNo = action.payload.tableNo;
+      } else if (tableId) {
+        state.selectedTableNo = String(tableId);
+      } else {
+        state.selectedTableNo = '';
+      }
+      if (action.payload.guestNo !== undefined) {
+        state.guestNo = action.payload.guestNo;
+      }
 
       if (deliveryCharge !== undefined) {
         state.customDeliveryCharge = deliveryCharge;

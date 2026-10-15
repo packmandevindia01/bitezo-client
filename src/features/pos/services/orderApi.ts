@@ -1,5 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
+import { getPriceView } from "../terminal/utils/billing";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -82,13 +83,7 @@ export const orderApi = {
    * GET /api/menu/order/order_data/{orderId}
    */
   getOrderDetails: async (orderId: number): Promise<any> => {
-    const priceView = (() => {
-      try {
-        const saved = localStorage.getItem('posConfigs');
-        const full = saved ? JSON.parse(saved) : {};
-        return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-      } catch { return 'Exclusive'; }
-    })();
+    const priceView = getPriceView();
     return unwrap<any>(
       axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: { priceView } })
     );

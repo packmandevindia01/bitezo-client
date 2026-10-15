@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, ConfirmDialog } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { usePosProducts } from "../../../hooks/usePosProducts";
@@ -10,6 +10,7 @@ import { loadRecalledOrder, setCombinedOrderIds } from "../../../store/posSlice"
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useCashierLog } from "../../../../cashier";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
+import { checkOrderHasBillDiscount, extractMasterAndDetails } from "../../../utils/orderDiscountCheck";
 
 interface CombineOrder {
   orderId: number;
@@ -33,6 +34,9 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
   const [selectedAvailableId, setSelectedAvailableId] = useState<number | null>(null);
   const [selectedSelectedId, setSelectedSelectedId] = useState<number | null>(null);
   const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
+
+  const billDiscountOrderIdsRef = useRef<Set<number>>(new Set());
+  const billDiscountDetailIdsRef = useRef<Set<number | string>>(new Set());
 
   const productCache = useAppSelector(state => state.pos.productCache);
   const { 
@@ -116,73 +120,74 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
     }
 
     // Check if any order to be combined contains a bill discount
+    billDiscountOrderIdsRef.current = new Set();
+    billDiscountDetailIdsRef.current = new Set();
+
     let currentOrderHasBillDisc = Number(billDiscountValue || 0) > 0;
-    if (!currentOrderHasBillDisc && editingOrderId) {
+    let curRes: any = null;
+    if (editingOrderId) {
       try {
-        const curRes = await orderApi.getOrderDetails(editingOrderId as number);
-        const curMaster = curRes?.data?.masterData || curRes?.masterData || curRes?.data || curRes;
-        const curDetails = curRes?.data?.detailsData || curRes?.detailsData || curRes?.data?.details || curRes?.details || [];
-        const hasLineDiscounts = Array.isArray(curDetails) && curDetails.some((d: any) => Number(d.discAmount || d.discountValue || 0) > 0);
-        if (
-          Boolean(curMaster?.complimentaryStatus || curMaster?.ComplimentaryStatus) ||
-          ((curMaster?.discPer !== undefined && curMaster?.discPer !== null && Number(curMaster.discPer) > 0) ||
-           (curMaster?.DiscPer !== undefined && curMaster?.DiscPer !== null && Number(curMaster.DiscPer) > 0)) ||
-          (!hasLineDiscounts && Number(curMaster?.discAmount || curMaster?.DiscAmount || 0) > 0) ||
-          Number(curMaster?.billDiscountValue || 0) > 0
-        ) {
-          currentOrderHasBillDisc = true;
+        curRes = await orderApi.getOrderDetails(editingOrderId as number);
+        if (!currentOrderHasBillDisc) {
+          currentOrderHasBillDisc = checkOrderHasBillDiscount(curRes);
         }
       } catch (err) {
         console.warn("Could not check current order for bill discount:", err);
       }
     }
-    let anyOrderHasBillDisc = currentOrderHasBillDisc;
 
-    if (!anyOrderHasBillDisc) {
-      // Check selected orders for bill discount flags or details string
-      anyOrderHasBillDisc = selectedOrders.some((o: any) => {
-        if (!o) return false;
-        if (Number(o.billDiscountValue || o.billDiscount || 0) > 0) return true;
-        if (Number(o.discPer || 0) > 0) return true;
-        if (Number(o.discAmount || 0) > 0) return true;
-        if (Boolean(o.complimentaryStatus || o.ComplimentaryStatus)) return true;
-        if (typeof o.details === "string") {
-          const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
-          if (discMatch && parseFloat(discMatch[1]) > 0) return true;
-        }
-        return false;
-      });
+    if (currentOrderHasBillDisc && editingOrderId) {
+      billDiscountOrderIdsRef.current.add(Number(editingOrderId));
+      if (curRes) {
+        const { details } = extractMasterAndDetails(curRes);
+        details.forEach((d: any) => {
+          const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
+          if (dId !== undefined) billDiscountDetailIdsRef.current.add(dId);
+        });
+      }
     }
 
-    if (!anyOrderHasBillDisc) {
-      // Deep check selected orders via getOrderDetails
+    let anyOrderHasBillDisc = currentOrderHasBillDisc;
+
+    if (selectedOrders.length > 0) {
       try {
         const detailsResponses = await Promise.all(
-          selectedOrders.map((o) => orderApi.getOrderDetails(o.orderId))
+          selectedOrders.map((o) => orderApi.getOrderDetails(o.orderId).catch(() => null))
         );
-        for (const res of detailsResponses) {
-          const m = res?.data?.masterData || res?.masterData || res?.data || res;
-          const details =
-            res?.data?.detailsData ||
-            res?.detailsData ||
-            res?.data?.details ||
-            res?.details ||
-            [];
-          const hasLineDiscounts =
-            Array.isArray(details) &&
-            details.some((d: any) => Number(d.discAmount || d.discountValue || 0) > 0);
-          const isBillDisc =
-            Boolean(m?.complimentaryStatus || m?.ComplimentaryStatus) ||
-            (m?.discPer !== undefined && m?.discPer !== null && Number(m.discPer) > 0) ||
-            (!hasLineDiscounts && Number(m?.discAmount || 0) > 0) ||
-            Number(m?.billDiscountValue || 0) > 0;
-          if (isBillDisc) {
+        for (let i = 0; i < detailsResponses.length; i++) {
+          const res = detailsResponses[i];
+          const o = selectedOrders[i];
+          let isOrderBillDisc = checkOrderHasBillDiscount(res);
+          if (!isOrderBillDisc && typeof o?.details === "string") {
+            const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
+            if (discMatch && parseFloat(discMatch[1]) > 0) {
+              isOrderBillDisc = true;
+            }
+          }
+
+          if (isOrderBillDisc) {
             anyOrderHasBillDisc = true;
-            break;
+            billDiscountOrderIdsRef.current.add(Number(o.orderId));
+            if (res) {
+              const { details } = extractMasterAndDetails(res);
+              details.forEach((d: any) => {
+                const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
+                if (dId !== undefined) billDiscountDetailIdsRef.current.add(dId);
+              });
+            }
           }
         }
       } catch (e) {
         console.warn("Could not check selected orders for bill discount:", e);
+        for (const o of selectedOrders) {
+          if (typeof o?.details === "string") {
+            const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
+            if (discMatch && parseFloat(discMatch[1]) > 0) {
+              anyOrderHasBillDisc = true;
+              billDiscountOrderIdsRef.current.add(Number(o.orderId));
+            }
+          }
+        }
       }
     }
 
@@ -208,14 +213,64 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         const detailsData = sortOrderDetailsBySequence(combinedData.detailsData || combinedData.details || []);
         const modifiersData = combinedData.modifiersData || combinedData.modifiers || [];
 
-        const rawMappedCartItems = mapOrderDetailsToCartItems(detailsData, modifiersData, {
+        const hasAnyBillDiscount = billDiscountOrderIdsRef.current.size > 0;
+
+        // Clean detailsData: remove bill discounts from items belonging to bill-discounted orders
+        const cleanedDetailsData = detailsData.map((d: any) => {
+          const dOrderId = Number(d.orderId ?? d.OrderId ?? 0);
+          const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
+          const isFromBillDiscOrder =
+            (dOrderId > 0 && billDiscountOrderIdsRef.current.has(dOrderId)) ||
+            (dId !== undefined && billDiscountDetailIdsRef.current.has(dId)) ||
+            (hasAnyBillDiscount && Number(d.discPer ?? d.DiscPer ?? 0) === 100);
+
+          if (isFromBillDiscOrder) {
+            return {
+              ...d,
+              discPer: 0,
+              DiscPer: 0,
+              discAmount: 0,
+              DiscAmount: 0,
+              discountValue: 0,
+              complimentaryStatus: false,
+              ComplimentaryStatus: false,
+            };
+          }
+          return d;
+        });
+
+        const rawMappedCartItems = mapOrderDetailsToCartItems(cleanedDetailsData, modifiersData, {
           products,
           productCache,
         });
-        const mappedCartItems = rawMappedCartItems.map((item, idx) => ({
-          ...item,
-          mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
-        }));
+
+        const mappedCartItems = rawMappedCartItems.map((item, idx) => {
+          const itemDetail = (item as any).detail;
+          const dOrderId = Number(itemDetail?.orderId ?? itemDetail?.OrderId ?? 0);
+          const dId = itemDetail?.id ?? itemDetail?.detailId ?? itemDetail?.orderDetailId ?? itemDetail?.OrderDetailId;
+          const isFromBillDiscOrder =
+            (dOrderId > 0 && billDiscountOrderIdsRef.current.has(dOrderId)) ||
+            (dId !== undefined && billDiscountDetailIdsRef.current.has(dId)) ||
+            (hasAnyBillDiscount && Number(item.discountValue || 0) === 100);
+
+          if (isFromBillDiscOrder) {
+            return {
+              ...item,
+              mapId: idx + 1,
+              discountValue: 0,
+              discountType: undefined,
+              complimentaryStatus: false,
+              itemDiscount: 0,
+              itemDiscountAmount: 0,
+              billDiscountAmount: 0,
+            };
+          }
+
+          return {
+            ...item,
+            mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
+          };
+        });
 
         // Determine target order: the backend only permits updating the latest (highest) order in the combined group
         const targetOrderId = Math.max(...orderIdsToCombine);

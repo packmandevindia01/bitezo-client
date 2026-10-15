@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import { sortAlternatives } from "../utils/alternativeHelpers";
 import { resolveImageUrl } from "../../../utils/imageUtils";
+import { getPriceView } from "../terminal/utils/billing";
 
 export interface ApiResponse<T> {
   data: T;
@@ -302,7 +303,7 @@ export const menuApi = {
                 a.PriceIsIncl !== undefined ? Boolean(a.PriceIsIncl) :
                 a.isincl !== undefined ? Boolean(a.isincl) :
                 a.priceView !== undefined ? (a.priceView === 'Inclusive') :
-                false,
+                (getPriceView() === 'Inclusive'),
         promoPrice: (a.promoPrice ?? a.PromoPrice) !== undefined ? Number(a.promoPrice ?? a.PromoPrice) : undefined,
         promoIsIncl: (a.promoIsIncl ?? a.PromoIsIncl) !== undefined ? Boolean(a.promoIsIncl ?? a.PromoIsIncl) : undefined,
       };
@@ -333,7 +334,7 @@ export const menuApi = {
               raw.priceIsIncl !== undefined ? Boolean(raw.priceIsIncl) :
               raw.isincl !== undefined ? Boolean(raw.isincl) :
               raw.priceView !== undefined ? (raw.priceView === 'Inclusive') :
-              false,
+              (getPriceView() === 'Inclusive'),
       promoPrice: raw.promoPrice !== undefined ? Number(raw.promoPrice) : undefined,
       promoIsIncl: raw.promoIsIncl !== undefined ? Boolean(raw.promoIsIncl) : undefined,
     };

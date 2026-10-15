@@ -16,7 +16,7 @@ import { getVatStatus, roundCalc, getBillingConfig } from "../../../utils/billin
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
-import { usePosProducts } from "../../../hooks/usePosProducts";
+import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
 import { getModifierTypeNameById } from "../../../../services/menuApi";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
@@ -586,6 +586,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       }
 
       const mappedItems = preMapped.map((d: any) => {
+        const pId = Number(d.productId || d.itemId || 0);
+        const uId = Number(d.unitId ?? d.UnitId ?? 0);
         let itemVat = d.itemVat;
         if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
           const ratio = (d.itemLineNetAmount || 0) / netAmount;
@@ -593,14 +595,31 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || (d.price || 0) * (d.qty || 1);
         const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.itemVatBase !== undefined ? d.itemVatBase : (d.price || 0) * (d.qty || 1));
+
+        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
+        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
+        if (!resolvedVariantName && pId > 0 && uId > 0) {
+          const allCachedAlts = Object.entries(alternativesCache)
+            .filter(([k]) => k.startsWith(`${pId}-`))
+            .flatMap(([, alts]) => alts);
+          const matchedAlt = allCachedAlts.find(
+            (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
+          );
+          if (matchedAlt) {
+            resolvedVariantName = matchedAlt.altName;
+            resolvedVariantArabic = matchedAlt.altArabic;
+          }
+        }
+
         return {
-          productId: d.productId || d.itemId || 0,
+          productId: pId,
           quantity: d.qty || 1,
           price: d.price || 0,
           baseAmount: itemBase,
-          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          variantName: resolvedVariantName,
+          variantArabic: resolvedVariantArabic,
           product: {
-            name: d.productName || d.ProductName || `Product #${d.productId || 0}`,
+            name: d.productName || d.ProductName || `Product #${pId}`,
             price: d.price || 0,
             arabicName: d.arabicName || d.ArabicName,
           },

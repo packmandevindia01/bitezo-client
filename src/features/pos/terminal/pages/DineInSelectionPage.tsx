@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { ChevronLeft, LayoutGrid, Search, Clock, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../../../../components/common';
-import { useAppDispatch } from '../../../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../../../app/hooks';
 import { setSectionId, setTableId, setTableNo, setGuestNo, clearCart, setOrderTypeByName } from '../store/posSlice';
 import { useDineIn } from '../hooks/useDineIn';
 import { Loader } from '../../../../components/common';
@@ -47,7 +47,9 @@ function formatOrderTime(dateStr: string): string | null {
 
 export const DineInSelectionPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
+  const { editingOrderId, cartItems } = useAppSelector((state) => state.pos);
   const { sections, tables, selectedSectionId, setSelectedSectionId, loading, refresh } = useDineIn();
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied' | 'reserved'>('all');
@@ -87,7 +89,11 @@ export const DineInSelectionPage: React.FC = () => {
   /* Guest count confirmed → go to terminal */
   const handleGuestConfirm = (guestCount: number) => {
     if (!guestTable) return;
-    dispatch(clearCart());
+    // Only wipe cart when starting a fresh new order session from scratch, NOT when editing an order or assigning a table to existing items
+    const isEditingOrHasItems = Boolean(editingOrderId || location.state?.fromTerminal || location.state?.isEditingOrder || cartItems.length > 0);
+    if (!isEditingOrHasItems) {
+      dispatch(clearCart());
+    }
     dispatch(setSectionId(selectedSectionId ?? 0));
     dispatch(setTableId(guestTable.tableId));
     dispatch(setTableNo(guestTable.tableName || guestTable.tableId.toString()));
@@ -216,8 +222,12 @@ export const DineInSelectionPage: React.FC = () => {
             <ChevronLeft size={26} strokeWidth={2.5} />
           </button>
           <div>
-            <h1 className="text-xl font-black text-[#49293e] uppercase tracking-tight leading-none">Select Table</h1>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Dine-In Order Assignment</p>
+            <h1 className="text-xl font-black text-[#49293e] uppercase tracking-tight leading-none">
+              Select Table {editingOrderId ? `· Order #${editingOrderId}` : ''}
+            </h1>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              {editingOrderId ? `Assign Table to Order #${editingOrderId}` : 'Dine-In Order Assignment'}
+            </p>
           </div>
         </div>
         <Button variant="secondary" onClick={handleBack} className="px-5" tabIndex={-1}>Cancel</Button>

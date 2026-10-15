@@ -144,7 +144,13 @@ const PosTopNav = ({
               onClick={() => {
                 onSelectOrderType?.(type);
                 if (normalized.includes("dine")) {
-                  navigate("/pos/dine-in");
+                  navigate("/pos/dine-in", {
+                    state: {
+                      skipAutoDineIn: true,
+                      fromTerminal: true,
+                      isEditingOrder: Boolean(editingOrderId),
+                    },
+                  });
                 } else if (normalized.includes("delivery") && onDelivery) {
                   onDelivery();
                 } else if (normalized.includes("drive") && onDriveThrough) {

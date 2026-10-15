@@ -216,7 +216,6 @@ export const usePosCartActions = () => {
 
     if (
       isDineIn &&
-      !editingOrderId &&
       !session.providerId &&
       (!selectedSectionId || selectedSectionId <= 0 || !selectedTableId || selectedTableId <= 0)
     ) {

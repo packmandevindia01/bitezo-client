@@ -11,6 +11,7 @@ import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc, getTaxE
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
+import { checkOrderHasBillDiscount, checkOrderHasAnyDiscount } from "../../../utils/orderDiscountCheck";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -57,8 +58,10 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   
   const [showTableModal, setShowTableModal] = useState(false);
   const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string>("Bill discount will be erased while performing this action. Do you want to continue?");
 
   const lastClickRef = useRef<{ id: string, time: number }>({ id: "", time: 0 });
+  const rawOrderResRef = useRef<any>(null);
 
   useEffect(() => {
     if (isOpen && orderId) {
@@ -66,14 +69,17 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     } else {
       setBuckets([]);
       setOriginalOrder(null);
+      rawOrderResRef.current = null;
     }
   }, [isOpen, orderId]);
 
   const fetchOrderDetails = async () => {
     try {
       const res = await orderApi.getOrderDetails(orderId);
+      rawOrderResRef.current = res;
       
-      const masterData = res.data?.masterData || res.masterData || {};
+      const rawMaster = res.data?.masterData || res.masterData || {};
+      const masterData = Array.isArray(rawMaster) ? rawMaster[0] : (rawMaster || {});
       const detailsData = res.data?.detailsData || res.detailsData || [];
       const rawModifiersData = res.data?.modifiersData || res.modifiersData || [];
       
@@ -167,8 +173,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: item.detail?.discPer || 0,
-        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        discountValue: 0,
+        discountType: undefined,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -343,17 +349,28 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       return;
     }
 
-    // Check if original order contains a bill discount
-    const hasBillDiscount = Boolean(
-      originalOrder?.complimentaryStatus ||
-      originalOrder?.ComplimentaryStatus ||
-      ((originalOrder?.discPer !== undefined && originalOrder?.discPer !== null && Number(originalOrder.discPer) > 0) ||
-       (originalOrder?.DiscPer !== undefined && originalOrder?.DiscPer !== null && Number(originalOrder.DiscPer) > 0)) ||
-      Number(originalOrder?.discAmount || originalOrder?.DiscAmount || 0) > 0 ||
-      Number(originalOrder?.billDiscountValue || 0) > 0
-    );
+    const allBucketDetails = buckets.flatMap(b => b.items.map(i => i.detail));
+    const hasBillDiscount =
+      checkOrderHasBillDiscount(rawOrderResRef.current) ||
+      checkOrderHasBillDiscount({
+        masterData: originalOrder,
+        detailsData: allBucketDetails
+      });
 
-    if (hasBillDiscount) {
+    const hasAnyDiscount =
+      hasBillDiscount ||
+      checkOrderHasAnyDiscount(rawOrderResRef.current) ||
+      checkOrderHasAnyDiscount({
+        masterData: originalOrder,
+        detailsData: allBucketDetails
+      });
+
+    if (hasAnyDiscount) {
+      setConfirmMessage(
+        hasBillDiscount
+          ? "Bill discount will be erased while performing this action. Do you want to continue?"
+          : "Discounts will be erased while performing this action. Do you want to continue?"
+      );
       setShowBillDiscountConfirm(true);
       return;
     }
@@ -387,8 +404,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: item.detail?.discPer || 0,
-        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        discountValue: 0,
+        discountType: undefined,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -420,8 +437,10 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
         levy: roundCalc(lineCalc?.mainLevy ?? lineCalc?.levy ?? 0),
-        discPer: item.detail?.discPer || 0,
-        discAmount: roundCalc(lineCalc?.effectiveDiscountAmount ?? (item.detail?.discAmount || 0)),
+        discPer: 0,
+        discAmount: 0,
+        complimentaryStatus: false,
+        ComplimentaryStatus: false,
       };
     });
 
@@ -493,7 +512,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         comingTime: new Date().toISOString(),
         providerNo: originalOrder?.providerNo || "",
         discAmount: 0,
-        discPer: 0
+        discPer: 0,
+        complimentaryStatus: false
       };
 
       const payload = {
@@ -685,7 +705,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       <ConfirmDialog
         isOpen={showBillDiscountConfirm}
         title="Warning"
-        message="Bill discount will be erased while performing this action. Do you want to continue?"
+        message={confirmMessage}
         confirmLabel="Continue"
         cancelLabel="Cancel"
         confirmVariant="danger"

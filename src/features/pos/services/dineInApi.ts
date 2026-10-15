@@ -1,6 +1,7 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { ApiResponse } from "../../inventory/product/types";
 import type { DineInSection, DineInTable, TableOrdersResponse } from "../types";
+import { getPriceView } from "../terminal/utils/billing";
 
 /** Raw shape returned by /menu/dine-in/sections/{sectionId}/tables */
 interface RawDineInTable {
@@ -71,13 +72,7 @@ export const dineInApi = {
 
   /** Fetch all orders for an occupied table */
   getTableOrders: async (tableId: number) => {
-    const priceView = (() => {
-      try {
-        const saved = localStorage.getItem('posConfigs');
-        const full = saved ? JSON.parse(saved) : {};
-        return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-      } catch { return 'Exclusive'; }
-    })();
+    const priceView = getPriceView();
     const { data } = await axiosInstance.get<ApiResponse<TableOrdersResponse>>(
       `/menu/dine-in/tables/${tableId}/orders`,
       { params: { priceView } }

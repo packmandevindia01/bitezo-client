@@ -4,6 +4,8 @@ import { useAppDispatch, useAppSelector } from '../../../../../../app/hooks';
 import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo } from '../../../store/posSlice';
 import { dineInApi } from '../../../../services/dineInApi';
 import { orderApi } from '../../../../services/orderApi';
+import { menuApi } from '../../../../services/menuApi';
+import { alternativesCache } from '../../../hooks/usePosProducts';
 import { useToast } from '../../../../../../app/providers/useToast';
 import { formatAmount } from '../../../../../../utils/currency';
 import { Loader, Modal } from '../../../../../../components/common';
@@ -15,6 +17,7 @@ import {
   getVatStatus,
   roundCalc,
   getBillingConfig,
+  getPriceView,
   CALC_PRECISION,
   getTaxExclusivePrice,
   getTaxExclusiveExtraPrice,
@@ -71,6 +74,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const productCache = useAppSelector((state) => state.pos.productCache);
+  const editingOrderId = useAppSelector((state) => state.pos.editingOrderId);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -234,7 +238,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
   const handleNewGuestConfirm = (guestCount: number) => {
     if (!table) return;
-    dispatch(clearCart());
+    if (!editingOrderId) {
+      dispatch(clearCart());
+    }
     dispatch(setSectionId(sectionId));
     dispatch(setTableId(table.tableId));
     dispatch(setTableNo(table.tableName || table.tableId.toString()));
@@ -255,6 +261,23 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     const details = sortOrderDetailsBySequence(fullOrder.detailsData || fullOrder.details || []);
     const modifiersData = fullOrder.modifiersData || fullOrder.modifiers || fullOrder.ModifiersData || fullOrder.Modifiers || [];
 
+    // Ensure alternatives are fetched and cached for products in this order
+    const safeOrderTypeId = master.orderTypeId || 1;
+    const pIds = Array.from(new Set(details.map((d: any) => d.productId || d.ProductId || d.itemId || d.ItemId).filter(Boolean)));
+    await Promise.all(
+      pIds.map(async (pId: any) => {
+        const key = `${pId}-${safeOrderTypeId}`;
+        if (!alternativesCache[key]) {
+          try {
+            const alts = await menuApi.getAlternatives(Number(pId), safeOrderTypeId);
+            if (alts && alts.length > 0) {
+              alternativesCache[key] = alts;
+            }
+          } catch {}
+        }
+      })
+    );
+
     // Deduplicate modifiersData (SQL Cartesian fix)
     const seenMods = new Set<string>();
     const dedupedModifiers = modifiersData.filter((m: any) => {
@@ -266,13 +289,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       return true;
     });
 
-    const priceView = (() => {
-      try {
-        const saved = localStorage.getItem('posConfigs');
-        const full = saved ? JSON.parse(saved) : {};
-        return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-      } catch { return 'Exclusive'; }
-    })();
+    const priceView = getPriceView();
 
     const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
     const lineDiscountsSum = details.reduce((sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
@@ -293,7 +310,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     const isBillLevelDiscount =
       isBillComplimentary ||
       masterDiscPer > 0 ||
-      (!hasLineItemDiscounts && resolvedDiscount > 0);
+      (!hasLineItemDiscounts && resolvedDiscount > 0) ||
+      (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
 
     const mappedItems = mapOrderDetailsToCartItems(details, dedupedModifiers, {
       productCache,
@@ -302,27 +320,21 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       isOrderBillDiscount: isBillLevelDiscount,
     });
 
-    return { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount };
+    return { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount, lineDiscountsSum };
   };
 
   /* ── EDIT — load selected order into cart ── */
   const handleEdit = async () => {
     if (!selectedMaster || !data || loading) return;
     try {
-      const { master, mappedItems, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const { master, mappedItems, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount, lineDiscountsSum } = await fetchAndMapFullOrder(selectedMaster.orderId);
       const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
       const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
       if (prevUpdatedAt) {
         sessionStorage.setItem(`order_prevUpdatedAt_${selectedMaster.orderId}`, prevUpdatedAt);
       }
 
-      const priceView = (() => {
-        try {
-          const saved = localStorage.getItem('posConfigs');
-          const full = saved ? JSON.parse(saved) : {};
-          return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-        } catch { return 'Exclusive'; }
-      })();
+      const priceView = getPriceView();
       const billingConfig = getBillingConfig('DineIn');
       const isIncl = priceView === 'Inclusive';
 
@@ -334,6 +346,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
+        : (lineDiscountsSum > 0 && resolvedDiscount > lineDiscountsSum + 0.001)
+        ? roundCalc(resolvedDiscount - lineDiscountsSum)
         : isBillLevelDiscount
         ? resolvedDiscount
         : 0;
@@ -487,13 +501,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           const isExtras = (m.price && Number(m.price) > 0) || (m.status || "").toLowerCase() === "extras";
           const rawModPrice = Number(m.price || m.amount || 0);
           const rawVatRate = Number(master.vatRate ?? master.vatValue ?? 0);
-          const priceView = (() => {
-            try {
-              const saved = localStorage.getItem('posConfigs');
-              const full = saved ? JSON.parse(saved) : {};
-              return full?.configs?.priceView === 'Inclusive' ? 'Inclusive' : 'Exclusive';
-            } catch { return 'Exclusive'; }
-          })();
+          const priceView = getPriceView();
           const isIncl = priceView === 'Inclusive';
           const exclModPrice = isExtras
             ? getTaxExclusiveExtraPrice(rawModPrice, rawVatRate, isIncl)
@@ -1164,9 +1172,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
               */}
               <div className="lg:w-28 shrink-0 bg-[#111] border-t lg:border-t-0 lg:border-l border-white/10 p-3 flex flex-row lg:flex-col gap-2">
                 <ActionBtn
-                  label="NEW"
+                  label={editingOrderId ? "ASSIGN" : "NEW"}
                   color="bg-emerald-700 hover:bg-emerald-600"
-                  icon={<PlusIcon />}
+                  icon={editingOrderId ? <EditIcon /> : <PlusIcon />}
                   onClick={handleNew}
                   disabled={loading}
                   tabIndex={1}

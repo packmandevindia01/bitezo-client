@@ -136,8 +136,8 @@ export const useSplitOrderData = ({
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: item.detail?.discPer || 0,
-        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        discountValue: 0,
+        discountType: undefined,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -169,8 +169,8 @@ export const useSplitOrderData = ({
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
         levy: roundCalc(lineCalc?.mainLevy ?? lineCalc?.levy ?? 0),
-        discPer: item.detail?.discPer || 0,
-        discAmount: roundCalc(lineCalc?.effectiveDiscountAmount ?? (item.detail?.discAmount || 0)),
+        discPer: 0,
+        discAmount: 0,
       };
     });
 

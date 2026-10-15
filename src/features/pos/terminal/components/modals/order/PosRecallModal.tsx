@@ -20,6 +20,7 @@ import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billin
 import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
+import { alternativesCache } from "../../../hooks/usePosProducts";
 import { t } from "../../../../utils/posLocalization";
 
 
@@ -61,7 +62,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("ORDER NO");
 
-  const [waiters, setWaiters] = useState<PosWaiter[]>([]);
+  const [, setWaiters] = useState<PosWaiter[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(() => {
     if (initialEmployeeId && initialEmployeeId > 0) return initialEmployeeId;
     if (currentWaiterId && currentWaiterId > 0) return currentWaiterId;
@@ -88,17 +89,23 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   // Filter handlers
   useEffect(() => {
     if (isOpen) {
+      const empIdToSend =
+        (initialEmployeeId && initialEmployeeId > 0 ? initialEmployeeId : null) ||
+        (selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : null) ||
+        Number(localStorage.getItem("authorizedEmployeeId")) ||
+        (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : undefined);
+
       const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
       void fetchOrders({
         OrderTypeId: typeValue,
-        EmployeeId: selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : undefined,
+        EmployeeId: empIdToSend,
         SearchValue: search,
         SearchStatus: searchStatus,
         DeliveryOutStatus: includeDeliveryOut,
         DeliveryOutOnlyStatus: deliveryOutOnly
       });
     }
-  }, [isOpen, activeTab, selectedEmployeeId, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
+  }, [isOpen, activeTab, selectedEmployeeId, initialEmployeeId, currentWaiterId, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
 
   const handlePrint = async (transId: number) => {
     try {
@@ -160,6 +167,23 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         date = now.toLocaleDateString('en-GB');
         time = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
       }
+
+      // Ensure alternatives are fetched and cached for products in this order
+      const safeOrderTypeId = master.orderTypeId || 1;
+      const pIds = Array.from(new Set(details.map((d: any) => d.productId || d.ProductId || d.itemId || d.ItemId).filter(Boolean)));
+      await Promise.all(
+        pIds.map(async (pId: any) => {
+          const key = `${pId}-${safeOrderTypeId}`;
+          if (!alternativesCache[key]) {
+            try {
+              const alts = await menuApi.getAlternatives(Number(pId), safeOrderTypeId);
+              if (alts && alts.length > 0) {
+                alternativesCache[key] = alts;
+              }
+            } catch {}
+          }
+        })
+      );
 
       // Deduplicate modifiersData mapped in order
       const rawModifiers = order?.modifiersData || order?.modifiers || order?.ModifiersData || order?.Modifiers || [];
@@ -273,21 +297,39 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       }
 
       const mappedItems = preMapped.map((d: any) => {
-        const pId = d.productId || d.itemId || 0;
+        const pId = Number(d.productId || d.itemId || 0);
+        const uId = Number(d.unitId ?? d.UnitId ?? 0);
         let itemVat = d.itemVat;
         if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
           const ratio = (d.itemLineNetAmount || 0) / netAmount;
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
-        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.price || 0) * (d.qty || 1);
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.itemVatBase !== undefined ? d.itemVatBase : ((d.price || 0) * (d.qty || 1)));
+
+        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
+        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
+
+        if (!resolvedVariantName && pId > 0 && uId > 0) {
+          const allCachedAlts = Object.entries(alternativesCache)
+            .filter(([k]) => k.startsWith(`${pId}-`))
+            .flatMap(([, alts]) => alts);
+          const matchedAlt = allCachedAlts.find(
+            (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
+          );
+          if (matchedAlt) {
+            resolvedVariantName = matchedAlt.altName;
+            resolvedVariantArabic = matchedAlt.altArabic;
+          }
+        }
+
         return {
           productId: pId,
           quantity: d.qty || 1,
           price: d.price || 0,
           baseAmount: itemBase,
-          variantName: d.altName || d.variantName || d.AltName || d.VariantName,
-          variantArabic: d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic,
+          variantName: resolvedVariantName,
+          variantArabic: resolvedVariantArabic,
           product: { 
             name: d.productName || d.ProductName || `Product #${pId}`, 
             price: d.price || 0,
@@ -581,9 +623,15 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
     setSearch(value);
     setSearchStatus(status);
     const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
+    const empIdToSend =
+      (initialEmployeeId && initialEmployeeId > 0 ? initialEmployeeId : null) ||
+      (selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : null) ||
+      Number(localStorage.getItem("authorizedEmployeeId")) ||
+      (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : undefined);
+
     void fetchOrders({
       OrderTypeId: typeValue,
-      EmployeeId: selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : undefined,
+      EmployeeId: empIdToSend,
       SearchValue: value,
       SearchStatus: status,
       DeliveryOutStatus: includeDeliveryOut,
@@ -594,37 +642,21 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   const displayedOrders = React.useMemo(() => {
     let list = orders;
 
-    if (selectedEmployeeId) {
-      const targetWaiter = waiters.find((w) => w.empId === selectedEmployeeId);
-      const targetName = (
-        targetWaiter?.empName ||
-        (selectedEmployeeId === currentWaiterId ? currentWaiterName : null) ||
-        ""
-      ).toLowerCase().trim();
-
-      list = list.filter((order) => {
-        // 1. If backend object has explicit employeeId / waiterId
-        const oAny = order as any;
-        if (oAny.employeeId && Number(oAny.employeeId) === Number(selectedEmployeeId)) return true;
-        if (oAny.waiterId && Number(oAny.waiterId) === Number(selectedEmployeeId)) return true;
-
-        // 2. Parse / match employee tag from order.details string, e.g. "(emp1)" or "(emp2)"
-        if (typeof order.details === "string") {
-          const detailsLower = order.details.toLowerCase();
-
-          // Exact match with target employee name if known, e.g. "(emp1)"
-          if (targetName && detailsLower.includes(`(${targetName})`)) {
-            return true;
+    // Filter by OrderTypeId client-side if a specific tab (Dine In, Take Out, etc.) is active
+    if (activeTab > 0) {
+      const typeObj = ORDER_TYPES.find((t) => t.id === activeTab);
+      if (typeObj) {
+        const typeNormalized = typeObj.label.replace(/\s+/g, "").toLowerCase();
+        list = list.filter((order) => {
+          const oAny = order as any;
+          if (oAny.orderTypeId && Number(oAny.orderTypeId) === typeObj.value) return true;
+          if (typeof order.details === "string") {
+            const dNormalized = order.details.replace(/\s+/g, "").toLowerCase();
+            return dNormalized.includes(`(${typeNormalized})`);
           }
-
-          // Match tag pattern: "(emp<id>)" e.g. "(emp1)"
-          if (detailsLower.includes(`(emp${selectedEmployeeId})`)) {
-            return true;
-          }
-        }
-
-        return false;
-      });
+          return false;
+        });
+      }
     }
 
     if (search && search.trim()) {
@@ -632,7 +664,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
     }
 
     return list;
-  }, [orders, selectedEmployeeId, waiters, currentWaiterId, currentWaiterName, search, searchStatus]);
+  }, [orders, activeTab, search, searchStatus]);
 
   return (
     <Modal
@@ -857,9 +889,15 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         orderId={selectedDriverOrderId}
         onSuccess={() => {
           setSelectedDriverOrderId(null);
+          const empIdToSend =
+            (initialEmployeeId && initialEmployeeId > 0 ? initialEmployeeId : null) ||
+            (selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : null) ||
+            Number(localStorage.getItem("authorizedEmployeeId")) ||
+            (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : undefined);
+
           void fetchOrders({
             OrderTypeId: ORDER_TYPES.find(t => t.id === activeTab)?.value || 0,
-            EmployeeId: selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : undefined,
+            EmployeeId: empIdToSend,
             SearchValue: search,
             SearchStatus: searchStatus,
             DeliveryOutStatus: includeDeliveryOut,

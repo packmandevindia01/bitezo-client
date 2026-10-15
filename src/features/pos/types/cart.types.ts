@@ -57,6 +57,7 @@ export interface PosCartItem {
   isIncl?: boolean; // true = price already includes VAT, false = price is exclusive (add VAT on top), undefined = follow global config
   discountValue?: number;
   discountType?: 'percentage' | 'amount';
+  complimentaryStatus?: boolean;
   unitId?: number;
   extras?: { id: number; name: string; price: number; qty: number; typeId: number }[];
   modifiers?: { id: number; name: string; qty: number; typeId: number; typeName?: string; modifierTypeName?: string; arabicName?: string }[];

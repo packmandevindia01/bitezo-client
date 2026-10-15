@@ -1,4 +1,4 @@
-import { roundCalc } from "../utils/billing";
+import { roundCalc, getPriceView, getBillingConfig, getVatStatus } from "../utils/billing";
 import type { PosCartItem } from "../../types";
 import { getModifierTypeNameById } from "../../services/menuApi";
 import { alternativesCache } from "../hooks/usePosProducts";
@@ -47,12 +47,16 @@ export const mapOrderDetailToCartItem = ({
     matchedProduct = products.find((p: any) => p.id === pId);
   }
   if (!matchedProduct && (detail.productName || detail.ProductName)) {
-    const targetName = detail.productName || detail.ProductName;
+    const targetName = String(detail.productName || detail.ProductName || "").toLowerCase().trim();
     if (productCache) {
-      matchedProduct = Object.values(productCache).find((p: any) => p.name === targetName);
+      matchedProduct = Object.values(productCache).find(
+        (p: any) => String(p.name || "").toLowerCase().trim() === targetName
+      );
     }
     if (!matchedProduct && Array.isArray(products)) {
-      matchedProduct = products.find((p: any) => p.name === targetName);
+      matchedProduct = products.find(
+        (p: any) => String(p.name || "").toLowerCase().trim() === targetName
+      );
     }
     if (matchedProduct && !pId) {
       pId = matchedProduct.id;
@@ -61,17 +65,36 @@ export const mapOrderDetailToCartItem = ({
   const realProduct = matchedProduct || {};
 
   // 2. Resolve Price View (Inclusive vs Exclusive)
-  const resolvedPriceView: "Inclusive" | "Exclusive" =
-    priceView ||
-    (() => {
-      try {
-        const saved = localStorage.getItem("posConfigs");
-        const full = saved ? JSON.parse(saved) : {};
-        return full?.configs?.priceView === "Inclusive" ? "Inclusive" : "Exclusive";
-      } catch {
-        return "Exclusive";
-      }
-    })();
+  const resolvedPriceView: "Inclusive" | "Exclusive" = getPriceView(priceView);
+
+  // Resolve Alternative/Variant and Unit ID early
+  const effectiveUnitId = detail.unitId ?? detail.UnitId ?? realProduct.unitId ?? 1;
+
+  let rawAlt =
+    detail.variantName ||
+    detail.altName ||
+    detail.VariantName ||
+    detail.AltName;
+
+  let rawAltArabic =
+    detail.variantArabic ||
+    detail.altArabic ||
+    detail.VariantArabic ||
+    detail.AltArabic;
+
+  let matchedAlt: any = null;
+  if (effectiveUnitId && pId) {
+    const allCachedAlts = Object.entries(alternativesCache)
+      .filter(([k]) => k.startsWith(`${pId}-`))
+      .flatMap(([, alts]) => alts);
+    matchedAlt = allCachedAlts.find(
+      (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === Number(effectiveUnitId)
+    );
+    if (!rawAlt && matchedAlt) {
+      rawAlt = matchedAlt.altName;
+      rawAltArabic = matchedAlt.altArabic;
+    }
+  }
 
   // 3. Resolve Line Item Modifiers, Extras, and Messages
   const dMapId = detail.mapId ?? detail.MapId ?? detail.mapID ?? detail.sNo ?? detail.SNo;
@@ -111,7 +134,10 @@ export const mapOrderDetailToCartItem = ({
     detail.taxPer ??
     detail.TaxPer;
 
-  const resolvedVatValue =
+  const fallbackBillingConfig = getBillingConfig("DineIn");
+  const isVatEnabled = getVatStatus();
+
+  let resolvedVatValue =
     detailVatValue !== undefined && detailVatValue !== null
       ? Number(detailVatValue)
       : calculatedVatRatePercent !== undefined && calculatedVatRatePercent !== null
@@ -120,58 +146,96 @@ export const mapOrderDetailToCartItem = ({
       ? Number(realProduct.vatValue)
       : undefined;
 
+  if ((resolvedVatValue === undefined || resolvedVatValue === 0) && isVatEnabled && fallbackBillingConfig.vatRate > 0) {
+    resolvedVatValue = fallbackBillingConfig.vatRate * 100;
+  }
+
   const activeVatFraction =
     resolvedVatValue !== undefined && resolvedVatValue > 0 ? resolvedVatValue / 100 : 0;
 
-  // 5. Determine if this line should be VAT-inclusive
-  const explicitDetailIsIncl =
-    detail.isIncl ??
-    detail.PriceIsIncl ??
-    detail.priceIsIncl ??
-    detail.isincl;
+  // Determine early if detail is complimentary
+  const isDetailComplimentary = Boolean(
+    detail.complimentaryStatus ||
+    detail.ComplimentaryStatus ||
+    (detail.discPer && Number(detail.discPer) === 100) ||
+    (detail.DiscPer && Number(detail.DiscPer) === 100)
+  );
 
-  let itemIsIncl: boolean;
-  if (explicitDetailIsIncl !== undefined && explicitDetailIsIncl !== null) {
-    itemIsIncl = Boolean(explicitDetailIsIncl);
-  } else if (realProduct.isIncl !== undefined && realProduct.isIncl !== null) {
-    itemIsIncl = Boolean(realProduct.isIncl);
-  } else {
-    itemIsIncl = resolvedPriceView === "Inclusive";
-  }
+  const catalogPrice =
+    matchedAlt?.price !== undefined
+      ? Number(matchedAlt.price)
+      : realProduct.price !== undefined
+      ? Number(realProduct.price)
+      : undefined;
 
-  // 6. Restore Unit Price
+  // 6. Restore Unit Price & Tax Inclusivity
   const lineBase = rawPrice * qty;
   const remainingBase = lineBase - rawDiscAmount;
   const isStoredTaxExclusive =
-    rawVatAmt > 0.001 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02;
+    Boolean(detail.isPriceTaxExclusive) ||
+    Boolean(detail.exclusivePrice) ||
+    Boolean(detail.isExclusive) ||
+    (rawVatAmt > 0.001 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02);
   const isStoredTaxInclusive =
-    rawVatAmt > 0.001 && Math.abs(rawNetAmt - remainingBase) < 0.02;
+    !isStoredTaxExclusive &&
+    ((rawVatAmt > 0.001 && Math.abs(rawNetAmt - remainingBase) < 0.02) ||
+     Boolean(detail.isPriceTaxInclusive));
 
   let restoredPrice = rawPrice;
-  if (itemIsIncl) {
-    // POS expects VAT-inclusive unit price
-    if (isStoredTaxExclusive && activeVatFraction > 0) {
-      if (rawNetAmt > 0 && qty > 0) {
-        restoredPrice = roundCalc((rawNetAmt + rawDiscAmount) / qty, 4);
+  let itemIsIncl = resolvedPriceView === "Inclusive";
+
+  if (activeVatFraction > 0) {
+    const candidateGross = roundCalc(rawPrice * (1 + activeVatFraction), 4);
+    const candidateGrossRounded =
+      Math.abs(candidateGross - Math.round(candidateGross)) < 0.002
+        ? Math.round(candidateGross)
+        : roundCalc(candidateGross, 3);
+
+    const isKnownExclusive =
+      isStoredTaxExclusive ||
+      isDetailComplimentary ||
+      Boolean(isOrderBillDiscount) ||
+      (rawNetAmt === 0 && rawDiscAmount > 0) ||
+      (rawVatAmt === 0 && rawNetAmt === 0);
+
+    // 1. Direct match with catalog price (e.g. 4.545 * 1.1 = 4.9995 matches catalog 5.000)
+    if (catalogPrice !== undefined && Math.abs(catalogPrice - candidateGross) < 0.05) {
+      restoredPrice = catalogPrice;
+      itemIsIncl = true;
+    }
+    // 2. Catalog price matches rawPrice directly (item was already catalog price)
+    else if (catalogPrice !== undefined && Math.abs(catalogPrice - rawPrice) < 0.02 && !isKnownExclusive) {
+      restoredPrice = catalogPrice;
+      itemIsIncl = isStoredTaxInclusive || resolvedPriceView === "Inclusive" || realProduct.isIncl === true;
+    }
+    // 3. Stored row is known to be tax-exclusive base (from orderPayloadMapper or complimentary)
+    else if (isKnownExclusive) {
+      if (rawNetAmt > 0 && qty > 0 && (rawNetAmt + rawDiscAmount) > lineBase + 0.001) {
+        restoredPrice = roundCalc((rawNetAmt + rawDiscAmount) / qty, 3);
       } else {
-        restoredPrice = roundCalc(rawPrice * (1 + activeVatFraction), 4);
+        restoredPrice = candidateGrossRounded;
       }
-      // Snap to realProduct.price if catalog price is within 0.02 to avoid precision artifacts
-      if (realProduct.price && Math.abs(realProduct.price - restoredPrice) < 0.02) {
-        restoredPrice = realProduct.price;
+      if (catalogPrice !== undefined && Math.abs(catalogPrice - restoredPrice) < 0.05) {
+        restoredPrice = catalogPrice;
       }
-    } else if (!isStoredTaxInclusive && activeVatFraction > 0 && rawNetAmt > 0) {
-      // Fallback check against net amount per unit
-      const netPerUnit = (rawNetAmt + rawDiscAmount) / qty;
-      if (Math.abs(netPerUnit - rawPrice * (1 + activeVatFraction)) < 0.02) {
-        restoredPrice = roundCalc(netPerUnit, 4);
-      }
+      itemIsIncl = true;
     }
-  } else {
-    // POS expects tax-exclusive unit price
-    if (isStoredTaxInclusive && activeVatFraction > 0) {
-      restoredPrice = roundCalc(rawPrice / (1 + activeVatFraction), 4);
+    // 4. If catalog price is available and greater than rawPrice, restore to catalog price
+    else if (catalogPrice !== undefined && catalogPrice > rawPrice && Math.abs(catalogPrice - candidateGross) < 0.1) {
+      restoredPrice = catalogPrice;
+      itemIsIncl = true;
     }
+    // 5. Standard Inclusive view restoration
+    else if (resolvedPriceView === "Inclusive") {
+      restoredPrice = candidateGrossRounded;
+      itemIsIncl = true;
+    }
+    // 6. Explicit catalog price fallback
+    else if (catalogPrice !== undefined && Math.abs(catalogPrice - rawPrice) < 0.02) {
+      restoredPrice = catalogPrice;
+    }
+  } else if (catalogPrice !== undefined) {
+    restoredPrice = catalogPrice;
   }
 
   // 7. Modifiers and Extras Mapping
@@ -269,12 +333,6 @@ export const mapOrderDetailToCartItem = ({
   });
 
   // 8. Complimentary & Discount
-  const isDetailComplimentary = Boolean(
-    detail.complimentaryStatus ||
-    detail.ComplimentaryStatus ||
-    (detail.discPer && Number(detail.discPer) === 100) ||
-    (detail.DiscPer && Number(detail.DiscPer) === 100)
-  );
 
   const detailDiscPer =
     detail.discPer !== undefined && detail.discPer !== null
@@ -317,33 +375,6 @@ export const mapOrderDetailToCartItem = ({
     discountValue = roundCalc(discountValue * (1 + activeVatFraction), 4);
   }
 
-  const effectiveUnitId = detail.unitId ?? detail.UnitId ?? realProduct.unitId ?? 1;
-
-  let rawAlt =
-    detail.variantName ||
-    detail.altName ||
-    detail.VariantName ||
-    detail.AltName;
-
-  let rawAltArabic =
-    detail.variantArabic ||
-    detail.altArabic ||
-    detail.VariantArabic ||
-    detail.AltArabic;
-
-  // If variant name is not explicitly returned on the order row, look it up in alternativesCache by unitId
-  if (!rawAlt && effectiveUnitId && pId) {
-    const allCachedAlts = Object.entries(alternativesCache)
-      .filter(([k]) => k.startsWith(`${pId}-`))
-      .flatMap(([, alts]) => alts);
-    const matchedAlt = allCachedAlts.find(
-      (a: any) => (a.unitId ?? a.UnitId ?? a.id ?? a.Id) === effectiveUnitId
-    );
-    if (matchedAlt) {
-      rawAlt = matchedAlt.altName;
-      rawAltArabic = matchedAlt.altArabic;
-    }
-  }
 
   return {
     uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
@@ -354,6 +385,7 @@ export const mapOrderDetailToCartItem = ({
     isIncl: itemIsIncl,
     discountValue,
     discountType,
+    complimentaryStatus: isDetailComplimentary,
     extras,
     modifiers,
     messages,

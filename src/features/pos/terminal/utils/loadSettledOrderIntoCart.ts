@@ -1,6 +1,6 @@
 import { sortOrderDetailsBySequence } from "./orderSort";
 import { mapOrderDetailsToCartItems } from "../mappers/orderDetailToCartMapper";
-import { getBillingConfig, getVatStatus, roundCalc } from "./billing";
+import { getBillingConfig, getVatStatus, roundCalc, getPriceView } from "./billing";
 import {
   loadRecalledOrder,
   setDeliveryDetails,
@@ -55,15 +55,7 @@ export const loadSettledOrderIntoCart = ({
       return true;
     });
 
-    const priceView = (() => {
-      try {
-        const saved = localStorage.getItem("posConfigs");
-        const full = saved ? JSON.parse(saved) : {};
-        return full?.configs?.priceView === "Inclusive" ? "Inclusive" : "Exclusive";
-      } catch {
-        return "Exclusive";
-      }
-    })();
+    const priceView = getPriceView();
     const isIncl = priceView === "Inclusive";
 
     const orderTypeNameMap: Record<string, number> = {
@@ -75,8 +67,24 @@ export const loadSettledOrderIntoCart = ({
       Coming: 6,
     };
 
-    const orderTypeName = master.orderType || master.orderTypeName || "DineIn";
-    const orderTypeId = master.orderTypeId || orderTypeNameMap[orderTypeName] || 1;
+    const orderTypeIdToNameMap: Record<number, string> = {
+      1: "DineIn",
+      2: "TakeOut",
+      3: "DriveThru",
+      4: "Delivery",
+      5: "Providers",
+      6: "Coming",
+    };
+
+    const orderTypeName =
+      master.orderType ||
+      master.orderTypeName ||
+      (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
+      "DineIn";
+    const orderTypeId =
+      master.orderTypeId ||
+      orderTypeNameMap[orderTypeName] ||
+      1;
 
     // Resolve saleId
     const rawVoucher =
@@ -165,7 +173,8 @@ export const loadSettledOrderIntoCart = ({
     const isBillLevelDiscount =
       isBillComplimentary ||
       masterDiscPer > 0 ||
-      (!hasLineItemDiscounts && resolvedDiscount > 0);
+      (!hasLineItemDiscounts && resolvedDiscount > 0) ||
+      (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
 
     const resolvedBillDiscType: "percentage" | "amount" =
       isBillComplimentary || masterDiscPer > 0
@@ -176,6 +185,8 @@ export const loadSettledOrderIntoCart = ({
       ? 100
       : masterDiscPer > 0
       ? masterDiscPer
+      : (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001)
+      ? roundCalc(resolvedDiscount - lineDiscountsSum)
       : isBillLevelDiscount
       ? resolvedDiscount
       : 0;
@@ -228,6 +239,8 @@ export const loadSettledOrderIntoCart = ({
         billDiscountType: resolvedBillDiscType,
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
+        tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
+        guestNo: master.guestNo || master.guests || 0,
         deliveryCharge:
           master.deliveryCharge !== undefined
             ? Number(master.deliveryCharge)
