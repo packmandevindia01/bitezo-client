@@ -107,7 +107,7 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
               options={employeeOptions}
               value={form.employeeId}
               onChange={(value) => onChange("employeeId", value)}
-              placeholder={t("Select employee", form.posLanguage)}
+              placeholder={t("Select Employee", form.posLanguage)}
               disabled={!form.defaultEmployee}
             />
           </div>
@@ -166,6 +166,7 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
             options={[
               { value: "English", label: t("English", form.posLanguage) },
               { value: "Arabic", label: t("Arabic", form.posLanguage) },
+              { value: "Thai", label: t("Thai", form.posLanguage) },
             ]}
           />
 

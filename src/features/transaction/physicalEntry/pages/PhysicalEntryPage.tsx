@@ -196,10 +196,10 @@ const PhysicalEntryPage = () => {
               <FormInput inputClassName="!h-8 !px-2 !text-xs" id="pe-date" label="Date" type="date" {...register("date")} onKeyDown={(e) => hk(e, "pe-branch")} readOnly={!canSave || loadingMaster} error={errors.date?.message as string} max={formatDateOnly(new Date())} />
               
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-branch" label="Branch" value={field.value} options={branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "pe-salesman")} disabled={!canSave || loadingMaster || isEditMode || isBranchLocked || hasProductsAdded} error={errors.branch?.message as string} />
+                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-branch" label="Branch" placeholder="Select Branch" value={field.value} options={branches} onChange={field.onChange} onKeyDown={(e) => hk(e, "pe-salesman")} disabled={!canSave || loadingMaster || isEditMode || isBranchLocked || hasProductsAdded} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-salesman" label="Salesman" value={field.value} options={employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect className="!h-8 !px-2 !text-xs" id="pe-salesman" label="Salesman" placeholder="Select Employee" value={field.value} options={employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
 

@@ -65,31 +65,38 @@ const ProductWisePurchaseReportPage = () => {
 
   // Directly map the branches from backend since it already includes "All"
   const branchOptions = useMemo(() => {
-    return masterData.branches.map(b => ({
-      label: b.branchName,
-      value: String(b.branchId)
+    const list = Array.isArray(masterData.branches) ? masterData.branches : [];
+    return list.map(b => ({
+      label: b?.branchName || "",
+      value: String(b?.branchId ?? "")
     }));
   }, [masterData.branches]);
 
-  const supplierOptions = useMemo(() => [
-    { label: "All", value: "0" },
-    ...masterData.suppliers.map((s: any) => ({
-      label: s.code ? `[${s.code}] ${s.supplierName}` : s.supplierName,
-      value: String(s.supplierId)
-    })),
-  ], [masterData.suppliers]);
+  const supplierOptions = useMemo(() => {
+    const list = Array.isArray(masterData.suppliers) ? masterData.suppliers : [];
+    return [
+      { label: "All", value: "0" },
+      ...list.map((s: any) => ({
+        label: s.code ? `[${s.code}] ${s.supplierName}` : s.supplierName,
+        value: String(s.supplierId)
+      })),
+    ];
+  }, [masterData.suppliers]);
 
-  const productOptions = useMemo(() => [
-    { label: "All", value: "0" },
-    ...masterData.products.map((p: any) => ({
-      label: p.code ? `[${p.code}] ${p.productName}` : p.productName,
-      value: String(p.productId)
-    })),
-  ], [masterData.products]);
+  const productOptions = useMemo(() => {
+    const list = Array.isArray(masterData.products) ? masterData.products : [];
+    return [
+      { label: "All", value: "0" },
+      ...list.map((p: any) => ({
+        label: p.code ? `[${p.code}] ${p.productName}` : p.productName,
+        value: String(p.productId)
+      })),
+    ];
+  }, [masterData.products]);
 
   // Client-side grouping logic
   const groupedPurchaseData = useMemo(() => {
-    const rawData = report.purchaseData;
+    const rawData = Array.isArray(report.purchaseData) ? report.purchaseData : [];
     if (groupBy === "All") return rawData;
 
     if (groupBy === "Product") {

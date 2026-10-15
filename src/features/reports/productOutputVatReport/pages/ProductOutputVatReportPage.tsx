@@ -26,21 +26,25 @@ export const ProductOutputVatReportPage = () => {
 
   const selectedBranchName = useMemo(() => {
     if (filters.branchId === "0") return "All";
+    const list = Array.isArray(masterData.branches) ? masterData.branches : [];
     return (
-      masterData.branches.find((b) => String(b.branchId) === filters.branchId)?.branchName ||
-      filters.branchId
+      list.find((b) => String(b.branchId) === filters.branchId)?.branchName ||
+      filters.branchId ||
+      "All"
     );
   }, [filters.branchId, masterData.branches]);
 
   const selectedProductName = useMemo(() => {
+    const list = Array.isArray(masterData.productOptions) ? masterData.productOptions : [];
     return (
-      masterData.productOptions.find((p) => p.value === filters.productId)?.label || "All"
+      list.find((p) => p.value === filters.productId)?.label || "All"
     );
   }, [filters.productId, masterData.productOptions]);
 
   const selectedVatName = useMemo(() => {
+    const list = Array.isArray(masterData.vatOptions) ? masterData.vatOptions : [];
     return (
-      masterData.vatOptions.find((v) => v.value === filters.vatId)?.label || "All"
+      list.find((v) => v.value === filters.vatId)?.label || "All"
     );
   }, [filters.vatId, masterData.vatOptions]);
 
@@ -49,10 +53,11 @@ export const ProductOutputVatReportPage = () => {
     let sumVatAmount = 0;
     let sumNetAmount = 0;
 
-    report.rows.forEach((row) => {
-      sumValue += Number(row.value ?? 0);
-      sumVatAmount += Number(row.vatAmount ?? 0);
-      sumNetAmount += Number(row.netAmount ?? 0);
+    const safeRows = Array.isArray(report.rows) ? report.rows : [];
+    safeRows.forEach((row) => {
+      sumValue += Number(row?.value ?? 0);
+      sumVatAmount += Number(row?.vatAmount ?? 0);
+      sumNetAmount += Number(row?.netAmount ?? 0);
     });
 
     return {

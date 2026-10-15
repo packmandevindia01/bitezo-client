@@ -655,10 +655,13 @@ export const usePosCheckoutFlow = ({
             address: isDeliveryOrder ? (finalAddress || undefined) : undefined,
             vehicleNo: finalVehicleNo,
             providerNo: finalProviderNo,
-            payments: payments.map(p => ({
-              name: paymentNames[p.paymodeId] || "Other",
-              amount: p.amount
-            })),
+            payments: payments.map(p => {
+              const matchedTender = (tenderOptions || []).find((t: any) => String(t.id) === String(p.paymodeId));
+              return {
+                name: matchedTender?.label || paymentNames[p.paymodeId] || "Other",
+                amount: (p as any).tenderedAmount ?? p.amount
+              };
+            }),
             subTotal: isCombinedOrder ? subtotal : (masterData?.vatExclAmount ?? masterData?.subTotal ?? subtotal),
             discount: isCombinedOrder ? (totalDiscountAmount || 0) : (masterData?.discAmount ?? masterData?.discount ?? (totalDiscountAmount || 0)),
             serviceCharge: isCombinedOrder ? totalServiceCharge : (masterData?.serviceCharge ?? totalServiceCharge),
@@ -687,7 +690,7 @@ export const usePosCheckoutFlow = ({
     }
   });
 
-  const handleCompleteSettlement = useEvent(async (payments: { paymodeId: number, amount: number }[], changeAmount: number) => {
+  const handleCompleteSettlement = useEvent(async (payments: { paymodeId: number, amount: number, tenderedAmount?: number }[], changeAmount: number) => {
     settlementCashChangeRef.current = Number(changeAmount) || 0;
     setChange(changeAmount.toFixed(decimalPart));
     if (!status) return;

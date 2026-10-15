@@ -49,6 +49,7 @@ export interface FontModalState {
 }
 
 export interface BranchPayload {
+  branchId?: number;
   branchName: string;
   lines: LineItem[];
   isActive: boolean;

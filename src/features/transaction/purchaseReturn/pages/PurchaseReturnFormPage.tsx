@@ -305,7 +305,7 @@ const PurchaseReturnFormPage = () => {
                 </button>
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" placeholder="Select Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               
               <Controller name="invoiceNo" control={control} render={({ field }) => (

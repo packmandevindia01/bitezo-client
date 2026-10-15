@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
-import { createBranch, deleteBranch, fetchBranches, fetchBranchNames, updateBranch } from "../services/branchApi";
+import { createBranch, deleteBranch, fetchBranches, fetchBranchNames, fetchRegisteredBranches, updateBranch } from "../services/branchApi";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { BranchPayload, BranchRecord } from "../types";
 import { useAppDispatch } from "../../../../app/hooks";
@@ -19,6 +19,15 @@ export const useBranchManager = () => {
   const [deleteCandidate, setDeleteCandidate] = useState<BranchRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+
+  const { data: registeredBranches = [], isLoading: registeredLoading } = useQuery({
+    queryKey: ["registeredBranches"],
+    queryFn: fetchRegisteredBranches,
+  });
+
+  const maxAllowedBranches = 1 + registeredBranches.length;
+  const canCreateMore = !loading && !registeredLoading && branches.length < maxAllowedBranches;
+  const remainingRegisteredBranchesCount = Math.max(0, maxAllowedBranches - branches.length);
 
   useEffect(() => {
     let active = true;
@@ -227,6 +236,11 @@ export const useBranchManager = () => {
     openCreateModal,
     closeModal,
     filteredBranches,
+    branches,
     loading,
+    registeredBranches,
+    maxAllowedBranches,
+    canCreateMore,
+    remainingRegisteredBranchesCount,
   };
 };

@@ -35,8 +35,11 @@ export const getStockAdjustmentReport = async (filters: {
 };
 
 export const getBranchList = async (): Promise<BranchOption[]> => {
-  const response = await axiosInstance.get<{ data: BranchOption[]; isSuccess: boolean }>("/backoffice-config/config-details");
-  return response.data?.data || [];
+  const response = await axiosInstance.get<any>("/Branch/true/list-name");
+  const raw = response.data;
+  if (Array.isArray(raw)) return raw;
+  if (raw && Array.isArray(raw.data)) return raw.data;
+  return [];
 };
 
 export const getEmployeeList = async (branchId?: number): Promise<EmployeeOption[]> => {

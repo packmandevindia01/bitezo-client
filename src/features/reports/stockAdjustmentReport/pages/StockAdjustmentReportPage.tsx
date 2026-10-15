@@ -44,16 +44,22 @@ const StockAdjustmentReportPage = () => {
     filters.resetFilters();
   };
 
-  const branchOptions = useMemo(() => [
-    { label: "All", value: "0" },
-    ...masterData.branches.map(b => ({
-      label: b.branchName,
+  const branchOptions = useMemo(() => {
+    const list = masterData.branches.map(b => ({
+      label: b.branchName || (String(b.branchId) === "1" ? "Branch 1" : `Branch ${b.branchId}`),
       value: String(b.branchId),
-    })),
-  ], [masterData.branches]);
+    }));
+    if (!list.some(b => b.value === "1")) {
+      list.unshift({ label: "Branch 1", value: "1" });
+    }
+    return [
+      { label: "All Branches", value: "0" },
+      ...list,
+    ];
+  }, [masterData.branches]);
 
   const employeeOptions = useMemo(() => [
-    { label: "All", value: "0" },
+    { label: "All Employees", value: "0" },
     ...masterData.employees.map(e => ({
       label: e.empName,
       value: String(e.empId),
@@ -114,7 +120,7 @@ const StockAdjustmentReportPage = () => {
                     options={branchOptions}
                     value={filters.branchId}
                     onChange={filters.setBranchId}
-                    placeholder="All"
+                    placeholder="Select Branch"
                     autoFocus={true}
                     disabled={filters.isBranchLocked}
                   />
@@ -131,7 +137,7 @@ const StockAdjustmentReportPage = () => {
                     options={employeeOptions}
                     value={filters.employeeId}
                     onChange={filters.setEmployeeId}
-                    placeholder="All"
+                    placeholder="Select Employee"
                   />
                 </div>
               </div>

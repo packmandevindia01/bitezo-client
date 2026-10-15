@@ -8,11 +8,12 @@ import {
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
-import type { BranchOption, ProductOption } from "../types";
+import type { BranchOption, ProductOption, ProductWiseStockTransferRow } from "../types";
 
 export const useProductWiseStockTransferReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
+  const defaultBranchId = initialBranchId || "1";
 
   // ── Filter states ───────────────────────────────────────────────────────────
   const [fromDate, setFromDate] = useState<string>(() => {
@@ -24,7 +25,12 @@ export const useProductWiseStockTransferReport = () => {
   const [toDate, setToDate] = useState<string>(() =>
     new Date().toISOString().split("T")[0]
   );
-  const [fromBranchId, setFromBranchId] = useState<string>(initialBranchId);
+  const [fromBranchId, setFromBranchId] = useState<string>(defaultBranchId);
+
+  const handleSetFromBranchId = (val: string) => {
+    setFromBranchId(val || defaultBranchId);
+  };
+
   const [toBranchId, setToBranchId] = useState<string>("0");
   const [productId, setProductId] = useState<string>("0");
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,21 +47,22 @@ export const useProductWiseStockTransferReport = () => {
   });
 
   // ── Report query ─────────────────────────────────────────────────────────────
+  const finalFromBranchId = Number(fromBranchId) || Number(defaultBranchId) || 1;
   const {
-    data: reportRows = [],
+    data: rawReportRows = [],
     isLoading: reportLoading,
     isFetching,
     refetch,
   } = useQuery({
     queryKey: [
       "productWiseStockTransferReport",
-      { fromDate, toDate, fromBranchId, toBranchId, productId, decimalPart },
+      { fromDate, toDate, fromBranchId: finalFromBranchId, toBranchId, productId, decimalPart },
     ],
     queryFn: () =>
       getProductWiseStockTransferReport({
-        FromBranchId: Number(fromBranchId),
-        ToBranchId: Number(toBranchId),
-        ProductId: Number(productId),
+        FromBranchId: finalFromBranchId,
+        ToBranchId: Number(toBranchId) || 0,
+        ProductId: Number(productId) || 0,
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
@@ -64,25 +71,29 @@ export const useProductWiseStockTransferReport = () => {
     refetchOnMount: "always",
   });
 
+  const reportRows: ProductWiseStockTransferRow[] = useMemo(() => {
+    return Array.isArray(rawReportRows) ? rawReportRows : [];
+  }, [rawReportRows]);
+
   // ── Client-side search ──────────────────────────────────────────────────────
   const filteredRows = useMemo(() => {
     if (!searchTerm.trim()) return reportRows;
     const term = searchTerm.toLowerCase();
     return reportRows.filter(
       (row) =>
-        row.product?.toLowerCase().includes(term) ||
-        row.code?.toLowerCase().includes(term) ||
-        row.fromBranch?.toLowerCase().includes(term) ||
-        row.toBranch?.toLowerCase().includes(term) ||
-        String(row.refNo).includes(term)
+        row?.product?.toLowerCase().includes(term) ||
+        row?.code?.toLowerCase().includes(term) ||
+        row?.fromBranch?.toLowerCase().includes(term) ||
+        row?.toBranch?.toLowerCase().includes(term) ||
+        String(row?.refNo || "").includes(term)
     );
   }, [reportRows, searchTerm]);
 
   // ── Grand totals ────────────────────────────────────────────────────────────
   const grandTotals = useMemo(
     () => ({
-      qty: filteredRows.reduce((s, r) => s + Number(r.qty || 0), 0),
-      netAmount: filteredRows.reduce((s, r) => s + Number(r.netAmount || 0), 0),
+      qty: filteredRows.reduce((s, r) => s + Number(r?.qty || 0), 0),
+      netAmount: filteredRows.reduce((s, r) => s + Number(r?.netAmount || 0), 0),
     }),
     [filteredRows]
   );
@@ -93,16 +104,10 @@ export const useProductWiseStockTransferReport = () => {
     const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1)
       .toISOString()
       .split("T")[0];
-    const isBackofficeMode =
-      sessionStorage.getItem("tempSystemType") === "backoffice" ||
-      localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode
-      ? sessionStorage.getItem("backoffice_activeBranchId")
-      : localStorage.getItem("activeBranchId");
 
     setFromDate(defaultFrom);
     setToDate(today.toISOString().split("T")[0]);
-    setFromBranchId(activeBranchId || "1");
+    setFromBranchId(defaultBranchId);
     setToBranchId("0");
     setProductId("0");
     setSearchTerm("");
@@ -113,9 +118,10 @@ export const useProductWiseStockTransferReport = () => {
 
   return {
     filters: {
+      defaultBranchId,
       fromDate, setFromDate,
       toDate, setToDate,
-      fromBranchId, setFromBranchId,
+      fromBranchId, setFromBranchId: handleSetFromBranchId,
       toBranchId, setToBranchId,
       productId, setProductId,
       searchTerm, setSearchTerm,

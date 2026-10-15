@@ -2,6 +2,7 @@ import { forwardRef, useMemo } from "react";
 import { X, Download, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { formatAmount } from "../../../../utils/currency";
+import { formatHeaderDate, formatTransactionDateTime, formatReportTimestamp } from "../utils/exportUtils";
 
 interface PrintData {
   salesData: any[];
@@ -11,6 +12,7 @@ interface PrintData {
   filters: any;
   companyName: string;
   companyAddress: string;
+  generatedAt?: string;
 }
 
 interface SalesReportPrintPreviewModalProps {
@@ -44,16 +46,6 @@ const PRINT_STYLES = `
   }
 `;
 
-const formatHeaderDate = (dateStr: string) => {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-};
-
 // ─── Print HTML Template ──────────────────────────────────────────────────────
 const SalesReportPrintTemplate = forwardRef<HTMLDivElement, { data: PrintData }>(
   ({ data }, ref) => {
@@ -66,16 +58,19 @@ const SalesReportPrintTemplate = forwardRef<HTMLDivElement, { data: PrintData }>
           <div className="report-title text-xs font-bold underline text-black mt-2">
             Sales Report From {formatHeaderDate(data.filters.fromDate)} To {formatHeaderDate(data.filters.toDate)}
           </div>
+          <div className="text-[10px] text-slate-500 font-medium mt-1">
+            Report Generated: {data.generatedAt || formatReportTimestamp()}
+          </div>
         </div>
 
         {/* Table */}
         <table className="w-full border-collapse mt-4 text-[10px]">
           <thead>
             <tr className="bg-[#49293e] text-white">
-              <th className="text-left font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[14%]">BillDate</th>
+              <th className="text-center font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[16%]">Bill Date & Time</th>
               <th className="text-center font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[8%]">BillNo</th>
               <th className="text-center font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[8%]">Ref No</th>
-              <th className="text-left font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[28%]">Customer</th>
+              <th className="text-left font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[26%]">Customer</th>
               <th className="text-center font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[10%]">Paymode</th>
               <th className="text-right font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[10%]">Net Value</th>
               <th className="text-right font-bold p-2 text-[10px] bg-[#49293e] text-white border-none w-[10%]">Vat Amount</th>
@@ -92,8 +87,8 @@ const SalesReportPrintTemplate = forwardRef<HTMLDivElement, { data: PrintData }>
             ) : (
               data.salesData.map((row, idx) => (
                 <tr key={idx} className={`border-b border-slate-100 ${idx % 2 === 1 ? "bg-slate-50/80" : "bg-white"}`}>
-                  <td className="text-left p-2 text-[10px] text-slate-800 whitespace-nowrap">
-                    {row.invoiceDate ? formatHeaderDate(row.invoiceDate) : ""}
+                  <td className="text-center p-2 text-[10px] text-slate-800 whitespace-nowrap">
+                    {formatTransactionDateTime(row)}
                   </td>
                   <td className="text-center p-2 text-[10px] text-slate-800 font-mono">{row.invoiceNo || ""}</td>
                   <td className="text-center p-2 text-[10px] text-slate-500">{row.refNo || ""}</td>

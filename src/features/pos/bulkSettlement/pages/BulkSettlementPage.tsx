@@ -6,6 +6,7 @@ import { useBulkSettlement } from "../hooks/useBulkSettlement";
 import { BulkSettlementFilterBar } from "../components/BulkSettlementFilterBar";
 import { BulkSettlementOrderList } from "../components/BulkSettlementOrderList";
 import { formatCurrency } from "../../../../utils/currency";
+import { PosMultiPayModal } from "../../terminal/components/modals/payment/PosMultiPayModal";
 
 export const BulkSettlementPage: React.FC = () => {
   const location = useLocation();
@@ -24,6 +25,9 @@ export const BulkSettlementPage: React.FC = () => {
     isAllSelected,
     totalSelectedAmount,
     isSubmitting,
+    isMultiPayOpen,
+    setIsMultiPayOpen,
+    tenderOptions,
     lastSettledPrintData,
     handleReprintLastSettlement,
     handleEntityTypeChange,
@@ -32,6 +36,7 @@ export const BulkSettlementPage: React.FC = () => {
     toggleOrderSelection,
     toggleSelectAll,
     handleSubmit,
+    handleMultiPaySubmit,
   } = useBulkSettlement();
 
   return (
@@ -150,6 +155,17 @@ export const BulkSettlementPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* MultiPay Settlement Modal */}
+      <PosMultiPayModal
+        isOpen={isMultiPayOpen}
+        onClose={() => setIsMultiPayOpen(false)}
+        totalDue={totalSelectedAmount}
+        tenderOptions={tenderOptions}
+        disableCredit={true}
+        loading={isSubmitting}
+        onSubmit={handleMultiPaySubmit}
+      />
     </PageShell>
   );
 };

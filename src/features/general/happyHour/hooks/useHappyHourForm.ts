@@ -18,6 +18,28 @@ import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 import type { HappyHourData, HappyHourPayload, HappyHourEntry } from "../types";
 import { happyHourService } from "../services/happyHourService";
 
+export const toLocalISOString = (date: Date = new Date()) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+};
+
+const formatInitialDate = (isoStr?: string) => {
+  if (!isoStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(isoStr)) {
+    return isoStr.slice(0, 16);
+  }
+  const d = new Date(isoStr);
+  if (!isNaN(d.getTime())) {
+    return toLocalISOString(d);
+  }
+  return "";
+};
+
 export const useHappyHourForm = (
   _initialData: HappyHourData | null | undefined,
   onSubmit: (payload: HappyHourPayload) => void,
@@ -41,15 +63,23 @@ export const useHappyHourForm = (
   // ─── Main Fields ──────────────────────────────────────────────────────────
   const [promotionId, setPromotionId] = useState<number | undefined>(undefined);
   const [promotionName, setPromotionName] = useState("");
+  const [minDateTime] = useState(() => toLocalISOString(new Date()));
+  const [initialStartDate, setInitialStartDate] = useState<string>("");
+
   const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    return now.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+    return toLocalISOString(new Date());
   });
   const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    return now.toISOString().slice(0, 16);
+    return toLocalISOString(new Date(Date.now() + 86400000));
   });
   const [percentage, setPercentage] = useState("");
+
+  const minStartDate =
+    promotionId && initialStartDate && initialStartDate < minDateTime
+      ? initialStartDate
+      : minDateTime;
+
+  const minEndDate = startDate || minStartDate;
 
   // ─── Filter selections ────────────────────────────────────────────────────
   const [selectedBranch, setSelectedBranch] = useState("");
@@ -80,8 +110,11 @@ export const useHappyHourForm = (
         setPromotionId(_initialData.master.promotionId);
         setPromotionName(_initialData.master.promotionName);
         setSelectedBranch(String(_initialData.master.branchId));
-        setStartDate(_initialData.master.validFrom?.slice(0, 16) || "");
-        setEndDate(_initialData.master.validTo?.slice(0, 16) || "");
+        const formattedStart = formatInitialDate(_initialData.master.validFrom);
+        const formattedEnd = formatInitialDate(_initialData.master.validTo);
+        setStartDate(formattedStart);
+        setInitialStartDate(formattedStart);
+        setEndDate(formattedEnd);
         
         if (_initialData.details) {
             setEntries(_initialData.details.map(d => {
@@ -453,11 +486,51 @@ export const useHappyHourForm = (
     }
   };
 
+  const handleStartDateChange = (val: string) => {
+    setStartDate(val);
+
+    if (val && minStartDate && val < minStartDate) {
+      setErrors((prev) => ({ ...prev, startDate: "Start date cannot be in the past" }));
+    } else {
+      setErrors((prev) => {
+        if (!prev.startDate) return prev;
+        const { startDate: _, ...rest } = prev;
+        return rest;
+      });
+    }
+
+    // Automatically restrict/adjust End Date if it is earlier than the new Start Date
+    if (val && endDate && endDate < val) {
+      setEndDate(val);
+      setErrors((prev) => {
+        if (!prev.endDate) return prev;
+        const { endDate: _, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setEndDate(val);
+
+    const minAllowed = startDate || minStartDate;
+    if (val && minAllowed && val < minAllowed) {
+      setErrors((prev) => ({ ...prev, endDate: "End date cannot be earlier than start date" }));
+    } else {
+      setErrors((prev) => {
+        if (!prev.endDate) return prev;
+        const { endDate: _, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
   const handleReset = () => {
     setPromotionId(undefined);
     setPromotionName("");
-    setStartDate(new Date().toISOString().slice(0, 16));
-    setEndDate(new Date(Date.now() + 86400000).toISOString().slice(0, 16));
+    const now = new Date();
+    setStartDate(toLocalISOString(now));
+    setEndDate(toLocalISOString(new Date(Date.now() + 86400000)));
     setSelectedBranch("");
     setSelectedCategory("");
     setSelectedSubCategory("");
@@ -486,7 +559,17 @@ export const useHappyHourForm = (
     const newErrors: Record<string, string> = {};
     if (!promotionName.trim()) newErrors.promotionName = "Promotion name is required";
     if (!selectedBranch) newErrors.selectedBranch = "Branch is required";
-    
+    if (!startDate) newErrors.startDate = "Start date is required";
+    if (!endDate) newErrors.endDate = "End date is required";
+
+    if (startDate && minStartDate && startDate < minStartDate) {
+      newErrors.startDate = "Start date cannot be in the past";
+    }
+
+    if (startDate && endDate && endDate < startDate) {
+      newErrors.endDate = "End date cannot be earlier than start date";
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const firstError = Object.values(newErrors)[0];
@@ -524,8 +607,12 @@ export const useHappyHourForm = (
     branches, categories, subCategories, allProducts, altNameOptions,
     loading, loadingSubs, loadingAltNames,
     promotionName,
-    startDate, setStartDate,
-    endDate, setEndDate,
+    startDate, setStartDate: handleStartDateChange,
+    endDate, setEndDate: handleEndDateChange,
+    minStartDate,
+    minEndDate,
+    handleStartDateChange,
+    handleEndDateChange,
     percentage, setPercentage,
     selectedBranch,
     selectedCategory, setSelectedCategory,

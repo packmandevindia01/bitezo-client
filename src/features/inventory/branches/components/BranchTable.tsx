@@ -20,7 +20,7 @@ const BranchTable = ({ branches, loading, search, onSearchChange, onAdd, onEdit,
         onSearchChange={onSearchChange}
         searchPlaceholder="Search branches..."
         autoFocusSearch
-        canAdd={!!onAdd}
+        canAdd={Boolean(onAdd)}
         onAdd={onAdd}
       />
       <RecordTableCard
@@ -29,37 +29,49 @@ const BranchTable = ({ branches, loading, search, onSearchChange, onAdd, onEdit,
         rowKey="id"
         data={branches}
         columns={[
-        { header: "S.No", accessor: "id", render: (_, index) => index + 1 },
-        { header: "Branch Name", accessor: "branchName" },
-        {
-          header: "Actions",
-          accessor: "id",
-          render: (row) => (
-            <div className="flex gap-2">
-              {onEdit && (
-                <button
-                  type="button"
-                  onClick={() => onEdit(row)}
-                  className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                  aria-label={`Edit ${row.branchName}`}
-                >
-                  <Pencil size={16} />
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  type="button"
-                  onClick={() => onDelete(row)}
-                  className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label={`Delete ${row.branchName}`}
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-          ),
-        },
-      ]}
+          {
+            header: "S.No",
+            accessor: "id",
+            align: "center",
+            render: (_, index) => index + 1,
+          },
+          {
+            header: "Branch Name",
+            accessor: "branchName",
+            align: "center",
+          },
+          {
+            header: "Actions",
+            accessor: "id",
+            align: "center",
+            render: (row) => (
+              <div className="flex items-center justify-center gap-2">
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(row)}
+                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
+                    aria-label={`Edit ${row.branchName}`}
+                    title="Edit Branch"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(row)}
+                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
+                    aria-label={`Delete ${row.branchName}`}
+                    title="Delete Branch"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ]}
       />
     </>
   );

@@ -24,10 +24,15 @@ export const useProductWisePurchaseReport = () => {
     return today.toISOString().split("T")[0];
   });
   const { initialBranchId, isBranchLocked } = useBranchScope();
-  const [branchId, setBranchId] = useState<string>(initialBranchId);
+  const defaultBranchId = initialBranchId || "1";
+  const [branchId, setBranchId] = useState<string>(defaultBranchId);
   const [productId, setProductId] = useState<string>("0");
   const [supplierId, setSupplierId] = useState<string>("0");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleSetBranchId = (val: string) => {
+    setBranchId(val || defaultBranchId);
+  };
 
   // Master data queries
   const { data: branches = [] as BranchOption[], isLoading: branchesLoading } = useQuery({
@@ -47,12 +52,16 @@ export const useProductWisePurchaseReport = () => {
     queryFn: getProductList,
   });
 
+  const safeSuppliers = Array.isArray(suppliers) ? suppliers : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+
   // Report query
+  const finalBranchId = Number(branchId) || Number(defaultBranchId) || 1;
   const { data: reportData, isLoading: reportLoading, isFetching, refetch } = useQuery({
-    queryKey: ["productWisePurchaseReport", { fromDate, toDate, branchId, productId, supplierId, decimalPart }],
+    queryKey: ["productWisePurchaseReport", { fromDate, toDate, branchId: finalBranchId, productId, supplierId, decimalPart }],
     queryFn: () => {
       const params: ProductWisePurchaseReportParams = {
-        BranchId: Number(branchId),
+        BranchId: finalBranchId,
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
@@ -65,11 +74,18 @@ export const useProductWisePurchaseReport = () => {
     refetchOnMount: true,
   });
 
+  const rawPurchaseData = Array.isArray(reportData?.purchaseData)
+    ? reportData.purchaseData
+    : Array.isArray(reportData)
+    ? reportData
+    : [];
+
   // Client-side filtering fallback for search term and filter selections
-  const filteredPurchaseData = (reportData?.purchaseData || []).filter((row: any) => {
+  const filteredPurchaseData = rawPurchaseData.filter((row: any) => {
+    if (!row) return false;
     // 1. Supplier Filter
-    if (supplierId !== "0") {
-      const selectedSup = suppliers.find((s: any) => String(s.supplierId) === supplierId);
+    if (supplierId && supplierId !== "0") {
+      const selectedSup = safeSuppliers.find((s: any) => String(s?.supplierId) === supplierId);
       if (selectedSup) {
         const matchesName = row.supplierName?.toLowerCase() === selectedSup.supplierName?.toLowerCase();
         if (!matchesName) return false;
@@ -77,8 +93,8 @@ export const useProductWisePurchaseReport = () => {
     }
 
     // 2. Product Filter
-    if (productId !== "0") {
-      const selectedProd = products.find((p: any) => String(p.productId) === productId);
+    if (productId && productId !== "0") {
+      const selectedProd = safeProducts.find((p: any) => String(p?.productId) === productId);
       if (selectedProd) {
         const matchesName = row.productnName?.toLowerCase() === selectedProd.productName?.toLowerCase();
         const matchesCode = row.productCode?.toLowerCase() === selectedProd.code?.toLowerCase();
@@ -93,8 +109,8 @@ export const useProductWisePurchaseReport = () => {
         (row.productnName && row.productnName.toLowerCase().includes(term)) ||
         (row.productCode && row.productCode.toLowerCase().includes(term)) ||
         (row.supplierName && row.supplierName.toLowerCase().includes(term)) ||
-        (row["p/R Number"] && row["p/R Number"].toLowerCase().includes(term)) ||
-        (row.invoiceNo && row.invoiceNo.toLowerCase().includes(term))
+        (row["p/R Number"] && String(row["p/R Number"]).toLowerCase().includes(term)) ||
+        (row.invoiceNo && String(row.invoiceNo).toLowerCase().includes(term))
       );
     }
 
@@ -108,7 +124,7 @@ export const useProductWisePurchaseReport = () => {
     
     setFromDate(defaultFrom);
     setToDate(defaultTo);
-    setBranchId(initialBranchId);
+    setBranchId(defaultBranchId);
     setProductId("0");
     setSupplierId("0");
     setSearchTerm("");
@@ -119,12 +135,13 @@ export const useProductWisePurchaseReport = () => {
 
   return {
     filters: {
+      defaultBranchId,
       fromDate,
       setFromDate,
       toDate,
       setToDate,
       branchId,
-      setBranchId,
+      setBranchId: handleSetBranchId,
       isBranchLocked,
       productId,
       setProductId,

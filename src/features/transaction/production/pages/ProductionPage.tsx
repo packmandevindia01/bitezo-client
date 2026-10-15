@@ -152,7 +152,7 @@ const ProductionPage = () => {
                     }}
                     onKeyDown={(e) => hk(e, "prod-employee")}
                     disabled={!!id || isBranchLocked}
-                    placeholder="Select branch"
+                    placeholder="Select Branch"
                   />
                 )}
               />
@@ -175,7 +175,7 @@ const ProductionPage = () => {
                       }, 100);
                     }}
                     onKeyDown={(e) => hk(e, "prod-finProduct")}
-                    placeholder={!watch("branchId") ? "Select branch first" : "Select employee"}
+                    placeholder="Select Employee"
                     disabled={!watch("branchId")}
                   />
                 )}

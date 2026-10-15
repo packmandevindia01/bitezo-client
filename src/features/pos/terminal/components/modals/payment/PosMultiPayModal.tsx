@@ -173,6 +173,7 @@ interface PosMultiPayModalProps {
   loading?: boolean;
   customerId?: number;
   tenderOptions?: TenderOption[];
+  disableCredit?: boolean;
 }
 
 // ── Curated Distinct Card Palettes (Non-Blended, Solid Signature FinTech Colors) ──
@@ -542,6 +543,7 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
   loading,
   customerId,
   tenderOptions = [],
+  disableCredit = false,
 }) => {
   const { formatAmount, currencySymbol, decimalPart } = useCurrency();
   const { showToast } = useToast();
@@ -549,18 +551,37 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
   const [payments, setPayments] = useState<MultiPaymentLine[]>([]);
   const [selectedTender, setSelectedTender] = useState<TenderOption | null>(null);
 
-  // Take only what comes from backend, filtering out multi pay itself
+  // Take only what comes from backend, filtering out multi pay (and credit if disabled)
   const availableTenders = React.useMemo(() => {
-    const filtered = (tenderOptions || []).filter(
-      t => !(t.label || '').toLowerCase().includes('multi')
-    );
-    if (filtered.length > 0) return filtered;
-    return [
-      { id: '1', label: 'Cash' },
-      { id: '2', label: 'Card' },
-      { id: '3', label: 'Credit' }
-    ];
-  }, [tenderOptions]);
+    const filtered = (tenderOptions || []).filter(t => {
+      const lbl = (t.label || '').toLowerCase();
+      if (lbl.includes('multi')) return false;
+      if (disableCredit && lbl.includes('credit')) return false;
+      return true;
+    });
+
+    const list = filtered.length > 0
+      ? filtered
+      : (disableCredit
+          ? [
+              { id: '1', label: 'Cash' },
+              { id: '2', label: 'Card' }
+            ]
+          : [
+              { id: '1', label: 'Cash' },
+              { id: '2', label: 'Card' },
+              { id: '3', label: 'Credit' }
+            ]);
+
+    // Ensure Cash is ALWAYS first priority
+    return list.slice().sort((a, b) => {
+      const aIsCash = String(a.id) === '1' || (a.label || '').toLowerCase().includes('cash');
+      const bIsCash = String(b.id) === '1' || (b.label || '').toLowerCase().includes('cash');
+      if (aIsCash && !bIsCash) return -1;
+      if (!aIsCash && bIsCash) return 1;
+      return Number(a.id) - Number(b.id);
+    });
+  }, [tenderOptions, disableCredit]);
 
   const totalPaid  = payments.reduce((sum, p) => sum + p.amount, 0);
 

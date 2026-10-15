@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckSquare, Square, Tag, CreditCard, ShoppingBag, Clock, User, RefreshCw } from "lucide-react";
+import { CheckSquare, Square, Tag, ShoppingBag, Clock, User, RefreshCw } from "lucide-react";
 import type { UnsettledOrder } from "../types";
 import { formatCurrency } from "../../../../utils/currency";
 import { Loader } from "../../../../components/common";
@@ -97,12 +97,6 @@ export const BulkSettlementOrderList: React.FC<BulkSettlementOrderListProps> = (
                     {order.orderType}
                   </span>
 
-                  {order.paymodeName && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/60 inline-flex items-center gap-1">
-                      <CreditCard size={10} />
-                      {order.paymodeName}
-                    </span>
-                  )}
 
                   <span className="text-[11px] text-slate-400 font-semibold ml-auto sm:ml-0 inline-flex items-center gap-1">
                     <Clock size={11} />

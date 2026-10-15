@@ -542,6 +542,9 @@ export const usePosCartActions = () => {
         kotArabic: isKotArabicEnabled(),
         billArabic: isBillArabicEnabled(),
         forcedPrint,
+        priceView: (localStorage.getItem("priceView") as any) || undefined,
+        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
       };
 
       if (isUpdate) {

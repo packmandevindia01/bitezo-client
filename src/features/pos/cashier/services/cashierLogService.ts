@@ -85,7 +85,7 @@ export interface EndReportData {
   waiters: { waiter: string; count: number; total: number }[];
   categories: { categoryName: string; qty: number; total: number }[];
   voidProducts: any[] | null;
-  paymodes: { paymodeName: string; amount: number }[];
+  paymodes: { paymodeName: string; amount: number; count?: number; transactionCount?: number; [key: string]: any }[];
   taxSummary: { vatName: string; exclAmount: number; vatAmount: number }[];
   salesSummary: { sales: number; vatAmount: number; deliveryCharge: number };
   generalSummary: { startDate: string; endDate: string; voidSales: number; voidOrders: number; pendingOrder: number };

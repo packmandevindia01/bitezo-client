@@ -150,7 +150,7 @@ export const ShiftEndReportPage = () => {
                     options={branchOptions}
                     value={filters.branchId}
                     onChange={filters.setBranchId}
-                    placeholder="Select a branch"
+                    placeholder="Select Branch"
                     autoFocus={true}
                     disabled={filters.isBranchLocked}
                   />

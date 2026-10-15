@@ -19,7 +19,7 @@ export const useConfigurationManager = () => {
   const { showToast } = useToast();
   const [form, setForm] = useState<ConfigurationState>(() => ({
     ...INITIAL_CONFIG,
-    posLanguage: (localStorage.getItem("posLanguage") === "Arabic" ? "Arabic" : "English"),
+    posLanguage: (["Arabic", "Thai"].includes(localStorage.getItem("posLanguage") || "") ? (localStorage.getItem("posLanguage") as any) : "English"),
     productView: ((localStorage.getItem("productView") as any) || "English"),
   }));
   const [backofficeForm, setBackofficeFormState] = useState<BackofficeConfigState>(INITIAL_BACKOFFICE_CONFIG);

@@ -751,10 +751,10 @@ export const generateGuestPrintHtml = async (
           `;
           }).join('')}
           ` : ''}
-          ${data.changeAmount !== undefined && data.changeAmount > 0 ? `
+          ${data.changeAmount !== undefined && Number(data.changeAmount) > 0 ? `
           <tr>
-            <td class="totals-label">Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المبلغ المتبقي)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(data.changeAmount)}</td>
+            <td class="totals-label" style="font-weight: 700;">Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:bold; white-space:nowrap;">(المبلغ المتبقي)</bdi>' : ''}</td>
+            <td class="totals-value" style="font-weight: 700;">${fmt(data.changeAmount)}</td>
           </tr>
           ` : ''}
         </table>

@@ -19,6 +19,8 @@ export interface DeliverySettlePrintData {
   items: DeliverySettleOrderItem[];
   total: number;
   grandTotal: number;
+  cashTendered?: number;
+  changeAmount?: number;
   printTime?: string;
   showCompanyHeader?: boolean;
 }
@@ -296,6 +298,16 @@ export const generateDeliverySettlePrintHtml = async (
             <td class="grand-total-label">Grand Total</td>
             <td class="grand-total-value">${fmt(grandTotal)}</td>
           </tr>
+          ${data.cashTendered !== undefined && data.changeAmount !== undefined && data.changeAmount > 0 ? `
+          <tr>
+            <td class="totals-label">Cash Tendered</td>
+            <td class="totals-value">${fmt(data.cashTendered)}</td>
+          </tr>
+          <tr>
+            <td class="totals-label">Change</td>
+            <td class="totals-value">${fmt(data.changeAmount)}</td>
+          </tr>
+          ` : ""}
         </table>
         <div class="dashed-hr"></div>
 

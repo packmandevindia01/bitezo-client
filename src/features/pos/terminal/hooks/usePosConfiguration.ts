@@ -18,7 +18,7 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
   return {
     ...INITIAL_CONFIG,
     discCalc: (configs.discountCalc as any) || "Exclusive",
-    kotHeader: (configs.kotHeader as any) || "QTY,DESCRIPTION",
+    kotHeader: (configs.kotHeader as any) || "QTY,DESCRIPTION,AMT",
     kotArabic: configs.kotArabic === "Enable",
     billArabic: configs.billArabic === "Enable",
     kotPrintSettle: configs.kotPrintSettle === "Enable",
@@ -54,10 +54,10 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     groupInMenu: configs.showGroup === "Enable",
     providerOwnMenuStatus: configs.providerOwnStatus ?? true,
     posLanguage: (() => {
-      const stored = localStorage.getItem("posLanguage") || ((configs as any)?.posLanguage as any);
-      return stored === "Arabic" ? "Arabic" : "English";
+      const stored = localStorage.getItem("posLanguage") || ((configs as any)?.posLanguage as any) || ((configs as any)?.PosLanguage as any);
+      return stored === "Arabic" ? "Arabic" : stored === "Thai" ? "Thai" : "English";
     })(),
-    productView: localStorage.getItem("productView") || ((configs as any)?.productView as any) || "English",
+    productView: localStorage.getItem("productView") || ((configs as any)?.productView as any) || ((configs as any)?.ProductView as any) || "English",
 
     dayEnd: {
       category: configs.categoryDayend === "Enable",
@@ -134,6 +134,11 @@ export const mapStateToApi = (state: ConfigurationState, branchId: number): PosC
     isDayDateEnable: state.dayDate,
     defaultOrderTypeId: Number(state.defaultOrderTypeId) || 1,
 
+    posLanguage: state.posLanguage || "English",
+    PosLanguage: state.posLanguage || "English",
+    productView: state.productView || "English",
+    ProductView: state.productView || "English",
+
     deliveryCharges: state.multiDeliveryCharges.map(d => ({
       chargeName: d.name,
       chargeValue: Number(d.charge) || 0
@@ -145,7 +150,7 @@ export const usePosConfiguration = () => {
   const { showToast } = useToast();
   const [form, setForm] = useState<ConfigurationState>(() => ({
     ...INITIAL_CONFIG,
-    posLanguage: (localStorage.getItem("posLanguage") === "Arabic" ? "Arabic" : "English"),
+    posLanguage: (["Arabic", "Thai"].includes(localStorage.getItem("posLanguage") || "") ? (localStorage.getItem("posLanguage") as any) : "English"),
     productView: ((localStorage.getItem("productView") as any) || "English"),
   }));
   const [employeeOptions, setEmployeeOptions] = useState<ConfigurationEmployeeOption[]>([]);

@@ -15,7 +15,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   productView: "English",
   
   discCalc: "Exclusive",
-  kotHeader: "QTY,DESCRIPTION",
+  kotHeader: "QTY,DESCRIPTION,AMT",
   kotArabic: false,
   billArabic: false,
   kotPrintSettle: false,

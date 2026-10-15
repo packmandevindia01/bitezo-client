@@ -25,8 +25,17 @@ const getFirstDayOfMonthString = () => {
 export const useStockAdjustmentReport = () => {
   const { initialBranchId, isBranchLocked } = useBranchScope();
 
-  const [branchId, setBranchId] = useState<string>(initialBranchId);
-  const [employeeId, setEmployeeId] = useState<string>("0");
+  const isBackofficeMode =
+    typeof sessionStorage !== "undefined" &&
+    (sessionStorage.getItem("tempSystemType") === "backoffice" ||
+      localStorage.getItem("systemType") === "backoffice");
+  const activeBranchId = isBackofficeMode
+    ? sessionStorage.getItem("backoffice_activeBranchId")
+    : localStorage.getItem("activeBranchId");
+  const defaultBranchId = (activeBranchId && activeBranchId !== "0") ? activeBranchId : (initialBranchId && initialBranchId !== "0" ? initialBranchId : "1");
+
+  const [branchId, setBranchId] = useState<string>(defaultBranchId);
+  const [employeeId, setEmployeeId] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>(getFirstDayOfMonthString());
   const [toDate, setToDate] = useState<string>(getTodayString());
 
@@ -38,7 +47,7 @@ export const useStockAdjustmentReport = () => {
   // Employees filtered by the currently selected branch
   const { data: employees = [] } = useQuery({
     queryKey: ["stockAdjustmentEmployeeList", branchId],
-    queryFn: () => getEmployeeList(branchId !== "0" ? Number(branchId) : undefined),
+    queryFn: () => getEmployeeList(branchId !== "0" && branchId !== "" ? Number(branchId) : undefined),
   });
 
   const {
@@ -55,8 +64,19 @@ export const useStockAdjustmentReport = () => {
   });
 
   const resetFilters = useCallback(() => {
-    setBranchId(initialBranchId);
-    setEmployeeId("0");
+    const isBackoffice =
+      typeof sessionStorage !== "undefined" &&
+      (sessionStorage.getItem("tempSystemType") === "backoffice" ||
+        localStorage.getItem("systemType") === "backoffice");
+    const currentActiveBranchId = isBackoffice
+      ? sessionStorage.getItem("backoffice_activeBranchId")
+      : localStorage.getItem("activeBranchId");
+    const targetBranch = (currentActiveBranchId && currentActiveBranchId !== "0")
+      ? currentActiveBranchId
+      : (initialBranchId && initialBranchId !== "0" ? initialBranchId : "1");
+
+    setBranchId(targetBranch);
+    setEmployeeId("");
     setFromDate(getFirstDayOfMonthString());
     setToDate(getTodayString());
     setTimeout(() => {

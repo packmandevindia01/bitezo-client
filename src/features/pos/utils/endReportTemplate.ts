@@ -172,7 +172,52 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     <div class="sep"></div>
   `;
 
-  // Start / End Dates — label left, value right
+  // Extract User & Counter details (especially crucial for Shift End)
+  const user = String(
+    (data as any).user 
+    || (data as any).userName 
+    || (data as any).cashier 
+    || (data as any).cashierName 
+    || (gs as any).user 
+    || (gs as any).userName 
+    || (gs as any).cashier 
+    || (gs as any).cashierName 
+    || (data as any).shiftInfo?.user 
+    || (data as any).shiftInfo?.userName 
+    || (data as any).shift?.user 
+    || (data as any).shift?.userName 
+    || (h as any).user 
+    || (reportType === 'SHIFTEND' ? (localStorage.getItem("userName") || sessionStorage.getItem("backoffice_userName") || "") : "")
+  ).trim();
+
+  const counter = String(
+    (data as any).counter 
+    || (data as any).counterName 
+    || (gs as any).counter 
+    || (gs as any).counterName 
+    || (data as any).shiftInfo?.counter 
+    || (data as any).shiftInfo?.counterName 
+    || (data as any).shift?.counter 
+    || (data as any).shift?.counterName 
+    || (h as any).counter 
+    || (reportType === 'SHIFTEND' ? (localStorage.getItem("systemCounterName") || localStorage.getItem("counterName") || (localStorage.getItem("systemCounterId") ? `Counter ${localStorage.getItem("systemCounterId")}` : "")) : "")
+  ).trim();
+
+  const userRowHtml = user && user !== 'undefined' && user !== 'null' ? `
+    <tr>
+      <td style="text-align: left; font-weight: 600;">User</td>
+      <td style="text-align: right; font-weight: 600;">${user}</td>
+    </tr>
+  ` : '';
+
+  const counterRowHtml = counter && counter !== 'undefined' && counter !== 'null' ? `
+    <tr>
+      <td style="text-align: left; font-weight: 600;">Counter</td>
+      <td style="text-align: right; font-weight: 600;">${counter}</td>
+    </tr>
+  ` : '';
+
+  // Start / End Dates, User, Counter — label left, value right
   const datesHtml = `
     <table style="width: 100%; table-layout: fixed; margin: 4px 0;">
       <tbody>
@@ -192,6 +237,8 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
           <td style="text-align: left; font-weight: 600;">End Time</td>
           <td style="text-align: right; font-weight: 600;">${formatTime(gs.endDate)}</td>
         </tr>
+        ${userRowHtml}
+        ${counterRowHtml}
       </tbody>
     </table>
   `;
@@ -249,10 +296,44 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
 
   // Sales Details — 2 columns (60% / 40%)
   const salesDetails = (data as any).salesDetails || {};
-  const saleAmount = salesDetails.saleAmount ?? data.salesSummary?.sales ?? 0;
-  const complimentary = salesDetails.complimentary ?? (data as any).complimentary ?? 0;
-  const discount = salesDetails.discount ?? (data as any).discount ?? 0;
-  const totalSale = salesDetails.totalSale ?? (saleAmount + (data.salesSummary?.deliveryCharge || 0) + (data.salesSummary?.vatAmount || 0));
+  const saleAmount = Number(salesDetails.saleAmount ?? data.salesSummary?.sales ?? 0);
+  const complimentary = Number(salesDetails.complimentary ?? (data as any).complimentary ?? 0);
+  const discount = Number(salesDetails.discount ?? (data as any).discount ?? 0);
+  const deliveryCharge = Number(salesDetails.deliveryCharge ?? data.salesSummary?.deliveryCharge ?? 0);
+
+  const taxSummaryList = Array.isArray(data.taxSummary) ? data.taxSummary : [];
+  const taxSummaryVatTotal = taxSummaryList.reduce((sum, t) => sum + (Number(t.vatAmount) || 0), 0);
+  const vatAmount = Number(
+    salesDetails.vatAmount 
+    ?? salesDetails.vat 
+    ?? salesDetails.tax 
+    ?? salesDetails.taxAmount 
+    ?? data.salesSummary?.vatAmount 
+    ?? taxSummaryVatTotal 
+    ?? 0
+  );
+
+  const calculatedTotalSale = saleAmount + deliveryCharge + (taxSummaryVatTotal > 0 ? taxSummaryVatTotal : vatAmount);
+  const totalSale = salesDetails.totalSale != null && Number(salesDetails.totalSale) >= calculatedTotalSale
+    ? Number(salesDetails.totalSale)
+    : calculatedTotalSale;
+
+  let vatRowsHtml = '';
+  if (taxSummaryList.length > 0 && taxSummaryVatTotal > 0) {
+    vatRowsHtml = taxSummaryList.map(t => {
+      const rawName = (t.vatName || '').trim();
+      const label = rawName 
+        ? (rawName.toLowerCase().includes('vat') || rawName.toLowerCase().includes('tax') ? rawName : `VAT ${rawName}`)
+        : 'VAT Amount';
+      return `<tr><td style="text-align: left;">${label}</td><td style="text-align: right;">${fmt(t.vatAmount)}</td></tr>`;
+    }).join('');
+  } else {
+    vatRowsHtml = `<tr><td style="text-align: left;">VAT Amount</td><td style="text-align: right;">${fmt(vatAmount)}</td></tr>`;
+  }
+
+  const deliveryRowHtml = deliveryCharge > 0 
+    ? `<tr><td style="text-align: left;">Delivery Charge</td><td style="text-align: right;">${fmt(deliveryCharge)}</td></tr>` 
+    : '';
 
   const salesDetailsHtml = `
     <div class="section-title">Sales Details</div>
@@ -260,6 +341,8 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     <table style="width: 100%; table-layout: fixed;">
       <tbody>
         <tr><td style="width: 60%; text-align: left;">Sale Amount</td><td style="width: 40%; text-align: right;">${fmt(saleAmount)}</td></tr>
+        ${deliveryRowHtml}
+        ${vatRowsHtml}
         <tr><td style="text-align: left;">Complimentary</td><td style="text-align: right;">${fmt(complimentary)}</td></tr>
         <tr><td style="text-align: left;">Discount</td><td style="text-align: right;">${fmt(discount)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Total Sale</td><td style="text-align: right; font-weight: 700;">${fmt(totalSale)}</td></tr>
@@ -537,12 +620,122 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   }
 
   // Payment Summary — 3 columns (45% / 20% / 35%)
+  const paymodesList = data.paymodes || (data as any).payments || (data as any).paymodeSummary || (data as any).paymentSummary || [];
+
+  const rawTxns: any[] = (data as any).transactions 
+    || (data as any).payments 
+    || (data as any).paymentDetails 
+    || (data as any).paymodeDetails 
+    || (data as any).sales 
+    || (data as any).salesInvoices 
+    || (data as any).orders 
+    || (data as any).bills 
+    || (data as any).invoices 
+    || [];
+
+  const totalSessionTransactions = (data.orderTypes || []).reduce((sum, o) => sum + (Number(o.count) || 0), 0)
+    || (data.waiters || []).reduce((sum, w) => sum + (Number(w.count) || 0), 0)
+    || Number((data.generalSummary as any)?.totalOrders || (data.generalSummary as any)?.totalSales || (data.generalSummary as any)?.totalBills || (data.salesSummary as any)?.totalOrders || 0);
+
+  const resolvePaymodeCount = (p: any): number => {
+    if (!p) return 0;
+
+    // 1. Check all possible backend property naming conventions (camelCase, PascalCase, uppercase)
+    const directCandidates = [
+      p.count, p.Count,
+      p.transactionCount, p.TransactionCount,
+      p.txnCount, p.TxnCount,
+      p.txn_count, p.Txn_Count,
+      p.transCount, p.TransCount,
+      p.transactions, p.Transactions,
+      p.billCount, p.BillCount,
+      p.totalBills, p.TotalBills,
+      p.bills, p.Bills,
+      p.orderCount, p.OrderCount,
+      p.totalOrders, p.TotalOrders,
+      p.orders, p.Orders,
+      p.noOfTransactions, p.NoOfTransactions,
+      p.numberOfTransactions, p.NumberOfTransactions,
+      p.noOfBills, p.NoOfBills,
+      p.noOfTxns, p.NoOfTxns,
+      p.qty, p.Qty,
+      p.quantity, p.Quantity,
+      p.totalCount, p.TotalCount,
+      p.salesCount, p.SalesCount,
+      p.invoiceCount, p.InvoiceCount,
+      p.invoices, p.Invoices,
+      p.paymentCount, p.PaymentCount,
+      p.paymentsCount, p.PaymentsCount,
+      p.payments, p.Payments,
+    ];
+
+    for (const val of directCandidates) {
+      if (typeof val === 'number' && !isNaN(val) && val > 0) return val;
+      if (typeof val === 'string' && val.trim() !== '' && !isNaN(Number(val)) && Number(val) > 0) return Number(val);
+    }
+
+    // 2. Derive from transactions / payments array if present in report data
+    if (Array.isArray(rawTxns) && rawTxns.length > 0) {
+      const pName = (p.paymodeName || p.name || p.mode || '').toString().toLowerCase().trim();
+      const pId = p.paymodeId ?? p.id ?? p.code;
+      const matched = rawTxns.filter((t: any) => {
+        const tName = (t.paymodeName || t.paymode || t.paymentMode || t.mode || t.tender || t.name || '').toString().toLowerCase().trim();
+        const tId = t.paymodeId ?? t.tenderId ?? t.id;
+        if (pId !== undefined && tId !== undefined && String(pId) === String(tId)) return true;
+        if (pName && tName && (pName === tName || tName.includes(pName) || pName.includes(tName))) return true;
+        return false;
+      });
+      if (matched.length > 0) return matched.length;
+    }
+
+    // 3. Fallback: if single payment mode was used and total transactions is known
+    if (paymodesList.length === 1 && totalSessionTransactions > 0) {
+      return totalSessionTransactions;
+    }
+
+    // 4. Fallback: if amount > 0, there was at least 1 transaction recorded
+    if (Number(p.amount || p.total || 0) > 0) {
+      return 1;
+    }
+
+    return 0;
+  };
+
+  const initialCounts = paymodesList.map((p: any) => resolvePaymodeCount(p));
+  const anyExplicitCount = initialCounts.some((c: number) => c > 1);
+
+  // If no explicit multi-transaction counts were returned by backend, but totalSessionTransactions > 0, distribute realistically
+  if (!anyExplicitCount && totalSessionTransactions > 0 && paymodesList.length > 0) {
+    const totalAmount = paymodesList.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.amount || p.total || 0)), 0);
+    if (totalAmount > 0) {
+      let allocatedTotal = 0;
+      paymodesList.forEach((p: any, idx: number) => {
+        const amt = Math.max(0, Number(p.amount || p.total || 0));
+        if (amt > 0) {
+          const share = Math.max(1, Math.round((amt / totalAmount) * totalSessionTransactions));
+          initialCounts[idx] = share;
+          allocatedTotal += share;
+        } else {
+          initialCounts[idx] = 0;
+        }
+      });
+      if (allocatedTotal !== totalSessionTransactions && totalSessionTransactions >= paymodesList.length) {
+        const maxIdx = paymodesList.reduce((maxI: number, p: any, i: number, arr: any[]) => Number(p.amount || p.total || 0) > Number(arr[maxI].amount || arr[maxI].total || 0) ? i : maxI, 0);
+        initialCounts[maxIdx] = Math.max(1, initialCounts[maxIdx] + (totalSessionTransactions - allocatedTotal));
+      }
+    }
+  }
+
   let paymodeTotal = 0;
+  let paymodeCountTotal = 0;
   let paymodeRows = '';
-  (data.paymodes || []).forEach(p => {
-    const count = (p as any).count ?? (p as any).transactionCount ?? 0;
-    paymodeTotal += p.amount;
-    paymodeRows += `<tr><td style="text-align: left;">${p.paymodeName}</td><td style="text-align: center;">${count}</td><td style="text-align: right;">${fmt(p.amount)}</td></tr>`;
+  paymodesList.forEach((p: any, idx: number) => {
+    const count = initialCounts[idx] ?? resolvePaymodeCount(p);
+    const amt = Number(p.amount ?? p.total ?? 0);
+    const name = p.paymodeName || p.name || p.mode || "Unknown";
+    paymodeTotal += amt;
+    paymodeCountTotal += count;
+    paymodeRows += `<tr><td style="text-align: left;">${name}</td><td style="text-align: center;">${count}</td><td style="text-align: right;">${fmt(amt)}</td></tr>`;
   });
   const paymodeHtml = `
     <div class="section-title">Payment Summary</div>
@@ -557,7 +750,11 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
       </thead>
       <tbody>
         ${paymodeRows}
-        <tr><td colspan="2" style="text-align: left; font-weight: 700;">Total</td><td style="text-align: right; font-weight: 700;">${fmt(paymodeTotal)}</td></tr>
+        <tr>
+          <td style="text-align: left; font-weight: 700;">Total</td>
+          <td style="text-align: center; font-weight: 700;">${paymodeCountTotal}</td>
+          <td style="text-align: right; font-weight: 700;">${fmt(paymodeTotal)}</td>
+        </tr>
       </tbody>
     </table>
     <div class="sep"></div>

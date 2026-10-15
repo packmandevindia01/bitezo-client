@@ -151,7 +151,7 @@ const EmployeeModal = ({
           name="branchId"
           label="Branch Name"
           required
-          placeholder="Select a branch"
+          placeholder="Select Branch"
           options={branchOptions}
           tabIndex={3}
           ref={register("branchId").ref}

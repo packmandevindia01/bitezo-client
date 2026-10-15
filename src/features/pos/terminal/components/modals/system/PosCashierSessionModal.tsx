@@ -451,6 +451,12 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
       if (shouldPrint) {
         try {
           const reportData = await cashierLogService.getShiftEndReport(printState.dayId, printState.shiftId);
+          if (!(reportData as any).counter) {
+            (reportData as any).counter = localStorage.getItem("systemCounterName") || "Counter 1";
+          }
+          if (!(reportData as any).user) {
+            (reportData as any).user = localStorage.getItem("userName") || "";
+          }
           const html = await generateEndReportHtml(reportData, 'SHIFTEND');
           const { printHtmlReceipt } = await import("../../../../services/qzService");
           const defaultPrinter = localStorage.getItem('cachedBillPrinter') || undefined;

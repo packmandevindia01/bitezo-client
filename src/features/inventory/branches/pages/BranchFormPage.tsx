@@ -7,7 +7,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData, fetchGlobalBranches, addMasterBranch } from "../../shared/store/masterDataSlice";
 import BranchForm from "../components/BranchForm";
-import { fetchBranchById, createBranch, updateBranch, deleteBranch, fetchBranchNames, fetchBranches } from "../services/branchApi";
+import { fetchBranchById, createBranch, updateBranch, deleteBranch, fetchBranchNames, fetchBranches, fetchRegisteredBranches } from "../services/branchApi";
 import { notifyBranchesUpdated } from "../utils/branchSync";
 import type { BranchPayload, BranchRecord } from "../types";
 
@@ -17,11 +17,32 @@ const BranchFormPage = () => {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
-  const [loading, setLoading] = useState(!!id);
+  const [loading, setLoading] = useState(true);
   const [initialData, setInitialData] = useState<BranchRecord | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      const checkLimit = async () => {
+        try {
+          const [branches, registered] = await Promise.all([
+            fetchBranches().catch(() => []),
+            fetchRegisteredBranches().catch(() => []),
+          ]);
+          const maxAllowed = 1 + registered.length;
+          if (branches.length >= maxAllowed) {
+            showToast("Maximum branch limit reached. All registered branches have been created.", "warning");
+            navigate("/dashboard/branches", { replace: true });
+            return;
+          }
+        } catch {
+          // ignore
+        } finally {
+          setLoading(false);
+        }
+      };
+      void checkLimit();
+      return;
+    }
 
     const loadBranch = async () => {
       try {
@@ -45,6 +66,16 @@ const BranchFormPage = () => {
         savedBranch = await updateBranch(Number(id), payload);
         showToast("Branch Master updated successfully", "success");
       } else {
+        const [branches, registered] = await Promise.all([
+          fetchBranches().catch(() => []),
+          fetchRegisteredBranches().catch(() => []),
+        ]);
+        const maxAllowed = 1 + registered.length;
+        if (branches.length >= maxAllowed) {
+          showToast("Maximum branch limit reached. All registered branches have been created.", "error");
+          navigate("/dashboard/branches");
+          return;
+        }
         savedBranch = await createBranch(payload);
         showToast("Branch Master created successfully", "success");
       }
@@ -190,11 +221,14 @@ const BranchFormPage = () => {
 
         <div className="flex-1 overflow-y-auto p-4 xl:p-6 relative pt-12 xl:pt-14">
           <BranchForm 
+            isCreateMode={!id}
             initialData={initialData}
             onSubmit={handleSubmit}
             onDelete={id ? handleDelete : undefined}
             onClear={() => {
-              if (id) navigate("/dashboard/branches/add");
+              if (id) {
+                fetchBranchById(Number(id)).then(setInitialData).catch(() => {});
+              }
             }}
           />
         </div>

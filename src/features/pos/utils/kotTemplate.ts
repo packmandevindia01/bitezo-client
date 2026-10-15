@@ -3,6 +3,7 @@ import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
 import { getModifierTypeNameById } from "../services/menuApi";
+import { getDecimalPart } from "../../../utils/currency";
 
 export interface KotPrintData {
   orderNo: string;
@@ -33,7 +34,66 @@ export interface KotPrintData {
   providerNo?: string;
   kotHeader?: string;
   kotArabic?: boolean;
+  priceView?: "Inclusive" | "Exclusive";
+  printPrice?: "Inclusive" | "Exclusive";
+  enableVat?: boolean;
+  vatRate?: number;
+  vatAmount?: number;
+  subTotal?: number;
+  netAmount?: number;
 }
+
+export const resolveKotPrintTaxSetting = (data?: KotPrintData): "Inclusive" | "Exclusive" => {
+  if (data?.priceView === "Inclusive" || data?.priceView === "Exclusive") {
+    return data.priceView;
+  }
+  if (data?.printPrice === "Inclusive" || data?.printPrice === "Exclusive") {
+    return data.printPrice;
+  }
+
+  const directPriceView = localStorage.getItem("priceView");
+  if (directPriceView === "Inclusive" || directPriceView === "Exclusive") {
+    return directPriceView as "Inclusive" | "Exclusive";
+  }
+  const directPrintPrice = localStorage.getItem("printPrice");
+  if (directPrintPrice === "Inclusive" || directPrintPrice === "Exclusive") {
+    return directPrintPrice as "Inclusive" | "Exclusive";
+  }
+
+  try {
+    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
+        const pv = configs?.priceView || configs?.PriceView;
+        if (pv === "Inclusive" || pv === "Exclusive") return pv;
+        const pp = configs?.printPrice || configs?.PrintPrice;
+        if (pp === "Inclusive" || pp === "Exclusive") return pp;
+      }
+    }
+  } catch {}
+
+  return "Inclusive";
+};
+
+export const resolveKotHeaderStyle = (dataHeader?: string): string => {
+  if (dataHeader) return dataHeader.toUpperCase().replace(/\s+/g, "");
+  const direct = localStorage.getItem("kotHeader");
+  if (direct) return direct.toUpperCase().replace(/\s+/g, "");
+  try {
+    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
+        const kh = configs?.kotHeader || configs?.KotHeader;
+        if (kh) return String(kh).toUpperCase().replace(/\s+/g, "");
+      }
+    }
+  } catch {}
+  return "QTY,DESCRIPTION,AMT";
+};
 
 export const generateKotHtml = async (
   cartDetails: PosCartItem[], 
@@ -44,8 +104,7 @@ export const generateKotHtml = async (
   const dateStr = data.date || now.toLocaleDateString('en-GB'); // DD/MM/YYYY
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
 
-  const rawKotHeader = data.kotHeader || localStorage.getItem("kotHeader") || "QTY,DESCRIPTION";
-  const kotHeaderStyle = rawKotHeader.toUpperCase().replace(/\s+/g, "");
+  const kotHeaderStyle = resolveKotHeaderStyle(data.kotHeader);
 
   let customHeadersHtml = "";
   try {
@@ -143,6 +202,26 @@ export const generateKotHtml = async (
     ? (isKotArabic && (data.headerTitle === "VOID ITEMS" || data.headerTitle.includes("VOID")) ? `${data.headerTitle} / أصناف ملغاة` : data.headerTitle)
     : (isKotArabic ? "KOT / طلب المطبخ" : "KOT");
 
+  const decimalPart = getDecimalPart();
+  const fmt = (val: number | string | undefined | null) => {
+    const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
+    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+  };
+
+  const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
+  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
+  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0;
+  const totalNet = Number(data.netAmount || 0);
+  const authoritativeSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0) ? Number(data.subTotal) : 0;
+  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+
+  const vatRatio = (authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0 && Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05)
+    ? (authoritativeSubTotal / totalNet)
+    : (isVatActive ? (1 / 1.10) : 1);
+
+  const printTaxSetting = resolveKotPrintTaxSetting(data);
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : (printTaxSetting === "Inclusive");
+
   let itemsHtml = "";
 
   cartDetails.forEach((item, index) => {
@@ -157,6 +236,63 @@ export const generateKotHtml = async (
     const nameDisplayHtml = altArabicName
       ? `<div style="line-height: 1.3; font-weight: normal;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0;">${altArabicName}</div>`
       : `<div style="line-height: 1.3; font-weight: normal;">${name}</div>`;
+
+    const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
+    const itemBaseAmount: number | undefined = (item as any).baseAmount;
+    const itemLineTotal: number | undefined = (item as any).lineTotal;
+    const itemVat: number = Number((item as any).vatAmount || 0);
+    const totalItemDisc = Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
+
+    let extrasSum = 0;
+    if (item.extras && item.extras.length > 0) {
+      item.extras.forEach(ex => extrasSum += (Number(ex.price || 0) * (ex.qty || 1)));
+    }
+
+    // ── 1. Calculate Exclusive Amounts (Tax-Exclusive) ──
+    let exclusiveUnitPrice: number;
+    let exclusiveProductLineAmount: number;
+
+    if (itemBaseAmount !== undefined && qty > 0) {
+      exclusiveProductLineAmount = Math.max(0, itemBaseAmount);
+      exclusiveUnitPrice = Math.max(0, itemBaseAmount / qty);
+    } else if (itemVat > 0 && itemLineTotal !== undefined && itemLineTotal > 0) {
+      exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum - itemVat);
+      exclusiveUnitPrice = qty > 0 ? Math.max(0, exclusiveProductLineAmount / qty) : origUnitPrice;
+    } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && origUnitPrice > 0) {
+      exclusiveUnitPrice = origUnitPrice * vatRatio;
+      exclusiveProductLineAmount = exclusiveUnitPrice * qty;
+    } else {
+      exclusiveUnitPrice = origUnitPrice;
+      exclusiveProductLineAmount = origUnitPrice * qty;
+    }
+
+    // ── 2. Calculate Inclusive Amounts (Tax-Inclusive) ──
+    let lineInclusiveAmt: number;
+    let inclusiveUnitPrice: number;
+
+    if (itemLineTotal !== undefined && itemLineTotal > 0) {
+      lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
+      inclusiveUnitPrice = qty > 0 ? Math.max(0, (lineInclusiveAmt + (totalItemDisc > 0 ? totalItemDisc : 0)) / qty) : origUnitPrice;
+    } else if (itemBaseAmount !== undefined && isVatActive && vatRatio > 0 && vatRatio < 1) {
+      lineInclusiveAmt = itemBaseAmount / vatRatio;
+      inclusiveUnitPrice = qty > 0 ? lineInclusiveAmt / qty : origUnitPrice;
+    } else if (itemVat > 0) {
+      lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
+      inclusiveUnitPrice = qty > 0 ? (lineInclusiveAmt + (totalItemDisc > 0 ? totalItemDisc : 0)) / qty : origUnitPrice;
+    } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1) {
+      inclusiveUnitPrice = origUnitPrice;
+      lineInclusiveAmt = inclusiveUnitPrice * qty;
+    } else {
+      inclusiveUnitPrice = origUnitPrice;
+      lineInclusiveAmt = origUnitPrice * qty;
+    }
+
+    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
+    const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
+    const amtStr = fmt(finalAmt);
+    const rateDisplay = (qty > 1 && finalRate > 0)
+      ? `<div style="font-size: 11px; color: #555; font-weight: normal;">@ ${fmt(finalRate)}</div>`
+      : "";
 
     let subRowsHtml = "";
 
@@ -183,9 +319,16 @@ export const generateKotHtml = async (
         const exDisplay = exArabic
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
           : `+ ${exName}`;
+        const rawExPrice = Number(ex.price || 0);
+        const exUnitPrice = (!isTaxInclusive && isVatActive && vatRatio < 1)
+          ? (rawExPrice * vatRatio)
+          : rawExPrice;
+        const exLineAmt = exUnitPrice * (ex.qty || 1);
+        const exAmtStr = rawExPrice > 0 ? fmt(exLineAmt) : "";
         subRowsHtml += `
-          <div style="font-size: 11px; font-weight: normal; padding: 1px 0 1px 6px; color: #000000;">
-            ${exDisplay} ${ex.qty > 1 ? `(x${ex.qty})` : ''}
+          <div style="font-size: 11px; font-weight: normal; padding: 1px 0 1px 6px; color: #000000; display: flex; justify-content: space-between;">
+            <span>${exDisplay} ${ex.qty > 1 ? `(x${ex.qty})` : ''}</span>
+            ${exAmtStr ? `<span style="text-align: right; padding-right: 4px;">${exAmtStr}</span>` : ''}
           </div>
         `;
       });
@@ -269,21 +412,25 @@ export const generateKotHtml = async (
     if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       itemsHtml += `
         <tr class="item-row" style="border-bottom: 0.5px solid #eee;">
-          <td style="width: 82%; text-align: left; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">
+          <td style="width: 56%; text-align: left; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">
             ${nameDisplayHtml}
+            ${rateDisplay}
             ${subRowsHtml}
           </td>
           <td style="width: 18%; text-align: center; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">${qty}</td>
+          <td style="width: 26%; text-align: right; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">${amtStr}</td>
         </tr>
       `;
     } else {
       itemsHtml += `
         <tr class="item-row" style="border-bottom: 0.5px solid #eee;">
           <td style="width: 18%; text-align: center; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">${qty}</td>
-          <td style="width: 82%; text-align: left; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">
+          <td style="width: 56%; text-align: left; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">
             ${nameDisplayHtml}
+            ${rateDisplay}
             ${subRowsHtml}
           </td>
+          <td style="width: 26%; text-align: right; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 13px;">${amtStr}</td>
         </tr>
       `;
     }
@@ -446,11 +593,14 @@ export const generateKotHtml = async (
     tableHeaderHtml = `
       <thead>
         <tr>
-          <th style="width: 82%; text-align: left; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 56%; text-align: left; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
             DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 2px;">الصنف</div>' : ''}
           </th>
           <th style="width: 18%; text-align: center; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
             QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 2px;">الكمية</div>' : ''}
+          </th>
+          <th style="width: 26%; text-align: right; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: right; margin-top: 2px;">المبلغ</div>' : ''}
           </th>
         </tr>
       </thead>
@@ -462,8 +612,11 @@ export const generateKotHtml = async (
           <th style="width: 18%; text-align: center; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
             QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 2px;">الكمية</div>' : ''}
           </th>
-          <th style="width: 82%; text-align: left; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 56%; text-align: left; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
             DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 2px;">الصنف</div>' : ''}
+          </th>
+          <th style="width: 26%; text-align: right; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: right; margin-top: 2px;">المبلغ</div>' : ''}
           </th>
         </tr>
       </thead>

@@ -10,6 +10,8 @@ interface Props {
   promotionName: string;
   startDate: string;
   endDate: string;
+  minStartDate?: string;
+  minEndDate?: string;
   branches: BranchMasterItem[];
   categories: CategoryMasterItem[];
   subCategories: SubCategoryListItem[];
@@ -34,6 +36,8 @@ const HappyHourFilters = ({
   promotionName,
   startDate,
   endDate,
+  minStartDate,
+  minEndDate,
   branches,
   categories,
   subCategories,
@@ -69,6 +73,7 @@ const HappyHourFilters = ({
           id="hp-name"
           label="Promotion Name"
           autoFocus
+          required
           value={promotionName}
           error={errors?.promotionName}
           onChange={(e) => onPromotionNameChange(e.target.value)}
@@ -79,7 +84,10 @@ const HappyHourFilters = ({
           id="hp-start"
           label="Start Date & Time"
           type="datetime-local"
+          required
           value={startDate}
+          min={minStartDate}
+          error={errors?.startDate}
           onChange={(e) => onStartDateChange(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, "hp-end")}
         />
@@ -87,7 +95,10 @@ const HappyHourFilters = ({
           id="hp-end"
           label="End Date & Time"
           type="datetime-local"
+          required
           value={endDate}
+          min={minEndDate || startDate || minStartDate}
+          error={errors?.endDate}
           onChange={(e) => onEndDateChange(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, "hp-category")}
         />

@@ -580,6 +580,15 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
         markup = generateEndReportMarkup(reportData, 'DAYEND');
       } else {
         const reportData = await cashierLogService.getShiftEndReport(selectedDayId!, selectedShiftId!);
+        const selectedLog = shiftLogs.find(l => l.dayId === selectedDayId && l.shiftId === selectedShiftId);
+        if (selectedLog) {
+          if (selectedLog.counter && !(reportData as any).counter) {
+            (reportData as any).counter = selectedLog.counter;
+          }
+          if (((selectedLog as any).user || (selectedLog as any).userName) && !(reportData as any).user) {
+            (reportData as any).user = (selectedLog as any).user || (selectedLog as any).userName;
+          }
+        }
         html = await generateEndReportHtml(reportData, 'SHIFTEND', !directPrint);
         markup = generateEndReportMarkup(reportData, 'SHIFTEND');
       }

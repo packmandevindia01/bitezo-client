@@ -54,7 +54,7 @@ const ProductWiseStockAdjustmentReportPage = () => {
   // ── Dropdown option arrays ─────────────────────────────────────────────────
   const branchOptions = useMemo(
     () =>
-      masterData.branches.map((b) => ({
+      (Array.isArray(masterData.branches) ? masterData.branches : []).map((b) => ({
         label: b.branchName,
         value: String(b.branchId),
       })),
@@ -64,7 +64,7 @@ const ProductWiseStockAdjustmentReportPage = () => {
   const productOptions = useMemo(
     () => [
       { label: "All Products", value: "0" },
-      ...masterData.products.map((p: any) => ({
+      ...(Array.isArray(masterData.products) ? masterData.products : []).map((p: any) => ({
         label: p.code ? `[${p.code}] ${p.productName}` : p.productName,
         value: String(p.productId),
       })),
@@ -75,7 +75,7 @@ const ProductWiseStockAdjustmentReportPage = () => {
   const typeOptions = useMemo(
     () => [
       { label: "All Types", value: "0" },
-      ...masterData.adjustmentTypes.map((t) => ({
+      ...(Array.isArray(masterData.adjustmentTypes) ? masterData.adjustmentTypes : []).map((t) => ({
         label: t.typeName,
         value: String(t.typeId),
       })),

@@ -16,7 +16,7 @@ export interface ConfigurationState {
   defaultOrderTypeId: string;
   groupInMenu: boolean;
   packagerHeader: boolean;
-  posLanguage: "English" | "Arabic";
+  posLanguage: "English" | "Arabic" | "Thai";
   productView: "English" | "Arabic" | "English and Arabic";
   
   // Printing & KOT

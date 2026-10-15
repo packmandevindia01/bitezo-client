@@ -112,7 +112,7 @@ const StockTransferReportPage = () => {
                     options={branchOptions}
                     value={filters.fromBranchId}
                     onChange={filters.setFromBranchId}
-                    placeholder="Select branch"
+                    placeholder="Select Branch"
                     autoFocus={true}
                     disabled={filters.isBranchLocked}
                   />
@@ -126,7 +126,7 @@ const StockTransferReportPage = () => {
                     options={toBranchOptions}
                     value={filters.toBranchId}
                     onChange={filters.setToBranchId}
-                    placeholder="All Branches"
+                    placeholder="Select Branch"
                   />
                 </div>
               </div>
@@ -142,6 +142,7 @@ const StockTransferReportPage = () => {
                     options={employeeOptions}
                     value={filters.employeeId}
                     onChange={(e) => filters.setEmployeeId(e.target.value)}
+                    placeholder="Select Employee"
                   />
                 </div>
               </div>

@@ -77,6 +77,7 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   selectedTender,
   setSelectedTender,
   setIsMultiPayModalOpen,
+  setIsCashModalOpen,
   setIsDeliveryChargeModalOpen,
   tenderOptions,
   selectedCustomerId,
@@ -164,6 +165,8 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
                 const label = (selectedTenderObj?.label || "").toLowerCase();
                 if (label.includes("multi") || tenderId === "3") {
                   setIsMultiPayModalOpen(true);
+                } else if (label.includes("cash") || tenderId === "1") {
+                  setIsCashModalOpen(true);
                 }
               }
             }}

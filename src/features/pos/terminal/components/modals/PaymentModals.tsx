@@ -34,13 +34,13 @@ export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) =>
         isOpen={modals.isCashModalOpen}
         onClose={() => modals.setIsCashModalOpen(false)}
         totalDue={props.total}
-        onSubmit={(_, changeAmount) => {
+        onSubmit={(tenderedAmount, changeAmount) => {
           modals.setIsCashModalOpen(false);
           const cashPaymodeId =
             props.tenderOptions.find((t) => t.label.toLowerCase().includes("cash"))?.id ||
             props.tenderOptions[0]?.id;
           props.handleCompleteSettlement(
-            [{ paymodeId: Number(cashPaymodeId), amount: props.total }],
+            [{ paymodeId: Number(cashPaymodeId), amount: props.total, tenderedAmount }],
             changeAmount
           );
         }}
@@ -74,6 +74,7 @@ export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) =>
             return {
               paymodeId: Number(p.paymodeId),
               amount: roundCalc(finalAmount),
+              tenderedAmount: p.amount,
             };
           });
           props.handleCompleteSettlement(mappedPayments, changeAmount);

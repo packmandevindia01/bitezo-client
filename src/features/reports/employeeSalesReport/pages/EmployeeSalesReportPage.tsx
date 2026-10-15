@@ -32,42 +32,64 @@ const EmployeeSalesReportPage = () => {
   };
 
   const branchOptions = useMemo(() => {
-    return masterData.branches.map(b => ({
-      label: b.branchName,
-      value: String(b.branchId)
+    const rawList = Array.isArray(masterData.branches) ? masterData.branches : [];
+    const list = rawList.map((b: any) => ({
+      label: b?.branchName || (String(b?.branchId) === "1" ? "Branch 1" : `Branch ${b?.branchId}`),
+      value: String(b?.branchId ?? ""),
     }));
+
+    if (!list.some(b => b.value === "1")) {
+      list.unshift({ label: "Branch 1", value: "1" });
+    }
+
+    if (!list.some(b => b.value === "0")) {
+      list.unshift({ label: "All", value: "0" });
+    }
+
+    return list;
   }, [masterData.branches]);
 
-  const salesData = report.salesData || [];
+  const selectedBranchName = useMemo(() => {
+    const found = branchOptions.find(o => o.value === filters.branchId);
+    if (found) return found.label;
+    if (filters.branchId === "0" || !filters.branchId) return "All";
+    if (filters.branchId === "1") return "Branch 1";
+    return `Branch ${filters.branchId}`;
+  }, [branchOptions, filters.branchId]);
+
+  const salesData = Array.isArray(report.salesData) ? report.salesData : [];
 
   const handleExportPDF = useCallback(() => {
     exportEmployeeSalesReportPDF(salesData, {
       ...filters,
-      branchName: branchOptions.find(o => o.value === filters.branchId)?.label,
+      branchName: selectedBranchName,
     });
-  }, [filters, branchOptions, salesData]);
+  }, [filters, selectedBranchName, salesData]);
 
   const handleExportExcel = useCallback(() => {
     exportEmployeeSalesReportExcel(salesData, {
       ...filters,
-      branchName: branchOptions.find(o => o.value === filters.branchId)?.label,
+      branchName: selectedBranchName,
     });
-  }, [filters, branchOptions, salesData]);
+  }, [filters, selectedBranchName, salesData]);
 
   // ─── Grand totals ──────────────────────────────────────────────────────────
   const grandTotals = useMemo(() => ({
-    netValue:  salesData.reduce((s, r) => s + Number(r.netValue || 0), 0),
-    vatAmount: salesData.reduce((s, r) => s + Number(r.vatAmount || 0), 0),
-    netAmount: salesData.reduce((s, r) => s + Number(r.netAmount || 0), 0),
+    netValue:  salesData.reduce((s, r) => s + Number(r?.netValue || 0), 0),
+    vatAmount: salesData.reduce((s, r) => s + Number(r?.vatAmount || 0), 0),
+    netAmount: salesData.reduce((s, r) => s + Number(r?.netAmount || 0), 0),
   }), [salesData]);
 
   const previewData = useMemo(() => ({
     salesData: salesData,
     grandTotal: grandTotals.netAmount,
-    filters,
+    filters: {
+      ...filters,
+      branchName: selectedBranchName,
+    },
     companyName: localStorage.getItem("companyName") || "FEKRA advertising",
     companyAddress: localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21",
-  }), [salesData, grandTotals.netAmount, filters]);
+  }), [salesData, grandTotals.netAmount, filters, selectedBranchName]);
 
   return (
     <PageShell title="Employee Sales Report">
@@ -102,7 +124,7 @@ const EmployeeSalesReportPage = () => {
                     options={branchOptions} 
                     value={filters.branchId} 
                     onChange={filters.setBranchId} 
-                    placeholder="All" 
+                    placeholder="Select Branch" 
                     autoFocus={true} 
                     disabled={filters.isBranchLocked} 
                   />

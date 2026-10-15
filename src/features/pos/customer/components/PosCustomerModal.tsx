@@ -794,7 +794,7 @@ export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCusto
                     />
                     <SelectInput
                       label="Branch"
-                      placeholder="Select Branch..."
+                      placeholder="Select Branch"
                       {...register("branch")}
                       error={errors.branch?.message}
                       tabIndex={11}

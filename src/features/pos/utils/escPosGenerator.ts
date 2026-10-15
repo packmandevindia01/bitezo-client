@@ -17,7 +17,7 @@
 
 import type { PosCartItem } from "../types";
 import type { GuestPrintData } from "./guestPrintTemplate";
-import type { KotPrintData } from "./kotTemplate";
+import { type KotPrintData, resolveKotPrintTaxSetting, resolveKotHeaderStyle } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
@@ -497,7 +497,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
       markup += totalsLine(`${p.name}${pAr}`, fmt(p.amount)) + "\n";
     });
   }
-  if (data.changeAmount !== undefined && data.changeAmount > 0) {
+  if (data.changeAmount !== undefined && Number(data.changeAmount) > 0) {
     markup += totalsLine(isBillArabic ? "Change (المبلغ المتبقي)" : "Change", fmt(data.changeAmount), true) + "\n";
   }
 
@@ -557,6 +557,8 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const { cartDetails, data } = input;
   const isKotArabic = data.kotArabic ?? isKotArabicEnabled();
   const { date: dateStr, time: timeStr } = now();
+  const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
+  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
 
   const orderTypeIdMap: Record<number, string> = {
     1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU",
@@ -626,19 +628,37 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     }
   }
 
-  const rawKotHeader = data.kotHeader || localStorage.getItem("kotHeader") || "QTY,DESCRIPTION";
-  const kotHeaderStyle = rawKotHeader.toUpperCase().replace(/\s+/g, "");
+  const kotHeaderStyle = resolveKotHeaderStyle(data.kotHeader);
+  const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
+  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
+  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0;
+  const totalNet = Number(data.netAmount || 0);
+  const authoritativeSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0) ? Number(data.subTotal) : 0;
+  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
+
+  const vatRatio = (authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0 && Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05)
+    ? (authoritativeSubTotal / totalNet)
+    : (isVatActive ? (1 / 1.10) : 1);
+
+  const printTaxSetting = resolveKotPrintTaxSetting(data);
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : (printTaxSetting === "Inclusive");
 
   markup += `[L]${SEPARATOR}\n`;
   if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-    markup += `[L]<b>${padRight("Description", LINE_WIDTH - 6)} ${padLeft("Qty", 5)}</b>\n`;
+    const qCol = padLeft("Qty", 4);
+    const aCol = padLeft("Amt", 8);
+    const dWidth = Math.max(10, LINE_WIDTH - qCol.length - aCol.length - 2);
+    markup += `[L]<b>${padRight("Description", dWidth)} ${qCol} ${aCol}</b>\n`;
     if (isKotArabic) {
-      markup += `[L]<b>${padRight("الصنف", LINE_WIDTH - 6)} ${padLeft("الكمية", 5)}</b>\n`;
+      markup += `[L]<b>${padRight("الصنف", dWidth)} ${padLeft("الكمية", 4)} ${padLeft("المبلغ", 8)}</b>\n`;
     }
   } else {
-    markup += `[L]<b>${padRight("Qty", 5)} ${padRight("Description", LINE_WIDTH - 6)}</b>\n`;
+    const qCol = padRight("Qty", 4);
+    const aCol = padLeft("Amt", 8);
+    const dWidth = Math.max(10, LINE_WIDTH - qCol.length - aCol.length - 2);
+    markup += `[L]<b>${qCol} ${padRight("Description", dWidth)} ${aCol}</b>\n`;
     if (isKotArabic) {
-      markup += `[L]<b>${padRight("الكمية", 5)} ${padRight("الصنف", LINE_WIDTH - 6)}</b>\n`;
+      markup += `[L]<b>${padRight("الكمية", 4)} ${padRight("الصنف", dWidth)} ${padLeft("المبلغ", 8)}</b>\n`;
     }
   }
   markup += `[L]${SEPARATOR}\n`;
@@ -651,16 +671,74 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     }
     const qty = item.quantity;
 
-    if (kotHeaderStyle.startsWith("DESCRIPTION")) {
-      const qStr = padLeft(`x${qty}`, 5);
-      const maxName = LINE_WIDTH - qStr.length - 1;
-      const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]${nameStr} ${qStr}\n`;
+    const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
+    const itemBaseAmount: number | undefined = (item as any).baseAmount;
+    const itemLineTotal: number | undefined = (item as any).lineTotal;
+    const itemVat: number = Number((item as any).vatAmount || 0);
+    const totalItemDisc = Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
+
+    let extrasSum = 0;
+    if (item.extras && item.extras.length > 0) {
+      item.extras.forEach(ex => extrasSum += (Number(ex.price || 0) * (ex.qty || 1)));
+    }
+
+    // Exclusive
+    let exclusiveUnitPrice: number;
+    let exclusiveProductLineAmount: number;
+
+    if (itemBaseAmount !== undefined && qty > 0) {
+      exclusiveProductLineAmount = Math.max(0, itemBaseAmount);
+      exclusiveUnitPrice = Math.max(0, itemBaseAmount / qty);
+    } else if (itemVat > 0 && itemLineTotal !== undefined && itemLineTotal > 0) {
+      exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum - itemVat);
+      exclusiveUnitPrice = qty > 0 ? Math.max(0, exclusiveProductLineAmount / qty) : origUnitPrice;
+    } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && origUnitPrice > 0) {
+      exclusiveUnitPrice = origUnitPrice * vatRatio;
+      exclusiveProductLineAmount = exclusiveUnitPrice * qty;
     } else {
-      const qtyStr = padRight(`x${qty}`, 4);
-      const maxName = LINE_WIDTH - qtyStr.length - 1;
+      exclusiveUnitPrice = origUnitPrice;
+      exclusiveProductLineAmount = origUnitPrice * qty;
+    }
+
+    // Inclusive
+    let lineInclusiveAmt: number;
+    let inclusiveUnitPrice: number;
+
+    if (itemLineTotal !== undefined && itemLineTotal > 0) {
+      lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
+      inclusiveUnitPrice = qty > 0 ? Math.max(0, (lineInclusiveAmt + (totalItemDisc > 0 ? totalItemDisc : 0)) / qty) : origUnitPrice;
+    } else if (itemBaseAmount !== undefined && isVatActive && vatRatio > 0 && vatRatio < 1) {
+      lineInclusiveAmt = itemBaseAmount / vatRatio;
+      inclusiveUnitPrice = qty > 0 ? lineInclusiveAmt / qty : origUnitPrice;
+    } else if (itemVat > 0) {
+      lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
+      inclusiveUnitPrice = qty > 0 ? (lineInclusiveAmt + (totalItemDisc > 0 ? totalItemDisc : 0)) / qty : origUnitPrice;
+    } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1) {
+      inclusiveUnitPrice = origUnitPrice;
+      lineInclusiveAmt = inclusiveUnitPrice * qty;
+    } else {
+      inclusiveUnitPrice = origUnitPrice;
+      lineInclusiveAmt = origUnitPrice * qty;
+    }
+
+    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
+    const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
+    const amtStr = padLeft(fmt(finalAmt), 8);
+
+    if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+      const qStr = padLeft(`x${qty}`, 4);
+      const maxName = Math.max(10, LINE_WIDTH - qStr.length - amtStr.length - 2);
       const nameStr = padRight(trunc(name, maxName), maxName);
-      markup += `[L]${qtyStr} ${nameStr}\n`;
+      markup += `[L]${nameStr} ${qStr} ${amtStr}\n`;
+    } else {
+      const qStr = padRight(`x${qty}`, 4);
+      const maxName = Math.max(10, LINE_WIDTH - qStr.length - amtStr.length - 2);
+      const nameStr = padRight(trunc(name, maxName), maxName);
+      markup += `[L]${qStr} ${nameStr} ${amtStr}\n`;
+    }
+
+    if (qty > 1 && finalRate > 0) {
+      markup += `[L]  @ ${fmt(finalRate)}\n`;
     }
 
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
@@ -686,9 +764,16 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
       });
 
       Array.from(dedupedExtrasMap.values()).forEach(ex => {
+        const rawExPrice = Number(ex.price || 0);
+        const exUnitPrice = (!isTaxInclusive && isVatActive && vatRatio < 1)
+          ? (rawExPrice * vatRatio)
+          : rawExPrice;
+        const exLineAmt = exUnitPrice * (ex.qty || 1);
+        const exAmtStr = rawExPrice > 0 ? padLeft(fmt(exLineAmt), 8) : "";
         const exName = `  + ${(ex.name || (ex as any).modifierName || "EXTRA").toUpperCase()}`;
-        const exQty = padLeft(String(ex.qty || 1), 5);
-        markup += `[L]${padRight(trunc(exName, LINE_WIDTH - 6), LINE_WIDTH - 6)} ${exQty}\n`;
+        const exQty = padLeft(String(ex.qty || 1), 4);
+        const maxExName = Math.max(8, LINE_WIDTH - exQty.length - (exAmtStr ? exAmtStr.length + 1 : 0) - 1);
+        markup += `[L]${padRight(trunc(exName, maxExName), maxExName)} ${exQty}${exAmtStr ? ` ${exAmtStr}` : ""}\n`;
       });
     }
 
@@ -823,11 +908,43 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   markup += `[C]<b><font size='big'>${reportType === 'DAYEND' ? 'DAYEND REPORT' : 'SHIFTEND REPORT'}</font></b>\n`;
   markup += `[L]${SEPARATOR}\n`;
 
-  // Start & End date/times
+  // Start & End date/times, User, Counter
+  const user = String(
+    (data as any).user 
+    || (data as any).userName 
+    || (data as any).cashier 
+    || (data as any).cashierName 
+    || (gs as any).user 
+    || (gs as any).userName 
+    || (gs as any).cashier 
+    || (gs as any).cashierName 
+    || (data as any).shiftInfo?.user 
+    || (data as any).shiftInfo?.userName 
+    || (data as any).shift?.user 
+    || (data as any).shift?.userName 
+    || (data.header as any)?.user 
+    || (reportType === 'SHIFTEND' ? (localStorage.getItem("userName") || sessionStorage.getItem("backoffice_userName") || "") : "")
+  ).trim();
+
+  const counter = String(
+    (data as any).counter 
+    || (data as any).counterName 
+    || (gs as any).counter 
+    || (gs as any).counterName 
+    || (data as any).shiftInfo?.counter 
+    || (data as any).shiftInfo?.counterName 
+    || (data as any).shift?.counter 
+    || (data as any).shift?.counterName 
+    || (data.header as any)?.counter 
+    || (reportType === 'SHIFTEND' ? (localStorage.getItem("systemCounterName") || localStorage.getItem("counterName") || (localStorage.getItem("systemCounterId") ? `Counter ${localStorage.getItem("systemCounterId")}` : "")) : "")
+  ).trim();
+
   markup += twoCol("Start Date:", formatDate(gs.startDate)) + "\n";
   markup += twoCol("Start Time:", formatTime(gs.startDate)) + "\n";
   markup += twoCol("End Date:", formatDate(gs.endDate)) + "\n";
   markup += twoCol("End Time:", formatTime(gs.endDate)) + "\n";
+  if (user && user !== 'undefined' && user !== 'null') markup += twoCol("User:", user) + "\n";
+  if (counter && counter !== 'undefined' && counter !== 'null') markup += twoCol("Counter:", counter) + "\n";
   markup += `[L]${DASH_SEP}\n`;
 
   // Order Summary (Order Type)
@@ -842,6 +959,50 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
     markup += twoCol("Total:", fmt(orderSummaryTotal)) + "\n";
     markup += `[L]${DASH_SEP}\n`;
   }
+
+  // Sales Details
+  const salesDetails = (data as any).salesDetails || {};
+  const saleAmount = Number(salesDetails.saleAmount ?? data.salesSummary?.sales ?? 0);
+  const complimentary = Number(salesDetails.complimentary ?? (data as any).complimentary ?? 0);
+  const discount = Number(salesDetails.discount ?? (data as any).discount ?? 0);
+  const deliveryCharge = Number(salesDetails.deliveryCharge ?? data.salesSummary?.deliveryCharge ?? 0);
+  const taxSummaryList = Array.isArray(data.taxSummary) ? data.taxSummary : [];
+  const taxSummaryVatTotal = taxSummaryList.reduce((sum, t) => sum + (Number(t.vatAmount) || 0), 0);
+  const vatAmount = Number(
+    salesDetails.vatAmount 
+    ?? salesDetails.vat 
+    ?? salesDetails.tax 
+    ?? salesDetails.taxAmount 
+    ?? data.salesSummary?.vatAmount 
+    ?? taxSummaryVatTotal 
+    ?? 0
+  );
+  const calculatedTotalSale = saleAmount + deliveryCharge + (taxSummaryVatTotal > 0 ? taxSummaryVatTotal : vatAmount);
+  const totalSale = salesDetails.totalSale != null && Number(salesDetails.totalSale) >= calculatedTotalSale
+    ? Number(salesDetails.totalSale)
+    : calculatedTotalSale;
+
+  markup += `[C]<b>SALES DETAILS</b>\n`;
+  markup += `[L]${DASH_SEP}\n`;
+  markup += twoCol("Sale Amount:", fmt(saleAmount)) + "\n";
+  if (deliveryCharge > 0) {
+    markup += twoCol("Delivery Charge:", fmt(deliveryCharge)) + "\n";
+  }
+  if (taxSummaryList.length > 0 && taxSummaryVatTotal > 0) {
+    taxSummaryList.forEach(t => {
+      const rawName = (t.vatName || '').trim();
+      const label = rawName 
+        ? (rawName.toLowerCase().includes('vat') || rawName.toLowerCase().includes('tax') ? rawName : `VAT ${rawName}`)
+        : 'VAT Amount:';
+      markup += twoCol(label.endsWith(':') ? label : `${label}:`, fmt(t.vatAmount)) + "\n";
+    });
+  } else {
+    markup += twoCol("VAT Amount:", fmt(vatAmount)) + "\n";
+  }
+  markup += twoCol("Complimentary:", fmt(complimentary)) + "\n";
+  markup += twoCol("Discount:", fmt(discount)) + "\n";
+  markup += twoCol("Total Sale:", fmt(totalSale)) + "\n";
+  markup += `[L]${DASH_SEP}\n`;
 
   // Waiter Summary (Employee)
   const waitersList = data.waiters || (data as any).employees || [];
@@ -969,15 +1130,116 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   }
 
   // Payment Summary
-  if (data.paymodes && data.paymodes.length > 0) {
+  const paymodesList = (data.paymodes && data.paymodes.length > 0) ? data.paymodes : [];
+  if (paymodesList.length > 0) {
+    const rawTxns: any[] = (data as any).transactions 
+      || (data as any).payments 
+      || (data as any).paymentDetails 
+      || (data as any).paymodeDetails 
+      || (data as any).sales 
+      || (data as any).salesInvoices 
+      || (data as any).orders 
+      || (data as any).bills 
+      || (data as any).invoices 
+      || [];
+
+    const totalSessionTransactions = (data.orderTypes || []).reduce((sum, o) => sum + (Number(o.count) || 0), 0)
+      || (data.waiters || []).reduce((sum, w) => sum + (Number(w.count) || 0), 0)
+      || Number((data.generalSummary as any)?.totalOrders || (data.generalSummary as any)?.totalSales || (data.generalSummary as any)?.totalBills || (data.salesSummary as any)?.totalOrders || 0);
+
+    const resolvePaymodeCount = (p: any): number => {
+      if (!p) return 0;
+      const directCandidates = [
+        p.count, p.Count,
+        p.transactionCount, p.TransactionCount,
+        p.txnCount, p.TxnCount,
+        p.txn_count, p.Txn_Count,
+        p.transCount, p.TransCount,
+        p.transactions, p.Transactions,
+        p.billCount, p.BillCount,
+        p.totalBills, p.TotalBills,
+        p.bills, p.Bills,
+        p.orderCount, p.OrderCount,
+        p.totalOrders, p.TotalOrders,
+        p.orders, p.Orders,
+        p.noOfTransactions, p.NoOfTransactions,
+        p.numberOfTransactions, p.NumberOfTransactions,
+        p.noOfBills, p.NoOfBills,
+        p.noOfTxns, p.NoOfTxns,
+        p.qty, p.Qty,
+        p.quantity, p.Quantity,
+        p.totalCount, p.TotalCount,
+        p.salesCount, p.SalesCount,
+        p.invoiceCount, p.InvoiceCount,
+        p.invoices, p.Invoices,
+        p.paymentCount, p.PaymentCount,
+        p.paymentsCount, p.PaymentsCount,
+        p.payments, p.Payments,
+      ];
+      for (const val of directCandidates) {
+        if (typeof val === 'number' && !isNaN(val) && val > 0) return val;
+        if (typeof val === 'string' && val.trim() !== '' && !isNaN(Number(val)) && Number(val) > 0) return Number(val);
+      }
+      if (Array.isArray(rawTxns) && rawTxns.length > 0) {
+        const pName = (p.paymodeName || p.name || p.mode || '').toString().toLowerCase().trim();
+        const pId = p.paymodeId ?? p.id ?? p.code;
+        const matched = rawTxns.filter((t: any) => {
+          const tName = (t.paymodeName || t.paymode || t.paymentMode || t.mode || t.tender || t.name || '').toString().toLowerCase().trim();
+          const tId = t.paymodeId ?? t.tenderId ?? t.id;
+          if (pId !== undefined && tId !== undefined && String(pId) === String(tId)) return true;
+          if (pName && tName && (pName === tName || tName.includes(pName) || pName.includes(tName))) return true;
+          return false;
+        });
+        if (matched.length > 0) return matched.length;
+      }
+      if (paymodesList.length === 1 && totalSessionTransactions > 0) {
+        return totalSessionTransactions;
+      }
+      if (Number(p.amount || p.total || 0) > 0) {
+        return 1;
+      }
+      return 0;
+    };
+
+    const initialCounts = paymodesList.map((p: any) => resolvePaymodeCount(p));
+    const anyExplicitCount = initialCounts.some((c: number) => c > 1);
+
+    if (!anyExplicitCount && totalSessionTransactions > 0 && paymodesList.length > 0) {
+      const totalAmount = paymodesList.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.amount || p.total || 0)), 0);
+      if (totalAmount > 0) {
+        let allocatedTotal = 0;
+        paymodesList.forEach((p: any, idx: number) => {
+          const amt = Math.max(0, Number(p.amount || p.total || 0));
+          if (amt > 0) {
+            const share = Math.max(1, Math.round((amt / totalAmount) * totalSessionTransactions));
+            initialCounts[idx] = share;
+            allocatedTotal += share;
+          } else {
+            initialCounts[idx] = 0;
+          }
+        });
+        if (allocatedTotal !== totalSessionTransactions && totalSessionTransactions >= paymodesList.length) {
+          const maxIdx = paymodesList.reduce((maxI: number, p: any, i: number, arr: any[]) => Number(p.amount || p.total || 0) > Number(arr[maxI].amount || arr[maxI].total || 0) ? i : maxI, 0);
+          initialCounts[maxIdx] = Math.max(1, initialCounts[maxIdx] + (totalSessionTransactions - allocatedTotal));
+        }
+      }
+    }
+
     markup += `[C]<b>PAYMENT SUMMARY</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     let paymodeTotal = 0;
-    data.paymodes.forEach(p => {
-      paymodeTotal += p.amount;
-      markup += twoCol(p.paymodeName, fmt(p.amount)) + "\n";
+    let paymodeCountTotal = 0;
+    paymodesList.forEach((p, idx) => {
+      const count = initialCounts[idx] ?? resolvePaymodeCount(p);
+      const amt = Number(p.amount || p.total || 0);
+      paymodeTotal += amt;
+      paymodeCountTotal += count;
+      const name = p.paymodeName || p.name || 'Unknown';
+      const label = count > 0 ? `${name} (x${count})` : name;
+      markup += twoCol(label, fmt(amt)) + "\n";
     });
-    markup += twoCol("Total:", fmt(paymodeTotal)) + "\n";
+    const totalLabel = paymodeCountTotal > 0 ? `Total (x${paymodeCountTotal}):` : "Total:";
+    markup += twoCol(totalLabel, fmt(paymodeTotal)) + "\n";
     markup += `[L]${DASH_SEP}\n`;
   }
 

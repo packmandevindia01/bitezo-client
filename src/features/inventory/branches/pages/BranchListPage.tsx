@@ -16,9 +16,10 @@ const BranchListPage = () => {
     loading,
     handleDelete,
     filteredBranches,
+    canCreateMore,
   } = useBranchManager();
 
-  const canAdd = hasPermission("Branch Master", "Add");
+  const canAdd = hasPermission("Branch Master", "Add") && canCreateMore;
   const canEdit = hasPermission("Branch Master", "Edit");
   const canDelete = hasPermission("Branch Master", "Delete");
 

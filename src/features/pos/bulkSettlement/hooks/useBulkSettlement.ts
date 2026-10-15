@@ -6,10 +6,12 @@ import { useAppSelector } from "../../../../app/hooks";
 import { selectActiveBranchId, selectBranchId, selectDecimalPart } from "../../../auth/store/authSlice";
 import { useToast } from "../../../../app/providers/useToast";
 import { useCashierLog } from "../../cashier";
+import axiosInstance from "../../../../api/axiosInstance";
 import {
   printDeliverySettlementReceipt,
   type DeliverySettlePrintData,
 } from "../../utils/deliverySettlePrintTemplate";
+import type { MultiPaymentLine, TenderOption } from "../../terminal/components/modals/payment/PosMultiPayModal";
 
 export const useBulkSettlement = () => {
   const { showToast } = useToast();
@@ -82,6 +84,53 @@ export const useBulkSettlement = () => {
   });
 
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
+
+  // Fetch Paymodes for Multi-Pay Tender Options
+  const { data: rawPaymodes = [] } = useQuery<{ id: string; label: string }[]>({
+    queryKey: ["bulkSettlementPaymodes"],
+    queryFn: async () => {
+      try {
+        const res = await axiosInstance.get("/paymode/list-name");
+        const d = res.data;
+        const list = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+        return list.map((item: any) => ({
+          id: String(item.paymodeId ?? item.id),
+          label: String(item.paymodeName ?? item.name ?? item.label ?? "Cash"),
+        }));
+      } catch (e) {
+        console.error("Failed to fetch paymodes in bulk settlement:", e);
+        return [
+          { id: "1", label: "Cash" },
+          { id: "2", label: "Card" },
+        ];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const tenderOptions: TenderOption[] = useMemo(() => {
+    const list = rawPaymodes.length > 0 ? rawPaymodes : [
+      { id: "1", label: "Cash" },
+      { id: "2", label: "Card" },
+    ];
+
+    // Exclude 'multi' and 'credit'
+    const filtered = list.filter(
+      (t) =>
+        !t.label.toLowerCase().includes("multi") &&
+        !t.label.toLowerCase().includes("credit")
+    );
+
+    // Cash is ALWAYS first priority
+    return filtered.sort((a, b) => {
+      const aIsCash = String(a.id) === "1" || a.label.toLowerCase().includes("cash");
+      const bIsCash = String(b.id) === "1" || b.label.toLowerCase().includes("cash");
+      if (aIsCash && !bIsCash) return -1;
+      if (!aIsCash && bIsCash) return 1;
+      return Number(a.id) - Number(b.id);
+    });
+  }, [rawPaymodes]);
 
   // 1. Fetch Entities (Drivers or Providers)
   const { data: entities = [], isLoading: isEntitiesLoading } = useQuery<EntityOption[]>({
@@ -188,7 +237,7 @@ export const useBulkSettlement = () => {
 
   // 3. Submit Settlement Mutation
   const settlementMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (multiPayData?: { payments: MultiPaymentLine[]; change: number }) => {
       const nowIso = new Date().toISOString();
       const selectedOrders = orders.filter((o) => selectedOrderIds.includes(o.orderId));
 
@@ -206,13 +255,93 @@ export const useBulkSettlement = () => {
           "Cashier";
         const nowObj = new Date();
 
-        const printItems = selectedOrders.map((o, index) => ({
-          sNo: index + 1,
-          token: o.tokenNo || o.orderNo,
-          customerAddress: o.customerAddress || "-",
-          amount: o.totalAmount,
-          paymodeName: o.paymodeName || "CARD",
-        }));
+        // 1. Calculate net payments from multiPayData
+        const payments = multiPayData?.payments && multiPayData.payments.length > 0
+          ? multiPayData.payments
+          : [{ paymodeId: 1, label: "Cash", amount: totalSelectedAmount }];
+        const change = multiPayData?.change || 0;
+
+        let remainingChange = change;
+        const netPayments = payments.map((p) => {
+          const isCash = (p.label || "").toLowerCase().includes("cash");
+          let net = p.amount;
+          if (isCash && remainingChange > 0) {
+            const deduct = Math.min(net, remainingChange);
+            net -= deduct;
+            remainingChange -= deduct;
+          }
+          return {
+            paymodeId: Number(p.paymodeId),
+            label: p.label,
+            remainingAmount: Number(net.toFixed(decimals)),
+          };
+        });
+
+        // 2. Allocate payment pool across selected orders
+        const allocatedOrders: {
+          orderId: number;
+          paymodes: { paymodeId: number; amount: number }[];
+          primaryPaymodeName: string;
+        }[] = [];
+
+        for (const order of selectedOrders) {
+          let needed = Number(order.totalAmount.toFixed(decimals));
+          const orderPaymodes: { paymodeId: number; amount: number }[] = [];
+          const usedModes: string[] = [];
+
+          for (const p of netPayments) {
+            if (needed <= 0.00001) break;
+            if (p.remainingAmount <= 0.00001) continue;
+
+            const alloc = Number(Math.min(needed, p.remainingAmount).toFixed(decimals));
+            if (alloc > 0) {
+              orderPaymodes.push({
+                paymodeId: p.paymodeId,
+                amount: alloc,
+              });
+              if (!usedModes.includes(p.label)) {
+                usedModes.push(p.label);
+              }
+              needed = Number((needed - alloc).toFixed(decimals));
+              p.remainingAmount = Number((p.remainingAmount - alloc).toFixed(decimals));
+            }
+          }
+
+          // In case of microscopic rounding residue, add to the last paymode
+          if (needed > 0.00001) {
+            if (orderPaymodes.length > 0) {
+              orderPaymodes[orderPaymodes.length - 1].amount = Number(
+                (orderPaymodes[orderPaymodes.length - 1].amount + needed).toFixed(decimals)
+              );
+            } else {
+              orderPaymodes.push({
+                paymodeId: netPayments[0]?.paymodeId || 1,
+                amount: Number(needed.toFixed(decimals)),
+              });
+            }
+          }
+
+          allocatedOrders.push({
+            orderId: order.orderId,
+            paymodes: orderPaymodes,
+            primaryPaymodeName: usedModes.join(" / ") || "CASH",
+          });
+        }
+
+        const totalCashTendered = payments
+          .filter((p) => (p.label || "").toLowerCase().includes("cash"))
+          .reduce((sum, p) => sum + p.amount, 0);
+
+        const printItems = selectedOrders.map((o, index) => {
+          const allocated = allocatedOrders.find((ao) => ao.orderId === o.orderId);
+          return {
+            sNo: index + 1,
+            token: o.tokenNo || o.orderNo,
+            customerAddress: o.customerAddress || "-",
+            amount: o.totalAmount,
+            paymodeName: allocated?.primaryPaymodeName || "CASH",
+          };
+        });
 
         const printPayload: DeliverySettlePrintData = {
           driverName,
@@ -222,6 +351,8 @@ export const useBulkSettlement = () => {
           items: printItems,
           total: totalSelectedAmount,
           grandTotal: totalSelectedAmount,
+          cashTendered: totalCashTendered > 0 ? totalCashTendered : undefined,
+          changeAmount: change > 0 ? change : undefined,
           printTime: `${nowObj.toLocaleDateString("en-GB")} ${nowObj.toLocaleTimeString("en-US")}`,
         };
 
@@ -233,9 +364,9 @@ export const useBulkSettlement = () => {
           createdAt: nowIso,
           voucherDate: nowIso,
           transDate: nowIso,
-          orders: selectedOrders.map((o) => ({
-            orderId: o.orderId,
-            paymodes: [{ paymodeId: o.paymodeId || 1, amount: o.totalAmount }],
+          orders: allocatedOrders.map((ao) => ({
+            orderId: ao.orderId,
+            paymodes: ao.paymodes,
           })),
         });
 
@@ -304,8 +435,20 @@ export const useBulkSettlement = () => {
       return;
     }
 
-    settlementMutation.mutate();
+    if (searchTrigger.entityType === "driver") {
+      setIsMultiPayOpen(true);
+    } else {
+      settlementMutation.mutate(undefined);
+    }
   }, [searchTrigger, selectedOrderIds, entityType, settlementMutation, showToast]);
+
+  const handleMultiPaySubmit = useCallback(
+    (payments: MultiPaymentLine[], change: number) => {
+      setIsMultiPayOpen(false);
+      settlementMutation.mutate({ payments, change });
+    },
+    [settlementMutation]
+  );
 
   return {
     entityType,
@@ -322,6 +465,9 @@ export const useBulkSettlement = () => {
     isAllSelected,
     totalSelectedAmount,
     isSubmitting: settlementMutation.isPending,
+    isMultiPayOpen,
+    setIsMultiPayOpen,
+    tenderOptions,
     lastSettledPrintData,
     handleReprintLastSettlement,
     handleEntityTypeChange,
@@ -330,6 +476,7 @@ export const useBulkSettlement = () => {
     toggleOrderSelection,
     toggleSelectAll,
     handleSubmit,
+    handleMultiPaySubmit,
     refetchOrders: refetch,
   };
 };

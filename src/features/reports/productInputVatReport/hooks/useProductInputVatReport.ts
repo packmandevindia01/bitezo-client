@@ -25,6 +25,9 @@ export const useProductInputVatReport = () => {
   const defaultDate = today.toISOString().split("T")[0];
 
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
+  const handleSetBranchId = (val: string) => {
+    setBranchId(val || defaultBranchId);
+  };
   const [productId, setProductId] = useState<string>("0");
   const [vatId, setVatId] = useState<string>("0");
   const [fromDate, setFromDate] = useState<string>(defaultDate);
@@ -79,11 +82,12 @@ export const useProductInputVatReport = () => {
   const branchOptions = useMemo(() => {
     const list = Array.isArray(branches) ? branches : [];
     return list.map((b) => ({
-      value: String(b.branchId),
-      label: b.branchName,
+      value: String(b?.branchId ?? ""),
+      label: b?.branchName || "",
     }));
   }, [branches]);
 
+  const finalBranchId = Number(branchId) || Number(defaultBranchId) || 1;
   const {
     data: reportData,
     isLoading: isLoadingReport,
@@ -93,7 +97,7 @@ export const useProductInputVatReport = () => {
   } = useQuery({
     queryKey: [
       "product-input-vat-report",
-      branchId,
+      finalBranchId,
       productId,
       vatId,
       fromDate,
@@ -102,14 +106,14 @@ export const useProductInputVatReport = () => {
     ],
     queryFn: () =>
       getProductInputVatReport({
-        BranchId: Number(branchId) || 1,
+        BranchId: finalBranchId,
         productId: Number(productId) > 0 ? Number(productId) : undefined,
         vatId: Number(vatId) > 0 ? Number(vatId) : undefined,
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
       }),
-    enabled: !!fromDate && !!toDate && !!branchId,
+    enabled: !!fromDate && !!toDate,
     staleTime: 0,
     refetchOnMount: true,
   });
@@ -126,7 +130,8 @@ export const useProductInputVatReport = () => {
   };
 
   const rows: ProductInputVatRow[] = useMemo(() => {
-    return reportData?.outPutData || reportData?.inputData || reportData?.inPutData || [];
+    const rawRows = reportData?.outPutData || reportData?.inputData || reportData?.inPutData || (Array.isArray(reportData) ? reportData : []);
+    return Array.isArray(rawRows) ? rawRows : [];
   }, [reportData]);
 
   const totalData: ProductInputVatTotalData | null = useMemo(() => {
@@ -135,8 +140,9 @@ export const useProductInputVatReport = () => {
 
   return {
     filters: {
+      defaultBranchId,
       branchId,
-      setBranchId,
+      setBranchId: handleSetBranchId,
       productId,
       setProductId,
       vatId,

@@ -497,8 +497,11 @@ export const useStockAdjustment = (id?: string | null) => {
   // Pre-select first branch when branches finish loading (Add Mode)
   useEffect(() => {
     if (!id && resolvedBranches.length > 0 && !getValues("branch")) {
+      const branch1 = resolvedBranches.find(b => b.value === "1" || b.label.toLowerCase() === "branch 1");
       if (isBranchLocked && initialBranchId) {
         setValue("branch", String(initialBranchId));
+      } else if (branch1) {
+        setValue("branch", branch1.value);
       } else {
         setValue("branch", resolvedBranches[0].value);
       }
@@ -742,10 +745,15 @@ export const useStockAdjustment = (id?: string | null) => {
       setProductOptions(recordData.productOptions);
     } else {
       const resetForm = { ...initialForm };
+      const branch1 = resolvedBranches.find(b => b.value === "1" || b.label.toLowerCase() === "branch 1");
       if (isBranchLocked && initialBranchId) {
         resetForm.branch = String(initialBranchId);
-      } else if (branches.length > 0) {
-        resetForm.branch = branches[0].value;
+      } else if (branch1) {
+        resetForm.branch = branch1.value;
+      } else if (resolvedBranches.length > 0) {
+        resetForm.branch = resolvedBranches[0].value;
+      } else {
+        resetForm.branch = "1";
       }
       if (branchData.refNo) resetForm.refNo = branchData.refNo;
       if (branchData.employees.length > 0) resetForm.salesman = branchData.employees[0].value;
@@ -753,7 +761,7 @@ export const useStockAdjustment = (id?: string | null) => {
       reset(resetForm);
       setProductOptions([]);
     }
-  }, [id, recordData, reset, initialForm, isBranchLocked, initialBranchId, branches, branchData]);
+  }, [id, recordData, reset, initialForm, isBranchLocked, initialBranchId, resolvedBranches, branchData]);
 
   // Submit / Save handler
   const onSubmit = async (data: StockAdjustmentForm): Promise<boolean> => {

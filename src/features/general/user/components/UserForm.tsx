@@ -177,7 +177,7 @@ export const UserForm = ({
                 value: String(b.branchId),
               })),
           ]}
-          placeholder={branchesLoading ? "Loading..." : "Select a branch"}
+          placeholder={branchesLoading ? "Loading..." : "Select Branch"}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

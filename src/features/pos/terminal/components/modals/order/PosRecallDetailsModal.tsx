@@ -467,7 +467,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo || "",
         kotArabic: isKotArabicEnabled(),
-        forcedPrint: true
+        forcedPrint: true,
+        priceView: (localStorage.getItem("priceView") as any) || undefined,
+        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
       };
 
       await executeKotRouting(

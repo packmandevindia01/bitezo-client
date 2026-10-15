@@ -56,6 +56,10 @@ export interface RuntimePosConfig {
   isRecipeEnable?: boolean;
   isDayDateEnable?: boolean;
   defaultOrderTypeId?: number;
+  posLanguage?: string;
+  PosLanguage?: string;
+  productView?: string;
+  ProductView?: string;
 }
 
 export interface PosConfigResponseData {

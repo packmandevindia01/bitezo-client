@@ -38,6 +38,8 @@ const HappyHourForm = ({ initialData, onSubmit, onCancel, submitting }: Props) =
           promotionName={form.promotionName}
           startDate={form.startDate}
           endDate={form.endDate}
+          minStartDate={form.minStartDate}
+          minEndDate={form.minEndDate}
           branches={form.branches}
           categories={form.categories}
           subCategories={form.subCategories}

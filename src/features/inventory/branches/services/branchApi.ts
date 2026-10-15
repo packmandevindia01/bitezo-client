@@ -7,6 +7,32 @@ import {
 
 // ─── Exported API functions ───────────────────────────────────────────────────
 
+export const fetchRegisteredBranches = async (): Promise<{ branchId: number; name: string }[]> => {
+  try {
+    const { data } = await axiosInstance.get<any>("/Branch/registered-branches");
+    const resData = data?.data ?? data;
+    if (Array.isArray(resData)) {
+      return resData
+        .map((b: any) => ({
+          branchId: Number(b.branchId ?? b.BranchId ?? b.id ?? b.Id ?? 0),
+          name: String(b.name ?? b.Name ?? b.branchName ?? b.BranchName ?? ""),
+        }))
+        .filter((b) => b.branchId > 0 || Boolean(b.name));
+    } else if (resData && typeof resData === "object" && (resData.branchId || resData.name)) {
+      return [
+        {
+          branchId: Number(resData.branchId ?? resData.BranchId ?? resData.id ?? resData.Id ?? 0),
+          name: String(resData.name ?? resData.Name ?? resData.branchName ?? resData.BranchName ?? ""),
+        },
+      ];
+    }
+    return [];
+  } catch (err) {
+    console.warn("Failed to fetch /Branch/registered-branches:", err);
+    return [];
+  }
+};
+
 export const fetchBranchNames = async (allStatus: boolean = false): Promise<BranchRecord[]> => {
   const { data } = await axiosInstance.get<any>(`/Branch/${allStatus}/list-name`);
 
@@ -22,7 +48,7 @@ export const fetchBranchNames = async (allStatus: boolean = false): Promise<Bran
 
   return rawList.map((item: any) => ({
     id: item.branchId ?? item.BranchId ?? item.id ?? item.Id ?? 0,
-    branchName: item.branchName ?? item.BranchName ?? item.name ?? item.Name ?? "",
+    branchName: item.branchName || item.BranchName || item.name || item.Name || "",
     isActive:
       item.isActive === true ||
       item.isActive === "Active" ||
@@ -212,6 +238,7 @@ export const fetchBranchPrintData = async (branchId?: number): Promise<LineItem[
 };
 
 export const branchApi = {
+  fetchRegisteredBranches,
   fetchBranchNames,
   fetchBranches,
   fetchBranchById,

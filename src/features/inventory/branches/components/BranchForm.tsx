@@ -9,10 +9,12 @@ import {
 
 import { Button, Checkbox, DragHandle, Loader } from "../../../../components/common";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Trash2, Save, RotateCcw } from "lucide-react";
 import { useToast } from "../../../../app/providers/useToast";
 import { useBranchLines } from "../hooks/useBranchLines";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
+import { fetchRegisteredBranches } from "../services/branchApi";
 import type { BranchPayload, FontModalState } from "../types";
 import { getLineStyle } from "../utils/lineHelpers";
 import BranchBasicInfo from "./BranchBasicInfo";
@@ -30,6 +32,7 @@ interface Props {
   onSubmit?: (payload: BranchPayload) => void | Promise<void>;
   onDelete?: () => void;
   onClear?: () => void;
+  isCreateMode?: boolean;
 }
 
 const BranchForm = ({
@@ -37,14 +40,22 @@ const BranchForm = ({
   onSubmit,
   onDelete,
   onClear,
+  isCreateMode = false,
 }: Props) => {
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
 
+  const [selectedRegisteredId, setSelectedRegisteredId] = useState<number | null>(null);
   const [branchName, setBranchName] = useState(initialData?.branchName ?? "");
   const [branchNameError, setBranchNameError] = useState("");
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [submitting, setSubmitting] = useState(false);
+
+  const { data: registeredBranches = [], isLoading: loadingRegistered } = useQuery({
+    queryKey: ["registeredBranches"],
+    queryFn: fetchRegisteredBranches,
+    enabled: isCreateMode,
+  });
 
   const [activeTab, setActiveTab] = useState<"kot" | "end">("kot");
 
@@ -66,12 +77,12 @@ const BranchForm = ({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const el = document.getElementById("branch-name");
+      const el = document.getElementById(isCreateMode ? "registered-branch-select" : "branch-name");
       el?.focus();
       if (el instanceof HTMLInputElement) el.select?.();
     }, 50);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isCreateMode]);
 
   const openFontModal = (id: string) => {
     const line = allLines.find((item) => item.id === id);
@@ -109,6 +120,7 @@ const BranchForm = ({
 
     try {
       const payload: BranchPayload = {
+        branchId: selectedRegisteredId || undefined,
         branchName: branchName.trim(),
         lines: allLines.map((line) => ({ ...line })),
         isActive,
@@ -120,6 +132,7 @@ const BranchForm = ({
         showToast("Branch created successfully", "success");
       }
 
+      setSelectedRegisteredId(null);
       setBranchName("");
       setBranchNameError("");
       setIsActive(true);
@@ -132,13 +145,14 @@ const BranchForm = ({
   };
 
   const handleClear = () => {
+    setSelectedRegisteredId(null);
     setBranchName("");
     setBranchNameError("");
     setIsActive(true);
     resetLines();
     if (onClear) onClear();
     setTimeout(() => {
-      const el = document.getElementById("branch-name");
+      const el = document.getElementById(isCreateMode ? "registered-branch-select" : "branch-name");
       el?.focus();
     }, 50);
   };
@@ -179,6 +193,20 @@ const BranchForm = ({
                 value={branchName}
                 error={branchNameError}
                 disabled={submitting}
+                isCreateMode={isCreateMode}
+                registeredBranches={registeredBranches}
+                selectedRegisteredId={selectedRegisteredId}
+                loadingRegistered={loadingRegistered}
+                onSelectRegisteredBranch={(rb) => {
+                  setSelectedRegisteredId(rb.branchId);
+                  setBranchName(rb.name);
+                  setBranchNameError("");
+                  setTimeout(() => {
+                    const el = document.getElementById("branch-name");
+                    el?.focus();
+                    if (el instanceof HTMLInputElement) el.select?.();
+                  }, 50);
+                }}
                 onChange={(value) => {
                   setBranchName(value);
                   setBranchNameError("");

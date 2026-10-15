@@ -400,10 +400,10 @@ const PurchaseInvoiceFormPage = () => {
                 </button>
               </div>
               <Controller name="branch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" placeholder="Select Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" placeholder="Select Employee" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
           </div>

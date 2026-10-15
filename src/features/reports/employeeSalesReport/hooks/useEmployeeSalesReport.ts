@@ -7,8 +7,22 @@ import type { BranchOption } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
 export const useEmployeeSalesReport = () => {
-  const decimalPart = useAppSelector(selectDecimalPart);
+  const decimalPart = useAppSelector(selectDecimalPart) ?? 3;
   const { isBranchLocked, initialBranchId } = useBranchScope();
+
+  const isBackofficeMode =
+    typeof sessionStorage !== "undefined" &&
+    (sessionStorage.getItem("tempSystemType") === "backoffice" ||
+      localStorage.getItem("systemType") === "backoffice");
+  const activeBranchId = isBackofficeMode
+    ? sessionStorage.getItem("backoffice_activeBranchId")
+    : localStorage.getItem("activeBranchId");
+  const defaultBranchId =
+    activeBranchId && activeBranchId !== "0"
+      ? activeBranchId
+      : initialBranchId && initialBranchId !== "0"
+      ? initialBranchId
+      : "1";
 
   // Filter states
   const [fromDate, setFromDate] = useState<string>(() => {
@@ -19,7 +33,11 @@ export const useEmployeeSalesReport = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
-  const [branchId, setBranchId] = useState<string>(initialBranchId);
+  const [branchId, setBranchId] = useState<string>(defaultBranchId);
+
+  const handleSetBranchId = (val: string) => {
+    setBranchId(val || defaultBranchId);
+  };
 
   // Master data queries
   const { data: branches = [] as BranchOption[], isLoading: branchesLoading } = useQuery({
@@ -28,11 +46,12 @@ export const useEmployeeSalesReport = () => {
   });
 
   // Report query
+  const finalBranchId = Number(branchId) || Number(defaultBranchId) || 1;
   const { data: reportData = [], isLoading: reportLoading, isFetching, refetch } = useQuery({
-    queryKey: ["employeeSalesReport", { fromDate, toDate, branchId, decimalPart }],
+    queryKey: ["employeeSalesReport", { fromDate, toDate, branchId: finalBranchId, decimalPart }],
     queryFn: () =>
       getEmployeeSalesReport({
-        BranchId: Number(branchId),
+        BranchId: finalBranchId,
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
@@ -48,7 +67,7 @@ export const useEmployeeSalesReport = () => {
     
     setFromDate(defaultFrom);
     setToDate(defaultTo);
-    setBranchId(initialBranchId);
+    setBranchId(defaultBranchId);
     setTimeout(() => {
       refetch();
     }, 0);
@@ -56,21 +75,26 @@ export const useEmployeeSalesReport = () => {
 
   return {
     filters: {
+      defaultBranchId,
       fromDate,
       setFromDate,
       toDate,
       setToDate,
       branchId,
-      setBranchId,
+      setBranchId: handleSetBranchId,
       resetFilters,
       isBranchLocked,
     },
     masterData: {
-      branches,
+      branches: Array.isArray(branches) ? branches : [],
       branchesLoading,
     },
     report: {
-      salesData: reportData,
+      salesData: Array.isArray(reportData)
+        ? reportData
+        : Array.isArray((reportData as any)?.salesData)
+        ? (reportData as any).salesData
+        : [],
       isLoading: reportLoading || isFetching,
       refetch,
     },

@@ -453,6 +453,7 @@ export const PosTerminalPage = () => {
     const currentTenderLabel = (currentTenderObj?.label || "").toLowerCase();
     const isMultiPayTender = currentTenderLabel.includes("multi") || selectedTender === "3";
     const isCreditTender = currentTenderLabel.includes("credit") && !isMultiPayTender;
+    const isCashTender = currentTenderLabel.includes("cash") || selectedTender === "1";
 
     if (isCreditTender && (!terminal.selectedCustomerId || Number(terminal.selectedCustomerId) === 1)) {
       showToast("Credit payment is not allowed for Cash Customer. Please select a customer first.", "warning");
@@ -467,6 +468,8 @@ export const PosTerminalPage = () => {
 
     if (isMultiPayTender) {
       modals.setIsMultiPayModalOpen(true);
+    } else if (isCashTender) {
+      modals.setIsCashModalOpen(true);
     } else {
       checkoutFlow.handleCardCreditSettlement(paymodeIdToSend);
     }

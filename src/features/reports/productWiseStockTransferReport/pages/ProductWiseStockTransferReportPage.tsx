@@ -46,14 +46,14 @@ const ProductWiseStockTransferReportPage = () => {
 
   // ── Dropdown options ───────────────────────────────────────────────────────
   const branchOptions = useMemo(
-    () => masterData.branches.map((b) => ({ label: b.branchName, value: String(b.branchId) })),
+    () => (Array.isArray(masterData.branches) ? masterData.branches : []).map((b) => ({ label: b.branchName, value: String(b.branchId) })),
     [masterData.branches]
   );
 
   const toBranchOptions = useMemo(
     () => [
       { label: "All Branches", value: "0" },
-      ...masterData.branches.map((b) => ({ label: b.branchName, value: String(b.branchId) })),
+      ...(Array.isArray(masterData.branches) ? masterData.branches : []).map((b) => ({ label: b.branchName, value: String(b.branchId) })),
     ],
     [masterData.branches]
   );
@@ -61,7 +61,7 @@ const ProductWiseStockTransferReportPage = () => {
   const productOptions = useMemo(
     () => [
       { label: "All Products", value: "0" },
-      ...masterData.products.map((p: any) => ({
+      ...(Array.isArray(masterData.products) ? masterData.products : []).map((p: any) => ({
         label: p.code ? `[${p.code}] ${p.productName}` : p.productName,
         value: String(p.productId),
       })),
@@ -118,7 +118,7 @@ const ProductWiseStockTransferReportPage = () => {
                     options={branchOptions}
                     value={filters.fromBranchId}
                     onChange={filters.setFromBranchId}
-                    placeholder="Select branch"
+                    placeholder="Select Branch"
                     autoFocus={true}
                     disabled={filters.isBranchLocked}
                   />
@@ -132,7 +132,7 @@ const ProductWiseStockTransferReportPage = () => {
                     options={toBranchOptions}
                     value={filters.toBranchId}
                     onChange={filters.setToBranchId}
-                    placeholder="All Branches"
+                    placeholder="Select Branch"
                   />
                 </div>
               </div>

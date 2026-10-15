@@ -9,7 +9,7 @@ import {
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
-import type { BranchOption, ProductOption, AdjustmentTypeOption } from "../types";
+import type { BranchOption, ProductOption, AdjustmentTypeOption, ProductWiseStockAdjustmentRow } from "../types";
 
 export const EFFECT_OPTIONS = [
   { label: "All", value: "" },
@@ -20,6 +20,7 @@ export const EFFECT_OPTIONS = [
 export const useProductWiseStockAdjustmentReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
+  const defaultBranchId = initialBranchId || "1";
 
   // ── Filter states ───────────────────────────────────────────────────────────
   const [fromDate, setFromDate] = useState<string>(() => {
@@ -31,7 +32,12 @@ export const useProductWiseStockAdjustmentReport = () => {
   const [toDate, setToDate] = useState<string>(() => {
     return new Date().toISOString().split("T")[0];
   });
-  const [branchId, setBranchId] = useState<string>(initialBranchId);
+  const [branchId, setBranchId] = useState<string>(defaultBranchId);
+
+  const handleSetBranchId = (val: string) => {
+    setBranchId(val || defaultBranchId);
+  };
+
   const [productId, setProductId] = useState<string>("0");
   const [typeId, setTypeId] = useState<string>("0");
   const [effect, setEffect] = useState<string>("");
@@ -54,19 +60,20 @@ export const useProductWiseStockAdjustmentReport = () => {
   });
 
   // ── Report query (auto-refetches when any filter changes) ───────────────────
+  const finalBranchId = Number(branchId) || Number(defaultBranchId) || 1;
   const {
-    data: reportRows = [],
+    data: rawReportRows = [],
     isLoading: reportLoading,
     isFetching,
     refetch,
   } = useQuery({
     queryKey: [
       "productWiseStockAdjustmentReport",
-      { fromDate, toDate, branchId, productId, typeId, effect, decimalPart },
+      { fromDate, toDate, branchId: finalBranchId, productId, typeId, effect, decimalPart },
     ],
     queryFn: () =>
       getProductWiseStockAdjustmentReport({
-        BranchId: Number(branchId),
+        BranchId: finalBranchId,
         ProductId: Number(productId),
         TypeId: Number(typeId),
         Effect: effect,
@@ -78,24 +85,28 @@ export const useProductWiseStockAdjustmentReport = () => {
     staleTime: 0,
   });
 
+  const reportRows: ProductWiseStockAdjustmentRow[] = useMemo(() => {
+    return Array.isArray(rawReportRows) ? rawReportRows : [];
+  }, [rawReportRows]);
+
   // ── Client-side search filter ───────────────────────────────────────────────
   const filteredRows = useMemo(() => {
     if (!searchTerm.trim()) return reportRows;
     const term = searchTerm.toLowerCase();
     return reportRows.filter(
       (row) =>
-        row.product?.toLowerCase().includes(term) ||
-        row.code?.toLowerCase().includes(term) ||
-        row.type?.toLowerCase().includes(term) ||
-        String(row.refNo).includes(term)
+        row?.product?.toLowerCase().includes(term) ||
+        row?.code?.toLowerCase().includes(term) ||
+        row?.type?.toLowerCase().includes(term) ||
+        String(row?.refNo || "").includes(term)
     );
   }, [reportRows, searchTerm]);
 
   // ── Grand totals ────────────────────────────────────────────────────────────
   const grandTotals = useMemo(
     () => ({
-      qty: filteredRows.reduce((s, r) => s + Number(r.qty || 0), 0),
-      netAmount: filteredRows.reduce((s, r) => s + Number(r.netAmount || 0), 0),
+      qty: filteredRows.reduce((s, r) => s + Number(r?.qty || 0), 0),
+      netAmount: filteredRows.reduce((s, r) => s + Number(r?.netAmount || 0), 0),
     }),
     [filteredRows]
   );
@@ -108,16 +119,9 @@ export const useProductWiseStockAdjustmentReport = () => {
       .split("T")[0];
     const defaultTo = today.toISOString().split("T")[0];
 
-    const isBackofficeMode =
-      sessionStorage.getItem("tempSystemType") === "backoffice" ||
-      localStorage.getItem("systemType") === "backoffice";
-    const activeBranchId = isBackofficeMode
-      ? sessionStorage.getItem("backoffice_activeBranchId")
-      : localStorage.getItem("activeBranchId");
-
     setFromDate(defaultFrom);
     setToDate(defaultTo);
-    setBranchId(activeBranchId || "1");
+    setBranchId(defaultBranchId);
     setProductId("0");
     setTypeId("0");
     setEffect("");
@@ -129,12 +133,13 @@ export const useProductWiseStockAdjustmentReport = () => {
 
   return {
     filters: {
+      defaultBranchId,
       fromDate,
       setFromDate,
       toDate,
       setToDate,
       branchId,
-      setBranchId,
+      setBranchId: handleSetBranchId,
       productId,
       setProductId,
       typeId,

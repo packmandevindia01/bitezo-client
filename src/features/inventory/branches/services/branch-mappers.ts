@@ -100,11 +100,14 @@ export const buildRequestBody = (payload: BranchPayload, branchId?: number): Bra
     offsetX: l.offsetX,
   }));
 
+  const effectiveBranchId = typeof branchId === "number" && branchId > 0 ? branchId : payload.branchId;
   const isUpdate = typeof branchId === "number" && branchId > 0;
 
   return {
     ...(isUpdate
-      ? { branchId, updatedAt: new Date().toISOString() }
+      ? { branchId: effectiveBranchId, updatedAt: new Date().toISOString() }
+      : effectiveBranchId
+      ? { branchId: effectiveBranchId, createdAt: new Date().toISOString() }
       : { createdAt: new Date().toISOString() }),
     branchName: payload.branchName,
     isActive: payload.isActive,

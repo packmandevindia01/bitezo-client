@@ -2,7 +2,7 @@
 import { formatAmount } from "../../../../utils/currency";
 import type { SalesData, PaymodeData, TotalData } from "../types";
 
-const formatHeaderDate = (dateStr: string) => {
+export const formatHeaderDate = (dateStr: string) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
@@ -10,6 +10,51 @@ const formatHeaderDate = (dateStr: string) => {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
+};
+
+export const formatReportTimestamp = (d = new Date()): string => {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const timeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  return `${dd}/${mm}/${yyyy} ${timeStr}`;
+};
+
+export const formatTransactionDateTime = (row: any): string => {
+  if (!row) return "";
+  const rawDate = typeof row === "string" ? row : (row.invoiceDate || row.transDate || row.createdAt || row.voucherDate || "");
+  if (!rawDate) return "";
+  const rawTime = typeof row === "object" ? (row.invoiceTime || row.transTime || row.time || row.orderTime || row.entryTime || "") : "";
+
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim());
+  let d: Date;
+  if (isDateOnly) {
+    const [y, m, day] = rawDate.split("-").map(Number);
+    d = new Date(y, m - 1, day);
+  } else {
+    d = new Date(rawDate);
+  }
+
+  if (isNaN(d.getTime())) return rawTime ? `${rawDate} ${rawTime}` : rawDate;
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const dateFormatted = `${dd}/${mm}/${yyyy}`;
+
+  if (rawTime) return `${dateFormatted} ${rawTime}`;
+
+  const isZeroTime = /^.*T00:00:00(\.0+)?(Z|[+-]\d{2}:\d{2})?$/.test(rawDate.trim());
+  const hasTimeComponent = !isDateOnly && !isZeroTime && (
+    rawDate.includes("T") || rawDate.includes(":")
+  );
+
+  if (hasTimeComponent) {
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    return `${dateFormatted} ${timeStr}`;
+  }
+
+  return dateFormatted;
 };
 
 export const exportSalesReportPDF = async (
@@ -38,15 +83,22 @@ export const exportSalesReportPDF = async (
   const dateStr = `Sales Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(dateStr, 105, 28, { align: "center" });
+  doc.text(dateStr, 105, 27, { align: "center" });
   
   const titleWidth = doc.getTextWidth(dateStr);
-  doc.line(105 - titleWidth / 2, 29, 105 + titleWidth / 2, 29);
+  doc.line(105 - titleWidth / 2, 28, 105 + titleWidth / 2, 28);
+
+  // Report generated timestamp
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Report Generated: ${formatReportTimestamp()}`, 105, 33, { align: "center" });
+  doc.setTextColor(0, 0, 0);
 
   // Sales Data Table (Exact columns matching the prototype)
-  const salesHeaders = [["BillDate", "BillNo", "Ref No", "Customer", "Paymode", "Net Value", "Vat Amount", "Amount"]];
+  const salesHeaders = [["Bill Date & Time", "BillNo", "Ref No", "Customer", "Paymode", "Net Value", "Vat Amount", "Amount"]];
   const salesBody = salesData.map((row) => [
-    row.invoiceDate ? formatHeaderDate(row.invoiceDate) : "",
+    formatTransactionDateTime(row),
     row.invoiceNo || "",
     row.refNo || "",
     row.customerName || "",
@@ -61,7 +113,7 @@ export const exportSalesReportPDF = async (
   const grandTotal = totalData ? totalData.netAmount : salesData.reduce((s, r) => s + Number(r.netAmount || 0), 0);
 
   // Spanned footer matching the template exactly:
-  // - Colspan 6 (from BillDate up to Net Value) for Paymodes Cash & Credit summary
+  // - Colspan 6 (from Bill Date & Time up to Net Value) for Paymodes Cash & Credit summary
   // - Col 7 for "Total" label
   // - Col 8 for Grand Total value
   const salesFoot = [[
@@ -81,7 +133,7 @@ export const exportSalesReportPDF = async (
   ]];
 
   autoTable(doc, {
-    startY: 35,
+    startY: 36,
     head: salesHeaders,
     body: salesBody,
     foot: salesFoot,
@@ -92,9 +144,9 @@ export const exportSalesReportPDF = async (
     didParseCell: (data) => {
       const colIdx = data.column.index;
       if (data.section === "head" || data.section === "body") {
-        if (colIdx === 0 || colIdx === 3) {
+        if (colIdx === 3) {
           data.cell.styles.halign = "left";
-        } else if (colIdx === 1 || colIdx === 2 || colIdx === 4) {
+        } else if (colIdx === 0 || colIdx === 1 || colIdx === 2 || colIdx === 4) {
           data.cell.styles.halign = "center";
         } else if (colIdx === 5 || colIdx === 6 || colIdx === 7) {
           data.cell.styles.halign = "right";
@@ -141,13 +193,15 @@ export const exportSalesReportExcel = async (
   const merges: any[] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } }
   ];
 
   // 1. Title Block
   rows.push([cellHelper(companyName, true, "center", { font: { bold: true, sz: 14 } }), "", "", "", "", "", "", ""]);
   rows.push([cellHelper(companyAddress, false, "center", { font: { sz: 8.5, color: { rgb: "475569" } } }), "", "", "", "", "", "", ""]);
   rows.push([cellHelper(`Sales Report From ${formatHeaderDate(filters.fromDate)} To ${formatHeaderDate(filters.toDate)}`, true, "center", { font: { bold: true, sz: 11, underline: true } }), "", "", "", "", "", "", ""]);
+  rows.push([cellHelper(`Report Generated: ${formatReportTimestamp()}`, false, "center", { font: { sz: 9, color: { rgb: "64748B" }, italic: true } }), "", "", "", "", "", "", ""]);
   rows.push(["", "", "", "", "", "", "", ""]); // empty divider
 
   // 2. Table Headers Style
@@ -163,7 +217,7 @@ export const exportSalesReportExcel = async (
   };
 
   rows.push([
-    cellHelper("BillDate", true, "left", headerStyle),
+    cellHelper("Bill Date & Time", true, "center", headerStyle),
     cellHelper("BillNo", true, "center", headerStyle),
     cellHelper("Ref No", true, "center", headerStyle),
     cellHelper("Customer", true, "left", headerStyle),
@@ -186,7 +240,7 @@ export const exportSalesReportExcel = async (
     };
 
     rows.push([
-      cellHelper(row.invoiceDate ? formatHeaderDate(row.invoiceDate) : "", false, "left", dataStyle),
+      cellHelper(formatTransactionDateTime(row), false, "center", dataStyle),
       cellHelper(row.invoiceNo || "", false, "center", dataStyle),
       cellHelper(row.refNo || "", false, "center", dataStyle),
       cellHelper((row.customerName || "").toUpperCase(), false, "left", dataStyle),
@@ -233,7 +287,7 @@ export const exportSalesReportExcel = async (
 
   // Set generous column widths
   ws["!cols"] = [
-    { wch: 15 }, // BillDate
+    { wch: 22 }, // Bill Date & Time
     { wch: 10 }, // BillNo
     { wch: 10 }, // Ref No
     { wch: 30 }, // Customer

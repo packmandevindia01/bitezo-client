@@ -21,6 +21,9 @@ export const useProductWiseLevyReport = () => {
   const defaultDate = today.toISOString().split("T")[0];
 
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
+  const handleSetBranchId = (val: string) => {
+    setBranchId(val || defaultBranchId);
+  };
   const [fromDate, setFromDate] = useState<string>(defaultDate);
   const [toDate, setToDate] = useState<string>(defaultDate);
 
@@ -35,11 +38,12 @@ export const useProductWiseLevyReport = () => {
   const branchOptions = useMemo(() => {
     const list = Array.isArray(branches) ? branches : [];
     return list.map((b) => ({
-      value: String(b.branchId),
-      label: b.branchName,
+      value: String(b?.branchId ?? ""),
+      label: b?.branchName || "",
     }));
   }, [branches]);
 
+  const finalBranchId = Number(branchId) || Number(defaultBranchId) || 1;
   const {
     data: reportData,
     isLoading: isLoadingReport,
@@ -49,19 +53,19 @@ export const useProductWiseLevyReport = () => {
   } = useQuery({
     queryKey: [
       "product-wise-levy-report",
-      branchId,
+      finalBranchId,
       fromDate,
       toDate,
       decimalPart,
     ],
     queryFn: () =>
       getProductWiseLevyReport({
-        BranchId: Number(branchId) || 1,
+        BranchId: finalBranchId,
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
       }),
-    enabled: !!fromDate && !!toDate && !!branchId,
+    enabled: !!fromDate && !!toDate,
     staleTime: 0,
     refetchOnMount: true,
   });
@@ -76,7 +80,8 @@ export const useProductWiseLevyReport = () => {
   };
 
   const rows: ProductWiseLevyRow[] = useMemo(() => {
-    return reportData?.productData || [];
+    const rawList = reportData?.productData || (Array.isArray(reportData) ? reportData : []);
+    return Array.isArray(rawList) ? rawList : [];
   }, [reportData]);
 
   const totalData: ProductWiseLevyTotalData | null = useMemo(() => {
@@ -85,8 +90,9 @@ export const useProductWiseLevyReport = () => {
 
   return {
     filters: {
+      defaultBranchId,
       branchId,
-      setBranchId,
+      setBranchId: handleSetBranchId,
       fromDate,
       setFromDate,
       toDate,

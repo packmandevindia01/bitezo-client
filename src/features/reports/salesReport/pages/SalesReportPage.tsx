@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useCallback } from "react";
 import { Printer, X, Download } from "lucide-react";
 import { useSalesReport } from "../hooks/useSalesReport";
-import { exportSalesReportPDF, exportSalesReportExcel } from "../utils/exportUtils";
+import { exportSalesReportPDF, exportSalesReportExcel, formatHeaderDate, formatTransactionDateTime, formatReportTimestamp } from "../utils/exportUtils";
 import { formatAmount } from "../../../../utils/currency";
 import {
   PageShell,
@@ -27,32 +27,20 @@ const GROUP_LABEL: Record<GroupByOption, string> = {
 
 // ─── Table Columns (Percentage Widths to Ensure Perfect Alignment) ─────────────
 const COLS = [
-  { key: "sno",        label: "SNo",        cls: "w-[3%] text-center" },
-  { key: "billDate",   label: "BillDate",   cls: "w-[12%] text-left" },
-  { key: "billNo",     label: "BillNo",     cls: "w-[6%] text-center" },
-  { key: "refNo",      label: "Ref No",     cls: "w-[6%] text-center" },
-  { key: "customer",   label: "Customer",   cls: "w-[20%] text-left" },
-  { key: "code",       label: "Code",       cls: "w-[6%] text-center" },
-  { key: "employee",   label: "Employee",   cls: "w-[8%] text-center" },
-  { key: "paymode",    label: "Paymode",    cls: "w-[7%] text-center" },
-  { key: "netValue",   label: "Net Value",  cls: "w-[8%] text-right" },
-  { key: "vatAmnt",    label: "Vat Amnt",   cls: "w-[7%] text-right" },
-  { key: "billsundry", label: "Billsundry", cls: "w-[5%] text-right" },
-  { key: "roundOff",   label: "RoundOff",   cls: "w-[4%] text-right" },
-  { key: "amount",     label: "Amount",     cls: "w-[8%] text-right" },
+  { key: "sno",        label: "SNo",               cls: "w-[3%] text-center" },
+  { key: "billDate",   label: "Bill Date & Time",  cls: "w-[14%] text-center" },
+  { key: "billNo",     label: "BillNo",            cls: "w-[6%] text-center" },
+  { key: "refNo",      label: "Ref No",            cls: "w-[6%] text-center" },
+  { key: "customer",   label: "Customer",          cls: "w-[18%] text-left" },
+  { key: "code",       label: "Code",              cls: "w-[6%] text-center" },
+  { key: "employee",   label: "Employee",          cls: "w-[8%] text-center" },
+  { key: "paymode",    label: "Paymode",           cls: "w-[7%] text-center" },
+  { key: "netValue",   label: "Net Value",         cls: "w-[8%] text-right" },
+  { key: "vatAmnt",    label: "Vat Amnt",          cls: "w-[7%] text-right" },
+  { key: "billsundry", label: "Billsundry",        cls: "w-[5%] text-right" },
+  { key: "roundOff",   label: "RoundOff",          cls: "w-[4%] text-right" },
+  { key: "amount",     label: "Amount",            cls: "w-[8%] text-right" },
 ];
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const dd   = String(d.getDate()).padStart(2, "0");
-  const mm   = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const hh   = String(d.getHours()).padStart(2, "0");
-  const min  = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
-};
 
 const SalesReportPage = () => {
   const navigate = useNavigate();
@@ -216,6 +204,10 @@ const SalesReportPage = () => {
   const cashTotal   = useMemo(() => report.salesData.filter(r =>  r.paymode?.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0), [report.salesData]);
   const creditTotal = useMemo(() => report.salesData.filter(r => r.paymode && !r.paymode.toLowerCase().includes("cash")).reduce((s, r) => s + Number(r.netAmount || 0), 0), [report.salesData]);
 
+  const generatedAt = useMemo(() => {
+    return formatReportTimestamp();
+  }, [report.salesData]);
+
   const previewData = useMemo(() => ({
     salesData: groupedSalesData,
     cashTotal,
@@ -224,7 +216,8 @@ const SalesReportPage = () => {
     filters,
     companyName: localStorage.getItem("companyName") || "FEKRA advertising",
     companyAddress: localStorage.getItem("companyAddress") || "NEAR NESTO BESIDE BIN RASHIED SOUQ MABELA BUILDING NO 211 SECOND FLOOR FLAT NO 21",
-  }), [groupedSalesData, cashTotal, creditTotal, grandTotals.netAmount, filters]);
+    generatedAt,
+  }), [groupedSalesData, cashTotal, creditTotal, grandTotals.netAmount, filters, generatedAt]);
 
   return (
     <PageShell title="Sales Report">
@@ -337,9 +330,14 @@ const SalesReportPage = () => {
 
           {/* Report Caption */}
           {!report.isLoading && groupedSalesData.length > 0 && (
-            <p className="text-center text-[11px] font-semibold text-[#49293e] py-1.5 border-b border-gray-100 shrink-0">
-              Sales Report from {filters.fromDate} To {filters.toDate}
-            </p>
+            <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 shrink-0 text-[11px] font-semibold text-[#49293e]">
+              <div className="flex-1 text-center">
+                Sales Report from {formatHeaderDate(filters.fromDate)} To {formatHeaderDate(filters.toDate)}
+              </div>
+              <div className="text-[10px] text-gray-500 font-normal shrink-0">
+                Report Generated: {generatedAt}
+              </div>
+            </div>
           )}
 
           {/* Scrollable Table body wrapper */}
@@ -384,8 +382,8 @@ const SalesReportPage = () => {
                       className={`hover:bg-[#49293e]/5 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}
                     >
                       <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{idx + 1}</td>
-                      <td className="px-2 py-1.5 text-left text-gray-800 border-r border-gray-100 tabular-nums whitespace-nowrap">
-                        {row.invoiceDate ? formatDate(row.invoiceDate) : ""}
+                      <td className="px-2 py-1.5 text-center text-gray-800 border-r border-gray-100 tabular-nums whitespace-nowrap">
+                        {formatTransactionDateTime(row)}
                       </td>
                       <td className="px-2 py-1.5 text-center font-mono text-gray-800 border-r border-gray-100">{row.invoiceNo}</td>
                       <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-100">{row.refNo || ""}</td>

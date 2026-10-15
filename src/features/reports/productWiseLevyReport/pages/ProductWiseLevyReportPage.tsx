@@ -25,9 +25,11 @@ export const ProductWiseLevyReportPage = () => {
 
   const selectedBranchName = useMemo(() => {
     if (filters.branchId === "0") return "All";
+    const list = Array.isArray(masterData.branches) ? masterData.branches : [];
     return (
-      masterData.branches.find((b) => String(b.branchId) === filters.branchId)?.branchName ||
-      filters.branchId
+      list.find((b) => String(b.branchId) === filters.branchId)?.branchName ||
+      filters.branchId ||
+      "All"
     );
   }, [filters.branchId, masterData.branches]);
 
@@ -38,12 +40,13 @@ export const ProductWiseLevyReportPage = () => {
     let sumVatAmount = 0;
     let sumNetAmount = 0;
 
-    report.rows.forEach((row) => {
-      sumNetValue += Number(row.netValue ?? 0);
-      sumServiceCharge += Number(row.serviceCharge ?? 0);
-      sumLevy += Number(row.levy ?? 0);
-      sumVatAmount += Number(row.vatAmount ?? 0);
-      sumNetAmount += Number(row.netAmount ?? 0);
+    const safeRows = Array.isArray(report.rows) ? report.rows : [];
+    safeRows.forEach((row) => {
+      sumNetValue += Number(row?.netValue ?? 0);
+      sumServiceCharge += Number(row?.serviceCharge ?? 0);
+      sumLevy += Number(row?.levy ?? 0);
+      sumVatAmount += Number(row?.vatAmount ?? 0);
+      sumNetAmount += Number(row?.netAmount ?? 0);
     });
 
     return {

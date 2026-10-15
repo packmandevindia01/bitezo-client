@@ -24,6 +24,11 @@ export interface SalesData {
   billsundry?: string | number;
   roundOff?: string | number;
   netAmount: string | number;
+  time?: string;
+  invoiceTime?: string;
+  transTime?: string;
+  transDate?: string;
+  createdAt?: string;
 }
 
 export interface PaymodeData {

@@ -300,13 +300,13 @@ const InternalStockTransferPage = () => {
               <FormInput required={true} autoFocus inputClassName="!h-8 !px-2 !text-xs" id="st-date" label="Date" type="date" max={formatDateOnly(new Date())} {...register("date")} onKeyDown={(e) => hk(e, "st-fromBranch")} readOnly={!canSave} error={errors.date?.message as string} />
               
               <Controller name="fromBranch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.fromBranch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-fromBranch" label="From Branch" placeholder="Select Branch" value={field.value} options={masterData.fromBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-toBranch")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.fromBranch?.message as string} />
               )} />
               <Controller name="toBranch" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-toBranch" label="To Branch" value={field.value} options={masterData.toBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-salesman")} disabled={!canSave || loadingMaster} error={errors.toBranch?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-toBranch" label="To Branch" placeholder="Select Branch" value={field.value} options={masterData.toBranches} onChange={field.onChange} onKeyDown={(e) => hk(e, "st-salesman")} disabled={!canSave || loadingMaster} error={errors.toBranch?.message as string} />
               )} />
               <Controller name="salesman" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-salesman" label="Salesman" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="st-salesman" label="Salesman" placeholder="Select Employee" value={field.value} options={masterData.employees} onChange={field.onChange} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
               )} />
             </div>
 
