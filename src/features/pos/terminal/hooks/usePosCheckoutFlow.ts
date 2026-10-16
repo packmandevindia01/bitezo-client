@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
+import { useAppDispatch } from '../../../../app/hooks';
+import { setIsSettling } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
@@ -9,6 +11,7 @@ import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getModifierTypeNameById } from '../../services/menuApi';
 import { alternativesCache } from '../hooks/usePosProducts';
+import { checkOrderHasBillDiscount } from '../utils/orderDiscountCheck';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -76,7 +79,9 @@ export const usePosCheckoutFlow = ({
   setChange,
   getRuntimePosConfig,
 }: UsePosCheckoutFlowProps) => {
+  const dispatch = useAppDispatch();
   const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
+  const isSettlingRef = useRef<boolean>(false);
   const settleShouldPrintRef = useRef<boolean>(false);
   const settlementCashChangeRef = useRef<number>(0);
 
@@ -145,7 +150,9 @@ export const usePosCheckoutFlow = ({
   });
 
   const submitSettlementForEmployee = useEvent(async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
-    if (!status) return;
+    if (!status || isSettlingRef.current) return;
+    isSettlingRef.current = true;
+    dispatch(setIsSettling(true));
     
     const orderPayload = getDirectSettleOrderPayload({
       employeeId,
@@ -230,7 +237,41 @@ export const usePosCheckoutFlow = ({
       if (editingSaleId) {
         success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
       } else {
-        const createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
+        let createRes: any = null;
+        try {
+          createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
+        } catch (initialErr: any) {
+          const errMsg = String(initialErr?.response?.data?.message || initialErr?.message || "").toLowerCase();
+          const isTicketConflict = errMsg.includes("ticket");
+
+          if (isTicketConflict && (!salesPayload.orderId || salesPayload.orderId === 0)) {
+            console.warn("[usePosCheckoutFlow] Direct settlement ticket collision on backend. Falling back to pre-order submission...");
+            try {
+              const preOrderId = await submitOrder({
+                dayId: status.dayId,
+                shiftId: status.shiftId,
+                userId: status.userId,
+                employeeId,
+                customerId: (activeProvider?.provider?.postAccountId && activeProvider.provider.postAccountId > 0) ? activeProvider.provider.postAccountId : undefined,
+                providerId: activeProvider?.provider?.providerId,
+                providerOrderNo: activeProvider?.orderNo,
+              }, false);
+
+              if (preOrderId && (typeof preOrderId === 'number' || typeof preOrderId === 'string') && Number(preOrderId) > 0) {
+                salesPayload.orderId = Number(preOrderId);
+                createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
+              } else {
+                throw initialErr;
+              }
+            } catch (fallbackErr) {
+              console.error("[usePosCheckoutFlow] Pre-order fallback also failed:", fallbackErr);
+              throw initialErr;
+            }
+          } else {
+            throw initialErr;
+          }
+        }
+
         if (typeof createRes === 'number') {
           newSaleId = createRes;
         } else if (createRes && typeof createRes === 'object') {
@@ -426,6 +467,12 @@ export const usePosCheckoutFlow = ({
           console.warn("Failed to fetch invoice metadata for print:", e);
         }
 
+        const isBillDisc = Boolean(
+          (cartDetails.length > 0 && cartDetails.some((it: any) => (it.billDiscountAmount && it.billDiscountAmount > 0))) ||
+          checkOrderHasBillDiscount({ master: masterData, details: detailsData }) ||
+          (detailsData && detailsData.length > 0 && Number(detailsData[0]?.discPer ?? 0) > 0 && detailsData.every((d: any) => Number(d.discPer ?? 0) === Number(detailsData[0]?.discPer ?? 0)))
+        );
+
         let mappedPrintItems = cartDetails;
         if (!isCombinedOrder && detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
           try {
@@ -565,7 +612,12 @@ export const usePosCheckoutFlow = ({
               });
 
               const qty = d.qty ?? d.Qty ?? cartMatch?.quantity ?? 1;
-              const price = d.price ?? d.Price ?? cartMatch?.price ?? 0;
+              const amount = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? 0;
+              const itemDisc = isBillDisc ? 0 : Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || cartMatch?.itemDiscount || 0);
+              const rawPrice = d.price ?? d.Price ?? cartMatch?.price;
+              const price = (rawPrice !== undefined && Number(rawPrice) > 0)
+                ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
+                : (cartMatch?.price ?? (qty > 0 ? (amount + itemDisc) / qty : 0));
               let lineBase = price * qty;
               extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
 
@@ -607,7 +659,7 @@ export const usePosCheckoutFlow = ({
                 extras,
                 modifiers,
                 messages,
-                itemDiscount: d.discAmount || cartMatch?.itemDiscount || 0,
+                itemDiscount: itemDisc,
                 lineTotal: lineTotal
               };
             });
@@ -735,7 +787,8 @@ export const usePosCheckoutFlow = ({
             isSettlement: true,
             printPrice: (localStorage.getItem("printPrice") as any) || undefined,
             priceView: (localStorage.getItem("priceView") as any) || undefined,
-            billArabic: isBillArabicEnabled()
+            billArabic: isBillArabicEnabled(),
+            isBillDiscount: isBillDisc
           }
         };
 
@@ -746,8 +799,15 @@ export const usePosCheckoutFlow = ({
       }
     } catch (err: any) {
       console.error("Settlement failed", err, err.response?.data);
-      const errorMsg = err.response?.data?.title || err.response?.data?.message || err.message || "Failed to save sales invoice";
+      const rawMsg = err.response?.data?.title || err.response?.data?.message || err.message || "Failed to save sales invoice";
+      const isTicketConflict = String(rawMsg).toLowerCase().includes("ticket");
+      const errorMsg = isTicketConflict
+        ? "Ticket number sequence conflict on server. Please tap Settle again."
+        : rawMsg;
       showToast(errorMsg, "error");
+    } finally {
+      isSettlingRef.current = false;
+      dispatch(setIsSettling(false));
     }
   });
 

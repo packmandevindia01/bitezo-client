@@ -20,6 +20,7 @@ import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts
 import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
 import { getModifierTypeNameById } from "../../../../services/menuApi";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
+import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -525,7 +526,11 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
         const qty = d.qty ?? d.Qty ?? 1;
         const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
-        const price = d.price ?? d.Price ?? (qty > 0 ? amount / qty : 0);
+        const itemDisc = Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0);
+        const rawPrice = d.price ?? d.Price;
+        const price = (rawPrice !== undefined && Number(rawPrice) > 0)
+          ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
+          : (qty > 0 ? (amount + itemDisc) / qty : 0);
 
         let lineBase = price * qty;
         extras.forEach((ex: any) => (lineBase += ex.price * ex.qty));
@@ -566,7 +571,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
       let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
       if (resolvedDiscount <= 0) {
-        const lineDiscounts = details.reduce((acc: number, d: any) => acc + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
+        const lineDiscounts = details.reduce((acc: number, d: any) => acc + Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0), 0);
         if (lineDiscounts > 0) resolvedDiscount = roundCalc(lineDiscounts);
       }
 
@@ -584,6 +589,22 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       ) {
         resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
+
+      const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? master.billDiscountPer ?? 0);
+      const isBillComplimentary = Boolean(
+        master.complimentaryStatus ||
+        master.ComplimentaryStatus ||
+        masterDiscPer === 100 ||
+        (details.length > 0 && details.every((d: any) =>
+          Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+        )) ||
+        (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
+      );
+      const isBillLevelDiscount =
+        isBillComplimentary ||
+        checkOrderHasBillDiscount({ master, details }) ||
+        masterDiscPer > 0 ||
+        (details.length > 0 && Number(details[0]?.discPer ?? 0) > 0 && details.every((d: any) => Number(d.discPer ?? 0) === Number(details[0]?.discPer ?? 0)));
 
       const mappedItems = preMapped.map((d: any) => {
         const pId = Number(d.productId || d.itemId || 0);
@@ -625,7 +646,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           },
           extras: d.extras,
           modifiers: d.modifiers,
-          itemDiscount: d.discAmount || 0,
+          itemDiscount: isBillLevelDiscount ? 0 : Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
           lineTotal: itemLineNet,
           vatAmount: itemVat,
         };
@@ -841,6 +862,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           mappedItems.some((it: any) =>
             Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
           ),
+        isBillDiscount: isBillLevelDiscount,
       };
 
       const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
@@ -960,8 +982,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   if (displayVatAmount <= 0 && detailsVatSum > 0) {
     displayVatAmount = detailsVatSum;
   }
+  const billingConfig = getBillingConfig(orderTypeName);
   if (enableVat && displayVatAmount <= 0 && netAmount > 0) {
-    const billingConfig = getBillingConfig(orderTypeName);
     const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.1;
     displayVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
   }
@@ -986,6 +1008,15 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     (enableVat && Math.abs(displaySubTotal - netAmount) < 0.001 && displayVatAmount > 0)
   ) {
     displaySubTotal = roundCalc(netTaxableBase + displayDiscount);
+  }
+
+  let isTaxInclusive = billingConfig?.vatType === "Inclusive";
+  if (enableVat && displayVatAmount > 0 && netAmount > 0 && displaySubTotal > 0) {
+    if (Math.abs((displaySubTotal - displayDiscount + displayVatAmount) - netAmount) < 0.05) {
+      isTaxInclusive = false;
+    } else if (Math.abs((displaySubTotal - displayDiscount) - netAmount) < 0.05) {
+      isTaxInclusive = true;
+    }
   }
 
   return (
@@ -1089,8 +1120,37 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             <div className="space-y-2.5">
               {details.map((detail: any, i: number) => {
                 const qty = detail.qty ?? detail.Qty ?? 1;
-                const amount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
-                const price = detail.price ?? detail.Price ?? (qty > 0 ? amount / qty : 0);
+                const rawAmount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
+                const modalResolvedDiscount = Number(master?.discAmount ?? master?.DiscAmount ?? master?.discount ?? 0);
+                const masterDiscPer = Number(master?.discPer ?? master?.DiscPer ?? master?.billDiscountPer ?? 0);
+                const isBillComplimentary = Boolean(
+                  master?.complimentaryStatus ||
+                  master?.ComplimentaryStatus ||
+                  masterDiscPer === 100 ||
+                  (details.length > 0 && details.every((d: any) =>
+                    Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+                  )) ||
+                  (netAmount === 0 && modalResolvedDiscount > 0 && details.length > 0)
+                );
+                const isModalBillDiscount =
+                  isBillComplimentary ||
+                  checkOrderHasBillDiscount({ master, details }) ||
+                  masterDiscPer > 0 ||
+                  (details.length > 0 && Number(details[0]?.discPer ?? 0) > 0 && details.every((d: any) => Number(d.discPer ?? 0) === Number(details[0]?.discPer ?? 0)));
+
+                const itemDisc = isModalBillDiscount ? 0 : Number(detail.discAmount || detail.DiscAmount || detail.discount || detail.itemDiscount || 0);
+                const rawPrice = detail.price ?? detail.Price;
+                const price = (rawPrice !== undefined && Number(rawPrice) > 0)
+                  ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - rawAmount) < 0.001 && qty > 0 ? (rawAmount + itemDisc) / qty : Number(rawPrice))
+                  : (qty > 0 ? (rawAmount + itemDisc) / qty : 0);
+                const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
+                const lineAmount = isModalBillDiscount
+                  ? (price * qty)
+                  : (isTaxInclusive
+                      ? rawAmount
+                      : (itemVat > 0 && rawAmount > itemVat
+                          ? (rawAmount - itemVat)
+                          : Math.max(0, (price * qty) - itemDisc)));
                 const localizedItem = getLocalizedName(detail.productName || detail.ProductName, detail.productArabic || detail.arabicName);
 
                 const itemMods = (order?.modifiersData || []).filter((m: any) => m.mapId === detail.mapId);
@@ -1103,9 +1163,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                         {localizedItem.secondary && (
                           <div className="text-[9px] text-stone-500 font-medium">{localizedItem.secondary}</div>
                         )}
+                        {itemDisc > 0 && (
+                          <div className="text-[9px] text-red-600 font-medium italic">
+                            (Disc: -{formatAmount(itemDisc)})
+                          </div>
+                        )}
                       </div>
                       <div className="text-right text-stone-500">{formatAmount(price)}</div>
-                      <div className="text-right font-bold text-stone-900">{formatAmount(amount)}</div>
+                      <div className="text-right font-bold text-stone-900">{formatAmount(lineAmount)}</div>
                     </div>
                     {itemMods.map((mod: any, mIdx: number) => {
                       const typeName = mod.typeName || mod.modifierTypeName || getModifierTypeNameById(mod.typeId) || "";

@@ -15,6 +15,7 @@ export interface BranchLineDto {
 export interface BranchRequestBody {
   branchId?: number;
   branchName: string;
+  registeredBranchId: number;
   isActive: boolean | string;
   createdAt?: string;
   updatedAt?: string;
@@ -103,13 +104,17 @@ export const buildRequestBody = (payload: BranchPayload, branchId?: number): Bra
   const effectiveBranchId = typeof branchId === "number" && branchId > 0 ? branchId : payload.branchId;
   const isUpdate = typeof branchId === "number" && branchId > 0;
 
+  // When inactive or set to inactive, registeredBranchId must be 0
+  const effectiveRegisteredBranchId = !payload.isActive
+    ? 0
+    : Number(payload.registeredBranchId || 0);
+
   return {
     ...(isUpdate
       ? { branchId: effectiveBranchId, updatedAt: new Date().toISOString() }
-      : effectiveBranchId
-      ? { branchId: effectiveBranchId, createdAt: new Date().toISOString() }
       : { createdAt: new Date().toISOString() }),
     branchName: payload.branchName,
+    registeredBranchId: effectiveRegisteredBranchId,
     isActive: payload.isActive,
     printDesigns,
     lines: formattedLines,
@@ -156,6 +161,13 @@ export const mapResponseToBranch = (branchId: number, b: any): BranchRecord => {
   // Support both nested structure { branchData, printDesigns } and legacy flat structure
   const branchInfo = b.branchData || b.data?.branchData || b.data || b || {};
   const branchName = String(branchInfo.branchName || b.branchName || "");
+  const registeredBranchId = Number(
+    branchInfo.registeredBranchId ??
+    branchInfo.RegisteredBranchId ??
+    b.registeredBranchId ??
+    b.RegisteredBranchId ??
+    0
+  );
   const rawActive = branchInfo.isActive ?? b.isActive;
   const isActive = typeof rawActive === "boolean"
     ? rawActive
@@ -284,6 +296,7 @@ export const mapResponseToBranch = (branchId: number, b: any): BranchRecord => {
   return {
     id: branchId || Number(branchInfo.branchId || 0),
     branchName,
+    registeredBranchId,
     isActive,
     lines,
     detailsLoaded: true,

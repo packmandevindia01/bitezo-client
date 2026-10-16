@@ -70,6 +70,7 @@ const ExtrasMasterPage = () => {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const form = useForm<ExtrasMasterFormType>({
+    mode: "onChange",
     resolver: zodResolver(extrasMasterFormSchema) as any,
     defaultValues: {
       name: "",

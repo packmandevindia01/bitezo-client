@@ -13,10 +13,11 @@ import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, getBillingConfig, roundCalc, getPriceView } from "../../../utils/billing";
+import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
+import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
@@ -639,7 +640,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         
         const qty = d.qty ?? d.Qty ?? 1;
         const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
-        const price = d.price ?? d.Price ?? (qty > 0 ? amount / qty : 0);
+        const itemDisc = Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0);
+        const rawPrice = d.price ?? d.Price;
+        const price = (rawPrice !== undefined && Number(rawPrice) > 0)
+          ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
+          : (qty > 0 ? (amount + itemDisc) / qty : 0);
 
         let lineBase = price * qty;
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
@@ -693,6 +698,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
 
+      const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? master.billDiscountPer ?? 0);
+      const isBillComplimentary = Boolean(
+        master.complimentaryStatus ||
+        master.ComplimentaryStatus ||
+        masterDiscPer === 100 ||
+        (details.length > 0 && details.every((d: any) =>
+          Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+        )) ||
+        (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
+      );
+      const isGuestPrintBillDiscount =
+        isBillComplimentary ||
+        checkOrderHasBillDiscount({ master, details }) ||
+        masterDiscPer > 0 ||
+        (details.length > 0 && Number(details[0]?.discPer ?? 0) > 0 && details.every((d: any) => Number(d.discPer ?? 0) === Number(details[0]?.discPer ?? 0)));
+
       const mappedItems = preMapped.map((d: any) => {
         const pId = d.productId || d.itemId || 0;
         let itemVat = d.itemVat;
@@ -733,7 +754,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           extras: d.extras,
           modifiers: d.modifiers,
           messages: d.messages || [],
-          itemDiscount: d.discAmount || 0,
+          itemDiscount: isGuestPrintBillDiscount ? 0 : Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
           lineTotal: itemLineNet,
           vatAmount: itemVat
         };
@@ -910,7 +931,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         priceView: (localStorage.getItem("priceView") as any) || undefined,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
           Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
-        )
+        ),
+        isBillDiscount: isGuestPrintBillDiscount
       };
 
       let htmlContent = "";
@@ -970,9 +992,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     try {
       const master = order.masterData || order;
       const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
-
-      const priceView = getPriceView();
-      const isIncl = priceView === 'Inclusive';
 
       const orderTypeName =
         master.orderType ||
@@ -1051,19 +1070,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         ? resolvedDiscount
         : 0;
 
-      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
-      }
-
-      const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
-        products,
-        productCache,
-        priceView,
-        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
-        isOrderBillDiscount: isBillLevelDiscount,
-      });
-
       const serviceCharge = Number(master.serviceCharge || 0);
       const levy = Number(master.levyAmt || master.levy || 0);
       const deliveryCharge = Number(master.deliveryCharge || 0);
@@ -1072,6 +1078,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
         resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
+
+      let isOrderTaxInclusive = billingConfig?.vatType === "Inclusive";
+      if (enableVat && resolvedVatAmount > 0 && netAmount > 0 && resolvedSubTotal > 0) {
+        if (Math.abs((resolvedSubTotal - resolvedDiscount + resolvedVatAmount) - netAmount) < 0.05) {
+          isOrderTaxInclusive = false;
+        } else if (Math.abs((resolvedSubTotal - resolvedDiscount) - netAmount) < 0.05) {
+          isOrderTaxInclusive = true;
+        }
+      }
+      const isIncl = isOrderTaxInclusive;
+      const effectivePriceView: "Inclusive" | "Exclusive" = isOrderTaxInclusive ? "Inclusive" : "Exclusive";
+
+      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
+      }
+
+      const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
+        products,
+        productCache,
+        priceView: effectivePriceView,
+        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
+        isOrderBillDiscount: isBillLevelDiscount,
+      });
 
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
@@ -1140,9 +1170,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const master = order.masterData || order;
       const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
 
-      const priceView = getPriceView();
-      const isIncl = priceView === 'Inclusive';
-
       const orderTypeName =
         master.orderType ||
         master.orderTypeName ||
@@ -1220,19 +1247,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         ? resolvedDiscount
         : 0;
 
-      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
-      }
-
-      const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
-        products,
-        productCache,
-        priceView,
-        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
-        isOrderBillDiscount: isBillLevelDiscount,
-      });
-
       const serviceCharge = Number(master.serviceCharge || 0);
       const levy = Number(master.levyAmt || master.levy || 0);
       const deliveryCharge = Number(master.deliveryCharge || 0);
@@ -1241,6 +1255,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
         resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
+
+      let isOrderTaxInclusive = billingConfig?.vatType === "Inclusive";
+      if (enableVat && resolvedVatAmount > 0 && netAmount > 0 && resolvedSubTotal > 0) {
+        if (Math.abs((resolvedSubTotal - resolvedDiscount + resolvedVatAmount) - netAmount) < 0.05) {
+          isOrderTaxInclusive = false;
+        } else if (Math.abs((resolvedSubTotal - resolvedDiscount) - netAmount) < 0.05) {
+          isOrderTaxInclusive = true;
+        }
+      }
+      const isIncl = isOrderTaxInclusive;
+      const effectivePriceView: "Inclusive" | "Exclusive" = isOrderTaxInclusive ? "Inclusive" : "Exclusive";
+
+      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
+        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
+      }
+
+      const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
+        products,
+        productCache,
+        priceView: effectivePriceView,
+        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
+        isOrderBillDiscount: isBillLevelDiscount,
+      });
 
       dispatch(loadRecalledOrder({
         editingOrderId: orderId,
@@ -1415,8 +1453,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   if (displayVatAmount <= 0 && detailsVatSum > 0) {
     displayVatAmount = detailsVatSum;
   }
+  const billingConfig = getBillingConfig(orderTypeName);
   if (enableVat && displayVatAmount <= 0 && netAmount > 0) {
-    const billingConfig = getBillingConfig(orderTypeName);
     const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
     displayVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
   }
@@ -1434,6 +1472,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   let displaySubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
   if (displaySubTotal <= 0 || (enableVat && Math.abs(displaySubTotal - netAmount) < 0.001 && displayVatAmount > 0)) {
     displaySubTotal = roundCalc(netTaxableBase + displayDiscount);
+  }
+
+  let isTaxInclusive = billingConfig?.vatType === "Inclusive";
+  if (enableVat && displayVatAmount > 0 && netAmount > 0 && displaySubTotal > 0) {
+    if (Math.abs((displaySubTotal - displayDiscount + displayVatAmount) - netAmount) < 0.05) {
+      isTaxInclusive = false;
+    } else if (Math.abs((displaySubTotal - displayDiscount) - netAmount) < 0.05) {
+      isTaxInclusive = true;
+    }
   }
 
   const hasDelivery = !!master.mobileNo || !!master.contactNo || !!master.deliveryCustomerName;
@@ -1547,10 +1594,44 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                     const dMapId = detail.mapId ?? detail.MapId ?? detail.mapID;
                     const itemModifiers = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
                     const localized = getLocalizedName(detail.productName || `Product #${detail.productId}`, detail.productNameAr || detail.arabicName);
+                    const qty = detail.qty ?? detail.Qty ?? 1;
+                    const rawAmount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
+                    const modalResolvedDiscount = Number(master?.discAmount ?? master?.DiscAmount ?? master?.discount ?? 0);
+                    const masterDiscPer = Number(master?.discPer ?? master?.DiscPer ?? master?.billDiscountPer ?? 0);
+                    const isBillComplimentary = Boolean(
+                      master?.complimentaryStatus ||
+                      master?.ComplimentaryStatus ||
+                      masterDiscPer === 100 ||
+                      (details.length > 0 && details.every((d: any) =>
+                        Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+                      )) ||
+                      (netAmount === 0 && modalResolvedDiscount > 0 && details.length > 0)
+                    );
+                    const isModalBillDiscount =
+                      isBillComplimentary ||
+                      checkOrderHasBillDiscount({ master, details }) ||
+                      masterDiscPer > 0 ||
+                      (details.length > 0 && Number(details[0]?.discPer ?? 0) > 0 && details.every((d: any) => Number(d.discPer ?? 0) === Number(details[0]?.discPer ?? 0)));
+
+                    const itemDisc = isModalBillDiscount ? 0 : Number(detail.discAmount || detail.DiscAmount || detail.discount || detail.itemDiscount || 0);
+                    const rawPrice = detail.price ?? detail.Price;
+                    const price = (rawPrice !== undefined && Number(rawPrice) > 0)
+                      ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - rawAmount) < 0.001 && qty > 0 ? (rawAmount + itemDisc) / qty : Number(rawPrice))
+                      : (qty > 0 ? (rawAmount + itemDisc) / qty : 0);
+
+                    const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
+                    const lineAmount = isModalBillDiscount
+                      ? (price * qty)
+                      : (isTaxInclusive
+                          ? rawAmount
+                          : (itemVat > 0 && rawAmount > itemVat
+                              ? (rawAmount - itemVat)
+                              : Math.max(0, (price * qty) - itemDisc)));
+
                     return (
                       <div key={i} className="flex flex-col">
                         <div className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
-                          <div className="font-bold text-stone-500">{detail.qty}</div>
+                          <div className="font-bold text-stone-500">{qty}</div>
                           <div className="pl-2 flex flex-col font-bold text-stone-800">
                             <span>
                               {localized.primary}
@@ -1561,12 +1642,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                             {localized.secondary && (
                               <span className="text-[10px] text-stone-500 font-semibold">{localized.secondary}</span>
                             )}
-                            {detail.price > 0 && (
-                              <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(detail.price)}</span>
+                            {price > 0 && (
+                              <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(price)}</span>
+                            )}
+                            {itemDisc > 0 && (
+                              <span className="text-[9px] text-red-600 font-medium italic">
+                                (Disc: -{formatAmount(itemDisc)})
+                              </span>
                             )}
                           </div>
                           <div className="text-right font-bold text-stone-900">
-                            {formatAmount(detail.amount ?? detail.netAmount ?? (detail.price * detail.qty))}
+                            {formatAmount(lineAmount)}
                           </div>
                         </div>
                         

@@ -184,7 +184,13 @@ export const mapOrderDetailToCartItem = ({
   let restoredPrice = rawPrice;
   let itemIsIncl = resolvedPriceView === "Inclusive";
 
-  if (activeVatFraction > 0) {
+  if (resolvedPriceView === "Exclusive") {
+    // ── Explicit Tax-Exclusive Mode ──
+    restoredPrice = (catalogPrice !== undefined && (Math.abs(catalogPrice - rawPrice) < 0.05 || catalogPrice > 0))
+      ? catalogPrice
+      : (rawPrice > 0 ? rawPrice : (catalogPrice ?? 0));
+    itemIsIncl = false;
+  } else if (activeVatFraction > 0) {
     const candidateGross = roundCalc(rawPrice * (1 + activeVatFraction), 4);
     const candidateGrossRounded =
       Math.abs(candidateGross - Math.round(candidateGross)) < 0.002
@@ -204,13 +210,13 @@ export const mapOrderDetailToCartItem = ({
       itemIsIncl = true;
     }
     // 2. Catalog price matches rawPrice directly (item was already catalog price)
-    else if (catalogPrice !== undefined && Math.abs(catalogPrice - rawPrice) < 0.02 && !isKnownExclusive) {
+    else if (catalogPrice !== undefined && Math.abs(catalogPrice - rawPrice) < 0.02) {
       restoredPrice = catalogPrice;
-      itemIsIncl = isStoredTaxInclusive || resolvedPriceView === "Inclusive" || realProduct.isIncl === true;
+      itemIsIncl = isStoredTaxInclusive || (isStoredTaxExclusive ? false : (resolvedPriceView === "Inclusive" || realProduct.isIncl === true));
     }
     // 3. Stored row is known to be tax-exclusive base (from orderPayloadMapper or complimentary)
     else if (isKnownExclusive) {
-      if (rawNetAmt > 0 && qty > 0 && (rawNetAmt + rawDiscAmount) > lineBase + 0.001) {
+      if (rawNetAmt > 0 && qty > 0 && (rawNetAmt + rawDiscAmount) > lineBase + 0.001 && catalogPrice === undefined) {
         restoredPrice = roundCalc((rawNetAmt + rawDiscAmount) / qty, 3);
       } else {
         restoredPrice = candidateGrossRounded;

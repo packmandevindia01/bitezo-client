@@ -18,6 +18,7 @@ export const ExtrasTypeQuickAddModal = ({ isOpen, onClose, onSuccess }: Props) =
   const { showToast } = useToast();
   const createMutation = useCreateExtrasType();
   const form = useForm<ExtrasTypeFormType>({
+    mode: "onChange",
     resolver: zodResolver(extrasTypeFormSchema) as any,
     defaultValues: { name: '', arabicName: '' },
   });

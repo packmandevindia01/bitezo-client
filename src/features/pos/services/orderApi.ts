@@ -16,35 +16,54 @@ export const orderApi = {
    * Submits a new order to the kitchen/system.
    * POST /api/menu/order
    */
-  submitOrder: async (order: MenuOrderRequest): Promise<MenuOrderResponse> => {
-    const payload = { ...order };
-    if (payload.voucherDate) {
-      payload.voucherDate = payload.voucherDate.includes("T")
-        ? payload.voucherDate.split("T")[0]
-        : payload.voucherDate;
-    } else {
-      payload.voucherDate = new Date().toISOString().split("T")[0];
+  submitOrder: async (order: MenuOrderRequest, maxRetries = 3): Promise<MenuOrderResponse> => {
+    let lastError: any = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const payload = { ...order };
+        if (payload.voucherDate) {
+          payload.voucherDate = payload.voucherDate.includes("T")
+            ? payload.voucherDate.split("T")[0]
+            : payload.voucherDate;
+        } else {
+          payload.voucherDate = new Date().toISOString().split("T")[0];
+        }
+
+        payload.createdAt = new Date().toISOString();
+
+        // Remove fields not in CreateKotOrderDto
+        delete (payload as any).orderId;
+        delete (payload as any).driverId;
+        delete (payload as any).transDate;
+        delete (payload as any).updatedAt;
+        delete (payload as any).prevUpdatedAt;
+        delete (payload as any).voidProducts;
+        delete (payload as any).voidModifiers;
+        delete (payload as any).combinedOrderIds;
+
+        return await unwrap<MenuOrderResponse>(
+          axiosInstance.post("/menu/order", payload)
+        );
+      } catch (e: any) {
+        lastError = e;
+        const status = e?.response?.status;
+        const rawMsg = String(e?.response?.data?.message || e?.response?.data?.title || e?.message || "");
+        const isTicketConflict = (status === 409 || rawMsg.toLowerCase().includes("ticket")) &&
+          (rawMsg.toLowerCase().includes("ticket") || rawMsg.toLowerCase().includes("exists") || rawMsg.toLowerCase().includes("try again"));
+
+        if (isTicketConflict && attempt < maxRetries) {
+          const delay = (attempt + 1) * 250;
+          console.warn(`[orderApi] Server returned: "${rawMsg}". Retrying order submission (attempt ${attempt + 1}/${maxRetries}) in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        throw e;
+      }
     }
 
-    if (!payload.createdAt) {
-      payload.createdAt = new Date().toISOString();
-    } else if (!payload.createdAt.includes("T")) {
-      payload.createdAt = new Date(payload.createdAt).toISOString();
-    }
-
-    // Remove fields not in CreateKotOrderDto
-    delete (payload as any).orderId;
-    delete (payload as any).driverId;
-    delete (payload as any).transDate;
-    delete (payload as any).updatedAt;
-    delete (payload as any).prevUpdatedAt;
-    delete (payload as any).voidProducts;
-    delete (payload as any).voidModifiers;
-    delete (payload as any).combinedOrderIds;
-
-    return unwrap<MenuOrderResponse>(
-      axiosInstance.post("/menu/order", payload)
-    );
+    throw lastError;
   },
 
   /**

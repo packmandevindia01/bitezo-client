@@ -26,10 +26,9 @@ const BranchFormPage = () => {
         try {
           const [branches, registered] = await Promise.all([
             fetchBranches().catch(() => []),
-            fetchRegisteredBranches().catch(() => []),
+            fetchRegisteredBranches(0).catch(() => []),
           ]);
-          const maxAllowed = 1 + registered.length;
-          if (branches.length >= maxAllowed) {
+          if (registered.length === 0 && branches.length > 0) {
             showToast("Maximum branch limit reached. All registered branches have been created.", "warning");
             navigate("/dashboard/branches", { replace: true });
             return;
@@ -68,10 +67,9 @@ const BranchFormPage = () => {
       } else {
         const [branches, registered] = await Promise.all([
           fetchBranches().catch(() => []),
-          fetchRegisteredBranches().catch(() => []),
+          fetchRegisteredBranches(0).catch(() => []),
         ]);
-        const maxAllowed = 1 + registered.length;
-        if (branches.length >= maxAllowed) {
+        if (registered.length === 0 && branches.length > 0) {
           showToast("Maximum branch limit reached. All registered branches have been created.", "error");
           navigate("/dashboard/branches");
           return;
@@ -118,6 +116,7 @@ const BranchFormPage = () => {
         }
       }
 
+      queryClient.invalidateQueries({ queryKey: ["registeredBranches"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
@@ -159,11 +158,16 @@ const BranchFormPage = () => {
   };
 
   const handleDelete = async () => {
-     if (!id) return;
-     try {
-       await deleteBranch(Number(id));
+    if (!id) return;
+    if (Number(id) === 2 || initialData?.id === 2 || String(initialData?.branchName || "").trim().toLowerCase() === "main") {
+      showToast("Main branch cannot be deleted", "warning");
+      return;
+    }
+    try {
+      await deleteBranch(Number(id), initialData?.registeredBranchId || 0);
        showToast("Branch deleted successfully", "success");
 
+       queryClient.invalidateQueries({ queryKey: ["registeredBranches"], refetchType: "all" });
        queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
        queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
        queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });

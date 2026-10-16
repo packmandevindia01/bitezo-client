@@ -242,7 +242,11 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         
         const qty = d.qty ?? d.Qty ?? 1;
         const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
-        const price = d.price ?? d.Price ?? (qty > 0 ? amount / qty : 0);
+        const itemDisc = Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0);
+        const rawPrice = d.price ?? d.Price;
+        const price = (rawPrice !== undefined && Number(rawPrice) > 0)
+          ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
+          : (qty > 0 ? (amount + itemDisc) / qty : 0);
 
         let lineBase = price * qty;
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
@@ -338,7 +342,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           extras: d.extras,
           modifiers: d.modifiers,
           messages: d.messages || [],
-          itemDiscount: d.discAmount || 0,
+          itemDiscount: Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
           lineTotal: itemLineNet,
           vatAmount: itemVat
         };

@@ -150,12 +150,6 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
             {formatAmount(item.lineTotal || 0)}
           </p>
         )}
-        {/* Bill discount indicator — shows the discount is applied even though column shows full price */}
-        {item.billDiscountAmount && item.billDiscountAmount > 0 ? (
-          <span className="mt-0.5 text-[8px] font-bold text-[#f37021] leading-none">
-            -{formatAmount(item.billDiscountAmount)}
-          </span>
-        ) : null}
       </div>
     </div>
   );

@@ -21,13 +21,13 @@ export const useBranchManager = () => {
   const [deleting, setDeleting] = useState(false);
 
   const { data: registeredBranches = [], isLoading: registeredLoading } = useQuery({
-    queryKey: ["registeredBranches"],
-    queryFn: fetchRegisteredBranches,
+    queryKey: ["registeredBranches", 0],
+    queryFn: () => fetchRegisteredBranches(0),
   });
 
-  const maxAllowedBranches = 1 + registeredBranches.length;
-  const canCreateMore = !loading && !registeredLoading && branches.length < maxAllowedBranches;
-  const remainingRegisteredBranchesCount = Math.max(0, maxAllowedBranches - branches.length);
+  const maxAllowedBranches = branches.length + registeredBranches.length;
+  const canCreateMore = !loading && !registeredLoading && (registeredBranches.length > 0 || branches.length === 0);
+  const remainingRegisteredBranchesCount = registeredBranches.length;
 
   useEffect(() => {
     let active = true;
@@ -109,6 +109,7 @@ export const useBranchManager = () => {
     }
 
     // Invalidate and refetch all branch caches (both active and inactive)
+    queryClient.invalidateQueries({ queryKey: ["registeredBranches"], refetchType: "all" });
     queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
     queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
     queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });
@@ -148,12 +149,18 @@ export const useBranchManager = () => {
 
   const handleDelete = async () => {
     if (!deleteCandidate) return;
+    if (deleteCandidate.id === 2 || String(deleteCandidate.branchName || "").trim().toLowerCase() === "main") {
+      showToast("Main branch cannot be deleted", "warning");
+      setDeleteCandidate(null);
+      return;
+    }
     try {
       setDeleting(true);
-      await deleteBranch(deleteCandidate.id);
+      await deleteBranch(deleteCandidate.id, deleteCandidate.registeredBranchId || 0);
       setBranches((prev) => prev.filter((item) => item.id !== deleteCandidate.id));
       showToast("Branch deleted successfully", "success");
 
+      queryClient.invalidateQueries({ queryKey: ["registeredBranches"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["allBranchesList"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["branchNames"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["branches"], refetchType: "all" });

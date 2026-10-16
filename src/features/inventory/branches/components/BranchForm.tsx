@@ -45,16 +45,33 @@ const BranchForm = ({
   const { showToast } = useToast();
   const saveBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const [selectedRegisteredId, setSelectedRegisteredId] = useState<number | null>(null);
+  const [selectedRegisteredId, setSelectedRegisteredId] = useState<number | null>(
+    initialData ? (!initialData.isActive ? 0 : (initialData.registeredBranchId ?? 0)) : null
+  );
   const [branchName, setBranchName] = useState(initialData?.branchName ?? "");
   const [branchNameError, setBranchNameError] = useState("");
+  const [registeredBranchError, setRegisteredBranchError] = useState("");
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (initialData) {
+      setBranchName(initialData.branchName ?? "");
+      setIsActive(initialData.isActive ?? true);
+      setSelectedRegisteredId(
+        initialData.isActive === false ? 0 : (initialData.registeredBranchId ?? 0)
+      );
+      setBranchNameError("");
+      setRegisteredBranchError("");
+    }
+  }, [initialData]);
+
+  const effectiveBranchId = (initialData as any)?.id || (initialData as any)?.branchId || 0;
+  const isMainBranch = (initialData as any)?.id === 2 || (initialData as any)?.branchId === 2 || String(initialData?.branchName || "").trim().toLowerCase() === "main";
+
   const { data: registeredBranches = [], isLoading: loadingRegistered } = useQuery({
-    queryKey: ["registeredBranches"],
-    queryFn: fetchRegisteredBranches,
-    enabled: isCreateMode,
+    queryKey: ["registeredBranches", effectiveBranchId],
+    queryFn: () => fetchRegisteredBranches(effectiveBranchId),
   });
 
   const [activeTab, setActiveTab] = useState<"kot" | "end">("kot");
@@ -105,6 +122,16 @@ const BranchForm = ({
   };
 
   const handleSubmit = async () => {
+    if (isActive && (!selectedRegisteredId || Number(selectedRegisteredId) === 0)) {
+      setRegisteredBranchError("Registered Branch is required when status is active");
+      showToast("Please assign a Registered Branch when status is active", "error");
+      setTimeout(() => {
+        const el = document.getElementById("registered-branch-select");
+        el?.focus();
+      }, 50);
+      return;
+    }
+
     if (!branchName.trim()) {
       setBranchNameError("Branch Master is required");
       showToast("Branch Master is required", "error");
@@ -119,9 +146,11 @@ const BranchForm = ({
     setSubmitting(true);
 
     try {
+      const finalRegisteredId = !isActive ? 0 : Number(selectedRegisteredId || 0);
       const payload: BranchPayload = {
-        branchId: selectedRegisteredId || undefined,
+        branchId: (initialData as any)?.id ?? (initialData as any)?.branchId,
         branchName: branchName.trim(),
+        registeredBranchId: finalRegisteredId,
         lines: allLines.map((line) => ({ ...line })),
         isActive,
       };
@@ -148,6 +177,7 @@ const BranchForm = ({
     setSelectedRegisteredId(null);
     setBranchName("");
     setBranchNameError("");
+    setRegisteredBranchError("");
     setIsActive(true);
     resetLines();
     if (onClear) onClear();
@@ -192,15 +222,20 @@ const BranchForm = ({
               <BranchBasicInfo
                 value={branchName}
                 error={branchNameError}
+                registeredError={registeredBranchError}
                 disabled={submitting}
                 isCreateMode={isCreateMode}
+                isActive={isActive}
                 registeredBranches={registeredBranches}
                 selectedRegisteredId={selectedRegisteredId}
                 loadingRegistered={loadingRegistered}
                 onSelectRegisteredBranch={(rb) => {
                   setSelectedRegisteredId(rb.branchId);
-                  setBranchName(rb.name);
-                  setBranchNameError("");
+                  setRegisteredBranchError("");
+                  if (rb.name && (!branchName.trim() || isCreateMode)) {
+                    setBranchName(rb.name);
+                    setBranchNameError("");
+                  }
                   setTimeout(() => {
                     const el = document.getElementById("branch-name");
                     el?.focus();
@@ -346,7 +381,14 @@ const BranchForm = ({
                 id="branch-active"
                 label="Active"
                 checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsActive(checked);
+                  if (!checked) {
+                    setSelectedRegisteredId(0);
+                    setRegisteredBranchError("");
+                  }
+                }}
                 disabled={submitting}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -383,7 +425,8 @@ const BranchForm = ({
                 <Button 
                   variant="danger" 
                   onClick={onDelete} 
-                  disabled={submitting}
+                  disabled={submitting || isMainBranch}
+                  title={isMainBranch ? "Main branch cannot be deleted" : "Delete Branch"}
                   isAction
                   icon={<Trash2 size={18} />}
                 >

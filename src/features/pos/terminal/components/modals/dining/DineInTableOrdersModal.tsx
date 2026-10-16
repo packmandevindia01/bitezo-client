@@ -615,7 +615,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
             baseAmount,
             vatAmount: itemVat,
             lineTotal: itemLineNet,
-            itemDiscount: item.discountValue || item.discAmount || 0,
+            itemDiscount: Number(item.discountValue || item.discAmount || item.DiscAmount || item.itemDiscount || 0),
             product: { ...item.product, price: item.price },
           };
         });
@@ -1001,7 +1001,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           baseAmount,
           vatAmount: itemVat,
           lineTotal: itemLineNet,
-          itemDiscount: item.discountValue || item.discAmount || 0,
+          itemDiscount: Number(item.discountValue || item.discAmount || item.DiscAmount || item.itemDiscount || 0),
           product: { ...item.product, price: item.price },
         };
       });

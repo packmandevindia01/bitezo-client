@@ -85,45 +85,71 @@ export interface SalesInvoicePayload {
 }
 
 export const salesInvoiceApi = {
-  createSalesInvoice: async (payload: SalesInvoicePayload): Promise<any> => {
-    try {
-      const postPayload: any = { ...payload };
-      delete postPayload.saleId;
-      delete postPayload.updateAt;
-      delete postPayload.updatedAt;
+  createSalesInvoice: async (payload: SalesInvoicePayload, maxRetries = 3): Promise<any> => {
+    let lastError: any = null;
 
-      // Ensure voucherDate is strictly Date-Only (YYYY-MM-DD)
-      if (postPayload.voucherDate) {
-        postPayload.voucherDate = postPayload.voucherDate.includes("T")
-          ? postPayload.voucherDate.split("T")[0]
-          : postPayload.voucherDate;
-      } else {
-        postPayload.voucherDate = new Date().toISOString().split("T")[0];
-      }
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const postPayload: any = { ...payload };
+        delete postPayload.saleId;
+        delete postPayload.updateAt;
+        delete postPayload.updatedAt;
 
-      if (!postPayload.createdAt) {
-        postPayload.createdAt = new Date().toISOString();
-      }
-      if (!postPayload.transDate || postPayload.transDate.includes("T00:00:00") || !postPayload.transDate.includes("T")) {
-        const now = new Date();
-        const datePart = (postPayload.transDate || "").split("T")[0];
-        if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-          const [year, month, day] = datePart.split("-").map(Number);
-          const combined = new Date();
-          combined.setFullYear(year, month - 1, day);
-          postPayload.transDate = combined.toISOString();
-        } else {
-          postPayload.transDate = now.toISOString();
+        // Clean up fields not present in CreateSalesInvoiceDto
+        delete postPayload.callBack;
+        delete postPayload.complimentaryStatus;
+        if (postPayload.orderMaster) {
+          delete postPayload.orderMaster.complimentaryStatus;
+          delete postPayload.orderMaster.callBack;
         }
-      }
 
-      const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));
-      notifyTransactionsUpdated("sale");
-      return data ?? null;
-    } catch (e: any) {
-      console.error("Sales invoice creation failed:", e);
-      throw e;
+        // Ensure voucherDate is strictly Date-Only (YYYY-MM-DD)
+        if (postPayload.voucherDate) {
+          postPayload.voucherDate = postPayload.voucherDate.includes("T")
+            ? postPayload.voucherDate.split("T")[0]
+            : postPayload.voucherDate;
+        } else {
+          postPayload.voucherDate = new Date().toISOString().split("T")[0];
+        }
+
+        const now = new Date();
+        postPayload.createdAt = now.toISOString();
+
+        if (!postPayload.transDate || postPayload.transDate.includes("T00:00:00") || !postPayload.transDate.includes("T") || attempt > 0) {
+          const datePart = (postPayload.transDate || "").split("T")[0];
+          if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+            const [year, month, day] = datePart.split("-").map(Number);
+            const combined = new Date();
+            combined.setFullYear(year, month - 1, day);
+            postPayload.transDate = combined.toISOString();
+          } else {
+            postPayload.transDate = now.toISOString();
+          }
+        }
+
+        const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));
+        notifyTransactionsUpdated("sale");
+        return data ?? null;
+      } catch (e: any) {
+        lastError = e;
+        const status = e?.response?.status;
+        const rawMsg = String(e?.response?.data?.message || e?.response?.data?.title || e?.message || "");
+        const isTicketConflict = (status === 409 || rawMsg.toLowerCase().includes("ticket")) &&
+          (rawMsg.toLowerCase().includes("ticket") || rawMsg.toLowerCase().includes("exists") || rawMsg.toLowerCase().includes("try again"));
+
+        if (isTicketConflict && attempt < maxRetries) {
+          const delay = (attempt + 1) * 250;
+          console.warn(`[salesInvoiceApi] Server returned: "${rawMsg}". Retrying sales invoice creation (attempt ${attempt + 1}/${maxRetries}) in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        console.error("Sales invoice creation failed:", e);
+        throw e;
+      }
     }
+
+    throw lastError;
   },
   
   updateSalesInvoice: async (saleId: number, payload: SalesInvoicePayload): Promise<boolean> => {

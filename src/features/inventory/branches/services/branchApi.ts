@@ -7,9 +7,12 @@ import {
 
 // ─── Exported API functions ───────────────────────────────────────────────────
 
-export const fetchRegisteredBranches = async (): Promise<{ branchId: number; name: string }[]> => {
+export const fetchRegisteredBranches = async (branchId: number | unknown = 0): Promise<{ branchId: number; name: string }[]> => {
+  const effectiveId = typeof branchId === "number" ? branchId : 0;
   try {
-    const { data } = await axiosInstance.get<any>("/Branch/registered-branches");
+    const { data } = await axiosInstance.get<any>("/Branch/registered-branches", {
+      params: { branchId: effectiveId },
+    });
     const resData = data?.data ?? data;
     if (Array.isArray(resData)) {
       return resData
@@ -80,6 +83,7 @@ export const fetchBranches = async (): Promise<BranchRecord[]> => {
     id: item.branchId ?? item.BranchId ?? item.id ?? item.Id ?? 0,
     sNo: item.sNo ?? item.SNo,
     branchName: item.branchName ?? item.BranchName ?? item.name ?? item.Name ?? "",
+    registeredBranchId: Number(item.registeredBranchId ?? item.RegisteredBranchId ?? 0),
     isActive:
       item.isActive === true ||
       item.isActive === "Active" ||
@@ -109,6 +113,7 @@ export const createBranch = async (payload: BranchPayload): Promise<BranchRecord
     return {
       id,
       branchName: payload.branchName,
+      registeredBranchId: body.registeredBranchId,
       isActive: payload.isActive,
       lines: payload.lines.map((l) => ({ ...l })),
       detailsLoaded: true,
@@ -135,6 +140,7 @@ export const updateBranch = async (
     return {
       id: branchId,
       branchName: payload.branchName,
+      registeredBranchId: body.registeredBranchId,
       isActive: payload.isActive,
       lines: payload.lines.map((l) => ({ ...l })),
       detailsLoaded: true,
@@ -145,9 +151,11 @@ export const updateBranch = async (
   }
 };
 
-export const deleteBranch = async (branchId: number): Promise<void> => {
+export const deleteBranch = async (branchId: number, registeredBranchId: number = 0): Promise<void> => {
   try {
-    const { data } = await axiosInstance.delete<any>(`/Branch/${branchId}`);
+    const { data } = await axiosInstance.delete<any>(`/Branch/${branchId}`, {
+      params: { registeredBranchId: registeredBranchId || 0 },
+    });
 
     if (data && data.isSuccess === false) {
       throw new Error(data.message || "Failed to delete branch");

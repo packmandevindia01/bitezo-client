@@ -51,13 +51,16 @@ export interface FontModalState {
 export interface BranchPayload {
   branchId?: number;
   branchName: string;
+  registeredBranchId?: number;
   lines: LineItem[];
   isActive: boolean;
 }
 
 export interface BranchRecord {
   id: number;
+  sNo?: number;
   branchName: string;
+  registeredBranchId?: number;
   lines: LineItem[];
   isActive: boolean;
   detailsLoaded: boolean;

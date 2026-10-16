@@ -17,29 +17,6 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
   const { register, control, formState: { errors } } = form;
   const { data: extrasTypes = [], isLoading: isLoadingTypes } = useExtrasTypes();
 
-  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (nextFieldId) {
-        setTimeout(() => {
-          const target = document.getElementById(nextFieldId);
-          if (target) {
-            target.focus();
-            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-              try {
-                target.setSelectionRange(0, target.value.length);
-              } catch {
-                target.select?.();
-              }
-            }
-          }
-        }, 10);
-      } else {
-        onSave?.();
-      }
-    }
-  };
-
   return (
     <div className="grid gap-x-4 gap-y-3 md:grid-cols-2">
       <FormInput
@@ -48,12 +25,14 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
         required
         placeholder="e.g. Extra Mayo"
         error={errors.name?.message}
-        {...register("name")}
+        {...register("name", {
+          onChange: () => form.clearErrors("name"),
+        })}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            const nameVal = form.getValues("name");
-            if (!nameVal || !nameVal.trim()) {
+            const nameVal = (e.currentTarget as HTMLInputElement).value?.trim() || form.getValues("name")?.trim();
+            if (!nameVal) {
               void form.trigger("name");
               setTimeout(() => {
                 const el = document.getElementById("ext-name");
@@ -62,7 +41,17 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
               }, 20);
               return;
             }
-            handleKeyDown(e, "ext-arabic");
+            form.setValue("name", nameVal, { shouldValidate: true });
+            form.clearErrors("name");
+            setTimeout(() => {
+              const arabicEl = document.getElementById("ext-arabic");
+              if (arabicEl) {
+                arabicEl.focus();
+                if (arabicEl instanceof HTMLInputElement) arabicEl.select?.();
+              } else {
+                document.getElementById("ext-type")?.focus();
+              }
+            }, 20);
           }
         }}
         autoFocus
@@ -77,8 +66,8 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            const nameVal = form.getValues("name");
-            if (!nameVal || !nameVal.trim()) {
+            const nameVal = form.getValues("name")?.trim();
+            if (!nameVal) {
               void form.trigger("name");
               setTimeout(() => {
                 const el = document.getElementById("ext-name");
@@ -87,7 +76,9 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
               }, 20);
               return;
             }
-            handleKeyDown(e, "ext-type");
+            setTimeout(() => {
+              document.getElementById("ext-type")?.focus();
+            }, 20);
           }
         }}
       />
@@ -107,9 +98,11 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
                 options={extrasTypes.map((t) => ({ label: t.name, value: t.typeId.toString() }))}
                 value={field.value ? field.value.toString() : ""}
                 onChange={(val) => {
-                  field.onChange(Number(val));
-                  void form.trigger("typeId");
-                  // Focus next field
+                  const numVal = Number(val);
+                  field.onChange(numVal);
+                  form.setValue("typeId", numVal, { shouldValidate: true });
+                  form.clearErrors("typeId");
+                  // Focus next field (price)
                   setTimeout(() => {
                     const priceInput = document.getElementById("ext-price");
                     if (priceInput) {
@@ -125,8 +118,8 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    const nameVal = form.getValues("name");
-                    if (!nameVal || !nameVal.trim()) {
+                    const nameVal = form.getValues("name")?.trim();
+                    if (!nameVal) {
                       void form.trigger("name");
                       setTimeout(() => {
                         const el = document.getElementById("ext-name");
@@ -135,38 +128,32 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
                       }, 20);
                       return;
                     }
-                    if (field.value && Number(field.value) > 0) {
+                    const currentType = Number(field.value);
+                    if (currentType && currentType > 0) {
                       setTimeout(() => {
                         const priceInput = document.getElementById("ext-price");
                         if (priceInput) {
                           priceInput.focus();
-                          if (priceInput instanceof HTMLInputElement) {
-                            try {
-                              priceInput.select();
-                            } catch {}
-                          }
+                          if (priceInput instanceof HTMLInputElement) priceInput.select?.();
                         }
-                      }, 10);
+                      }, 20);
                     } else if (extrasTypes.length > 0) {
                       const firstType = extrasTypes[0];
                       field.onChange(Number(firstType.typeId));
-                      void form.trigger("typeId");
+                      form.setValue("typeId", Number(firstType.typeId), { shouldValidate: true });
+                      form.clearErrors("typeId");
                       setTimeout(() => {
                         const priceInput = document.getElementById("ext-price");
                         if (priceInput) {
                           priceInput.focus();
-                          if (priceInput instanceof HTMLInputElement) {
-                            try {
-                              priceInput.select();
-                            } catch {}
-                          }
+                          if (priceInput instanceof HTMLInputElement) priceInput.select?.();
                         }
-                      }, 20);
+                      }, 30);
                     } else {
                       void form.trigger("typeId");
                       setTimeout(() => {
                         document.getElementById("ext-type")?.focus();
-                      }, 10);
+                      }, 20);
                     }
                   }
                 }}
@@ -196,12 +183,14 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
         placeholder="0.00"
         inputClassName="text-right"
         error={errors.price?.message}
-        {...register("price")}
+        {...register("price", {
+          onChange: () => form.clearErrors("price"),
+        })}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            const nameVal = form.getValues("name");
-            if (!nameVal || !nameVal.trim()) {
+            const nameVal = form.getValues("name")?.trim();
+            if (!nameVal) {
               void form.trigger("name");
               setTimeout(() => {
                 const el = document.getElementById("ext-name");
@@ -218,7 +207,8 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
               }, 20);
               return;
             }
-            const priceVal = Number(form.getValues("price"));
+            const rawVal = (e.currentTarget as HTMLInputElement).value;
+            const priceVal = Number(rawVal !== undefined && rawVal !== "" ? rawVal : form.getValues("price"));
             if (isNaN(priceVal) || priceVal <= 0) {
               void form.trigger("price");
               setTimeout(() => {
@@ -228,14 +218,31 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
               }, 20);
               return;
             }
-            handleKeyDown(e, "ext-color");
+            form.setValue("price", priceVal, { shouldValidate: true });
+            form.clearErrors("price");
+
+            // Move focus to Display Color
+            setTimeout(() => {
+              const colorInput = document.getElementById("ext-color");
+              if (colorInput) {
+                colorInput.focus();
+              } else if (onSave) {
+                onSave();
+              } else {
+                const saveBtn = document.getElementById(saveButtonId);
+                saveBtn?.click();
+              }
+            }, 20);
           }
         }}
       />
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Display Color</label>
-        <div className="flex h-10.5 items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 transition-colors focus-within:border-[#49293e] focus-within:ring-1 focus-within:ring-[#49293e]/10">
+        <div 
+          onClick={() => document.getElementById("ext-color")?.focus()}
+          className="flex h-10.5 items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 transition-colors focus-within:border-[#49293e] focus-within:ring-1 focus-within:ring-[#49293e]/10 cursor-pointer"
+        >
           <input
             id="ext-color"
             type="color"
@@ -243,35 +250,12 @@ const ExtrasBasicFields = ({ form, onSave, saveButtonId = "btn-save-extras" }: E
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                const nameVal = form.getValues("name");
-                if (!nameVal || !nameVal.trim()) {
-                  void form.trigger("name");
-                  setTimeout(() => {
-                    const el = document.getElementById("ext-name");
-                    el?.focus();
-                    if (el instanceof HTMLInputElement) el.select?.();
-                  }, 20);
-                  return;
+                if (onSave) {
+                  onSave();
+                } else {
+                  const saveBtn = document.getElementById(saveButtonId);
+                  saveBtn?.click();
                 }
-                const typeVal = Number(form.getValues("typeId"));
-                if (!typeVal || typeVal <= 0) {
-                  void form.trigger("typeId");
-                  setTimeout(() => {
-                    document.getElementById("ext-type")?.focus();
-                  }, 20);
-                  return;
-                }
-                const priceVal = Number(form.getValues("price"));
-                if (isNaN(priceVal) || priceVal <= 0) {
-                  void form.trigger("price");
-                  setTimeout(() => {
-                    const el = document.getElementById("ext-price");
-                    el?.focus();
-                    if (el instanceof HTMLInputElement) el.select?.();
-                  }, 20);
-                  return;
-                }
-                handleKeyDown(e, saveButtonId);
               }
             }}
             className="h-7 w-10 cursor-pointer rounded border-none bg-transparent p-0"

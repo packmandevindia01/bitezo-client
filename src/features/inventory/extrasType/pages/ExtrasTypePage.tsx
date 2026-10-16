@@ -47,6 +47,7 @@ const ExtrasTypePage = () => {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const form = useForm<ExtrasTypeFormType>({
+    mode: "onChange",
     resolver: zodResolver(extrasTypeFormSchema),
     defaultValues: {
       name: "",
