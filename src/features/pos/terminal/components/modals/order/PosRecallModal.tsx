@@ -12,12 +12,12 @@ import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
 import { orderApi } from "../../../../services/orderApi";
 import { menuApi, getModifierTypeNameById } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
-import type { PosWaiter } from "../../../../types";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
-import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
+import { isBillArabicEnabled, cleanProductName } from "../../../../utils/alternativeHelpers";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { alternativesCache } from "../../../hooks/usePosProducts";
@@ -45,11 +45,10 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   isOpen,
   onClose,
   onSettleSuccess,
-  initialEmployeeId,
+  initialEmployeeId: _initialEmployeeId,
 }) => {
   const { orders, loading, fetchOrders } = usePosRecall();
   const { showToast } = useToast();
-  const currentWaiterId = useAppSelector((state) => state.pos.waiterId);
   const currentWaiterName = useAppSelector((state) => state.pos.waiterName);
 
   const [activeTab, setActiveTab] = useState<number>(0);
@@ -62,52 +61,27 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStatus, setSearchStatus] = useState("ORDER NO");
 
-  const [, setWaiters] = useState<PosWaiter[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(() => {
-    if (initialEmployeeId && initialEmployeeId > 0) return initialEmployeeId;
-    if (currentWaiterId && currentWaiterId > 0) return currentWaiterId;
-    const stored = localStorage.getItem("selectedWaiterId");
-    return stored && !isNaN(Number(stored)) ? Number(stored) : null;
-  });
 
-  // Sync employee selection and load waiters list on modal open
-  useEffect(() => {
-    if (isOpen) {
-      const empId = (initialEmployeeId && initialEmployeeId > 0)
-        ? initialEmployeeId
-        : (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : null);
-      setSelectedEmployeeId(empId);
-
-      menuApi.getWaitersList().then((list) => {
-        if (Array.isArray(list)) setWaiters(list);
-      }).catch((err) => {
-        console.warn("[PosRecallModal] Failed to load waiters list:", err);
-      });
-    }
-  }, [isOpen, initialEmployeeId, currentWaiterId]);
 
   // Filter handlers
   useEffect(() => {
     if (isOpen) {
-      const empIdToSend =
-        (initialEmployeeId && initialEmployeeId > 0 ? initialEmployeeId : null) ||
-        (selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : null) ||
-        Number(localStorage.getItem("authorizedEmployeeId")) ||
-        (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : undefined);
-
       const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
       void fetchOrders({
         OrderTypeId: typeValue,
-        EmployeeId: empIdToSend,
         SearchValue: search,
         SearchStatus: searchStatus,
         DeliveryOutStatus: includeDeliveryOut,
         DeliveryOutOnlyStatus: deliveryOutOnly
       });
     }
-  }, [isOpen, activeTab, selectedEmployeeId, initialEmployeeId, currentWaiterId, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
+  }, [isOpen, activeTab, includeDeliveryOut, deliveryOutOnly, search, searchStatus, fetchOrders]);
 
   const handlePrint = async (transId: number) => {
+    if (!hasPrinterHeadings()) {
+      notifyPrinterHeadingWarning(showToast);
+    }
+
     try {
       showToast(`Fetching Order #${transId} for printing...`, "info");
       
@@ -335,7 +309,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           variantName: resolvedVariantName,
           variantArabic: resolvedVariantArabic,
           product: { 
-            name: d.productName || d.ProductName || `Product #${pId}`, 
+            name: cleanProductName(d.productName || d.ProductName, resolvedVariantName) || `Product #${pId}`, 
             price: d.price || 0,
             arabicName: d.arabicName || d.ArabicName
           },
@@ -627,15 +601,9 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
     setSearch(value);
     setSearchStatus(status);
     const typeValue = ORDER_TYPES.find(t => t.id === activeTab)?.value || 0;
-    const empIdToSend =
-      (initialEmployeeId && initialEmployeeId > 0 ? initialEmployeeId : null) ||
-      (selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : null) ||
-      Number(localStorage.getItem("authorizedEmployeeId")) ||
-      (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : undefined);
 
     void fetchOrders({
       OrderTypeId: typeValue,
-      EmployeeId: empIdToSend,
       SearchValue: value,
       SearchStatus: status,
       DeliveryOutStatus: includeDeliveryOut,
@@ -783,7 +751,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           >
             {/* Order Content */}
             <div className={`
-              flex-1 p-4 flex flex-col justify-center gap-1.5 transition-colors
+              flex-1 min-w-0 p-4 flex flex-col justify-center gap-1.5 transition-colors
               ${selectedOrderId === order.orderId ? "bg-[#f48120] text-white" : "group-hover:bg-gray-50"}
             `}>
               {order.isPrinted && (
@@ -796,9 +764,9 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
                 </div>
               )}
 
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 min-w-0">
                 <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${selectedOrderId === order.orderId ? "bg-white" : "bg-[#f48120]"}`} />
-                <p className={`text-sm font-bold leading-snug italic ${selectedOrderId === order.orderId ? "text-white" : "text-gray-800"}`}>
+                <p className={`text-sm font-bold leading-snug italic break-words [overflow-wrap:anywhere] [word-break:break-word] min-w-0 ${selectedOrderId === order.orderId ? "text-white" : "text-gray-800"}`}>
                   "{order.details}"
                 </p>
               </div>
@@ -893,15 +861,8 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         orderId={selectedDriverOrderId}
         onSuccess={() => {
           setSelectedDriverOrderId(null);
-          const empIdToSend =
-            (initialEmployeeId && initialEmployeeId > 0 ? initialEmployeeId : null) ||
-            (selectedEmployeeId && selectedEmployeeId > 0 ? selectedEmployeeId : null) ||
-            Number(localStorage.getItem("authorizedEmployeeId")) ||
-            (currentWaiterId && currentWaiterId > 0 ? currentWaiterId : undefined);
-
           void fetchOrders({
             OrderTypeId: ORDER_TYPES.find(t => t.id === activeTab)?.value || 0,
-            EmployeeId: empIdToSend,
             SearchValue: search,
             SearchStatus: searchStatus,
             DeliveryOutStatus: includeDeliveryOut,

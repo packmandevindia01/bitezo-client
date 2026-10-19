@@ -150,8 +150,12 @@ const PosProductGrid = ({
   const breadcrumbs = useMemo(() => {
     const segments: string[] = [];
     if (categoryName) segments.push(categoryName);
-    if (subCategoryName) segments.push(subCategoryName);
-    if (showAlternatives && selectedProduct) segments.push(selectedProduct.name);
+    if (subCategoryName && subCategoryName !== categoryName) segments.push(subCategoryName);
+    if (showAlternatives && selectedProduct) {
+      const localized = getLocalizedName(selectedProduct.name, selectedProduct.arabicName);
+      const prodName = localized.primary || selectedProduct.name;
+      if (prodName) segments.push(prodName);
+    }
     return segments;
   }, [categoryName, subCategoryName, showAlternatives, selectedProduct]);
 
@@ -192,16 +196,29 @@ const PosProductGrid = ({
     <section className="relative flex-1 bg-transparent overflow-hidden flex flex-col">
       {/* Breadcrumb Bar */}
       {(showAlternatives || (!showSubCategories && activeSubCategoryId)) && breadcrumbs.length > 0 && (
-        <div className="w-full h-8 flex justify-end items-center px-4 shrink-0 bg-transparent border-b border-slate-200/50">
-          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-white/50 px-2 py-1 rounded-md shadow-sm">
-            {breadcrumbs.map((crumb, idx) => (
-              <div key={`${crumb}-${idx}`} className="flex items-center gap-1.5">
-                <span className={idx === breadcrumbs.length - 1 ? "text-[#49293e] font-black" : ""}>
-                  {crumb}
-                </span>
-                {idx < breadcrumbs.length - 1 && <ChevronRight size={10} className="text-slate-400" />}
-              </div>
-            ))}
+        <div className="w-full h-8 flex justify-end items-center px-2 sm:px-4 shrink-0 bg-transparent border-b border-slate-200/50 overflow-hidden">
+          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-white/70 px-2.5 py-1 rounded-md shadow-xs max-w-full overflow-hidden">
+            {breadcrumbs.map((crumb, idx) => {
+              const isLast = idx === breadcrumbs.length - 1;
+              const maxLen = isLast ? 20 : 15;
+              const displayCrumb = crumb.length > maxLen ? `${crumb.slice(0, maxLen).trim()}...` : crumb;
+
+              return (
+                <div key={`${crumb}-${idx}`} className="flex items-center gap-1.5 min-w-0 shrink">
+                  <span
+                    title={crumb}
+                    className={`truncate inline-block whitespace-nowrap ${
+                      isLast
+                        ? "max-w-[120px] sm:max-w-[150px] md:max-w-[180px] xl:max-w-[220px] text-[#49293e] font-black"
+                        : "max-w-[80px] sm:max-w-[110px] md:max-w-[140px]"
+                    }`}
+                  >
+                    {displayCrumb}
+                  </span>
+                  {!isLast && <ChevronRight size={10} className="text-slate-400 shrink-0" />}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -10,10 +10,15 @@ const ShiftGuard = () => {
     return <Loader fullScreen text="Verifying shift status..." />;
   }
 
+  // Routes accessible prior to opening a shift or business day (Configuration & Printer Hardware setup)
+  const isPreSessionAllowed =
+    location.pathname === "/pos" ||
+    location.pathname.startsWith("/pos/configuration") ||
+    location.pathname.startsWith("/pos/more");
+
   // If the status has been loaded and the session is NOT open,
-  // redirect them to /pos so they can formally Open a Day or Open a Shift using the modal overlay.
-  // We must ensure they aren't already at /pos to avoid an infinite redirect loop.
-  if (status && !isSessionOpen && location.pathname !== "/pos") {
+  // redirect non-exempt routes to /pos so they can formally Open a Day or Open a Shift using the modal overlay.
+  if (status && !isSessionOpen && !isPreSessionAllowed) {
     return <Navigate to="/pos" replace />;
   }
 

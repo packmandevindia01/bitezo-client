@@ -44,7 +44,7 @@ export const PosDiscountChoiceModal: React.FC<PosDiscountChoiceModalProps> = ({
             <Receipt size={24} />
           </div>
           <div className="flex-1 text-left">
-            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">{t("Whole Order")}</h3>
+            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">{t("Bill Wise")}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{t("Global Bill Reduction")}</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 group-hover:text-[#ff9500]" />

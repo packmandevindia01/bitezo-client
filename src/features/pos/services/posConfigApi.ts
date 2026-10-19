@@ -60,6 +60,7 @@ export interface RuntimePosConfig {
   PosLanguage?: string;
   productView?: string;
   ProductView?: string;
+  otherKitchenItem?: boolean;
 }
 
 export interface PosConfigResponseData {
@@ -179,19 +180,29 @@ export const getDayEndReportConfig = (): DayEndReportConfig => {
 
 export const isItemSeperationEnabled = (): boolean => {
   try {
+    const parseFlag = (val: any): boolean => {
+      if (typeof val === "boolean") return val;
+      if (typeof val === "string") {
+        const s = val.trim().toLowerCase();
+        return s === "true" || s === "enable" || s === "1";
+      }
+      if (typeof val === "number") return val === 1;
+      return false;
+    };
+
     const raw = localStorage.getItem(POS_CONFIGS_STORAGE_KEY) || localStorage.getItem("posConfig");
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed?.configs?.itemSeperation !== undefined) {
-        return Boolean(parsed.configs.itemSeperation);
+        return parseFlag(parsed.configs.itemSeperation);
       }
       if (parsed?.itemSeperation !== undefined) {
-        return Boolean(parsed.itemSeperation);
+        return parseFlag(parsed.itemSeperation);
       }
     }
     const direct = localStorage.getItem("itemSeperation");
     if (direct !== null) {
-      return direct === "true";
+      return parseFlag(direct);
     }
   } catch {
     // ignore

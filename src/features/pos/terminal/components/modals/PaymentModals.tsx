@@ -32,7 +32,10 @@ export const PaymentModals: React.FC<PaymentModalsProps> = React.memo((props) =>
 
       <PosCashTenderModal
         isOpen={modals.isCashModalOpen}
-        onClose={() => modals.setIsCashModalOpen(false)}
+        onClose={() => {
+          modals.setIsCashModalOpen(false);
+          props.onCancelSettle?.();
+        }}
         totalDue={props.total}
         onSubmit={(tenderedAmount, changeAmount) => {
           modals.setIsCashModalOpen(false);

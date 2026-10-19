@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { printHtmlReceipt } from '../services/qzService';
+import { hasPrinterHeadings, notifyPrinterHeadingWarning } from './printHeadingUtils';
 
 export interface PrintReportOptions {
   html: string;
@@ -16,6 +17,10 @@ export interface PrintReportOptions {
  */
 export const printPosReport = async (options: PrintReportOptions): Promise<boolean> => {
   const { html, directPrint } = options;
+
+  if (!hasPrinterHeadings()) {
+    notifyPrinterHeadingWarning();
+  }
 
   if (!directPrint) {
     return false;

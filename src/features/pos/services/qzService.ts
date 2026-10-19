@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import html2canvas from 'html2canvas';
 import { generateUUID } from '../../../utils/uuid';
+import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../utils/printHeadingUtils';
 
 export interface BitezoPrinterPlugin {
   printImage(options: { base64: string; type: string; address: string; port?: number }): Promise<void>;
@@ -764,6 +765,10 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
  * and dispatches it directly to the printer over TCP port 9100.
  */
 export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
+  if (!hasPrinterHeadings()) {
+    notifyPrinterHeadingWarning();
+  }
+
   if (Capacitor.isNativePlatform()) {
     console.log(`[Native Print] Rendering HTML receipt to 1:1 ESC/POS raster for "${printerName || 'default'}"`);
     const targetIp = await resolveTargetIp(printerName);

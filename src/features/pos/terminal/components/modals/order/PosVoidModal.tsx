@@ -207,12 +207,12 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
           >
             {/* Order Content */}
             <div className={`
-              flex-1 p-4 flex flex-col justify-center gap-1.5 transition-colors
+              flex-1 min-w-0 p-4 flex flex-col justify-center gap-1.5 transition-colors
               ${selectedOrderId === order.orderId ? "bg-red-50 text-red-900" : "group-hover:bg-gray-50"}
             `}>
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 min-w-0">
                 <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${selectedOrderId === order.orderId ? "bg-red-500" : "bg-gray-400"}`} />
-                <p className={`text-sm font-bold leading-snug italic ${selectedOrderId === order.orderId ? "text-red-900" : "text-gray-800"}`}>
+                <p className={`text-sm font-bold leading-snug italic break-words [overflow-wrap:anywhere] [word-break:break-word] min-w-0 ${selectedOrderId === order.orderId ? "text-red-900" : "text-gray-800"}`}>
                   "{order.details}"
                 </p>
               </div>

@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { Printer, Download } from "lucide-react";
 import { Button, Modal } from "../../../../components/common";
 import { formatAmount } from "../../../../utils/currency";
-import { getCategoryName, getCategoryCode } from "../utils/exportUtils";
+import { getCategoryName } from "../utils/exportUtils";
 import type { CategoryWiseSalesRow, CategoryWiseTotalData } from "../types";
 
 const formatDate = (dateStr: string) => {
@@ -140,8 +140,7 @@ export const CategoryWiseSalesReportPrintPreviewModal = ({
               <thead>
                 <tr className="bg-gray-100 text-gray-800 font-bold border border-gray-300">
                   <th className="py-2 px-2.5 text-center border border-gray-300 w-12">S.No</th>
-                  <th className="py-2 px-2.5 text-center border border-gray-300 w-32">Category Code</th>
-                  <th className="py-2 px-2.5 text-left border border-gray-300">Category Name</th>
+                  <th className="py-2 px-2.5 text-left border border-gray-300">Category</th>
                   <th className="py-2 px-2.5 text-right border border-gray-300 w-24">Qty</th>
                   <th className="py-2 px-2.5 text-right border border-gray-300 w-28">Amount</th>
                   <th className="py-2 px-2.5 text-right border border-gray-300 w-28">Discount</th>
@@ -153,7 +152,7 @@ export const CategoryWiseSalesReportPrintPreviewModal = ({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-6 text-gray-500 border border-gray-300">
+                    <td colSpan={8} className="text-center py-6 text-gray-500 border border-gray-300">
                       No records available.
                     </td>
                   </tr>
@@ -161,9 +160,6 @@ export const CategoryWiseSalesReportPrintPreviewModal = ({
                   rows.map((row, idx) => (
                     <tr key={idx} className="border border-gray-300">
                       <td className="py-1.5 px-2.5 text-center border border-gray-300">{row.sNo ?? (idx + 1)}</td>
-                      <td className="py-1.5 px-2.5 text-center border border-gray-300 font-mono">
-                        {getCategoryCode(row)}
-                      </td>
                       <td className="py-1.5 px-2.5 text-left border border-gray-300 font-medium text-gray-900">
                         {getCategoryName(row)}
                       </td>
@@ -195,7 +191,6 @@ export const CategoryWiseSalesReportPrintPreviewModal = ({
                     <td colSpan={2} className="py-2 px-2.5 border border-gray-300 text-center">
                       TOTAL
                     </td>
-                    <td className="py-2 px-2.5 border border-gray-300"></td>
                     <td className="py-2 px-2.5 text-right border border-gray-300 font-mono">
                       {sumQty}
                     </td>

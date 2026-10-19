@@ -68,18 +68,20 @@ export const fetchPosMasterDataApi = async (
 };
 
 export const backofficeRefreshTokenApi = async (
-  accessToken: string
+  accessToken: string,
+  refreshToken?: string
 ): Promise<RefreshTokenResponse> => {
   const baseURL = getConfig().apiBaseUrl;
   const tenantId = localStorage.getItem("tenantId") || "bitezo_db";
 
   const response = await axios.post<RefreshTokenResponse | { data: RefreshTokenResponse }>(
     `${baseURL}/auth/backoffice-refresh-token`,
-    {},
+    { refreshToken: refreshToken || "" },
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         clientDb: tenantId,
+        refreshToken: refreshToken || "",
         Accept: "*/*",
       },
     }
@@ -93,18 +95,20 @@ export const backofficeRefreshTokenApi = async (
 };
 
 export const posRefreshTokenApi = async (
-  accessToken: string
+  accessToken: string,
+  refreshToken?: string
 ): Promise<RefreshTokenResponse> => {
   const baseURL = getConfig().apiBaseUrl;
   const tenantId = localStorage.getItem("tenantId") || "bitezo_db";
 
   const response = await axios.post<RefreshTokenResponse | { data: RefreshTokenResponse }>(
     `${baseURL}/auth/pos-refresh-token`,
-    {},
+    { refreshToken: refreshToken || "" },
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         clientDb: tenantId,
+        refreshToken: refreshToken || "",
         Accept: "*/*",
       },
     }

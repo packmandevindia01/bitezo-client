@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ToastContext } from "./toast-context";
 import type { ToastType } from "./toast-context";
 import ToastItem, { type ToastWithState } from "./toast/ToastItem";
@@ -31,6 +31,16 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     },
     [removeToast]
   );
+
+  useEffect(() => {
+    const handleAppToast = (e: any) => {
+      if (e?.detail?.message) {
+        showToast(e.detail.message, e.detail.type || "warning", e.detail.title);
+      }
+    };
+    window.addEventListener("app:toast", handleAppToast);
+    return () => window.removeEventListener("app:toast", handleAppToast);
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

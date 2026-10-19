@@ -4,6 +4,8 @@ import { useAppDispatch } from "../hooks";
 import { logout } from "../../features/auth/store/authSlice";
 
 const SKIP_CHECK_ROUTES = [
+  "/",
+  "/cashier/in",
   "/company/onboarding",
   "/system/register",
   "/forgot-password",
@@ -23,7 +25,10 @@ const RegistrationGuard = ({ children }: Props) => {
   useEffect(() => {
     const handleUnauthorized = () => {
       dispatch(logout());
-      navigate("/", { replace: true });
+      const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login") || window.location.pathname === "/cashier/in";
+      if (!isLoginPath) {
+        window.location.replace("/");
+      }
     };
 
     window.addEventListener("auth:unauthorized", handleUnauthorized);

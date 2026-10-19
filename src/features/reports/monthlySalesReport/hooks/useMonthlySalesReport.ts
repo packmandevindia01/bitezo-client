@@ -1,11 +1,13 @@
-import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMonthlySalesReport } from "../services/monthlySalesReportApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { subscribeToTransactionUpdates } from "../../../../utils/transactionSync";
 
 export const useMonthlySalesReport = () => {
+  const queryClient = useQueryClient();
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const [branchId, setBranchId] = useState<string>(initialBranchId || "1"); // Default to All
 
@@ -45,7 +47,10 @@ export const useMonthlySalesReport = () => {
         Decimals: getDecimalPart(),
       }),
     staleTime: 0,
-    refetchOnMount: true,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     select: (data) => {
       if (!data?.columns || !data?.rows) return data;
       
@@ -74,19 +79,36 @@ export const useMonthlySalesReport = () => {
       };
     },
     enabled: !!fromPeriod && !!toPeriod,
-    refetchOnWindowFocus: false,
   });
+
+  // Real-time synchronization: refresh report whenever any transaction entry occurs (POS sales, settlements, etc.)
+  useEffect(() => {
+    return subscribeToTransactionUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["monthlySalesReport"] });
+      void queryClient.refetchQueries({ queryKey: ["monthlySalesReport"] });
+    });
+  }, [queryClient]);
+
+  // Auto-refresh when user returns to this tab or window gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      void queryClient.invalidateQueries({ queryKey: ["monthlySalesReport"] });
+      void refetch();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [queryClient, refetch]);
 
   const handleReset = useCallback(() => {
     if (!isBranchLocked) {
-      setBranchId("1");
+      setBranchId(initialBranchId || "1");
     }
     setFromPeriod(`${currentYear}-01`);
     setToPeriod(`${currentYear}-12`);
     setTimeout(() => {
       refetch();
     }, 0);
-  }, [currentYear, isBranchLocked, refetch]);
+  }, [currentYear, isBranchLocked, initialBranchId, refetch]);
 
   const filters = useMemo(
     () => ({

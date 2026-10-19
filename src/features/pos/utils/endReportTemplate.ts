@@ -152,20 +152,14 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   }
 
   const reportTypeLabel = reportType === 'DAYEND' ? 'DAY END REPORT' : 'SHIFT END REPORT';
-  const headerHtml = customHeadersHtml ? `
-    <div style="margin-bottom: 4px; padding: 0 2px; width: 100%; box-sizing: border-box;">
-      ${customHeadersHtml}
-    </div>
-    <div class="sep"></div>
-    <div style="text-align: center; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 0;">
-      ${reportTypeLabel}
-    </div>
-    <div class="sep"></div>
-  ` : `
-    <div style="text-align: center; margin-bottom: 4px; width: 100%; box-sizing: border-box;">
-      ${fallbackHeaderContent}
-    </div>
-    <div class="sep"></div>
+  const effectiveHeader = customHeadersHtml || fallbackHeaderContent;
+  const headerHtml = `
+    ${effectiveHeader ? `
+      <div style="text-align: center; margin-bottom: 4px; padding: 0 2px; width: 100%; box-sizing: border-box;">
+        ${effectiveHeader}
+      </div>
+      <div class="sep"></div>
+    ` : ''}
     <div style="text-align: center; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 0;">
       ${reportTypeLabel}
     </div>
@@ -376,25 +370,45 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     `;
   }
 
-  // Sales By Product — 2 columns (65% / 35%)
+  // Sales By Product — 3 columns (50% / 20% / 30%)
   let productHtml = '';
   const prodList = (data as any).products || (data as any).productSummary || [];
   if (config.showProduct && prodList.length > 0) {
     let prodTotal = 0;
+    let prodQtyTotal = 0;
     let prodRows = '';
     prodList.forEach((p: any) => {
-      const name = p.productName || p.product || "Unknown";
-      const total = p.total || p.amount || 0;
-      prodTotal += Number(total) || 0;
-      prodRows += `<tr><td style="text-align: left;">${name}</td><td style="text-align: right;">${fmt(total)}</td></tr>`;
+      const name = p.productName || p.product || p.name || "Unknown";
+      const qty = Number(p.qty || p.quantity || 0);
+      const total = Number(p.total || p.amount || 0);
+      prodTotal += total;
+      prodQtyTotal += qty;
+      prodRows += `
+        <tr>
+          <td style="text-align: left;">${name}</td>
+          <td style="text-align: center;">${qty}</td>
+          <td style="text-align: right;">${fmt(total)}</td>
+        </tr>
+      `;
     });
     productHtml = `
-      <div class="section-title">Product</div>
+      <div class="section-title">Sales By Product</div>
       <div class="sep"></div>
       <table style="width: 100%; table-layout: fixed;">
+        <thead>
+          <tr>
+            <th style="width: 50%; text-align: left;">Product</th>
+            <th style="width: 20%; text-align: center;">Qty</th>
+            <th style="width: 30%; text-align: right;">Total</th>
+          </tr>
+        </thead>
         <tbody>
           ${prodRows}
-          <tr><td style="width: 65%; text-align: left; font-weight: 700;">Total</td><td style="width: 35%; text-align: right; font-weight: 700;">${fmt(prodTotal)}</td></tr>
+          <tr>
+            <td style="text-align: left; font-weight: 700;">Total</td>
+            <td style="text-align: center; font-weight: 700;">${prodQtyTotal}</td>
+            <td style="text-align: right; font-weight: 700;">${fmt(prodTotal)}</td>
+          </tr>
         </tbody>
       </table>
       <div class="sep"></div>

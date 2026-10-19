@@ -40,12 +40,17 @@ const EmployeeModal = ({
   const branchOptions = useMemo(() => {
     const map = new Map<string, string>();
 
+    const isAll = (name: string) => {
+      const lower = name.trim().toLowerCase();
+      return lower === "all" || lower === "all branches" || lower === "all branch";
+    };
+
     // 1. Redux store branches
     if (Array.isArray(masterBranches)) {
       masterBranches.forEach((b: any) => {
         const id = String(b.id ?? b.branchId ?? "");
         const name = String(b.branchName ?? b.name ?? "");
-        if (id && id !== "0" && name) {
+        if (id && id !== "0" && name && !isAll(name)) {
           map.set(id, name);
         }
       });
@@ -56,7 +61,7 @@ const EmployeeModal = ({
       branches.forEach((b) => {
         const id = String(b.branchId ?? "");
         const name = String(b.branchName ?? "");
-        if (id && id !== "0" && name) {
+        if (id && id !== "0" && name && !isAll(name)) {
           map.set(id, name);
         }
       });

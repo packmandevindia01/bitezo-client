@@ -83,6 +83,42 @@ export const isBillArabicEnabled = (): boolean => {
 };
 
 /**
+ * Checks if Other Kitchen Items (KOT) is enabled in runtime configuration.
+ */
+export const isOtherKitchenItemEnabled = (): boolean => {
+  try {
+    const direct = localStorage.getItem("otherKitchenItem");
+    if (direct !== null) {
+      const s = direct.trim().toLowerCase();
+      if (s === "enable" || s === "true" || s === "1") return true;
+      if (s === "disable" || s === "false" || s === "0") return false;
+    }
+    const keys = ["posConfigs", "posConfig", "pos_configs", "pos_config"];
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configsObj = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
+        const val = configsObj?.otherKitchenItem ?? configsObj?.OtherKitchenItem ?? parsed?.otherKitchenItem ?? parsed?.OtherKitchenItem;
+        if (val !== undefined && val !== null) {
+          if (val === true || val === 1) return true;
+          const str = String(val).trim().toLowerCase();
+          if (str === "enable" || str === "true" || str === "1") {
+            return true;
+          }
+          if (str === "disable" || str === "false" || str === "0") {
+            return false;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error reading otherKitchenItem config:", e);
+  }
+  return false;
+};
+
+/**
  * Checks whether an item in the cart is an alternative product.
  */
 export const isAlternativeCartItem = (item?: PosCartItem | null): boolean => {
@@ -136,16 +172,24 @@ export const getItemArabicName = (item?: PosCartItem | null): string => {
 
   // If both product Arabic and variant Arabic exist
   if (prodArabic && altArabic) {
-    if (altArabic.includes(prodArabic)) return altArabic;
-    return `${prodArabic} - ${altArabic}`;
+    const cleanAltAr = altArabic.replace(/^\((.*)\)$/, "$1").trim();
+    const cleanProdAr = cleanProductName(prodArabic, cleanAltAr);
+    if (!cleanProdAr) return `(${cleanAltAr})`;
+    return `${cleanProdAr} (${cleanAltAr})`;
   }
 
   // If only variant Arabic exists
-  if (altArabic) return altArabic;
+  if (altArabic) {
+    const cleanAltAr = altArabic.replace(/^\((.*)\)$/, "$1").trim();
+    return `(${cleanAltAr})`;
+  }
 
   // If product Arabic exists and has a non-main variant name (without variant Arabic)
   if (prodArabic && item.variantName && item.variantName.toLowerCase().trim() !== "main") {
-    return `${prodArabic} - ${item.variantName}`;
+    const cleanAlt = item.variantName.trim().replace(/^\((.*)\)$/, "$1").trim();
+    const cleanProdAr = cleanProductName(prodArabic, cleanAlt);
+    if (!cleanProdAr) return `(${cleanAlt})`;
+    return `${cleanProdAr} (${cleanAlt})`;
   }
 
   // If only product Arabic exists (standard product or main variant)
@@ -160,47 +204,73 @@ export const getAlternativeArabicName = (item?: PosCartItem | null): string => {
 };
 
 /**
+ * Strips variant names or suffixes (e.g. " - LARGE", "(LARGE)", " LARGE") from a base product name
+ * so that alternative names are never duplicated.
+ */
+export const cleanProductName = (
+  name?: string | null,
+  variant?: string | null
+): string => {
+  if (!name) return "";
+  let base = name.trim();
+  if (!variant) return base;
+
+  const rawAlt = variant.trim();
+  if (!rawAlt || rawAlt.toLowerCase() === "main" || rawAlt.toLowerCase() === "none") {
+    return base;
+  }
+
+  const cleanAlt = rawAlt.replace(/^\((.*)\)$/, "$1").trim();
+  if (!cleanAlt) return base;
+
+  const escaped = cleanAlt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // 1. Remove suffix like " - Large", " - (Large)", " (Large)", "(Large)", "-Large", or " Large" at end
+  const suffixRegex = new RegExp(`[\\s-_]*\\(?${escaped}\\)?$`, "i");
+  if (suffixRegex.test(base)) {
+    const stripped = base.replace(suffixRegex, "").trim();
+    if (stripped) return stripped;
+  }
+
+  // 2. Remove "(Large)" bracketed anywhere in base
+  const bracketRegex = new RegExp(`\\s*\\(${escaped}\\)\\s*`, "i");
+  if (bracketRegex.test(base)) {
+    const stripped = base.replace(bracketRegex, " ").trim();
+    if (stripped) return stripped;
+  }
+
+  return base;
+};
+
+/**
  * Formats a composite display name for a product and its alternative/variant name.
+ * Always renders in brackets format: "PRODUCT (VARIANT)" with zero duplicate occurrences.
  * Handles cases like:
- * - base: "JUICE", alt: "(S)" -> "JUICE(S)"
- * - base: "JUICE", alt: "JUICE(S)" -> "JUICE(S)"
- * - base: "JUICE", alt: "S" -> "JUICE(S)"
- * - base: "JUICE", alt: "Small" -> "JUICE(Small)"
- * - base: "JUICE", alt: "" -> "JUICE"
+ * - base: "APPLE", alt: "LARGE" -> "APPLE (LARGE)"
+ * - base: "APPLE - LARGE", alt: "LARGE" -> "APPLE (LARGE)"
+ * - base: "APPLE (LARGE)", alt: "LARGE" -> "APPLE (LARGE)"
+ * - base: "APPLE", alt: "" -> "APPLE"
  */
 export const formatItemDisplayName = (
   productName?: string | null,
   altName?: string | null,
   variantName?: string | null
 ): string => {
-  const baseName = (productName || "").trim();
   const rawAlt = (altName || variantName || "").trim();
+  const rawBase = (productName || "").trim();
 
   if (!rawAlt || rawAlt.toLowerCase() === "main" || rawAlt.toLowerCase() === "none") {
-    return baseName || "Item";
+    return rawBase || "Item";
   }
 
-  if (!baseName) {
-    return rawAlt;
+  const cleanAlt = rawAlt.replace(/^\((.*)\)$/, "$1").trim();
+  const cleanBase = cleanProductName(rawBase, cleanAlt);
+
+  if (!cleanBase) {
+    return `(${cleanAlt})`;
   }
 
-  // If altName already contains the base product name (e.g. "JUICE(S)" or "JUICE - S")
-  if (rawAlt.toLowerCase().includes(baseName.toLowerCase())) {
-    return rawAlt;
-  }
-
-  // If baseName already contains the altName (e.g. baseName is already "JUICE(S)")
-  if (baseName.toLowerCase().includes(rawAlt.toLowerCase())) {
-    return baseName;
-  }
-
-  // If altName starts with '(', e.g. "(S)" -> "JUICE(S)"
-  if (rawAlt.startsWith("(")) {
-    return `${baseName}${rawAlt}`;
-  }
-
-  // For variant codes or names (e.g. "S", "M", "L", "Small")
-  return `${baseName}(${rawAlt})`;
+  return `${cleanBase} (${cleanAlt})`;
 };
 
 /**

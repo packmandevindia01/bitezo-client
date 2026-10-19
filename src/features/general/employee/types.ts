@@ -9,6 +9,8 @@ export interface CreateEmployeePayload {
   isMaster: boolean;
   isActive: boolean;
   roleId: number;
+  createdAt?: string;
+  createDate?: string;
 }
 
 export interface UpdateEmployeePayload {

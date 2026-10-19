@@ -1,17 +1,22 @@
 import { useState, useRef } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
 import { useAppDispatch } from '../../../../app/hooks';
-import { setIsSettling } from '../store/posSlice';
+import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
 import { getVatStatus } from '../utils/billing';
-import { isBillArabicEnabled } from '../../utils/alternativeHelpers';
+import { isBillArabicEnabled, cleanProductName } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getModifierTypeNameById } from '../../services/menuApi';
 import { alternativesCache } from '../hooks/usePosProducts';
 import { checkOrderHasBillDiscount } from '../utils/orderDiscountCheck';
+import {
+  disableDefaultEmployeeConfig,
+  isEmployeeNotFoundError,
+  isDefaultEmployeeValidInCache,
+} from '../../utils/defaultEmployee';
 
 interface UsePosCheckoutFlowProps {
   status: any;
@@ -84,10 +89,15 @@ export const usePosCheckoutFlow = ({
   const isSettlingRef = useRef<boolean>(false);
   const settleShouldPrintRef = useRef<boolean>(false);
   const settlementCashChangeRef = useRef<number>(0);
+  const settlementEmployeeIdRef = useRef<number | null>(null);
+
+  const setSettlementEmployeeId = useEvent((empId: number | null) => {
+    settlementEmployeeIdRef.current = empId;
+  });
 
   const submitOrderForEmployee = useEvent(async (employeeId: number, shouldPrint: boolean = false) => {
-    if (!status) return;
-    const orderId = await submitOrder({
+    if (!status) return { success: false, orderId: null };
+    const result = await submitOrder({
       dayId: status.dayId,
       shiftId: status.shiftId,
       userId: status.userId,
@@ -96,7 +106,12 @@ export const usePosCheckoutFlow = ({
       providerId: activeProvider?.provider?.providerId,
       providerOrderNo: activeProvider?.orderNo,
     }, shouldPrint);
-    if (orderId) {
+
+    if (result && typeof result === "object" && (result as any).isEmployeeNotFound) {
+      return { success: false, isEmployeeNotFound: true, orderId: null };
+    }
+
+    if (result && (typeof result === "number" || (typeof result === "string" && Number(result) > 0))) {
       setSelectedKey(null);
       setSelectedProduct(null);
       setAlternatives([]);
@@ -104,7 +119,9 @@ export const usePosCheckoutFlow = ({
       setIsCashModalOpen(false);
       setIsMultiPayModalOpen(false);
       handleClearCart();
+      return { success: true, isEmployeeNotFound: false, orderId: Number(result) };
     }
+    return { success: false, isEmployeeNotFound: false, orderId: null };
   });
 
   const finalizeSettlement = useEvent(async (shouldPrint: boolean, payloadToPrint?: any) => {
@@ -132,6 +149,10 @@ export const usePosCheckoutFlow = ({
         // ── UNIFIED HTML GRAPHIC PATH: Identical typography, alignment, and formatting on both Web and Android ──
         const { printHtmlReceipt } = await import("../../services/qzService");
         const { generateGuestPrintHtml } = await import("../../utils/guestPrintTemplate");
+        const { hasPrinterHeadings, notifyPrinterHeadingWarning } = await import("../../utils/printHeadingUtils");
+        if (!hasPrinterHeadings()) {
+          notifyPrinterHeadingWarning(showToast);
+        }
         const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
         await printHtmlReceipt(html, targetPrinter);
 
@@ -147,6 +168,7 @@ export const usePosCheckoutFlow = ({
     handleClearCart();
     setSettledPrintPayload(null);
     settleShouldPrintRef.current = false;
+    settlementEmployeeIdRef.current = null;
   });
 
   const submitSettlementForEmployee = useEvent(async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
@@ -652,7 +674,7 @@ export const usePosCheckoutFlow = ({
                 variantName: resolvedVariantName,
                 variantArabic: resolvedVariantArabic,
                 product: {
-                  name: d.productName || d.ProductName || cartMatch?.product?.name || `Product #${dPid}`,
+                  name: cleanProductName(d.productName || d.ProductName || cartMatch?.product?.name, resolvedVariantName) || `Product #${dPid}`,
                   price: price,
                   arabicName: d.arabicName || d.ArabicName || (d as any).productArabicName || cartMatch?.product?.arabicName
                 },
@@ -752,7 +774,7 @@ export const usePosCheckoutFlow = ({
             table: tableStr,
             orderType: mappedOrderType,
             date: now.toLocaleDateString('en-GB'),
-            time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
+            time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             customerName: finalCustomerName,
             driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
             driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
@@ -794,17 +816,27 @@ export const usePosCheckoutFlow = ({
 
         setSettledPrintPayload(printPayloadObj);
         finalizeSettlement(settleShouldPrintRef.current, printPayloadObj);
+        return { success: true, isEmployeeNotFound: false };
       } else {
         throw new Error("Invalid sales response");
       }
     } catch (err: any) {
       console.error("Settlement failed", err, err.response?.data);
+      const isEmployeeError = isEmployeeNotFoundError(err);
+      if (isEmployeeError) {
+        disableDefaultEmployeeConfig("Settlement rejected employeeId: not found or invalid.");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        const errorMsg = "The configured default employee was not found in the system and has been disabled. Please select an employee to authorize settlement.";
+        showToast(errorMsg, "warning");
+        return { success: false, isEmployeeNotFound: true };
+      }
       const rawMsg = err.response?.data?.title || err.response?.data?.message || err.message || "Failed to save sales invoice";
       const isTicketConflict = String(rawMsg).toLowerCase().includes("ticket");
       const errorMsg = isTicketConflict
         ? "Ticket number sequence conflict on server. Please tap Settle again."
         : rawMsg;
       showToast(errorMsg, "error");
+      return { success: false, isEmployeeNotFound: false };
     } finally {
       isSettlingRef.current = false;
       dispatch(setIsSettling(false));
@@ -826,28 +858,51 @@ export const usePosCheckoutFlow = ({
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const effectiveEmployeeId = (waiterId && waiterId > 0)
+
+    const authorizedEmpId = settlementEmployeeIdRef.current || (localStorage.getItem("authorizedEmployeeId") ? Number(localStorage.getItem("authorizedEmployeeId")) : null);
+    let effectiveEmployeeId = (authorizedEmpId && authorizedEmpId > 0)
+      ? authorizedEmpId
+      : (waiterId && waiterId > 0)
       ? waiterId
       : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
 
+    if (effectiveEmployeeId && !waiterId && !authorizedEmpId && defaultEmployeeEnabled) {
+      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
+        effectiveEmployeeId = null;
+      }
+    }
+
     if (effectiveEmployeeId) {
-      submitSettlementForEmployee(effectiveEmployeeId, payments);
+      const res = await submitSettlementForEmployee(effectiveEmployeeId, payments);
+      if (res && (res as any).isEmployeeNotFound) {
+        requestAuthorization({
+          actionLabel: "Settlement",
+          permissionId: 19, // Settle
+          bypassDefaultEmployee: true,
+          onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
+        });
+      }
       return;
     }
 
     if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      showToast("Default employee is enabled but not selected in settings", "error");
-      return;
+      disableDefaultEmployeeConfig("Invalid default employee ID in settlement");
+      dispatch(setWaiter({ waiterId: null, waiterName: null }));
+      showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
     }
 
     requestAuthorization({
       actionLabel: "Settlement",
       permissionId: 19, // Settle
+      bypassDefaultEmployee: true,
       onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
     });
   });
 
-  const handleCardCreditSettlement = useEvent(async (selectedPaymodeId: number) => {
+  const handleCardCreditSettlement = useEvent(async (selectedPaymodeId: number, overrideEmployeeId?: number) => {
     setChange("");
     if (!status) return;
 
@@ -868,23 +923,46 @@ export const usePosCheckoutFlow = ({
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
     const payments = [{ paymodeId: resolvedPaymodeId, amount: total }];
-    const effectiveEmployeeId = (waiterId && waiterId > 0)
+
+    const authorizedEmpId = overrideEmployeeId || settlementEmployeeIdRef.current || (localStorage.getItem("authorizedEmployeeId") ? Number(localStorage.getItem("authorizedEmployeeId")) : null);
+    let effectiveEmployeeId = (authorizedEmpId && authorizedEmpId > 0)
+      ? authorizedEmpId
+      : (waiterId && waiterId > 0)
       ? waiterId
       : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
 
+    if (effectiveEmployeeId && !waiterId && !authorizedEmpId && defaultEmployeeEnabled) {
+      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
+        effectiveEmployeeId = null;
+      }
+    }
+
     if (effectiveEmployeeId) {
-      submitSettlementForEmployee(effectiveEmployeeId, payments);
+      const res = await submitSettlementForEmployee(effectiveEmployeeId, payments);
+      if (res && (res as any).isEmployeeNotFound) {
+        requestAuthorization({
+          actionLabel: "Settlement",
+          permissionId: 19, // Settle
+          bypassDefaultEmployee: true,
+          onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
+        });
+      }
       return;
     }
 
     if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      showToast("Default employee is enabled but not selected in settings", "error");
-      return;
+      disableDefaultEmployeeConfig("Invalid default employee ID in settlement");
+      dispatch(setWaiter({ waiterId: null, waiterName: null }));
+      showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
     }
 
     requestAuthorization({
       actionLabel: "Settlement",
       permissionId: 19, // Settle
+      bypassDefaultEmployee: true,
       onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
     });
   });
@@ -895,6 +973,8 @@ export const usePosCheckoutFlow = ({
     finalizeSettlement,
     handleCompleteSettlement,
     handleCardCreditSettlement,
+    setSettlementEmployeeId,
+    settlementEmployeeIdRef,
     settleShouldPrintRef
   };
 };

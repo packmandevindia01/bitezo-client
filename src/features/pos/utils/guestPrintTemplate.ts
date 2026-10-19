@@ -1,7 +1,8 @@
 import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
-import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
+import { isBillArabicEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
+export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
 import { getModifierTypeNameById } from "../services/menuApi";
 import { getBillingConfig, getPriceView } from "../terminal/utils/billing";
@@ -70,7 +71,14 @@ const getPaymodeArabic = (name: string): string => {
   const lower = (name || "").toLowerCase().trim();
   if (lower === "cash") return "نقد";
   if (lower === "card") return "بطاقة";
+  if (lower.includes("benefit")) return "بنفت";
   if (lower === "credit") return "آجل";
+  if (lower === "cheque" || lower === "check") return "شيك";
+  if (lower === "online") return "عبر الإنترنت";
+  if (lower.includes("talabat")) return "طلبات";
+  if (lower.includes("jahez")) return "جاهز";
+  if (lower.includes("ahlan")) return "أهلاً";
+  if (lower === "other") return "أخرى";
   return "";
 };
 
@@ -177,27 +185,29 @@ export const generateGuestPrintHtml = async (
           return sec === "footer" || code.startsWith("F");
         };
 
-        const headers = branchLines.filter(l => isHeader(l) && l.value && String(l.value).trim() !== "");
+        const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
         if (headers.length > 0) {
           customHeadersHtml = headers.map(l => {
+            const val = l.value ?? l.lineValue ?? "";
             const styleObj = getLineStyle(l) as any;
             const styleStr = Object.entries(styleObj).map(([k, v]) => {
               const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
               return `${kebab}:${v}`;
             }).join(";");
-            return `<div dir="auto" style="${styleStr}">${l.value}</div>`;
+            return `<div dir="auto" style="${styleStr}">${val}</div>`;
           }).join("");
         }
 
-        const footers = branchLines.filter(l => isFooter(l) && l.value && String(l.value).trim() !== "");
+        const footers = branchLines.filter(l => isFooter(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
         if (footers.length > 0) {
           customFootersHtml = footers.map(l => {
+            const val = l.value ?? l.lineValue ?? "";
             const styleObj = getLineStyle(l) as any;
             const styleStr = Object.entries(styleObj).map(([k, v]) => {
               const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
               return `${kebab}:${v}`;
             }).join(";");
-            return `<div dir="auto" style="${styleStr}">${l.value}</div>`;
+            return `<div dir="auto" style="${styleStr}">${val}</div>`;
           }).join("");
         }
       }
@@ -213,23 +223,32 @@ export const generateGuestPrintHtml = async (
   const isDelivery = Boolean(data.orderType?.toLowerCase().includes("delivery") || hasDeliveryAddress);
   const driverVal = (data.driverName || data.driver || "").trim();
 
-  const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
-
-  let orderTypeLabel = modePrefix;
-  if (isTakeOut) orderTypeLabel = modePrefix ? `${modePrefix} (TAKE OUT)` : "(TAKE OUT)";
-  else if (isDriveThru) orderTypeLabel = modePrefix ? `${modePrefix} (DRIVE THRU)` : "(DRIVE THRU)";
-  else if (isDineIn) orderTypeLabel = modePrefix ? `${modePrefix} (DINE IN)` : "(DINE IN)";
-  else if (isDelivery) orderTypeLabel = modePrefix ? `${modePrefix} (DELIVERY)` : "(DELIVERY)";
+  const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
 
   const isBillArabic = data.billArabic ?? isBillArabicEnabled();
+
+  let orderTypeSuffix = "";
+  if (isTakeOut) orderTypeSuffix = isBillArabic ? "(TAKE OUT / سفري)" : "(TAKE OUT)";
+  else if (isDriveThru) orderTypeSuffix = isBillArabic ? "(DRIVE THRU / طلبات السيارات)" : "(DRIVE THRU)";
+  else if (isDineIn) orderTypeSuffix = isBillArabic ? "(DINE IN / محلي)" : "(DINE IN)";
+  else if (isDelivery) orderTypeSuffix = isBillArabic ? "(DELIVERY / توصيل)" : "(DELIVERY)";
 
   const arabicInvoiceTitle = data.enableVat
     ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة ضريبية مبسطة</div>'
     : '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة مبسطة</div>';
 
-  const headerTitle = data.enableVat 
-    ? `SIMPLIFIED TAX INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}<div style="margin-top:2px;">${orderTypeLabel}</div>` 
-    : `SIMPLIFIED INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}<div style="margin-top:2px;">${orderTypeLabel}</div>`;
+  const arabicGuestTitle = '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة ضيف</div>';
+
+  let headerTitle = "";
+  if (isGuestPrint) {
+    headerTitle = `GUEST PRINT${isBillArabic ? `${arabicGuestTitle}` : ''}${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}`;
+  } else if (data.isPackager) {
+    headerTitle = `PACKAGER${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}`;
+  } else {
+    headerTitle = data.enableVat 
+      ? `SIMPLIFIED TAX INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}` 
+      : `SIMPLIFIED INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}`;
+  }
 
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
@@ -251,18 +270,14 @@ export const generateGuestPrintHtml = async (
     : (isVatActive ? (1 / 1.10) : 1);
 
   const printTaxSetting = resolvePrintTaxSetting(data);
-  let isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
-  // Mathematical validation:
-  // If (SubTotal - Discount + VAT == totalNet), the bill's line amounts are Tax-Exclusive!
-  if (isVatActive && authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0) {
-    const totalDiscVal = Number(data.discount || 0);
-    if (Math.abs((authoritativeSubTotal - totalDiscVal + authoritativeVatAmount) - totalNet) < 0.05) {
-      isTaxInclusive = false;
-    } else if (Math.abs((authoritativeSubTotal - totalDiscVal) - totalNet) < 0.05) {
-      isTaxInclusive = true;
-    }
-  }
+  // Consistency Rule:
+  // If the bill structure explicitly has an exclusive SubTotal and adds VAT Amount on top (SubTotal + VAT = Net),
+  // then the line items must be Tax-Exclusive so that Sum(Amt) === SubTotal and Rate * Qty === Amt.
+  const hasExclusiveVatAddition = isVatActive && authoritativeSubTotal > 0 && authoritativeVatAmount > 0 &&
+    Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05;
+
+  const isTaxInclusive = isVatActive && !hasExclusiveVatAddition ? (printTaxSetting === "Inclusive") : false;
 
   const isOrderBillDiscount = Boolean(
     data.isBillDiscount ||
@@ -281,10 +296,10 @@ export const generateGuestPrintHtml = async (
   let itemsHtml = "";
   let displaySubTotal = 0; // Sum of rounded display amounts for consistency
   cartDetails.forEach((item) => {
-    let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
-    if (item.variantName && item.variantName.toLowerCase().trim() !== 'main') {
-      name += ` - ${item.variantName.toUpperCase()}`;
-    }
+    const name = formatItemDisplayName(
+      item.product?.name || `Item #${item.productId}`,
+      item.variantName
+    ).toUpperCase();
     const qty = item.quantity;
     
     const altArabicName = isBillArabic ? getAlternativeArabicName(item) : "";
@@ -310,10 +325,16 @@ export const generateGuestPrintHtml = async (
           0
         );
 
+    const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
+      ? Number((item as any).basePrice)
+      : undefined;
+
     // ── 1. Calculate Exclusive Amounts (Tax-Exclusive) ──
-    const catalogExclusivePrice = (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && (item as any).isIncl)
-      ? (origUnitPrice * vatRatio)
-      : (origUnitPrice > 0 ? origUnitPrice : 0);
+    const catalogExclusivePrice = knownBasePrice !== undefined
+      ? knownBasePrice
+      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && (item as any).isIncl)
+          ? (origUnitPrice * vatRatio)
+          : (origUnitPrice > 0 ? origUnitPrice : 0));
 
     let exclusiveUnitPrice: number;
     let exclusiveProductLineAmount: number;
@@ -351,9 +372,11 @@ export const generateGuestPrintHtml = async (
     }
 
     // ── 2. Calculate Inclusive Amounts (Tax-Inclusive) ──
-    const catalogInclusivePrice = (!isTaxInclusive && isVatActive && vatRatio > 0 && vatRatio < 1 && !(item as any).isIncl)
-      ? (origUnitPrice / vatRatio)
-      : (origUnitPrice > 0 ? origUnitPrice : 0);
+    const catalogInclusivePrice = knownBasePrice !== undefined
+      ? (isVatActive && vatRatio > 0 && vatRatio < 1 ? (knownBasePrice / vatRatio) : knownBasePrice)
+      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && !(item as any).isIncl)
+          ? (origUnitPrice / vatRatio)
+          : (origUnitPrice > 0 ? origUnitPrice : 0));
 
     let lineInclusiveAmt: number;
     let inclusiveUnitPrice: number;
@@ -399,7 +422,10 @@ export const generateGuestPrintHtml = async (
     }
 
     // ── 3. Select Rate & Amt based on tax setting (Inclusive vs Exclusive) ──
-    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
+    const safeInclusiveRate = qty > 0 && Math.abs((inclusiveUnitPrice * qty) - lineInclusiveAmt) > 0.01
+      ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty)
+      : inclusiveUnitPrice;
+    const finalRate = isTaxInclusive ? safeInclusiveRate : exclusiveUnitPrice;
     const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
 
     // displaySubTotal accumulates line amounts for fallback
@@ -413,7 +439,7 @@ export const generateGuestPrintHtml = async (
       <tr>
         <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
         <td style="width: 44%; text-align: left; vertical-align: top; padding: 0.5px 0;">
-          <div>${name}</div>
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">${name}</div>
           ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; line-height:1.25; margin-top:1px; color:#000000; text-align:left; white-space:normal;">${altArabicName}</div>` : ''}
           ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
@@ -624,13 +650,32 @@ export const generateGuestPrintHtml = async (
           
           table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
           
-          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 5px 0; }
-          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; }
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 6px 0; clear: both; width: 100%; display: block; }
+          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; clear: both; width: 100%; display: block; }
+          
+          table.meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 2px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+          }
+          table.meta-table td {
+            padding: 1.5px 0;
+            vertical-align: top;
+            font-weight: 600;
+            color: #000000;
+            line-height: 1.25;
+          }
           
           table.items-table {
             font-weight: 600;
             line-height: 1.15;
             color: #000000;
+            table-layout: fixed;
+            width: 100%;
           }
           table.items-table th {
             font-weight: 700;
@@ -639,6 +684,8 @@ export const generateGuestPrintHtml = async (
             padding-bottom: 5px;
             line-height: 1.3;
             text-align: left;
+            word-break: break-word;
+            overflow-wrap: break-word;
           }
           table.items-table th.col-rate,
           table.items-table th.col-amt {
@@ -651,6 +698,8 @@ export const generateGuestPrintHtml = async (
             color: #000000;
             padding: 1px 0;
             line-height: 1.2;
+            word-break: break-word;
+            overflow-wrap: break-word;
           }
           table.items-table div {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
@@ -660,6 +709,8 @@ export const generateGuestPrintHtml = async (
             margin: 0;
             padding: 0;
             line-height: 1.15;
+            word-break: break-word;
+            overflow-wrap: break-word;
           }
 
           .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
@@ -709,73 +760,67 @@ export const generateGuestPrintHtml = async (
         </style>
       </head>
       <body>
-          ${allowCompanyHeader ? (customHeadersHtml ? `
+          ${allowCompanyHeader && customHeadersHtml ? `
             <div style="margin-bottom: 10px; padding: 0 4px; width: 100%; box-sizing: border-box;">
               ${customHeadersHtml}
             </div>
-          ` : `
-          <div class="text-center font-bold" style="font-size: 16px;">GOLD RESTAURANT</div>
-          <div class="text-center" style="margin-bottom: 10px;">
-            <div>Tea World</div>
-            <div>Building:65,Road:2003,Block:320</div>
-            <div>HOORA</div>
-            <div>CR NO:48622-16</div>
-            ${isVatActive ? '<div>VAT NO:220003229000002</div>' : ''}
-            <div>Tel:17311999,Tel:17311999</div>
-          </div>
-          `) : ''}
+          ` : ''}
   
           <div class="text-center header-title">${headerTitle}</div>
         
         <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
 
         ${data.invoiceNo ? `
-        <div class="meta-row">
-          <div style="width: 50%;">Invoice No &nbsp; <span style="font-size: 16px; font-weight: bold;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></div>
-          <div style="width: 50%;">Order No &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></div>
-        </div>
-        <div class="meta-row">
-          <div style="width: 50%;">Ticket No &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></div>
-          <div style="width: 50%;">Date &nbsp; <span style="font-weight: normal">${dateStr}</span></div>
-        </div>
-        <div class="meta-row">
-          <div style="width: 50%;">Time &nbsp; <span style="font-weight: normal">${timeStr}</span></div>
-          <div style="width: 50%;">Employee &nbsp; <span style="font-weight: normal">${data.waiter}</span></div>
-        </div>
-        <div class="meta-row">
-          <div style="width: 50%;">Counter &nbsp; <span style="font-weight: normal">${data.counter}</span></div>
-          ${isDineIn ? `<div style="width: 50%;">Section &nbsp; <span style="font-weight: normal">${data.section}</span></div>` : (driverVal ? `<div style="width: 50%;">Driver &nbsp; <span style="font-weight: bold;">${driverVal}</span></div>` : '<div style="width: 50%;"></div>')}
-        </div>
-        ${isDineIn ? `
-        <div class="meta-row">
-          <div style="width: 50%;">Table &nbsp; <span style="font-weight: normal">${data.table}</span></div>
-          <div style="width: 50%;"></div>
-        </div>
-        ` : ''}
+        <table class="meta-table">
+          <tr>
+            <td style="width: 50%;">Invoice No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم الفاتورة)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></td>
+            <td style="width: 50%;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></td>
+            <td style="width: 50%;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${dateStr}</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${timeStr}</span></td>
+            <td style="width: 50%;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.waiter}</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.counter}</span></td>
+            ${isDineIn ? `<td style="width: 50%;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.section}</span></td>` : (driverVal ? `<td style="width: 50%;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp; <span style="font-weight: bold;">${driverVal}</span></td>` : '<td style="width: 50%;"></td>')}
+          </tr>
+          ${isDineIn ? `
+          <tr>
+            <td style="width: 50%;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.table}</span></td>
+            <td style="width: 50%;"></td>
+          </tr>
+          ` : ''}
+        </table>
         ` : `
-        <div class="meta-row">
-          <div style="width: 50%;">Order No &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></div>
-          <div style="width: 50%;">Ticket No &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></div>
-        </div>
-        <div class="meta-row">
-          <div style="width: 50%;">Date &nbsp; <span style="font-weight: normal">${dateStr}</span></div>
-          <div style="width: 50%;">Time &nbsp; <span style="font-weight: normal">${timeStr}</span></div>
-        </div>
-        <div class="meta-row">
-          <div style="width: 50%;">Employee &nbsp; <span style="font-weight: normal">${data.waiter}</span></div>
-          <div style="width: 50%;">Counter &nbsp; <span style="font-weight: normal">${data.counter}</span></div>
-        </div>
-        ${isDineIn ? `
-        <div class="meta-row">
-          <div style="width: 50%;">Section &nbsp; <span style="font-weight: normal">${data.section}</span></div>
-          <div style="width: 50%;">Table &nbsp; <span style="font-weight: normal">${data.table}</span></div>
-        </div>
-        ` : (driverVal ? `
-        <div class="meta-row">
-          <div style="width: 50%;">Driver &nbsp; <span style="font-weight: bold;">${driverVal}</span></div>
-          <div style="width: 50%;"></div>
-        </div>
-        ` : '')}
+        <table class="meta-table">
+          <tr>
+            <td style="width: 50%;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></td>
+            <td style="width: 50%;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${dateStr}</span></td>
+            <td style="width: 50%;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${timeStr}</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.waiter}</span></td>
+            <td style="width: 50%;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.counter}</span></td>
+          </tr>
+          ${isDineIn ? `
+          <tr>
+            <td style="width: 50%;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.section}</span></td>
+            <td style="width: 50%;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.table}</span></td>
+          </tr>
+          ` : (driverVal ? `
+          <tr>
+            <td style="width: 50%;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp; <span style="font-weight: bold;">${driverVal}</span></td>
+            <td style="width: 50%;"></td>
+          </tr>
+          ` : '')}
+        </table>
         `}
         
         <div class="dashed-hr"></div>
@@ -890,19 +935,18 @@ export const generateGuestPrintHtml = async (
             ${isBillArabic ? '<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(بيانات التوصيل)</bdi>' : ''}
           </div>
           <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
-          <table style="width: 100%; font-size: 12px; margin-top: 5px;">
-            ${data.contactNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Mob No</td><td style="font-weight: bold;">${data.contactNo}</td></tr>` : ''}
-            ${data.callBack ? `<tr><td style="width: 35%; padding-bottom: 2px;">Call Back</td><td style="font-weight: bold;">${data.callBack}</td></tr>` : ''}
-            ${hasValidKeepChange ? `<tr><td style="width: 35%; padding-bottom: 2px;">Keep Change</td><td style="font-weight: bold;">${keepChangeVal}</td></tr>` : ''}
-            ${data.customerName ? `<tr><td style="width: 35%; padding-bottom: 2px;">Customer</td><td style="font-weight: bold;">${data.customerName}</td></tr>` : ''}
+            ${data.contactNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(رقم الجوال)</bdi>' : ''}</td><td style="font-weight: bold;">${data.contactNo}</td></tr>` : ''}
+            ${data.callBack ? `<tr><td style="width: 35%; padding-bottom: 2px;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(معاودة الاتصال)</bdi>' : ''}</td><td style="font-weight: bold;">${data.callBack}</td></tr>` : ''}
+            ${hasValidKeepChange ? `<tr><td style="width: 35%; padding-bottom: 2px;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(الباقي)</bdi>' : ''}</td><td style="font-weight: bold;">${keepChangeVal}</td></tr>` : ''}
+            ${data.customerName ? `<tr><td style="width: 35%; padding-bottom: 2px;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(العميل)</bdi>' : ''}</td><td style="font-weight: bold;">${data.customerName}</td></tr>` : ''}
             ${driverVal ? `<tr><td style="width: 35%; padding-bottom: 2px;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(السائق)</bdi>' : ''}</td><td style="font-weight: bold;">${driverVal}</td></tr>` : ''}
-            ${data.flatNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Flat No</td><td style="font-weight: bold;">${data.flatNo}</td></tr>` : ''}
-            ${data.buildingNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Building</td><td style="font-weight: bold;">${data.buildingNo}</td></tr>` : ''}
-            ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
-            ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
-            ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
-            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Address</td><td style="font-weight: bold;">${data.address}</td></tr>` : ''}
-            ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
+            ${data.flatNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(شقة)</bdi>' : ''}</td><td style="font-weight: bold;">${data.flatNo}</td></tr>` : ''}
+            ${data.buildingNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(مبنى)</bdi>' : ''}</td><td style="font-weight: bold;">${data.buildingNo}</td></tr>` : ''}
+            ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(مجمع)</bdi>' : ''}</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
+            ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(طريق)</bdi>' : ''}</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
+            ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(المنطقة)</bdi>' : ''}</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
+            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(العنوان)</bdi>' : ''}</td><td style="font-weight: bold;">${data.address}</td></tr>` : ''}
+            ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(رقم المزود)</bdi>' : ''}</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
           </table>
         </div>
         `;
@@ -910,7 +954,7 @@ export const generateGuestPrintHtml = async (
 
         <div class="barcode-container">*${String(data.orderNo || '').split(',')[0].trim()}*</div>
         
-        <div style="font-size: 11px; margin-top: 5px;">Print Time : ${dateStr} ${timeStr}</div>
+        <div style="font-size: 11px; margin-top: 5px;">Print Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(وقت الطباعة)</bdi>' : ''} : ${dateStr} ${timeStr}</div>
 
         ${customFootersHtml ? `
         <div style="margin-top: 10px; margin-bottom: 8px; padding: 0 4px; width: 100%; box-sizing: border-box; text-align: center;">

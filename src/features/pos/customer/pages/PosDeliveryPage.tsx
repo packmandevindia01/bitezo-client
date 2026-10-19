@@ -18,7 +18,8 @@ import {
   setComingTime,
   setChange,
   setVehicleCustomerName,
-  setDeliveryDetails
+  setDeliveryDetails,
+  clearDeliveryDetails
 } from "../../terminal/store/posSlice";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -107,6 +108,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     setCurrentAddressId(null);
     lastLookedUpMobileRef.current = "";
     lastLoadedAddressRef.current = null;
+    dispatch(clearDeliveryDetails());
     setTimeout(() => mobileRef.current?.focus(), 50);
   };
 

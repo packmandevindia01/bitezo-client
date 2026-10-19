@@ -17,9 +17,10 @@ import { PosActionButtons } from "../components/layout/PosActionButtons";
 import { PosTerminalModals } from "../components/modals/PosTerminalModals";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
-import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge } from "../store/posSlice";
+import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
 import { roundCalc } from "../utils/billing";
+import { disableDefaultEmployeeConfig, isDefaultEmployeeValidInCache } from "../../utils/defaultEmployee";
 import { getModifierTypeNameById } from "../../services/menuApi";
 import { PosProductSearchDropdown } from "../components/menu/PosProductSearchDropdown";
 import type { PosProductSearchResult } from "../../types";
@@ -121,9 +122,9 @@ export const PosTerminalPage = () => {
   const editingSaleId = useAppSelector((state) => state.pos.editingSaleId);
   const selectedCustomerName = useAppSelector((state) => state.pos.selectedCustomerName);
 
-  const activeCategory = terminal.categories.find((c) => c.id === terminal.activeCategoryId);
+  const activeCategory = terminal.categories.find((c) => String(c.id) === String(terminal.activeCategoryId));
   const activeSubCategory = terminal.subCategories.find(
-    (s: any) => s.subCategoryId === terminal.activeSubCategoryId
+    (s: any) => String(s.subCategoryId) === String(terminal.activeSubCategoryId)
   );
 
   const currentSelectedItem = useMemo(() => {
@@ -431,7 +432,7 @@ export const PosTerminalPage = () => {
     });
   });
 
-  const handleSettle = (shouldPrint: boolean) => {
+  const handleSettle = async (shouldPrint: boolean) => {
     if (terminal.itemCount === 0) {
       showToast("Cart is empty", "warning");
       return;
@@ -466,13 +467,86 @@ export const PosTerminalPage = () => {
       paymodeIdToSend = cashTender ? Number(cashTender.id) : 1;
     }
 
-    if (isMultiPayTender) {
-      modals.setIsMultiPayModalOpen(true);
-    } else if (isCashTender) {
-      modals.setIsCashModalOpen(true);
-    } else {
-      checkoutFlow.handleCardCreditSettlement(paymodeIdToSend);
+    const openPaymentModal = (employeeId: number) => {
+      checkoutFlow.setSettlementEmployeeId(employeeId);
+      localStorage.setItem("authorizedEmployeeId", String(employeeId));
+      if (isMultiPayTender) {
+        modals.setIsMultiPayModalOpen(true);
+      } else if (isCashTender) {
+        modals.setIsCashModalOpen(true);
+      } else {
+        checkoutFlow.handleCardCreditSettlement(paymodeIdToSend, employeeId);
+      }
+    };
+
+    let config: any = null;
+    try {
+      config = await getRuntimePosConfig();
+    } catch {
+      showToast("Unable to load POS configuration", "error");
+      return;
     }
+
+    // 1. If a waiter is explicitly selected from the Waiter button, use their employee ID
+    if (terminal.waiterId && terminal.waiterId > 0) {
+      if (!isDefaultEmployeeValidInCache(terminal.waiterId)) {
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        localStorage.removeItem("selectedWaiterId");
+        localStorage.removeItem("selectedWaiterName");
+        showToast("The selected waiter was not found in this branch and has been cleared. Please authorize settlement.", "warning");
+        requestAuthorization({
+          actionLabel: "Settlement",
+          permissionId: 19, // Settle
+          bypassDefaultEmployee: true,
+          onAuthorized: (empId) => openPaymentModal(empId),
+        });
+        return;
+      }
+      openPaymentModal(terminal.waiterId);
+      return;
+    }
+
+    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+    const defaultEmployeeId = Number(config?.employeeId ?? 0);
+
+    // 2. When default employee is configured, check cache and use that employee ID
+    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
+      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
+        requestAuthorization({
+          actionLabel: "Settlement",
+          permissionId: 19, // Settle
+          bypassDefaultEmployee: true,
+          onAuthorized: (empId) => openPaymentModal(empId),
+        });
+        return;
+      }
+      openPaymentModal(defaultEmployeeId);
+      return;
+    }
+
+    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
+      disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
+      dispatch(setWaiter({ waiterId: null, waiterName: null }));
+      showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
+      requestAuthorization({
+        actionLabel: "Settlement",
+        permissionId: 19, // Settle
+        bypassDefaultEmployee: true,
+        onAuthorized: (empId) => openPaymentModal(empId),
+      });
+      return;
+    }
+
+    // 3. Default employee is not configured -> Ask for employee code / authorization right when clicking Settle!
+    requestAuthorization({
+      actionLabel: "Settlement",
+      permissionId: 19, // Settle
+      bypassDefaultEmployee: true,
+      onAuthorized: (empId) => openPaymentModal(empId),
+    });
   };
 
   const handleOrder = async (shouldPrint: boolean) => {
@@ -492,21 +566,70 @@ export const PosTerminalPage = () => {
 
     // If a waiter is explicitly selected from the Waiter button, use their employee ID
     if (terminal.waiterId && terminal.waiterId > 0) {
-      await checkoutFlow.submitOrderForEmployee(terminal.waiterId, shouldPrint);
+      if (!isDefaultEmployeeValidInCache(terminal.waiterId)) {
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        localStorage.removeItem("selectedWaiterId");
+        localStorage.removeItem("selectedWaiterName");
+        showToast("The selected waiter was not found in this branch and has been cleared. Please select an employee.", "warning");
+        requestAuthorization({
+          actionLabel: "Order",
+          bypassDefaultEmployee: true,
+          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+        });
+        return;
+      }
+      const waiterRes = await checkoutFlow.submitOrderForEmployee(terminal.waiterId, shouldPrint);
+      if (waiterRes && (waiterRes as any).isEmployeeNotFound) {
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        localStorage.removeItem("selectedWaiterId");
+        localStorage.removeItem("selectedWaiterName");
+        requestAuthorization({
+          actionLabel: "Order",
+          bypassDefaultEmployee: true,
+          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+        });
+      }
       return;
     }
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
 
-    // When default employee is configured, submit order directly using that employee ID without asking for authorization
+    // When default employee is configured, check cache and submit order directly using that employee ID
     if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
-      await checkoutFlow.submitOrderForEmployee(defaultEmployeeId, shouldPrint);
+      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        showToast("Configured default employee was not found in this branch and has been disabled. Please select an employee.", "warning");
+        requestAuthorization({
+          actionLabel: "Order",
+          bypassDefaultEmployee: true,
+          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+        });
+        return;
+      }
+
+      const res = await checkoutFlow.submitOrderForEmployee(defaultEmployeeId, shouldPrint);
+      if (res && (res as any).isEmployeeNotFound) {
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        requestAuthorization({
+          actionLabel: "Order",
+          bypassDefaultEmployee: true,
+          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+        });
+      }
       return;
     }
 
     if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      showToast("Default employee is enabled but not selected in settings", "error");
+      disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
+      dispatch(setWaiter({ waiterId: null, waiterName: null }));
+      showToast("Default employee was not configured properly and has been disabled. Please select an employee.", "warning");
+      requestAuthorization({
+        actionLabel: "Order",
+        bypassDefaultEmployee: true,
+        onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+      });
       return;
     }
 
@@ -553,11 +676,11 @@ export const PosTerminalPage = () => {
 
   useEffect(() => {
     if (status && (status.isDayClosed || status.isShiftClosed)) {
-      if (!modals.isCashierSessionOpen) {
+      if (!modals.isCashierSessionOpen && !modals.isReportModalOpen) {
         modals.setIsCashierSessionOpen(true);
       }
     }
-  }, [status, modals.isCashierSessionOpen, modals.setIsCashierSessionOpen]);
+  }, [status, modals.isCashierSessionOpen, modals.isReportModalOpen, modals.setIsCashierSessionOpen]);
 
   if (isLoading && !status) {
     return (
@@ -832,6 +955,7 @@ export const PosTerminalPage = () => {
           checkoutFlow.settleShouldPrintRef.current = true;
         }}
         onCancelSettle={() => {
+          checkoutFlow.setSettlementEmployeeId(null);
           checkoutFlow.settleShouldPrintRef.current = false;
         }}
       />

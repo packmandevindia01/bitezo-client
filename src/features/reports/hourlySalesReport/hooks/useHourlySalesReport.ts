@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBranchList, getHourlySalesReport } from "../services/hourlySalesReportApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, HourlySalesReportData } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { subscribeToTransactionUpdates } from "../../../../utils/transactionSync";
 
 export const useHourlySalesReport = () => {
+  const queryClient = useQueryClient();
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
 
@@ -38,7 +40,10 @@ export const useHourlySalesReport = () => {
         Decimals: decimalPart,
       }),
     staleTime: 0,
-    refetchOnMount: true,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     select: (data) => {
       if (!data?.columns || !data?.rows) return data;
       
@@ -54,6 +59,24 @@ export const useHourlySalesReport = () => {
       };
     },
   });
+
+  // Real-time synchronization: refresh report whenever any transaction entry occurs (POS sales, settlements, etc.)
+  useEffect(() => {
+    return subscribeToTransactionUpdates(() => {
+      void queryClient.invalidateQueries({ queryKey: ["hourlySalesReport"] });
+      void queryClient.refetchQueries({ queryKey: ["hourlySalesReport"] });
+    });
+  }, [queryClient]);
+
+  // Auto-refresh when user returns to this tab or window gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      void queryClient.invalidateQueries({ queryKey: ["hourlySalesReport"] });
+      void refetch();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [queryClient, refetch]);
 
   const resetFilters = () => {
     const today = new Date();

@@ -101,12 +101,17 @@ export const useEmployeeManager = () => {
   const branches = useMemo(() => {
     const map = new Map<number, string>();
 
+    const isAll = (name: string) => {
+      const lower = name.trim().toLowerCase();
+      return lower === "all" || lower === "all branches" || lower === "all branch";
+    };
+
     // 1. Redux store branches (instantly available on navigation)
     if (Array.isArray(reduxBranches)) {
       reduxBranches.forEach((b: any) => {
         const id = Number(b.id ?? b.branchId);
         const name = String(b.branchName ?? b.name ?? "");
-        if (id && id > 0 && name) {
+        if (id && id > 0 && name && !isAll(name)) {
           map.set(id, name);
         }
       });
@@ -117,7 +122,7 @@ export const useEmployeeManager = () => {
       queryBranches.forEach((b) => {
         const id = Number(b.branchId);
         const name = String(b.branchName ?? "");
-        if (id && id > 0 && name) {
+        if (id && id > 0 && name && !isAll(name)) {
           map.set(id, name);
         }
       });
@@ -196,6 +201,7 @@ export const useEmployeeManager = () => {
           updatedAt: new Date().toISOString(),
         } as any);
       } else {
+        const nowIso = new Date().toISOString();
         await createEmployee({
           code: data.code,
           empCode: data.code,
@@ -208,6 +214,9 @@ export const useEmployeeManager = () => {
           isMaster: data.isMaster,
           isActive: data.active,
           active: data.active,
+          createdAt: nowIso,
+          createDate: nowIso,
+          createdDate: nowIso,
         } as any);
       }
     },

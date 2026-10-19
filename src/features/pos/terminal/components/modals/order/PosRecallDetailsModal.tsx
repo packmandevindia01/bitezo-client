@@ -9,12 +9,13 @@ import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { loadRecalledOrder, setDeliveryDetails } from "../../../store/posSlice";
 import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
-import { isKotArabicEnabled, isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
+import { isKotArabicEnabled, isBillArabicEnabled, formatItemDisplayName, cleanProductName } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
@@ -321,7 +322,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           variantName: resolvedVariantName,
           variantArabic: resolvedVariantArabic,
           product: { 
-            name: d.productName || d.ProductName || matchedProduct?.name || `Product #${pId}`, 
+            name: matchedProduct?.name || cleanProductName(d.productName || d.ProductName, resolvedVariantName) || `Product #${pId}`, 
             price: d.price || 0,
             categoryId: d.categoryId || matchedProduct?.categoryId || 0,
             arabicName: d.arabicName || d.ArabicName || matchedProduct?.arabicName
@@ -538,6 +539,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   const handlePrintGuest = async () => {
     if (!orderId || !order) return;
     
+    if (!hasPrinterHeadings()) {
+      notifyPrinterHeadingWarning(showToast);
+    }
+
     try {
       showToast(`Preparing Guest Receipt for Order #${orderId}...`, "success");
       
@@ -747,7 +752,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           variantName: resolvedVariantName,
           variantArabic: resolvedVariantArabic,
           product: { 
-            name: d.productName || d.ProductName || `Product #${pId}`, 
+            name: cleanProductName(d.productName || d.ProductName, resolvedVariantName) || `Product #${pId}`, 
             price: d.price || 0,
             arabicName: d.arabicName || d.ArabicName
           },
@@ -1474,14 +1479,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     displaySubTotal = roundCalc(netTaxableBase + displayDiscount);
   }
 
-  let isTaxInclusive = billingConfig?.vatType === "Inclusive";
-  if (enableVat && displayVatAmount > 0 && netAmount > 0 && displaySubTotal > 0) {
-    if (Math.abs((displaySubTotal - displayDiscount + displayVatAmount) - netAmount) < 0.05) {
-      isTaxInclusive = false;
-    } else if (Math.abs((displaySubTotal - displayDiscount) - netAmount) < 0.05) {
-      isTaxInclusive = true;
-    }
-  }
+  const isTaxInclusive = billingConfig?.vatType === "Inclusive";
 
   const hasDelivery = !!master.mobileNo || !!master.contactNo || !!master.deliveryCustomerName;
   const deliveryDetails = hasDelivery ? {
@@ -1502,7 +1500,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       onClose={onClose}
       size="lg"
       noPadding
-      className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden max-w-[500px]"
+      className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden w-full max-w-[520px] md:max-w-[550px]"
     >
       {/* HEADER */}
       <div className="bg-[#1e1e1e] border-b border-stone-800 text-stone-100 py-3.5 px-6 flex justify-between items-center">
@@ -1521,7 +1519,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       ) : order ? (
         <div className="flex flex-col md:flex-row min-h-[420px] bg-stone-950/80">
           {/* LEFT SIDE: TICKET VIEW (Thermal Printer Style) */}
-          <div className="flex-1 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs flex flex-col justify-between select-text shadow-inner">
+          <div className="flex-1 min-w-0 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs flex flex-col justify-between select-text shadow-inner">
             <div>
               {/* Ticket Header */}
               <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
@@ -1531,30 +1529,30 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
               {/* Order Meta Info Grid */}
               <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
-                <div>
+                <div className="min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">Order No: </span>
                   <span className="font-bold">{orderNo}</span>
                 </div>
-                <div className="text-right">
+                <div className="text-right min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">Ticket: </span>
                   <span className="font-bold">{ticketNo}</span>
                 </div>
                 
-                <div>
+                <div className="min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">Emp: </span>
                   <span className="font-bold">{employeeName}</span>
                 </div>
-                <div className="text-right">
+                <div className="text-right min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">Type: </span>
                   <span className="font-bold text-[#49293e]">{orderTypeName}</span>
                 </div>
 
-                <div>
+                <div className="col-span-2 sm:col-span-1 min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">Customer: </span>
                   <span className="font-bold">{master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "CASH CUSTOMER"}</span>
                 </div>
                 {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
-                  <div className="text-right">
+                  <div className="col-span-2 sm:col-span-1 text-right min-w-0 break-words [overflow-wrap:anywhere]">
                     <span className="text-stone-500">Table: </span>
                     <span className="font-bold">
                       {master.sectionName ? `${master.sectionName} - ` : ""}{master.tableNo}
@@ -1563,14 +1561,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                 )}
 
                 {master.note && (
-                  <div className="col-span-2 mt-1">
+                  <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
                     <span className="text-stone-500">Note: </span>
                     <span className="font-bold italic text-stone-600">"{master.note}"</span>
                   </div>
                 )}
                 
                 {master.vehicleNo && (
-                  <div className="col-span-2 mt-1">
+                  <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
                     <span className="text-stone-500">Vehicle: </span>
                     <span className="font-bold uppercase">{master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}</span>
                   </div>
@@ -1583,7 +1581,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
               {/* Items Table */}
               <div className="mb-4">
-                <div className="grid grid-cols-[24px_1fr_60px] font-bold text-stone-500 text-[10px] uppercase border-b border-stone-300 pb-1 mb-2">
+                <div className="grid grid-cols-[28px_minmax(0,1fr)_65px] font-bold text-stone-500 text-[10px] uppercase border-b border-stone-300 pb-1 mb-2">
                   <div>{t("Qty")}</div>
                   <div className="pl-2">{t("ITEM")}</div>
                   <div className="text-right">{t("Amount")}</div>
@@ -1615,43 +1613,51 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
                     const itemDisc = isModalBillDiscount ? 0 : Number(detail.discAmount || detail.DiscAmount || detail.discount || detail.itemDiscount || 0);
                     const rawPrice = detail.price ?? detail.Price;
-                    const price = (rawPrice !== undefined && Number(rawPrice) > 0)
-                      ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - rawAmount) < 0.001 && qty > 0 ? (rawAmount + itemDisc) / qty : Number(rawPrice))
+                    const rawPriceNum = Number(rawPrice ?? 0);
+                    const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
+                    const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+                    const vatRatio = enableVat ? (1 / (1 + vatRate)) : 1;
+                    const isDetailStoredIncl = Boolean(detail.isIncl || detail.priceIsIncl || detail.priceView === "Inclusive");
+                    const exclPrice = isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum * vatRatio : rawPriceNum;
+                    const inclPrice = !isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum / vatRatio : rawPriceNum;
+                    const unitRate = isTaxInclusive ? inclPrice : exclPrice;
+
+                    const price = (unitRate > 0)
+                      ? unitRate
                       : (qty > 0 ? (rawAmount + itemDisc) / qty : 0);
 
-                    const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
                     const lineAmount = isModalBillDiscount
                       ? (price * qty)
                       : (isTaxInclusive
-                          ? rawAmount
+                          ? (rawAmount > 0 && Math.abs((price * qty) - rawAmount) < 0.05 ? rawAmount : Math.max(0, (price * qty) - itemDisc))
                           : (itemVat > 0 && rawAmount > itemVat
                               ? (rawAmount - itemVat)
                               : Math.max(0, (price * qty) - itemDisc)));
 
                     return (
                       <div key={i} className="flex flex-col">
-                        <div className="grid grid-cols-[24px_1fr_60px] items-start text-[11px] leading-tight">
+                        <div className="grid grid-cols-[28px_minmax(0,1fr)_65px] items-start text-[11px] leading-tight">
                           <div className="font-bold text-stone-500">{qty}</div>
-                          <div className="pl-2 flex flex-col font-bold text-stone-800">
-                            <span>
-                              {localized.primary}
-                              {(detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName)
-                                ? ` - ${detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName}`
-                                : ""}
+                          <div className="pl-2 flex flex-col font-bold text-stone-800 min-w-0">
+                            <span className="break-words [overflow-wrap:anywhere] [word-break:break-word]">
+                              {formatItemDisplayName(
+                                localized.primary,
+                                detail.altName || detail.variantName || detail.AltName || detail.VariantName || detail.unitName
+                              )}
                             </span>
                             {localized.secondary && (
-                              <span className="text-[10px] text-stone-500 font-semibold">{localized.secondary}</span>
+                              <span className="text-[10px] text-stone-500 font-semibold break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{localized.secondary}</span>
                             )}
                             {price > 0 && (
-                              <span className="text-[9px] text-stone-400 font-normal">@ {formatAmount(price)}</span>
+                              <span className="text-[9px] text-stone-400 font-normal mt-0.5">@ {formatAmount(price)}</span>
                             )}
                             {itemDisc > 0 && (
-                              <span className="text-[9px] text-red-600 font-medium italic">
+                              <span className="text-[9px] text-red-600 font-medium italic mt-0.5">
                                 (Disc: -{formatAmount(itemDisc)})
                               </span>
                             )}
                           </div>
-                          <div className="text-right font-bold text-stone-900">
+                          <div className="text-right font-bold text-stone-900 shrink-0">
                             {formatAmount(lineAmount)}
                           </div>
                         </div>
@@ -1675,12 +1681,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                           const modDisplayName = mod.modifierName || mod.ModifierName || mod.name || mod.Name || "";
 
                           return (
-                            <div key={idx} className="grid grid-cols-[24px_1fr_60px] items-start text-[9px] leading-tight mt-0.5">
+                            <div key={idx} className="grid grid-cols-[28px_minmax(0,1fr)_65px] items-start text-[9px] leading-tight mt-0.5">
                               <div></div>
-                              <div className={`pl-3 font-medium ${isMessage ? "text-purple-600" : "text-[#f48120]"}`}>
+                              <div className={`pl-3 font-medium min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] ${isMessage ? "text-purple-600" : "text-[#f48120]"}`}>
                                 {prefix} {!isMessage && mod.qty > 1 ? `${mod.qty} x ` : ""}{modDisplayName}
                               </div>
-                              <div className="text-right font-medium text-[#f48120]">
+                              <div className="text-right font-medium text-[#f48120] shrink-0">
                                 {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}
                               </div>
                             </div>
@@ -1694,17 +1700,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
               {/* Delivery Details Block */}
               {deliveryDetails && (
-                <div className="border-t border-dashed border-stone-400 pt-3 mt-3 text-[10px] space-y-0.5 text-stone-600">
+                <div className="border-t border-dashed border-stone-400 pt-3 mt-3 text-[10px] space-y-0.5 text-stone-600 min-w-0">
                   <div className="font-bold uppercase tracking-wider text-stone-400 mb-1">{t("Delivery Details")}</div>
-                  {deliveryDetails.mobile && <div><span className="font-bold text-stone-500">{t("Mobile")}: </span>{deliveryDetails.mobile}</div>}
-                  {deliveryDetails.callBack && <div><span className="font-bold text-stone-500">Call Back: </span>{deliveryDetails.callBack}</div>}
-                  {deliveryDetails.customerName && <div><span className="font-bold text-stone-500">{t("Customer")}: </span>{deliveryDetails.customerName}</div>}
-                  {deliveryDetails.flat && <div><span className="font-bold text-stone-500">{t("Flat No")}: </span>{deliveryDetails.flat}</div>}
-                  {deliveryDetails.building && <div><span className="font-bold text-stone-500">{t("Building")}: </span>{deliveryDetails.building}</div>}
-                  {deliveryDetails.block && <div><span className="font-bold text-stone-500">{t("Block")}: </span>{deliveryDetails.block}</div>}
-                  {deliveryDetails.road && <div><span className="font-bold text-stone-500">{t("Road")}: </span>{deliveryDetails.road}</div>}
-                  {deliveryDetails.area && <div><span className="font-bold text-stone-500">{t("Area")}: </span>{deliveryDetails.area}</div>}
-                  {deliveryDetails.change && <div><span className="font-bold text-stone-500">{t("Keep Change")}: </span>{deliveryDetails.change}</div>}
+                  {deliveryDetails.mobile && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Mobile")}: </span>{deliveryDetails.mobile}</div>}
+                  {deliveryDetails.callBack && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">Call Back: </span>{deliveryDetails.callBack}</div>}
+                  {deliveryDetails.customerName && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Customer")}: </span>{deliveryDetails.customerName}</div>}
+                  {deliveryDetails.flat && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Flat No")}: </span>{deliveryDetails.flat}</div>}
+                  {deliveryDetails.building && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Building")}: </span>{deliveryDetails.building}</div>}
+                  {deliveryDetails.block && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Block")}: </span>{deliveryDetails.block}</div>}
+                  {deliveryDetails.road && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Road")}: </span>{deliveryDetails.road}</div>}
+                  {deliveryDetails.area && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Area")}: </span>{deliveryDetails.area}</div>}
+                  {deliveryDetails.change && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Keep Change")}: </span>{deliveryDetails.change}</div>}
                 </div>
               )}
             </div>
@@ -1755,7 +1761,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           </div>
 
           {/* RIGHT SIDE: VERTICAL ACTION BUTTONS */}
-          <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch">
+          <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch overflow-x-auto">
             <button
               onClick={handlePrintKOT}
               className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md"

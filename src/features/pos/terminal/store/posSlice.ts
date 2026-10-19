@@ -291,8 +291,8 @@ const posSlice = createSlice({
               !item.mapId &&
               item.productId === productId && 
               matchVariant(item.variantName, variantName) &&
-              Number(item.price) === Number(price ?? 0) &&
-              item.isIncl === isIncl &&
+              Math.abs(Number(item.price) - Number(price ?? 0)) < 0.001 &&
+              (item.isIncl === undefined || isIncl === undefined || Boolean(item.isIncl) === Boolean(isIncl)) &&
               (item.unitId === undefined || unitId === undefined || item.unitId === unitId) &&
               !hasCustomizations(item)
           );
@@ -393,6 +393,7 @@ const posSlice = createSlice({
       state.guestNo = 0;
       state.missedCall = false;
       state.contactNo = '';
+      state.callBack = '';
       state.note = '';
       state.change = '';
       state.isComing = false;
@@ -406,6 +407,23 @@ const posSlice = createSlice({
       state.blockNo = '';
       state.area = '';
       state.customDeliveryCharge = null;
+      state.deliveryDetails = null;
+    },
+    clearDeliveryDetails: (state) => {
+      state.deliveryDetails = null;
+      state.contactNo = '';
+      state.callBack = '';
+      state.deliveryCustomerName = '';
+      state.flatNo = '';
+      state.buildingNo = '';
+      state.roadNo = '';
+      state.blockNo = '';
+      state.area = '';
+      state.note = '';
+      state.change = '';
+      state.missedCall = false;
+      state.isComing = false;
+      state.selectedAddressId = 0;
     },
     setCategory: (state, action: PayloadAction<number | null>) => {
       state.activeCategoryId = action.payload;
@@ -1043,6 +1061,7 @@ export const {
   setVehicleCustomerName,
   setVehicleNo,
   setDeliveryDetails,
+  clearDeliveryDetails,
   loadRecalledOrder,
   setIsSettling,
   setCombinedOrderIds,

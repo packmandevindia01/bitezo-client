@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../../../../app/hooks';
-import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo } from '../../../store/posSlice';
+import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo, setWaiter } from '../../../store/posSlice';
 import { dineInApi } from '../../../../services/dineInApi';
 import { orderApi } from '../../../../services/orderApi';
 import { menuApi } from '../../../../services/menuApi';
@@ -11,6 +11,7 @@ import { formatAmount } from '../../../../../../utils/currency';
 import { Loader, Modal } from '../../../../../../components/common';
 import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
+import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../utils/printHeadingUtils';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
 import {
@@ -34,6 +35,11 @@ import { usePosMasterData } from '../../../hooks/usePosQueries';
 import { getRuntimePosConfig } from '../../../hooks/system/useTerminalInit';
 import { buildSalesInvoicePayload } from '../../../mappers/invoicePayloadMapper';
 import { salesInvoiceApi } from '../../../../services/salesInvoiceApi';
+import {
+  disableDefaultEmployeeConfig,
+  isEmployeeNotFoundError,
+  isDefaultEmployeeValidInCache,
+} from '../../../../utils/defaultEmployee';
 import type { DirectSettleOrderBase } from '../../../mappers/orderPayloadMapper';
 import type {
   DineInTable,
@@ -94,6 +100,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   // Settle modal states
   const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
   const [isSettlingSubmit, setIsSettlingSubmit] = useState(false);
+  const dineInSettlementEmployeeIdRef = useRef<number | null>(null);
   const [settleOrderData, setSettleOrderData] = useState<{
     orderId: number;
     master: any;
@@ -395,13 +402,78 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         sessionStorage.setItem(`order_prevUpdatedAt_${targetOrderId}`, prevUpdatedAt);
       }
 
-      setSettleOrderData({
-        orderId: targetOrderId,
-        master,
-        mappedItems,
-        rawData: fullOrder,
+      const openMultiPay = (empId: number) => {
+        dineInSettlementEmployeeIdRef.current = empId;
+        localStorage.setItem("authorizedEmployeeId", String(empId));
+        setSettleOrderData({
+          orderId: targetOrderId,
+          master,
+          mappedItems,
+          rawData: fullOrder,
+        });
+        setIsMultiPayOpen(true);
+      };
+
+      let config: any = null;
+      try {
+        config = await getRuntimePosConfig();
+      } catch {}
+
+      // 1. If order master already has a valid employee
+      if (master.employeeId && Number(master.employeeId) > 0) {
+        if (!isDefaultEmployeeValidInCache(Number(master.employeeId))) {
+          showToast("The order's waiter was not found in this branch. Please authorize settlement.", "warning");
+          requestAuthorization({
+            actionLabel: "Settlement",
+            permissionId: 19, // Settle
+            bypassDefaultEmployee: true,
+            onAuthorized: (authEmpId) => openMultiPay(authEmpId),
+          });
+          return;
+        }
+        openMultiPay(Number(master.employeeId));
+        return;
+      }
+
+      // 2. Default employee configuration
+      const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+      const defaultEmployeeId = Number(config?.employeeId ?? 0);
+
+      if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
+        if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+          disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+          showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
+          requestAuthorization({
+            actionLabel: "Settlement",
+            permissionId: 19, // Settle
+            bypassDefaultEmployee: true,
+            onAuthorized: (authEmpId) => openMultiPay(authEmpId),
+          });
+          return;
+        }
+        openMultiPay(defaultEmployeeId);
+        return;
+      }
+
+      if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
+        disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
+        showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
+        requestAuthorization({
+          actionLabel: "Settlement",
+          permissionId: 19, // Settle
+          bypassDefaultEmployee: true,
+          onAuthorized: (authEmpId) => openMultiPay(authEmpId),
+        });
+        return;
+      }
+
+      // 3. Ask for employee code / authorization right when clicking Settle!
+      requestAuthorization({
+        actionLabel: "Settlement",
+        permissionId: 19, // Settle
+        bypassDefaultEmployee: true,
+        onAuthorized: (authEmpId) => openMultiPay(authEmpId),
       });
-      setIsMultiPayOpen(true);
     } catch (e: any) {
       console.error("[DineInTableOrdersModal] Failed to load full order for settlement:", e);
       showToast(e?.message || 'Failed to load order for settlement', 'error');
@@ -693,6 +765,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       dispatch(clearCart());
       setIsMultiPayOpen(false);
       setSettleOrderData(null);
+      dineInSettlementEmployeeIdRef.current = null;
 
       // Refresh table orders
       try {
@@ -721,10 +794,20 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           onClose();
         }
       }
+      return { success: true, isEmployeeNotFound: false };
     } catch (err: any) {
       console.error("[DineInTableOrdersModal] Settlement failed:", err);
+      const isEmployeeError = isEmployeeNotFoundError(err);
+      if (isEmployeeError) {
+        disableDefaultEmployeeConfig("Dine In settlement rejected employeeId: not found or invalid.");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        const errorMsg = "The configured default employee was not found in the system and has been disabled. Please select an employee to authorize settlement.";
+        showToast(errorMsg, "warning");
+        return { success: false, isEmployeeNotFound: true };
+      }
       const msg = err.response?.data?.message || err.message || "Failed to settle order";
       showToast(msg, "error");
+      return { success: false, isEmployeeNotFound: false };
     } finally {
       setIsSettlingSubmit(false);
     }
@@ -777,23 +860,45 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const effectiveEmployeeId = (master.employeeId && Number(master.employeeId) > 0)
+    const authorizedEmpId = dineInSettlementEmployeeIdRef.current || (localStorage.getItem("authorizedEmployeeId") ? Number(localStorage.getItem("authorizedEmployeeId")) : null);
+    let effectiveEmployeeId = (authorizedEmpId && authorizedEmpId > 0)
+      ? authorizedEmpId
+      : (master.employeeId && Number(master.employeeId) > 0)
       ? Number(master.employeeId)
       : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
 
+    if (effectiveEmployeeId && !master.employeeId && !authorizedEmpId && defaultEmployeeEnabled) {
+      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
+        effectiveEmployeeId = null;
+      }
+    }
+
     if (effectiveEmployeeId) {
-      await executeSettlement(effectiveEmployeeId, mappedPayments, changeAmount);
+      const res: any = await executeSettlement(effectiveEmployeeId, mappedPayments, changeAmount);
+      if (res && res.isEmployeeNotFound) {
+        requestAuthorization({
+          actionLabel: "Settlement",
+          permissionId: 19, // Settle
+          bypassDefaultEmployee: true,
+          onAuthorized: (authEmpId: number) => executeSettlement(authEmpId, mappedPayments, changeAmount),
+        });
+      }
       return;
     }
 
     if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      showToast("Default employee is enabled but not selected in settings", "error");
-      return;
+      disableDefaultEmployeeConfig("Invalid default employee ID in settlement");
+      dispatch(setWaiter({ waiterId: null, waiterName: null }));
+      showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
     }
 
     requestAuthorization({
       actionLabel: "Settlement",
       permissionId: 19, // Settle
+      bypassDefaultEmployee: true,
       onAuthorized: (authEmpId: number) => executeSettlement(authEmpId, mappedPayments, changeAmount),
     });
   };
@@ -889,6 +994,10 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   /* ── GUEST PRINT ── */
   const handlePrint = async () => {
     if (!selectedMaster || !data || loading) return;
+
+    if (!hasPrinterHeadings()) {
+      notifyPrinterHeadingWarning(showToast);
+    }
 
     try {
       showToast(`Preparing receipt for Order #${selectedMaster.orderNo}...`, 'success');
@@ -1240,6 +1349,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           onClose={() => {
             setIsMultiPayOpen(false);
             setSettleOrderData(null);
+            dineInSettlementEmployeeIdRef.current = null;
             dispatch(clearCart());
           }}
           onSubmit={handleMultiPaySubmit}

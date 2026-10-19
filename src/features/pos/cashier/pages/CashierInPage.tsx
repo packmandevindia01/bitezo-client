@@ -210,10 +210,12 @@ const CashierInPage = () => {
             if (formattedTransDate) {
               localStorage.setItem("transDate", formattedTransDate);
             }
+            sessionStorage.removeItem("hasAutoDineInTriggered");
             navigate("/pos", { replace: true });
           } else {
             localStorage.removeItem("activeShift");
             localStorage.removeItem("transDate");
+            sessionStorage.removeItem("hasAutoDineInTriggered");
             navigate("/pos", { replace: true });
           }
         } catch (err) {

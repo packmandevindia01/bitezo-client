@@ -179,8 +179,10 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       complimentaryStatus: d.complimentaryStatus || false,
     })),
     paymodes:
-      validPayments.length > 0
-        ? validPayments.map((p) => ({ paymodeId: p.paymodeId, amount: p.amount }))
-        : [{ paymodeId: rootPaymodeId || 1, amount: orderPayload.netAmount }],
+      rootPaymodeId === 3
+        ? (validPayments.length > 0
+            ? validPayments.map((p) => ({ paymodeId: p.paymodeId, amount: p.amount }))
+            : [{ paymodeId: 3, amount: orderPayload.netAmount }])
+        : [],
   };
 };

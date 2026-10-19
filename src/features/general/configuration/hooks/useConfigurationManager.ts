@@ -314,13 +314,16 @@ export const useConfigurationManager = () => {
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
           parsed.configs.itemSeperation = payload.itemSeperation;
+          parsed.configs.otherKitchenItem = payload.otherKitchenItem;
           parsed.configs.posLanguage = form.posLanguage || "English";
           parsed.configs.productView = form.productView || "English";
           parsed.configs.priceView = form.priceView || payload.priceView;
           parsed.configs.printPrice = form.printPrice || payload.printPrice;
         }
         parsed.itemSeperation = payload.itemSeperation;
+        parsed.otherKitchenItem = payload.otherKitchenItem;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
+        localStorage.setItem("otherKitchenItem", payload.otherKitchenItem ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
         parsed.kotArabic = payload.kotArabic;

@@ -213,20 +213,20 @@ export const PosProductSearchDropdown: React.FC<PosProductSearchDropdownProps> =
                       {(() => {
                         const localized = getLocalizedName(product.productName, product.arabicName);
                         return (
-                          <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-black text-[#49293e] truncate">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-xs font-black text-[#49293e] truncate flex-1 min-w-0" title={localized.primary}>
                                 {localized.primary}
                               </span>
                               {product.hasAlternatives && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-[#ffefe5] text-[#f37021] border border-[#f37021]/20">
+                                <span className="inline-flex shrink-0 items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-[#ffefe5] text-[#f37021] border border-[#f37021]/20">
                                   <Layers size={9} />
                                   {t("Variations")}
                                 </span>
                               )}
                             </div>
                             {localized.secondary && (
-                              <span className="text-[10px] text-slate-400 font-medium truncate" dir="rtl">
+                              <span className="text-[10px] text-slate-400 font-medium truncate" dir="rtl" title={localized.secondary}>
                                 {localized.secondary}
                               </span>
                             )}

@@ -6,7 +6,6 @@ import {
   exportCategoryWiseSalesReportPDF,
   exportCategoryWiseSalesReportExcel,
   getCategoryName,
-  getCategoryCode,
 } from "../utils/exportUtils";
 import { formatAmount } from "../../../../utils/currency";
 import {
@@ -202,14 +201,11 @@ export const CategoryWiseSalesReportPage = () => {
             <table className="w-full min-w-[950px] text-xs border-collapse table-fixed">
               <thead className="sticky top-0 z-10 bg-gray-100 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
                 <tr>
-                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-center w-[5%] border-r border-gray-200/60">
+                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-center w-[6%] border-r border-gray-200/60">
                     S.No
                   </th>
-                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-center w-[14%] border-r border-gray-200/60">
-                    Category Code
-                  </th>
-                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-left w-[20%] border-r border-gray-200/60">
-                    Category Name
+                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-left w-[28%] border-r border-gray-200/60">
+                    Category
                   </th>
                   <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-right w-[9%] border-r border-gray-200/60">
                     Qty
@@ -223,10 +219,10 @@ export const CategoryWiseSalesReportPage = () => {
                   <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-right w-[11%] border-r border-gray-200/60">
                     Net Value
                   </th>
-                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-right w-[10%] border-r border-gray-200/60">
+                  <th className="px-3 py-2.5 font-bold text-gray-600 text-[11px] text-right w-[11%] border-r border-gray-200/60">
                     VAT Amount
                   </th>
-                  <th className="px-3 py-2.5 font-bold text-[#49293e] text-[11px] text-right w-[11%] bg-gray-200/50">
+                  <th className="px-3 py-2.5 font-bold text-[#49293e] text-[11px] text-right w-[13%] bg-gray-200/50">
                     Net Amount
                   </th>
                 </tr>
@@ -234,13 +230,13 @@ export const CategoryWiseSalesReportPage = () => {
               <tbody className="divide-y divide-gray-100">
                 {report.isLoading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-gray-500">
+                    <td colSpan={8} className="text-center py-12 text-gray-500">
                       Loading category wise sales data...
                     </td>
                   </tr>
                 ) : report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-gray-400 font-medium">
+                    <td colSpan={8} className="text-center py-12 text-gray-400 font-medium">
                       No records found.
                     </td>
                   </tr>
@@ -254,9 +250,6 @@ export const CategoryWiseSalesReportPage = () => {
                       >
                         <td className="px-3 py-2 text-center text-gray-600 border-r border-gray-100/60 font-medium">
                           {row.sNo ?? (rIdx + 1)}
-                        </td>
-                        <td className="px-3 py-2 text-center text-gray-700 border-r border-gray-100/60 font-mono">
-                          {getCategoryCode(row)}
                         </td>
                         <td className="px-3 py-2 text-left text-gray-900 border-r border-gray-100/60 font-medium truncate">
                           {getCategoryName(row)}
@@ -290,7 +283,6 @@ export const CategoryWiseSalesReportPage = () => {
                     <td colSpan={2} className="px-3 py-2.5 text-center border-r border-gray-200/60 text-gray-700">
                       Total
                     </td>
-                    <td className="px-3 py-2.5 border-r border-gray-200/60"></td>
                     <td className="px-3 py-2.5 text-right border-r border-gray-200/60 text-gray-800 font-mono">
                       {totals.qty}
                     </td>

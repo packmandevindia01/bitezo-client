@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { 
   ChevronLeft,
@@ -17,6 +17,7 @@ type PrinterTab = 'GENERAL' | 'CATEGORY' | 'PRODUCT' | 'SECTION' | 'ORDER_TYPE' 
 
 export const PosMorePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<PrinterTab>('GENERAL');
   
   const { 
@@ -35,7 +36,11 @@ export const PosMorePage: React.FC = () => {
   } = usePrinterSettings();
 
   const handleBack = () => {
-    navigate('/pos', { state: { openMoreModal: true } });
+    if (location.state?.fromPreSession) {
+      navigate('/pos', { state: { skipAutoDineIn: true } });
+      return;
+    }
+    navigate('/pos', { state: { openMoreModal: true, skipAutoDineIn: true } });
   };
 
   const getSubtitle = () => {

@@ -2,6 +2,7 @@ import { roundCalc, getPriceView, getBillingConfig, getVatStatus } from "../util
 import type { PosCartItem } from "../../types";
 import { getModifierTypeNameById } from "../../services/menuApi";
 import { alternativesCache } from "../hooks/usePosProducts";
+import { cleanProductName } from "../../utils/alternativeHelpers";
 
 export interface MapOrderDetailOptions {
   detail: any;
@@ -186,9 +187,12 @@ export const mapOrderDetailToCartItem = ({
 
   if (resolvedPriceView === "Exclusive") {
     // ── Explicit Tax-Exclusive Mode ──
-    restoredPrice = (catalogPrice !== undefined && (Math.abs(catalogPrice - rawPrice) < 0.05 || catalogPrice > 0))
-      ? catalogPrice
-      : (rawPrice > 0 ? rawPrice : (catalogPrice ?? 0));
+    const isCatalogStoredIncl = Boolean(realProduct.isIncl || detail.isIncl || detail.priceIsIncl);
+    let exclBase = (catalogPrice !== undefined && catalogPrice > 0) ? catalogPrice : rawPrice;
+    if (isCatalogStoredIncl && activeVatFraction > 0 && exclBase > 0) {
+      exclBase = roundCalc(exclBase / (1 + activeVatFraction), 4);
+    }
+    restoredPrice = exclBase > 0 ? exclBase : (rawPrice > 0 ? rawPrice : (catalogPrice ?? 0));
     itemIsIncl = false;
   } else if (activeVatFraction > 0) {
     const candidateGross = roundCalc(rawPrice * (1 + activeVatFraction), 4);
@@ -403,8 +407,12 @@ export const mapOrderDetailToCartItem = ({
     vatValue: resolvedVatValue,
     product: {
       id: pId,
-      name: detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`,
-      arabicName: detail.arabicName || detail.ArabicName || realProduct.arabicName,
+      name: rawAlt
+        ? cleanProductName(realProduct.name || detail.productName || detail.ProductName, rawAlt) || `Product #${pId}`
+        : (detail.productName || detail.ProductName || realProduct.name || `Product #${pId}`),
+      arabicName: (rawAltArabic || rawAlt)
+        ? cleanProductName(realProduct.arabicName || detail.arabicName || detail.ArabicName, rawAltArabic || rawAlt)
+        : (detail.arabicName || detail.ArabicName || realProduct.arabicName),
       price: restoredPrice,
       categoryId: realProduct.categoryId || 1,
       unitId: effectiveUnitId,

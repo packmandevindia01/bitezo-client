@@ -7,6 +7,7 @@ import { posConfigApi } from "../../services/posConfigApi";
 import type { PosConfigResponseData, PosConfigUpdatePayload } from "../../services/posConfigApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { clearAllPosCache } from "./usePosProducts";
+import { disableDefaultEmployeeConfig } from "../../utils/defaultEmployee";
 
 export interface ConfigurationEmployeeOption {
   label: string;
@@ -29,8 +30,9 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     cashdrawer: (configs.cashdrawer as any) || "Default",
     recipe: configs.recipe === "Enable",
     dayDate: (configs.dayDate ?? configs.DayDate) === "Enable",
-    itemSeperation: Boolean(configs.itemSeperation),
+    itemSeperation: configs.itemSeperation === true || String(configs.itemSeperation).trim().toLowerCase() === "enable" || String(configs.itemSeperation).trim().toLowerCase() === "true" || (configs.itemSeperation as any) === 1,
     itemSeparationAfterEdit: configs.itemSeperationEdit === "Enable",
+    otherKitchenItem: configs.otherKitchenItem === true || String(configs.otherKitchenItem).trim().toLowerCase() === "enable" || String(configs.otherKitchenItem).trim().toLowerCase() === "true" || (configs.otherKitchenItem as any) === 1,
     multiEmployeeTable: configs.multiEmployeeTable === "Enable",
     customerTakeout: configs.customerTakeout === "Enable",
     kotPrint: configs.kotPrint === "Enable",
@@ -98,6 +100,7 @@ export const mapStateToApi = (state: ConfigurationState, branchId: number): PosC
     dayDate: state.dayDate ? "Enable" : "Disable",
     itemSeperation: Boolean(state.itemSeperation),
     itemSeperationEdit: state.itemSeparationAfterEdit ? "Enable" : "Disable",
+    otherKitchenItem: Boolean(state.otherKitchenItem),
     multiEmployeeTable: state.multiEmployeeTable ? "Enable" : "Disable",
     customerTakeout: state.customerTakeout ? "Enable" : "Disable",
     kotPrint: state.kotPrint ? "Enable" : "Disable",
@@ -224,6 +227,15 @@ export const usePosConfiguration = () => {
               }
             }
           } catch {}
+
+          if (stateData.defaultEmployee && stateData.employeeId) {
+            const exists = employees.some((e: any) => String(e.empId ?? e.id) === String(stateData.employeeId));
+            if (!exists) {
+              stateData.defaultEmployee = false;
+              stateData.employeeId = "";
+              disableDefaultEmployeeConfig("Default employee ID not found in branch employees during POS config load");
+            }
+          }
           setForm(stateData);
           if (stateData.kotHeader) {
             localStorage.setItem("kotHeader", stateData.kotHeader);
@@ -367,17 +379,20 @@ export const usePosConfiguration = () => {
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
           parsed.configs.itemSeperation = payload.itemSeperation;
+          parsed.configs.otherKitchenItem = payload.otherKitchenItem;
           parsed.configs.posLanguage = form.posLanguage || "English";
           parsed.configs.productView = form.productView || "English";
           parsed.configs.priceView = form.priceView || payload.priceView;
           parsed.configs.printPrice = form.printPrice || payload.printPrice;
         }
         parsed.itemSeperation = payload.itemSeperation;
+        parsed.otherKitchenItem = payload.otherKitchenItem;
         parsed.posLanguage = form.posLanguage || "English";
         parsed.productView = form.productView || "English";
         parsed.priceView = form.priceView || payload.priceView;
         parsed.printPrice = form.printPrice || payload.printPrice;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
+        localStorage.setItem("otherKitchenItem", payload.otherKitchenItem ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
         parsed.kotPrint = payload.kotPrint;
         parsed.kotArabic = payload.kotArabic;

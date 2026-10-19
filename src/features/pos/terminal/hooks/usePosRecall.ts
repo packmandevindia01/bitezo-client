@@ -46,18 +46,9 @@ export const usePosRecall = () => {
         cleanParams.OrderTypeId = Number(params.OrderTypeId);
       }
 
-      // Include EmployeeId when filtering by specific employee/waiter, or fallback to current employee/user/1
+      // Only include EmployeeId if explicitly provided; omit by default so all active orders of the day are returned (matching Void and Settled behavior)
       if (params.EmployeeId !== undefined && params.EmployeeId !== null && Number(params.EmployeeId) > 0) {
         cleanParams.EmployeeId = Number(params.EmployeeId);
-      } else {
-        const fallbackEmp =
-          Number(localStorage.getItem("authorizedEmployeeId")) ||
-          Number(localStorage.getItem("employeeId")) ||
-          Number(localStorage.getItem("userId")) ||
-          1;
-        if (fallbackEmp > 0) {
-          cleanParams.EmployeeId = fallbackEmp;
-        }
       }
 
       // Delivery out filters: only send if explicitly set

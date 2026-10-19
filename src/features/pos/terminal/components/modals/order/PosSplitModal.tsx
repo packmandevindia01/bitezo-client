@@ -601,16 +601,16 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                     return (
                     <div key={item.mapId}>
                       <div 
-                        className={`flex items-center text-xs font-bold p-2 border-b transition-colors select-none ${
+                        className={`flex items-start text-xs font-bold p-2 border-b transition-colors select-none ${
                           selectedBucketId === bucket.id && selectedMapId === item.mapId 
                             ? 'bg-[#ff9500] text-white' 
                             : 'hover:bg-slate-50'
                         }`}
                         onClick={(e) => { e.stopPropagation(); handleItemInteraction(bucket.id, item.mapId); }}
                       >
-                        <div className="w-12 text-center">{item.currentQty}</div>
-                        <div className="flex-1 px-2 uppercase truncate" title={item.name}>{item.name}</div>
-                        <div className="w-20 text-right pr-2">{formatCurrency(calcs.lineNetAmount)}</div>
+                        <div className="w-12 shrink-0 text-center">{item.currentQty}</div>
+                        <div className="flex-1 min-w-0 px-2 uppercase break-words [overflow-wrap:anywhere] [word-break:break-word] leading-tight" title={item.name}>{item.name}</div>
+                        <div className="w-20 shrink-0 text-right pr-2">{formatCurrency(calcs.lineNetAmount)}</div>
                       </div>
                       
                       {/* Modifiers display */}
@@ -631,15 +631,15 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                         return (
                         <div 
                           key={`${m.modifierId}-${idx}`} 
-                          className={`flex items-center text-[10px] uppercase p-1.5 border-b ${
+                          className={`flex items-start text-[10px] uppercase p-1.5 border-b ${
                             selectedBucketId === bucket.id && selectedMapId === item.mapId 
                               ? 'bg-orange-400 text-white' 
                               : 'text-slate-500 bg-slate-50'
                           }`}
                         >
-                          <div className="w-12 text-center"></div>
-                          <div className="flex-1 px-2 truncate ml-2">- {m.modifierName} {originalModQty > 1 ? `(x${originalModQty})` : ''}</div>
-                          <div className="w-20 text-right pr-2">{m.price > 0 ? formatCurrency(modCalcs.lineNetAmount) : ''}</div>
+                          <div className="w-12 shrink-0 text-center"></div>
+                          <div className="flex-1 min-w-0 px-2 ml-2 break-words [overflow-wrap:anywhere] [word-break:break-word] leading-tight">- {m.modifierName} {originalModQty > 1 ? `(x${originalModQty})` : ''}</div>
+                          <div className="w-20 shrink-0 text-right pr-2">{m.price > 0 ? formatCurrency(modCalcs.lineNetAmount) : ''}</div>
                         </div>
                         );
                       })}

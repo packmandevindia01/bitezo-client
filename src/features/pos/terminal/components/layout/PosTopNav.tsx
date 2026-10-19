@@ -115,21 +115,21 @@ const PosTopNav = ({
   };
 
   return (
-    <nav className="flex items-center justify-between gap-2 lg:gap-3 max-[1100px]:gap-1.5 max-[800px]:gap-1 border-b border-[#3a2031] bg-[#49293e] pr-3 lg:pr-4 max-[800px]:pr-1.5 h-[60px] max-[1100px]:h-[52px] max-[800px]:h-[46px] shadow-sm shrink-0 w-full transition-all duration-300">
-      <div className="flex items-center gap-0 lg:gap-0 xl:gap-0 min-w-0 h-full">
+    <nav className="flex items-center justify-between gap-1 sm:gap-2 xl:gap-3 border-b border-[#3a2031] bg-[#49293e] px-2 sm:px-2.5 xl:px-4 h-[50px] sm:h-[52px] xl:h-[58px] shadow-sm shrink-0 w-full transition-all duration-200">
+      <div className="flex items-center gap-0 min-w-0 h-full">
         
         {/* Centered logo, cleanly proportioned across all screen sizes */}
-        <div className="flex items-center justify-center w-[90px] sm:w-[110px] md:w-[130px] lg:w-[140px] xl:w-[150px] h-full shrink-0 px-2 transition-all duration-300">
+        <div className="flex items-center justify-center w-[75px] sm:w-[85px] md:w-[90px] lg:w-[95px] xl:w-[120px] h-full shrink-0 px-1 transition-all duration-200">
           <div className="w-full h-full flex items-center justify-center">
             <img 
                src="/LOGO6.png" 
                alt="Bitezo" 
-               className="h-7 sm:h-8 md:h-8 lg:h-9 max-w-full object-contain brightness-0 invert" 
+               className="h-5.5 sm:h-6 md:h-6.5 xl:h-8 max-w-full object-contain brightness-0 invert" 
             />
           </div>
         </div>
 
-        <div className="flex gap-1 ml-2 lg:ml-4 max-[1100px]:ml-2 max-[800px]:ml-1 min-w-0 overflow-x-auto no-scrollbar pb-1 -mb-1">
+        <div className="flex items-center gap-1 sm:gap-1.5 ml-1 sm:ml-1.5 md:ml-2 xl:ml-3 min-w-0 overflow-x-auto no-scrollbar pb-0.5">
           {visibleOrderTypes.map((type) => {
             const Icon = getOrderTypeIcon(type.orderType);
             const label = formatOrderTypeLabel(type.orderType);
@@ -140,7 +140,8 @@ const PosTopNav = ({
             <PosActionButton
               key={type.orderTypeId}
               accent={isActive ? "orange" : "order-inactive"}
-              className="h-9 lg:h-10 px-2 rounded-xl text-[10px] max-[1100px]:!h-9 max-[1100px]:!px-1.5 max-[1100px]:!text-[9.5px] max-[800px]:!h-8 max-[800px]:!px-1 max-[800px]:!text-[8px] max-[700px]:!h-7 max-[700px]:!text-[7px] max-[700px]:!rounded-lg shrink-0 shadow-sm flex items-center gap-1 transition-all duration-300"
+              noPadding
+              className="h-8 md:h-8.5 xl:h-9.5 px-2 xl:px-2.5 rounded-lg xl:rounded-xl text-[9.5px] xl:text-[10.5px] shrink-0 shadow-xs flex items-center gap-1 transition-all duration-200"
               onClick={() => {
                 onSelectOrderType?.(type);
                 if (normalized.includes("dine")) {
@@ -158,17 +159,23 @@ const PosTopNav = ({
                 }
               }}
             >
-              <Icon size={13} className="xl:w-3.5 xl:h-3.5 max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50" />
+              <Icon size={13} className="shrink-0" />
               <span className="inline whitespace-nowrap">{t(label)}</span>
             </PosActionButton>
           )})}
           <PosActionButton
             accent={activeProvider ? "orange" : "order-inactive"}
-            className="h-9 lg:h-10 px-2 rounded-xl text-[10px] max-[1100px]:!h-9 max-[1100px]:!px-1.5 max-[1100px]:!text-[9.5px] max-[800px]:!h-8 max-[800px]:!px-1 max-[800px]:!text-[8px] max-[700px]:!h-7 max-[700px]:!text-[7px] max-[700px]:!rounded-lg shrink-0 shadow-sm flex items-center gap-1 transition-all duration-300"
+            noPadding
+            className="h-8 md:h-8.5 xl:h-9.5 px-2 xl:px-2.5 rounded-lg xl:rounded-xl text-[9.5px] xl:text-[10.5px] shrink-0 shadow-xs flex items-center gap-1 transition-all duration-200"
             onClick={onProvider}
           >
-            <Users size={13} className="xl:w-3.5 xl:h-3.5 max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50" />
-            <span className="inline uppercase whitespace-nowrap max-w-[100px] xl:max-w-[140px] max-[1100px]:!max-w-[80px] max-[800px]:!max-w-[50px] max-[700px]:!max-w-[40px] truncate" title={activeProvider ? activeProvider.provider.providerName : undefined}>
+            <Users size={13} className="shrink-0" />
+            <span
+              className={`inline uppercase whitespace-nowrap ${
+                activeProvider ? "max-w-[90px] xl:max-w-[130px] truncate" : ""
+              }`}
+              title={activeProvider ? activeProvider.provider.providerName : undefined}
+            >
               {activeProvider ? activeProvider.provider.providerName : t("Providers")}
             </span>
           </PosActionButton>
@@ -176,10 +183,10 @@ const PosTopNav = ({
 
       </div>
 
-      <div className="flex items-center gap-1 lg:gap-1.5 max-[1100px]:gap-1 max-[800px]:gap-0.5 shrink-0">
+      <div className="flex items-center gap-1 xl:gap-1.5 shrink-0">
 
-        <div className="hidden lg:flex flex-col text-right mr-3 lg:mr-5 max-[1100px]:mr-2.5 max-[800px]:mr-1 leading-tight justify-center max-[1100px]:!flex">
-          <div className="flex gap-2.5 lg:gap-3 max-[1100px]:gap-2 justify-end items-center text-white font-bold text-sm max-[1100px]:text-[12px] max-[800px]:text-[9px] max-[700px]:text-[8px]">
+        <div className="flex flex-col text-right mr-1 sm:mr-1.5 xl:mr-3 leading-tight justify-center shrink-0">
+          <div className="flex gap-1 sm:gap-1.5 xl:gap-2 justify-end items-center text-white font-bold text-[10px] md:text-[10.5px] xl:text-[12px]">
             <button
               type="button"
               onClick={onCustomer}
@@ -188,10 +195,10 @@ const PosTopNav = ({
               }`}
               title={isCustomCustomerSelected ? `Assigned Customer: ${displayCustomerName}` : t("Customer")}
             >
-              <User size={12} className={isCustomCustomerSelected ? "text-emerald-400" : "text-white/60"} />
+              <User size={10} className={isCustomCustomerSelected ? "text-emerald-400" : "text-white/60"} />
               <span className="text-white/60 font-semibold mr-0.5">{t("Customer")}:</span>
               <span
-                className={`truncate max-w-[110px] sm:max-w-[140px] md:max-w-[180px] ${
+                className={`truncate max-w-[70px] sm:max-w-[85px] md:max-w-[100px] xl:max-w-[130px] ${
                   isCustomCustomerSelected
                     ? "text-emerald-300 font-black drop-shadow-xs"
                     : "text-white/90 font-bold"
@@ -201,43 +208,45 @@ const PosTopNav = ({
               </span>
             </button>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/70 font-semibold mr-1">{t("Order")}:</span>{editingOrderId || activeProvider?.orderNo || t("New")}</span>
+            <span><span className="text-white/70 font-semibold mr-0.5">{t("Order")}:</span>{editingOrderId || activeProvider?.orderNo || t("New")}</span>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/70 font-semibold mr-1">{t("Ticket")}:</span>{editingOrderId || activeProvider?.orderNo || t("New")}</span>
+            <span><span className="text-white/70 font-semibold mr-0.5">{t("Ticket")}:</span>{editingOrderId || activeProvider?.orderNo || t("New")}</span>
           </div>
-          <div className="flex gap-3 max-[1100px]:gap-2 justify-end text-white/90 font-semibold text-[12px] max-[1100px]:text-[10px] max-[800px]:text-[8px] max-[700px]:text-[7px] mt-0.5">
-            <span><span className="text-white/50 font-medium mr-1">{t("Section")}:</span>{activeProvider ? activeProvider.provider.providerName : t(selectedOrderTypeName || "-")}</span>
+          <div className="flex gap-1 sm:gap-1.5 xl:gap-2 justify-end text-white/90 font-semibold text-[9px] md:text-[9.5px] xl:text-[10.5px] mt-0.5">
+            <span><span className="text-white/50 font-medium mr-0.5">{t("Section")}:</span>{activeProvider ? activeProvider.provider.providerName : t(selectedOrderTypeName || "-")}</span>
             <span className="text-white/30">|</span>
-            <span><span className="text-white/50 font-medium mr-1">{t("Table")}:</span>{activeProvider ? "-" : (selectedTableNo || "-")}</span>
+            <span><span className="text-white/50 font-medium mr-0.5">{t("Table")}:</span>{activeProvider ? "-" : (selectedTableNo || "-")}</span>
             {waiterName && (
               <>
                 <span className="text-white/30">|</span>
-                <span className="text-[#fca311]"><span className="text-white/50 font-medium mr-1">{t("Waiter")}:</span>{t(waiterName)}</span>
+                <span className="text-[#fca311]"><span className="text-white/50 font-medium mr-0.5">{t("Waiter")}:</span>{t(waiterName)}</span>
               </>
             )}
           </div>
         </div>
 
-        <SubscriptionStatusBadge theme="dark" className="mr-1.5 max-[800px]:hidden shrink-0" />
+        <div className="hidden xl:inline-flex shrink-0 mr-1 xl:mr-1.5">
+          <SubscriptionStatusBadge theme="dark" />
+        </div>
 
         <PosActionButton
           accent="gray"
           noPadding
-          className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md text-slate-600 mr-1 max-[1100px]:!h-9 max-[1100px]:!w-9 max-[800px]:!h-7 max-[800px]:!w-7 max-[800px]:!rounded-lg transition-all duration-300"
+          className="h-7.5 w-7.5 sm:h-8 sm:w-8 xl:h-9 xl:w-9 rounded-lg xl:rounded-xl shadow-xs text-slate-600 mr-0.5 xl:mr-1 transition-all duration-200"
           onClick={toggleFullscreen}
           title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
         >
-          {isFullscreen ? <Minimize size={18} strokeWidth={2.5} className="max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50" /> : <Maximize size={18} strokeWidth={2.5} className="max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50" />}
+          {isFullscreen ? <Minimize size={15} strokeWidth={2.5} /> : <Maximize size={15} strokeWidth={2.5} />}
         </PosActionButton>
 
         <PosActionButton
           accent="red"
           noPadding
-          className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl shadow-md max-[1100px]:!h-9 max-[1100px]:!w-9 max-[800px]:!h-7 max-[800px]:!w-7 max-[800px]:!rounded-lg transition-all duration-300"
+          className="h-7.5 w-7.5 sm:h-8 sm:w-8 xl:h-9 xl:w-9 rounded-lg xl:rounded-xl shadow-xs transition-all duration-200"
           onClick={handleLogoutClick}
           title="Logout"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="max-[1100px]:scale-90 max-[800px]:scale-75 max-[700px]:scale-50">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
           </svg>
         </PosActionButton>

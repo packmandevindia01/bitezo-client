@@ -1,6 +1,7 @@
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { getDecimalPart } from "../../../utils/currency";
+import { isBillArabicEnabled } from "./alternativeHelpers";
 
 export interface DeliverySettleOrderItem {
   sNo: number;
@@ -23,6 +24,7 @@ export interface DeliverySettlePrintData {
   changeAmount?: number;
   printTime?: string;
   showCompanyHeader?: boolean;
+  billArabic?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export interface DeliverySettlePrintData {
 export const generateDeliverySettlePrintHtml = async (
   data: DeliverySettlePrintData
 ): Promise<string> => {
+  const isArabic = data.billArabic ?? isBillArabicEnabled();
   const now = new Date();
   const dateStr = data.date || now.toLocaleDateString("en-GB"); // DD/MM/YYYY
   const timeStr = data.time || now.toLocaleTimeString("en-US"); // hh:mm:ss A
@@ -117,19 +120,7 @@ export const generateDeliverySettlePrintHtml = async (
     }
   }
 
-  // Fallback company header if branch print data is missing
-  if (!customHeadersHtml) {
-    const companyName = localStorage.getItem("companyName") || localStorage.getItem("branchName") || "";
-    const crNo = localStorage.getItem("crNo") || localStorage.getItem("companyCrNo") || "";
-    const vatNo = localStorage.getItem("vatNo") || localStorage.getItem("companyVatNo") || "";
-    if (companyName) {
-      customHeadersHtml = `
-        <div style="text-align: center; font-weight: bold; font-size: 15px;">${companyName}</div>
-        ${crNo ? `<div style="text-align: center; font-size: 12px;">CR No : ${crNo}</div>` : ""}
-        ${vatNo ? `<div style="text-align: center; font-size: 12px;">VAT NO : ${vatNo}</div>` : ""}
-      `;
-    }
-  }
+
 
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
@@ -274,15 +265,15 @@ export const generateDeliverySettlePrintHtml = async (
         <div class="meta-section">
           <table class="meta-table">
             <tr>
-              <td class="meta-label">Driver</td>
+              <td class="meta-label">Driver${isArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(السائق)</bdi>' : ''}</td>
               <td class="meta-value">${data.driverName}</td>
             </tr>
             <tr>
-              <td class="meta-label">Date</td>
+              <td class="meta-label">Date${isArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(التاريخ)</bdi>' : ''}</td>
               <td class="meta-value">${dateTimeStr}</td>
             </tr>
             <tr>
-              <td class="meta-label">Settle By</td>
+              <td class="meta-label">Settle By${isArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(تمت التسوية بواسطة)</bdi>' : ''}</td>
               <td class="meta-value">${data.settleBy}</td>
             </tr>
           </table>
@@ -295,16 +286,16 @@ export const generateDeliverySettlePrintHtml = async (
         <div class="dashed-hr"></div>
         <table class="totals-table">
           <tr>
-            <td class="grand-total-label">Grand Total</td>
+            <td class="grand-total-label">Grand Total${isArabic ? ' <bdi class="arabic-text" style="font-size:12px; font-weight:bold;">(المجموع الكلي)</bdi>' : ''}</td>
             <td class="grand-total-value">${fmt(grandTotal)}</td>
           </tr>
           ${data.cashTendered !== undefined && data.changeAmount !== undefined && data.changeAmount > 0 ? `
           <tr>
-            <td class="totals-label">Cash Tendered</td>
+            <td class="totals-label">Cash Tendered${isArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:bold;">(المبلغ المستلم)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.cashTendered)}</td>
           </tr>
           <tr>
-            <td class="totals-label">Change</td>
+            <td class="totals-label">Change${isArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:bold;">(المبلغ المتبقي)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.changeAmount)}</td>
           </tr>
           ` : ""}
@@ -312,7 +303,7 @@ export const generateDeliverySettlePrintHtml = async (
         <div class="dashed-hr"></div>
 
         <div class="print-time">
-          Print Time : ${printTimeStr}
+          Print Time${isArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(وقت الطباعة)</bdi>' : ''} : ${printTimeStr}
         </div>
       </body>
     </html>

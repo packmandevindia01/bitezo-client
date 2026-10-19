@@ -103,6 +103,13 @@ export const salesInvoiceApi = {
           delete postPayload.orderMaster.callBack;
         }
 
+        // The paymodes array should only contain data when paymode is 3 (Multi). Otherwise, it should be empty.
+        if (Number(postPayload.paymodeId) !== 3) {
+          postPayload.paymodes = [];
+        } else if (!Array.isArray(postPayload.paymodes)) {
+          postPayload.paymodes = [];
+        }
+
         // Ensure voucherDate is strictly Date-Only (YYYY-MM-DD)
         if (postPayload.voucherDate) {
           postPayload.voucherDate = postPayload.voucherDate.includes("T")
@@ -192,10 +199,12 @@ export const salesInvoiceApi = {
           mapId: Number(d.mapId || 0),
           complimentaryStatus: Boolean(d.complimentaryStatus),
         })),
-        paymodes: (payload.paymodes || []).map((p: any) => ({
-          paymodeId: Number(p.paymodeId || 1),
-          amount: Number(p.amount || 0),
-        })),
+        paymodes: Number(payload.paymodeId) === 3
+          ? (payload.paymodes || []).map((p: any) => ({
+              paymodeId: Number(p.paymodeId || 1),
+              amount: Number(p.amount || 0),
+            }))
+          : [],
         orderMaster: {
           isOrderEdited: Boolean(payload.orderMaster?.isOrderEdited ?? true),
           sectionId: Number(payload.orderMaster?.sectionId || 0),

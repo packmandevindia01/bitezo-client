@@ -57,7 +57,7 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
         h-[75px] sm:h-[95px] md:h-[105px] lg:h-[100px] xl:h-[115px] w-full outline-none focus:ring-2 focus:ring-[#49293e]/20
       "
     >
-      <div className="relative w-full h-[57%] overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+      <div className={`relative w-full ${product.imageUrl && !imageError ? "h-[55%]" : "h-[38%]"} overflow-hidden bg-slate-50 flex items-center justify-center shrink-0`}>
         {(product.imageUrl && !imageError) ? (
           <img 
             src={product.imageUrl} 
@@ -95,11 +95,11 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
 
       <div className="w-full flex-1 min-h-0 flex flex-col justify-center items-center px-1.5 py-1 overflow-hidden bg-white">
         <div className="w-full flex flex-col items-center justify-center text-center">
-          <h3 className="text-[8.5px] sm:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-2 uppercase tracking-tight break-words">
+          <h3 className="text-[8.5px] sm:text-[10px] xl:text-[11px] font-extrabold text-[#49293e] leading-[1.15] line-clamp-3 uppercase tracking-tight break-words [overflow-wrap:anywhere] [word-break:break-word]" title={localized.primary}>
             {localized.primary}
           </h3>
           {localized.secondary && (
-            <p className="text-[7.5px] sm:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-1 mt-0.5 break-words">
+            <p className="text-[7.5px] sm:text-[9px] xl:text-[10px] font-bold text-slate-500 leading-[1.15] line-clamp-2 mt-0.5 break-words [overflow-wrap:anywhere] [word-break:break-word]" title={localized.secondary}>
               {localized.secondary}
             </p>
           )}

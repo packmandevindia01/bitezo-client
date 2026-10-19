@@ -15,28 +15,46 @@ const formatDate = (dateStr: string) => {
 };
 
 export const getCategoryName = (row: any): string => {
-  return String(
-    row.catgeory ||
-    row.category ||
-    row.categoryName ||
-    row.catName ||
-    row.Catgeory ||
-    row.Category ||
-    row.CategoryName ||
-    row.name ||
-    "-"
-  );
+  if (!row) return "-";
+  const name = (
+    row.categoryName ??
+    row.catName ??
+    row.category_name ??
+    row.cat_name ??
+    row.catgeory ??
+    row.category ??
+    row.Catgeory ??
+    row.Category ??
+    row.CategoryName ??
+    row.CatName ??
+    row.name ??
+    row.Name ??
+    ""
+  )?.toString().trim();
+  if (name && name !== "-" && name !== "null" && name !== "undefined") return name;
+  return "Uncategorized";
 };
 
 export const getCategoryCode = (row: any): string => {
-  return String(
-    row.categoryCode ||
-    row.catCode ||
-    row.code ||
-    row.categoryId ||
-    row.catId ||
-    "-"
-  );
+  if (!row) return "-";
+  const code = (
+    row.categoryCode ??
+    row.catCode ??
+    row.category_code ??
+    row.cat_code ??
+    row.code ??
+    row.CategoryCode ??
+    row.CatCode ??
+    row.Code ??
+    ""
+  )?.toString().trim();
+  if (code && code !== "-") return code;
+
+  const id = row.categoryId ?? row.catId ?? row.category_id ?? row.cat_id ?? row.id ?? row.Id;
+  if (id !== undefined && id !== null && String(id).trim() !== "") {
+    return String(id).trim();
+  }
+  return "-";
 };
 
 export const exportCategoryWiseSalesReportPDF = (
@@ -76,8 +94,7 @@ export const exportCategoryWiseSalesReportPDF = (
   const head = [
     [
       "S.NO",
-      "CATEGORY CODE",
-      "CATEGORY NAME",
+      "CATEGORY",
       "QTY",
       "AMOUNT",
       "DISCOUNT",
@@ -111,7 +128,6 @@ export const exportCategoryWiseSalesReportPDF = (
 
     return [
       String(row.sNo ?? index + 1),
-      getCategoryCode(row),
       getCategoryName(row),
       String(qty),
       formatAmount(amount),
@@ -129,7 +145,6 @@ export const exportCategoryWiseSalesReportPDF = (
   const finalNetAmount = totalData ? Number(totalData.netAmount || sumNetAmount) : sumNetAmount;
 
   body.push([
-    "",
     "",
     "TOTAL",
     String(sumQty),
@@ -149,14 +164,13 @@ export const exportCategoryWiseSalesReportPDF = (
     footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
     columnStyles: {
       0: { halign: "center", cellWidth: 15 },
-      1: { halign: "center", cellWidth: 35 },
-      2: { halign: "left", cellWidth: "auto" },
-      3: { halign: "right", cellWidth: 25 },
+      1: { halign: "left", cellWidth: "auto" },
+      2: { halign: "right", cellWidth: 25 },
+      3: { halign: "right", cellWidth: 30 },
       4: { halign: "right", cellWidth: 30 },
       5: { halign: "right", cellWidth: 30 },
       6: { halign: "right", cellWidth: 30 },
-      7: { halign: "right", cellWidth: 30 },
-      8: { halign: "right", cellWidth: 35 },
+      7: { halign: "right", cellWidth: 35 },
     },
     styles: { fontSize: 8 },
     didParseCell: function (data) {
@@ -206,8 +220,7 @@ export const exportCategoryWiseSalesReportExcel = (
 
     return {
       "S.No": row.sNo ?? (index + 1),
-      "Category Code": getCategoryCode(row),
-      "Category Name": getCategoryName(row),
+      "Category": getCategoryName(row),
       "Qty": qty,
       "Amount": amount,
       "Discount": discount,
@@ -225,8 +238,7 @@ export const exportCategoryWiseSalesReportExcel = (
 
   exportData.push({
     "S.No": "" as any,
-    "Category Code": "",
-    "Category Name": "TOTAL",
+    "Category": "TOTAL",
     "Qty": sumQty,
     "Amount": finalAmount,
     "Discount": finalDiscount,

@@ -15,7 +15,12 @@ import {
   setCustomerId,
   setAddressId,
   setChange,
+  setWaiter,
 } from "../store/posSlice";
+import {
+  disableDefaultEmployeeConfig,
+  isEmployeeNotFoundError,
+} from "../../utils/defaultEmployee";
 import {
   selectCartDetails,
   selectSubtotal,
@@ -327,6 +332,12 @@ export const usePosCartActions = () => {
       const responseData = err?.response?.data;
       console.error("[ORDER ERROR]", responseData ? JSON.stringify(responseData, null, 2) : err?.message || err);
 
+      const isEmployeeError = isEmployeeNotFoundError(err);
+      if (isEmployeeError) {
+        disableDefaultEmployeeConfig("Order rejected employeeId: not found or invalid.");
+        dispatch(setWaiter({ waiterId: null, waiterName: null }));
+      }
+
       let msg = responseData?.message || "";
       if (Array.isArray(responseData?.errors)) {
         const errorMsgs = responseData.errors
@@ -350,11 +361,16 @@ export const usePosCartActions = () => {
       }
 
       msg = msg || responseData?.title || err?.message || "Order submission failed";
-      if (msg.includes("Unable to update. This order has already been edited") || msg.includes("INVALID_ORDER_ID")) {
+      if (isEmployeeError) {
+        msg = "The configured default employee was not found in the system and has been disabled. Please select a waiter/employee to proceed.";
+      } else if (msg.includes("Unable to update. This order has already been edited") || msg.includes("INVALID_ORDER_ID")) {
         msg = "Unable to update: The server only permits updating the latest active order (subsequent orders have already been punched in the system).";
       }
       setOrderError(msg);
-      showToast(msg, "error");
+      showToast(msg, isEmployeeError ? "warning" : "error");
+      if (isEmployeeError) {
+        return { isEmployeeNotFound: true } as any;
+      }
     } finally {
       setOrderLoading(false);
     }
@@ -693,7 +709,7 @@ export const usePosCartActions = () => {
             deliveryCharge,
             enableVat: packagerConfig.enableVat,
             isPackager: true,
-            showCompanyHeader: packagerConfig.showHeader,
+            showCompanyHeader: true,
           };
 
           await executePackagerPrint(

@@ -19,10 +19,10 @@ const pickFirstValidPrinter = (...candidates: (string | null | undefined)[]): st
 export const executeKotRouting = async (
   items: PosCartItem[], 
   basePrintOptions: any, 
-  _selectedSectionId: number,
-  printerSettingsApi: any,
-  printHtmlReceipt: any,
-  generateKotHtml: any,
+  selectedSectionId?: number,
+  printerSettingsApi?: any,
+  printHtmlReceipt?: any,
+  generateKotHtml?: any,
   isUpdate: boolean = false
 ) => {
   if (!items || items.length === 0) {
@@ -31,10 +31,11 @@ export const executeKotRouting = async (
   }
 
   const isNative = Capacitor.isNativePlatform();
-  const { isKotArabicEnabled } = await import("./alternativeHelpers");
+  const { isKotArabicEnabled, isOtherKitchenItemEnabled } = await import("./alternativeHelpers");
   const kotArabic = isKotArabicEnabled();
+  const otherKitchenItemActive = isOtherKitchenItemEnabled();
 
-  console.log(`[Printer Routing] Starting executeKotRouting: items=${items.length}, isNative=${isNative}, kotArabic=${kotArabic}`);
+  console.log(`[Printer Routing] Starting executeKotRouting: items=${items.length}, isNative=${isNative}, kotArabic=${kotArabic}, otherKitchenItem=${otherKitchenItemActive}`);
 
   // Unified HTML graphic path on all platforms: identical layout, crisp fonts, proper Arabic/English alignment
   const printFn = printHtmlReceipt;
@@ -42,17 +43,20 @@ export const executeKotRouting = async (
 
   let printerData: any = null;
   try {
-    const res = await printerSettingsApi.getPrinterData();
-    if (res.isSuccess) {
-      printerData = res.data;
+    if (printerSettingsApi?.getPrinterData) {
+      const res = await printerSettingsApi.getPrinterData();
+      if (res?.isSuccess) {
+        printerData = res.data;
+      }
     }
   } catch (e) {
     console.error("[Printer Routing] Failed to fetch printer data", e);
   }
 
-  // ── UNIFIED SINGLE-PRINTER KOT (NEVER SPLIT ORDERS) ─────────────────────────
-  // All items in the order are printed together on a single KOT slip.
   const generalPrinter = printerData?.generalPrinter;
+  const productPrinter = printerData?.productPrinter;
+  const categoryPrinter = printerData?.categoryPrinter;
+  const sectionPrinter = printerData?.sectionPrinter;
   const isIp = (v?: string | null): boolean => !!v && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v.trim());
 
   const singlePrinter = isNative
@@ -72,8 +76,79 @@ export const executeKotRouting = async (
         generalPrinter?.billPrinter
       ) || '';
 
+  // ── MULTI-STATION ROUTING ─────────────────────────────────────────────────
+  const printerGroups = new Map<string, PosCartItem[]>();
+
+  const routeItem = (printerName: string, item: PosCartItem) => {
+    if (!isValidPrinterName(printerName)) return;
+    const name = printerName.trim();
+    if (!printerGroups.has(name)) {
+      printerGroups.set(name, []);
+    }
+    printerGroups.get(name)!.push(item);
+  };
+
+  const routeRule = (firstPrinter?: string | null, secondPrinter?: string | null, item?: PosCartItem): boolean => {
+    if (!item) return false;
+    let routed = false;
+    if (isValidPrinterName(firstPrinter)) {
+      routeItem(firstPrinter!, item);
+      routed = true;
+    }
+    if (isValidPrinterName(secondPrinter)) {
+      routeItem(secondPrinter!, item);
+      routed = true;
+    }
+    return routed;
+  };
+
+  items.forEach((item) => {
+    let routed = false;
+
+    // 1. Product Level
+    if (Array.isArray(productPrinter) && productPrinter.length > 0) {
+      const prodRule = productPrinter.find((p: any) => p.productId === item.productId);
+      if (prodRule) {
+        routed = routeRule(prodRule.firstPrinter, prodRule.secondPrinter, item);
+      }
+    }
+
+    // 2. Section Level
+    if (!routed && selectedSectionId && Array.isArray(sectionPrinter) && sectionPrinter.length > 0) {
+      const secRule = sectionPrinter.find((s: any) => s.sectionId === selectedSectionId);
+      if (secRule) {
+        routed = routeRule(secRule.firstPrinter, secRule.secondPrinter, item);
+      }
+    }
+
+    // 3. Category Level
+    const itemCatId = item.product?.categoryId ?? (item as any).categoryId;
+    if (!routed && itemCatId && Array.isArray(categoryPrinter) && categoryPrinter.length > 0) {
+      const catRule = categoryPrinter.find((c: any) => c.categoryId === itemCatId);
+      if (catRule) {
+        routed = routeRule(catRule.firstPrinter, catRule.secondPrinter, item);
+      }
+    }
+
+    // 4. Fallback Level
+    if (!routed) {
+      if (singlePrinter) {
+        routeItem(singlePrinter, item);
+        routed = true;
+      }
+    }
+  });
+
+  // Fallback: If no item was routed to any specific printer group, route all to singlePrinter or Default
+  if (printerGroups.size === 0) {
+    const fallbackName = singlePrinter || 'Default';
+    printerGroups.set(fallbackName, items);
+  }
+
   // Read POS Configuration toggles from cached posConfigs
   let isStandardKotEnabled = true;
+  let isMasterKotEnabled = false;
+  let isMasterKotBillEnabled = false;
   try {
     for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
       const raw = localStorage.getItem(key);
@@ -85,6 +160,16 @@ export const executeKotRouting = async (
           const str = String(rawKotPrint).trim().toLowerCase();
           isStandardKotEnabled = str === "enable" || str === "true" || str === "1" || rawKotPrint === true;
         }
+        const rawMasterKot = configsObj?.masterKot ?? configsObj?.MasterKot;
+        if (rawMasterKot !== undefined && rawMasterKot !== null) {
+          const str = String(rawMasterKot).trim().toLowerCase();
+          isMasterKotEnabled = str === "enable" || str === "true" || str === "1" || rawMasterKot === true;
+        }
+        const rawMasterKotBill = configsObj?.masterKotBillPrinter ?? configsObj?.MasterKotBillPrinter;
+        if (rawMasterKotBill !== undefined && rawMasterKotBill !== null) {
+          const str = String(rawMasterKotBill).trim().toLowerCase();
+          isMasterKotBillEnabled = str === "enable" || str === "true" || str === "1" || rawMasterKotBill === true;
+        }
         break;
       }
     }
@@ -92,21 +177,115 @@ export const executeKotRouting = async (
     console.error("[Printer Routing] Error parsing cached posConfigs:", e);
   }
 
-  const shouldDispatch = isStandardKotEnabled || Boolean(basePrintOptions?.forcedPrint) || isUpdate;
-  console.log(`[Printer Routing] Unified Single-Print KOT: printer="${singlePrinter}", items=${items.length}, shouldDispatch=${shouldDispatch}`);
+  // 1. Dispatch Standard KOT for each station printer
+  const shouldDispatchStandard = isStandardKotEnabled || Boolean(basePrintOptions?.forcedPrint) || isUpdate;
+  console.log(`[Printer Routing] Standard KOT: groups=${printerGroups.size}, items=${items.length}, shouldDispatch=${shouldDispatchStandard}, otherKitchenItem=${otherKitchenItemActive}`);
 
-  if (shouldDispatch) {
-    try {
-      const headerTitle = basePrintOptions?.headerTitle || (isUpdate ? "UPDATE KOT" : "KOT");
-      const kotOutput = await generateFn(items, { ...basePrintOptions, headerTitle });
-      await printFn(kotOutput, singlePrinter);
-      console.log(`[Printer Routing] Single KOT printed successfully to "${singlePrinter}" for all ${items.length} items.`);
-    } catch (err: any) {
-      console.error(`[Print Error: Single KOT]`, err);
-      throw err;
+  if (shouldDispatchStandard) {
+    for (const [printerName, groupedItems] of printerGroups.entries()) {
+      try {
+        const headerTitle = basePrintOptions?.headerTitle || (isUpdate ? "UPDATE KOT" : "KOT");
+
+        // When multiple stations exist in the order AND otherKitchenItem is enabled,
+        // attach items routed to other stations to this station's print payload.
+        const otherKitchenItems = (otherKitchenItemActive && printerGroups.size > 1)
+          ? items.filter((it) => !groupedItems.includes(it))
+          : [];
+
+        const kotOutput = await generateFn(groupedItems, {
+          ...basePrintOptions,
+          headerTitle,
+          isMaster: false,
+          otherKitchenItems,
+          otherKitchenItemEnabled: otherKitchenItemActive,
+        });
+
+        await printFn(kotOutput, printerName);
+        console.log(`[Printer Routing] Standard KOT printed successfully to "${printerName}" for ${groupedItems.length} items (otherItems=${otherKitchenItems.length}).`);
+      } catch (err: any) {
+        console.error(`[Print Error: Standard KOT - ${printerName}]`, err);
+        throw err;
+      }
     }
   } else {
-    console.warn("[Printer Routing] Single KOT skipped: kotPrint is disabled in POS config and not forced.");
+    console.warn("[Printer Routing] Standard KOT skipped: kotPrint is disabled in POS config and not forced.");
+  }
+
+  // 2. Dispatch Master KOT
+  if (isMasterKotEnabled || isMasterKotBillEnabled) {
+    const masterTitle = basePrintOptions?.headerTitle && basePrintOptions.headerTitle !== "KOT"
+      ? (isUpdate ? `UPDATE ${basePrintOptions.headerTitle}` : basePrintOptions.headerTitle)
+      : (isUpdate ? "UPDATE MASTER KOT" : "MASTER KOT");
+
+    let masterPrinter = isMasterKotEnabled
+      ? (isNative
+          ? pickFirstValidPrinter(
+              generalPrinter?.masterKOT,
+              localStorage.getItem('cachedMasterKotPrinter'),
+              localStorage.getItem('cachedMasterKotPrinterIp'),
+              !isMasterKotBillEnabled ? singlePrinter : undefined
+            )
+          : pickFirstValidPrinter(
+              !isIp(generalPrinter?.masterKOT) ? generalPrinter?.masterKOT : undefined,
+              !isIp(localStorage.getItem('cachedMasterKotPrinter')) ? localStorage.getItem('cachedMasterKotPrinter') : undefined,
+              generalPrinter?.masterKOT,
+              localStorage.getItem('cachedMasterKotPrinterIp'),
+              !isMasterKotBillEnabled ? singlePrinter : undefined
+            ))
+      : '';
+
+    const masterKotCount = Math.max(1, Number(generalPrinter?.masterKOTCount) || 1);
+
+    if (isMasterKotEnabled && masterPrinter) {
+      try {
+        const masterOutput = await generateFn(items, {
+          ...basePrintOptions,
+          headerTitle: masterTitle,
+          isMaster: true,
+        });
+        for (let i = 0; i < masterKotCount; i++) {
+          await printFn(masterOutput, masterPrinter);
+        }
+        console.log(`[Printer Routing] Master KOT (${masterKotCount}x) printed successfully to "${masterPrinter}".`);
+      } catch (err: any) {
+        console.error(`[Print Error: Master KOT]`, err);
+      }
+    }
+
+    if (isMasterKotBillEnabled) {
+      const billPrinter = isNative
+        ? pickFirstValidPrinter(
+            generalPrinter?.billPrinter,
+            localStorage.getItem('cachedBillPrinter'),
+            localStorage.getItem('cachedBillPrinterIp'),
+            singlePrinter
+          )
+        : pickFirstValidPrinter(
+            !isIp(generalPrinter?.billPrinter) ? generalPrinter?.billPrinter : undefined,
+            !isIp(localStorage.getItem('cachedBillPrinter')) ? localStorage.getItem('cachedBillPrinter') : undefined,
+            generalPrinter?.billPrinter,
+            localStorage.getItem('cachedBillPrinterIp'),
+            singlePrinter
+          );
+
+      const masterKotBillCount = Math.max(1, Number(generalPrinter?.masterKOTBillCount) || 1);
+
+      if (billPrinter && (!isMasterKotEnabled || billPrinter !== masterPrinter)) {
+        try {
+          const masterOutput = await generateFn(items, {
+            ...basePrintOptions,
+            headerTitle: masterTitle,
+            isMaster: true,
+          });
+          for (let i = 0; i < masterKotBillCount; i++) {
+            await printFn(masterOutput, billPrinter);
+          }
+          console.log(`[Printer Routing] Master KOT on Bill Printer (${masterKotBillCount}x) printed successfully to "${billPrinter}".`);
+        } catch (err: any) {
+          console.error(`[Print Error: Master KOT on Bill Printer]`, err);
+        }
+      }
+    }
   }
 };
 
@@ -146,6 +325,7 @@ export const executePackagerPrint = async (
 
   const html = await generateGuestPrintHtml(items, {
     ...printData,
+    showCompanyHeader: true,
     isPackager: true
   });
 

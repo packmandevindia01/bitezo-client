@@ -57,24 +57,24 @@ export default defineConfig({
   },
 
   server: {
-  proxy: {
-    "/api": {
-      target: "http://192.168.1.34:8068/",
-      changeOrigin: true,
-      secure: false,
-    },
-    "/uploads": {
-      target: "http://192.168.1.34:8068/",
-      changeOrigin: true,
-      secure: false,
-    },
-    "/images": {
-      target: "http://192.168.1.34:8068/",
-      changeOrigin: true,
-      secure: false,
+    proxy: {
+      "/api": {
+        target: "http://192.168.1.34:8068/",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/uploads": {
+        target: "http://192.168.1.34:8068/",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/images": {
+        target: "http://192.168.1.34:8068/",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
-},
   build: {
     target: ['es2015', 'chrome74'],
     rollupOptions: {

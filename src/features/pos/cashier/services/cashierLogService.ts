@@ -79,11 +79,19 @@ export interface EndReportHeader {
   dayEndHeaderFont6?: string;
 }
 
+export interface EndReportProduct {
+  productName: string;
+  qty: number;
+  total: number;
+  [key: string]: any;
+}
+
 export interface EndReportData {
   header: EndReportHeader;
   orderTypes: { orderType: string; count: number; total: number }[];
   waiters: { waiter: string; count: number; total: number }[];
   categories: { categoryName: string; qty: number; total: number }[];
+  products?: EndReportProduct[] | null;
   voidProducts: any[] | null;
   paymodes: { paymodeName: string; amount: number; count?: number; transactionCount?: number; [key: string]: any }[];
   taxSummary: { vatName: string; exclAmount: number; vatAmount: number }[];

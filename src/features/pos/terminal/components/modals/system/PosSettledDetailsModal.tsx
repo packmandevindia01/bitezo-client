@@ -10,6 +10,7 @@ import { getEmployeeNames, getEmployeeById } from "../../../../../general/employ
 import { useToast } from "../../../../../../app/providers/useToast";
 import { formatAmount } from "../../../../../../utils/currency";
 import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, roundCalc, getBillingConfig } from "../../../utils/billing";
@@ -397,6 +398,10 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
   const handlePrint = async () => {
     if (!orderId || !order) return;
+
+    if (!hasPrinterHeadings()) {
+      notifyPrinterHeadingWarning(showToast);
+    }
 
     try {
       showToast(`Preparing Receipt for Order #${orderId}...`, "success");
@@ -1010,14 +1015,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     displaySubTotal = roundCalc(netTaxableBase + displayDiscount);
   }
 
-  let isTaxInclusive = billingConfig?.vatType === "Inclusive";
-  if (enableVat && displayVatAmount > 0 && netAmount > 0 && displaySubTotal > 0) {
-    if (Math.abs((displaySubTotal - displayDiscount + displayVatAmount) - netAmount) < 0.05) {
-      isTaxInclusive = false;
-    } else if (Math.abs((displaySubTotal - displayDiscount) - netAmount) < 0.05) {
-      isTaxInclusive = true;
-    }
-  }
+  const isTaxInclusive = billingConfig?.vatType === "Inclusive";
 
   return (
     <Modal
@@ -1025,7 +1023,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       onClose={onClose}
       size="lg"
       noPadding
-      className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden max-w-[500px]"
+      className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden w-full max-w-[520px] md:max-w-[550px]"
     >
       <div className="bg-[#1e1e1e] border-b border-stone-800 text-stone-100 py-3.5 px-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -1047,7 +1045,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         </div>
       ) : order ? (
         <div className="flex flex-col md:flex-row min-h-[420px] bg-stone-950/80">
-          <div className="flex-1 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs overflow-y-auto">
+          <div className="flex-1 min-w-0 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs overflow-y-auto">
             <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
               <div className="text-sm font-black uppercase tracking-wide">BITEZO POS</div>
               <div className="text-[10px] text-stone-500 font-medium">{t("SETTLED ORDER TICKET")}</div>
@@ -1059,31 +1057,31 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
               {(master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo) && (
-                <div>
+                <div className="min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">{t("Invoice")}: </span>
                   <span className="font-bold">
                     {master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo}
                   </span>
                 </div>
               )}
-              <div>
+              <div className="min-w-0 break-words [overflow-wrap:anywhere]">
                 <span className="text-stone-500">{t("Order No")}: </span>
                 <span className="font-bold">{orderNo}</span>
               </div>
-              <div>
+              <div className="min-w-0 break-words [overflow-wrap:anywhere]">
                 <span className="text-stone-500">{t("Emp")}: </span>
                 <span className="font-bold">{resolvedEmployeeName}</span>
               </div>
-              <div className="text-right">
+              <div className="text-right min-w-0 break-words [overflow-wrap:anywhere]">
                 <span className="text-stone-500">{t("Type")}: </span>
                 <span className="font-bold text-[#49293e]">{t(orderTypeName)}</span>
               </div>
-              <div>
+              <div className="col-span-2 sm:col-span-1 min-w-0 break-words [overflow-wrap:anywhere]">
                 <span className="text-stone-500">{t("Customer")}: </span>
                 <span className="font-bold">{displayCustomerName}</span>
               </div>
               {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
-                <div className="text-right">
+                <div className="col-span-2 sm:col-span-1 text-right min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">{t("Table")}: </span>
                   <span className="font-bold">
                     {master.sectionName ? `${master.sectionName} - ` : ""}
@@ -1092,13 +1090,13 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 </div>
               )}
               {master.note && (
-                <div className="col-span-2 mt-1">
+                <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">{t("Note")}: </span>
                   <span className="font-bold italic text-stone-600">"{master.note}"</span>
                 </div>
               )}
               {master.vehicleNo && (
-                <div className="col-span-2 mt-1">
+                <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
                   <span className="text-stone-500">{t("Vehicle")}: </span>
                   <span className="font-bold uppercase">
                     {master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}
@@ -1111,7 +1109,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-[24px_1fr_60px_60px] gap-2 border-b border-dashed border-stone-400 pb-2 mb-2 text-[10px] font-bold text-stone-500 uppercase">
+            <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 border-b border-dashed border-stone-400 pb-2 mb-2 text-[10px] font-bold text-stone-500 uppercase">
               <div>{t("Qty")}</div>
               <div>{t("Item")}</div>
               <div className="text-right">{t("Price")}</div>
@@ -1140,14 +1138,23 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
                 const itemDisc = isModalBillDiscount ? 0 : Number(detail.discAmount || detail.DiscAmount || detail.discount || detail.itemDiscount || 0);
                 const rawPrice = detail.price ?? detail.Price;
-                const price = (rawPrice !== undefined && Number(rawPrice) > 0)
-                  ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - rawAmount) < 0.001 && qty > 0 ? (rawAmount + itemDisc) / qty : Number(rawPrice))
-                  : (qty > 0 ? (rawAmount + itemDisc) / qty : 0);
+                const rawPriceNum = Number(rawPrice ?? 0);
                 const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
+                const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
+                const vatRatio = enableVat ? (1 / (1 + vatRate)) : 1;
+                const isDetailStoredIncl = Boolean(detail.isIncl || detail.priceIsIncl || detail.priceView === "Inclusive");
+                const exclPrice = isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum * vatRatio : rawPriceNum;
+                const inclPrice = !isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum / vatRatio : rawPriceNum;
+                const unitRate = isTaxInclusive ? inclPrice : exclPrice;
+
+                const price = (unitRate > 0)
+                  ? unitRate
+                  : (qty > 0 ? (rawAmount + itemDisc) / qty : 0);
+
                 const lineAmount = isModalBillDiscount
                   ? (price * qty)
                   : (isTaxInclusive
-                      ? rawAmount
+                      ? (rawAmount > 0 && Math.abs((price * qty) - rawAmount) < 0.05 ? rawAmount : Math.max(0, (price * qty) - itemDisc))
                       : (itemVat > 0 && rawAmount > itemVat
                           ? (rawAmount - itemVat)
                           : Math.max(0, (price * qty) - itemDisc)));
@@ -1156,31 +1163,31 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 const itemMods = (order?.modifiersData || []).filter((m: any) => m.mapId === detail.mapId);
                 return (
                   <div key={i} className="space-y-0.5">
-                    <div className="grid grid-cols-[24px_1fr_60px_60px] gap-2 text-[11px]">
+                    <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[11px] items-start">
                       <div className="font-bold text-stone-500">{qty}</div>
-                      <div>
-                        <div className="font-bold text-stone-800">{localizedItem.primary}</div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-stone-800 break-words [overflow-wrap:anywhere] [word-break:break-word]">{localizedItem.primary}</div>
                         {localizedItem.secondary && (
-                          <div className="text-[9px] text-stone-500 font-medium">{localizedItem.secondary}</div>
+                          <div className="text-[9px] text-stone-500 font-medium break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{localizedItem.secondary}</div>
                         )}
                         {itemDisc > 0 && (
-                          <div className="text-[9px] text-red-600 font-medium italic">
+                          <div className="text-[9px] text-red-600 font-medium italic mt-0.5">
                             (Disc: -{formatAmount(itemDisc)})
                           </div>
                         )}
                       </div>
-                      <div className="text-right text-stone-500">{formatAmount(price)}</div>
-                      <div className="text-right font-bold text-stone-900">{formatAmount(lineAmount)}</div>
+                      <div className="text-right text-stone-500 shrink-0">{formatAmount(price)}</div>
+                      <div className="text-right font-bold text-stone-900 shrink-0">{formatAmount(lineAmount)}</div>
                     </div>
                     {itemMods.map((mod: any, mIdx: number) => {
                       const typeName = mod.typeName || mod.modifierTypeName || getModifierTypeNameById(mod.typeId) || "";
                       const typePrefix = typeName ? `${typeName.toUpperCase()}: ` : "";
                       return (
-                        <div key={mIdx} className="grid grid-cols-[24px_1fr_60px_60px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic">
-                          <div className="col-span-3">
+                        <div key={mIdx} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic items-start">
+                          <div className="col-span-3 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                             * {typePrefix}{mod.qty > 1 ? `${mod.qty} x ` : ""}{mod.modifierName || mod.name}
                           </div>
-                          <div className="text-right">
+                          <div className="text-right shrink-0">
                             {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}
                           </div>
                         </div>
@@ -1233,7 +1240,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             </div>
           </div>
 
-          <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch">
+          <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch overflow-x-auto">
             <Button
               variant="primary"
               onClick={handlePrint}

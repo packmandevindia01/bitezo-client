@@ -2,6 +2,7 @@ import { memo } from "react";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { getModifierTypeNameById } from "../../../services/menuApi";
 import { getLocalizedName } from "../../../utils/posLocalization";
+import { cleanProductName } from "../../../utils/alternativeHelpers";
 
 export interface CartRow {
   uniqueId: string;
@@ -40,7 +41,14 @@ interface PosCartItemCardProps {
 const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardProps) => {
   const { formatAmount } = useCurrency();
   const key = item.uniqueId;
-  const localized = getLocalizedName(item.product?.name, item.product?.arabicName);
+  const rawProdName = item.product?.name;
+  const rawProdArabic = item.product?.arabicName;
+  const cleanProdName = item.variantName ? cleanProductName(rawProdName, item.variantName) : rawProdName;
+  const cleanProdArabic = (item.variantArabic || item.variantName)
+    ? cleanProductName(rawProdArabic, item.variantArabic || item.variantName)
+    : rawProdArabic;
+
+  const localized = getLocalizedName(cleanProdName, cleanProdArabic);
   const variantLocalized = item.variantName ? getLocalizedName(item.variantName, item.variantArabic) : null;
 
   return (
@@ -48,7 +56,7 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
       id={`cart-row-${key}`}
       onClick={() => onSelectRow(isSelected ? null : key)}
       className={`
-        grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] items-center gap-2 px-3 py-1.5 border-b border-slate-50
+        grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] items-start gap-2 px-3 py-1.5 border-b border-slate-50
         cursor-pointer select-none transition-all duration-150
         ${isSelected
           ? "bg-[#49293e]/10 border-l-4 border-l-[#49293e]"
@@ -56,12 +64,12 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
         }
       `}
     >
-      <div className="min-w-0">
-        <p className={`truncate text-[11px] font-normal leading-tight uppercase ${isSelected ? "text-[#49293e]" : "text-slate-800"}`}>
+      <div className="min-w-0 py-0.5">
+        <p className={`text-[11px] font-normal leading-tight uppercase break-words [overflow-wrap:anywhere] [word-break:break-word] ${isSelected ? "text-[#49293e]" : "text-slate-800"}`} title={localized.primary}>
           {localized.primary} {variantLocalized?.primary ? `(${variantLocalized.primary})` : ""}
         </p>
         {(localized.secondary || variantLocalized?.secondary) && (
-          <p className="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5">
+          <p className="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5 break-words [overflow-wrap:anywhere] [word-break:break-word]" title={localized.secondary}>
             {localized.secondary || ""} {variantLocalized?.secondary ? `(${variantLocalized.secondary})` : ""}
           </p>
         )}
@@ -123,19 +131,19 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
         )}
       </div>
 
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center py-0.5">
         <span className={`text-[11px] font-normal ${isSelected ? "text-[#49293e]" : "text-slate-700"}`}>
           {item.quantity}
         </span>
       </div>
 
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center py-0.5">
         <span className={`text-[10px] font-normal ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
           {formatAmount(item.price || item.product?.price || 0)}
         </span>
       </div>
 
-      <div className="text-right flex flex-col items-end">
+      <div className="text-right flex flex-col items-end py-0.5">
         {item.itemDiscount && item.itemDiscount > 0 ? (
           <>
             <p className="text-[9px] text-slate-400 line-through font-bold leading-none mb-0.5">
@@ -159,6 +167,7 @@ export const PosCartItemCard = memo(PosCartItemCardBase, (prev, next) => {
   return (
     prev.isSelected === next.isSelected &&
     prev.item.uniqueId === next.item.uniqueId &&
+    prev.item.price === next.item.price &&
     prev.item.quantity === next.item.quantity &&
     prev.item.lineTotal === next.item.lineTotal &&
     prev.item.itemDiscount === next.item.itemDiscount &&

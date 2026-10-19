@@ -81,6 +81,13 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
             label={t("Item Separation (After Edit)", form.posLanguage)} 
             checked={form.itemSeparationAfterEdit} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("itemSeparationAfterEdit", e.target.checked)} 
+            onKeyDown={(e) => handleKeyDown(e, "conf-print-otherkitchen")}
+          />
+          <Checkbox 
+            id="conf-print-otherkitchen"
+            label={t("Other Kitchen Items (KOT)", form.posLanguage)} 
+            checked={!!form.otherKitchenItem} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("otherKitchenItem", e.target.checked)} 
             onKeyDown={(e) => handleKeyDown(e, "conf-print-billarabic")}
           />
         </div>

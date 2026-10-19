@@ -124,8 +124,15 @@ const LoginRedirect = () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  const systemType = sessionStorage.getItem("tempSystemType") || localStorage.getItem("systemType");
-  const isPos = systemType === "pos";
+  const isBackoffice =
+    sessionStorage.getItem("tempSystemType") === "backoffice" ||
+    localStorage.getItem("systemType") === "backoffice";
+
+  if (!isBackoffice && !localStorage.getItem("systemType")) {
+    localStorage.setItem("systemType", "pos");
+  }
+
+  const isPos = !isBackoffice;
   const hasToken = isPos ? !!localStorage.getItem("accessToken") : !!sessionStorage.getItem("backoffice_accessToken");
   const isRegistered = !!localStorage.getItem("systemBranchId");
 
@@ -138,6 +145,9 @@ const LoginRedirect = () => {
     }
     if (isRegistered) {
       return <Navigate to="/cashier/in" replace />;
+    }
+    if (localStorage.getItem("companyRegistered") === "true") {
+      return <Navigate to="/system/register" replace />;
     }
     return <Navigate to="/company/onboarding" replace />;
   }

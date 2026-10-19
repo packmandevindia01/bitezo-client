@@ -230,7 +230,7 @@ const PayInOutPage: React.FC = () => {
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm shrink-0">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/pos', { state: { openMoreModal: true } })}
+            onClick={() => navigate('/pos', { state: { openMoreModal: true, skipAutoDineIn: true } })}
             className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600"
           >
             <ArrowLeft size={20} />

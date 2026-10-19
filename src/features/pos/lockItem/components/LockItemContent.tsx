@@ -354,9 +354,9 @@ const LockItemContent: React.FC<LockItemContentProps> = ({ initialProductId, onS
                       <tr key={item.productId} className="group hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-xs font-bold text-slate-400 text-center">{index + 1}</td>
                         <td className="px-6 py-4 font-bold text-slate-700 text-left">
-                          <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                            {item.productName}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0" />
+                            <span className="break-words [overflow-wrap:anywhere]">{item.productName}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-xs font-semibold text-slate-500 text-center">

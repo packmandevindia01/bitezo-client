@@ -32,6 +32,7 @@ export interface ConfigurationState {
   masterKotBillPrinter: boolean;
   itemSeperation: boolean;
   itemSeparationAfterEdit: boolean;
+  otherKitchenItem: boolean;
   printPrice: "Inclusive" | "Exclusive";
   colorChangeGuestPrint: boolean;
 

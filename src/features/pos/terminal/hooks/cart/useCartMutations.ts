@@ -27,6 +27,39 @@ const hasCustomizations = (item: any): boolean => {
   return hasExtras || hasModifiers || hasMessages || hasNote;
 };
 
+const isMatchingPrice = (item: any, target: number): boolean => {
+  if (Math.abs(Number(item.price ?? 0) - target) < 0.001) return true;
+  if (Math.abs(Number(item.product?.price ?? 0) - target) < 0.001) return true;
+
+  const catalogPrice = Number(item.catalogPrice ?? item.product?.catalogPrice);
+  if (!isNaN(catalogPrice) && catalogPrice > 0 && Math.abs(catalogPrice - target) < 0.001) {
+    return true;
+  }
+
+  const basePrice = Number(item.basePrice ?? item.exclusivePrice ?? 0);
+  if (basePrice > 0 && Math.abs(basePrice - target) < 0.001) {
+    return true;
+  }
+
+  if (target > 0) {
+    const vatRate = Number(item.product?.vatValue ?? item.vatRate ?? 10) / 100;
+    const taxExclusiveTarget = target / (1 + vatRate);
+    const itemPrice = Number(item.price ?? item.product?.price ?? 0);
+    if (
+      Math.abs(itemPrice - taxExclusiveTarget) < 0.005 ||
+      (basePrice > 0 && Math.abs(basePrice - taxExclusiveTarget) < 0.005)
+    ) {
+      return true;
+    }
+    const taxInclusiveTarget = target * (1 + vatRate);
+    if (Math.abs(itemPrice - taxInclusiveTarget) < 0.005) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const useCartMutations = () => {
   const dispatch = useAppDispatch();
   const cartDetails = useAppSelector(selectCartDetails);
@@ -63,8 +96,8 @@ export const useCartMutations = () => {
             !item.mapId &&
             item.productId === productId &&
             matchVariant(item.variantName, variantName) &&
-            Number(item.product?.price ?? item.price) === Number(targetPrice) &&
-            item.isIncl === isIncl &&
+            isMatchingPrice(item, targetPrice) &&
+            (item.isIncl === undefined || isIncl === undefined || Boolean(item.isIncl) === Boolean(isIncl)) &&
             (item.unitId === undefined || unitId === undefined || item.unitId === unitId) &&
             !hasCustomizations(item)
         )
@@ -165,8 +198,8 @@ export const useCartMutations = () => {
               !item.mapId &&
               item.productId === product.id &&
               (!item.variantName || item.variantName.toLowerCase().trim() === "main") &&
-              Number(item.product?.price ?? item.price) === Number(targetPrice) &&
-              item.isIncl === isIncl &&
+              isMatchingPrice(item, targetPrice) &&
+              (item.isIncl === undefined || isIncl === undefined || Boolean(item.isIncl) === Boolean(isIncl)) &&
               (item.unitId === undefined || product.unitId === undefined || item.unitId === product.unitId) &&
               !hasCustomizations(item)
           )

@@ -298,7 +298,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
             >
               {/* Order Content */}
               <div className={`
-                flex-1 p-4 flex flex-col justify-center gap-1.5 transition-colors
+                flex-1 min-w-0 p-4 flex flex-col justify-center gap-1.5 transition-colors
                 ${selectedOrderId === order.orderId
                   ? isCancelled ? "bg-red-600 text-white" : "bg-[#f48120] text-white"
                   : isCancelled ? "group-hover:bg-red-50/90" : "group-hover:bg-gray-50"
@@ -340,7 +340,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
                   )}
                 </div>
 
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2 min-w-0">
                   <div className={`mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full ${
                     selectedOrderId === order.orderId
                       ? "bg-white"
@@ -348,7 +348,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
                         ? "bg-red-500"
                         : "bg-[#f48120]"
                   }`} />
-                  <p className={`text-sm font-bold leading-snug italic ${
+                  <p className={`text-sm font-bold leading-snug italic break-words [overflow-wrap:anywhere] [word-break:break-word] min-w-0 ${
                     selectedOrderId === order.orderId
                       ? "text-white"
                       : isCancelled

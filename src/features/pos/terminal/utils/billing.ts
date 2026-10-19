@@ -1,4 +1,5 @@
 import { getDecimalPart } from "../../../../utils/formatters";
+import { formatItemDisplayName } from "../../utils/alternativeHelpers";
 
 export interface BillingConfig {
   serviceChargeRate: number;
@@ -16,6 +17,15 @@ export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
     if (norm === "exclusive") return "Exclusive";
   }
 
+  // Priority 1: Check printPrice if explicitly stored in localStorage (set from POS Settings > Operational Flags)
+  const directPrintPrice = localStorage.getItem("printPrice");
+  if (directPrintPrice) {
+    const norm = String(directPrintPrice).trim().toLowerCase();
+    if (norm === "inclusive") return "Inclusive";
+    if (norm === "exclusive") return "Exclusive";
+  }
+
+  // Priority 2: Check priceView in localStorage
   const directPriceView = localStorage.getItem("priceView");
   if (directPriceView) {
     const norm = String(directPriceView).trim().toLowerCase();
@@ -23,12 +33,19 @@ export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
     if (norm === "exclusive") return "Exclusive";
   }
 
+  // Priority 3: Check cached posConfigs JSON
   for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
     try {
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
         const configs = parsed?.configs || parsed;
+        const pp = configs?.printPrice ?? configs?.PrintPrice ?? parsed?.printPrice ?? parsed?.PrintPrice;
+        if (pp) {
+          const norm = String(pp).trim().toLowerCase();
+          if (norm === "inclusive") return "Inclusive";
+          if (norm === "exclusive") return "Exclusive";
+        }
         const pv = configs?.priceView ?? configs?.PriceView ?? parsed?.priceView ?? parsed?.PriceView;
         if (pv) {
           const norm = String(pv).trim().toLowerCase();
@@ -40,6 +57,44 @@ export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
   }
 
   return "Exclusive";
+};
+
+/**
+ * Calculates the display unit price for a product based on the POS configuration (Inclusive vs Exclusive).
+ * Converts the product's stored catalog price:
+ * - If target is Exclusive and product is stored as Inclusive: divides by (1 + vatRate).
+ * - If target is Inclusive and product is stored as Exclusive: multiplies by (1 + vatRate).
+ * - Otherwise returns the stored price.
+ */
+export const getDisplayPriceForProduct = (
+  rawPrice: number,
+  isProductIncl?: boolean,
+  vatRate?: number,
+  targetView?: "Inclusive" | "Exclusive"
+): number => {
+  const view = targetView || getPriceView();
+  const isVatEnabled = getVatStatus();
+  const rate = (vatRate !== undefined && vatRate !== null && !isNaN(Number(vatRate)))
+    ? Number(vatRate) / 100
+    : 0.10;
+
+  if (!isVatEnabled || rate <= 0 || !rawPrice || rawPrice <= 0) {
+    return rawPrice || 0;
+  }
+
+  const isStoredIncl = isProductIncl === true;
+
+  if (view === "Exclusive") {
+    if (isStoredIncl) {
+      return roundCalc(rawPrice / (1 + rate), CALC_PRECISION);
+    }
+    return rawPrice;
+  } else {
+    if (!isStoredIncl) {
+      return roundCalc(rawPrice * (1 + rate), CALC_PRECISION);
+    }
+    return rawPrice;
+  }
 };
 
 export const getBillingConfig = (orderType: string): BillingConfig => {
@@ -55,7 +110,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
     }
     
     const rawDiscCalc = configs.discCalc || configs.discountCalc || configs.DiscCalc || configs.DiscountCalc || '';
-    const rawPriceView = configs.priceView || configs.PriceView || '';
+    const rawPriceView = configs.printPrice || configs.PrintPrice || configs.priceView || configs.PriceView || '';
     const rawVat = configs.vat ?? configs.Vat ?? configs.vatRate ?? configs.VatRate ?? 0;
     const rawSc = configs.serviceCharges ?? configs.serviceCharge ?? configs.ServiceCharges ?? 0;
     const rawLevy = configs.levy ?? configs.Levy ?? 0;
@@ -407,7 +462,7 @@ export const calculateOrder = (
   // ── PASS 2: Calculate line items and allocate discounts ─────────────────────
   const calculatedLines: CalculatedLineItem[] = preCalculated.map(
     ({ item, product, price, quantity, extras, modifiers, messages, totalExtrasForLine, itemGross: _itemGross }, idx) => {
-      const displayName = item.variantName ? `${product.name || 'Item'} - ${item.variantName}` : (product.name || 'Item');
+      const displayName = formatItemDisplayName(product.name || 'Item', item.variantName);
 
       let discountObj: { type: 'percentage' | 'amount'; value: number } | number = 0;
       let isBillDisc = false;
@@ -485,13 +540,27 @@ export const calculateOrder = (
       }
 
         const resolvedUnitId = item.unitId || product.unitId || 1;
+        const isTaxInclusive = config.vatType === 'Inclusive';
+        const effectiveUnitRate = isTaxInclusive
+          ? (isVatEnabled && effectiveVatRate > 0 ? roundCalc(calcs.basePrice * (1 + effectiveVatRate / 100), CALC_PRECISION) : calcs.basePrice)
+          : calcs.basePrice;
+
+        const effectiveLineTotal = isTaxInclusive
+          ? (isBillDisc ? noDiscountCalcs.lineNetAmount : calcs.lineNetAmount)
+          : (isBillDisc ? noDiscountCalcs.amount : calcs.netValue);
+
+        const effectiveOriginalLineTotal = isTaxInclusive
+          ? noDiscountCalcs.lineNetAmount
+          : noDiscountCalcs.amount;
+
         return {
           ...item,
           uniqueId: item.uniqueId || `${item.productId}-${Date.now()}-${Math.random()}`,
           productId: item.productId || product.id || 0,
           unitId: resolvedUnitId,
           quantity,
-          price,
+          catalogPrice: price,
+          price: effectiveUnitRate,
           basePrice: calcs.basePrice,
           exclusivePrice: calcs.basePrice,
           isIncl: item.isIncl,
@@ -501,7 +570,8 @@ export const calculateOrder = (
             ...product,
             unitId: resolvedUnitId,
             name: displayName,
-            price,
+            catalogPrice: price,
+            price: effectiveUnitRate,
           },
         extras,
         modifiers,
@@ -525,12 +595,9 @@ export const calculateOrder = (
         vatBase: calcs.netValue + calcs.sc + calcs.levy,
         vatRate: effectiveVatRate,
         vatAmount: calcs.vatAmount,
-        // When a bill-level discount is active, show the original (pre-bill-discount)
-        // line total in the TOTAL column. lineNetAmount (discounted) is still used
-        // for grand total computation and the backend payload.
-        lineTotal: isBillDisc ? noDiscountCalcs.lineNetAmount : calcs.lineNetAmount,
+        lineTotal: effectiveLineTotal,
         lineNetAmount: calcs.lineNetAmount,
-        originalLineTotal: noDiscountCalcs.lineNetAmount,
+        originalLineTotal: effectiveOriginalLineTotal,
 
         mainNetAmount: roundCalc(Math.max(0, mainNetAmount)),
         mainVatAmount: roundCalc(Math.max(0, mainVatAmount)),

@@ -85,6 +85,11 @@ export const deleteEmployee = async (empId: number) => {
 export const getBranches = async (): Promise<BranchOption[]> => {
   const branchMap = new Map<number, string>();
 
+  const isAll = (name: string) => {
+    const lower = name.trim().toLowerCase();
+    return lower === "all" || lower === "all branches" || lower === "all branch";
+  };
+
   const [listRes, trueRes, falseRes] = await Promise.allSettled([
     axiosInstance.get("/Branch/list"),
     axiosInstance.get("/Branch/true/list-name"),
@@ -97,7 +102,7 @@ export const getBranches = async (): Promise<BranchOption[]> => {
       list.forEach((b: any) => {
         const id = Number(b.branchId ?? b.id);
         const name = String(b.branchName ?? b.name ?? "");
-        if (id && id > 0 && name && !branchMap.has(id)) {
+        if (id && id > 0 && name && !isAll(name) && !branchMap.has(id)) {
           branchMap.set(id, name);
         }
       });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, LayoutGrid, Printer, DollarSign, CalendarDays, Save, Keyboard 
 } from 'lucide-react';
@@ -16,6 +16,7 @@ type PosConfigTab = "pos" | "printing" | "charges" | "dayend";
 
 export const PosConfigurationPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<PosConfigTab>("pos");
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
@@ -33,7 +34,11 @@ export const PosConfigurationPage: React.FC = () => {
   } = usePosConfiguration();
 
   const handleBack = () => {
-    navigate('/pos', { state: { openMoreModal: true } });
+    if (location.state?.fromPreSession) {
+      navigate('/pos', { state: { skipAutoDineIn: true } });
+      return;
+    }
+    navigate('/pos', { state: { openMoreModal: true, skipAutoDineIn: true } });
   };
 
   React.useEffect(() => {

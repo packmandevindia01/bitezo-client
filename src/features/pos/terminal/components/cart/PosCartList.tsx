@@ -32,7 +32,7 @@ export const PosCartList = ({ cartDetails, selectedKey, onSelectRow }: PosCartLi
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      <div className="grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+      <div className="grid grid-cols-[1.5fr_0.4fr_0.5fr_0.7fr] gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
         <span>{t("ITEM")}</span>
         <span className="text-center">{t("QTY")}</span>
         <span className="text-center">{t("PRICE")}</span>

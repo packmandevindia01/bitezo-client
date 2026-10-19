@@ -1,7 +1,7 @@
 import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
-import { isKotArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
+import { isKotArabicEnabled, isOtherKitchenItemEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getModifierTypeNameById } from "../services/menuApi";
 import { getDecimalPart } from "../../../utils/currency";
 
@@ -41,6 +41,8 @@ export interface KotPrintData {
   vatAmount?: number;
   subTotal?: number;
   netAmount?: number;
+  otherKitchenItems?: PosCartItem[];
+  otherKitchenItemEnabled?: boolean;
 }
 
 export const resolveKotPrintTaxSetting = (data?: KotPrintData): "Inclusive" | "Exclusive" => {
@@ -119,6 +121,17 @@ export const generateKotHtml = async (
     }
 
     if (branchLines.length === 0) {
+      const sessionStr = localStorage.getItem("posSession") || localStorage.getItem("activeBranch");
+      if (sessionStr) {
+        try {
+          const parsed = JSON.parse(sessionStr);
+          const lines = parsed.lines || parsed.activeBranch?.lines || [];
+          if (Array.isArray(lines) && lines.length > 0) branchLines = lines;
+        } catch {}
+      }
+    }
+
+    if (branchLines.length === 0) {
       try {
         branchLines = await branchApi.fetchBranchPrintData();
         if (branchLines && branchLines.length > 0) {
@@ -144,15 +157,21 @@ export const generateKotHtml = async (
     }
 
     if (branchLines && branchLines.length > 0) {
-      const headers = branchLines.filter(l => l.section === 'header' && l.value);
+      const isHeader = (l: any) => {
+        const sec = String(l.section || "").toLowerCase();
+        const code = String(l.code || l.id || "").toUpperCase();
+        return sec === "header" || (code.startsWith("H") && !code.startsWith("EH"));
+      };
+      const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
       if (headers.length > 0) {
         customHeadersHtml = headers.map(l => {
+          const val = l.value ?? l.lineValue ?? "";
           const styleObj = getLineStyle(l) as any;
           const styleStr = Object.entries(styleObj).map(([k, v]) => {
             const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
             return `${kebab}:${v}`;
           }).join(";");
-          return `<div dir="auto" style="${styleStr}">${l.value}</div>`;
+          return `<div dir="auto" style="${styleStr}">${val}</div>`;
         }).join("");
       }
     }
@@ -198,9 +217,27 @@ export const generateKotHtml = async (
     ? `${orderTypeStr} <span class="arabic-text" style="font-size: 16px;">(${orderTypeAr})</span>`
     : orderTypeStr;
 
-  const kotHeaderTitleDisplay = data.headerTitle 
-    ? (isKotArabic && (data.headerTitle === "VOID ITEMS" || data.headerTitle.includes("VOID")) ? `${data.headerTitle} / أصناف ملغاة` : data.headerTitle)
-    : (isKotArabic ? "KOT / طلب المطبخ" : "KOT");
+  const isMasterKot = Boolean(data.isMaster);
+  let effectiveTitle = data.headerTitle || (isMasterKot ? "MASTER KOT" : "KOT");
+  if (isMasterKot && effectiveTitle === "KOT") {
+    effectiveTitle = "MASTER KOT";
+  }
+
+  let kotHeaderTitleDisplay = effectiveTitle;
+  if (isKotArabic) {
+    const wrapAr = (ar: string) => `<span class="arabic-text" style="font-weight: bold; letter-spacing: normal !important;">${ar}</span>`;
+    if (effectiveTitle === "MASTER KOT") {
+      kotHeaderTitleDisplay = `MASTER KOT / ${wrapAr("طلب المطبخ الرئيسي")}`;
+    } else if (effectiveTitle === "UPDATE MASTER KOT") {
+      kotHeaderTitleDisplay = `UPDATE MASTER KOT / ${wrapAr("تعديل طلب المطبخ الرئيسي")}`;
+    } else if (effectiveTitle === "KOT") {
+      kotHeaderTitleDisplay = `KOT / ${wrapAr("طلب المطبخ")}`;
+    } else if (effectiveTitle === "UPDATE KOT") {
+      kotHeaderTitleDisplay = `UPDATE KOT / ${wrapAr("تعديل طلب المطبخ")}`;
+    } else if (effectiveTitle === "VOID ITEMS" || effectiveTitle.includes("VOID")) {
+      kotHeaderTitleDisplay = `${effectiveTitle} / ${wrapAr("أصناف ملغاة")}`;
+    }
+  }
 
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
@@ -220,16 +257,7 @@ export const generateKotHtml = async (
     : (isVatActive ? (1 / 1.10) : 1);
 
   const printTaxSetting = resolveKotPrintTaxSetting(data);
-  let isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
-
-  if (isVatActive && authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0) {
-    const totalDiscVal = Number((data as any).discount || 0);
-    if (Math.abs((authoritativeSubTotal - totalDiscVal + authoritativeVatAmount) - totalNet) < 0.05) {
-      isTaxInclusive = false;
-    } else if (Math.abs((authoritativeSubTotal - totalDiscVal) - totalNet) < 0.05) {
-      isTaxInclusive = true;
-    }
-  }
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
   const isOrderBillDiscount = Boolean(
     (data as any).isBillDiscount ||
@@ -247,18 +275,17 @@ export const generateKotHtml = async (
 
   let itemsHtml = "";
 
-  cartDetails.forEach((item, index) => {
-    // Determine the product name
-    let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
-    if (item.variantName && item.variantName.toLowerCase().trim() !== 'main') {
-      name += ` - ${item.variantName.toUpperCase()}`;
-    }
+  cartDetails.forEach((item) => {
+    const name = formatItemDisplayName(
+      item.product?.name || `Item #${item.productId}`,
+      item.variantName
+    ).toUpperCase();
     const qty = item.quantity;
     
     const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
     const nameDisplayHtml = altArabicName
-      ? `<div style="line-height: 1.3; font-weight: normal;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0;">${altArabicName}</div>`
-      : `<div style="line-height: 1.3; font-weight: normal;">${name}</div>`;
+      ? `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${altArabicName}</div>`
+      : `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div>`;
 
     const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
     const itemBaseAmount: number | undefined = (item as any).baseAmount;
@@ -271,10 +298,16 @@ export const generateKotHtml = async (
       item.extras.forEach(ex => extrasSum += (Number(ex.price || 0) * (ex.qty || 1)));
     }
 
+    const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
+      ? Number((item as any).basePrice)
+      : undefined;
+
     // ── 1. Calculate Exclusive Amounts (Tax-Exclusive) ──
-    const catalogExclusivePrice = (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && (item as any).isIncl)
-      ? (origUnitPrice * vatRatio)
-      : (origUnitPrice > 0 ? origUnitPrice : 0);
+    const catalogExclusivePrice = knownBasePrice !== undefined
+      ? knownBasePrice
+      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && (item as any).isIncl)
+          ? (origUnitPrice * vatRatio)
+          : (origUnitPrice > 0 ? origUnitPrice : 0));
 
     let exclusiveUnitPrice: number;
     let exclusiveProductLineAmount: number;
@@ -312,9 +345,11 @@ export const generateKotHtml = async (
     }
 
     // ── 2. Calculate Inclusive Amounts (Tax-Inclusive) ──
-    const catalogInclusivePrice = (!isTaxInclusive && isVatActive && vatRatio > 0 && vatRatio < 1 && !(item as any).isIncl)
-      ? (origUnitPrice / vatRatio)
-      : (origUnitPrice > 0 ? origUnitPrice : 0);
+    const catalogInclusivePrice = knownBasePrice !== undefined
+      ? (isVatActive && vatRatio > 0 && vatRatio < 1 ? (knownBasePrice / vatRatio) : knownBasePrice)
+      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && !(item as any).isIncl)
+          ? (origUnitPrice / vatRatio)
+          : (origUnitPrice > 0 ? origUnitPrice : 0));
 
     let lineInclusiveAmt: number;
     let inclusiveUnitPrice: number;
@@ -359,12 +394,9 @@ export const generateKotHtml = async (
       }
     }
 
-    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
     const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
     const amtStr = fmt(finalAmt);
-    const rateDisplay = (qty > 1 && finalRate > 0)
-      ? `<div style="font-size: 11px; color: #555; font-weight: normal;">@ ${fmt(finalRate)}</div>`
-      : "";
+    const rateDisplay = "";
 
     let subRowsHtml = "";
 
@@ -479,7 +511,7 @@ export const generateKotHtml = async (
       });
     }
 
-    const cellPadding = index === 0 ? "padding: 8px 0 4px 0;" : "padding: 4px 0;";
+    const cellPadding = "padding: 2px 0;";
 
     if (kotHeaderStyle.startsWith("DESCRIPTION")) {
       itemsHtml += `
@@ -516,74 +548,94 @@ export const generateKotHtml = async (
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, Helvetica, sans-serif;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: normal;
             color: #000000;
             margin: 0;
-            padding: 2px 4px;
+            padding: 0 2px;
             width: 100%;
             -webkit-font-smoothing: antialiased;
           }
           table { border-collapse: collapse; width: 100%; table-layout: fixed; }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .dashed-line { border: none; border-top: 1px dashed #000000; margin: 6px 0; }
-          .solid-line { border: none; border-top: 2px solid #000000; margin: 6px 0; }
+          .dashed-line { border: none; border-top: 1px dashed #000000; margin: 5px 0; clear: both; }
+          .solid-line { border: none; border-top: 1.5px solid #000000; margin: 5px 0; clear: both; }
           .item-row {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif !important;
-            font-size: 13px !important;
+            font-size: 12.5px !important;
             font-weight: normal !important;
           }
           table.items-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-top: 2px;
+            margin-top: 1px;
           }
           table.items-table th {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
             font-weight: bold !important;
-            font-size: 13px !important;
+            font-size: 12px !important;
             color: #000000;
             border-bottom: 1px dashed #000000;
-            padding-top: 4px;
-            padding-bottom: 8px; /* Clearance above the underline */
+            padding-top: 2px;
+            padding-bottom: 7px !important; /* Clearance above dashed underline for Arabic descenders */
             vertical-align: bottom;
           }
           table.items-table td {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
             font-weight: normal !important;
-            font-size: 13px !important;
+            font-size: 12.5px !important;
             color: #000000;
             vertical-align: top;
+            word-break: break-word;
+            overflow-wrap: break-word;
           }
           table.items-table tbody tr:first-child td {
-            padding-top: 8px !important; /* Clearance below the underline to prevent overlapping with next line */
+            padding-top: 3px !important;
           }
           .arabic-text {
             direction: rtl;
             text-align: right;
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
             font-weight: normal;
-            font-size: 13px;
+            font-size: 12px;
             color: #000000 !important;
             unicode-bidi: embed;
             text-rendering: optimizeLegibility;
-            line-height: 1.4;
+            line-height: 1.35;
             word-wrap: normal;
             overflow-wrap: break-word;
             white-space: normal;
+            letter-spacing: normal !important;
           }
         </style>
       </head>
   `;
 
   // ─── Build meta rows (label : value pairs in a 2-column grid) ──────
+  const metaLabel = (lbl: string) => {
+    if (!isKotArabic || !lbl) return lbl;
+    const arMap: Record<string, string> = {
+      Date: "التاريخ",
+      Time: "الوقت",
+      Employee: "الموظف",
+      Waiter: "النادل",
+      Counter: "الكاونتر",
+      Section: "القسم",
+      Table: "الطاولة",
+      Vehicle: "المركبة",
+      Customer: "العميل",
+      Driver: "السائق",
+    };
+    const ar = arMap[lbl];
+    return ar ? `${lbl} (${ar})` : lbl;
+  };
   const metaCell = (label: string, val: string) => {
     if (!label && !val) return '<td style="width: 50%;"></td>';
     return `
-      <td style="width: 50%; padding: 2px 0; font-size: 11px;">
-        ${label ? `<span style="font-weight: bold;">${label} :</span>` : ""} <span style="font-weight: normal;">${val}</span>
+      <td style="width: 50%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
+        ${label ? `<span style="font-weight: bold;">${metaLabel(label)} :</span>` : ""} <span style="font-weight: normal;">${val}</span>
       </td>
     `;
   };
@@ -627,34 +679,34 @@ export const generateKotHtml = async (
         ${isKotArabic ? `<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap; font-weight: bold;">(بيانات التوصيل)</bdi>` : ''}
       </div>
       <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-        ${data.contactNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Mob No :</td><td style="font-weight: normal; padding: 2px 0;">${data.contactNo}</td></tr>` : ''}
-        ${data.callBack ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Call Back :</td><td style="font-weight: normal; padding: 2px 0;">${data.callBack}</td></tr>` : ''}
-        ${hasValidKeepChange ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Keep Change :</td><td style="font-weight: normal; padding: 2px 0;">${keepChangeVal}</td></tr>` : ''}
-        ${data.customerName ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Customer :</td><td style="font-weight: normal; padding: 2px 0;">${data.customerName}</td></tr>` : ''}
+        ${data.contactNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Mob No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.contactNo}</td></tr>` : ''}
+        ${data.callBack ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Call Back${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.callBack}</td></tr>` : ''}
+        ${hasValidKeepChange ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Keep Change${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${keepChangeVal}</td></tr>` : ''}
+        ${data.customerName ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Customer${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.customerName}</td></tr>` : ''}
         ${driverVal ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Driver${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(السائق)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${driverVal}</td></tr>` : ''}
-        ${data.flatNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Flat No :</td><td style="font-weight: normal; padding: 2px 0;">${data.flatNo}</td></tr>` : ''}
-        ${data.buildingNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Building :</td><td style="font-weight: normal; padding: 2px 0;">${data.buildingNo}</td></tr>` : ''}
-        ${data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Block :</td><td style="font-weight: normal; padding: 2px 0;">${data.blockNo}</td></tr>` : ''}
-        ${data.roadNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Road :</td><td style="font-weight: normal; padding: 2px 0;">${data.roadNo}</td></tr>` : ''}
-        ${data.area ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Area :</td><td style="font-weight: normal; padding: 2px 0;">${data.area}</td></tr>` : ''}
-        ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Address :</td><td style="font-weight: normal; padding: 2px 0;">${data.address}</td></tr>` : ''}
-        ${data.vehicleNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Vehicle No :</td><td style="font-weight: normal; padding: 2px 0;">${data.vehicleNo}</td></tr>` : ''}
-        ${data.providerNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Provider No :</td><td style="font-weight: normal; padding: 2px 0;">${data.providerNo}</td></tr>` : ''}
+        ${data.flatNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Flat No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.flatNo}</td></tr>` : ''}
+        ${data.buildingNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Building${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.buildingNo}</td></tr>` : ''}
+        ${data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Block${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.blockNo}</td></tr>` : ''}
+        ${data.roadNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Road${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.roadNo}</td></tr>` : ''}
+        ${data.area ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Area${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.area}</td></tr>` : ''}
+        ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Address${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.address}</td></tr>` : ''}
+        ${data.vehicleNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Vehicle No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المركبة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.vehicleNo}</td></tr>` : ''}
+        ${data.providerNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Provider No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.providerNo}</td></tr>` : ''}
       </table>
     </div>
   ` : '';
 
   // ─── Order No / Ticket No row ──────
   const orderTicketHtml = `
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 2px;">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 2px;">
       <tr>
-        <td style="width: 50%; text-align: left; padding: 4px 0; font-size: 12px;">
-          <span style="font-weight: bold;">Order No :</span>&nbsp;
-          <span style="font-size: 16px; font-weight: normal;">#${data.orderNo}</span>
+        <td style="width: 50%; text-align: left; padding: 2px 0 6px 0; font-size: 11.5px; line-height: 1.3;">
+          <span style="font-weight: bold;">Order No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم الطلب)</bdi>' : ''}:</span>&nbsp;
+          <span style="font-size: 13.5px; font-weight: bold;">#${data.orderNo}</span>
         </td>
-        <td style="width: 50%; text-align: right; padding: 4px 0; font-size: 12px;">
-          <span style="font-weight: bold;">Ticket No :</span>&nbsp;
-          <span style="font-size: 16px; font-weight: normal;">#${data.ticketNo}</span>
+        <td style="width: 50%; text-align: right; padding: 2px 0 6px 0; font-size: 11.5px; line-height: 1.3;">
+          <span style="font-weight: bold;">Ticket No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم التذكرة)</bdi>' : ''}:</span>&nbsp;
+          <span style="font-size: 13.5px; font-weight: bold;">#${data.ticketNo}</span>
         </td>
       </tr>
     </table>
@@ -665,14 +717,14 @@ export const generateKotHtml = async (
     tableHeaderHtml = `
       <thead>
         <tr>
-          <th style="width: 56%; text-align: left; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
-            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 2px;">الصنف</div>' : ''}
+          <th style="width: 56%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
           </th>
-          <th style="width: 18%; text-align: center; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
-            QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 2px;">الكمية</div>' : ''}
+          <th style="width: 18%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
           </th>
-          <th style="width: 26%; text-align: right; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
-            AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: right; margin-top: 2px;">المبلغ</div>' : ''}
+          <th style="width: 26%; text-align: right; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: right; margin-top: 1px; padding-bottom: 2px;">المبلغ</div>' : ''}
           </th>
         </tr>
       </thead>
@@ -681,14 +733,14 @@ export const generateKotHtml = async (
     tableHeaderHtml = `
       <thead>
         <tr>
-          <th style="width: 18%; text-align: center; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
-            QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 2px;">الكمية</div>' : ''}
+          <th style="width: 18%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
           </th>
-          <th style="width: 56%; text-align: left; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
-            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: left; margin-top: 2px;">الصنف</div>' : ''}
+          <th style="width: 56%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
           </th>
-          <th style="width: 26%; text-align: right; padding: 4px 0 8px 0; font-size: 13px; font-weight: bold; border-bottom: 1px dashed #000000;">
-            AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: right; margin-top: 2px;">المبلغ</div>' : ''}
+          <th style="width: 26%; text-align: right; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: right; margin-top: 1px; padding-bottom: 2px;">المبلغ</div>' : ''}
           </th>
         </tr>
       </thead>
@@ -705,6 +757,128 @@ export const generateKotHtml = async (
     </table>
   `;
 
+  // ─── Other Kitchen Items section (only when enabled and on multi-station KOT prints) ──────
+  let otherItemsSectionHtml = "";
+  const isOtherKitchenEnabled = data.otherKitchenItemEnabled ?? isOtherKitchenItemEnabled();
+  const rawOtherItems = (!data.isMaster && isOtherKitchenEnabled && Array.isArray(data.otherKitchenItems))
+    ? data.otherKitchenItems
+    : [];
+
+  if (rawOtherItems.length > 0) {
+    let otherRowsHtml = "";
+    rawOtherItems.forEach((item) => {
+      const name = formatItemDisplayName(
+        item.product?.name || `Item #${item.productId}`,
+        item.variantName
+      ).toUpperCase();
+      const qty = item.quantity;
+
+      const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
+      const nameDisplayHtml = altArabicName
+        ? `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${altArabicName}</div>`
+        : `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div>`;
+
+      let otherSubRowsHtml = "";
+      if (item.modifiers && item.modifiers.length > 0) {
+        item.modifiers.forEach((mod: any) => {
+          const rawModName = (mod.name || mod.modifierName || "").trim();
+          if (!rawModName) return;
+          const modArabic = isKotArabic ? (mod.arabicName || mod.arabic || "") : "";
+          const modDisplay = modArabic
+            ? `* ${rawModName.toUpperCase()} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
+            : `* ${rawModName.toUpperCase()}`;
+          otherSubRowsHtml += `
+            <div style="font-size: 11px; font-weight: normal; font-style: italic; padding: 1px 0 1px 6px; color: #000000;">
+              ${modDisplay}
+            </div>
+          `;
+        });
+      }
+      if (item.messages && item.messages.length > 0) {
+        item.messages.forEach((msg: any) => {
+          const rawName = msg.name || "NOTE";
+          const isMsgArabic = containsArabic(rawName);
+          const msgDisplay = isMsgArabic
+            ? `NOTE: <span dir="rtl" lang="ar" class="arabic-text" style="font-weight: normal;">${rawName}</span>`
+            : `NOTE: ${rawName.toUpperCase()}`;
+          otherSubRowsHtml += `
+            <div style="font-size: 11px; font-weight: normal; font-style: italic; padding: 1px 0 1px 6px; color: #d97706;">
+              ${msgDisplay}
+            </div>
+          `;
+        });
+      }
+
+      const cellPadding = "padding: 2px 0;";
+
+      if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+        otherRowsHtml += `
+          <tr class="item-row" style="border-bottom: 0.5px solid #eee;">
+            <td style="width: 80%; text-align: left; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 12.5px;">
+              ${nameDisplayHtml}
+              ${otherSubRowsHtml}
+            </td>
+            <td style="width: 20%; text-align: center; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 12.5px;">${qty}</td>
+          </tr>
+        `;
+      } else {
+        otherRowsHtml += `
+          <tr class="item-row" style="border-bottom: 0.5px solid #eee;">
+            <td style="width: 20%; text-align: center; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 12.5px;">${qty}</td>
+            <td style="width: 80%; text-align: left; vertical-align: top; ${cellPadding} font-weight: normal; font-size: 12.5px;">
+              ${nameDisplayHtml}
+              ${otherSubRowsHtml}
+            </td>
+          </tr>
+        `;
+      }
+    });
+
+    let otherTableHeaderHtml = "";
+    if (kotHeaderStyle.startsWith("DESCRIPTION")) {
+      otherTableHeaderHtml = `
+        <thead>
+          <tr>
+            <th style="width: 80%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+              DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
+            </th>
+            <th style="width: 20%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+              QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
+            </th>
+          </tr>
+        </thead>
+      `;
+    } else {
+      otherTableHeaderHtml = `
+        <thead>
+          <tr>
+            <th style="width: 20%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+              QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
+            </th>
+            <th style="width: 80%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+              DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
+            </th>
+          </tr>
+        </thead>
+      `;
+    }
+
+    otherItemsSectionHtml = `
+      <hr class="solid-line" />
+      <div class="text-center" style="font-size: 13.5px; font-weight: bold; margin: 4px 0 2px 0;">
+        *** OTHER ITEMS ***
+        ${isKotArabic ? '<div class="arabic-text" style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 2px; padding-bottom: 2px; letter-spacing: normal !important;">(الأصناف الأخرى)</div>' : ''}
+      </div>
+      <table class="items-table other-items-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+        ${otherTableHeaderHtml}
+        <tbody>
+          ${otherRowsHtml}
+        </tbody>
+      </table>
+      <hr class="solid-line" />
+    `;
+  }
+
   // ─── Totals (KOT prints must not display VAT amount, total amount, or any pricing) ──────
   const totalsHtml = '';
 
@@ -715,7 +889,7 @@ export const generateKotHtml = async (
         ${styles}
         <body>
           ${customHeadersHtml ? `
-            <div style="text-align: center; margin-bottom: 8px; padding: 0 4px; width: 100%; word-break: break-word;">
+            <div style="margin-bottom: 8px; padding: 0 4px; width: 100%; box-sizing: border-box; word-break: break-word;">
               ${customHeadersHtml}
             </div>
           ` : ''}
@@ -728,7 +902,7 @@ export const generateKotHtml = async (
 
           <table>${metaHtml}</table>
 
-          ${isDineIn ? `<div class="text-center" style="font-size: 18px; margin: 8px 0;"><span style="font-weight: bold;">Table :</span> <span style="font-weight: normal;">${data.table}</span></div>` : ''}
+          ${isDineIn ? `<div class="text-center" style="font-size: 18px; margin: 8px 0;"><span style="font-weight: bold;">Table${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 14px; font-weight: normal;">(الطاولة)</bdi>' : ''} :</span> <span style="font-weight: normal;">${data.table}</span></div>` : ''}
 
           <hr class="solid-line" />
           <div class="text-center" style="font-size: 22px; font-weight: bold; margin: 8px 0;">***${kotHeaderTitleDisplay}***</div>
@@ -740,7 +914,7 @@ export const generateKotHtml = async (
 
           ${deliveryDetailsHtml}
           
-          <div class="text-center" style="font-size: 11px; margin-top: 8px;">Print On : ${dateStr} ${timeStr}</div>
+          <div class="text-center" style="font-size: 11px; margin-top: 8px;">Print On${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(وقت الطباعة)</bdi>' : ''} : ${dateStr} ${timeStr}</div>
         </body>
       </html>
     `;
@@ -751,14 +925,8 @@ export const generateKotHtml = async (
     <html>
       ${styles}
       <body>
-        ${customHeadersHtml ? `
-            <div style="text-align: center; margin-bottom: 8px; padding: 0 4px; width: 100%; word-break: break-word;">
-              ${customHeadersHtml}
-            </div>
-          ` : ''}
-
-        <div class="text-center" style="font-size: 20px; font-weight: bold; margin-bottom: 4px;">${orderTypeDisplay}</div>
-        <div class="text-center" style="font-size: 22px; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px;">***${kotHeaderTitleDisplay}***</div>
+        <div class="text-center" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${orderTypeDisplay}</div>
+        <div class="text-center" style="font-size: 17px; font-weight: bold; margin-bottom: 3px;">***${kotHeaderTitleDisplay}***</div>
 
         <hr class="solid-line" />
 
@@ -770,11 +938,13 @@ export const generateKotHtml = async (
 
         ${itemsTableHtml}
 
+        ${otherItemsSectionHtml}
+
         ${totalsHtml}
 
         ${deliveryDetailsHtml}
 
-        <div class="text-center" style="font-size: 11px; margin-top: 8px;">Print On : ${dateStr} ${timeStr}</div>
+        <div class="text-center" style="font-size: 10px; margin-top: 4px;">Print On${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(وقت الطباعة)</bdi>' : ''} : ${dateStr} ${timeStr}</div>
       </body>
     </html>
   `;

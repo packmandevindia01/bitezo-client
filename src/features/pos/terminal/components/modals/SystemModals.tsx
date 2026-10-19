@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useState } from "react";
 import { PosMoreModal } from "./system/PosMoreModal";
 import { isDefaultEmployeeActive } from "../../../utils/defaultEmployee";
 
@@ -36,6 +36,7 @@ export interface SystemModalsProps {
 
 export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
   const { modals } = props;
+  const [reportOrigin, setReportOrigin] = useState<"more" | "preSession">("more");
 
   return (
     <>
@@ -68,6 +69,7 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
           });
         }}
         onReport={() => {
+          setReportOrigin("more");
           if (isDefaultEmployeeActive()) {
             modals.setIsMoreModalOpen(false);
             modals.setIsReportModalOpen(true);
@@ -106,7 +108,11 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
             isOpen={modals.isReportModalOpen}
             onClose={() => {
               modals.setIsReportModalOpen(false);
-              modals.setIsMoreModalOpen(true);
+              if (reportOrigin === "preSession") {
+                modals.setIsCashierSessionOpen(true);
+              } else {
+                modals.setIsMoreModalOpen(true);
+              }
             }}
           />
         )}
@@ -156,6 +162,12 @@ export const SystemModals: React.FC<SystemModalsProps> = React.memo((props) => {
           initialTab={modals.sessionInitialTab}
           onClose={() => modals.closeModal("cashierSession")}
           onSessionReady={() => modals.closeModal("cashierSession")}
+          onOpenReport={() => {
+            setReportOrigin("preSession");
+            modals.setIsCashierSessionOpen(false);
+            modals.setIsReportModalOpen(true);
+          }}
+          requestAuthorization={props.requestAuthorization}
         />
       </Suspense>
     </>

@@ -5,19 +5,21 @@ import { fetchDenominations } from "../../../../../general/denomination/services
 import type { DenominationItem } from "../../../../../general/denomination/types";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
-import { LogIn, LogOut, Sun, Moon, Loader2, Delete, Calculator, ArrowLeft, AlertTriangle, CheckCircle2, SkipForward } from "lucide-react";
+import { LogIn, LogOut, Sun, Moon, Loader2, Delete, Calculator, ArrowLeft, AlertTriangle, CheckCircle2, SkipForward, LayoutGrid } from "lucide-react";
 import { getCurrencySymbol } from "../../../../../../utils/currency";
 import { generateEndReportHtml } from "../../../../utils/endReportTemplate";
 import { useQueryClient } from "@tanstack/react-query";
 import { bulkSettlementApi } from "../../../../bulkSettlement/services/bulkSettlementApi";
 import { roundCalc } from "../../../utils/billing";
-
+import { PosPreSessionMoreModal } from "./PosPreSessionMoreModal";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSessionReady?: () => void;
   initialTab?: CloseTab;
+  onOpenReport?: () => void;
+  requestAuthorization?: (options: any) => void;
 }
 
 type Mode = "OPEN_DAY" | "OPEN_SHIFT" | "CLOSE_SHIFT" | "CLOSE_DAY";
@@ -30,7 +32,14 @@ const MODE_CONFIG: Record<Mode, { label: string; buttonLabel: string; balLabel: 
   CLOSE_DAY:   { label: "Close Business Day",  buttonLabel: "Confirm Close Day",     balLabel: "Closing Balance", color: "#10b981", bgColor: "#d1fae5", icon: <LogOut size={20} /> },
 };
 
-export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSessionReady, initialTab = "SHIFT" }) => {
+export const PosCashierSessionModal: React.FC<Props> = ({ 
+  isOpen, 
+  onClose, 
+  onSessionReady, 
+  initialTab = "SHIFT",
+  onOpenReport,
+  requestAuthorization
+}) => {
   const { showToast } = useToast();
   const { formatAmount } = useCurrency();
   const queryClient = useQueryClient();
@@ -46,6 +55,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
   const [showOpenCancelConfirm, setShowOpenCancelConfirm] = useState(false);
   const [printState, setPrintState] = useState<{ type: "SHIFT" | "DAY"; step: number; dayId: number; shiftId: number } | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [showPreSessionMore, setShowPreSessionMore] = useState(false);
 
   const [entryMode, setEntryMode] = useState<"DENOM" | "MANUAL">("MANUAL");
   const [viewScreen, setViewScreen] = useState<"MANUAL" | "DENOMS">("MANUAL");
@@ -92,6 +102,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
     setShowLogoutConfirm(false);
     setShowOpenCancelConfirm(false);
     setShowPendingSettleModal(false);
+    setShowPreSessionMore(false);
   }, []);
 
   const handleModalClose = () => {
@@ -982,6 +993,19 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
                       </button>
                     </div>
                   )}
+
+                  {(mode === "OPEN_DAY" || mode === "OPEN_SHIFT") && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPreSessionMore(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:border-[#49293e]/40 hover:text-[#49293e] shadow-2xs transition-all cursor-pointer"
+                      title="Access reports, configuration, printers, and backoffice"
+                    >
+                      <LayoutGrid size={15} className="text-[#49293e]" />
+                      <span>More</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1112,6 +1136,16 @@ export const PosCashierSessionModal: React.FC<Props> = ({ isOpen, onClose, onSes
           </div>
         </Modal>
       )}
+
+      <PosPreSessionMoreModal
+        isOpen={showPreSessionMore}
+        onClose={() => setShowPreSessionMore(false)}
+        onOpenReport={() => {
+          setShowPreSessionMore(false);
+          onOpenReport?.();
+        }}
+        requestAuthorization={requestAuthorization}
+      />
     </>
   );
 };

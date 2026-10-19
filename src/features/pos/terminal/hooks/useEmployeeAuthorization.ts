@@ -6,7 +6,8 @@ import { getDefaultEmployeeConfig } from "../../utils/defaultEmployee";
 interface EmployeeAuthorizationOptions {
   actionLabel: string;
   permissionId?: number;
-  onAuthorized: (employeeId: number) => Promise<void> | void;
+  onAuthorized: (employeeId: number) => Promise<any> | any;
+  bypassDefaultEmployee?: boolean;
 }
 
 export const useEmployeeAuthorization = () => {
@@ -18,14 +19,16 @@ export const useEmployeeAuthorization = () => {
   const [pendingAuthorization, setPendingAuthorization] = useState<EmployeeAuthorizationOptions | null>(null);
 
   const requestAuthorization = (options: EmployeeAuthorizationOptions) => {
-    const defaultEmp = getDefaultEmployeeConfig();
-    if (defaultEmp.isEnabled && defaultEmp.employeeId > 0) {
-      localStorage.setItem("authorizedEmployeeId", String(defaultEmp.employeeId));
-      if (defaultEmp.employeeName) {
-        localStorage.setItem("authorizedEmployeeName", defaultEmp.employeeName);
+    if (!options.bypassDefaultEmployee) {
+      const defaultEmp = getDefaultEmployeeConfig();
+      if (defaultEmp.isEnabled && defaultEmp.employeeId > 0) {
+        localStorage.setItem("authorizedEmployeeId", String(defaultEmp.employeeId));
+        if (defaultEmp.employeeName) {
+          localStorage.setItem("authorizedEmployeeName", defaultEmp.employeeName);
+        }
+        void options.onAuthorized(defaultEmp.employeeId);
+        return;
       }
-      void options.onAuthorized(defaultEmp.employeeId);
-      return;
     }
 
     setPendingAuthorization(options);

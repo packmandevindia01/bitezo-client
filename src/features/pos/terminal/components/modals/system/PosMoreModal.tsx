@@ -6,7 +6,6 @@ import {
   BarChart3, 
   Banknote, 
   LogOut, 
-  UtensilsCrossed, 
   Users, 
   Monitor, 
   Gift, 
@@ -70,14 +69,6 @@ const ORDER_ITEMS: ActionItem[] = [
     action: 'customerMaster',
     iconBg: 'bg-purple-50',
     iconColor: 'text-purple-600'
-  },
-  { 
-    label: 'SET MENU DINE-IN', 
-    description: 'Floor plan & dining table orders', 
-    icon: UtensilsCrossed, 
-    action: 'setMenuDineIn',
-    iconBg: 'bg-rose-50',
-    iconColor: 'text-rose-600'
   },
 ];
 
@@ -231,9 +222,6 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, badge, badgeColor, ite
                   </span>
                 )}
               </div>
-              <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5 truncate">
-                {t(item.description)}
-              </p>
             </div>
           </button>
         );
@@ -295,11 +283,6 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
           navigate('/pos/lock-item');
         }
       });
-      return;
-    }
-    if (item.action === 'setMenuDineIn') {
-      onClose();
-      navigate('/pos/dine-in');
       return;
     }
     if (item.action === 'bulkSettlement') {
@@ -383,7 +366,6 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       </div>
       <div>
         <h2 className="text-sm font-bold text-slate-900 leading-tight">{t("Configuration & Operations")}</h2>
-        <p className="text-[10.5px] text-slate-400 font-medium">{t("Quick actions, cashier shift tools, hardware & backoffice controls")}</p>
       </div>
     </div>
   );

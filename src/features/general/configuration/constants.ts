@@ -26,6 +26,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   masterKotBillPrinter: false,
   itemSeperation: false,
   itemSeparationAfterEdit: false,
+  otherKitchenItem: false,
   printPrice: "Inclusive",
   colorChangeGuestPrint: false,
 

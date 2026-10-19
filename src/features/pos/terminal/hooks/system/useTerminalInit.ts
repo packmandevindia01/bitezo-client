@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../../../../../app/hooks";
-import { setOrderType, setOrderTypeByName } from "../../store/posSlice";
+import { useToast } from "../../../../../app/providers/useToast";
+import { setOrderType, setOrderTypeByName, setWaiter } from "../../store/posSlice";
 import { posConfigApi, POS_CONFIGS_STORAGE_KEY, type RuntimePosConfig } from "../../../services/posConfigApi";
 import { branchApi } from "../../../../inventory/branches/services/branchApi";
 import { getEmployeeNames } from "../../../../general/employee/services/employeeService";
 import { menuApi } from "../../../services/menuApi";
+import { validateDefaultEmployeeAgainstList } from "../../../utils/defaultEmployee";
 import type { PosOrderType } from "../../../types";
 
 interface UseTerminalInitProps {
@@ -84,6 +86,7 @@ export const useTerminalInit = ({
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { showToast } = useToast();
   const initialAutoDineInChecked = useRef(false);
 
   // Handle route state triggers (e.g. from bottom bar navigation)
@@ -141,26 +144,34 @@ export const useTerminalInit = ({
           });
           localStorage.setItem("posEmpNameMap", JSON.stringify(empMap));
 
-          // Also resolve defaultEmployeeName if default employee is set
-          try {
-            const rawConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
-            if (rawConfig) {
-              const parsed = JSON.parse(rawConfig);
-              const cfg = parsed?.configs;
-              if (cfg?.defaultEmployee === "Enable" && cfg?.employeeId) {
-                const defName = empMap[String(cfg.employeeId)];
-                if (defName) {
-                  localStorage.setItem("defaultEmployeeName", defName);
+          // Validate if default employee exists in this branch's employees
+          const isDefaultValid = validateDefaultEmployeeAgainstList(employees);
+          if (!isDefaultValid) {
+            dispatch(setWaiter({ waiterId: null, waiterName: null }));
+            console.warn("[useTerminalInit] Configured default employee not found in branch employees. Disabled.");
+            showToast("Configured default employee was not found in this branch and has been disabled.", "warning");
+          } else {
+            // Also resolve defaultEmployeeName if default employee is set
+            try {
+              const rawConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
+              if (rawConfig) {
+                const parsed = JSON.parse(rawConfig);
+                const cfg = parsed?.configs;
+                if (cfg?.defaultEmployee === "Enable" && cfg?.employeeId) {
+                  const defName = empMap[String(cfg.employeeId)];
+                  if (defName) {
+                    localStorage.setItem("defaultEmployeeName", defName);
+                  }
                 }
               }
-            }
-          } catch {}
+            } catch {}
+          }
         }
       })
       .catch((err) => {
         console.warn("Failed to load employee names for posEmpNameMap:", err);
       });
-  }, []);
+  }, [dispatch, showToast]);
 
   const applyDefaultOrderType = async (shouldApplyDefault: boolean = false) => {
     try {
@@ -203,11 +214,20 @@ export const useTerminalInit = ({
 
     initialAutoDineInChecked.current = true;
 
-    const skip = (location.state as any)?.skipAutoDineIn || false;
+    const state = location.state as any;
+    const skip =
+      Boolean(state?.skipAutoDineIn || state?.openMoreModal || state?.openCashModal) ||
+      sessionStorage.getItem("hasAutoDineInTriggered") === "true";
+
     const hasActiveCart = cartItemCount > 0;
     const hasActiveOrder = !!editingOrderId || !!selectedTableId;
 
-    void applyDefaultOrderType(!skip && !hasActiveCart && !hasActiveOrder);
+    const shouldTrigger = !skip && !hasActiveCart && !hasActiveOrder;
+    if (shouldTrigger) {
+      sessionStorage.setItem("hasAutoDineInTriggered", "true");
+    }
+
+    void applyDefaultOrderType(shouldTrigger);
   }, [orderTypes, status, isLoading]);
 
   return {

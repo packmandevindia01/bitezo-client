@@ -16,11 +16,11 @@
  */
 
 import type { PosCartItem } from "../types";
-import type { GuestPrintData } from "./guestPrintTemplate";
+import { type GuestPrintData, resolvePrintTaxSetting } from "./guestPrintTemplate";
 import { type KotPrintData, resolveKotPrintTaxSetting, resolveKotHeaderStyle } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
-import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName } from "./alternativeHelpers";
+import { isKotArabicEnabled, isBillArabicEnabled, getAlternativeArabicName, formatItemDisplayName } from "./alternativeHelpers";
 import { getModifierTypeNameById } from "../services/menuApi";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -38,6 +38,15 @@ const padLeft = (s: string, width: number): string =>
 const padRight = (s: string, width: number): string =>
   String(s).padEnd(width);
 
+/** Center-pad a string to width */
+const padCenter = (s: string, width: number): string => {
+  const str = String(s);
+  if (str.length >= width) return str.substring(0, width);
+  const leftPad = Math.floor((width - str.length) / 2);
+  const rightPad = width - str.length - leftPad;
+  return " ".repeat(leftPad) + str + " ".repeat(rightPad);
+};
+
 /** Truncate string to max length, appending '…' if cut */
 const trunc = (s: string, max: number): string =>
   s.length > max ? s.substring(0, max - 1) + "~" : s;
@@ -54,6 +63,20 @@ const twoCol = (left: string, right: string, widthOrBold?: number | boolean): st
   const maxLeft = Math.max(1, width - r.length - 1);
   const l = trunc(String(left), maxLeft).padEnd(maxLeft);
   return isBold ? `[L]<b>${l} ${r}</b>` : `[L]${l} ${r}`;
+};
+
+/**
+ * Format a three-column line: left text + center text + right text flush to LINE_WIDTH (48 chars).
+ * Columns: col1 (Product) ~ 28 chars, col2 (Qty) ~ 7 chars, col3 (Total) ~ 11 chars.
+ * Total: 28 + 1 + 7 + 1 + 11 = 48.
+ */
+const threeCol = (left: string, center: string, right: string, isBold = false): string => {
+  const r = padLeft(String(right), 11);
+  const c = padCenter(String(center), 7);
+  const maxLeft = LINE_WIDTH - r.length - c.length - 2;
+  const l = padRight(trunc(String(left), maxLeft), maxLeft);
+  const line = `${l} ${c} ${r}`;
+  return isBold ? `[L]<b>${line}</b>` : `[L]${line}`;
 };
 
 /**
@@ -101,7 +124,14 @@ const getPaymodeArabic = (name: string): string => {
   const lower = (name || "").toLowerCase().trim();
   if (lower === "cash") return "نقد";
   if (lower === "card") return "بطاقة";
+  if (lower.includes("benefit")) return "بنفت";
   if (lower === "credit") return "آجل";
+  if (lower === "cheque" || lower === "check") return "شيك";
+  if (lower === "online") return "عبر الإنترنت";
+  if (lower.includes("talabat")) return "طلبات";
+  if (lower.includes("jahez")) return "جاهز";
+  if (lower.includes("ahlan")) return "أهلاً";
+  if (lower === "other") return "أخرى";
   return "";
 };
 
@@ -179,32 +209,20 @@ export const buildEscPosLines = (lines: any[], section: "header" | "footer" | "d
   return markup;
 };
 
-/** Get company name + address from dynamic branch lines or fallback to localStorage */
+/** Get company name + address from dynamic branch lines or empty if not set (no fallback) */
 export const getCompanyHeader = (): string => {
   const activeLines = getActiveBranchLines();
   const dynamicMarkup = buildEscPosLines(activeLines, "header");
   if (dynamicMarkup) return dynamicMarkup;
-
-  const name    = localStorage.getItem("companyName") || "RESTAURANT";
-  const address = localStorage.getItem("companyAddress") || "";
-  const crNo    = localStorage.getItem("crNo") || "";
-  const vatNo   = localStorage.getItem("vatNo") || "";
-  const tel     = localStorage.getItem("companyPhone") || "";
-
-  let markup = `[C]<b><font size='big'>${name}</font></b>\n`;
-  if (address) markup += `[C]${address}\n`;
-  if (crNo)    markup += `[C]CR NO: ${crNo}\n`;
-  if (vatNo)   markup += `[C]VAT NO: ${vatNo}\n`;
-  if (tel)     markup += `[C]Tel: ${tel}\n`;
-  return markup;
+  return "";
 };
 
-/** Get dynamic End-of-Day report header (EH1..EH7) or fallback to company header */
+/** Get dynamic End-of-Day report header (EH1..EH7) or empty if not set (no fallback) */
 export const getEndReportHeader = (): string => {
   const activeLines = getActiveBranchLines();
   const dynamicMarkup = buildEscPosLines(activeLines, "dayEndHeader");
   if (dynamicMarkup) return dynamicMarkup;
-  return getCompanyHeader();
+  return "";
 };
 
 /** Get dynamic receipt footer lines (F1..F7) */
@@ -259,18 +277,31 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   });
 
   const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
+  const printTaxSetting = resolvePrintTaxSetting(data as any);
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
-  let invoiceTitle = isVatActive ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
-  if (isBillArabic) {
-    invoiceTitle += isVatActive ? "\n[C]<b>فاتورة ضريبية مبسطة</b>" : "\n[C]<b>فاتورة مبسطة</b>";
+  const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
+
+  let invoiceTitle = "";
+  if (isGuestPrint) {
+    invoiceTitle = "GUEST PRINT";
+    if (isBillArabic) {
+      invoiceTitle += "\n[C]<b>فاتورة ضيف</b>";
+    }
+  } else if (data.isPackager) {
+    invoiceTitle = "PACKAGER";
+  } else {
+    invoiceTitle = isVatActive ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
+    if (isBillArabic) {
+      invoiceTitle += isVatActive ? "\n[C]<b>فاتورة ضريبية مبسطة</b>" : "\n[C]<b>فاتورة مبسطة</b>";
+    }
   }
-  const modePrefix = data.isPackager ? "PACKAGER" : (data.isSettlement ? "" : "GUEST");
 
-  let orderLabel = modePrefix;
-  if (isTakeOut)   orderLabel = modePrefix ? `${modePrefix} (TAKE OUT)` : "(TAKE OUT)";
-  if (isDriveThru) orderLabel = modePrefix ? `${modePrefix} (DRIVE THRU)` : "(DRIVE THRU)";
-  if (isDineIn)    orderLabel = modePrefix ? `${modePrefix} (DINE IN)` : "(DINE IN)";
-  if (isDelivery)  orderLabel = modePrefix ? `${modePrefix} (DELIVERY)` : "(DELIVERY)";
+  let orderLabel = "";
+  if (isTakeOut)   orderLabel = isBillArabic ? "(TAKE OUT / سفري)" : "(TAKE OUT)";
+  if (isDriveThru) orderLabel = isBillArabic ? "(DRIVE THRU / طلبات السيارات)" : "(DRIVE THRU)";
+  if (isDineIn)    orderLabel = isBillArabic ? "(DINE IN / محلي)" : "(DINE IN)";
+  if (isDelivery)  orderLabel = isBillArabic ? "(DELIVERY / توصيل)" : "(DELIVERY)";
 
   let markup = "";
 
@@ -280,31 +311,45 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     if (customHeaderLines && customHeaderLines.length > 0) {
       customHeaderLines.forEach(line => { markup += `[C]${line}\n`; });
     } else {
-      markup += getCompanyHeader();
+      const companyHdr = getCompanyHeader();
+      if (companyHdr) markup += companyHdr;
     }
   }
 
-  markup += `[C]${SEPARATOR}\n`;
+  if (markup.length > 0) {
+    markup += `[C]${SEPARATOR}\n`;
+  }
   markup += `[C]<b>${invoiceTitle}</b>\n`;
   if (orderLabel) markup += `[C]<b>${orderLabel}</b>\n`;
   markup += `[L]${SEPARATOR}\n`;
 
   // ── Meta rows ───────────────────────────────────────────────────────────────
+  const invLbl = isBillArabic ? "Inv No (رقم الفاتورة)" : "Inv No";
+  const ordLbl = isBillArabic ? "Order No (رقم الطلب)" : "Order No";
+  const tktLbl = isBillArabic ? "Ticket No (رقم التذكرة)" : "Ticket No";
+  const dateLbl = isBillArabic ? "Date (التاريخ)" : "Date";
+  const timeLbl = isBillArabic ? "Time (الوقت)" : "Time";
+  const empLbl = isBillArabic ? "Employee (الموظف)" : "Employee";
+  const cntLbl = isBillArabic ? "Counter (الكاونتر)" : "Counter";
+  const secLbl = isBillArabic ? "Section (القسم)" : "Section";
+  const drvLbl = isBillArabic ? "Driver (السائق)" : "Driver";
+  const tblLbl = isBillArabic ? "Table (الطاولة)" : "Table";
+
   if (data.invoiceNo) {
     const invDisplay = data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo);
-    markup += twoCol(`Inv No: ${invDisplay}`, `Order No ${formatOrderNo(data.orderNo)}`) + "\n";
-    markup += twoCol(`Ticket No #${data.ticketNo}`, `Date: ${dateStr}`) + "\n";
-    markup += twoCol(`Time: ${timeStr}`, `Employee: ${data.waiter}`) + "\n";
-    if (data.counter) markup += twoCol(`Counter: ${data.counter}`, isDineIn ? `Section: ${data.section}` : (driverVal ? `Driver: ${driverVal}` : "")) + "\n";
-    if (isDineIn && data.table) markup += `[L]Table: ${data.table}\n`;
+    markup += twoCol(`${invLbl}: ${invDisplay}`, `${ordLbl} ${formatOrderNo(data.orderNo)}`) + "\n";
+    markup += twoCol(`${tktLbl} #${data.ticketNo}`, `${dateLbl}: ${dateStr}`) + "\n";
+    markup += twoCol(`${timeLbl}: ${timeStr}`, `${empLbl}: ${data.waiter}`) + "\n";
+    if (data.counter) markup += twoCol(`${cntLbl}: ${data.counter}`, isDineIn ? `${secLbl}: ${data.section}` : (driverVal ? `${drvLbl}: ${driverVal}` : "")) + "\n";
+    if (isDineIn && data.table) markup += `[L]${tblLbl}: ${data.table}\n`;
   } else {
-    markup += twoCol(`Order No ${formatOrderNo(data.orderNo)}`, `Ticket No #${data.ticketNo}`) + "\n";
-    markup += twoCol(`Date: ${dateStr}`, `Time: ${timeStr}`) + "\n";
-    markup += twoCol(`Employee: ${data.waiter}`, `Counter: ${data.counter}`) + "\n";
+    markup += twoCol(`${ordLbl} ${formatOrderNo(data.orderNo)}`, `${tktLbl} #${data.ticketNo}`) + "\n";
+    markup += twoCol(`${dateLbl}: ${dateStr}`, `${timeLbl}: ${timeStr}`) + "\n";
+    markup += twoCol(`${empLbl}: ${data.waiter}`, `${cntLbl}: ${data.counter}`) + "\n";
     if (isDineIn) {
-      markup += twoCol(`Section: ${data.section}`, `Table: ${data.table}`) + "\n";
+      markup += twoCol(`${secLbl}: ${data.section}`, `${tblLbl}: ${data.table}`) + "\n";
     } else if (driverVal) {
-      markup += twoCol(`Driver: ${driverVal}`, "") + "\n";
+      markup += twoCol(`${drvLbl}: ${driverVal}`, "") + "\n";
     }
   }
   markup += `[L]${DASH_SEP}\n`;
@@ -334,10 +379,10 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   );
 
   cartDetails.forEach((item) => {
-    let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
-    if (item.variantName && item.variantName.toLowerCase().trim() !== "main") {
-      name += ` - ${item.variantName.toUpperCase()}`;
-    }
+    const name = formatItemDisplayName(
+      item.product?.name || `Item #${item.productId}`,
+      item.variantName
+    ).toUpperCase();
     const qty = item.quantity;
 
     let extrasSum = 0;
@@ -345,15 +390,24 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
       item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
     }
 
-    let baseAmt = (item as any).lineTotal;
-    const itemVat = (item as any).vatAmount || 0;
-    if (baseAmt !== undefined) {
-      baseAmt = Math.max(0, baseAmt - extrasSum);
-      if (itemVat > 0 && baseAmt > itemVat && Math.abs(baseAmt - ((item.price || item.product?.price || 0) * item.quantity)) > 0.001) {
-        baseAmt = Math.max(0, baseAmt - itemVat);
-      }
+    const origPrice = Number(item.price || item.product?.price || 0);
+    const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
+      ? Number((item as any).basePrice)
+      : undefined;
+    const vatRatio = isVatActive ? (1 / 1.10) : 1;
+    const exclPrice = knownBasePrice !== undefined
+      ? knownBasePrice
+      : ((isVatActive && (item as any).isIncl) ? origPrice * vatRatio : origPrice);
+    const inclPrice = knownBasePrice !== undefined
+      ? (isVatActive ? knownBasePrice / vatRatio : knownBasePrice)
+      : (isVatActive && !(item as any).isIncl ? origPrice / vatRatio : origPrice);
+
+    let baseAmt: number;
+    if ((item as any).lineTotal !== undefined) {
+      const rawTotal = Math.max(0, Number((item as any).lineTotal) - extrasSum);
+      baseAmt = isTaxInclusive ? rawTotal : (exclPrice * qty);
     } else {
-      baseAmt = (item.price || item.product?.price || 0) * item.quantity;
+      baseAmt = (isTaxInclusive ? inclPrice : exclPrice) * qty;
     }
 
     const amt = fmt(baseAmt);
@@ -604,10 +658,36 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
   const isDineIn = orderTypeStr === "DINE IN";
   const isDelivery = orderTypeStr === "DELIVERY" || Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
-  const headerTitle = (data.headerTitle || "KOT").toUpperCase();
-  const kotTitleDisplay = headerTitle + (isKotArabic ? (headerTitle === "KOT" ? " / طلب المطبخ" : (headerTitle === "VOID ITEMS" || headerTitle.includes("VOID")) ? " / أصناف ملغاة" : "") : "");
+
+  const isMasterKot = Boolean(data.isMaster);
+  let defaultTitle = isMasterKot ? "MASTER KOT" : "KOT";
+  let rawTitle = (data.headerTitle || defaultTitle).toUpperCase();
+  if (isMasterKot && rawTitle === "KOT") {
+    rawTitle = "MASTER KOT";
+  }
+
+  let kotTitleDisplay = rawTitle;
+  if (isKotArabic) {
+    if (rawTitle === "MASTER KOT") {
+      kotTitleDisplay = "MASTER KOT / طلب المطبخ الرئيسي";
+    } else if (rawTitle === "UPDATE MASTER KOT") {
+      kotTitleDisplay = "UPDATE MASTER KOT / تعديل طلب المطبخ الرئيسي";
+    } else if (rawTitle === "KOT") {
+      kotTitleDisplay = "KOT / طلب المطبخ";
+    } else if (rawTitle === "UPDATE KOT") {
+      kotTitleDisplay = "UPDATE KOT / تعديل طلب المطبخ";
+    } else if (rawTitle.includes("VOID")) {
+      kotTitleDisplay = `${rawTitle} / أصناف ملغاة`;
+    }
+  }
 
   let markup = "";
+
+  // ── Master KOT Company Header ───────────────────────────────────────────────
+  if (data.isMaster) {
+    const companyHdr = getCompanyHeader();
+    if (companyHdr) markup += companyHdr;
+  }
 
   // ── KOT Header ──────────────────────────────────────────────────────────────
   markup += `[C]${SEPARATOR}\n`;
@@ -615,30 +695,39 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   markup += `[C]${orderTypeStr}${isKotArabic && orderTypeAr ? ` (${orderTypeAr})` : ''}\n`;
   markup += `[L]${SEPARATOR}\n`;
 
-  markup += twoCol(`Order: ${formatOrderNo(data.orderNo || "")}`, `Ticket: #${data.ticketNo || ""}`) + "\n";
-  markup += twoCol(`Date: ${dateStr || ""}`, `Time: ${timeStr || ""}`) + "\n";
-  markup += twoCol(`Waiter: ${data.waiter || "Cashier"}`, `Counter: ${data.counter || "Main"}`) + "\n";
+  const kotOrdLbl = isKotArabic ? "Order (رقم الطلب)" : "Order";
+  const kotTktLbl = isKotArabic ? "Ticket (رقم التذكرة)" : "Ticket";
+  const kotDateLbl = isKotArabic ? "Date (التاريخ)" : "Date";
+  const kotTimeLbl = isKotArabic ? "Time (الوقت)" : "Time";
+  const kotWaitLbl = isKotArabic ? (isDineIn ? "Waiter (النادل)" : "Employee (الموظف)") : (isDineIn ? "Waiter" : "Employee");
+  const kotCntLbl = isKotArabic ? "Counter (الكاونتر)" : "Counter";
+  const kotSecLbl = isKotArabic ? "Section (القسم)" : "Section";
+  const kotTblLbl = isKotArabic ? "Table (الطاولة)" : "Table";
+
+  markup += twoCol(`${kotOrdLbl}: ${formatOrderNo(data.orderNo || "")}`, `${kotTktLbl}: #${data.ticketNo || ""}`) + "\n";
+  markup += twoCol(`${kotDateLbl}: ${dateStr || ""}`, `${kotTimeLbl}: ${timeStr || ""}`) + "\n";
+  markup += twoCol(`${kotWaitLbl}: ${data.waiter || "Cashier"}`, `${kotCntLbl}: ${data.counter || "Main"}`) + "\n";
 
   if (isDineIn) {
-    markup += twoCol(`Section: ${data.section || "Main"}`, `Table: ${data.table || "T1"}`) + "\n";
+    markup += twoCol(`${kotSecLbl}: ${data.section || "Main"}`, `${kotTblLbl}: ${data.table || "T1"}`) + "\n";
   }
-  if (data.vehicleNo)   markup += `[L]Vehicle No: ${data.vehicleNo}\n`;
-  if (data.customerName) markup += `[L]Customer: ${data.customerName}\n`;
+  if (data.vehicleNo)   markup += `[L]${isKotArabic ? "Vehicle No (المركبة)" : "Vehicle No"}: ${data.vehicleNo}\n`;
+  if (data.customerName) markup += `[L]${isKotArabic ? "Customer (العميل)" : "Customer"}: ${data.customerName}\n`;
   if (isDelivery) {
     const kotKeepChange = (data.change || data.keepChanges || "").trim();
     const hasKotKeepChange = kotKeepChange !== "" && kotKeepChange !== "0" && kotKeepChange !== "0.00" && kotKeepChange !== "0.000";
     const driverVal = (data.driverName || data.driver || "").trim();
-    if (data.contactNo)    markup += `[L]Mob No: ${data.contactNo}\n`;
-    if (data.callBack)     markup += `[L]Call Back: ${data.callBack}\n`;
-    if (hasKotKeepChange)  markup += `[L]Keep Change: ${kotKeepChange}\n`;
-    if (driverVal)         markup += `[L]Driver: ${driverVal}\n`;
-    if (data.flatNo)       markup += `[L]Flat No: ${data.flatNo}\n`;
-    if (data.buildingNo)   markup += `[L]Building: ${data.buildingNo}\n`;
-    if (data.blockNo)      markup += `[L]Block: ${data.blockNo}\n`;
-    if (data.roadNo)       markup += `[L]Road: ${data.roadNo}\n`;
-    if (data.area)         markup += `[L]Area: ${data.area}\n`;
+    if (data.contactNo)    markup += `[L]${isKotArabic ? "Mob No (رقم الجوال)" : "Mob No"}: ${data.contactNo}\n`;
+    if (data.callBack)     markup += `[L]${isKotArabic ? "Call Back (معاودة الاتصال)" : "Call Back"}: ${data.callBack}\n`;
+    if (hasKotKeepChange)  markup += `[L]${isKotArabic ? "Keep Change (الباقي)" : "Keep Change"}: ${kotKeepChange}\n`;
+    if (driverVal)         markup += `[L]${isKotArabic ? "Driver (السائق)" : "Driver"}: ${driverVal}\n`;
+    if (data.flatNo)       markup += `[L]${isKotArabic ? "Flat No (شقة)" : "Flat No"}: ${data.flatNo}\n`;
+    if (data.buildingNo)   markup += `[L]${isKotArabic ? "Building (مبنى)" : "Building"}: ${data.buildingNo}\n`;
+    if (data.blockNo)      markup += `[L]${isKotArabic ? "Block (مجمع)" : "Block"}: ${data.blockNo}\n`;
+    if (data.roadNo)       markup += `[L]${isKotArabic ? "Road (طريق)" : "Road"}: ${data.roadNo}\n`;
+    if (data.area)         markup += `[L]${isKotArabic ? "Area (المنطقة)" : "Area"}: ${data.area}\n`;
     if (data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo) {
-      markup += `[L]Address: ${data.address}\n`;
+      markup += `[L]${isKotArabic ? "Address (العنوان)" : "Address"}: ${data.address}\n`;
     }
   }
 
@@ -655,16 +744,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     : (isVatActive ? (1 / 1.10) : 1);
 
   const printTaxSetting = resolveKotPrintTaxSetting(data);
-  let isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
-
-  if (isVatActive && authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0) {
-    const totalDiscVal = Number((data as any).discount || 0);
-    if (Math.abs((authoritativeSubTotal - totalDiscVal + authoritativeVatAmount) - totalNet) < 0.05) {
-      isTaxInclusive = false;
-    } else if (Math.abs((authoritativeSubTotal - totalDiscVal) - totalNet) < 0.05) {
-      isTaxInclusive = true;
-    }
-  }
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
   markup += `[L]${SEPARATOR}\n`;
   if (kotHeaderStyle.startsWith("DESCRIPTION")) {
@@ -702,10 +782,10 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
 
   // ── KOT Items ───────────────────────────────────────────────────────────────
   cartDetails.forEach((item) => {
-    let name = (item.product?.name || `Item #${item.productId}`).toUpperCase();
-    if (item.variantName && item.variantName.toLowerCase().trim() !== "main") {
-      name += ` - ${item.variantName.toUpperCase()}`;
-    }
+    const name = formatItemDisplayName(
+      item.product?.name || `Item #${item.productId}`,
+      item.variantName
+    ).toUpperCase();
     const qty = item.quantity;
 
     const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
@@ -1115,20 +1195,25 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
     markup += `[L]${DASH_SEP}\n`;
   }
 
-  // Sales by Product
+  // Sales by Product — 3 columns (Product, Qty, Total)
   const prodList = (data as any).products || (data as any).productSummary || [];
   if (config.showProduct && prodList.length > 0) {
     markup += `[C]<b>SALES BY PRODUCT</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
+    markup += threeCol("Product", "Qty", "Total", true) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
     let prodTotal = 0;
+    let prodQtyTotal = 0;
     prodList.forEach((p: any) => {
-      const name = p.productName || p.product || "Unknown";
-      const qty = p.qty || p.quantity || 0;
-      const total = p.total || p.amount || 0;
-      prodTotal += Number(total) || 0;
-      markup += twoCol(`${name} (x${qty})`, fmt(total)) + "\n";
+      const name = p.productName || p.product || p.name || "Unknown";
+      const qty = Number(p.qty || p.quantity || 0);
+      const total = Number(p.total || p.amount || 0);
+      prodTotal += total;
+      prodQtyTotal += qty;
+      markup += threeCol(name, String(qty), fmt(total)) + "\n";
     });
-    markup += twoCol("Total:", fmt(prodTotal)) + "\n";
+    markup += `[L]${DASH_SEP}\n`;
+    markup += threeCol("Total", String(prodQtyTotal), fmt(prodTotal), true) + "\n";
     markup += `[L]${DASH_SEP}\n`;
   }
 

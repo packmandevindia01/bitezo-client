@@ -147,9 +147,9 @@ axiosInstance.interceptors.response.use(
         clearAuthStorage();
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
 
-        const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login");
+        const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login") || window.location.pathname === "/cashier/in";
         if (!isLoginPath && !isLoginRequest) {
-          window.location.href = "/";
+          window.location.replace("/");
         }
         return Promise.reject(error);
       }
@@ -161,9 +161,9 @@ axiosInstance.interceptors.response.use(
       if (!currentAccessToken && !currentRefreshToken) {
         clearAuthStorage();
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-        const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login");
+        const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login") || window.location.pathname === "/cashier/in";
         if (!isLoginPath) {
-          window.location.href = "/";
+          window.location.replace("/");
         }
         return Promise.reject(error);
       }
@@ -194,8 +194,8 @@ axiosInstance.interceptors.response.use(
       try {
         const isBackoffice = isBackofficeMode();
         const refreshResponse = isBackoffice
-          ? await backofficeRefreshTokenApi(currentAccessToken || "")
-          : await posRefreshTokenApi(currentAccessToken || "");
+          ? await backofficeRefreshTokenApi(currentAccessToken || "", currentRefreshToken || "")
+          : await posRefreshTokenApi(currentAccessToken || "", currentRefreshToken || "");
 
         const newAccessToken = refreshResponse.accessToken;
         const newRefreshToken = refreshResponse.refreshToken;
@@ -229,9 +229,9 @@ axiosInstance.interceptors.response.use(
         processQueue(refreshErr, null);
         clearAuthStorage();
         window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-        const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login");
+        const isLoginPath = window.location.pathname === "/" || window.location.pathname.includes("/login") || window.location.pathname === "/cashier/in";
         if (!isLoginPath) {
-          window.location.href = "/";
+          window.location.replace("/");
         }
         return Promise.reject(refreshErr);
       } finally {

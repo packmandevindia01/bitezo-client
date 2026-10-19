@@ -48,7 +48,7 @@ export const BulkSettlementPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/pos", { state: { openMoreModal: true } })}
+                onClick={() => navigate("/pos", { state: { openMoreModal: true, skipAutoDineIn: true } })}
                 className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors text-slate-600 hover:text-[#49293e] cursor-pointer"
                 title="Back to POS"
               >
