@@ -53,9 +53,13 @@ export const useCreateCategory = () => {
         ? cachedMenus.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
         : [1];
 
-      const resolvedBranches = Array.isArray(data.branchAllocations) && data.branchAllocations.length > 0
-        ? data.branchAllocations
-        : [{ branchId: activeBranchId, colorCode: data.colorCode || "red" }];
+      const isAllBranches = data.isAllBranches !== false;
+
+      const resolvedBranches = isAllBranches
+        ? []
+        : (Array.isArray(data.branchAllocations) && data.branchAllocations.length > 0
+            ? data.branchAllocations
+            : [{ branchId: activeBranchId, colorCode: data.colorCode || "red" }]);
 
       const resolvedMenus = Array.isArray(data.menuIds) && data.menuIds.length > 0
         ? data.menuIds
@@ -70,6 +74,7 @@ export const useCreateCategory = () => {
         colorCode: data.colorCode || "red",
         createdAt: new Date().toISOString(),
         branchIds: resolvedBranches,
+        isAllBranches,
         menuIds: resolvedMenus,
         imageFile: data.imageFile
       });
@@ -103,9 +108,13 @@ export const useUpdateCategory = () => {
         ? cachedMenus.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
         : [1];
 
-      const resolvedBranches = Array.isArray(data.branchAllocations) && data.branchAllocations.length > 0
-        ? data.branchAllocations
-        : [{ branchId: activeBranchId, colorCode: data.colorCode || "red" }];
+      const isAllBranches = data.isAllBranches === true || !data.branchAllocations || data.branchAllocations.length === 0;
+
+      const resolvedBranches = isAllBranches
+        ? []
+        : (Array.isArray(data.branchAllocations) && data.branchAllocations.length > 0
+            ? data.branchAllocations
+            : [{ branchId: activeBranchId, colorCode: data.colorCode || "red" }]);
 
       const resolvedMenus = Array.isArray(data.menuIds) && data.menuIds.length > 0
         ? data.menuIds
@@ -121,6 +130,7 @@ export const useUpdateCategory = () => {
         colorCode: data.colorCode || "red",
         updatedAt: new Date().toISOString(),
         branchIds: resolvedBranches,
+        isAllBranches,
         menuIds: resolvedMenus,
         imageFile: data.imageFile,
         isImageChanged: data.isImageChanged,

@@ -800,6 +800,57 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     <div class="sep"></div>
   `;
 
+  // Pay-In section — 3 columns (40% / 30% / 30%)
+  const payInList = (data as any).payIns || (data as any).payinDetails || (data as any).payIn || [];
+  let payInHtml = '';
+  if (Array.isArray(payInList) && payInList.length > 0) {
+    let payInTotal = 0;
+    let payInRows = '';
+    payInList.forEach((pi: any) => {
+      const ledger = pi.ledger || pi.ledgerName || pi.description || "-";
+      const remarks = pi.remarks || pi.remark || "";
+      const amount = pi.amount || 0;
+      payInTotal += Number(amount) || 0;
+      payInRows += `<tr><td style="text-align: left;">${ledger}</td><td style="text-align: center;">${remarks}</td><td style="text-align: right;">${fmt(amount)}</td></tr>`;
+    });
+    payInHtml = `
+      <div class="section-title">Pay-In</div>
+      <div class="sep"></div>
+      <table style="width: 100%; table-layout: fixed; font-size: 11px;">
+        <thead>
+          <tr>
+            <th style="width: 40%; text-align: left;">Ledger</th>
+            <th style="width: 30%; text-align: center;">Remarks</th>
+            <th style="width: 30%; text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${payInRows}
+          <tr><td colspan="2" style="text-align: left; font-weight: 700;">Total</td><td style="text-align: right; font-weight: 700;">${fmt(payInTotal)}</td></tr>
+        </tbody>
+      </table>
+      <div class="sep"></div>
+    `;
+  } else if (cf.payIn != null && Number(cf.payIn) > 0) {
+    payInHtml = `
+      <div class="section-title">Pay-In</div>
+      <div class="sep"></div>
+      <table style="width: 100%; table-layout: fixed; font-size: 11px;">
+        <thead>
+          <tr>
+            <th style="width: 40%; text-align: left;">Ledger</th>
+            <th style="width: 30%; text-align: center;">Remarks</th>
+            <th style="width: 30%; text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="2" style="text-align: left; font-weight: 700;">Total</td><td style="text-align: right; font-weight: 700;">${fmt(cf.payIn)}</td></tr>
+        </tbody>
+      </table>
+      <div class="sep"></div>
+    `;
+  }
+
   // Pay-Out section — 3 columns (40% / 30% / 30%)
   const payOutList = (data as any).payOuts || (data as any).payoutDetails || [];
   let payOutHtml = '';
@@ -974,7 +1025,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
 
   // Cash Flow — 2 columns (60% / 40%)
   const purchase = (cf as any).purchase ?? 0;
-  const totalCashIn = (cf.cashSales || 0) + (cf.payIn || 0);
+  const totalCashIn = (cf.cashSales || 0) + (cf.openingBal || 0) + (cf.payIn || 0);
   const totalCashOut = (cf.payOut || 0) + (purchase || 0);
   const netCash = totalCashIn - totalCashOut;
   const difference = (cf.closingBal || 0) - netCash;
@@ -985,6 +1036,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     <table style="width: 100%; table-layout: fixed;">
       <tbody>
         <tr><td style="width: 60%; text-align: left;">CASH</td><td style="width: 40%; text-align: right;">${fmt(cf.cashSales)}</td></tr>
+        <tr><td style="text-align: left;">Opening Balance</td><td style="text-align: right;">${fmt(cf.openingBal)}</td></tr>
         <tr><td style="text-align: left;">Pay In</td><td style="text-align: right;">${fmt(cf.payIn)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Total Cash In</td><td style="text-align: right; font-weight: 700;">${fmt(totalCashIn)}</td></tr>
         <tr><td style="text-align: left;">Pay Out</td><td style="text-align: right;">${fmt(cf.payOut)}</td></tr>
@@ -1107,6 +1159,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         ${denominationHtml}
         ${paymodeHtml}
         ${taxHtml}
+        ${payInHtml}
         ${payOutHtml}
         ${tipsHtml}
         ${driverHtml}

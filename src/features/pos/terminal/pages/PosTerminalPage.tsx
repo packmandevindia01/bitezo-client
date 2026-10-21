@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useEvent } from "../../../../hooks/useEvent";
 import { useNavigate } from "react-router-dom";
@@ -549,95 +549,181 @@ export const PosTerminalPage = () => {
     });
   };
 
+  const isOrderingRef = useRef<boolean>(false);
+
   const handleOrder = async (shouldPrint: boolean) => {
+    if (isOrderingRef.current || terminal.orderLoading) {
+      console.warn("[PosTerminalPage] Order already in progress, ignoring extra click.");
+      return;
+    }
     if (terminal.itemCount === 0) {
       showToast("Cart is empty", "warning");
       return;
     }
     if (!status) return;
 
-    let config: any = null;
+    isOrderingRef.current = true;
+    terminal.setOrderLoading(true);
+
     try {
-      config = await getRuntimePosConfig();
-    } catch {
-      showToast("Unable to load POS configuration", "error");
-      return;
-    }
-
-    // If a waiter is explicitly selected from the Waiter button, use their employee ID
-    if (terminal.waiterId && terminal.waiterId > 0) {
-      if (!isDefaultEmployeeValidInCache(terminal.waiterId)) {
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        localStorage.removeItem("selectedWaiterId");
-        localStorage.removeItem("selectedWaiterName");
-        showToast("The selected waiter was not found in this branch and has been cleared. Please select an employee.", "warning");
-        requestAuthorization({
-          actionLabel: "Order",
-          bypassDefaultEmployee: true,
-          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
-        });
-        return;
-      }
-      const waiterRes = await checkoutFlow.submitOrderForEmployee(terminal.waiterId, shouldPrint);
-      if (waiterRes && (waiterRes as any).isEmployeeNotFound) {
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        localStorage.removeItem("selectedWaiterId");
-        localStorage.removeItem("selectedWaiterName");
-        requestAuthorization({
-          actionLabel: "Order",
-          bypassDefaultEmployee: true,
-          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
-        });
-      }
-      return;
-    }
-
-    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
-    const defaultEmployeeId = Number(config?.employeeId ?? 0);
-
-    // When default employee is configured, check cache and submit order directly using that employee ID
-    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
-      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
-        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        showToast("Configured default employee was not found in this branch and has been disabled. Please select an employee.", "warning");
-        requestAuthorization({
-          actionLabel: "Order",
-          bypassDefaultEmployee: true,
-          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
-        });
+      let config: any = null;
+      try {
+        config = await getRuntimePosConfig();
+      } catch {
+        showToast("Unable to load POS configuration", "error");
         return;
       }
 
-      const res = await checkoutFlow.submitOrderForEmployee(defaultEmployeeId, shouldPrint);
-      if (res && (res as any).isEmployeeNotFound) {
+      // If a waiter is explicitly selected from the Waiter button, use their employee ID
+      if (terminal.waiterId && terminal.waiterId > 0) {
+        if (!isDefaultEmployeeValidInCache(terminal.waiterId)) {
+          dispatch(setWaiter({ waiterId: null, waiterName: null }));
+          localStorage.removeItem("selectedWaiterId");
+          localStorage.removeItem("selectedWaiterName");
+          showToast("The selected waiter was not found in this branch and has been cleared. Please select an employee.", "warning");
+          terminal.setOrderLoading(false);
+          isOrderingRef.current = false;
+          requestAuthorization({
+            actionLabel: "Order",
+            bypassDefaultEmployee: true,
+            onAuthorized: async (empId) => {
+              if (isOrderingRef.current || terminal.orderLoading) return;
+              isOrderingRef.current = true;
+              terminal.setOrderLoading(true);
+              try {
+                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
+              } finally {
+                terminal.setOrderLoading(false);
+                isOrderingRef.current = false;
+              }
+            },
+          });
+          return;
+        }
+        const waiterRes = await checkoutFlow.submitOrderForEmployee(terminal.waiterId, shouldPrint);
+        if (waiterRes && (waiterRes as any).isEmployeeNotFound) {
+          dispatch(setWaiter({ waiterId: null, waiterName: null }));
+          localStorage.removeItem("selectedWaiterId");
+          localStorage.removeItem("selectedWaiterName");
+          terminal.setOrderLoading(false);
+          isOrderingRef.current = false;
+          requestAuthorization({
+            actionLabel: "Order",
+            bypassDefaultEmployee: true,
+            onAuthorized: async (empId) => {
+              if (isOrderingRef.current || terminal.orderLoading) return;
+              isOrderingRef.current = true;
+              terminal.setOrderLoading(true);
+              try {
+                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
+              } finally {
+                terminal.setOrderLoading(false);
+                isOrderingRef.current = false;
+              }
+            },
+          });
+        }
+        return;
+      }
+
+      const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
+      const defaultEmployeeId = Number(config?.employeeId ?? 0);
+
+      // When default employee is configured, check cache and submit order directly using that employee ID
+      if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
+        if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
+          disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
+          dispatch(setWaiter({ waiterId: null, waiterName: null }));
+          showToast("Configured default employee was not found in this branch and has been disabled. Please select an employee.", "warning");
+          terminal.setOrderLoading(false);
+          isOrderingRef.current = false;
+          requestAuthorization({
+            actionLabel: "Order",
+            bypassDefaultEmployee: true,
+            onAuthorized: async (empId) => {
+              if (isOrderingRef.current || terminal.orderLoading) return;
+              isOrderingRef.current = true;
+              terminal.setOrderLoading(true);
+              try {
+                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
+              } finally {
+                terminal.setOrderLoading(false);
+                isOrderingRef.current = false;
+              }
+            },
+          });
+          return;
+        }
+
+        const res = await checkoutFlow.submitOrderForEmployee(defaultEmployeeId, shouldPrint);
+        if (res && (res as any).isEmployeeNotFound) {
+          dispatch(setWaiter({ waiterId: null, waiterName: null }));
+          terminal.setOrderLoading(false);
+          isOrderingRef.current = false;
+          requestAuthorization({
+            actionLabel: "Order",
+            bypassDefaultEmployee: true,
+            onAuthorized: async (empId) => {
+              if (isOrderingRef.current || terminal.orderLoading) return;
+              isOrderingRef.current = true;
+              terminal.setOrderLoading(true);
+              try {
+                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
+              } finally {
+                terminal.setOrderLoading(false);
+                isOrderingRef.current = false;
+              }
+            },
+          });
+        }
+        return;
+      }
+
+      if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
+        disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
         dispatch(setWaiter({ waiterId: null, waiterName: null }));
+        showToast("Default employee was not configured properly and has been disabled. Please select an employee.", "warning");
+        terminal.setOrderLoading(false);
+        isOrderingRef.current = false;
         requestAuthorization({
           actionLabel: "Order",
           bypassDefaultEmployee: true,
-          onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+          onAuthorized: async (empId) => {
+            if (isOrderingRef.current || terminal.orderLoading) return;
+            isOrderingRef.current = true;
+            terminal.setOrderLoading(true);
+            try {
+              await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
+            } finally {
+              terminal.setOrderLoading(false);
+              isOrderingRef.current = false;
+            }
+          },
         });
+        return;
       }
-      return;
-    }
 
-    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
-      dispatch(setWaiter({ waiterId: null, waiterName: null }));
-      showToast("Default employee was not configured properly and has been disabled. Please select an employee.", "warning");
+      // Default employee is not configured -> Ask for employee code / authorization
+      terminal.setOrderLoading(false);
+      isOrderingRef.current = false;
       requestAuthorization({
         actionLabel: "Order",
-        bypassDefaultEmployee: true,
-        onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
+        onAuthorized: async (empId) => {
+          if (isOrderingRef.current || terminal.orderLoading) return;
+          isOrderingRef.current = true;
+          terminal.setOrderLoading(true);
+          try {
+            await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
+          } finally {
+            terminal.setOrderLoading(false);
+            isOrderingRef.current = false;
+          }
+        },
       });
-      return;
+    } finally {
+      terminal.setOrderLoading(false);
+      isOrderingRef.current = false;
     }
-
-    // Default employee is not configured -> Ask for employee code / authorization
-    requestAuthorization({
-      actionLabel: "Order",
-      onAuthorized: (empId) => checkoutFlow.submitOrderForEmployee(empId, shouldPrint),
-    });
   };
 
   const stableHandleOrder = useEvent((print: boolean) => handleOrder(print));

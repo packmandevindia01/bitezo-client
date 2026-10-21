@@ -381,7 +381,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
       const selectedPaymodeId = Number(data.paymodeId) || 1;
       const voucherAmount = Number(Number(data.amount).toFixed(decimalPart));
 
-      // Build paymodes array: ALWAYS populated with valid entries, NEVER empty
+      // Build paymodes array: ONLY populated when paymodeId is 3 (Multi), otherwise empty
       const paymodesPayload = (() => {
         if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
           return data.paymodes.map((p) => ({
@@ -389,12 +389,7 @@ export const useReceiptVoucher = (transId?: number, onSuccessCallback?: () => vo
             amount: Number(Number(p.amount).toFixed(decimalPart)),
           }));
         }
-        return [
-          {
-            paymodeId: selectedPaymodeId,
-            amount: voucherAmount,
-          },
-        ];
+        return [];
       })();
 
       if (transId) {

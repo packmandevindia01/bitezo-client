@@ -5,7 +5,7 @@ import Checkbox from "../../../../../../components/common/Checkbox";
 import FormInput from "../../../../../../components/common/FormInput";
 import { Loader } from "../../../../../../components/common";
 import { TouchKeyboard } from "../../../../../../components/common/TouchKeyboard";
-import { Search, X } from "lucide-react";
+import { Search, X, AlertTriangle } from "lucide-react";
 import { usePosVoid } from "../../../hooks/usePosVoid";
 import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
@@ -245,6 +245,12 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
         size="xl"
       >
         <div className="flex flex-col gap-4">
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center gap-3 text-amber-900 text-xs sm:text-sm font-semibold">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <span>
+              {t("Warning: You are attempting to void Order")} #{selectedOrderId}. {t("This action will cancel the order and cannot be reversed.")}
+            </span>
+          </div>
           <FormInput
             placeholder={t("Enter reason...")}
             value={reason}

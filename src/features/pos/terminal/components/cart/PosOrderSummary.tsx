@@ -88,12 +88,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="flex gap-1.5 [@media(max-height:800px)]:mt-0 mt-1">
           <button 
             onClick={onDiscount}
+            disabled={orderLoading || isSettling}
             className="h-7 md:h-8 lg:h-9 [@media(max-height:800px)]:h-6 px-2 md:px-3 rounded-lg border-2 border-[#f37021] text-[#f37021] text-[10px] md:text-[11px] xl:text-[12px] [@media(max-height:800px)]:text-[9px] font-extrabold uppercase transition-all hover:bg-[#f37021] hover:text-white active:scale-95 shadow-sm"
           >
             {t("Discount")}
           </button>
           <button 
             onClick={onCom}
+            disabled={orderLoading || isSettling}
             className="h-7 md:h-8 lg:h-9 [@media(max-height:800px)]:h-6 px-2 md:px-3 rounded-lg border-2 border-[#002b5c] text-[#002b5c] text-[10px] md:text-[11px] xl:text-[12px] [@media(max-height:800px)]:text-[9px] font-extrabold uppercase transition-all hover:bg-[#002b5c] hover:text-white active:scale-95 shadow-sm"
           >
             {t("COM")}
@@ -114,7 +116,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
           const isCredit = label.includes("credit") && !label.includes("multi");
           const isCreditDisabled = isCredit && (!selectedCustomerId || Number(selectedCustomerId) === 1);
           const isCartEmpty = subtotal <= 0;
-          const isDisabled = isCartEmpty || isCreditDisabled;
+          const isDisabled = isCartEmpty || isCreditDisabled || orderLoading || isSettling;
           const isSelected = selectedTender === mode.id;
 
           return (
@@ -147,14 +149,24 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             disabled={orderLoading || isSettling || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
-            {isSettledEdit ? t("Update") : t("Settle")}
+            {isSettling ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span>{t("Processing...")}</span>
+              </span>
+            ) : isSettledEdit ? t("Update") : t("Settle")}
           </button>
           <button
             onClick={() => onSettle && onSettle(true)}
             disabled={orderLoading || isSettling || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
-            {isSettledEdit ? (
+            {isSettling ? (
+              <span className="flex flex-col items-center justify-center gap-0.5">
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span className="text-[9px]">{t("Processing...")}</span>
+              </span>
+            ) : isSettledEdit ? (
               <>
                 <span>{t("Update &")}</span>
                 <span>{t("Print")}</span>
@@ -173,7 +185,14 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
           >
-            {orderLoading ? t("Wait...") : t("Order")}
+            {orderLoading ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span>{t("Processing...")}</span>
+              </span>
+            ) : (
+              t("Order")
+            )}
           </button>
           <button
             onClick={() => onOrder && onOrder(true)}
@@ -181,7 +200,10 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
           >
             {orderLoading ? (
-              <span>{t("Wait...")}</span>
+              <span className="flex flex-col items-center justify-center gap-0.5">
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span className="text-[9px]">{t("Processing...")}</span>
+              </span>
             ) : (
               <>
                 <span>{t("Order &")}</span>

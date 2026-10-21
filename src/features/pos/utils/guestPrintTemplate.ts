@@ -223,6 +223,19 @@ export const generateGuestPrintHtml = async (
   const isDelivery = Boolean(data.orderType?.toLowerCase().includes("delivery") || hasDeliveryAddress);
   const driverVal = (data.driverName || data.driver || "").trim();
 
+  const rawCallBack = (data.callBack || (data as any).callback || (data as any).callBackNo || (data as any).callbackNo || (data as any).callBackNumber || (data as any).callbackNumber || "").trim();
+  const effectiveCallBack = rawCallBack || (isDelivery ? (
+    (data.orderNo ? localStorage.getItem(`order_callBack_${String(data.orderNo).replace(/\D/g, '')}`) : null) ||
+    (data.orderNo ? sessionStorage.getItem(`order_callBack_${String(data.orderNo).replace(/\D/g, '')}`) : null) ||
+    (data.invoiceNo ? localStorage.getItem(`order_callBack_${String(data.invoiceNo).replace(/\D/g, '')}`) : null) ||
+    (data.invoiceNo ? sessionStorage.getItem(`order_callBack_${String(data.invoiceNo).replace(/\D/g, '')}`) : null) ||
+    (data.contactNo ? localStorage.getItem(`delivery_callBack_${data.contactNo}`) : null) ||
+    (data.contactNo ? sessionStorage.getItem(`delivery_callBack_${data.contactNo}`) : null) ||
+    localStorage.getItem("pos_current_callBack") ||
+    sessionStorage.getItem("pos_current_callBack") ||
+    ""
+  ) : "");
+
   const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
 
   const isBillArabic = data.billArabic ?? isBillArabicEnabled();
@@ -349,15 +362,15 @@ export const generateGuestPrintHtml = async (
         exclusiveProductLineAmount = Math.max(0, netValueVal);
         exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (netValueVal + totalItemDisc) / qty);
       } else if (itemBaseAmount !== undefined && qty > 0) {
-        const isBaseUndiscounted = catalogExclusivePrice > 0
-          ? Math.abs(itemBaseAmount - (catalogExclusivePrice * qty)) < 0.01
-          : totalItemDisc > 0;
-        if (isBaseUndiscounted && totalItemDisc > 0) {
-          exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (itemBaseAmount / qty);
+        if (catalogExclusivePrice > 0) {
+          exclusiveUnitPrice = catalogExclusivePrice;
+          exclusiveProductLineAmount = Math.max(0, (catalogExclusivePrice * qty) - totalItemDisc);
+        } else if (totalItemDisc > 0) {
+          exclusiveUnitPrice = itemBaseAmount / qty;
           exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
         } else {
           exclusiveProductLineAmount = Math.max(0, itemBaseAmount);
-          exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (itemBaseAmount + totalItemDisc) / qty);
+          exclusiveUnitPrice = Math.max(0, (itemBaseAmount + totalItemDisc) / qty);
         }
       } else if (itemVat > 0 && itemLineTotal !== undefined && itemLineTotal > 0) {
         exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum - itemVat);
@@ -422,15 +435,24 @@ export const generateGuestPrintHtml = async (
     }
 
     // ── 3. Select Rate & Amt based on tax setting (Inclusive vs Exclusive) ──
-    const safeInclusiveRate = qty > 0 && Math.abs((inclusiveUnitPrice * qty) - lineInclusiveAmt) > 0.01
+    const safeExclusiveRate = exclusiveUnitPrice;
+    const safeExclusiveAmt = (safeExclusiveRate > 0 && qty > 0)
+      ? Math.max(0, (safeExclusiveRate * qty) - totalItemDisc)
+      : exclusiveProductLineAmount;
+
+    const safeInclusiveRate = qty > 0 && Math.abs((inclusiveUnitPrice * qty) - (lineInclusiveAmt + totalItemDisc)) > 0.01
       ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty)
       : inclusiveUnitPrice;
-    const finalRate = isTaxInclusive ? safeInclusiveRate : exclusiveUnitPrice;
-    const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
+    const safeInclusiveAmt = (safeInclusiveRate > 0 && qty > 0)
+      ? Math.max(0, (safeInclusiveRate * qty) - totalItemDisc)
+      : lineInclusiveAmt;
+
+    const finalRate = isTaxInclusive ? safeInclusiveRate : safeExclusiveRate;
+    const finalAmt = isTaxInclusive ? safeInclusiveAmt : safeExclusiveAmt;
 
     // displaySubTotal accumulates line amounts for fallback
-    const exclusiveBase = exclusiveProductLineAmount;
-    displaySubTotal += parseFloat(fmt(isTaxInclusive ? lineInclusiveAmt : exclusiveBase));
+    const exclusiveBase = safeExclusiveAmt;
+    displaySubTotal += parseFloat(fmt(isTaxInclusive ? safeInclusiveAmt : exclusiveBase));
 
     const rate = fmt(finalRate);
     const amt = fmt(finalAmt);
@@ -753,8 +775,8 @@ export const generateGuestPrintHtml = async (
           }
 
           .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
-          .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; }
-          .vat-table td { padding: 3px 0; font-weight: 600; color: #000000; }
+          .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
+          .vat-table td { padding: 4px 0 2px 0; font-weight: 600; color: #000000; }
           
           .barcode-container { text-align: center; margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 32px; font-weight: bold; letter-spacing: 2px; color: #000000; }
         </style>
@@ -905,28 +927,29 @@ export const generateGuestPrintHtml = async (
         <table class="vat-table" style="margin-top: 4px; width: 100%;">
           <thead>
             <tr>
-              <th style="text-align: left; width: 20%;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 30%;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
-              <th style="text-align: right; width: 24%;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 26%;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
+              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
+              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="text-align: left; font-weight: normal; width: 20%;">10%</td>
-              <td style="text-align: right; font-weight: normal; width: 30%;">${fmt(Math.max(0, data.netAmount - (data.deliveryCharge || 0) - data.vatAmount))}</td>
-              <td style="text-align: right; font-weight: normal; width: 24%;">${fmt(data.vatAmount)}</td>
-              <td style="text-align: right; font-weight: normal; width: 26%;">${fmt(data.netAmount)}</td>
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 4px;">10%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 4px;">${fmt(Math.max(0, data.netAmount - (data.deliveryCharge || 0) - data.vatAmount))}</td>
+              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 4px;">${fmt(data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 4px;">${fmt(data.netAmount)}</td>
             </tr>
           </tbody>
         </table>
+        <div class="dashed-hr"></div>
         ` : '<div class="dashed-hr"></div>'}
         
         ${(() => {
           const keepChangeVal = (data.change || data.keepChanges || "").trim();
           const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
           if (!isDelivery) return '';
-          if (!(data.contactNo || data.callBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
+          if (!(data.contactNo || effectiveCallBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
 
           return `
         <div style="margin-top: 10px; font-size: 12px;">
@@ -935,18 +958,19 @@ export const generateGuestPrintHtml = async (
             ${isBillArabic ? '<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(بيانات التوصيل)</bdi>' : ''}
           </div>
           <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
-            ${data.contactNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(رقم الجوال)</bdi>' : ''}</td><td style="font-weight: bold;">${data.contactNo}</td></tr>` : ''}
-            ${data.callBack ? `<tr><td style="width: 35%; padding-bottom: 2px;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(معاودة الاتصال)</bdi>' : ''}</td><td style="font-weight: bold;">${data.callBack}</td></tr>` : ''}
-            ${hasValidKeepChange ? `<tr><td style="width: 35%; padding-bottom: 2px;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(الباقي)</bdi>' : ''}</td><td style="font-weight: bold;">${keepChangeVal}</td></tr>` : ''}
-            ${data.customerName ? `<tr><td style="width: 35%; padding-bottom: 2px;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(العميل)</bdi>' : ''}</td><td style="font-weight: bold;">${data.customerName}</td></tr>` : ''}
-            ${driverVal ? `<tr><td style="width: 35%; padding-bottom: 2px;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(السائق)</bdi>' : ''}</td><td style="font-weight: bold;">${driverVal}</td></tr>` : ''}
-            ${data.flatNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(شقة)</bdi>' : ''}</td><td style="font-weight: bold;">${data.flatNo}</td></tr>` : ''}
-            ${data.buildingNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(مبنى)</bdi>' : ''}</td><td style="font-weight: bold;">${data.buildingNo}</td></tr>` : ''}
-            ${data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(مجمع)</bdi>' : ''}</td><td style="font-weight: bold;">${data.blockNo}</td></tr>` : ''}
-            ${data.roadNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(طريق)</bdi>' : ''}</td><td style="font-weight: bold;">${data.roadNo}</td></tr>` : ''}
-            ${data.area ? `<tr><td style="width: 35%; padding-bottom: 2px;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(المنطقة)</bdi>' : ''}</td><td style="font-weight: bold;">${data.area}</td></tr>` : ''}
-            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(العنوان)</bdi>' : ''}</td><td style="font-weight: bold;">${data.address}</td></tr>` : ''}
-            ${data.providerNo ? `<tr><td style="width: 35%; padding-bottom: 2px;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(رقم المزود)</bdi>' : ''}</td><td style="font-weight: bold;">${data.providerNo}</td></tr>` : ''}
+          <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+            ${data.contactNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.contactNo}</td></tr>` : ''}
+            ${effectiveCallBack ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${effectiveCallBack}</td></tr>` : ''}
+            ${hasValidKeepChange ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${keepChangeVal}</td></tr>` : ''}
+            ${data.customerName ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.customerName}</td></tr>` : ''}
+            ${driverVal ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(السائق)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${driverVal}</td></tr>` : ''}
+            ${data.flatNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.flatNo}</td></tr>` : ''}
+            ${data.buildingNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.buildingNo}</td></tr>` : ''}
+            ${data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.blockNo}</td></tr>` : ''}
+            ${data.roadNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.roadNo}</td></tr>` : ''}
+            ${data.area ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.area}</td></tr>` : ''}
+            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.address}</td></tr>` : ''}
+            ${data.providerNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.providerNo}</td></tr>` : ''}
           </table>
         </div>
         `;

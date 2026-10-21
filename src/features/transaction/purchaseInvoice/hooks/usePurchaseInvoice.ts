@@ -807,12 +807,15 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
     setSaving(true);
     try {
+      const finalPaymodeId = (selectedPaymodeId === (multiPayId || 3) || selectedPaymodeId === 3 || data.payments.length > 1)
+        ? (multiPayId || 3)
+        : (selectedPaymodeId || (data.payments.length > 0 ? Number((data.payments[0] as any).paymodeId) || 1 : 1));
+
       const payload: any = {
         seriesId: parseInt(data.series || "") || 0,
         prefix: "",
         supplierId: parseInt(data.supplier || "") || 0,
-        // master paymodeId: multiPayId if multi-payment, otherwise use stored paymodeId from first payment
-        paymodeId: data.payments.length > 1 ? (multiPayId || 3) : (data.payments.length > 0 ? ((data.payments[0] as any).paymodeId || 1) : 1),
+        paymodeId: finalPaymodeId,
         branchId: parseInt(data.branch || "") || 0,
         employeeId: parseInt(data.salesman || "") || 0,
         dayId: 0,
@@ -845,10 +848,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
           };
         }),
         paymodes: (() => {
-          if (data.payments && data.payments.length > 0) {
+          if (finalPaymodeId === 3 && data.payments && data.payments.length > 0) {
             const map = new Map<number, number>();
             for (const p of data.payments as any[]) {
-              const pid = Number(p.paymodeId) || selectedPaymodeId || 1;
+              const pid = Number(p.paymodeId) || 1;
               map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
             }
             return Array.from(map.entries()).map(([paymodeId, amount]) => ({
@@ -856,12 +859,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
               amount: Number(amount.toFixed(decimalPart))
             }));
           }
-          return [
-            {
-              paymodeId: selectedPaymodeId || 1,
-              amount: Number(totals.grandTotal.toFixed(decimalPart))
-            }
-          ];
+          return [];
         })(),
       };
 

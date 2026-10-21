@@ -45,6 +45,7 @@ export const useDayEndReport = () => {
           if (row["Pay In"] !== undefined || row["PayIn"] !== undefined || row.payIn !== undefined) {
             return {
               ...row,
+              "Opening Balance": Number(row["Opening Balance"] ?? row["OpeningBal"] ?? row.openingBal ?? 0),
               "Pay In": Number(row["Pay In"] ?? row["PayIn"] ?? row.payIn ?? 0),
               "Pay Out": Number(row["Pay Out"] ?? row["PayOut"] ?? row.payOut ?? 0),
             };
@@ -56,6 +57,7 @@ export const useDayEndReport = () => {
             const cf = detail?.cashFlow || detail?.data?.cashFlow || detail || {};
             return {
               ...row,
+              "Opening Balance": Number(cf.openingBal ?? detail?.openingBal ?? 0),
               "Pay In": Number(cf.payIn ?? detail?.payIn ?? 0),
               "Pay Out": Number(cf.payOut ?? detail?.payOut ?? 0),
             };
@@ -63,6 +65,7 @@ export const useDayEndReport = () => {
 
           return {
             ...row,
+            "Opening Balance": 0,
             "Pay In": 0,
             "Pay Out": 0,
           };

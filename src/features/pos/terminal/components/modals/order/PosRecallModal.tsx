@@ -226,10 +226,13 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
 
         const itemLineNetAmount = amount || lineBase;
-        const itemVat = Number(d.vatAmount ?? d.VatAmount ?? 0);
+        let itemVat = Number(d.vatAmount ?? d.VatAmount ?? d.vatAmt ?? d.VatAmt ?? d.taxAmount ?? d.TaxAmount ?? 0);
+        if (itemVat <= 0 && enableVat && amount > lineBase) {
+          itemVat = Number((amount - lineBase).toFixed(4));
+        }
         detailsVatSum += itemVat;
 
-        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
+        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : lineBase;
         totalVatBase += itemVatBase;
         
         return {
@@ -283,7 +286,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
         }
         const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
-        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (d.itemVatBase !== undefined ? d.itemVatBase : ((d.price || 0) * (d.qty || 1)));
+        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (itemVat > 0 ? Math.max(0, itemLineNet - itemVat) : ((d.price || 0) * (d.qty || 1)));
 
         let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
         let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;

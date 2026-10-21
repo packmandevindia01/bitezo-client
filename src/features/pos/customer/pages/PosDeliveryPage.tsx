@@ -320,6 +320,14 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     dispatch(setComingTime(resolvedComingTime));
     dispatch(setChange(form.keepChanges));
     dispatch(setVehicleCustomerName(form.customerName));
+    if (form.callBack) {
+      localStorage.setItem("pos_current_callBack", form.callBack);
+      sessionStorage.setItem("pos_current_callBack", form.callBack);
+      if (form.mobileNo) {
+        localStorage.setItem(`delivery_callBack_${form.mobileNo}`, form.callBack);
+        sessionStorage.setItem(`delivery_callBack_${form.mobileNo}`, form.callBack);
+      }
+    }
     dispatch(setDeliveryDetails({
       customerName: form.customerName,
       contactNo: form.mobileNo,

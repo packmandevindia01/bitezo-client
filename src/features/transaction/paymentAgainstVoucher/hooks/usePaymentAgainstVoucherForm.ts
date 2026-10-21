@@ -432,7 +432,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
           amount: Number(Number(p.amount).toFixed(decimals)),
         }));
       } else {
-        paymodesPayload = [{ paymodeId: selectedPaymodeId, amount: totalAmount }];
+        paymodesPayload = [];
       }
 
       const detailsPayload = data.details.map((d) => ({

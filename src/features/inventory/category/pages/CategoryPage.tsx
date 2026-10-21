@@ -71,7 +71,10 @@ const CategoryPage = () => {
       posStatus: true,
       colorCode: "red",
       branchAllocations: [],
+      isAllBranches: true,
       menuIds: [],
+      imageFile: undefined,
+      image: undefined,
       isImageChanged: false,
     },
   });
@@ -93,14 +96,11 @@ const CategoryPage = () => {
 
   const resetForm = () => {
     const currentCode = form.getValues("code"); // preserve auto-generated code
-    const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branchOptions[0]?.id ? Number(branchOptions[0].id) : 1);
-    let defaultBranches: { branchId: number; colorCode: string }[] = [{ branchId: activeBranchId, colorCode: "red" }];
-    if (branchOptions.length > 0) {
-      const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
-      if (targetBranch) {
-        defaultBranches = [{ branchId: Number(targetBranch.id), colorCode: "red" }];
-      }
-    }
+    const allBranches = branchOptions.map((b) => ({
+      branchId: Number(b.id),
+      colorCode: "red",
+    }));
+
     // Allocate to all active menu times so category is immediately visible across all POS menu sessions
     const defaultMenus = menuTimes.length > 0
       ? menuTimes.map((m: any) => Number(m.menuId ?? m.id ?? 1)).filter((id: number) => id > 0)
@@ -113,7 +113,8 @@ const CategoryPage = () => {
       isActive: true,
       posStatus: true,
       colorCode: "red",
-      branchAllocations: defaultBranches,
+      branchAllocations: allBranches,
+      isAllBranches: true,
       menuIds: defaultMenus,
       imageFile: undefined,
       image: undefined,
@@ -131,11 +132,12 @@ const CategoryPage = () => {
       }
       const currentBranches = form.getValues("branchAllocations");
       if ((!currentBranches || currentBranches.length === 0) && branchOptions.length > 0) {
-        const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || branchOptions[0].id;
-        const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
-        if (targetBranch) {
-          form.setValue("branchAllocations", [{ branchId: Number(targetBranch.id), colorCode: "red" }], { shouldValidate: true });
-        }
+        const allBranches = branchOptions.map((b) => ({
+          branchId: Number(b.id),
+          colorCode: "red",
+        }));
+        form.setValue("branchAllocations", allBranches, { shouldValidate: true });
+        form.setValue("isAllBranches", true, { shouldValidate: true });
       }
     }
   }, [open, editingId, menuTimes, branchOptions, form]);
@@ -179,17 +181,15 @@ const CategoryPage = () => {
         colorCode: b.colorCode || "red",
       }));
 
-      // If backend returned null/empty branches for an existing category (legacy data created before fix),
-      // auto-default to active branch so the user is never asked/blocked on update!
-      if (existingBranches.length === 0 && branchOptions.length > 0) {
-        const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || branchOptions[0].id;
-        const targetBranch = branchOptions.find(b => Number(b.id) === Number(activeBranchId)) || branchOptions[0];
-        if (targetBranch) {
-          existingBranches = [{
-            branchId: Number(targetBranch.id),
-            colorCode: detail.category?.colorCode || "red",
-          }];
-        }
+      // Check if this category belongs to all branches:
+      // If backend returned null/empty branches, OR if all branchOptions are included, it applies to All Branches
+      const isAllBranches = existingBranches.length === 0 || (branchOptions.length > 0 && existingBranches.length >= branchOptions.length);
+
+      if (isAllBranches && branchOptions.length > 0) {
+        existingBranches = branchOptions.map((b) => ({
+          branchId: Number(b.id),
+          colorCode: detail.category?.colorCode || "red",
+        }));
       }
 
       // Extract menu allocations
@@ -211,6 +211,7 @@ const CategoryPage = () => {
         posStatus: detail.category?.posStatus ?? true,
         colorCode: detail.category?.colorCode || "red",
         branchAllocations: existingBranches,
+        isAllBranches,
         menuIds: existingMenus,
         imageFile: undefined,
         image: resolvedImage || undefined,

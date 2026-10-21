@@ -38,10 +38,11 @@ const CategoryTable = ({
         data={categories}
         loading={loading}
         columns={[
-        { header: "Code", accessor: "code" },
+        { header: "Code", accessor: "code", align: "center" },
         {
           header: "Category Name",
           accessor: "name",
+          align: "left",
           render: (row) => {
             const imageSrc = resolveImageUrl(row.imageUrl || row.imagePath || row.categoryImage || row.fileUrl || row.filePath);
             return (
@@ -68,6 +69,7 @@ const CategoryTable = ({
         {
           header: "Status",
           accessor: "isActive",
+          align: "center",
           render: (row) => (
             <StatusBadge 
               status={row.isActive ? "active" : "inactive"} 
@@ -78,8 +80,9 @@ const CategoryTable = ({
         {
           header: "Actions",
           accessor: "id",
+          align: "center",
           render: (row) => (
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-center">
               {onEdit && (
                 <button
                   type="button"

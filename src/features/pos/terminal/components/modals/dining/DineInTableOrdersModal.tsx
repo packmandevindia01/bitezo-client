@@ -20,8 +20,8 @@ import {
   getBillingConfig,
   getPriceView,
   CALC_PRECISION,
-  getTaxExclusivePrice,
   getTaxExclusiveExtraPrice,
+  sanitizeTaxExclusiveDetail,
 } from '../../../utils/billing';
 import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
 import { sortOrderDetailsBySequence } from '../../../utils/orderSort';
@@ -501,12 +501,15 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
       const activeTransDate = rawTransDate.split("T")[0];
 
+      const lineDiscountsSum = details.reduce((sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
+      const resolvedDiscAmount = Math.max(Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0), lineDiscountsSum);
+
       const directSettleOrder: DirectSettleOrderBase = {
         orderId: targetOrderId,
         customerId: master.customerId || 1,
         employeeId,
         transDate: master.transDate || master.voucherDate || activeTransDate,
-        discAmount: Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0),
+        discAmount: resolvedDiscAmount,
         discPer: Number(master.discPer ?? master.DiscPer ?? 0),
         complimentaryStatus: Boolean(
           master.complimentaryStatus ||
@@ -544,29 +547,29 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         providerNo: master.providerNo || "",
         driverId: master.driverId || 0,
         details: details.map((d: any) => {
-          const exclPrice = getTaxExclusivePrice(d);
+          const sanitized = sanitizeTaxExclusiveDetail(d);
           return {
-            productId: d.productId || d.itemId || 0,
-            unitId: d.unitId || 1,
-            qty: d.qty || 1,
-            price: exclPrice,
-            basePrice: exclPrice,
-            exclusivePrice: exclPrice,
+            productId: sanitized.productId || d.itemId || 0,
+            unitId: sanitized.unitId || 1,
+            qty: sanitized.qty,
+            price: sanitized.price,
+            basePrice: sanitized.price,
+            exclusivePrice: sanitized.price,
             isPriceTaxExclusive: true,
-            discPer: Number(d.discPer ?? d.DiscPer ?? 0),
-            discAmount: Number(d.discAmount ?? d.DiscAmount ?? 0),
-            serviceCharge: d.serviceCharge || 0,
-            levy: d.levy || 0,
-            vatId: d.vatId || 0,
-            vatAmount: d.vatAmount || 0,
-            netAmount: d.netAmount ?? ((d.price || 0) * (d.qty || 1)),
-            mapId: d.mapId || 0,
+            discPer: Number(sanitized.discPer ?? d.DiscPer ?? 0),
+            discAmount: sanitized.discAmount,
+            serviceCharge: sanitized.serviceCharge,
+            levy: sanitized.levy,
+            vatId: sanitized.vatId || 0,
+            vatAmount: sanitized.vatAmount,
+            netAmount: sanitized.netAmount,
+            mapId: sanitized.mapId || 0,
             complimentaryStatus: Boolean(
-              d.complimentaryStatus ||
+              sanitized.complimentaryStatus ||
               d.ComplimentaryStatus ||
-              Number(d.discPer ?? d.DiscPer ?? 0) === 100
+              Number(sanitized.discPer ?? d.DiscPer ?? 0) === 100
             ),
-            baseQty: d.baseQty || d.qty || 1,
+            baseQty: sanitized.baseQty || sanitized.qty || 1,
           };
         }),
         modifiers: modifiersData.map((m: any) => {

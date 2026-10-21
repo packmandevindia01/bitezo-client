@@ -1,4 +1,4 @@
-import { roundCalc, CALC_PRECISION, getTaxExclusivePrice } from "../utils/billing";
+import { roundCalc, sanitizeTaxExclusiveDetail } from "../utils/billing";
 import type { SalesInvoicePayload, PaymodeItem } from "../../types";
 import type { DirectSettleOrderBase } from "./orderPayloadMapper";
 
@@ -116,6 +116,37 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
 
   const resolvedVoucherDate = formatDateOnly(orderPayload.voucherDate || transDate || new Date());
 
+    const sanitizedDetails = (orderPayload.details || []).map((d: any) => {
+      const sanitized = sanitizeTaxExclusiveDetail(d);
+      return {
+        productId: sanitized.productId,
+        unitId: sanitized.unitId || 1,
+        vatId: sanitized.vatId || 1,
+        qty: sanitized.qty,
+        price: sanitized.price,
+        basePrice: sanitized.basePrice,
+        exclusivePrice: sanitized.exclusivePrice,
+        isPriceTaxExclusive: true,
+        discPer: sanitized.discPer || 0,
+        discAmount: sanitized.discAmount || 0,
+        serviceCharge: sanitized.serviceCharge || 0,
+        levy: sanitized.levy || 0,
+        vatAmount: sanitized.vatAmount || 0,
+        netAmount: sanitized.netAmount,
+        baseQty: sanitized.baseQty || sanitized.qty || 1,
+        mapId: sanitized.mapId,
+        complimentaryStatus: sanitized.complimentaryStatus || false,
+      };
+    });
+
+    const totalDetailGross = sanitizedDetails.reduce((sum, d) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+    const totalModifierGross = (orderPayload.modifiers || []).reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
+    const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+    const lineDiscounts = sanitizedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
+    const totalOrderDiscount = roundCalc(Math.max(0, Number(orderPayload.discAmount || 0), lineDiscounts));
+    const calcVatExcl = roundCalc(Math.max(0, totalGrossExcl - totalOrderDiscount));
+    const calcVatAmt = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+
   return {
     seriesId: systemSeriesId,
     prefix: "",
@@ -130,12 +161,12 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     saleId: editingSaleId || 0,
     orderId: orderPayload.orderId,
     voucherDate: resolvedVoucherDate,
-    discAmount: orderPayload.discAmount,
+    discAmount: totalOrderDiscount,
     discPer: orderPayload.discPer,
     serviceCharge: orderPayload.serviceCharge,
     levy: orderPayload.levy,
-    vatExclAmount: Math.max(0, orderPayload.vatExclAmount),
-    vatAmount: Math.max(0, orderPayload.vatAmount),
+    vatExclAmount: calcVatExcl,
+    vatAmount: calcVatAmt,
     netAmount: Math.max(0, orderPayload.netAmount),
     deliveryCharge: Math.max(0, orderPayload.deliveryCharge),
     complimentaryStatus: Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100),
@@ -162,22 +193,7 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     modifiers: orderPayload.modifiers,
     voidProducts: orderPayload.voidProducts,
     voidModifiers: orderPayload.voidModifiers,
-    details: orderPayload.details.map((d: any) => ({
-      productId: d.productId,
-      unitId: d.unitId,
-      vatId: d.vatId,
-      qty: d.qty,
-      price: roundCalc(d.basePrice ?? d.exclusivePrice ?? getTaxExclusivePrice(d), CALC_PRECISION),
-      discPer: d.discPer,
-      discAmount: d.discAmount,
-      serviceCharge: d.serviceCharge,
-      levy: d.levy,
-      vatAmount: d.vatAmount,
-      netAmount: d.netAmount,
-      baseQty: d.baseQty || d.qty || 1,
-      mapId: d.mapId,
-      complimentaryStatus: d.complimentaryStatus || false,
-    })),
+    details: sanitizedDetails,
     paymodes:
       rootPaymodeId === 3
         ? (validPayments.length > 0

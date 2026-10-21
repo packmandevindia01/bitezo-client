@@ -1432,16 +1432,22 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   markup += `[L]${DASH_SEP}\n`;
 
   // Cash Flow
+  const totalCashIn = (cf.cashSales || 0) + (cf.openingBal || 0) + (cf.payIn || 0);
+  const totalCashOut = Number(cf.payOut || 0);
+  const netCash = totalCashIn - totalCashOut;
+  const difference = (cf.closingBal || 0) - netCash;
+
   markup += `[C]<b>CASH FLOW</b>\n`;
   markup += `[L]${DASH_SEP}\n`;
   markup += twoCol("CASH:", fmt(cf.cashSales)) + "\n";
+  markup += twoCol("Opening Balance:", fmt(cf.openingBal)) + "\n";
   markup += twoCol("Pay In:", fmt(cf.payIn)) + "\n";
-  markup += twoCol("Total Cash In:", fmt((cf.cashSales || 0) + (cf.payIn || 0))) + "\n";
+  markup += twoCol("Total Cash In:", fmt(totalCashIn)) + "\n";
   markup += twoCol("Pay Out:", fmt(cf.payOut)) + "\n";
-  markup += twoCol("Total Cash Out:", fmt(cf.payOut)) + "\n";
-  markup += twoCol("Net Cash:", fmt(((cf.cashSales || 0) + (cf.payIn || 0)) - (cf.payOut || 0))) + "\n";
+  markup += twoCol("Total Cash Out:", fmt(totalCashOut)) + "\n";
+  markup += twoCol("Net Cash:", fmt(netCash)) + "\n";
   markup += twoCol("Closing Balance:", fmt(cf.closingBal)) + "\n";
-  markup += twoCol("Difference:", fmt(cf.closingBal - (((cf.cashSales || 0) + (cf.payIn || 0)) - (cf.payOut || 0)))) + "\n";
+  markup += twoCol("Difference:", fmt(difference)) + "\n";
   markup += `[L]${SEPARATOR}\n`;
   markup += `[L]\n[L]\n[L]\n`;
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
@@ -51,6 +51,7 @@ export const usePosCartActions = () => {
 
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const isSubmittingOrderRef = useRef<boolean>(false);
 
   const cartDetails = useAppSelector(selectCartDetails);
   const subtotal = useAppSelector(selectSubtotal);
@@ -205,6 +206,11 @@ export const usePosCartActions = () => {
   };
 
   const submitOrder = async (session: OrderSessionParams, shouldPrint: boolean = false) => {
+    if (isSubmittingOrderRef.current) {
+      console.warn("[submitOrder] Order submission already in progress, ignoring duplicate call.");
+      return;
+    }
+
     if (cartDetails.length === 0) {
       showToast("Cart is empty", "warning");
       return;
@@ -228,8 +234,10 @@ export const usePosCartActions = () => {
       return;
     }
 
+    isSubmittingOrderRef.current = true;
     setOrderLoading(true);
     setOrderError(null);
+    showToast("Placing order, please wait...", "info");
 
     try {
       const context = getFormContext();
@@ -291,6 +299,16 @@ export const usePosCartActions = () => {
         if (response.isSuccess) {
           showToast("Order updated successfully!", "success");
 
+          const effCb = callBack || deliveryDetails?.callBack || localStorage.getItem("pos_current_callBack") || "";
+          if (effCb) {
+            localStorage.setItem(`order_callBack_${targetOrderId}`, effCb);
+            sessionStorage.setItem(`order_callBack_${targetOrderId}`, effCb);
+            if (contactNo) {
+              localStorage.setItem(`delivery_callBack_${contactNo}`, effCb);
+              sessionStorage.setItem(`delivery_callBack_${contactNo}`, effCb);
+            }
+          }
+
           // Clean up concurrency token
           sessionStorage.removeItem(`order_prevUpdatedAt_${targetOrderId}`);
           sessionStorage.removeItem(`order_prevUpdatedAt_${editingOrderId}`);
@@ -315,6 +333,17 @@ export const usePosCartActions = () => {
 
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
+
+        const targetId = response.data.id;
+        const effCb = callBack || deliveryDetails?.callBack || localStorage.getItem("pos_current_callBack") || "";
+        if (effCb) {
+          localStorage.setItem(`order_callBack_${targetId}`, effCb);
+          sessionStorage.setItem(`order_callBack_${targetId}`, effCb);
+          if (contactNo) {
+            localStorage.setItem(`delivery_callBack_${contactNo}`, effCb);
+            sessionStorage.setItem(`delivery_callBack_${contactNo}`, effCb);
+          }
+        }
 
         const shouldPrintKot = Boolean(shouldPrint);
         if (shouldPrintKot) {
@@ -373,6 +402,7 @@ export const usePosCartActions = () => {
       }
     } finally {
       setOrderLoading(false);
+      isSubmittingOrderRef.current = false;
     }
   };
 
@@ -765,6 +795,7 @@ export const usePosCartActions = () => {
     waiterName,
     waiterId,
     orderLoading,
+    setOrderLoading,
     orderError,
     editingOrderId,
     voidProducts,

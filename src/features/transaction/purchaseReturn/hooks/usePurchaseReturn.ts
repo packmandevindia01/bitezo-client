@@ -863,7 +863,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
-  // When user changes unit on a line — dynamically convert qty/foc and fetch updated cost for that product+unit combination
+  // When user changes unit on a line â€” dynamically convert qty/foc and fetch updated cost for that product+unit combination
   const handleUnitChange = useCallback(async (index: number, unitId: string) => {
     const oldUnitId = methods.getValues(`items.${index}.unit`);
     const currentQty = toNumber(methods.getValues(`items.${index}.qty`));
@@ -999,7 +999,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       handleReset();
     }
   };
-  // Set a single paymode as the full payment — no modal needed
+  // Set a single paymode as the full payment â€” no modal needed
   const handleSinglePayment = useCallback((paymodeId: number, paymodeName: string, grandTotal: number) => {
     setPayments([{
       mode: paymodeName.toLowerCase(),
@@ -1095,12 +1095,12 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
     try {
       const paymentsList = (data.payments && data.payments.length > 0) ? data.payments : watchedPayments;
-      const rootPaymodeId = (paymentsList && paymentsList.length > 1 && selectedPaymodeId === (multiPayId || 3))
+      const rootPaymodeId = (selectedPaymodeId === (multiPayId || 3) || selectedPaymodeId === 3 || (paymentsList && paymentsList.length > 1))
         ? (multiPayId || 3)
         : (selectedPaymodeId || (paymentsList?.[0]?.paymodeId ? Number(paymentsList[0].paymodeId) : 1));
 
       const computedPaymodes = (() => {
-        if (paymentsList && paymentsList.length > 0) {
+        if (rootPaymodeId === 3 && paymentsList && paymentsList.length > 0) {
           const map = new Map<number, number>();
           for (const p of paymentsList as any[]) {
             const pid = Number(p.paymodeId) || selectedPaymodeId || 1;
@@ -1112,12 +1112,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
           }));
           if (list.length > 0) return list;
         }
-        return [
-          {
-            paymodeId: selectedPaymodeId || 1,
-            amount: Number(totals.grandTotal.toFixed(decimalPart))
-          }
-        ];
+        return [];
       })();
 
       const payload: any = {

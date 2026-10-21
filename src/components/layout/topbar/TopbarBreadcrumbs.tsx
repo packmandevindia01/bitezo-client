@@ -46,6 +46,8 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/reports/product-wise-margin": "Product Wise Margin Report",
     "/dashboard/reports/supplier-statement": "Supplier Statement",
     "/dashboard/reports/customer-statement": "Customer Statement",
+    "/dashboard/reports/supplier-balance": "Supplier Balance",
+    "/dashboard/reports/customer-balance": "Customer Balance",
     "/dashboard/reports/all-transaction": "All Transaction Report",
     "/dashboard/users": "Users",
     "/dashboard/user-roles": "User Roles",

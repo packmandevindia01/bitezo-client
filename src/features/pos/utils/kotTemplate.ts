@@ -200,7 +200,6 @@ export const generateKotHtml = async (
     || (rawOrderType ? rawOrderType.replace(/([A-Z])/g, " $1").trim().toUpperCase() : "DINE IN");
   const isDineIn = orderTypeStr === "DINE IN";
   const isDelivery = orderTypeStr === "DELIVERY" || Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
-  const isDriveThru = orderTypeStr === "DRIVE THRU";
 
   const isKotArabic = data.kotArabic ?? isKotArabicEnabled();
 
@@ -653,13 +652,24 @@ export const generateKotHtml = async (
   if (isDineIn) {
     metaHtml += metaRow("Section", data.section, "Table", data.table);
   }
-  if (!isDelivery && !isDriveThru) {
-    if (data.vehicleNo && data.customerName) {
-      metaHtml += metaRow("Vehicle", data.vehicleNo, "Customer", data.customerName);
-    } else if (data.customerName) {
-      metaHtml += metaRow("Customer", data.customerName, "", "");
-    } else if (data.vehicleNo) {
-      metaHtml += metaRow("Vehicle", data.vehicleNo, "", "");
+  if (!isDelivery) {
+    if (data.customerName) {
+      metaHtml += `
+        <tr>
+          <td colspan="2" style="width: 100%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
+            <span style="font-weight: bold;">${metaLabel("Customer")} :</span> <span style="font-weight: normal;">${data.customerName}</span>
+          </td>
+        </tr>
+      `;
+    }
+    if (data.vehicleNo) {
+      metaHtml += `
+        <tr>
+          <td colspan="2" style="width: 100%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
+            <span style="font-weight: bold;">${metaLabel("Vehicle")} :</span> <span style="font-weight: normal;">${data.vehicleNo}</span>
+          </td>
+        </tr>
+      `;
     }
   }
 

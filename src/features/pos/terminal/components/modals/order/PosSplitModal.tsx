@@ -427,13 +427,16 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const lineCalc = result.lines[index];
       const pId = item.detail?.productId ?? item.detail?.ProductId ?? item.detail?.itemId ?? item.detail?.ItemId;
 
+      const exclPrice = roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item));
+      const lineNet = roundCalc(lineCalc?.lineNetAmount ?? (exclPrice * item.currentQty + (lineCalc?.vatAmount || 0)));
+
       return {
         ...item.detail,
         mapId: newMapId,
         productId: pId,
         qty: item.currentQty,
-        price: roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item)),
-        netAmount: roundCalc(lineCalc?.mainNetAmount ?? lineCalc?.lineTotal ?? 0),
+        price: exclPrice,
+        netAmount: lineNet,
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
         levy: roundCalc(lineCalc?.mainLevy ?? lineCalc?.levy ?? 0),
@@ -469,7 +472,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         guestNo: originalOrder?.guestNo || 0,
         serviceCharge: roundCalc(result.summary.totalServiceCharge),
         levy: roundCalc(result.summary.totalLevy),
-        vatExclAmount: roundCalc(result.summary.subtotal),
+        vatExclAmount: roundCalc(result.summary.vatExclAmount),
         vatAmount: roundCalc(result.summary.tax),
         netAmount: roundCalc(result.summary.total)
       },

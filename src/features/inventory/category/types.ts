@@ -58,6 +58,7 @@ export interface CategoryFormState {
   posStatus: boolean;
   colorCode: string;
   branchAllocations: BranchAllocation[];
+  isAllBranches: boolean;
   menuIds: number[];
   imageFile?: File;
   image?: string; // Preview URL
@@ -78,6 +79,7 @@ export interface CreateCategoryPayload {
   colorCode: string;
   createdAt: string;
   branchIds: BranchAllocation[];
+  isAllBranches?: boolean;
   menuIds: number[];
   imageFile?: File;
 }
@@ -92,6 +94,7 @@ export interface UpdateCategoryPayload {
   colorCode: string;
   updatedAt: string;
   branchIds: BranchAllocation[];
+  isAllBranches?: boolean;
   menuIds: number[];
   imageFile?: File;
   isImageChanged?: boolean;

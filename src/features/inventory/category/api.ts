@@ -8,7 +8,7 @@ import type {
   UpdateCategoryPayload,
 } from "./types";
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
   try {
@@ -33,7 +33,11 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
       throw new Error(msg || envelope.message || "An unexpected error occurred.");
     }
 
-    return envelope.data;
+    if (envelope && typeof envelope === "object" && "data" in envelope && (envelope as any).data !== undefined) {
+      return (envelope as any).data;
+    }
+
+    return envelope as unknown as T;
   } catch (error: any) {
     if (error.response?.data) {
       if (error.response.status !== 403) {
@@ -81,13 +85,13 @@ export const getCategories = async (
       id: item.catId ?? item.id,
       code: item.catCode ?? item.code,
       name: item.catName ?? item.name,
-    isActive: item.isActive === "Active" || item.isActive === true,
-    posStatus: item.posStatus !== undefined ? (item.posStatus === true || item.posStatus === "Active" || item.posStatus === 1) : true,
-    arabic: item.arabic || "",
-    colorCode: item.colorCode || "red",
-    imageUrl: item.imageUrl || item.imagePath || item.categoryImage || item.fileUrl || item.filePath || item.image || "",
-    branches: [],
-  }));
+      isActive: item.isActive === "Active" || item.isActive === true,
+      posStatus: item.posStatus !== undefined ? (item.posStatus === true || item.posStatus === "Active" || item.posStatus === 1) : true,
+      arabic: item.arabic || "",
+      colorCode: item.colorCode || "red",
+      imageUrl: item.imageUrl || item.imagePath || item.categoryImage || item.fileUrl || item.filePath || item.image || "",
+      branches: [],
+    }));
   } catch (error: any) {
     if (error?.response?.status === 403 || error?.statusCode === 403) {
       return [];
@@ -137,13 +141,17 @@ export const createCategory = async (
     formData.append("ImageFile", dummyFile);
   }
 
-  const branchList = Array.isArray(payload.branchIds)
-    ? payload.branchIds.map((branch) => ({
-        branchId: Number(branch.branchId),
-        colorCode: branch.colorCode || "red",
-      }))
-    : [];
-  formData.append("BranchIdsJson", JSON.stringify(branchList));
+  // When setting All Branches, BranchIdsJson must be empty ("") so backend moves/assigns category to all branches
+  const isAll = payload.isAllBranches === true || !payload.branchIds || payload.branchIds.length === 0;
+  if (isAll) {
+    formData.append("BranchIdsJson", "");
+  } else {
+    const branchList = payload.branchIds.map((branch) => ({
+      branchId: Number(branch.branchId),
+      colorCode: branch.colorCode || "red",
+    }));
+    formData.append("BranchIdsJson", JSON.stringify(branchList));
+  }
 
   const menuIds = Array.isArray(payload.menuIds) && payload.menuIds.length > 0 ? payload.menuIds : [1];
   menuIds.forEach((menuId, idx) => {
@@ -167,6 +175,15 @@ export const createCategory = async (
     axiosInstance.post<ApiResponse<{ id: number }>>("/category", formData)
   );
   
+  const createdId = (data as any)?.id ?? (data as any)?.catId ?? (typeof data === "number" ? data : undefined);
+  if (payload.imageFile instanceof File && createdId) {
+    try {
+      await uploadCategoryImage(createdId, payload.imageFile);
+    } catch (imgErr) {
+      console.warn("[categoryApi] uploadCategoryImage fallback warning:", imgErr);
+    }
+  }
+
   return {
     data,
     isSuccess: true,
@@ -203,13 +220,17 @@ export const updateCategory = async (
     formData.append("ImageFile", dummyFile);
   }
 
-  const branchList = Array.isArray(payload.branchIds)
-    ? payload.branchIds.map((branch) => ({
-        branchId: Number(branch.branchId),
-        colorCode: branch.colorCode || "red",
-      }))
-    : [];
-  formData.append("BranchIdsJson", JSON.stringify(branchList));
+  // When setting All Branches, BranchIdsJson must be empty ("") so backend moves/assigns category to all branches
+  const isAll = payload.isAllBranches === true || !payload.branchIds || payload.branchIds.length === 0;
+  if (isAll) {
+    formData.append("BranchIdsJson", "");
+  } else {
+    const branchList = payload.branchIds.map((branch) => ({
+      branchId: Number(branch.branchId),
+      colorCode: branch.colorCode || "red",
+    }));
+    formData.append("BranchIdsJson", JSON.stringify(branchList));
+  }
 
   const menuIds = Array.isArray(payload.menuIds) && payload.menuIds.length > 0 ? payload.menuIds : [1];
   menuIds.forEach((menuId, idx) => {
@@ -234,6 +255,14 @@ export const updateCategory = async (
     axiosInstance.put<ApiResponse<{ id: number }>>(url, formData)
   );
   
+  if (isImageChanged && payload.imageFile instanceof File && id) {
+    try {
+      await uploadCategoryImage(id, payload.imageFile);
+    } catch (imgErr) {
+      console.warn("[categoryApi] uploadCategoryImage fallback warning:", imgErr);
+    }
+  }
+
   return {
     data,
     isSuccess: true,
@@ -250,9 +279,7 @@ export const deleteCategory = async (id: number): Promise<unknown> => {
   );
 };
 
-
-
-// â”€â”€ Branch endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Branch endpoint ────────────────────────────────────────────────────────────
 
 interface BranchListItem {
   branchId: number;

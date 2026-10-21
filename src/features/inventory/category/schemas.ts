@@ -13,6 +13,7 @@ export const categoryFormSchema = z.object({
       colorCode: z.string()
     })
   ).default([]),
+  isAllBranches: z.boolean().default(true),
   menuIds: z.array(z.number()).default([]),
   imageFile: z.any().optional(), // File | undefined
   image: z.string().optional(),

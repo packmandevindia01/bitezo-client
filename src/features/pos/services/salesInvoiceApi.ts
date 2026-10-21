@@ -1,5 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
+import { sanitizeTaxExclusiveDetail, roundCalc } from "../terminal/utils/billing";
 
 export interface ApiResponse<T = any> {
   isSuccess: boolean;
@@ -122,6 +123,21 @@ export const salesInvoiceApi = {
         const now = new Date();
         postPayload.createdAt = now.toISOString();
 
+        if (postPayload.details && Array.isArray(postPayload.details)) {
+          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
+          postPayload.details = postPayload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
+          const totalDetailGross = postPayload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+          const totalModifierGross = Array.isArray(postPayload.modifiers)
+            ? postPayload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
+            : 0;
+          const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+          const lineDiscounts = postPayload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
+          const totalDisc = roundCalc(Math.max(0, Number(postPayload.discAmount || 0), lineDiscounts));
+          postPayload.discAmount = totalDisc;
+          postPayload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+          postPayload.vatAmount = roundCalc(postPayload.details.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
+        }
+
         if (!postPayload.transDate || postPayload.transDate.includes("T00:00:00") || !postPayload.transDate.includes("T") || attempt > 0) {
           const datePart = (postPayload.transDate || "").split("T")[0];
           if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
@@ -166,6 +182,35 @@ export const salesInvoiceApi = {
         ? (payload.voucherDate.includes("T") ? payload.voucherDate.split("T")[0] : payload.voucherDate)
         : new Date().toISOString().split("T")[0];
 
+      const cleanedDetails = (payload.details || []).map((d: any) => {
+        // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
+        const sanitized = d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d);
+        return {
+          productId: Number(sanitized.productId || 0),
+          unitId: Number(sanitized.unitId || 1),
+          vatId: Number(sanitized.vatId || 1),
+          qty: Number(sanitized.qty || 0),
+          price: sanitized.price,
+          discPer: Number(sanitized.discPer || 0),
+          discAmount: sanitized.discAmount,
+          serviceCharge: sanitized.serviceCharge,
+          levy: sanitized.levy,
+          vatAmount: sanitized.vatAmount,
+          netAmount: sanitized.netAmount,
+          baseQty: Number(sanitized.baseQty || sanitized.qty || 1),
+          mapId: Number(sanitized.mapId || 0),
+          complimentaryStatus: Boolean(sanitized.complimentaryStatus),
+        };
+      });
+
+      const totalDetailGross = cleanedDetails.reduce((sum, d) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+      const totalModifierGross = (payload.modifiers || []).reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
+      const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+      const lineDiscounts = cleanedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
+      const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
+      const calcVatExcl = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+      const calcVatAmt = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+
       const putPayload = {
         saleId: numSaleId,
         customerId: Number(payload.customerId || 1),
@@ -174,31 +219,16 @@ export const salesInvoiceApi = {
         orderTypeId: Number(payload.orderTypeId || 1),
         orderId: Number(payload.orderId || 0),
         voucherDate: voucherDateStr,
-        discAmount: Number(payload.discAmount || 0),
+        discAmount: totalDisc,
         discPer: Number(payload.discPer || 0),
         serviceCharge: Number(payload.serviceCharge || 0),
         levy: Number(payload.levy || 0),
-        vatExclAmount: Number(payload.vatExclAmount || 0),
-        vatAmount: Number(payload.vatAmount || 0),
+        vatExclAmount: calcVatExcl,
+        vatAmount: calcVatAmt,
         deliveryCharge: Number(payload.deliveryCharge || 0),
         netAmount: Number(payload.netAmount || 0),
         updateAt: new Date().toISOString(),
-        details: (payload.details || []).map((d: any) => ({
-          productId: Number(d.productId || 0),
-          unitId: Number(d.unitId || 1),
-          vatId: Number(d.vatId || 1),
-          qty: Number(d.qty || 0),
-          price: Number(d.price || 0),
-          discPer: Number(d.discPer || 0),
-          discAmount: Number(d.discAmount || 0),
-          serviceCharge: Number(d.serviceCharge || 0),
-          levy: Number(d.levy || 0),
-          vatAmount: Number(d.vatAmount || 0),
-          netAmount: Number(d.netAmount || 0),
-          baseQty: Number(d.baseQty || d.qty || 1),
-          mapId: Number(d.mapId || 0),
-          complimentaryStatus: Boolean(d.complimentaryStatus),
-        })),
+        details: cleanedDetails,
         paymodes: Number(payload.paymodeId) === 3
           ? (payload.paymodes || []).map((p: any) => ({
               paymodeId: Number(p.paymodeId || 1),

@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
-import { getPriceView } from "../terminal/utils/billing";
+import { getPriceView, sanitizeTaxExclusiveDetail, roundCalc } from "../terminal/utils/billing";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -31,6 +31,21 @@ export const orderApi = {
         }
 
         payload.createdAt = new Date().toISOString();
+
+        // Ensure details have tax-exclusive price and tax-inclusive netAmount
+        if (payload.details && Array.isArray(payload.details)) {
+          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
+          payload.details = payload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
+          const totalDetailGross = payload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+          const totalModifierGross = Array.isArray(payload.modifiers)
+            ? payload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
+            : 0;
+          const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+          const lineDiscounts = payload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
+          const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
+          payload.discAmount = totalDisc;
+          payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+        }
 
         // Remove fields not in CreateKotOrderDto
         delete (payload as any).orderId;
@@ -145,6 +160,20 @@ export const orderApi = {
     delete (payload as any).transDate;
     delete (payload as any).callBack;
 
+    if (payload.details && Array.isArray(payload.details)) {
+      // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
+      payload.details = payload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
+      const totalDetailGross = payload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+      const totalModifierGross = Array.isArray(payload.modifiers)
+        ? payload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
+        : 0;
+      const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+      const lineDiscounts = payload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
+      const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
+      payload.discAmount = totalDisc;
+      payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+    }
+
     return unwrap<MenuOrderResponse>(
       axiosInstance.put(`/menu/order/${orderId}`, payload)
     );
@@ -163,6 +192,25 @@ export const orderApi = {
     } else {
       postPayload.voucherDate = new Date().toISOString().split("T")[0];
     }
+    if (postPayload.orders && Array.isArray(postPayload.orders)) {
+      postPayload.orders = postPayload.orders.map((ord: any) => {
+        if (ord.details && Array.isArray(ord.details)) {
+          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
+          ord.details = ord.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
+          const totalDetailGross = ord.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+          const totalModifierGross = Array.isArray(ord.modifiers)
+            ? ord.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
+            : 0;
+          const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+          const lineDiscounts = ord.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
+          const totalDisc = roundCalc(Math.max(0, Number(ord.discAmount || 0), lineDiscounts));
+          ord.discAmount = totalDisc;
+          ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+        }
+        return ord;
+      });
+    }
+
     return unwrap<MenuOrderResponse>(
       axiosInstance.post("/order-split", postPayload)
     );

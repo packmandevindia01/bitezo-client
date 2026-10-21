@@ -30,6 +30,9 @@ const formatDateTime = (dateStr: string) => {
 
 export const getReportCellValue = (row: any, col: string): number => {
   const norm = col.toLowerCase().replace(/[\s_]/g, '');
+  if (norm === 'openingbalance' || norm === 'openingbal') {
+    return Number(row['Opening Balance'] ?? row['OpeningBal'] ?? row.openingBal ?? row.Opening_Balance ?? 0);
+  }
   if (norm === 'payin') {
     return Number(row['Pay In'] ?? row['PayIn'] ?? row.payIn ?? row.Pay_In ?? 0);
   }
@@ -57,6 +60,10 @@ export const DayEndReportPage = () => {
   const dynamicColumns = useMemo(() => {
     const rawCols = (report.columns || []).filter((c) => !excludedColumns.includes(c));
 
+    const hasOpeningBal = rawCols.some(c => {
+      const n = c.toLowerCase().replace(/[\s_]/g, '');
+      return n === 'openingbalance' || n === 'openingbal';
+    });
     const hasPayIn = rawCols.some(c => c.toLowerCase().replace(/[\s_]/g, '') === 'payin');
     const hasPayOut = rawCols.some(c => c.toLowerCase().replace(/[\s_]/g, '') === 'payout');
 
@@ -64,6 +71,7 @@ export const DayEndReportPage = () => {
     const hasTotal = rawCols.some(c => c.toLowerCase() === 'total');
 
     const result = [...otherCols];
+    if (!hasOpeningBal) result.push("Opening Balance");
     if (!hasPayIn) result.push("Pay In");
     if (!hasPayOut) result.push("Pay Out");
     if (hasTotal) result.push("Total");

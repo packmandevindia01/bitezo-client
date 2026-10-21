@@ -90,13 +90,16 @@ export const usePosCheckoutFlow = ({
   const settleShouldPrintRef = useRef<boolean>(false);
   const settlementCashChangeRef = useRef<number>(0);
   const settlementEmployeeIdRef = useRef<number | null>(null);
+  const isOrderSubmittingRef = useRef<boolean>(false);
 
   const setSettlementEmployeeId = useEvent((empId: number | null) => {
     settlementEmployeeIdRef.current = empId;
   });
 
   const submitOrderForEmployee = useEvent(async (employeeId: number, shouldPrint: boolean = false) => {
-    if (!status) return { success: false, orderId: null };
+    if (!status || isOrderSubmittingRef.current) return { success: false, orderId: null };
+    isOrderSubmittingRef.current = true;
+    try {
     const result = await submitOrder({
       dayId: status.dayId,
       shiftId: status.shiftId,
@@ -122,6 +125,9 @@ export const usePosCheckoutFlow = ({
       return { success: true, isEmployeeNotFound: false, orderId: Number(result) };
     }
     return { success: false, isEmployeeNotFound: false, orderId: null };
+    } finally {
+      isOrderSubmittingRef.current = false;
+    }
   });
 
   const finalizeSettlement = useEvent(async (shouldPrint: boolean, payloadToPrint?: any) => {
@@ -378,9 +384,9 @@ export const usePosCheckoutFlow = ({
         let origOrderMaster: any = null;
         let detailsData: any[] | null = null;
         let modifiersData: any[] = [];
+        const targetOrderId = orderPayload.orderId || editingOrderId || 0;
 
         try {
-          const targetOrderId = orderPayload.orderId || editingOrderId || 0;
           let saleRes: any = null;
 
           if (finalSaleId > 0 && targetOrderId > 0) {
@@ -660,9 +666,14 @@ export const usePosCheckoutFlow = ({
                 }
               }
 
-              const itemVat = Number(d.vatAmount ?? d.VatAmount ?? cartMatch?.vatAmount ?? 0);
+              let itemVat = Number(d.vatAmount ?? d.VatAmount ?? d.vatAmt ?? d.VatAmt ?? d.taxAmount ?? d.TaxAmount ?? cartMatch?.vatAmount ?? 0);
+              if (itemVat <= 0 && amount > lineBase) {
+                itemVat = Number((amount - lineBase).toFixed(4));
+              }
               const lineTotal = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? lineBase;
-              const baseAmount = cartMatch?.baseAmount !== undefined ? cartMatch.baseAmount : (itemVat > 0 ? (lineTotal - itemVat) : (price * qty));
+              const baseAmount = cartMatch?.baseAmount !== undefined && cartMatch.baseAmount <= lineTotal
+                ? cartMatch.baseAmount
+                : (itemVat > 0 ? Math.max(0, lineTotal - itemVat) : (price * qty));
 
               return {
                 productId: dPid,
@@ -693,7 +704,17 @@ export const usePosCheckoutFlow = ({
 
         const isDeliveryOrder = mappedOrderType.toLowerCase().includes("delivery");
         const finalContactNo = masterData?.mobileNo || masterData?.contactNo || orderPayload.contactNo || "";
-        const finalCallBack = isDeliveryOrder ? (masterData?.callBack || masterData?.callback || (orderPayload as any)?.callBack || "") : "";
+        const finalCallBack = isDeliveryOrder ? (
+          masterData?.callBack || 
+          masterData?.callback || 
+          (orderPayload as any)?.callBack || 
+          (targetOrderId ? localStorage.getItem(`order_callBack_${targetOrderId}`) : null) ||
+          (targetOrderId ? sessionStorage.getItem(`order_callBack_${targetOrderId}`) : null) ||
+          (finalContactNo ? localStorage.getItem(`delivery_callBack_${finalContactNo}`) : null) ||
+          (finalContactNo ? sessionStorage.getItem(`delivery_callBack_${finalContactNo}`) : null) ||
+          localStorage.getItem("pos_current_callBack") ||
+          ""
+        ) : "";
         const finalCustomerName = masterData?.deliveryCustomerName || masterData?.vehicleCustomerName || masterData?.customerName || (orderPayload as any).deliveryCustomerName || orderPayload.customerName || (orderPayload as any).vehicleCustomerName || (isDeliveryOrder ? "DELIVERY CUSTOMER" : "WALK IN");
         const finalFlatNo = isDeliveryOrder ? (masterData?.flatNo || masterData?.flat || masterData?.flatNumber || (orderPayload as any).flatNo || "") : "";
         const finalBuildingNo = isDeliveryOrder ? (masterData?.buildingNo || masterData?.building || masterData?.buildingNumber || (orderPayload as any).buildingNo || "") : "";

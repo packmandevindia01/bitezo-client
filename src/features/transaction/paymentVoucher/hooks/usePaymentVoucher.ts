@@ -406,7 +406,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
           amount: Number(Number(p.amount).toFixed(decimalPart)),
         }));
       } else {
-        paymodesPayload = [{ paymodeId: selectedPaymodeId, amount: voucherAmount }];
+        paymodesPayload = [];
       }
 
       if (transId) {

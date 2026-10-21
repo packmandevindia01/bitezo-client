@@ -471,7 +471,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       const decimalPart = getDecimalPart();
       const selectedPaymodeId = Number(data.paymodeId) || 1;
 
-      // Build paymodes: NEVER empty
+      // Build paymodes: only populated when paymode is 3 (Multi), otherwise empty
       const paymodesPayload: ReceiptAgainstPaymodePayload[] = (() => {
         if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
           return data.paymodes.map(p => ({
@@ -479,12 +479,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
             amount: Number(Number(p.amount || 0).toFixed(decimalPart))
           }));
         }
-        return [
-          {
-            paymodeId: selectedPaymodeId,
-            amount: Number(totalAmount.toFixed(decimalPart))
-          }
-        ];
+        return [];
       })();
 
       const detailsPayload: ReceiptAgainstDetailPayload[] = data.details.map(d => ({

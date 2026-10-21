@@ -629,7 +629,7 @@ export const calculateOrder = (
   const levy = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.levy, 0)));
   const charges = roundCalc(serviceCharge + levy);
   const vatAmount = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.vatAmount, 0)));
-  const vatExclAmount = subtotal;
+  const vatExclAmount = roundCalc(Math.max(0, subtotal - totalDiscount));
   const itemCount = calculatedLines.reduce((sum, l) => sum + l.quantity, 0);
   const totalExtras = roundCalc(calculatedLines.reduce((sum, l) => sum + l.extrasTotal, 0));
 
@@ -678,32 +678,19 @@ export const getTaxExclusivePrice = (
 ): number => {
   if (!item) return 0;
 
-  // If already flagged or stored as tax-exclusive, return immediately
-  if (item.isPriceTaxExclusive) {
+  // 1. If already flagged or stored as tax-exclusive, return immediately
+  if (item.isPriceTaxExclusive && item.price !== undefined && !isNaN(Number(item.price)) && Number(item.price) > 0) {
     return roundCalc(item.price, CALC_PRECISION);
   }
-  if (item.basePrice !== undefined && item.basePrice !== null && !isNaN(Number(item.basePrice))) {
+  if (item.basePrice !== undefined && item.basePrice !== null && !isNaN(Number(item.basePrice)) && Number(item.basePrice) > 0) {
     return roundCalc(item.basePrice, CALC_PRECISION);
   }
-  if (item.exclusivePrice !== undefined && item.exclusivePrice !== null && !isNaN(Number(item.exclusivePrice))) {
+  if (item.exclusivePrice !== undefined && item.exclusivePrice !== null && !isNaN(Number(item.exclusivePrice)) && Number(item.exclusivePrice) > 0) {
     return roundCalc(item.exclusivePrice, CALC_PRECISION);
   }
 
   const rawPrice = Number(item.price ?? item.product?.price ?? 0);
   if (!rawPrice || isNaN(rawPrice)) return 0;
-
-  // If line math shows price is already tax-exclusive: (lineBase - disc) + vatAmt == netAmt
-  if (item.netAmount !== undefined && item.vatAmount !== undefined && Number(item.vatAmount) > 0.001) {
-    const qty = Number(item.qty ?? item.quantity ?? 1);
-    const lineBase = rawPrice * qty;
-    const discAmt = Number(item.discAmount ?? 0);
-    const vatAmt = Number(item.vatAmount);
-    const netAmt = Number(item.netAmount);
-    const remainingBase = lineBase - discAmt;
-    if (Math.abs(netAmt - (remainingBase + vatAmt)) < 0.02) {
-      return roundCalc(rawPrice, CALC_PRECISION);
-    }
-  }
 
   const isVatEnabled = getVatStatus();
   if (!isVatEnabled) return roundCalc(rawPrice, CALC_PRECISION);
@@ -715,23 +702,119 @@ export const getTaxExclusivePrice = (
     ? Number(item.vatValue)
     : (item.vatRate !== undefined && item.vatRate !== null)
     ? Number(item.vatRate)
-    : (resolvedConfig.vatRate * 100);
+    : (resolvedConfig.vatRate > 1 ? resolvedConfig.vatRate : (resolvedConfig.vatRate > 0 ? resolvedConfig.vatRate * 100 : 10));
 
-  const activeVatRate = rawVatRate / 100;
+  const activeVatRate = rawVatRate > 1 ? rawVatRate / 100 : (rawVatRate > 0 ? rawVatRate : 0.10);
   if (activeVatRate <= 0) return roundCalc(rawPrice, CALC_PRECISION);
 
+  const qty = Number(item.qty ?? item.quantity ?? 1);
+  const vatAmt = Number(item.vatAmount ?? 0);
+  const discAmt = Number(item.discAmount ?? item.discountAmount ?? 0);
+  const sc = Number(item.serviceCharge ?? item.sc ?? 0);
+  const levy = Number(item.levy ?? 0);
+  const netAmt = Number(item.netAmount ?? item.lineNetAmount ?? 0);
+
+  // 2. Mathematical detection from line values if vatAmount > 0
+  if (vatAmt > 0.0001 && qty > 0) {
+    const lineBase = rawPrice * qty;
+    const remainingBase = lineBase - discAmt + sc + levy;
+
+    // Check A: Is rawPrice ALREADY tax-exclusive?
+    // If exclusive, remainingBase * activeVatRate == vatAmt
+    if (Math.abs(remainingBase * activeVatRate - vatAmt) < 0.03) {
+      return roundCalc(rawPrice, CALC_PRECISION);
+    }
+
+    // Check B: Is rawPrice INCLUSIVE?
+    // If inclusive, (remainingBase / (1 + activeVatRate)) * activeVatRate == vatAmt
+    // OR netAmt matches remainingBase while vatAmt is on top
+    if (
+      Math.abs((remainingBase / (1 + activeVatRate)) * activeVatRate - vatAmt) < 0.03 ||
+      (netAmt > 0 && Math.abs(netAmt - remainingBase) < 0.03)
+    ) {
+      return roundCalc(rawPrice / (1 + activeVatRate), CALC_PRECISION);
+    }
+  }
+
+  // 3. Fallback based on inclusivity flag or system config
   const isInclusive =
     item.isIncl === true ? true :
     item.isIncl === false ? false :
     item.priceIsIncl === true ? true :
     item.priceIsIncl === false ? false :
-    resolvedConfig.vatType === 'Inclusive';
+    item.product?.isIncl === true ? true :
+    item.product?.isIncl === false ? false :
+    item.product?.priceIsIncl === true ? true :
+    item.product?.priceIsIncl === false ? false :
+    resolvedConfig.vatType === 'Inclusive' ||
+    getPriceView() === 'Inclusive';
 
   if (isInclusive) {
     return roundCalc(rawPrice / (1 + activeVatRate), CALC_PRECISION);
   }
 
   return roundCalc(rawPrice, CALC_PRECISION);
+};
+
+/**
+ * Sanitizes an order or sales invoice detail line to ensure `price`
+ * is STRICTLY tax-exclusive, while `netAmount` includes tax (net payable amount).
+ */
+export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
+  const qty = Number(d.qty ?? d.quantity ?? 1);
+  const discAmt = roundCalc(Number(d.discAmount ?? d.DiscAmount ?? 0));
+  const sc = roundCalc(Number(d.serviceCharge ?? d.ServiceCharge ?? 0));
+  const levy = roundCalc(Number(d.levy ?? d.Levy ?? 0));
+  const vatAmt = roundCalc(Number(d.vatAmount ?? d.VatAmount ?? 0));
+  const rawNet = Number(d.netAmount ?? d.NetAmount ?? 0);
+  const rawPrice = Number(d.price ?? d.basePrice ?? 0);
+
+  // 1. If line already has known basePrice or exclusivePrice, use it
+  let exclPrice = d.basePrice ?? d.exclusivePrice;
+
+  // 2. If line has gross netAmount matching (rawPrice * qty) and vatAmount > 0:
+  // e.g. rawPrice = 3, qty = 2, rawNet = 6, vatAmt = 0.545 -> rawPrice is 100% INCLUSIVE!
+  if (!exclPrice && vatAmt > 0 && qty > 0) {
+    const grossLineBase = rawPrice * qty - discAmt + sc + levy;
+    if (Math.abs(grossLineBase - rawNet) < 0.05 || Math.abs((rawPrice * qty) - rawNet) < 0.05) {
+      // rawPrice is gross/inclusive! Compute strictly exclusive price:
+      const exclLineBase = Math.max(0, rawNet - vatAmt - sc - levy + discAmt);
+      exclPrice = roundCalc(exclLineBase / qty, CALC_PRECISION);
+    }
+  }
+
+  // 3. Fallback to getTaxExclusivePrice
+  if (!exclPrice) {
+    exclPrice = roundCalc(getTaxExclusivePrice(d, config), CALC_PRECISION);
+  } else {
+    exclPrice = roundCalc(exclPrice, CALC_PRECISION);
+  }
+
+  // Strictly tax-exclusive line base: (exclPrice * qty) - discAmt + sc + levy
+  const exclLineBase = roundCalc(Math.max(0, (exclPrice * qty) - discAmt + sc + levy));
+
+  // Line netAmount includes tax: (exclLineBase + vatAmt)
+  const lineNetAmountWithTax = roundCalc(Math.max(0, exclLineBase + vatAmt));
+
+  // If rawNet was already inclusive (matching exclLineBase + vatAmt), use rawNet
+  const currencyDecimals = getDecimalPart();
+  const finalNetAmount = (rawNet > 0 && Math.abs(rawNet - lineNetAmountWithTax) < 0.05)
+    ? roundCalc(rawNet, currencyDecimals)
+    : roundCalc(lineNetAmountWithTax, currencyDecimals);
+
+  return {
+    ...d,
+    qty,
+    price: exclPrice,
+    basePrice: exclPrice,
+    exclusivePrice: exclPrice,
+    isPriceTaxExclusive: true,
+    discAmount: discAmt,
+    serviceCharge: sc,
+    levy,
+    vatAmount: roundCalc(vatAmt, currencyDecimals),
+    netAmount: finalNetAmount,
+  };
 };
 
 /**

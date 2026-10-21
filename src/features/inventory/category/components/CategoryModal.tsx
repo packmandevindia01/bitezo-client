@@ -78,6 +78,7 @@ const CategoryModal = ({
   const image = watch("image");
   const colorCode = watch("colorCode");
   const branchAllocations = watch("branchAllocations") || [];
+  const isAllBranches = watch("isAllBranches") ?? true;
   const menuIds = watch("menuIds") || [];
   const isActive = watch("isActive");
   const posStatus = watch("posStatus");
@@ -110,8 +111,9 @@ const CategoryModal = ({
             form.setValue("menuIds", fallbackMenus.length > 0 ? fallbackMenus : [1], { shouldValidate: true });
           }
 
+          const isAll = form.getValues("isAllBranches");
           const currentBranches = form.getValues("branchAllocations");
-          if (!currentBranches || currentBranches.length === 0) {
+          if (!isAll && (!currentBranches || currentBranches.length === 0)) {
             const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branchOptions[0]?.id ? Number(branchOptions[0].id) : 1);
             form.setValue("branchAllocations", [{ branchId: activeBranchId, colorCode: colorCode || "red" }], { shouldValidate: true });
           }
@@ -135,14 +137,35 @@ const CategoryModal = ({
     }
   };
 
+  const handleToggleAllBranches = (checked: boolean) => {
+    setValue("isAllBranches", checked, { shouldValidate: true, shouldDirty: true });
+    if (checked) {
+      const allAllocations = branchOptions.map((b) => ({
+        branchId: Number(b.id),
+        colorCode: colorCode || "red",
+      }));
+      setValue("branchAllocations", allAllocations, { shouldValidate: true, shouldDirty: true });
+    } else {
+      const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branchOptions[0]?.id ? Number(branchOptions[0].id) : 1);
+      setValue("branchAllocations", [{ branchId: activeBranchId, colorCode: colorCode || "red" }], { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
   const onToggleBranch = (branchId: number) => {
     const bId = Number(branchId);
     const isAllocated = branchAllocations.some((b) => Number(b.branchId) === bId);
+    let nextAllocations: { branchId: number; colorCode: string }[];
     if (isAllocated) {
-      setValue("branchAllocations", branchAllocations.filter((b) => Number(b.branchId) !== bId), { shouldValidate: true, shouldDirty: true });
+      nextAllocations = branchAllocations.filter((b) => Number(b.branchId) !== bId);
+      setValue("branchAllocations", nextAllocations, { shouldValidate: true, shouldDirty: true });
+      setValue("isAllBranches", false, { shouldValidate: true, shouldDirty: true });
     } else {
       const defaultColor = colorCode || "red";
-      setValue("branchAllocations", [...branchAllocations, { branchId: bId, colorCode: defaultColor }], { shouldValidate: true, shouldDirty: true });
+      nextAllocations = [...branchAllocations, { branchId: bId, colorCode: defaultColor }];
+      setValue("branchAllocations", nextAllocations, { shouldValidate: true, shouldDirty: true });
+      if (branchOptions.length > 0 && nextAllocations.length >= branchOptions.length) {
+        setValue("isAllBranches", true, { shouldValidate: true, shouldDirty: true });
+      }
     }
   };
 
@@ -271,8 +294,18 @@ const CategoryModal = ({
         <div className="flex-1 min-h-[350px]">
           {activeTab === "general" && (
             <div className="flex flex-col gap-6 lg:flex-row">
-              <div className="shrink-0">
+              <div className="shrink-0 w-full sm:w-56">
                 <ImageUploadPanel preview={image} onSelect={onImageSelect} />
+                {image && (
+                  <button
+                    type="button"
+                    onClick={() => onImageSelect(null)}
+                    className="mt-2 w-full py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl border border-red-200 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 size={14} />
+                    Remove Image
+                  </button>
+                )}
               </div>
 
               <div className="flex-1">
@@ -420,6 +453,18 @@ const CategoryModal = ({
                   />
                 </div>
               </div>
+              {/* All Branches Toggle */}
+              <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-gray-200 mb-3 shadow-sm shrink-0">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">All Branches</span>
+                  <span className="text-[10px] text-gray-500">Apply this category across all branches (leaves BranchIdsJson empty)</span>
+                </div>
+                <Checkbox
+                  checked={isAllBranches}
+                  onChange={(e) => handleToggleAllBranches(e.target.checked)}
+                />
+              </div>
+
               <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-2">
                 {filteredBranches.length === 0 ? (
                   <p className="text-[10px] text-gray-400">No branches available.</p>
@@ -427,7 +472,7 @@ const CategoryModal = ({
                   filteredBranches.map((branch) => {
                     const bId = Number((branch as any).id ?? (branch as any).branchId);
                     const allocation = branchAllocations.find((b) => Number(b.branchId) === bId);
-                    const active = !!allocation;
+                    const active = isAllBranches || !!allocation;
                     const branchColorHex = normalizeHexColor(allocation?.colorCode || colorCode);
 
                     return (
