@@ -14,12 +14,12 @@ import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../uti
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
 import { getVatStatus, roundCalc, getBillingConfig } from "../../../utils/billing";
-import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
+import { isBillArabicEnabled, formatItemDisplayName, cleanProductName } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
-import { getModifierTypeNameById } from "../../../../services/menuApi";
+import { getModifierTypeNameById, menuApi } from "../../../../services/menuApi";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 
@@ -376,6 +376,30 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           }
         }
 
+        // Ensure alternatives are fetched and cached for products in this order
+        const safeOrderTypeId = master?.orderTypeId || orderData?.orderTypeId || 1;
+        const detailsList = orderData?.detailsData || orderData?.details || [];
+        const pIds = Array.from(new Set(
+          detailsList
+            .map((d: any) => d.productId || d.ProductId || d.itemId || d.ItemId)
+            .filter(Boolean)
+        ));
+        if (pIds.length > 0) {
+          await Promise.all(
+            pIds.map(async (pId: any) => {
+              const key = `${pId}-${safeOrderTypeId}`;
+              if (!alternativesCache[key]) {
+                try {
+                  const alts = await menuApi.getAlternatives(Number(pId), safeOrderTypeId);
+                  if (alts && alts.length > 0) {
+                    alternativesCache[key] = alts;
+                  }
+                } catch {}
+              }
+            })
+          );
+        }
+
         setOrder(orderData);
       }
     } catch (err) {
@@ -530,7 +554,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         const modifiers = Array.from(dedupedModsMap.values());
 
         const qty = d.qty ?? d.Qty ?? 1;
-        const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
+        const amount = d.netAmount ?? d.NetAmount ?? (d.amount !== undefined && Number(d.amount) > 0 ? (Number(d.amount) + Number(d.vatAmount || 0)) : d.amount) ?? 0;
         const itemDisc = Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0);
         const rawPrice = d.price ?? d.Price;
         const price = (rawPrice !== undefined && Number(rawPrice) > 0)
@@ -625,8 +649,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         const itemLineNet = d.itemLineNetAmount || d.lineBase || (d.price || 0) * (d.qty || 1);
         const itemBase = d.baseAmount !== undefined ? d.baseAmount : (itemVat > 0 ? Math.max(0, itemLineNet - itemVat) : ((d.price || 0) * (d.qty || 1)));
 
-        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
-        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
+        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName || d.unitName || d.UnitName;
+        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic || d.unitArabic || d.UnitArabic;
         if (!resolvedVariantName && pId > 0 && uId > 0) {
           const allCachedAlts = Object.entries(alternativesCache)
             .filter(([k]) => k.startsWith(`${pId}-`))
@@ -635,8 +659,21 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
           );
           if (matchedAlt) {
-            resolvedVariantName = matchedAlt.altName;
-            resolvedVariantArabic = matchedAlt.altArabic;
+            resolvedVariantName = matchedAlt.altName || matchedAlt.unitName;
+            resolvedVariantArabic = matchedAlt.altArabic || matchedAlt.unitArabic;
+          }
+        }
+        if (!resolvedVariantName && pId > 0) {
+          const cachedProd = productCache?.[pId] || products.find((p: any) => (p.id || p.productId) === pId);
+          if (cachedProd) {
+            const unitsList = (cachedProd as any)?.units || (cachedProd as any)?.alternatives || [];
+            if (Array.isArray(unitsList) && uId > 0) {
+              const matchedUnit = unitsList.find((u: any) => Number(u.unitId ?? u.id) === uId);
+              if (matchedUnit) {
+                resolvedVariantName = matchedUnit.altName || matchedUnit.unitName || matchedUnit.name || "";
+                resolvedVariantArabic = matchedUnit.altArabic || matchedUnit.unitArabic || matchedUnit.arabicName || "";
+              }
+            }
           }
         }
 
@@ -656,6 +693,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           modifiers: d.modifiers,
           itemDiscount: isBillLevelDiscount ? 0 : Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
           lineTotal: itemLineNet,
+          lineNetAmount: itemLineNet,
           vatAmount: itemVat,
         };
       });
@@ -1136,7 +1174,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             <div className="space-y-2.5">
               {details.map((detail: any, i: number) => {
                 const qty = detail.qty ?? detail.Qty ?? 1;
-                const rawAmount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
+                const rawAmount = detail.netAmount ?? detail.NetAmount ?? (detail.amount !== undefined && Number(detail.amount) > 0 ? (Number(detail.amount) + Number(detail.vatAmount || 0)) : detail.amount) ?? 0;
                 const modalResolvedDiscount = Number(master?.discAmount ?? master?.DiscAmount ?? master?.discount ?? 0);
                 const masterDiscPer = Number(master?.discPer ?? master?.DiscPer ?? master?.billDiscountPer ?? 0);
                 const isBillComplimentary = Boolean(
@@ -1158,12 +1196,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 const rawPrice = detail.price ?? detail.Price;
                 const rawPriceNum = Number(rawPrice ?? 0);
                 const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
-                const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-                const vatRatio = enableVat ? (1 / (1 + vatRate)) : 1;
-                const isDetailStoredIncl = Boolean(detail.isIncl || detail.priceIsIncl || detail.priceView === "Inclusive");
-                const exclPrice = isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum * vatRatio : rawPriceNum;
-                const inclPrice = !isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum / vatRatio : rawPriceNum;
-                const unitRate = isTaxInclusive ? inclPrice : exclPrice;
+
+
+                const lineGrossTotal = rawAmount > 0 ? (rawAmount + itemDisc) : (rawPriceNum * qty + itemDisc + itemVat);
+                const grossUnitRate = roundCalc(lineGrossTotal / qty, 3);
+                const exclUnitRate = roundCalc(Math.max(0, lineGrossTotal - itemVat) / qty, 3);
+
+
+                const unitRate = isTaxInclusive ? grossUnitRate : exclUnitRate;
 
                 const price = (unitRate > 0)
                   ? unitRate
@@ -1172,11 +1212,69 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 const lineAmount = isModalBillDiscount
                   ? (price * qty)
                   : (isTaxInclusive
-                      ? (rawAmount > 0 && Math.abs((price * qty) - rawAmount) < 0.05 ? rawAmount : Math.max(0, (price * qty) - itemDisc))
+                      ? (rawAmount > 0 ? (isTaxInclusive ? rawAmount : Math.max(0, rawAmount - itemVat)) : Math.max(0, (price * qty) - itemDisc))
                       : (itemVat > 0 && rawAmount > itemVat
                           ? (rawAmount - itemVat)
                           : Math.max(0, (price * qty) - itemDisc)));
-                const localizedItem = getLocalizedName(detail.productName || detail.ProductName, detail.productArabic || detail.arabicName);
+                const pId = Number(detail.productId || detail.ProductId || detail.itemId || detail.ItemId || 0);
+                const uId = Number(detail.unitId ?? detail.UnitId ?? 0);
+
+                let rawAlt =
+                  detail.altName ||
+                  detail.variantName ||
+                  detail.AltName ||
+                  detail.VariantName ||
+                  detail.unitName ||
+                  detail.UnitName ||
+                  "";
+
+                let rawAltArabic =
+                  detail.variantArabic ||
+                  detail.altArabic ||
+                  detail.VariantArabic ||
+                  detail.AltArabic ||
+                  detail.unitArabic ||
+                  detail.UnitArabic ||
+                  "";
+
+                if (!rawAlt && pId > 0 && uId > 0) {
+                  const allCachedAlts = Object.entries(alternativesCache)
+                    .filter(([k]) => k.startsWith(`${pId}-`))
+                    .flatMap(([, alts]) => alts);
+                  const matchedAlt = allCachedAlts.find(
+                    (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
+                  );
+                  if (matchedAlt) {
+                    rawAlt = matchedAlt.altName || matchedAlt.unitName || "";
+                    rawAltArabic = matchedAlt.altArabic || matchedAlt.unitArabic || "";
+                  }
+                }
+
+                if (!rawAlt && pId > 0) {
+                  const cachedProd = productCache?.[pId] || products.find((p: any) => (p.id || p.productId) === pId);
+                  if (cachedProd) {
+                    const unitsList = (cachedProd as any)?.units || (cachedProd as any)?.alternatives || [];
+                    if (Array.isArray(unitsList) && uId > 0) {
+                      const matchedUnit = unitsList.find((u: any) => Number(u.unitId ?? u.id) === uId);
+                      if (matchedUnit) {
+                        rawAlt = matchedUnit.altName || matchedUnit.unitName || matchedUnit.name || "";
+                        rawAltArabic = matchedUnit.altArabic || matchedUnit.unitArabic || matchedUnit.arabicName || "";
+                      }
+                    }
+                  }
+                }
+
+                const baseProdName = detail.productName || detail.ProductName || `Product #${pId}`;
+                const baseProdArabic = detail.productArabic || detail.arabicName || detail.ArabicName;
+
+                const cleanBaseName = cleanProductName(baseProdName, rawAlt);
+                const cleanBaseArabic = cleanProductName(baseProdArabic, rawAltArabic);
+
+                const localizedItem = getLocalizedName(cleanBaseName, cleanBaseArabic);
+                const displayItemName = formatItemDisplayName(localizedItem.primary, rawAlt);
+                const displaySecondaryName = localizedItem.secondary
+                  ? formatItemDisplayName(localizedItem.secondary, rawAltArabic || rawAlt)
+                  : "";
 
                 const itemMods = (order?.modifiersData || []).filter((m: any) => m.mapId === detail.mapId);
                 return (
@@ -1184,9 +1282,9 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                     <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[11px] items-start">
                       <div className="font-bold text-stone-500">{qty}</div>
                       <div className="min-w-0">
-                        <div className="font-bold text-stone-800 break-words [overflow-wrap:anywhere] [word-break:break-word]">{localizedItem.primary}</div>
-                        {localizedItem.secondary && (
-                          <div className="text-[9px] text-stone-500 font-medium break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{localizedItem.secondary}</div>
+                        <div className="font-bold text-stone-800 break-words [overflow-wrap:anywhere] [word-break:break-word]">{displayItemName}</div>
+                        {displaySecondaryName && (
+                          <div className="text-[9px] text-stone-500 font-medium break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{displaySecondaryName}</div>
                         )}
                         {itemDisc > 0 && (
                           <div className="text-[9px] text-red-600 font-medium italic mt-0.5">

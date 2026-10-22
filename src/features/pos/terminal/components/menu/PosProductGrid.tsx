@@ -7,6 +7,7 @@ import { useCurrency } from "../../../../../hooks/useCurrency";
 import { sortAlternatives } from "../../../utils/alternativeHelpers";
 import { getLocalizedName } from "../../../utils/posLocalization";
 
+
 interface PosProductGridProps {
   products: PosProduct[];
   subCategories: MenuSubCategory[];

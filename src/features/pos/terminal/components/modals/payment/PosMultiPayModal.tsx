@@ -4,6 +4,7 @@ import { useCurrency } from '../../../../../../hooks/useCurrency';
 import { useToast } from '../../../../../../app/providers/useToast';
 import { Modal } from '../../../../../../components/common';
 import { Lock, XCircle, Delete, Check, Receipt, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { t } from '../../../../utils/posLocalization';
 
 // ── Next-Gen FinTech Icons ──
 export const NewGenCashIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -95,64 +96,7 @@ export const NewGenDefaultIcon: React.FC<{ className?: string }> = ({ className 
   </svg>
 );
 
-// ── Metallic EMV Chip ──
-const MetallicEmvChip: React.FC<{ variant?: 'gold' | 'silver' }> = ({ variant = 'gold' }) => {
-  const isGold = variant === 'gold';
-  return (
-    <div
-      className={`w-7.5 h-5.5 sm:w-8.5 sm:h-6 rounded-[5px] p-[1px] shadow-xs relative overflow-hidden flex items-center justify-center shrink-0 ${
-        isGold
-          ? 'bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border border-amber-300/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-          : 'bg-gradient-to-br from-slate-100 via-slate-300 to-slate-500 border border-slate-200/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-      }`}
-    >
-      <div
-        className={`w-full h-full rounded-[3px] relative flex items-center justify-center ${
-          isGold
-            ? 'bg-gradient-to-tr from-amber-300 via-amber-200 to-amber-400'
-            : 'bg-gradient-to-tr from-slate-200 via-slate-100 to-slate-300'
-        }`}
-      >
-        <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] ${isGold ? 'bg-amber-700/40' : 'bg-slate-600/40'}`} />
-        <div className={`absolute inset-y-0 left-1/3 w-[1px] ${isGold ? 'bg-amber-700/40' : 'bg-slate-600/40'}`} />
-        <div className={`absolute inset-y-0 right-1/3 w-[1px] ${isGold ? 'bg-amber-700/40' : 'bg-slate-600/40'}`} />
-        <div className={`w-3 h-1.5 rounded-[1px] border ${isGold ? 'border-amber-700/40' : 'border-slate-600/40'}`} />
-      </div>
-    </div>
-  );
-};
-
-// ── Concentric Guilloche Wave Background Accent ──
-const CardBackgroundWave: React.FC = () => (
-  <svg
-    className="absolute -right-6 -top-6 w-36 h-36 sm:w-44 sm:h-44 text-white/10 pointer-events-none"
-    viewBox="0 0 200 200"
-    fill="none"
-    stroke="currentColor"
-  >
-    <circle cx="160" cy="40" r="35" strokeWidth="1" strokeDasharray="2 3" opacity="0.6" />
-    <circle cx="160" cy="40" r="55" strokeWidth="1.2" opacity="0.5" />
-    <circle cx="160" cy="40" r="75" strokeWidth="1.5" opacity="0.4" />
-    <circle cx="160" cy="40" r="100" strokeWidth="1.2" strokeDasharray="4 4" opacity="0.35" />
-    <circle cx="160" cy="40" r="125" strokeWidth="1.8" opacity="0.3" />
-    <circle cx="160" cy="40" r="155" strokeWidth="1.5" opacity="0.2" />
-  </svg>
-);
-
-// ── Metallic Dial / Medallion ──
-const MetallicDial: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  return (
-    <div className="relative w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-full p-[1.5px] bg-gradient-to-b from-white/40 via-white/10 to-black/35 shadow-[0_3px_10px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0">
-      <div className="w-full h-full rounded-full p-[2px] bg-gradient-to-tr from-black/25 via-white/20 to-black/35 flex items-center justify-center">
-        <div className="w-full h-full rounded-full p-[1.5px] bg-gradient-to-b from-white/30 to-black/25 flex items-center justify-center shadow-inner">
-          <div className="w-full h-full rounded-full bg-gradient-to-br from-white/25 via-white/10 to-black/30 backdrop-blur-xs flex items-center justify-center text-white shadow-sm">
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// ── Multi-Pay Types ──
 
 export interface MultiPaymentLine {
   paymodeId: number | string;
@@ -187,7 +131,6 @@ const CARD_PALETTE = [
     bg: 'bg-teal-50/70',
     border: 'border-teal-400',
     badgeBg: 'bg-gradient-to-br from-teal-500/15 via-teal-500/20 to-emerald-500/25 text-teal-600 border border-teal-500/25 shadow-[0_4px_14px_rgba(13,148,136,0.18)]',
-    chip: 'silver' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#7e22ce] via-[#6b21a8] to-[#3b0764]', // Royal Violet / Amethyst (Theme 1)
@@ -198,7 +141,6 @@ const CARD_PALETTE = [
     bg: 'bg-purple-50/70',
     border: 'border-purple-400',
     badgeBg: 'bg-gradient-to-br from-purple-500/15 via-violet-500/20 to-fuchsia-500/25 text-purple-600 border border-purple-500/25 shadow-[0_4px_14px_rgba(168,85,247,0.18)]',
-    chip: 'gold' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#2563eb] via-[#1d4ed8] to-[#1e1b4b]', // Cobalt Blue / Sapphire (Theme 2)
@@ -209,7 +151,6 @@ const CARD_PALETTE = [
     bg: 'bg-blue-50/70',
     border: 'border-blue-400',
     badgeBg: 'bg-gradient-to-br from-blue-500/15 via-indigo-500/20 to-violet-500/25 text-blue-600 border border-blue-500/25 shadow-[0_4px_14px_rgba(59,130,246,0.18)]',
-    chip: 'silver' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#7c2d12]', // Warm Terracotta / Orange (Theme 3)
@@ -220,7 +161,6 @@ const CARD_PALETTE = [
     bg: 'bg-amber-50/70',
     border: 'border-amber-400',
     badgeBg: 'bg-gradient-to-br from-amber-500/15 via-orange-500/20 to-rose-500/25 text-amber-600 border border-amber-500/25 shadow-[0_4px_14px_rgba(245,158,11,0.18)]',
-    chip: 'gold' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#e11d48] via-[#be123c] to-[#4c0519]', // Ruby Crimson / Deep Red (Theme 4)
@@ -231,7 +171,6 @@ const CARD_PALETTE = [
     bg: 'bg-rose-50/70',
     border: 'border-rose-400',
     badgeBg: 'bg-gradient-to-br from-rose-500/15 via-pink-500/20 to-rose-600/25 text-rose-600 border border-rose-500/25 shadow-[0_4px_14px_rgba(225,29,72,0.18)]',
-    chip: 'gold' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#4f46e5] via-[#4338ca] to-[#1e1b4b]', // Electric Indigo / Iris (Theme 5)
@@ -242,7 +181,6 @@ const CARD_PALETTE = [
     bg: 'bg-indigo-50/70',
     border: 'border-indigo-400',
     badgeBg: 'bg-gradient-to-br from-indigo-500/15 via-indigo-500/20 to-violet-500/25 text-indigo-600 border border-indigo-500/25 shadow-[0_4px_14px_rgba(99,102,241,0.18)]',
-    chip: 'silver' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#082f49]', // Vivid Ocean Cyan (Theme 6)
@@ -253,7 +191,6 @@ const CARD_PALETTE = [
     bg: 'bg-cyan-50/70',
     border: 'border-cyan-400',
     badgeBg: 'bg-gradient-to-br from-cyan-500/15 via-teal-500/20 to-blue-500/25 text-cyan-600 border border-cyan-500/25 shadow-[0_4px_14px_rgba(6,182,212,0.18)]',
-    chip: 'silver' as const,
   },
   {
     cardGradient: 'bg-gradient-to-br from-[#d97706] via-[#b45309] to-[#78350f]', // Amber Gold / Bronze (Theme 7)
@@ -264,7 +201,6 @@ const CARD_PALETTE = [
     bg: 'bg-amber-50/70',
     border: 'border-amber-400',
     badgeBg: 'bg-gradient-to-br from-amber-500/15 via-orange-500/20 to-rose-500/25 text-amber-600 border border-amber-500/25 shadow-[0_4px_14px_rgba(245,158,11,0.18)]',
-    chip: 'gold' as const,
   },
 ];
 
@@ -276,7 +212,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenCashIcon,
       label,
-      brand: '•• CASH',
       ...CARD_PALETTE[0],
     };
   }
@@ -286,7 +221,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenCardIcon,
       label,
-      brand: '•• VISA',
       ...CARD_PALETTE[2],
     };
   }
@@ -296,7 +230,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenCreditIcon,
       label,
-      brand: '•• CREDIT',
       ...CARD_PALETTE[1],
     };
   }
@@ -306,7 +239,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenTestPayIcon,
       label,
-      brand: '•• TEST',
       ...CARD_PALETTE[3],
     };
   }
@@ -316,7 +248,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenDemoPayIcon,
       label,
-      brand: '•• DEMO',
       ...CARD_PALETTE[4],
     };
   }
@@ -326,7 +257,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenDummyPayIcon,
       label,
-      brand: '•• DUMMY',
       ...CARD_PALETTE[5],
     };
   }
@@ -336,7 +266,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
     return {
       icon: NewGenMobilePayIcon,
       label,
-      brand: '•• BENEFIT',
       ...CARD_PALETTE[6],
     };
   }
@@ -346,7 +275,6 @@ const getModeConfig = (label: string = '', index: number = 0) => {
   return {
     icon: NewGenDefaultIcon,
     label,
-    brand: `•• ${label.replace(/[^a-zA-Z0-9]/g, '').slice(0, 7).toUpperCase() || 'PAY'}`,
     ...theme,
   };
 };
@@ -790,17 +718,15 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
 
           </div>
 
-          {/* ── Add Payment Methods Grid (Realistic Cards Matching Mockup) ── */}
+          {/* ── Payment Methods Grid ── */}
           <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 sm:p-5 space-y-3 font-['Outfit']">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Payment Method</span>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tap card to settle</span>
             </div>
 
             <div className={`grid ${gridColsClass} gap-3.5 sm:gap-4`}>
               {availableTenders.map((tender, index) => {
                 const cfg = getModeConfig(tender.label, index);
-                const Icon = cfg.icon;
                 const paymentIdx = payments.findIndex(p => String(p.paymodeId) === String(tender.id));
                 const payment = payments[paymentIdx];
                 const hasPayment = !!payment;
@@ -808,9 +734,10 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
                 const isCredit = (tender.label || '').toLowerCase().includes('credit');
                 const isCreditDisabled = isCredit && (!customerId || Number(customerId) === 1);
                 const isDisabled = isCreditDisabled || (!isCash && remaining <= 0 && !hasPayment);
+                const isMuted = isCreditDisabled || (isDisabled && !hasPayment);
 
                 return (
-                  <div key={String(tender.id)} className="relative h-32 sm:h-36 group">
+                  <div key={String(tender.id)} className="relative h-28 sm:h-32 group">
                     <button
                       type="button"
                       onClick={() => {
@@ -819,72 +746,40 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
                       }}
                       disabled={isDisabled}
                       title={isCreditDisabled ? "Credit is disabled for Cash Customer" : undefined}
-                      className={`w-full h-full relative overflow-hidden rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between text-left transition-all duration-300 select-none ${
+                      className={`w-full h-full relative overflow-hidden rounded-2xl p-4 sm:p-5 flex flex-col justify-between text-left transition-all duration-300 select-none ${
                         isCreditDisabled
-                          ? 'bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 text-slate-200 grayscale opacity-60 cursor-not-allowed shadow-none'
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60 shadow-none'
                           : hasPayment
                             ? `${cfg.cardGradient} ${cfg.glowShadow} ring-2 ring-white/90 shadow-2xl scale-[1.01]`
                             : isDisabled
                               ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50 shadow-none'
-                              : `${cfg.cardGradient} ${cfg.glowShadow} hover:-translate-y-1.5 hover:scale-[1.02] active:scale-[0.98] cursor-pointer`
+                              : `${cfg.cardGradient} ${cfg.glowShadow} hover:-translate-y-1 hover:scale-[1.01] active:scale-[0.98] cursor-pointer`
                       }`}
                     >
-                      {/* Concentric Guilloche Wave Background Accent */}
-                      <CardBackgroundWave />
-
-                      {/* Subtle Glass Sheen Gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/5 pointer-events-none" />
-
-                      {/* Top Row: Metallic EMV Chip (Left) & Brand (Right) */}
+                      {/* Top Row: Payment Method Name */}
                       <div className="relative z-10 flex items-center justify-between w-full">
-                        <MetallicEmvChip variant={cfg.chip} />
-                        <div className="flex items-center gap-1.5 text-white/90 drop-shadow-sm">
-                          <span className="text-[9px] sm:text-[10px] font-black tracking-[0.22em] uppercase">
-                            {cfg.brand}
-                          </span>
-                        </div>
+                        <span className={`text-base sm:text-lg font-black tracking-wide uppercase truncate block leading-tight ${
+                          isMuted ? 'text-slate-500' : 'text-white drop-shadow-sm'
+                        }`}>
+                          {t(tender.label)}
+                        </span>
+                        {isCreditDisabled && (
+                          <Lock size={15} className="text-slate-400 shrink-0" />
+                        )}
                       </div>
 
-                      {/* Middle: Active Payment Display (if settled) */}
-                      {hasPayment ? (
-                        <div className="relative z-10 my-auto">
-                          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-white/70 block mb-0.5">
-                            Settled Amount
-                          </span>
-                          <span className="text-xl sm:text-2xl font-black text-white tracking-tight tabular-nums drop-shadow-md">
-                            {formatAmount(payment.amount)}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="relative z-10 my-auto" />
-                      )}
-
-                      {/* Bottom Row: Label (Left) & Concentric Metallic Dial (Right) */}
-                      <div className="relative z-10 flex items-end justify-between w-full">
-                        <div className="flex flex-col pr-2">
-                          <span className="text-sm sm:text-base font-black tracking-wide uppercase text-white drop-shadow-sm leading-tight">
-                            {tender.label}
-                          </span>
-                          <span className="text-[9px] sm:text-[10px] font-medium text-white/75 tracking-wider mt-0.5">
-                            {isCreditDisabled ? (
-                              <span className="flex items-center gap-1 text-slate-100 font-bold">
-                                <Lock size={10} /> Locked for Cash Customer
-                              </span>
-                            ) : hasPayment ? (
-                              'Payment Settled'
-                            ) : (
-                              'Tap to Pay'
-                            )}
-                          </span>
-                        </div>
-
-                        <MetallicDial>
-                          {isCreditDisabled ? (
-                            <Lock size={15} className="text-white/80" />
-                          ) : (
-                            <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-white" />
-                          )}
-                        </MetallicDial>
+                      {/* Bottom Row: Amount */}
+                      <div className="relative z-10 flex items-baseline justify-between w-full">
+                        <span className={`text-2xl sm:text-3xl font-black tracking-tight tabular-nums ${
+                          isMuted ? 'text-slate-400' : 'text-white drop-shadow-md'
+                        }`}>
+                          {formatAmount(hasPayment ? payment.amount : 0)}
+                        </span>
+                        <span className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${
+                          isMuted ? 'text-slate-400' : 'text-white/80'
+                        }`}>
+                          {currencySymbol}
+                        </span>
                       </div>
                     </button>
 
@@ -896,7 +791,7 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
                           e.stopPropagation();
                           removePayment(paymentIdx);
                         }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-90 z-20"
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-90 z-20 cursor-pointer"
                         title="Remove Payment"
                       >
                         <XCircle size={14} />

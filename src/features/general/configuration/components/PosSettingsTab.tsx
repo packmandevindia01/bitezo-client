@@ -112,14 +112,6 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
             />
           </div>
 
-          <Checkbox
-            id="conf-pos-group-menu"
-            label={t("Group in Menu", form.posLanguage)}
-            checked={form.groupInMenu}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("groupInMenu", e.target.checked)}
-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-disc")}
-          />
-
           <SelectInput
             id="conf-pos-disc"
             label={t("Discount Calculation", form.posLanguage)}

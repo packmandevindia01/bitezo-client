@@ -137,9 +137,20 @@ export const useConfigurationManager = () => {
       if (active) void loadEmployees();
     });
 
+
+    const handleFocus = () => {
+      if (active && document.visibilityState === "visible") {
+        void loadEmployees();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
     return () => {
       active = false;
       unsubscribeEmployee();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
     };
   }, []);
 
@@ -173,6 +184,7 @@ export const useConfigurationManager = () => {
             barcodeView: !!config.barcodeView,
             vatStatus: !!config.vatStatus
           });
+
         } else {
           setBackofficeFormState({ ...INITIAL_BACKOFFICE_CONFIG });
         }
@@ -186,6 +198,7 @@ export const useConfigurationManager = () => {
     };
 
     void loadBranchConfig();
+
 
     return () => {
       active = false;
@@ -238,7 +251,11 @@ export const useConfigurationManager = () => {
         try {
           const res = await posConfigApi.getPosConfig(branchId);
           if (active && res?.isSuccess && res?.data) {
-            setForm(mapApiToState(res.data));
+            const mapped = mapApiToState(res.data);
+            setForm(mapped);
+            if (mapped.companyNameKOT !== undefined) {
+              localStorage.setItem("companyNameKot", mapped.companyNameKOT ? "Enable" : "Disable");
+            }
           }
         } catch (e) {
           console.warn("Failed to load POS configuration in Backoffice:", e);
@@ -247,6 +264,7 @@ export const useConfigurationManager = () => {
     };
 
     void loadPosConfig();
+
 
     return () => {
       active = false;
@@ -280,6 +298,9 @@ export const useConfigurationManager = () => {
       }
       if (form.printPrice || payload.printPrice) {
         localStorage.setItem("printPrice", form.printPrice || payload.printPrice || "Exclusive");
+      }
+      if (payload.companyNameKot !== undefined) {
+        localStorage.setItem("companyNameKot", payload.companyNameKot);
       }
 
       if (form.defaultEmployee && form.employeeId) {
@@ -319,6 +340,7 @@ export const useConfigurationManager = () => {
           parsed.configs.productView = form.productView || "English";
           parsed.configs.priceView = form.priceView || payload.priceView;
           parsed.configs.printPrice = form.printPrice || payload.printPrice;
+          parsed.configs.companyNameKot = payload.companyNameKot;
         }
         parsed.itemSeperation = payload.itemSeperation;
         parsed.otherKitchenItem = payload.otherKitchenItem;
@@ -332,6 +354,7 @@ export const useConfigurationManager = () => {
         parsed.productView = form.productView || "English";
         parsed.priceView = form.priceView || payload.priceView;
         parsed.printPrice = form.printPrice || payload.printPrice;
+        parsed.companyNameKot = payload.companyNameKot;
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
       } catch {}
 

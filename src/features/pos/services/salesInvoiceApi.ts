@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
-import { sanitizeTaxExclusiveDetail, roundCalc } from "../terminal/utils/billing";
+import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
 
 export interface ApiResponse<T = any> {
   isSuccess: boolean;
@@ -39,6 +39,7 @@ export interface SalesInvoicePayload {
   vatAmount: number;
   netAmount: number;
   deliveryCharge?: number;
+  complimentaryStatus?: boolean;
   orderMaster: {
     isOrderEdited?: boolean;
     sectionId?: number;
@@ -126,16 +127,37 @@ export const salesInvoiceApi = {
         if (postPayload.details && Array.isArray(postPayload.details)) {
           // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
           postPayload.details = postPayload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
-          const totalDetailGross = postPayload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
           const totalModifierGross = Array.isArray(postPayload.modifiers)
             ? postPayload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
             : 0;
-          const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+          const lineExclSum = postPayload.details.reduce(
+            (sum: number, d: any) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
+            0
+          );
           const lineDiscounts = postPayload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
           const totalDisc = roundCalc(Math.max(0, Number(postPayload.discAmount || 0), lineDiscounts));
           postPayload.discAmount = totalDisc;
-          postPayload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
-          postPayload.vatAmount = roundCalc(postPayload.details.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
+
+          let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+          let calcVatAmt = roundCalc(postPayload.details.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
+          const isVatEnabled = getVatStatus();
+          const payableBase = Math.max(0, Number(postPayload.netAmount || 0) - Number(postPayload.deliveryCharge || 0));
+
+          // If incoming payload already has mathematically sound vatExclAmount + vatAmount matching payableBase, preserve them
+          const incomingVatExcl = Number(postPayload.vatExclAmount || 0);
+          const incomingVatAmt = Number(postPayload.vatAmount || 0);
+          if (incomingVatExcl > 0 && incomingVatAmt > 0 && Math.abs((incomingVatExcl + incomingVatAmt) - payableBase) < 0.05) {
+            postPayload.vatExclAmount = incomingVatExcl;
+            postPayload.vatAmount = incomingVatAmt;
+          } else {
+            if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !postPayload.complimentaryStatus) {
+              const vatRate = 0.10;
+              calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
+              calcVatExcl = roundCalc(payableBase - calcVatAmt);
+            }
+            postPayload.vatExclAmount = calcVatExcl;
+            postPayload.vatAmount = calcVatAmt;
+          }
         }
 
         if (!postPayload.transDate || postPayload.transDate.includes("T00:00:00") || !postPayload.transDate.includes("T") || attempt > 0) {
@@ -203,13 +225,29 @@ export const salesInvoiceApi = {
         };
       });
 
-      const totalDetailGross = cleanedDetails.reduce((sum, d) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
       const totalModifierGross = (payload.modifiers || []).reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
-      const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+      const lineExclSum = cleanedDetails.reduce(
+        (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
+        0
+      );
       const lineDiscounts = cleanedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
       const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
-      const calcVatExcl = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
-      const calcVatAmt = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+
+      let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+      let calcVatAmt = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+      const isVatEnabled = getVatStatus();
+      const payableBase = Math.max(0, Number(payload.netAmount || 0) - Number(payload.deliveryCharge || 0));
+
+      const incomingVatExcl = Number(payload.vatExclAmount || 0);
+      const incomingVatAmt = Number(payload.vatAmount || 0);
+      if (incomingVatExcl > 0 && incomingVatAmt > 0 && Math.abs((incomingVatExcl + incomingVatAmt) - payableBase) < 0.05) {
+        calcVatExcl = incomingVatExcl;
+        calcVatAmt = incomingVatAmt;
+      } else if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !payload.complimentaryStatus) {
+        const vatRate = 0.10;
+        calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
+        calcVatExcl = roundCalc(payableBase - calcVatAmt);
+      }
 
       const putPayload = {
         saleId: numSaleId,

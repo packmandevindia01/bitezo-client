@@ -119,6 +119,48 @@ export const isOtherKitchenItemEnabled = (): boolean => {
 };
 
 /**
+ * Checks if Company Name (KOT) is enabled in runtime configuration.
+ */
+export const isCompanyNameKotEnabled = (): boolean => {
+  try {
+    const direct = localStorage.getItem("companyNameKot") || localStorage.getItem("companyNameKOT");
+    if (direct !== null) {
+      const s = direct.trim().toLowerCase();
+      if (s === "enable" || s === "true" || s === "1") return true;
+      if (s === "disable" || s === "false" || s === "0") return false;
+    }
+    const keys = ["posConfigs", "posConfig", "pos_configs", "pos_config"];
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configsObj = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
+        const val =
+          configsObj?.companyNameKot ??
+          configsObj?.companyNameKOT ??
+          configsObj?.CompanyNameKot ??
+          parsed?.companyNameKot ??
+          parsed?.companyNameKOT ??
+          parsed?.CompanyNameKot;
+        if (val !== undefined && val !== null) {
+          if (val === true || val === 1) return true;
+          const str = String(val).trim().toLowerCase();
+          if (str === "enable" || str === "true" || str === "1") {
+            return true;
+          }
+          if (str === "disable" || str === "false" || str === "0") {
+            return false;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error reading companyNameKot config:", e);
+  }
+  return false;
+};
+
+/**
  * Checks whether an item in the cart is an alternative product.
  */
 export const isAlternativeCartItem = (item?: PosCartItem | null): boolean => {

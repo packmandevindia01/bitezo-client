@@ -6,6 +6,7 @@ import { setOrderType, setOrderTypeByName, setWaiter } from "../../store/posSlic
 import { posConfigApi, POS_CONFIGS_STORAGE_KEY, type RuntimePosConfig } from "../../../services/posConfigApi";
 import { branchApi } from "../../../../inventory/branches/services/branchApi";
 import { getEmployeeNames } from "../../../../general/employee/services/employeeService";
+import { subscribeToEmployeeUpdates } from "../../../../general/employee/utils/employeeSync";
 import { menuApi } from "../../../services/menuApi";
 import { validateDefaultEmployeeAgainstList } from "../../../utils/defaultEmployee";
 import type { PosOrderType } from "../../../types";
@@ -64,6 +65,10 @@ export const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> =>
       const response = await posConfigApi.getPosConfig(branchId);
       if (response.isSuccess && response.data) {
         localStorage.setItem(POS_CONFIGS_STORAGE_KEY, JSON.stringify(response.data));
+        const companyKotVal = response.data.configs?.companyNameKot ?? (response.data.configs as any)?.CompanyNameKot;
+        if (companyKotVal !== undefined && companyKotVal !== null) {
+          localStorage.setItem("companyNameKot", String(companyKotVal));
+        }
         return applyDefaultEmployeeOverride(response.data.configs);
       }
     } catch (e) {
@@ -120,57 +125,66 @@ export const useTerminalInit = ({
       console.warn("Failed to load modifier types:", err);
     });
 
-    // Load and cache employee names in posEmpNameMap
-    const branchId =
-      Number(localStorage.getItem("systemBranchId")) ||
-      Number(localStorage.getItem("activeBranchId")) ||
-      Number(localStorage.getItem("branchId")) ||
-      0;
+    const loadAndCacheEmployees = () => {
+      const branchId =
+        Number(localStorage.getItem("systemBranchId")) ||
+        Number(localStorage.getItem("activeBranchId")) ||
+        Number(localStorage.getItem("branchId")) ||
+        0;
 
-    getEmployeeNames(branchId)
-      .then((employees) => {
-        if (Array.isArray(employees) && employees.length > 0) {
-          const empMap: Record<string, string> = {};
-          try {
-            const existing = localStorage.getItem("posEmpNameMap");
-            if (existing) Object.assign(empMap, JSON.parse(existing));
-          } catch {}
-          employees.forEach((emp: any) => {
-            const id = emp.empId ?? emp.id;
-            const name = emp.empName ?? emp.name;
-            if (id && name) {
-              empMap[String(id)] = name;
-            }
-          });
-          localStorage.setItem("posEmpNameMap", JSON.stringify(empMap));
-
-          // Validate if default employee exists in this branch's employees
-          const isDefaultValid = validateDefaultEmployeeAgainstList(employees);
-          if (!isDefaultValid) {
-            dispatch(setWaiter({ waiterId: null, waiterName: null }));
-            console.warn("[useTerminalInit] Configured default employee not found in branch employees. Disabled.");
-            showToast("Configured default employee was not found in this branch and has been disabled.", "warning");
-          } else {
-            // Also resolve defaultEmployeeName if default employee is set
+      getEmployeeNames(branchId)
+        .then((employees) => {
+          if (Array.isArray(employees) && employees.length > 0) {
+            const empMap: Record<string, string> = {};
             try {
-              const rawConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
-              if (rawConfig) {
-                const parsed = JSON.parse(rawConfig);
-                const cfg = parsed?.configs;
-                if (cfg?.defaultEmployee === "Enable" && cfg?.employeeId) {
-                  const defName = empMap[String(cfg.employeeId)];
-                  if (defName) {
-                    localStorage.setItem("defaultEmployeeName", defName);
+              const existing = localStorage.getItem("posEmpNameMap");
+              if (existing) Object.assign(empMap, JSON.parse(existing));
+            } catch {}
+            employees.forEach((emp: any) => {
+              const id = emp.empId ?? emp.id;
+              const name = emp.empName ?? emp.name;
+              if (id && name) {
+                empMap[String(id)] = name;
+              }
+            });
+            localStorage.setItem("posEmpNameMap", JSON.stringify(empMap));
+
+            // Validate if default employee exists in this branch's employees
+            const isDefaultValid = validateDefaultEmployeeAgainstList(employees);
+            if (!isDefaultValid) {
+              dispatch(setWaiter({ waiterId: null, waiterName: null }));
+              console.warn("[useTerminalInit] Configured default employee not found in branch employees. Disabled.");
+            } else {
+              // Also resolve defaultEmployeeName if default employee is set
+              try {
+                const rawConfig = localStorage.getItem(POS_CONFIGS_STORAGE_KEY);
+                if (rawConfig) {
+                  const parsed = JSON.parse(rawConfig);
+                  const cfg = parsed?.configs;
+                  if (cfg?.defaultEmployee === "Enable" && cfg?.employeeId) {
+                    const defName = empMap[String(cfg.employeeId)];
+                    if (defName) {
+                      localStorage.setItem("defaultEmployeeName", defName);
+                    }
                   }
                 }
-              }
-            } catch {}
+              } catch {}
+            }
           }
-        }
-      })
-      .catch((err) => {
-        console.warn("Failed to load employee names for posEmpNameMap:", err);
-      });
+        })
+        .catch((err) => {
+          console.warn("Failed to load employee names for posEmpNameMap:", err);
+        });
+    };
+
+    loadAndCacheEmployees();
+    const unsubEmployees = subscribeToEmployeeUpdates(() => {
+      loadAndCacheEmployees();
+    });
+
+    return () => {
+      unsubEmployees();
+    };
   }, [dispatch, showToast]);
 
   const applyDefaultOrderType = async (shouldApplyDefault: boolean = false) => {

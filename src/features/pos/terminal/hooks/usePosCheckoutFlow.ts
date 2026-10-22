@@ -680,8 +680,11 @@ export const usePosCheckoutFlow = ({
                 unitId: dUnitId,
                 quantity: qty,
                 price: price,
+                basePrice: cartMatch?.basePrice ?? (qty > 0 ? baseAmount / qty : undefined),
                 baseAmount,
                 vatAmount: itemVat,
+                lineNetAmount: cartMatch?.lineNetAmount ?? (d.netAmount !== undefined ? Number(d.netAmount) : undefined),
+                isIncl: cartMatch?.isIncl,
                 variantName: resolvedVariantName,
                 variantArabic: resolvedVariantArabic,
                 product: {

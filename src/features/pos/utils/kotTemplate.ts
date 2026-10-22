@@ -1,9 +1,10 @@
 import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
-import { isKotArabicEnabled, isOtherKitchenItemEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
+import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getModifierTypeNameById } from "../services/menuApi";
 import { getDecimalPart } from "../../../utils/currency";
+import { resolveViewTaxSetting } from "./guestPrintTemplate";
 
 export interface KotPrintData {
   orderNo: string;
@@ -43,25 +44,40 @@ export interface KotPrintData {
   netAmount?: number;
   otherKitchenItems?: PosCartItem[];
   otherKitchenItemEnabled?: boolean;
+  companyNameKot?: boolean;
 }
 
 export const resolveKotPrintTaxSetting = (data?: KotPrintData): "Inclusive" | "Exclusive" => {
-  if (data?.priceView === "Inclusive" || data?.priceView === "Exclusive") {
-    return data.priceView;
-  }
+  // 1. Explicit printPrice in data takes top priority
   if (data?.printPrice === "Inclusive" || data?.printPrice === "Exclusive") {
     return data.printPrice;
   }
-
-  const directPriceView = localStorage.getItem("priceView");
-  if (directPriceView === "Inclusive" || directPriceView === "Exclusive") {
-    return directPriceView as "Inclusive" | "Exclusive";
-  }
+  // 2. Direct printPrice setting stored in localStorage from POS Settings > Operational Flags
   const directPrintPrice = localStorage.getItem("printPrice");
   if (directPrintPrice === "Inclusive" || directPrintPrice === "Exclusive") {
     return directPrintPrice as "Inclusive" | "Exclusive";
   }
+  // 3. Cached posConfigs JSON check for printPrice
+  try {
+    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
+        const pp = configs?.printPrice || configs?.PrintPrice;
+        if (pp === "Inclusive" || pp === "Exclusive") return pp;
+      }
+    }
+  } catch {}
 
+  // 4. Fallback to screen priceView
+  if (data?.priceView === "Inclusive" || data?.priceView === "Exclusive") {
+    return data.priceView;
+  }
+  const directPriceView = localStorage.getItem("priceView");
+  if (directPriceView === "Inclusive" || directPriceView === "Exclusive") {
+    return directPriceView as "Inclusive" | "Exclusive";
+  }
   try {
     for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
       const raw = localStorage.getItem(key);
@@ -70,8 +86,6 @@ export const resolveKotPrintTaxSetting = (data?: KotPrintData): "Inclusive" | "E
         const configs = parsed?.configs || parsed?.data?.configs || parsed?.data || parsed;
         const pv = configs?.priceView || configs?.PriceView;
         if (pv === "Inclusive" || pv === "Exclusive") return pv;
-        const pp = configs?.printPrice || configs?.PrintPrice;
-        if (pp === "Inclusive" || pp === "Exclusive") return pp;
       }
     }
   } catch {}
@@ -108,75 +122,91 @@ export const generateKotHtml = async (
 
   const kotHeaderStyle = resolveKotHeaderStyle(data.kotHeader);
 
-  let customHeadersHtml = "";
-  try {
-    let branchLines: any[] = [];
-    const cached = localStorage.getItem("branchPrintData");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) branchLines = parsed;
-        else if (Array.isArray(parsed?.data)) branchLines = parsed.data;
-      } catch {}
-    }
+  const showCompanyHeader = data.companyNameKot ?? isCompanyNameKotEnabled();
 
-    if (branchLines.length === 0) {
-      const sessionStr = localStorage.getItem("posSession") || localStorage.getItem("activeBranch");
-      if (sessionStr) {
+  let customHeadersHtml = "";
+  if (showCompanyHeader) {
+    try {
+      let branchLines: any[] = [];
+      const cached = localStorage.getItem("branchPrintData");
+      if (cached) {
         try {
-          const parsed = JSON.parse(sessionStr);
-          const lines = parsed.lines || parsed.activeBranch?.lines || [];
-          if (Array.isArray(lines) && lines.length > 0) branchLines = lines;
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) branchLines = parsed;
+          else if (Array.isArray(parsed?.data)) branchLines = parsed.data;
         } catch {}
       }
-    }
 
-    if (branchLines.length === 0) {
-      try {
-        branchLines = await branchApi.fetchBranchPrintData();
-        if (branchLines && branchLines.length > 0) {
-          localStorage.setItem("branchPrintData", JSON.stringify(branchLines));
+      if (branchLines.length === 0) {
+        const sessionStr = localStorage.getItem("posSession") || localStorage.getItem("activeBranch");
+        if (sessionStr) {
+          try {
+            const parsed = JSON.parse(sessionStr);
+            const lines = parsed.lines || parsed.activeBranch?.lines || [];
+            if (Array.isArray(lines) && lines.length > 0) branchLines = lines;
+          } catch {}
         }
-      } catch {
-        const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
-        const branchIdStr = isBackoffice
-          ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
-          : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
-        
-        let branchId = 0;
-        if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
-          branchId = Number(branchIdStr);
-        }
-        if (branchId > 0) {
-          const branch = await branchApi.fetchBranchById(branchId);
-          if (branch && branch.lines) {
-            branchLines = branch.lines;
+      }
+
+      if (branchLines.length === 0) {
+        try {
+          branchLines = await branchApi.fetchBranchPrintData();
+          if (branchLines && branchLines.length > 0) {
+            localStorage.setItem("branchPrintData", JSON.stringify(branchLines));
+          }
+        } catch {
+          const isBackoffice = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
+          const branchIdStr = isBackoffice
+            ? (sessionStorage.getItem("backoffice_activeBranchId") || sessionStorage.getItem("backoffice_branchId"))
+            : (localStorage.getItem("activeBranchId") || localStorage.getItem("branchId"));
+          
+          let branchId = 0;
+          if (branchIdStr && branchIdStr !== "null" && branchIdStr !== "undefined") {
+            branchId = Number(branchIdStr);
+          }
+          if (branchId > 0) {
+            const branch = await branchApi.fetchBranchById(branchId);
+            if (branch && branch.lines) {
+              branchLines = branch.lines;
+            }
           }
         }
       }
+
+      if (branchLines && branchLines.length > 0) {
+        const isHeader = (l: any) => {
+          const sec = String(l.section || "").toLowerCase();
+          const code = String(l.code || l.id || "").toUpperCase();
+          return sec === "header" || (code.startsWith("H") && !code.startsWith("EH"));
+        };
+        const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
+        if (headers.length > 0) {
+          customHeadersHtml = headers.map(l => {
+            const val = l.value ?? l.lineValue ?? "";
+            const styleObj = getLineStyle(l) as any;
+            const styleStr = Object.entries(styleObj).map(([k, v]) => {
+              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
+              return `${kebab}:${v}`;
+            }).join(";");
+            return `<div dir="auto" style="${styleStr}">${val}</div>`;
+          }).join("");
+        }
+      }
+    } catch {
+      // Silently proceed with fallback headers if branch endpoint is forbidden for cashiers
     }
 
-    if (branchLines && branchLines.length > 0) {
-      const isHeader = (l: any) => {
-        const sec = String(l.section || "").toLowerCase();
-        const code = String(l.code || l.id || "").toUpperCase();
-        return sec === "header" || (code.startsWith("H") && !code.startsWith("EH"));
-      };
-      const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
-      if (headers.length > 0) {
-        customHeadersHtml = headers.map(l => {
-          const val = l.value ?? l.lineValue ?? "";
-          const styleObj = getLineStyle(l) as any;
-          const styleStr = Object.entries(styleObj).map(([k, v]) => {
-            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-            return `${kebab}:${v}`;
-          }).join(";");
-          return `<div dir="auto" style="${styleStr}">${val}</div>`;
-        }).join("");
+    if (!customHeadersHtml) {
+      const companyFallback =
+        localStorage.getItem("companyName") ||
+        localStorage.getItem("systemBranchName") ||
+        localStorage.getItem("activeBranchName") ||
+        localStorage.getItem("branchName") ||
+        "";
+      if (companyFallback) {
+        customHeadersHtml = `<div style="font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 4px;">${companyFallback}</div>`;
       }
     }
-  } catch {
-    // Silently proceed with fallback headers if branch endpoint is forbidden for cashiers
   }
 
   // Map internal camelCase/PascalCase names → human-readable display
@@ -256,7 +286,9 @@ export const generateKotHtml = async (
     : (isVatActive ? (1 / 1.10) : 1);
 
   const printTaxSetting = resolveKotPrintTaxSetting(data);
+  const viewTaxSetting = resolveViewTaxSetting(data as any);
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
+  const isViewInclusive = viewTaxSetting === "Inclusive";
 
   const isOrderBillDiscount = Boolean(
     (data as any).isBillDiscount ||
@@ -297,16 +329,23 @@ export const generateKotHtml = async (
       item.extras.forEach(ex => extrasSum += (Number(ex.price || 0) * (ex.qty || 1)));
     }
 
+    const itemLineNetAmount: number | undefined = (item as any).lineNetAmount ?? (item as any).LineNetAmount;
     const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
       ? Number((item as any).basePrice)
-      : undefined;
+      : (itemBaseAmount !== undefined && itemBaseAmount > 0 && qty > 0 ? (itemBaseAmount / qty) : undefined);
 
     // ── 1. Calculate Exclusive Amounts (Tax-Exclusive) ──
     const catalogExclusivePrice = knownBasePrice !== undefined
       ? knownBasePrice
-      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && (item as any).isIncl)
-          ? (origUnitPrice * vatRatio)
-          : (origUnitPrice > 0 ? origUnitPrice : 0));
+      : (isViewInclusive
+          ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice * vatRatio) : origUnitPrice)
+          : origUnitPrice);
+
+    const catalogInclusivePrice = knownBasePrice !== undefined
+      ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (knownBasePrice / vatRatio) : knownBasePrice)
+      : (isViewInclusive
+          ? origUnitPrice
+          : ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice / vatRatio) : origUnitPrice));
 
     let exclusiveUnitPrice: number;
     let exclusiveProductLineAmount: number;
@@ -321,35 +360,23 @@ export const generateKotHtml = async (
         exclusiveProductLineAmount = Math.max(0, netValueVal);
         exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (netValueVal + totalItemDisc) / qty);
       } else if (itemBaseAmount !== undefined && qty > 0) {
-        const isBaseUndiscounted = catalogExclusivePrice > 0
-          ? Math.abs(itemBaseAmount - (catalogExclusivePrice * qty)) < 0.01
-          : totalItemDisc > 0;
-        if (isBaseUndiscounted && totalItemDisc > 0) {
-          exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (itemBaseAmount / qty);
-          exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
-        } else {
-          exclusiveProductLineAmount = Math.max(0, itemBaseAmount);
-          exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (itemBaseAmount + totalItemDisc) / qty);
-        }
-      } else if (itemVat > 0 && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum - itemVat);
+        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (itemBaseAmount / qty);
+        exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
+      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum);
         exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && origUnitPrice > 0) {
-        exclusiveUnitPrice = catalogExclusivePrice;
-        exclusiveProductLineAmount = Math.max(0, (exclusiveUnitPrice * qty) - totalItemDisc);
+      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        exclusiveProductLineAmount = itemVat > 0
+          ? Math.max(0, itemLineTotal - extrasSum - itemVat)
+          : Math.max(0, (itemLineTotal - extrasSum) * vatRatio);
+        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
       } else {
-        exclusiveUnitPrice = origUnitPrice;
-        exclusiveProductLineAmount = Math.max(0, (origUnitPrice * qty) - totalItemDisc);
+        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : origUnitPrice;
+        exclusiveProductLineAmount = Math.max(0, (exclusiveUnitPrice * qty) - totalItemDisc);
       }
     }
 
     // ── 2. Calculate Inclusive Amounts (Tax-Inclusive) ──
-    const catalogInclusivePrice = knownBasePrice !== undefined
-      ? (isVatActive && vatRatio > 0 && vatRatio < 1 ? (knownBasePrice / vatRatio) : knownBasePrice)
-      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && !(item as any).isIncl)
-          ? (origUnitPrice / vatRatio)
-          : (origUnitPrice > 0 ? origUnitPrice : 0));
-
     let lineInclusiveAmt: number;
     let inclusiveUnitPrice: number;
 
@@ -357,30 +384,17 @@ export const generateKotHtml = async (
       inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
       lineInclusiveAmt = inclusiveUnitPrice * qty;
     } else {
-      if (itemLineTotal !== undefined && itemLineTotal > 0) {
-        const rawLineAmt = Math.max(0, itemLineTotal - extrasSum);
-        const isLineUndiscounted = catalogInclusivePrice > 0
-          ? Math.abs(rawLineAmt - (catalogInclusivePrice * qty)) < 0.01
-          : false;
-        if (isLineUndiscounted && totalItemDisc > 0) {
-          inclusiveUnitPrice = catalogInclusivePrice;
-          lineInclusiveAmt = Math.max(0, rawLineAmt - totalItemDisc);
-        } else {
-          lineInclusiveAmt = rawLineAmt;
-          inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-        }
-      } else if (itemBaseAmount !== undefined && isVatActive && vatRatio > 0 && vatRatio < 1) {
-        const derivedInclusive = itemBaseAmount / vatRatio;
-        const isLineUndiscounted = catalogInclusivePrice > 0
-          ? Math.abs(derivedInclusive - (catalogInclusivePrice * qty)) < 0.01
-          : totalItemDisc > 0;
-        if (isLineUndiscounted && totalItemDisc > 0) {
-          inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (derivedInclusive / qty);
-          lineInclusiveAmt = Math.max(0, derivedInclusive - totalItemDisc);
-        } else {
-          lineInclusiveAmt = derivedInclusive;
-          inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-        }
+      if (itemLineNetAmount !== undefined && itemLineNetAmount > 0) {
+        lineInclusiveAmt = Math.max(0, itemLineNetAmount - extrasSum);
+        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
+      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
+        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
+      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        lineInclusiveAmt = itemVat > 0
+          ? Math.max(0, itemLineTotal - extrasSum) + itemVat
+          : (isVatActive && vatRatio > 0 && vatRatio < 1 ? Math.max(0, itemLineTotal - extrasSum) / vatRatio : Math.max(0, itemLineTotal - extrasSum));
+        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
       } else if (itemVat > 0) {
         lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
         inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
@@ -423,9 +437,14 @@ export const generateKotHtml = async (
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
           : `+ ${exName}`;
         const rawExPrice = Number(ex.price || 0);
-        const exUnitPrice = (!isTaxInclusive && isVatActive && vatRatio < 1)
-          ? (rawExPrice * vatRatio)
-          : rawExPrice;
+        let exUnitPrice = rawExPrice;
+        if (isVatActive && vatRatio > 0 && vatRatio < 1) {
+          if (isTaxInclusive && !isViewInclusive) {
+            exUnitPrice = rawExPrice / vatRatio;
+          } else if (!isTaxInclusive && isViewInclusive) {
+            exUnitPrice = rawExPrice * vatRatio;
+          }
+        }
         const exLineAmt = exUnitPrice * (ex.qty || 1);
         const exAmtStr = rawExPrice > 0 ? fmt(exLineAmt) : "";
         subRowsHtml += `
@@ -898,7 +917,7 @@ export const generateKotHtml = async (
       <html>
         ${styles}
         <body>
-          ${customHeadersHtml ? `
+          ${showCompanyHeader && customHeadersHtml ? `
             <div style="margin-bottom: 8px; padding: 0 4px; width: 100%; box-sizing: border-box; word-break: break-word;">
               ${customHeadersHtml}
             </div>
@@ -935,6 +954,11 @@ export const generateKotHtml = async (
     <html>
       ${styles}
       <body>
+        ${showCompanyHeader && customHeadersHtml ? `
+          <div style="margin-bottom: 8px; padding: 0 4px; width: 100%; box-sizing: border-box; word-break: break-word;">
+            ${customHeadersHtml}
+          </div>
+        ` : ''}
         <div class="text-center" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${orderTypeDisplay}</div>
         <div class="text-center" style="font-size: 17px; font-weight: bold; margin-bottom: 3px;">***${kotHeaderTitleDisplay}***</div>
 

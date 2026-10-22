@@ -17,15 +17,7 @@ export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
     if (norm === "exclusive") return "Exclusive";
   }
 
-  // Priority 1: Check printPrice if explicitly stored in localStorage (set from POS Settings > Operational Flags)
-  const directPrintPrice = localStorage.getItem("printPrice");
-  if (directPrintPrice) {
-    const norm = String(directPrintPrice).trim().toLowerCase();
-    if (norm === "inclusive") return "Inclusive";
-    if (norm === "exclusive") return "Exclusive";
-  }
-
-  // Priority 2: Check priceView in localStorage
+  // Priority 1: Check priceView in localStorage
   const directPriceView = localStorage.getItem("priceView");
   if (directPriceView) {
     const norm = String(directPriceView).trim().toLowerCase();
@@ -33,19 +25,13 @@ export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
     if (norm === "exclusive") return "Exclusive";
   }
 
-  // Priority 3: Check cached posConfigs JSON
+  // Priority 2: Check cached posConfigs JSON
   for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
     try {
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
         const configs = parsed?.configs || parsed;
-        const pp = configs?.printPrice ?? configs?.PrintPrice ?? parsed?.printPrice ?? parsed?.PrintPrice;
-        if (pp) {
-          const norm = String(pp).trim().toLowerCase();
-          if (norm === "inclusive") return "Inclusive";
-          if (norm === "exclusive") return "Exclusive";
-        }
         const pv = configs?.priceView ?? configs?.PriceView ?? parsed?.priceView ?? parsed?.PriceView;
         if (pv) {
           const norm = String(pv).trim().toLowerCase();
@@ -110,7 +96,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
     }
     
     const rawDiscCalc = configs.discCalc || configs.discountCalc || configs.DiscCalc || configs.DiscountCalc || '';
-    const rawPriceView = configs.printPrice || configs.PrintPrice || configs.priceView || configs.PriceView || '';
+    const rawPriceView = configs.priceView || configs.PriceView || '';
     const rawVat = configs.vat ?? configs.Vat ?? configs.vatRate ?? configs.VatRate ?? 0;
     const rawSc = configs.serviceCharges ?? configs.serviceCharge ?? configs.ServiceCharges ?? 0;
     const rawLevy = configs.levy ?? configs.Levy ?? 0;
@@ -762,12 +748,23 @@ export const getTaxExclusivePrice = (
  */
 export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
   const qty = Number(d.qty ?? d.quantity ?? 1);
-  const discAmt = roundCalc(Number(d.discAmount ?? d.DiscAmount ?? 0));
+  let discAmt = roundCalc(Number(d.discAmount ?? d.DiscAmount ?? 0));
   const sc = roundCalc(Number(d.serviceCharge ?? d.ServiceCharge ?? 0));
   const levy = roundCalc(Number(d.levy ?? d.Levy ?? 0));
-  const vatAmt = roundCalc(Number(d.vatAmount ?? d.VatAmount ?? 0));
+  let vatAmt = roundCalc(Number(d.vatAmount ?? d.VatAmount ?? 0));
   const rawNet = Number(d.netAmount ?? d.NetAmount ?? 0);
   const rawPrice = Number(d.price ?? d.basePrice ?? 0);
+
+  const isVatEnabled = getVatStatus();
+  const resolvedConfig = config || getBillingConfig(d.orderType || 'DineIn');
+  const rawVatRate = (d.product?.vatValue !== undefined && d.product?.vatValue !== null)
+    ? Number(d.product.vatValue)
+    : (d.vatValue !== undefined && d.vatValue !== null)
+    ? Number(d.vatValue)
+    : (d.vatRate !== undefined && d.vatRate !== null)
+    ? Number(d.vatRate)
+    : (resolvedConfig.vatRate > 1 ? resolvedConfig.vatRate : (resolvedConfig.vatRate > 0 ? resolvedConfig.vatRate * 100 : 10));
+  const activeVatRate = isVatEnabled ? (rawVatRate > 1 ? rawVatRate / 100 : (rawVatRate > 0 ? rawVatRate : 0.10)) : 0;
 
   // 1. If line already has known basePrice or exclusivePrice, use it
   let exclPrice = d.basePrice ?? d.exclusivePrice;
@@ -790,14 +787,34 @@ export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
     exclPrice = roundCalc(exclPrice, CALC_PRECISION);
   }
 
+  // 4. If line discount was entered as gross/inclusive discount on an inclusive price, convert to tax-exclusive
+  if (!d.isPriceTaxExclusive && exclPrice < rawPrice && discAmt > 0 && isVatEnabled && activeVatRate > 0) {
+    if (Math.abs((rawPrice * qty - discAmt + sc + levy) - rawNet) < 0.05 || Math.abs((rawPrice * qty - discAmt) - rawNet) < 0.05) {
+      discAmt = roundCalc(discAmt / (1 + activeVatRate), CALC_PRECISION);
+    }
+  }
+
   // Strictly tax-exclusive line base: (exclPrice * qty) - discAmt + sc + levy
   const exclLineBase = roundCalc(Math.max(0, (exclPrice * qty) - discAmt + sc + levy));
+
+  const isComplimentary = Boolean(
+    d.complimentaryStatus ||
+    d.ComplimentaryStatus ||
+    Number(d.discPer ?? d.DiscPer ?? 0) === 100 ||
+    (rawNet === 0 && d.complimentaryStatus)
+  );
+
+  const currencyDecimals = getDecimalPart();
+
+  // 5. Self-healing VAT: if VAT is enabled and active but vatAmt is missing/0 on a non-complimentary taxable line
+  if (vatAmt <= 0.0001 && isVatEnabled && activeVatRate > 0 && exclLineBase > 0 && !isComplimentary) {
+    vatAmt = roundCalc(exclLineBase * activeVatRate, currencyDecimals);
+  }
 
   // Line netAmount includes tax: (exclLineBase + vatAmt)
   const lineNetAmountWithTax = roundCalc(Math.max(0, exclLineBase + vatAmt));
 
   // If rawNet was already inclusive (matching exclLineBase + vatAmt), use rawNet
-  const currencyDecimals = getDecimalPart();
   const finalNetAmount = (rawNet > 0 && Math.abs(rawNet - lineNetAmountWithTax) < 0.05)
     ? roundCalc(rawNet, currencyDecimals)
     : roundCalc(lineNetAmountWithTax, currencyDecimals);

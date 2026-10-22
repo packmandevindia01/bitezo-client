@@ -14,7 +14,7 @@ import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
+import { getVatStatus, getBillingConfig, roundCalc, getPriceView } from "../../../utils/billing";
 import { isKotArabicEnabled, isBillArabicEnabled, formatItemDisplayName, cleanProductName } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
@@ -136,16 +136,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     }
   }, [orderDetailsStr, orderId]);
 
+  const effectiveOrderId = Number(
+    orderId ||
+    (orderDetailsStr && (orderDetailsStr.match(/Order\s*:\s*(\d+)/i)?.[1] || orderDetailsStr.match(/Order\s*No\s*:\s*(\d+)/i)?.[1] || orderDetailsStr.match(/#(\d+)/)?.[1])) ||
+    0
+  );
+
   const [modifierTypes, setModifierTypes] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isOpen && orderId) {
+    if (isOpen && (orderId || effectiveOrderId)) {
       void loadOrderDetails();
       void fetchModifierTypes();
     } else {
       setOrder(null);
     }
-  }, [isOpen, orderId]);
+  }, [isOpen, orderId, effectiveOrderId]);
 
   const fetchModifierTypes = async () => {
     try {
@@ -157,15 +163,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   };
 
   const loadOrderDetails = async () => {
-    if (!orderId) return;
+    const targetId = Number(orderId || effectiveOrderId);
+    if (!targetId) return;
     setLoading(true);
     try {
-      const response = await orderApi.getOrderDetails(orderId);
-      if (response && response.isSuccess && response.data) {
-        console.log("ORDER DETAILS RAW RESPONSE:", JSON.stringify(response.data, null, 2));
-        const orderData = response.data;
-        const master = orderData.masterData || orderData;
-        const details = orderData.detailsData || orderData.details || [];
+      const response = await orderApi.getOrderDetails(targetId);
+      const orderData = response?.data || response;
+      const master = orderData?.masterData || orderData?.master || orderData;
+      const details = orderData?.detailsData || orderData?.details || [];
+
+      if (orderData && ((Array.isArray(details) && details.length > 0) || (master && (master.orderNo || master.orderId || master.ticketNo)))) {
+        console.log("ORDER DETAILS RAW RESPONSE:", JSON.stringify(orderData, null, 2));
         const safeOrderTypeId = master.orderTypeId || (master.orderType && orderTypeNameMap[master.orderType]) || 1;
 
         // Ensure alternatives are fetched and cached for products in this order
@@ -200,6 +208,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           } else if (d.altName || d.variantName) {
             d.variantName = d.altName || d.variantName;
             d.unitName = d.variantName;
+          }
+
+          if (!d.productName && !d.ProductName) {
+            const numPid = Number(pId);
+            const cachedProd = productCache[numPid] || (products && products.find((p: any) => p.id === numPid));
+            if (cachedProd) {
+              d.productName = cachedProd.name;
+              d.arabicName = cachedProd.arabicName;
+            }
           }
         });
 
@@ -764,6 +781,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           messages: d.messages || [],
           itemDiscount: isGuestPrintBillDiscount ? 0 : Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
           lineTotal: itemLineNet,
+          lineNetAmount: itemLineNet,
+          basePrice: d.basePrice,
           vatAmount: itemVat
         };
       });
@@ -1087,16 +1106,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
 
-      let isOrderTaxInclusive = billingConfig?.vatType === "Inclusive";
-      if (enableVat && resolvedVatAmount > 0 && netAmount > 0 && resolvedSubTotal > 0) {
-        if (Math.abs((resolvedSubTotal - resolvedDiscount + resolvedVatAmount) - netAmount) < 0.05) {
-          isOrderTaxInclusive = false;
-        } else if (Math.abs((resolvedSubTotal - resolvedDiscount) - netAmount) < 0.05) {
-          isOrderTaxInclusive = true;
-        }
-      }
-      const isIncl = isOrderTaxInclusive;
-      const effectivePriceView: "Inclusive" | "Exclusive" = isOrderTaxInclusive ? "Inclusive" : "Exclusive";
+      const effectivePriceView = getPriceView();
+      const isIncl = billingConfig?.vatType === "Inclusive";
 
       if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
         const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
@@ -1264,16 +1275,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
       }
 
-      let isOrderTaxInclusive = billingConfig?.vatType === "Inclusive";
-      if (enableVat && resolvedVatAmount > 0 && netAmount > 0 && resolvedSubTotal > 0) {
-        if (Math.abs((resolvedSubTotal - resolvedDiscount + resolvedVatAmount) - netAmount) < 0.05) {
-          isOrderTaxInclusive = false;
-        } else if (Math.abs((resolvedSubTotal - resolvedDiscount) - netAmount) < 0.05) {
-          isOrderTaxInclusive = true;
-        }
-      }
-      const isIncl = isOrderTaxInclusive;
-      const effectivePriceView: "Inclusive" | "Exclusive" = isOrderTaxInclusive ? "Inclusive" : "Exclusive";
+      const effectivePriceView = getPriceView();
+      const isIncl = billingConfig?.vatType === "Inclusive";
 
       if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
         const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
@@ -1370,7 +1373,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     } catch {}
     return null;
   };
-  const rawEmpName = master.employeeName ?? order?.employeeName ?? fallbackDetails?.employeeName;
+  const rawEmpName = master.employeeName ?? master.waiter ?? order?.employeeName ?? fallbackDetails?.employeeName;
   const employeeName = (rawEmpName && !["waiter", "cashier", "null", "undefined"].includes(String(rawEmpName).trim().toLowerCase()))
     ? String(rawEmpName).trim()
     : (resolveEmpName(master.employeeId ?? master.empId ?? master.salespersonId)
@@ -1594,9 +1597,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                   {details.map((detail: any, i: number) => {
                     const dMapId = detail.mapId ?? detail.MapId ?? detail.mapID;
                     const itemModifiers = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
-                    const localized = getLocalizedName(detail.productName || `Product #${detail.productId}`, detail.productNameAr || detail.arabicName);
+                    const primaryName = detail.productName || detail.ProductName || detail.itemName || detail.ItemName || detail.name || detail.Name || (detail.productId ? `Product #${detail.productId}` : "Item");
+                    const arabicName = detail.productNameAr || detail.ProductNameAr || detail.arabicName || detail.ArabicName || "";
+                    const localized = getLocalizedName(primaryName, arabicName);
                     const qty = detail.qty ?? detail.Qty ?? 1;
-                    const rawAmount = detail.amount ?? detail.netAmount ?? detail.NetAmount ?? detail.Amount ?? 0;
+                    const rawAmount = detail.netAmount ?? detail.NetAmount ?? (detail.amount !== undefined && Number(detail.amount) > 0 ? (Number(detail.amount) + Number(detail.vatAmount || 0)) : detail.amount) ?? 0;
                     const modalResolvedDiscount = Number(master?.discAmount ?? master?.DiscAmount ?? master?.discount ?? 0);
                     const masterDiscPer = Number(master?.discPer ?? master?.DiscPer ?? master?.billDiscountPer ?? 0);
                     const isBillComplimentary = Boolean(
@@ -1618,23 +1623,49 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                     const rawPrice = detail.price ?? detail.Price;
                     const rawPriceNum = Number(rawPrice ?? 0);
                     const itemVat = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
-                    const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-                    const vatRatio = enableVat ? (1 / (1 + vatRate)) : 1;
-                    const isDetailStoredIncl = Boolean(detail.isIncl || detail.priceIsIncl || detail.priceView === "Inclusive");
-                    const exclPrice = isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum * vatRatio : rawPriceNum;
-                    const inclPrice = !isDetailStoredIncl && enableVat && vatRatio < 1 ? rawPriceNum / vatRatio : rawPriceNum;
-                    const unitRate = isTaxInclusive ? inclPrice : exclPrice;
+
+
+                    const extrasList = itemModifiers.filter((m: any) => {
+                      const statusStr = (m.status || m.Status || "").toLowerCase().trim();
+                      const p = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
+                      const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+                      return statusStr === "extras" || statusStr === "extra" || typeId === 2 || (statusStr !== "message" && p > 0);
+                    });
+
+                    let extrasSum = extrasList.reduce((sum: number, ex: any) => {
+                      const p = Number(ex.price ?? ex.Price ?? ex.amount ?? ex.Amount ?? 0);
+                      const q = Number(ex.qty ?? ex.Qty ?? 1);
+                      return sum + (p * q);
+                    }, 0);
+                    if (extrasSum === 0 && detail.extras && Array.isArray(detail.extras)) {
+                      extrasSum = detail.extras.reduce((sum: number, ex: any) => sum + (Number(ex.price || 0) * Number(ex.qty || 1)), 0);
+                    }
+
+                    const baseExpectedExcl = rawPriceNum * qty;
+                    const baseExpectedIncl = baseExpectedExcl + itemVat;
+                    const rawIncludesExtras = extrasSum > 0 && rawAmount > 0 && (
+                      Math.abs(rawAmount - (baseExpectedExcl + extrasSum)) < 0.05 ||
+                      Math.abs(rawAmount - (baseExpectedIncl + extrasSum)) < 0.05
+                    );
+                    const effectiveLineExtras = rawIncludesExtras ? 0 : extrasSum;
+
+                    const lineGrossTotal = rawAmount > 0
+                      ? (rawAmount + itemDisc + effectiveLineExtras)
+                      : (rawPriceNum * qty + itemDisc + itemVat + effectiveLineExtras);
+                    const grossUnitRate = roundCalc(lineGrossTotal / qty, 3);
+                    const exclUnitRate = roundCalc(Math.max(0, lineGrossTotal - itemVat) / qty, 3);
+                    const unitRate = isTaxInclusive ? grossUnitRate : exclUnitRate;
 
                     const price = (unitRate > 0)
                       ? unitRate
-                      : (qty > 0 ? (rawAmount + itemDisc) / qty : 0);
+                      : (qty > 0 ? (rawAmount + itemDisc + effectiveLineExtras) / qty : 0);
 
                     const lineAmount = isModalBillDiscount
                       ? (price * qty)
                       : (isTaxInclusive
-                          ? (rawAmount > 0 && Math.abs((price * qty) - rawAmount) < 0.05 ? rawAmount : Math.max(0, (price * qty) - itemDisc))
+                          ? (rawAmount > 0 ? (rawAmount + effectiveLineExtras) : Math.max(0, (price * qty) - itemDisc))
                           : (itemVat > 0 && rawAmount > itemVat
-                              ? (rawAmount - itemVat)
+                              ? (rawAmount - itemVat + effectiveLineExtras)
                               : Math.max(0, (price * qty) - itemDisc)));
 
                     return (
@@ -1668,6 +1699,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                         {/* Modifiers and Messages display as separate rows */}
                         {itemModifiers.map((mod: any, idx: number) => {
                           const isMessage = (mod.status || mod.Status || "").toLowerCase() === "message";
+                          const modStatusStr = (mod.status || mod.Status || "").toLowerCase().trim();
+                          const modPriceNum = Number(mod.price ?? mod.Price ?? mod.amount ?? mod.Amount ?? 0);
+                          const modTypeId = Number(mod.typeId ?? mod.TypeId ?? 0);
+                          const isExtra = !isMessage && (
+                            modStatusStr === "extras" ||
+                            modStatusStr === "extra" ||
+                            modTypeId === 2 ||
+                            modPriceNum > 0
+                          );
+
                           let prefix = "+";
                           
                           if (isMessage) {
@@ -1690,11 +1731,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                                 {prefix} {!isMessage && mod.qty > 1 ? `${mod.qty} x ` : ""}{modDisplayName}
                               </div>
                               <div className="text-right font-medium text-[#f48120] shrink-0">
-                                {mod.price > 0 ? formatAmount(mod.price * (mod.qty || 1)) : ""}
+                                {!isExtra && modPriceNum > 0 ? formatAmount(modPriceNum * (mod.qty || 1)) : ""}
                               </div>
                             </div>
                           );
                         })}
+
+                        {/* If detail.extras exists and itemModifiers is empty, render extras */}
+                        {itemModifiers.length === 0 && detail.extras && Array.isArray(detail.extras) && detail.extras.map((ex: any, idx: number) => (
+                          <div key={`ex-${idx}`} className="grid grid-cols-[28px_minmax(0,1fr)_65px] items-start text-[9px] leading-tight mt-0.5">
+                            <div></div>
+                            <div className="pl-3 font-medium min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] text-[#f48120]">
+                              + {ex.qty > 1 ? `${ex.qty} x ` : ""}{ex.name || ex.modifierName || "Extra"}
+                            </div>
+                            <div className="text-right font-medium text-[#f48120] shrink-0"></div>
+                          </div>
+                        ))}
                       </div>
                     );
                   })}

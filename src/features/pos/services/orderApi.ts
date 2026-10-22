@@ -114,13 +114,43 @@ export const orderApi = {
 
   /**
    * Fetches full order details by order ID for recall/edit.
-   * GET /api/menu/order/order_data/{orderId}
+   * Primary: GET /api/v1/menu/order/order_data/{orderId}?priceView={priceView}
+   * Fallback: GET /api/v1/order/recall/order_data/{orderId}
    */
-  getOrderDetails: async (orderId: number): Promise<any> => {
-    const priceView = getPriceView();
-    return unwrap<any>(
-      axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: { priceView } })
-    );
+  getOrderDetails: async (orderId: number, priceViewOverride?: string): Promise<any> => {
+    const priceView = priceViewOverride || getPriceView();
+    try {
+      return await unwrap<any>(
+        axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: { priceView } })
+      );
+    } catch (e) {
+      console.warn(`[orderApi] getOrderDetails from /menu/order/order_data/${orderId} failed, trying /order/recall/order_data fallback:`, e);
+      try {
+        return await unwrap<any>(
+          axiosInstance.get(`/order/recall/order_data/${orderId}`, { params: { priceView } })
+        );
+      } catch (err2) {
+        console.warn(`[orderApi] fallback getOrderDetails with priceView failed, retrying without params:`, err2);
+        try {
+          return await unwrap<any>(
+            axiosInstance.get(`/menu/order/order_data/${orderId}`)
+          );
+        } catch (err3) {
+          return await unwrap<any>(
+            axiosInstance.get(`/order/recall/order_data/${orderId}`)
+          );
+        }
+      }
+    }
+  },
+
+  /**
+   * Explicitly fetches recall order details by order ID.
+   * Primary: GET /api/v1/menu/order/order_data/{orderId}?priceView={priceView}
+   * Fallback: GET /api/v1/order/recall/order_data/{orderId}
+   */
+  getRecallOrderDetails: async (orderId: number, priceViewOverride?: string): Promise<any> => {
+    return orderApi.getOrderDetails(orderId, priceViewOverride);
   },
 
   /**

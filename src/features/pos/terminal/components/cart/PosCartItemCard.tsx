@@ -51,6 +51,16 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
   const localized = getLocalizedName(cleanProdName, cleanProdArabic);
   const variantLocalized = item.variantName ? getLocalizedName(item.variantName, item.variantArabic) : null;
 
+  const hasExtras = Boolean(item.extras && item.extras.length > 0);
+  const qty = item.quantity || 1;
+  const rawOriginalTotal = item.originalLineTotal ?? ((item.lineTotal || 0) + (item.itemDiscount || 0));
+  const effectiveUnitPrice = hasExtras
+    ? (rawOriginalTotal > 0
+        ? rawOriginalTotal / qty
+        : (item.price || item.product?.price || 0) + (item.extras || []).reduce((sum, ex) => sum + (Number(ex.price) || 0) * (Number(ex.qty) || 1), 0) / qty
+      )
+    : (item.price || item.product?.price || 0);
+
   return (
     <div
       id={`cart-row-${key}`}
@@ -81,7 +91,7 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
               const totalQty = ex.qty || 1;
               return (
                 <p key={i} className="text-[9px] font-bold text-blue-600 uppercase leading-none italic">
-                  + {ex.name} {totalQty > 1 ? `(x${totalQty})` : ""} ({formatAmount(ex.price * totalQty)})
+                  + {ex.name}{totalQty > 1 ? ` (x${totalQty})` : ""}
                 </p>
               );
             })}
@@ -139,7 +149,7 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
 
       <div className="flex items-center justify-center py-0.5">
         <span className={`text-[10px] font-normal ${isSelected ? "text-[#49293e]" : "text-slate-500"}`}>
-          {formatAmount(item.price || item.product?.price || 0)}
+          {formatAmount(effectiveUnitPrice)}
         </span>
       </div>
 
@@ -170,11 +180,13 @@ export const PosCartItemCard = memo(PosCartItemCardBase, (prev, next) => {
     prev.item.price === next.item.price &&
     prev.item.quantity === next.item.quantity &&
     prev.item.lineTotal === next.item.lineTotal &&
+    prev.item.originalLineTotal === next.item.originalLineTotal &&
     prev.item.itemDiscount === next.item.itemDiscount &&
     prev.item.billDiscountAmount === next.item.billDiscountAmount &&
     prev.item.netValue === next.item.netValue &&
     prev.item.extras?.length === next.item.extras?.length &&
     prev.item.modifiers?.length === next.item.modifiers?.length &&
+    JSON.stringify(prev.item.extras) === JSON.stringify(next.item.extras) &&
     JSON.stringify(prev.item.messages) === JSON.stringify(next.item.messages)
   );
 });

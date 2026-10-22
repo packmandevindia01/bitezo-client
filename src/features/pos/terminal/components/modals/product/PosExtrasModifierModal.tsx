@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { menuApi } from "../../../../services/menuApi";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
 import { useAppSelector } from "../../../../../../app/hooks";
+import { useToast } from "../../../../../../app/providers/useToast";
 
 interface CartItem {
   uniqueId: string;
@@ -42,6 +43,7 @@ export const PosExtrasModifierModal = ({
   onDone,
 }: PosExtrasModifierModalProps) => {
   const { formatAmount } = useCurrency();
+  const { showToast } = useToast();
 
   // Available types/categories from API
   const [types, setTypes] = useState<any[]>([]);
@@ -185,14 +187,12 @@ export const PosExtrasModifierModal = ({
   // ── Left-grid: ADD logic (only for the current modal type) ─────────────────
   const handleItemToggle = (item: any) => {
     if (type === 'extras') {
-      const exists = extrasSelections.find(si => si.id === item.id && si.typeId === activeTypeId);
+      const exists = extrasSelections.find(si => si.id === item.id);
       if (exists) {
-        setExtrasSelections(prev =>
-          prev.map(si => (si.id === item.id && si.typeId === activeTypeId) ? { ...si, qty: si.qty + 1 } : si)
-        );
-      } else {
-        setExtrasSelections(prev => [...prev, { ...item, qty: 1 }]);
+        showToast("Extra is already added", "warning");
+        return;
       }
+      setExtrasSelections(prev => [...prev, { ...item, qty: 1 }]);
     } else {
       const exists = modifiersSelections.find(si => si.id === item.id && si.typeId === activeTypeId);
       if (exists) {
@@ -215,36 +215,27 @@ export const PosExtrasModifierModal = ({
   };
 
   // ── Right-panel qty control (only for matching type) ───────────────────────
-  const canQty = selectedSummaryType === type;
+  const canQty = selectedSummaryType === type && type !== 'extras';
 
   const handleIncrement = () => {
-    if (!canQty || !selectedSummaryId) return;
-    if (type === 'extras') {
-      setExtrasSelections(prev =>
-        prev.map(item => `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: item.qty + 1 } : item)
-      );
-    } else {
-      setModifiersSelections(prev =>
-        prev.map(item => `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: item.qty + 1 } : item)
-      );
+    if (!canQty || !selectedSummaryId) {
+      if (type === 'extras' && selectedSummaryType === 'extras') {
+        showToast("Extra is already added", "warning");
+      }
+      return;
     }
+    setModifiersSelections(prev =>
+      prev.map(item => `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: item.qty + 1 } : item)
+    );
   };
 
   const handleDecrement = () => {
     if (!canQty || !selectedSummaryId) return;
-    if (type === 'extras') {
-      setExtrasSelections(prev =>
-        prev.map(item =>
-          `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: Math.max(1, item.qty - 1) } : item
-        )
-      );
-    } else {
-      setModifiersSelections(prev =>
-        prev.map(item =>
-          `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: Math.max(1, item.qty - 1) } : item
-        )
-      );
-    }
+    setModifiersSelections(prev =>
+      prev.map(item =>
+        `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: Math.max(1, item.qty - 1) } : item
+      )
+    );
   };
 
   // ── Right-panel: REMOVE — works for all types from any modal ──────────────
@@ -269,7 +260,7 @@ export const PosExtrasModifierModal = ({
   if (!isOpen) return null;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-  const isExtrasGridSelected  = (item: any) => !!extrasSelections.find(si => si.id === item.id && si.typeId === activeTypeId);
+  const isExtrasGridSelected  = (item: any) => !!extrasSelections.find(si => si.id === item.id);
   const isModifierGridSelected = (item: any) => !!modifiersSelections.find(si => si.id === item.id && si.typeId === activeTypeId);
   const getGridBadgeQty = (item: any) =>
     type === 'extras'

@@ -325,11 +325,28 @@ export const buildDirectSettleOrderPayload = (
   const resolvedCallBack = isDeliveryOrder ? (callBack || "") : "";
   const resolvedAddressId = selectedAddressId || 0;
 
-  const totalDetailGross = details.reduce((sum, d) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
   const totalModifierGross = modifiers.reduce((sum, m) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
-  const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+  const lineExclSum = details.reduce(
+    (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
+    0
+  );
+  let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+  let calcVatAmt = roundCalc(details.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
   const lineDiscounts = details.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
   const totalOrderDiscount = roundCalc(Math.max(0, Number(discount || 0), lineDiscounts));
+
+  const payableBase = Math.max(0, Number(total || 0) - Number(deliveryCharge || 0));
+  const isOrderComplimentary = Boolean(
+    (billDiscountType === "percentage" && Number(billDiscountValue) === 100) ||
+    (context as any).complimentaryStatus ||
+    (cartDetails.length > 0 && cartDetails.every((i) => (i.discountType === "percentage" && Number(i.discountValue) === 100) || (i as any).complimentaryStatus))
+  );
+
+  if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !isOrderComplimentary) {
+    const activeVatRate = billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10;
+    calcVatAmt = roundCalc(payableBase - (payableBase / (1 + activeVatRate)));
+    calcVatExcl = roundCalc(payableBase - calcVatAmt);
+  }
 
   return {
     orderId: editingOrderId || 0,
@@ -338,15 +355,11 @@ export const buildDirectSettleOrderPayload = (
     transDate: activeTransDate,
     discAmount: totalOrderDiscount,
     discPer: billDiscountType === "percentage" ? billDiscountValue : 0,
-    complimentaryStatus: Boolean(
-      (billDiscountType === "percentage" && Number(billDiscountValue) === 100) ||
-      (context as any).complimentaryStatus ||
-      (cartDetails.length > 0 && cartDetails.every((i) => (i.discountType === "percentage" && Number(i.discountValue) === 100) || (i as any).complimentaryStatus))
-    ),
+    complimentaryStatus: isOrderComplimentary,
     serviceCharge: roundCalc(totalServiceCharge),
     levy: roundCalc(totalLevy),
-    vatExclAmount: roundCalc(Math.max(0, totalGrossExcl - totalOrderDiscount)),
-    vatAmount: roundCalc(details.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0)),
+    vatExclAmount: calcVatExcl,
+    vatAmount: calcVatAmt,
     netAmount: roundCalc(Math.max(0, total)),
     deliveryCharge: roundCalc(Math.max(0, deliveryCharge)),
     updatedAt: new Date().toISOString(),

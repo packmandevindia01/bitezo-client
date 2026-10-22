@@ -82,22 +82,42 @@ const getPaymodeArabic = (name: string): string => {
   return "";
 };
 
-export const resolvePrintTaxSetting = (data?: GuestPrintData): "Inclusive" | "Exclusive" => {
-  if (data?.printPrice === "Inclusive" || data?.printPrice === "Exclusive") {
-    return data.printPrice;
-  }
-  if (data?.priceView === "Inclusive" || data?.priceView === "Exclusive") {
-    return data.priceView;
-  }
+const normalizeTaxSetting = (val: any): "Inclusive" | "Exclusive" | undefined => {
+  if (!val) return undefined;
+  const str = String(val).trim().toLowerCase();
+  if (str === "inclusive") return "Inclusive";
+  if (str === "exclusive") return "Exclusive";
+  return undefined;
+};
 
-  const directPrintPrice = localStorage.getItem("printPrice");
-  if (directPrintPrice === "Inclusive" || directPrintPrice === "Exclusive") {
-    return directPrintPrice as "Inclusive" | "Exclusive";
-  }
-  const directPriceView = localStorage.getItem("priceView");
-  if (directPriceView === "Inclusive" || directPriceView === "Exclusive") {
-    return directPriceView as "Inclusive" | "Exclusive";
-  }
+export const resolvePrintTaxSetting = (data?: GuestPrintData): "Inclusive" | "Exclusive" => {
+  // 1. Explicit printPrice in printData takes top priority
+  const explicitPrint = normalizeTaxSetting(data?.printPrice);
+  if (explicitPrint) return explicitPrint;
+
+  // 2. Direct printPrice setting stored in localStorage from POS Settings > Operational Flags
+  const directPrintPrice = normalizeTaxSetting(localStorage.getItem("printPrice"));
+  if (directPrintPrice) return directPrintPrice;
+
+  // 3. Cached posConfigs JSON check for printPrice
+  try {
+    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const pp = normalizeTaxSetting(configs?.printPrice || configs?.PrintPrice);
+        if (pp) return pp;
+      }
+    }
+  } catch {}
+
+  // 4. Fallback to screen priceView only if printPrice was never configured
+  const explicitView = normalizeTaxSetting(data?.priceView);
+  if (explicitView) return explicitView;
+
+  const directPriceView = normalizeTaxSetting(localStorage.getItem("priceView"));
+  if (directPriceView) return directPriceView;
 
   try {
     for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
@@ -105,10 +125,8 @@ export const resolvePrintTaxSetting = (data?: GuestPrintData): "Inclusive" | "Ex
       if (raw) {
         const parsed = JSON.parse(raw);
         const configs = parsed?.configs || parsed;
-        const pp = configs?.printPrice || configs?.PrintPrice;
-        if (pp === "Inclusive" || pp === "Exclusive") return pp;
-        const pv = configs?.priceView || configs?.PriceView;
-        if (pv === "Inclusive" || pv === "Exclusive") return pv;
+        const pv = normalizeTaxSetting(configs?.priceView || configs?.PriceView);
+        if (pv) return pv;
       }
     }
   } catch {}
@@ -116,13 +134,42 @@ export const resolvePrintTaxSetting = (data?: GuestPrintData): "Inclusive" | "Ex
   if (data?.orderType) {
     try {
       const bc = getBillingConfig(data.orderType);
-      if (bc?.vatType === "Inclusive" || bc?.vatType === "Exclusive") {
-        return bc.vatType;
-      }
+      const bt = normalizeTaxSetting(bc?.vatType);
+      if (bt) return bt;
     } catch {}
   }
 
-  return getPriceView();
+  return normalizeTaxSetting(getPriceView()) ?? "Exclusive";
+};
+
+export const resolveViewTaxSetting = (data?: GuestPrintData): "Inclusive" | "Exclusive" => {
+  const explicitView = normalizeTaxSetting(data?.priceView);
+  if (explicitView) return explicitView;
+
+  const directPriceView = normalizeTaxSetting(localStorage.getItem("priceView"));
+  if (directPriceView) return directPriceView;
+
+  try {
+    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const pv = normalizeTaxSetting(configs?.priceView || configs?.PriceView);
+        if (pv) return pv;
+      }
+    }
+  } catch {}
+
+  if (data?.orderType) {
+    try {
+      const bc = getBillingConfig(data.orderType);
+      const bt = normalizeTaxSetting(bc?.vatType);
+      if (bt) return bt;
+    } catch {}
+  }
+
+  return normalizeTaxSetting(getPriceView()) ?? "Exclusive";
 };
 
 export const generateGuestPrintHtml = async (
@@ -283,14 +330,11 @@ export const generateGuestPrintHtml = async (
     : (isVatActive ? (1 / 1.10) : 1);
 
   const printTaxSetting = resolvePrintTaxSetting(data);
+  const viewTaxSetting = resolveViewTaxSetting(data);
 
-  // Consistency Rule:
-  // If the bill structure explicitly has an exclusive SubTotal and adds VAT Amount on top (SubTotal + VAT = Net),
-  // then the line items must be Tax-Exclusive so that Sum(Amt) === SubTotal and Rate * Qty === Amt.
-  const hasExclusiveVatAddition = isVatActive && authoritativeSubTotal > 0 && authoritativeVatAmount > 0 &&
-    Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05;
-
-  const isTaxInclusive = isVatActive && !hasExclusiveVatAddition ? (printTaxSetting === "Inclusive") : false;
+  // Product Price View in Print: Respect configured Print Price (Inclusive vs Exclusive)
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
+  const isViewInclusive = viewTaxSetting === "Inclusive";
 
   const isOrderBillDiscount = Boolean(
     data.isBillDiscount ||
@@ -327,6 +371,7 @@ export const generateGuestPrintHtml = async (
     // Shape B (API direct):     no baseAmount, item.price is already the exclusive price
     const itemBaseAmount: number | undefined = (item as any).baseAmount;
     const itemLineTotal: number | undefined = (item as any).lineTotal;
+    const itemLineNetAmount: number | undefined = (item as any).lineNetAmount ?? (item as any).LineNetAmount;
     const itemVat = Number((item as any).vatAmount || (item as any).VatAmount || 0);
     const totalItemDisc = isOrderBillDiscount
       ? 0
@@ -340,15 +385,22 @@ export const generateGuestPrintHtml = async (
 
     const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
       ? Number((item as any).basePrice)
-      : undefined;
+      : (itemBaseAmount !== undefined && itemBaseAmount > 0 && qty > 0 ? (itemBaseAmount / qty) : undefined);
 
-    // ── 1. Calculate Exclusive Amounts (Tax-Exclusive) ──
+    // ── 1. Calculate Catalog Unit Prices (Exclusive & Inclusive) ──
     const catalogExclusivePrice = knownBasePrice !== undefined
       ? knownBasePrice
-      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && (item as any).isIncl)
-          ? (origUnitPrice * vatRatio)
-          : (origUnitPrice > 0 ? origUnitPrice : 0));
+      : (isViewInclusive
+          ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice * vatRatio) : origUnitPrice)
+          : origUnitPrice);
 
+    const catalogInclusivePrice = knownBasePrice !== undefined
+      ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (knownBasePrice / vatRatio) : knownBasePrice)
+      : (isViewInclusive
+          ? origUnitPrice
+          : ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice / vatRatio) : origUnitPrice));
+
+    // ── 2. Calculate Exclusive Amounts (Tax-Exclusive) ──
     let exclusiveUnitPrice: number;
     let exclusiveProductLineAmount: number;
 
@@ -362,35 +414,23 @@ export const generateGuestPrintHtml = async (
         exclusiveProductLineAmount = Math.max(0, netValueVal);
         exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (netValueVal + totalItemDisc) / qty);
       } else if (itemBaseAmount !== undefined && qty > 0) {
-        if (catalogExclusivePrice > 0) {
-          exclusiveUnitPrice = catalogExclusivePrice;
-          exclusiveProductLineAmount = Math.max(0, (catalogExclusivePrice * qty) - totalItemDisc);
-        } else if (totalItemDisc > 0) {
-          exclusiveUnitPrice = itemBaseAmount / qty;
-          exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
-        } else {
-          exclusiveProductLineAmount = Math.max(0, itemBaseAmount);
-          exclusiveUnitPrice = Math.max(0, (itemBaseAmount + totalItemDisc) / qty);
-        }
-      } else if (itemVat > 0 && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum - itemVat);
+        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (itemBaseAmount / qty);
+        exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
+      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum);
         exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && origUnitPrice > 0) {
-        exclusiveUnitPrice = catalogExclusivePrice;
-        exclusiveProductLineAmount = Math.max(0, (exclusiveUnitPrice * qty) - totalItemDisc);
+      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        exclusiveProductLineAmount = itemVat > 0
+          ? Math.max(0, itemLineTotal - extrasSum - itemVat)
+          : Math.max(0, (itemLineTotal - extrasSum) * vatRatio);
+        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
       } else {
-        exclusiveUnitPrice = origUnitPrice;
-        exclusiveProductLineAmount = Math.max(0, (origUnitPrice * qty) - totalItemDisc);
+        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : origUnitPrice;
+        exclusiveProductLineAmount = Math.max(0, (exclusiveUnitPrice * qty) - totalItemDisc);
       }
     }
 
-    // ── 2. Calculate Inclusive Amounts (Tax-Inclusive) ──
-    const catalogInclusivePrice = knownBasePrice !== undefined
-      ? (isVatActive && vatRatio > 0 && vatRatio < 1 ? (knownBasePrice / vatRatio) : knownBasePrice)
-      : ((isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1 && !(item as any).isIncl)
-          ? (origUnitPrice / vatRatio)
-          : (origUnitPrice > 0 ? origUnitPrice : 0));
-
+    // ── 3. Calculate Inclusive Amounts (Tax-Inclusive) ──
     let lineInclusiveAmt: number;
     let inclusiveUnitPrice: number;
 
@@ -398,30 +438,17 @@ export const generateGuestPrintHtml = async (
       inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
       lineInclusiveAmt = inclusiveUnitPrice * qty;
     } else {
-      if (itemLineTotal !== undefined && itemLineTotal > 0) {
-        const rawLineAmt = Math.max(0, itemLineTotal - extrasSum);
-        const isLineUndiscounted = catalogInclusivePrice > 0
-          ? Math.abs(rawLineAmt - (catalogInclusivePrice * qty)) < 0.01
-          : false;
-        if (isLineUndiscounted && totalItemDisc > 0) {
-          inclusiveUnitPrice = catalogInclusivePrice;
-          lineInclusiveAmt = Math.max(0, rawLineAmt - totalItemDisc);
-        } else {
-          lineInclusiveAmt = rawLineAmt;
-          inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-        }
-      } else if (itemBaseAmount !== undefined && isVatActive && vatRatio > 0 && vatRatio < 1) {
-        const derivedInclusive = itemBaseAmount / vatRatio;
-        const isLineUndiscounted = catalogInclusivePrice > 0
-          ? Math.abs(derivedInclusive - (catalogInclusivePrice * qty)) < 0.01
-          : totalItemDisc > 0;
-        if (isLineUndiscounted && totalItemDisc > 0) {
-          inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (derivedInclusive / qty);
-          lineInclusiveAmt = Math.max(0, derivedInclusive - totalItemDisc);
-        } else {
-          lineInclusiveAmt = derivedInclusive;
-          inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-        }
+      if (itemLineNetAmount !== undefined && itemLineNetAmount > 0) {
+        lineInclusiveAmt = Math.max(0, itemLineNetAmount - extrasSum);
+        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
+      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
+        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
+      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
+        lineInclusiveAmt = itemVat > 0
+          ? Math.max(0, itemLineTotal - extrasSum) + itemVat
+          : (isVatActive && vatRatio > 0 && vatRatio < 1 ? Math.max(0, itemLineTotal - extrasSum) / vatRatio : Math.max(0, itemLineTotal - extrasSum));
+        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
       } else if (itemVat > 0) {
         lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
         inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
@@ -434,25 +461,12 @@ export const generateGuestPrintHtml = async (
       }
     }
 
-    // ── 3. Select Rate & Amt based on tax setting (Inclusive vs Exclusive) ──
-    const safeExclusiveRate = exclusiveUnitPrice;
-    const safeExclusiveAmt = (safeExclusiveRate > 0 && qty > 0)
-      ? Math.max(0, (safeExclusiveRate * qty) - totalItemDisc)
-      : exclusiveProductLineAmount;
-
-    const safeInclusiveRate = qty > 0 && Math.abs((inclusiveUnitPrice * qty) - (lineInclusiveAmt + totalItemDisc)) > 0.01
-      ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty)
-      : inclusiveUnitPrice;
-    const safeInclusiveAmt = (safeInclusiveRate > 0 && qty > 0)
-      ? Math.max(0, (safeInclusiveRate * qty) - totalItemDisc)
-      : lineInclusiveAmt;
-
-    const finalRate = isTaxInclusive ? safeInclusiveRate : safeExclusiveRate;
-    const finalAmt = isTaxInclusive ? safeInclusiveAmt : safeExclusiveAmt;
+    // ── 4. Select Rate & Amt based on tax setting (Inclusive vs Exclusive) ──
+    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
+    const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
 
     // displaySubTotal accumulates line amounts for fallback
-    const exclusiveBase = safeExclusiveAmt;
-    displaySubTotal += parseFloat(fmt(isTaxInclusive ? safeInclusiveAmt : exclusiveBase));
+    displaySubTotal += parseFloat(fmt(finalAmt));
 
     const rate = fmt(finalRate);
     const amt = fmt(finalAmt);
@@ -493,9 +507,14 @@ export const generateGuestPrintHtml = async (
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px; color:#000000; white-space:nowrap;">(${exArabic})</span>`
           : `+ ${exName}`;
         const rawExPrice = Number(ex.price || 0);
-        const exUnitPrice = (!isTaxInclusive && isVatActive && vatRatio < 1)
-          ? (rawExPrice * vatRatio)
-          : rawExPrice;
+        let exUnitPrice = rawExPrice;
+        if (isVatActive && vatRatio > 0 && vatRatio < 1) {
+          if (isTaxInclusive && !isViewInclusive) {
+            exUnitPrice = rawExPrice / vatRatio;
+          } else if (!isTaxInclusive && isViewInclusive) {
+            exUnitPrice = rawExPrice * vatRatio;
+          }
+        }
         const exLineAmt = exUnitPrice * (ex.qty || 1);
         displaySubTotal += parseFloat(fmt(exLineAmt));
         const exRate = fmt(exUnitPrice);
@@ -613,12 +632,13 @@ export const generateGuestPrintHtml = async (
       Number(data.deliveryCharge || 0)
   );
 
-  const subTotalBeforeDiscount =
-    hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0))) < 0.05
+  const subTotalBeforeDiscount = isTaxInclusive
+    ? parseFloat(fmt(displaySubTotal + totalDiscount))
+    : (hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0))) < 0.05
       ? authoritativeSubTotal
       : hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - netTaxableBase) < 0.05
       ? authoritativeSubTotal + (totalDiscount > 0 ? totalDiscount : 0)
-      : (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0));
+      : (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0)));
 
   if (isVatActive) {
     data.enableVat = true;

@@ -4,6 +4,7 @@ import { useCurrency } from "../../../../../hooks/useCurrency";
 import { Lock } from "lucide-react";
 import { getLocalizedName } from "../../../utils/posLocalization";
 
+
 interface PosProductCardProps {
   product: PosProduct;
   onAdd: (productId: number) => void;
@@ -19,6 +20,7 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
   const [imageError, setImageError] = useState(false);
 
   const finalPrice = price !== undefined ? price : product.price;
+
   const showPrice = finalPrice >= 0 && !hasAlts;
   const localized = getLocalizedName(product.name, product.arabicName);
 

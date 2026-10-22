@@ -1,4 +1,4 @@
-import { roundCalc, sanitizeTaxExclusiveDetail } from "../utils/billing";
+import { roundCalc, sanitizeTaxExclusiveDetail, getVatStatus } from "../utils/billing";
 import type { SalesInvoicePayload, PaymodeItem } from "../../types";
 import type { DirectSettleOrderBase } from "./orderPayloadMapper";
 
@@ -139,13 +139,26 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       };
     });
 
-    const totalDetailGross = sanitizedDetails.reduce((sum, d) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
     const totalModifierGross = (orderPayload.modifiers || []).reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
-    const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+    const lineExclSum = sanitizedDetails.reduce(
+      (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
+      0
+    );
+    let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+    let calcVatAmt = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
     const lineDiscounts = sanitizedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
     const totalOrderDiscount = roundCalc(Math.max(0, Number(orderPayload.discAmount || 0), lineDiscounts));
-    const calcVatExcl = roundCalc(Math.max(0, totalGrossExcl - totalOrderDiscount));
-    const calcVatAmt = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+
+    const isVatEnabled = getVatStatus();
+    const payableBase = Math.max(0, Number(orderPayload.netAmount || 0) - Number(orderPayload.deliveryCharge || 0));
+    const isComplimentary = Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100);
+
+    // Fallback self-healing: ensure taxable order never sends vatAmount: 0 or vatExclAmount === netAmount
+    if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !isComplimentary) {
+      const vatRate = 0.10;
+      calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
+      calcVatExcl = roundCalc(payableBase - calcVatAmt);
+    }
 
   return {
     seriesId: systemSeriesId,

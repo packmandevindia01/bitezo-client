@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { INITIAL_CONFIG } from "../../../general/configuration/constants";
 import type { ConfigurationState, DeliveryCharge } from "../../../general/configuration/types";
 import { useToast } from "../../../../app/providers/useToast";
-import { getEmployeeNames } from "../../../general/employee/services/employeeService";
+import { getEmployeeNames, employeeService } from "../../../general/employee/services/employeeService";
+import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 import { posConfigApi } from "../../services/posConfigApi";
 import type { PosConfigResponseData, PosConfigUpdatePayload } from "../../services/posConfigApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
@@ -26,7 +27,7 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     billCopies: configs.billCopies || 1,
     packagerPrint: configs.packagerPrint === "Enable",
     callerIdPort: configs.callerIdPort || "",
-    priceView: (configs.priceView as any) || "Exclusive",
+    priceView: (localStorage.getItem("priceView") as any) || (configs.priceView as any) || "Exclusive",
     cashdrawer: (configs.cashdrawer as any) || "Default",
     recipe: configs.recipe === "Enable",
     dayDate: (configs.dayDate ?? configs.DayDate) === "Enable",
@@ -37,13 +38,18 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     customerTakeout: configs.customerTakeout === "Enable",
     kotPrint: configs.kotPrint === "Enable",
     displayPort: configs.displayPort || "",
-    printPrice: (configs.printPrice as any) || "Exclusive",
+    printPrice: (localStorage.getItem("printPrice") as any) || (configs.printPrice as any) || "Exclusive",
     deliverySettle: configs.deliverySettle === "Enable",
     showDeliveryRecall: configs.showDeliveryRecall === "Enable",
     colorChangeGuestPrint: configs.colorChangeGuestPrint === "Enable",
     masterKot: configs.masterKot === "Enable",
     masterKotBillPrinter: configs.masterKotBillPrinter === "Enable",
-    companyNameKOT: configs.companyNameKot === "Enable",
+    companyNameKOT: (() => {
+      const stored = localStorage.getItem("companyNameKot") || localStorage.getItem("companyNameKOT");
+      if (stored !== null) return stored === "Enable" || stored === "true" || stored === "1";
+      const val = configs.companyNameKot ?? (configs as any)?.CompanyNameKot ?? (configs as any)?.companyNameKOT;
+      return val === "Enable" || val === true || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enable";
+    })(),
     locationWisePrice: configs.locationWisePrice === "Enable",
     alternativeOrder: (configs.alternativeOrder as any) || "Id",
     packagerHeader: configs.packagerHeader === "Enable",
@@ -161,6 +167,55 @@ export const usePosConfiguration = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const refreshEmployees = useCallback(async (): Promise<{ empId: number; empName: string }[]> => {
+    try {
+      const branchId =
+        Number(localStorage.getItem("systemBranchId")) ||
+        Number(localStorage.getItem("activeBranchId")) ||
+        Number(localStorage.getItem("branchId")) ||
+        0;
+
+      let employees = await getEmployeeNames(branchId).catch((e) => {
+        console.error("Failed to fetch branch employee names:", e);
+        return [];
+      });
+
+      if ((!employees || employees.length === 0) && branchId > 0) {
+        employees = await getEmployeeNames().catch(() => []);
+      }
+
+      if (!employees || employees.length === 0) {
+        const fullList = await employeeService.getEmployees().catch(() => []);
+        employees = fullList.map((e: any) => ({
+          empId: e.empId,
+          empName: e.empName,
+        }));
+      }
+
+      const empNameMap: Record<string, string> = {};
+      employees.forEach((employee: any) => {
+        const id = employee.empId ?? employee.id;
+        const name = employee.empName ?? employee.name;
+        if (id) {
+          empNameMap[String(id)] = name || "";
+        }
+      });
+      localStorage.setItem("posEmpNameMap", JSON.stringify(empNameMap));
+
+      setEmployeeOptions(
+        employees.map((employee: any) => ({
+          label: employee.empName || employee.name,
+          value: String(employee.empId || employee.id),
+        }))
+      );
+
+      return employees;
+    } catch (err) {
+      console.error("Failed to refresh employees in POS Configuration:", err);
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -171,7 +226,7 @@ export const usePosConfiguration = () => {
         
         // Fetch employees, order types, pos config, and branch print layout concurrently
         const [employees, orderTypesRes, posConfigRes, printLinesRes] = await Promise.all([
-          getEmployeeNames(branchId).catch((e) => { console.error(e); return []; }),
+          refreshEmployees(),
           posConfigApi.getOrderTypeList().catch((e) => { console.error(e); return []; }),
           posConfigApi.getPosConfig(branchId).catch(() => null),
           branchApi.fetchBranchPrintData(branchId).catch(() => null)
@@ -246,6 +301,9 @@ export const usePosConfiguration = () => {
           if (stateData.productView) {
             localStorage.setItem("productView", stateData.productView);
           }
+          if (stateData.companyNameKOT !== undefined) {
+            localStorage.setItem("companyNameKot", stateData.companyNameKOT ? "Enable" : "Disable");
+          }
         }
       } catch (error) {
         console.error("Failed to load POS configuration", error);
@@ -256,13 +314,33 @@ export const usePosConfiguration = () => {
 
     void loadData();
 
+    // 1. Real-time cross-tab and local employee sync listener
+    const unsubscribeEmployees = subscribeToEmployeeUpdates(() => {
+      if (active) void refreshEmployees();
+    });
+
+    // 2. Refetch when switching back to this tab/window
+    const handleFocus = () => {
+      if (active && document.visibilityState === "visible") {
+        void refreshEmployees();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
     return () => {
       active = false;
+      unsubscribeEmployees();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
     };
-  }, []);
+  }, [refreshEmployees]);
 
   const setField = <K extends keyof ConfigurationState>(key: K, value: ConfigurationState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === "defaultEmployee" && value === true) {
+      void refreshEmployees();
+    }
   };
 
   const setDayEndField = (key: keyof ConfigurationState["dayEnd"], value: boolean) => {
@@ -327,6 +405,9 @@ export const usePosConfiguration = () => {
       if (form.printPrice || payload.printPrice) {
         localStorage.setItem("printPrice", form.printPrice || payload.printPrice || "Exclusive");
       }
+      if (payload.companyNameKot !== undefined) {
+        localStorage.setItem("companyNameKot", payload.companyNameKot);
+      }
 
       // ─── Frontend override for default employee ───────────────────────────────
       // The backend does not persist defaultEmployee/employeeId to the DB.
@@ -384,6 +465,7 @@ export const usePosConfiguration = () => {
           parsed.configs.productView = form.productView || "English";
           parsed.configs.priceView = form.priceView || payload.priceView;
           parsed.configs.printPrice = form.printPrice || payload.printPrice;
+          parsed.configs.companyNameKot = payload.companyNameKot;
         }
         parsed.itemSeperation = payload.itemSeperation;
         parsed.otherKitchenItem = payload.otherKitchenItem;
@@ -391,6 +473,7 @@ export const usePosConfiguration = () => {
         parsed.productView = form.productView || "English";
         parsed.priceView = form.priceView || payload.priceView;
         parsed.printPrice = form.printPrice || payload.printPrice;
+        parsed.companyNameKot = payload.companyNameKot;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
         localStorage.setItem("otherKitchenItem", payload.otherKitchenItem ? "true" : "false");
         parsed.kotHeader = payload.kotHeader;
@@ -447,5 +530,6 @@ export const usePosConfiguration = () => {
     addDeliveryCharge,
     removeDeliveryCharge,
     handleSave,
+    refreshEmployees,
   };
 };

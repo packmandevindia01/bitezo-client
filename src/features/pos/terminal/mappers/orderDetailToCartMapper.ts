@@ -169,7 +169,7 @@ export const mapOrderDetailToCartItem = ({
       ? Number(realProduct.price)
       : undefined;
 
-  // 6. Restore Unit Price & Tax Inclusivity
+  // 6. Restore Unit Price & Tax Inclusivity with Strict Mathematical Invariants
   const lineBase = rawPrice * qty;
   const remainingBase = lineBase - rawDiscAmount;
   const isStoredTaxExclusive =
@@ -182,70 +182,110 @@ export const mapOrderDetailToCartItem = ({
     ((rawVatAmt > 0.001 && Math.abs(rawNetAmt - remainingBase) < 0.02) ||
      Boolean(detail.isPriceTaxInclusive));
 
-  let restoredPrice = rawPrice;
-  let itemIsIncl = resolvedPriceView === "Inclusive";
+  // Determine true base (tax-exclusive) and true gross (tax-inclusive) unit prices
+  let trueBasePrice: number;
+  let trueGrossPrice: number;
+
+  if (isStoredTaxExclusive) {
+    trueBasePrice = rawPrice;
+    trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
+  } else if (isStoredTaxInclusive) {
+    trueGrossPrice = rawPrice;
+    trueBasePrice = activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice;
+  } else if (rawNetAmt > 0 && qty > 0) {
+    if (rawVatAmt > 0 && Math.abs(rawNetAmt - remainingBase) < 0.02) {
+      trueGrossPrice = rawPrice;
+      trueBasePrice = activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice;
+    } else if (rawVatAmt > 0 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02) {
+      trueBasePrice = rawPrice;
+      trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
+    } else {
+      const grossTotal = rawNetAmt + rawDiscAmount;
+      trueGrossPrice = roundCalc(grossTotal / qty, 4);
+      trueBasePrice = activeVatFraction > 0 ? roundCalc(trueGrossPrice / (1 + activeVatFraction), 4) : trueGrossPrice;
+    }
+  } else if (catalogPrice !== undefined && catalogPrice > 0) {
+    if (realProduct.isIncl === false) {
+      trueBasePrice = catalogPrice;
+      trueGrossPrice = activeVatFraction > 0 ? roundCalc(catalogPrice * (1 + activeVatFraction), 4) : catalogPrice;
+    } else if (realProduct.isIncl === true) {
+      trueGrossPrice = catalogPrice;
+      trueBasePrice = activeVatFraction > 0 ? roundCalc(catalogPrice / (1 + activeVatFraction), 4) : catalogPrice;
+    } else if (activeVatFraction > 0 && Math.abs(roundCalc(catalogPrice * (1 + activeVatFraction), 4) - rawPrice) < 0.05) {
+      trueGrossPrice = rawPrice;
+      trueBasePrice = catalogPrice;
+    } else if (activeVatFraction > 0 && Math.abs(roundCalc(catalogPrice / (1 + activeVatFraction), 4) - rawPrice) < 0.05) {
+      trueBasePrice = rawPrice;
+      trueGrossPrice = catalogPrice;
+    } else if (Math.abs(catalogPrice - rawPrice) < 0.05) {
+      if (resolvedPriceView === "Inclusive") {
+        trueGrossPrice = catalogPrice;
+        trueBasePrice = activeVatFraction > 0 ? roundCalc(catalogPrice / (1 + activeVatFraction), 4) : catalogPrice;
+      } else {
+        trueBasePrice = catalogPrice;
+        trueGrossPrice = activeVatFraction > 0 ? roundCalc(catalogPrice * (1 + activeVatFraction), 4) : catalogPrice;
+      }
+    } else {
+      if (resolvedPriceView === "Inclusive") {
+        trueGrossPrice = rawPrice;
+        trueBasePrice = activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice;
+      } else {
+        trueBasePrice = rawPrice;
+        trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
+      }
+    }
+  } else {
+    if (resolvedPriceView === "Inclusive") {
+      trueGrossPrice = rawPrice;
+      trueBasePrice = activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice;
+    } else {
+      trueBasePrice = rawPrice;
+      trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
+    }
+  }
+
+  // Harmonize with catalog price if available
+  if (catalogPrice !== undefined && catalogPrice > 0 && activeVatFraction > 0) {
+    if (Math.abs(roundCalc(catalogPrice * (1 + activeVatFraction), 4) - trueGrossPrice) < 0.05) {
+      trueGrossPrice = roundCalc(catalogPrice * (1 + activeVatFraction), 4);
+      trueBasePrice = catalogPrice;
+    } else if (Math.abs(catalogPrice - trueBasePrice) < 0.05) {
+      trueBasePrice = catalogPrice;
+      trueGrossPrice = roundCalc(catalogPrice * (1 + activeVatFraction), 4);
+    }
+  }
+
+  let restoredPrice: number;
+  let itemIsIncl: boolean;
 
   if (resolvedPriceView === "Exclusive") {
-    // ── Explicit Tax-Exclusive Mode ──
-    const isCatalogStoredIncl = Boolean(realProduct.isIncl || detail.isIncl || detail.priceIsIncl);
-    let exclBase = (catalogPrice !== undefined && catalogPrice > 0) ? catalogPrice : rawPrice;
-    if (isCatalogStoredIncl && activeVatFraction > 0 && exclBase > 0) {
-      exclBase = roundCalc(exclBase / (1 + activeVatFraction), 4);
-    }
-    restoredPrice = exclBase > 0 ? exclBase : (rawPrice > 0 ? rawPrice : (catalogPrice ?? 0));
+    // In Exclusive View: item is always tax-exclusive base
+    restoredPrice = trueBasePrice;
     itemIsIncl = false;
-  } else if (activeVatFraction > 0) {
-    const candidateGross = roundCalc(rawPrice * (1 + activeVatFraction), 4);
-    const candidateGrossRounded =
-      Math.abs(candidateGross - Math.round(candidateGross)) < 0.002
-        ? Math.round(candidateGross)
-        : roundCalc(candidateGross, 3);
+  } else {
+    // In Inclusive View:
+    // If product is inherently tax-exclusive (e.g. INCL unchecked in catalog or stored exclusive)
+    if (realProduct.isIncl === false) {
+      restoredPrice = trueBasePrice;
+      itemIsIncl = false;
+    } else {
+      restoredPrice = trueGrossPrice;
+      itemIsIncl = true;
+    }
+  }
 
-    const isKnownExclusive =
-      isStoredTaxExclusive ||
-      isDetailComplimentary ||
-      Boolean(isOrderBillDiscount) ||
-      (rawNetAmt === 0 && rawDiscAmount > 0) ||
-      (rawVatAmt === 0 && rawNetAmt === 0);
-
-    // 1. Direct match with catalog price (e.g. 4.545 * 1.1 = 4.9995 matches catalog 5.000)
-    if (catalogPrice !== undefined && Math.abs(catalogPrice - candidateGross) < 0.05) {
-      restoredPrice = catalogPrice;
-      itemIsIncl = true;
+  // Strict Invariant Enforcement:
+  // Under NO condition can an item have isIncl === false while its price is the gross price
+  if (!itemIsIncl && activeVatFraction > 0 && trueGrossPrice > trueBasePrice) {
+    if (Math.abs(restoredPrice - trueGrossPrice) < 0.02) {
+      restoredPrice = trueBasePrice;
     }
-    // 2. Catalog price matches rawPrice directly (item was already catalog price)
-    else if (catalogPrice !== undefined && Math.abs(catalogPrice - rawPrice) < 0.02) {
-      restoredPrice = catalogPrice;
-      itemIsIncl = isStoredTaxInclusive || (isStoredTaxExclusive ? false : (resolvedPriceView === "Inclusive" || realProduct.isIncl === true));
+  }
+  // And under NO condition can an item have isIncl === true while its price is the exclusive base
+  if (itemIsIncl && activeVatFraction > 0 && trueGrossPrice > trueBasePrice) {
+    if (Math.abs(restoredPrice - trueBasePrice) < 0.02) {
+      restoredPrice = trueGrossPrice;
     }
-    // 3. Stored row is known to be tax-exclusive base (from orderPayloadMapper or complimentary)
-    else if (isKnownExclusive) {
-      if (rawNetAmt > 0 && qty > 0 && (rawNetAmt + rawDiscAmount) > lineBase + 0.001 && catalogPrice === undefined) {
-        restoredPrice = roundCalc((rawNetAmt + rawDiscAmount) / qty, 3);
-      } else {
-        restoredPrice = candidateGrossRounded;
-      }
-      if (catalogPrice !== undefined && Math.abs(catalogPrice - restoredPrice) < 0.05) {
-        restoredPrice = catalogPrice;
-      }
-      itemIsIncl = true;
-    }
-    // 4. If catalog price is available and greater than rawPrice, restore to catalog price
-    else if (catalogPrice !== undefined && catalogPrice > rawPrice && Math.abs(catalogPrice - candidateGross) < 0.1) {
-      restoredPrice = catalogPrice;
-      itemIsIncl = true;
-    }
-    // 5. Standard Inclusive view restoration
-    else if (resolvedPriceView === "Inclusive") {
-      restoredPrice = candidateGrossRounded;
-      itemIsIncl = true;
-    }
-    // 6. Explicit catalog price fallback
-    else if (catalogPrice !== undefined && Math.abs(catalogPrice - rawPrice) < 0.02) {
-      restoredPrice = catalogPrice;
-    }
-  } else if (catalogPrice !== undefined) {
-    restoredPrice = catalogPrice;
   }
 
   // 7. Modifiers and Extras Mapping

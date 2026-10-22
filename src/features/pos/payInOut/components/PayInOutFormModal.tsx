@@ -61,6 +61,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
     reset,
     setValue,
     watch,
+    setFocus,
     formState: { errors }
   } = useForm<PayInOutFormData>({
     resolver: zodResolver(payInOutSchema),
@@ -99,8 +100,13 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
           paymodeId: paymodes.length > 0 ? Number(paymodes[0].value) : 1
         });
       }
+
+      const timer = setTimeout(() => {
+        setFocus('description');
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, initialData, reset, paymodes, voucherNumberStr, decimalPart]);
+  }, [isOpen, initialData, reset, paymodes, voucherNumberStr, decimalPart, setFocus]);
 
   useEffect(() => {
     const updateViewportMode = () => {
@@ -301,6 +307,7 @@ export const PayInOutFormModal: React.FC<PayInOutFormModalProps> = ({
             <div className="mb-4">
               <FormInput
                 {...register('description')}
+                autoFocus
                 label="Description"
                 required
                 placeholder="Enter description..."

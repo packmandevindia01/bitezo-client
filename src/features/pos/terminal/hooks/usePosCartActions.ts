@@ -507,7 +507,7 @@ export const usePosCartActions = () => {
       const { printHtmlReceipt } = await import("../../services/qzService");
       const { generateKotHtml } = await import("../../utils/kotTemplate");
       const { executeKotRouting } = await import("../../utils/printerRouting");
-      const { isKotArabicEnabled, isBillArabicEnabled } = await import("../../utils/alternativeHelpers");
+      const { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled } = await import("../../utils/alternativeHelpers");
 
       let resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "";
       let resolvedCallBack = (masterData as any)?.callBack || (masterData as any)?.callback || callBack || deliveryDetails?.callBack || "";
@@ -590,6 +590,7 @@ export const usePosCartActions = () => {
         priceView: (localStorage.getItem("priceView") as any) || undefined,
         printPrice: (localStorage.getItem("printPrice") as any) || undefined,
         kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
+        companyNameKot: isCompanyNameKotEnabled(),
       };
 
       if (isUpdate) {

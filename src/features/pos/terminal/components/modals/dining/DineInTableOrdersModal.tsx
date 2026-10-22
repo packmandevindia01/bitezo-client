@@ -504,6 +504,81 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const lineDiscountsSum = details.reduce((sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
       const resolvedDiscAmount = Math.max(Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0), lineDiscountsSum);
 
+      const dineInConfig = getBillingConfig("DineIn");
+      const mappedDetails = details.map((d: any) => {
+        const sanitized = sanitizeTaxExclusiveDetail(
+          { ...d, orderType: "DineIn", vatRate: d.vatRate ?? master.vatRate, vatValue: d.vatValue ?? master.vatValue },
+          dineInConfig
+        );
+        return {
+          productId: sanitized.productId || d.itemId || 0,
+          unitId: sanitized.unitId || 1,
+          qty: sanitized.qty,
+          price: sanitized.price,
+          basePrice: sanitized.price,
+          exclusivePrice: sanitized.price,
+          isPriceTaxExclusive: true,
+          discPer: Number(sanitized.discPer ?? d.DiscPer ?? 0),
+          discAmount: sanitized.discAmount,
+          serviceCharge: sanitized.serviceCharge,
+          levy: sanitized.levy,
+          vatId: sanitized.vatId || 0,
+          vatAmount: sanitized.vatAmount,
+          netAmount: sanitized.netAmount,
+          mapId: sanitized.mapId || 0,
+          complimentaryStatus: Boolean(
+            sanitized.complimentaryStatus ||
+            d.ComplimentaryStatus ||
+            Number(sanitized.discPer ?? d.DiscPer ?? 0) === 100
+          ),
+          baseQty: sanitized.baseQty || sanitized.qty || 1,
+        };
+      });
+
+      const mappedModifiers = modifiersData.map((m: any) => {
+        const isExtras = (m.price && Number(m.price) > 0) || (m.status || "").toLowerCase() === "extras";
+        const rawModPrice = Number(m.price || m.amount || 0);
+        const rawVatRate = Number(master.vatRate ?? master.vatValue ?? 0);
+        const priceView = getPriceView();
+        const isIncl = priceView === 'Inclusive';
+        const exclModPrice = isExtras
+          ? getTaxExclusiveExtraPrice(rawModPrice, rawVatRate, isIncl)
+          : 0;
+        const qty = m.qty || 1;
+        return {
+          mapId: m.mapId,
+          modifierId: m.modifierId,
+          qty,
+          price: exclModPrice,
+          amount: isExtras ? roundCalc(exclModPrice * qty, CALC_PRECISION) : 0,
+          typeId: m.typeId || 0,
+          modifierName: m.modifierName || "",
+          arabicName: m.arabicName || "",
+          status: m.status || (rawModPrice > 0 ? "extras" : "modifier"),
+        };
+      });
+
+      const lineExclSum = mappedDetails.reduce(
+        (sum: number, d: any) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
+        0
+      );
+      const modExclSum = mappedModifiers.reduce((sum: number, m: any) => sum + Number(m.amount || 0), 0);
+      let calculatedVatExcl = roundCalc(lineExclSum + modExclSum);
+      let calculatedVatAmt = roundCalc(mappedDetails.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
+      const payableBase = Math.max(0, Number(master.netAmount || selectedMaster.netAmount || 0) - Number(master.deliveryCharge || 0));
+      const isComplimentary = Boolean(
+        master.complimentaryStatus ||
+        master.ComplimentaryStatus ||
+        Number(master.discPer ?? master.DiscPer ?? 0) === 100
+      );
+      const isVatEnabled = getVatStatus();
+
+      if (isVatEnabled && calculatedVatAmt <= 0.0001 && payableBase > 0 && !isComplimentary) {
+        const vatRate = 0.10;
+        calculatedVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
+        calculatedVatExcl = roundCalc(payableBase - calculatedVatAmt);
+      }
+
       const directSettleOrder: DirectSettleOrderBase = {
         orderId: targetOrderId,
         customerId: master.customerId || 1,
@@ -511,15 +586,11 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         transDate: master.transDate || master.voucherDate || activeTransDate,
         discAmount: resolvedDiscAmount,
         discPer: Number(master.discPer ?? master.DiscPer ?? 0),
-        complimentaryStatus: Boolean(
-          master.complimentaryStatus ||
-          master.ComplimentaryStatus ||
-          Number(master.discPer ?? master.DiscPer ?? 0) === 100
-        ),
+        complimentaryStatus: isComplimentary,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
-        vatExclAmount: master.vatExclAmount || 0,
-        vatAmount: master.vatAmount || 0,
+        vatExclAmount: calculatedVatExcl,
+        vatAmount: calculatedVatAmt,
         netAmount: master.netAmount || selectedMaster.netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         updatedAt: new Date().toISOString(),
@@ -546,54 +617,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         providerOrderNo: master.providerOrderNo || "",
         providerNo: master.providerNo || "",
         driverId: master.driverId || 0,
-        details: details.map((d: any) => {
-          const sanitized = sanitizeTaxExclusiveDetail(d);
-          return {
-            productId: sanitized.productId || d.itemId || 0,
-            unitId: sanitized.unitId || 1,
-            qty: sanitized.qty,
-            price: sanitized.price,
-            basePrice: sanitized.price,
-            exclusivePrice: sanitized.price,
-            isPriceTaxExclusive: true,
-            discPer: Number(sanitized.discPer ?? d.DiscPer ?? 0),
-            discAmount: sanitized.discAmount,
-            serviceCharge: sanitized.serviceCharge,
-            levy: sanitized.levy,
-            vatId: sanitized.vatId || 0,
-            vatAmount: sanitized.vatAmount,
-            netAmount: sanitized.netAmount,
-            mapId: sanitized.mapId || 0,
-            complimentaryStatus: Boolean(
-              sanitized.complimentaryStatus ||
-              d.ComplimentaryStatus ||
-              Number(sanitized.discPer ?? d.DiscPer ?? 0) === 100
-            ),
-            baseQty: sanitized.baseQty || sanitized.qty || 1,
-          };
-        }),
-        modifiers: modifiersData.map((m: any) => {
-          const isExtras = (m.price && Number(m.price) > 0) || (m.status || "").toLowerCase() === "extras";
-          const rawModPrice = Number(m.price || m.amount || 0);
-          const rawVatRate = Number(master.vatRate ?? master.vatValue ?? 0);
-          const priceView = getPriceView();
-          const isIncl = priceView === 'Inclusive';
-          const exclModPrice = isExtras
-            ? getTaxExclusiveExtraPrice(rawModPrice, rawVatRate, isIncl)
-            : 0;
-          const qty = m.qty || 1;
-          return {
-            mapId: m.mapId,
-            modifierId: m.modifierId,
-            qty,
-            price: exclModPrice,
-            amount: isExtras ? roundCalc(exclModPrice * qty, CALC_PRECISION) : 0,
-            typeId: m.typeId || 0,
-            modifierName: m.modifierName || "",
-            arabicName: m.arabicName || "",
-            status: m.status || (rawModPrice > 0 ? "extras" : "modifier"),
-          };
-        }),
+        details: mappedDetails,
+        modifiers: mappedModifiers,
         voidProducts: [],
         voidModifiers: [],
         combinedOrderIds: [],
@@ -690,6 +715,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
             baseAmount,
             vatAmount: itemVat,
             lineTotal: itemLineNet,
+            lineNetAmount: itemLineNet,
             itemDiscount: Number(item.discountValue || item.discAmount || item.DiscAmount || item.itemDiscount || 0),
             product: { ...item.product, price: item.price },
           };
@@ -1113,6 +1139,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           baseAmount,
           vatAmount: itemVat,
           lineTotal: itemLineNet,
+            lineNetAmount: itemLineNet,
           itemDiscount: Number(item.discountValue || item.discAmount || item.DiscAmount || item.itemDiscount || 0),
           product: { ...item.product, price: item.price },
         };
@@ -1143,6 +1170,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
+        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        priceView: (localStorage.getItem("priceView") as any) || undefined,
         billArabic,
       };
 

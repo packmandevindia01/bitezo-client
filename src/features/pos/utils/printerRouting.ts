@@ -182,13 +182,18 @@ export const executeKotRouting = async (
   console.log(`[Printer Routing] Standard KOT: groups=${printerGroups.size}, items=${items.length}, shouldDispatch=${shouldDispatchStandard}, otherKitchenItem=${otherKitchenItemActive}`);
 
   if (shouldDispatchStandard) {
+    const isVoidOrder = Boolean(
+      basePrintOptions?.headerTitle &&
+      (basePrintOptions.headerTitle === "VOID ITEMS" || basePrintOptions.headerTitle.includes("VOID"))
+    );
+
     for (const [printerName, groupedItems] of printerGroups.entries()) {
       try {
         const headerTitle = basePrintOptions?.headerTitle || (isUpdate ? "UPDATE KOT" : "KOT");
 
         // When multiple stations exist in the order AND otherKitchenItem is enabled,
-        // attach items routed to other stations to this station's print payload.
-        const otherKitchenItems = (otherKitchenItemActive && printerGroups.size > 1)
+        // attach items routed to other stations to this station's print payload (not for void cancellations).
+        const otherKitchenItems = (otherKitchenItemActive && printerGroups.size > 1 && !isVoidOrder)
           ? items.filter((it) => !groupedItems.includes(it))
           : [];
 
@@ -211,8 +216,13 @@ export const executeKotRouting = async (
     console.warn("[Printer Routing] Standard KOT skipped: kotPrint is disabled in POS config and not forced.");
   }
 
-  // 2. Dispatch Master KOT
-  if (isMasterKotEnabled || isMasterKotBillEnabled) {
+  // 2. Dispatch Master KOT (Only for orders/re-orders to prepare, never duplicate for void cancellations)
+  const isVoidOrder = Boolean(
+    basePrintOptions?.headerTitle &&
+    (basePrintOptions.headerTitle === "VOID ITEMS" || basePrintOptions.headerTitle.includes("VOID"))
+  );
+
+  if (!isVoidOrder && (isMasterKotEnabled || isMasterKotBillEnabled)) {
     const masterTitle = basePrintOptions?.headerTitle && basePrintOptions.headerTitle !== "KOT"
       ? (isUpdate ? `UPDATE ${basePrintOptions.headerTitle}` : basePrintOptions.headerTitle)
       : (isUpdate ? "UPDATE MASTER KOT" : "MASTER KOT");

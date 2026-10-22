@@ -48,9 +48,6 @@ export const PosReportsHubView: React.FC<PosReportsHubViewProps> = ({
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
               POS Reports Hub
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium">
-              Set report period below or select a report card to view logs
-            </p>
           </div>
         </div>
 
@@ -155,14 +152,11 @@ export const PosReportsHubView: React.FC<PosReportsHubViewProps> = ({
                 <Icon size={22} strokeWidth={2.2} />
               </div>
 
-              {/* Title & Description */}
-              <div className="flex flex-col items-center gap-0.5 min-h-0">
-                <h4 className="text-[11px] font-black text-slate-900 group-hover:text-[#49293e] tracking-tight leading-tight uppercase">
+              {/* Title */}
+              <div className="flex flex-col items-center justify-center my-auto px-1 min-h-[30px]">
+                <h4 className="text-[11px] font-black text-slate-900 group-hover:text-[#49293e] tracking-tight leading-snug uppercase">
                   {card.title}
                 </h4>
-                <p className="text-[9px] text-slate-500 font-medium leading-tight line-clamp-2 px-1">
-                  {card.description}
-                </p>
               </div>
 
               {/* Action Button Hover */}

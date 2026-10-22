@@ -86,11 +86,12 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       showToast(`Fetching Order #${transId} for printing...`, "info");
       
       const orderRes = await orderApi.getOrderDetails(transId);
-      if (!orderRes || !orderRes.isSuccess || !orderRes.data) {
+      const order = orderRes?.data || orderRes;
+      if (!order || (!order.masterData && !order.detailsData && !order.details)) {
         showToast(`Failed to load order #${transId} for printing`, "error");
         return;
       }
-      const order = orderRes.data;
+
       
       const master = order.masterData || order;
       const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
@@ -215,7 +216,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         }));
         
         const qty = d.qty ?? d.Qty ?? 1;
-        const amount = d.amount ?? d.netAmount ?? d.NetAmount ?? d.Amount ?? 0;
+        const amount = d.netAmount ?? d.NetAmount ?? (d.amount !== undefined && Number(d.amount) > 0 ? (Number(d.amount) + Number(d.vatAmount || 0)) : d.amount) ?? 0;
         const itemDisc = Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0);
         const rawPrice = d.price ?? d.Price;
         const price = (rawPrice !== undefined && Number(rawPrice) > 0)
@@ -321,6 +322,8 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           messages: d.messages || [],
           itemDiscount: Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
           lineTotal: itemLineNet,
+          lineNetAmount: itemLineNet,
+          basePrice: d.basePrice,
           vatAmount: itemVat
         };
       });
@@ -567,6 +570,8 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         netAmount: netAmount,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
+        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        priceView: (localStorage.getItem("priceView") as any) || undefined,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
           Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
         )
@@ -743,7 +748,8 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
           <div
             key={order.orderId || `recall-${index}`}
             onClick={() => {
-              setSelectedOrderId(order.orderId);
+              const oId = Number(order.orderId ?? (order as any).OrderId ?? (order as any).id ?? (order as any).Id ?? 0);
+              setSelectedOrderId(oId);
               setIsDetailsOpen(true);
             }}
             className={`
@@ -850,7 +856,7 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         orderId={selectedOrderId}
-        orderDetailsStr={orders.find(o => o.orderId === selectedOrderId)?.details}
+        orderDetailsStr={orders.find(o => (o.orderId ?? (o as any).OrderId) === selectedOrderId)?.details}
         onEditSuccess={onClose}
         onSettleSuccess={(amount) => {
           onSettleSuccess?.(amount);
